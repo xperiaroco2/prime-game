@@ -35,19 +35,13 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   `{agentType: 'lean-writer'}`.
 
 ## Reading the spend
-- `tools\run.cmd metrics --since <restart> --track <track> --budget <its %> --compact` (#409), `<restart>` the moment
-  the counter last restarted (the Tuesday 10:00 UTC reset, or a reset by hand after it; never a fixed date: `--since`
-  the scheduled reset after a reset by hand read 103% against the counter's 31%, #677), prints the window, one line per
-  track named (`<track>: <%> (<bracket>) of <budget>% this week; plan to date <%>;
-  list $<n> in <k> sessions`; the plan to date is the budget x the days since `--since` / 7: after a reset by hand it
-  runs low until the next scheduled reset, so hold the track's % against its budget directly), and the total of every
-  session of the three checkouts with its untracked share and that share's largest sessions. Several tracks take one
-  budget each, in their order (`--track game meta --budget 26 12`); `--track all` lists every track found and takes no
-  `--budget`. Without `--compact` it adds a table of every session with its track and where the track came from.
-- A session's track: its `--session <id>=<track>` label, else the `Track:` line of its kickoff (§10's template in
-  [kickoff-template.md](kickoff-template.md), and the handover kickoff of §7, so a successor keeps its track), else its
-  checkout's (`-ui`: ui, `-art`: art), else untracked (the engineer's reserve). A session of your track listed as
-  untracked (a kickoff without the line, or with a translated name): count it with `--session <id>=<track>`.
+- `tools\run.cmd metrics --since <restart> --track <track> --budget <its %> --compact` (#409; the flags, the plan to
+  date and the track order: `metrics --help`). `<restart>` is the moment the counter last restarted (the Tuesday 10:00
+  UTC reset, or a reset by hand after it); **never pass a fixed date or the scheduled reset after a reset by hand**: it
+  read 103% against the counter's 31% (#677). After a reset by hand the plan to date runs low until the next scheduled
+  reset, so hold the track's % against its budget directly.
+- A session of your track listed as untracked (a kickoff without the `Track:` line of
+  [kickoff-template.md](kickoff-template.md) §10, or with a translated name): count it with `--session <id>=<track>`.
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
   <your session id> --compact --verbose` (whole lines; the default cuts them at 400 characters) in a text block, written
   straight into the comment's body file, not read (at most ten lines: time and API list $ per task and in total, the %
@@ -89,71 +83,48 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   launches.
 
 ## Launch args (N4 (b), N5 (a))
-- **The lean agent types** are always on in `issue-task` and `pr-rebase` (#458, the engineer's N4 (b), 2026-10-06;
-  #883 removed `lean: false` and `lean_reason`, the switch of a resume of a run launched before #458): pass nothing,
-  also for a task that edits `.claude/workflows/` (#557: its agents read `docs/workflow-scripts.md`;
-  [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
+Each option is described once, in [launch-args.md](launch-args.md) (the table, its `models` and `checkpoint` rows); here
+only what the budget and the trials decide.
+- **Always on, pass nothing**: the lean agent types (#458; [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md);
+  also for a task that edits `.claude/workflows/`, #557) and bounded waits (#411); launch-args.md says the rest. A
+  resume takes the args of its launch ([resume.md](resume.md) §7).
 - **The launch check** (#557): before each `issue-task` or `pr-rebase` launch or resume, `tools\run.cmd agents-check
   --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
   files that differ from origin/main: pull `main` (or have it pulled) and run it again. No arg gets around it.
-- **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
-  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). A clean run's
-  publisher runs as `task-publisher` (the lean types are always on) on Sonnet (the call's model wins); the pair is
-  new, so check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
-  It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
-  ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
-  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
-- **`models: {plan: "sonnet"}`** on every `issue-task` launch with `plan_review` (#469, the engineer's yes on the
-  issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
-  non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
-  the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
-- **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch
-  (a standing habit since 2026-10-10, #560: [trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md),
-  model-guard ADR amendment; the engineer's yes on #302):
-  Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
-  design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
-  more without `models.implement` (Opus). Revert rule: read `tools\run.cmd metrics --since 2026-09-30T00:00:00Z`'s
-  "Sonnet implementer trial" table before each wave; once its advice says revert (blockers and majors over 0.3 a task
-  across the 10 Sonnet tasks since the keep, 2026-10-10 18:06Z), post it on #302 with the table and stop passing
-  `implement`.
-- **`models: {publish_findings: "sonnet"}`** beside `publish_clean` on every non-design `issue-task` launch, and
-  **`models: {publish: "sonnet"}`** on every `pr-rebase` launch (#835, a trial:
-  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md) amendment of
-  2026-10-11, the engineer's yes on #302): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s
+- **`models.publish_clean: "sonnet"`** (N5; [effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
+  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)): judged again at each
+  reset with `metrics`' quality scorecard, and stays until the engineer drops it; check a new pair's first wave with
+  `tools\run.cmd agents-check` and `metrics`.
+- **`models.plan: "sonnet"`** (#469): the result's `plan.model` shows it; `metrics`' plan phase table compares the plan
+  and critique $, the planner files the implementer read again and the critique's findings with the runs before (they
+  must not rise).
+- **`models.implement: "sonnet"`** beside `publish_clean` (a standing habit since 2026-10-10, #560: [trial
+  ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md), model-guard ADR amendment; the engineer's yes on
+  #302) on every qualifying `issue-task` launch: Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing
+  under `core/ server/ net/ client/ voice/`, not a design task, no `.claude/workflows/` edit. Red once: the fresh
+  relaunch stays on Sonnet; red twice: relaunch once more without `models.implement` (Opus). Revert rule: read
+  `tools\run.cmd metrics --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave; once its
+  advice says revert (blockers and majors over 0.3 a task across the 10 Sonnet tasks since the keep, 2026-10-10
+  18:06Z), post it on #302 with the table and stop passing `implement`.
+- **`models.publish_findings: "sonnet"`** beside `publish_clean`, and **`models.publish: "sonnet"`** on every
+  `pr-rebase` launch (#835, a trial: [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)
+  amendment of 2026-10-11, the engineer's yes on #302): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s
   "Sonnet publisher trial (#835)" tables before each wave; once either gives advice other than "continue", post it
   on #302 with the table and stop passing that role.
-- **`checkpoint: true`** on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it (#759),
-  then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
-  implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's
-  estimate says so. After each wave: the results' `handoffs` key and `metrics`' handoff table.
-- Bounded waits are always on since #411 (#883 removed `bounded_waits: false`): pass nothing. A resume takes the
-  args of its launch ([resume.md](resume.md) §7); a run launched before #411 or #458 is relaunched fresh, not resumed
-  (`bounded_waits`, `lean` and `lean_reason` only log now).
+- **`checkpoint: true`** (#759): when to pass it and the engineer's decision after 10 tasks are in launch-args.md.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff
   ([kickoff-template.md](kickoff-template.md) §10). The UI and art managers run their own repos' workflows (P5 ports the
   levers there).
-- **The rules every track's manager follows**, UI and art included, are
+- **The rules every track's manager follows**, UI and art included, are in
   [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
-  keep-alive and the handover; the UI and art repos' `CLAUDE.md` files point there.
-- **A handover** (§7) is due once the context is over 500k tokens or the session over 12 hours old, even mid-wave:
-  N6 (b) as changed by the engineer on
-  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287), replacing "still only at a wave
-  boundary" (#329), with 500k for 300k on
-  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (#511; to be
-  checked with `metrics` after a week). Also due once the runs in flight end after a merge into `main` changed root
-  `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context
-  over 250k (half the threshold, as 150k was of 300k) and no run in flight (instead of a keep-alive). `wave`'s last
-  line says which (§7's turn-end check). A manager may also hand over earlier, at a natural break, when its cost math
-  says a fresh start is cheaper (#484).
-- **The engineer pastes the successor's kickoff** (#511; approved by the engineer:
-  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), on every
-  track: the handover comment's notes end with the ready kickoff (handover.md §4), the last For-you carries it, so no
-  handover needs a prompt written by hand, and he pastes it into a new session in the track's checkout with bypass and
-  effort high. While he is away no successor starts, so a manager hands over only when a threshold forces it, and lets
-  its runs end first. Route C (#484, a one-time `fireAt` scheduled task, handover.md §3) is a fallback he asks for: its
-  successor always starts in `acceptEdits` at medium effort. A start-up costs about the successor's first 20 calls.
+  keep-alive, when to hand over (§5: the 500k, 12-hour and 250k thresholds, N6 (b) as changed on
+  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287); the paste and the 500k:
+  [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), the handover comment and the
+  paste (§6), route C (§7); how game and meta carry it out: [handover.md](handover.md). While the engineer is away no
+  successor starts, so a manager hands over only when a threshold forces it. A start-up costs about the successor's
+  first 20 calls.
 - **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
   returns a compact result, and the manager writes no large file itself.
 
