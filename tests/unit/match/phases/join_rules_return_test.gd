@@ -117,6 +117,16 @@ func test_a_full_lobby_refuses_a_returner_and_holds_no_seat() -> void:
 	assert_str(game.state.player(P8).name).is_equal("Player2")
 
 
+func test_a_newcomer_naming_itself_like_the_leaver_keeps_its_own_fallback() -> void:
+	# P13 (b): while Player2 is away nobody may wear its name, and Player2 returns as Player2.
+	var game := _three()
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureBaseMode.join(game, P7, "Player2")
+	assert_str(game.state.player(P7).name).is_equal("Player4")
+	FixtureBaseMode.join(game, P8, "", K2)
+	assert_str(game.state.player(P8).name).is_equal("Player2")
+
+
 func test_no_event_carries_the_key_and_the_command_log_keeps_it_as_sent() -> void:
 	var game := _three()
 	FixtureModes.send(game, Intents.PEER_LEFT, P2)

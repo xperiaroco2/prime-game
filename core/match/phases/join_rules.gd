@@ -12,8 +12,8 @@ extends RefCounted
 ## who left and joins again with the same return key (its Hello's `key`, ReturnKey), its old one
 ## (the returning-players ADR, Decision 2; the engineer's answers P1 (c), P3 (a), P4 (a), P13 (b)
 ## on #302). It is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or
-## Player<number> when nothing usable is left; a name a present player has gets a suffix
-## (PlayerNames.unique). A joiner takes the first body colour no
+## Player<number> when nothing usable or only a reserved name (Player and digits) is left; a name a
+## present player has gets a suffix (PlayerNames.unique). A joiner takes the first body colour no
 ## present player has (PlayerColours, #551); SetProfile changes name and colour in the lobby
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
@@ -87,7 +87,8 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 
 ## Names the joiner with `number` (§3.5, #550): `wanted` as PlayerNames.clean leaves it, or the
 ## fallback Player<number> (PlayerNames.fallback) when that is empty (no name, the wrong type,
-## blanks or controls only); then
+## blanks or controls only) or reserved for the fallback names (PlayerNames.is_reserved, P13 (b) of
+## the returning-players ADR: the joiner keeps its fallback, never Rejected); then
 ## PlayerNames.unique against the present players, so a chosen name never repeats one ("Dima",
 ## then "Dima 2").
 static func joiner_name(ctx: MatchContext, wanted: Variant, number: int) -> String:
@@ -96,7 +97,7 @@ static func joiner_name(ctx: MatchContext, wanted: Variant, number: int) -> Stri
 	var taken := PackedStringArray()
 	for peer: int in ctx.state.present_peers():
 		taken.append(ctx.state.players[peer].name)
-	var own := not cleaned.is_empty()
+	var own := not cleaned.is_empty() and not PlayerNames.is_reserved(cleaned)
 	return PlayerNames.unique(cleaned if own else fallback, taken)
 
 
@@ -155,8 +156,10 @@ static func set_ready(ctx: MatchContext, command: MatchCommand, ready: bool) -> 
 ## order: a `name` that is not text or a `colour` that is not an int is Rejected (`bad_args`); a
 ## colour outside PlayerColours is `out_of_bounds`. The name as PlayerNames cleans it, made unique
 ## against the other present players (so re-sending one's own "Dima 2" keeps it); a name with
-## nothing usable left keeps the current one, and never counts a join (MatchState.joins numbers
-## joins only). The colour as asked when no other present player has it, else the first free one
+## nothing usable left, or one reserved for the fallback names (PlayerNames.is_reserved, P13 (b)),
+## keeps the current one, never Rejected for the name (so a player without an own name re-sends
+## its Player<n> with a new colour), and never counts a join (MatchState.joins numbers joins
+## only). The colour as asked when no other present player has it, else the first free one
 ## (the engineer's answer on #73). Both as they are: Rejected (`unchanged`). Otherwise both are set
 ## and ProfileChanged goes to everyone. The ready flag is untouched.
 static func set_profile(ctx: MatchContext, command: MatchCommand) -> bool:
@@ -171,7 +174,7 @@ static func set_profile(ctx: MatchContext, command: MatchCommand) -> bool:
 	var player := ctx.state.player(command.peer)
 	var player_name := player.name
 	var cleaned := PlayerNames.clean(wanted_name)
-	if not cleaned.is_empty():
+	if not cleaned.is_empty() and not PlayerNames.is_reserved(cleaned):
 		var taken := PackedStringArray()
 		for peer: int in ctx.state.present_peers():
 			if peer != command.peer:

@@ -126,6 +126,30 @@ func test_a_name_with_nothing_usable_keeps_the_current_name_and_counts_no_join()
 	assert_str(game.state.player(P3).name).is_equal("Player3")
 
 
+func test_a_reserved_name_keeps_the_current_name_and_is_never_rejected_for_it() -> void:
+	# P13 (b) of the returning-players ADR: Player and digits are the host's fallback names.
+	var game := FixtureBaseMode.started()
+	FixtureBaseMode.join(game, P1, "Ann")
+	FixtureBaseMode.join(game, P2)
+	# A named player asking for Player9 keeps its name; with its colour as it is, unchanged.
+	FixtureBaseMode.profile(game, P1, "Player9", 0)
+	assert_str(game.state.player(P1).name).is_equal("Ann")
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"unchanged"])
+	FixtureBaseMode.profile(game, P1, "player9", 5)
+	assert_str(game.state.player(P1).name).is_equal("Ann")
+	assert_int(game.state.player(P1).colour).is_equal(5)
+	# An unnamed player re-sends its own fallback with a new colour: the colour changes.
+	FixtureBaseMode.profile(game, P2, "Player2", 7)
+	assert_str(game.state.player(P2).name).is_equal("Player2")
+	assert_int(game.state.player(P2).colour).is_equal(7)
+	var changed := game.view_of(P1).events_named(&"ProfileChanged")[1] as ProfileChangedEvent
+	assert_dict(changed.to_dict()).is_equal({"peer": P2, "name": "Player2", "colour": 7})
+	# Another player's fallback is no name for P2 either.
+	FixtureBaseMode.profile(game, P2, "Player1", 7)
+	assert_str(game.state.player(P2).name).is_equal("Player2")
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unchanged"])
+
+
 func test_the_same_profile_is_unchanged_with_no_event() -> void:
 	var game := FixtureBaseMode.started()
 	FixtureBaseMode.join(game, P1, "Ann")
