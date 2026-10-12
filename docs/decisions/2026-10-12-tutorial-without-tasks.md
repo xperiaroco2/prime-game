@@ -1,6 +1,6 @@
 # The tutorial without tasks: movement and the basic mechanics, the package as a plain item
 
-- **Status:** Proposed (#825), for the engineer. The LD items (LD1 to LD9) are his, tier (c) of the
+- **Status:** Proposed (#825), for the engineer. The LD items (LD1 to LD10) are his, tier (c) of the
   [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md) (game rules, taste and the words); the LE items
   (LE1 to LE6) are the M7 manager session's, tier (a), each standing as recommended unless it reports otherwise.
   Nothing here is built; no build issue opens before his answers
@@ -62,7 +62,8 @@ Recommended, each item in the design's §9 tables:
    drafts, marked so, at his word.
 7. **The parts stay** (LE3): `TasksDone`, `ClientSeen`'s `howto_opened`, the «?» step's `HOWTO_GLYPH` and round
    keycap and their tests remain, used by no data.
-8. **The tests** (LE5): every rewritten assertion is listed in the build PR for his nod.
+8. **The tests** (LE5, LD10 (a)): no test is deleted before his LD10 answer; every rewritten or dropped assertion is
+   listed in the build PR.
 9. **The split** (LD9 (a)): 825a removes the tasks; 825b adds the throw lesson; 825c adds the crouch to lesson 1.
 
 ## Needs the engineer
@@ -80,6 +81,7 @@ answers.
 | LD7 | The order | (a) today's, the removed left out, new lessons in place; (b) the map just before the menu | (a) |
 | LD8 | The words | (a) the deck's keys only in 825a, drafts for new steps through the UI track; (b) a new pass over every step's words by the UI track first | (a) |
 | LD9 | The split | (a) 825a, 825b, 825c as the design's §9.7; (b) with his changes | (a) |
+| LD10 | The tests 825a drops | (a) yes to the design's list (§9.4): one test deleted, the assertions on what goes dropped; (b) the list with his changes | (a) |
 
 ## Alternatives
 - **Keep a task and teach Delivery by meaning** (DD10's other options): the engineer chose no task (DD10).

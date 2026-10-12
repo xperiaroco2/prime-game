@@ -690,4 +690,4 @@ The engineer's decision of 2026-10-11 (DD10, [PR #713](https://github.com/xperia
 the tutorial deals no task at all and teaches only movement and the basic mechanics; the tasks leave with its
 rework, not before (#825). Its design, [`docs/design/tutorial.md`](design/tutorial.md) §9, and its
 [ADR](decisions/2026-10-12-tutorial-without-tasks.md) are proposed: which mechanics it teaches (the throw, the
-crouch, the knife's strike, giving up), the lessons' order and their words are his open points LD1 to LD9.
+crouch, the knife's strike, giving up), the lessons' order and their words are his open points LD1 to LD10.
