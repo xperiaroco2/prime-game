@@ -344,16 +344,18 @@ The list the [Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meani
 | `content/tutorial/tutorial.tres` | nine lessons | lesson 4 and lesson 5's step (b) gone: eight lessons (LD2, LD7) |
 | `levels/tutorial/rooms/tutorial_room.tscn` | markers `Start`, `ShelfPackage`, `TableKnife`, `DropOff` (`spawn_circle`), `RaiseSpot`, `Corner`, `Respawn` | `DropOff` gone (LE4) |
 | `client/dev/tutorial_preview.gd` (its `step-howto` state), `client/dev/tutorial_step_howto_preview.tscn`, `client/dev/tutorial_step_howto_uk_preview.tscn` | the «?» step's shots (`step-howto`) | the two scenes and the script's `step-howto` state go with the step; the script stays for the invite and step shots (LE5) |
-| `tests/unit/content/tutorial_mode_test.gd` | the `tasks` and `packages` settings | no task settings; the package's `SpawnItems` (LE5) |
-| `tests/integration/levels/tutorial_map_test.gd` | the circle marker | no circle marker (LE5) |
+| `tests/unit/content/tutorial_mode_test.gd` | the `tasks` and `packages` settings (`test_the_deal_s_settings_are_fixed`); `TaskTicks` in the three stages (`test_the_tick_systems_with_life_ticks_only_in_the_death_stage`); `DealTasks` in the loading row's actions (`test_the_rows_and_their_actions`); "one circle" in the match's layout (`test_a_match_from_gather_to_the_respawn_in_the_death_stage`) | no task settings; no `TaskTicks`; the loading row with the package's `SpawnItems` and no `DealTasks`; no circle in the layout (LE5) |
+| `tests/integration/levels/tutorial_map_test.gd` | the circle in the marker counts (`test_the_markers_are_the_design_s_stations_on_the_floor`); the drop-off across the room from the shelf, so the package is not delivered by chance (`test_the_drop_off_is_across_the_room_from_the_shelf`) | no circle in the counts (LE5); the drop-off test deleted only on his LD10 (a) |
 | `tests/unit/content/tutorial/tutorial_content_test.gd` | lesson 4's row; the «?» step's card check | the eight rows (LE5) |
 | `tests/integration/client/app/game_tutorial_lessons_test.gd` | the tasks done; the «?» card of Delivery | the eight lessons, no task (LE5) |
-| `tests/unit/client/ui/tutorial_screen_test.gd` (it loads the real `tutorial.tres`) | the nine rows; the deliver and «?» steps | the eight rows (LE5) |
+| `tests/unit/client/ui/tutorial_screen_test.gd` (it loads the real `tutorial.tres`) | the nine rows; the deliver and «?» steps (`test_step_howto_is_lesson_5s_round_keycap_and_lesson_4_has_a_title_only`) | the eight rows; the round keycap tested on a step the test builds, since no lesson shows it (LE3, LE5) |
 | ARCHITECTURE | §4.7.43 ("the tutorial teaches Delivery anyway"), §4.7.45 (nine lessons), §4.7.49 (the shots), §9.5.17, §9.6 (the room), the content tree | as built by 825a |
 | this page and the GDD | §1, §2.3, §4; GDD §15 | as built by 825a |
 
 What stays (LE3, LE6): `TasksDone` (`core/content/tutorial/tasks_done.gd`), `ClientSeen`'s `howto_opened` and its
-feed in `client/app/game_tutorial.gd`, and their tests (`tests/unit/content/tutorial/tutorial_parts_test.gd`,
+feed in `client/app/game_tutorial.gd`, the «?» step's client code (`TutorialStep.HOWTO_GLYPH` and `TutorialScreen`'s
+round keycap branch, `client/ui/tutorial_screen.gd`), which no lesson uses any more,
+and their tests (`tests/unit/content/tutorial/tutorial_parts_test.gd`,
 `tests/unit/client/tutorial/lesson_runner_test.gd`); `content/scenarios/tutorial_stages.tres`, which names no task
 (825a runs it again); every key of the deck.
 
@@ -392,7 +394,7 @@ Only keys the deck has (LD8 (a)); a new lesson's words go to the UI track as dra
 |---|---|---|---|---|
 | LE1 | How the mode deals no task | (a) drop `DealTasks`, the task types, the `tasks` and `banned_task_types` settings and every `TaskTicks`; (b) keep `DealTasks` with `tasks` 0 | (b): the loading screen's `HowtoCards.deal_of` still finds Delivery dealable and shows its card, and `DealTasks`' check (`tasks` at most the pool's size) keeps a task type the mode never deals | (a) |
 | LE2 | How the package spawns | (a) a `SpawnItems` of the package by the `packages` setting, with its own `rng_purpose`, in `loading → lessons` beside the knife's; the setting's display name drops "(Delivery)", which no screen shows here (no lobby, no `ChangeSettings`); (b) a setting of a new name | (b) renames what the tests and the mode check already read | (a) |
-| LE3 | The parts no data uses any more | (a) keep `TasksDone`, `howto_opened` and their tests; (b) remove them | (b) deletes tests, which needs the engineer's approval, and "for now" may bring a task back | (a) |
+| LE3 | The parts no data uses any more | (a) keep `TasksDone`, `howto_opened`, the «?» step's `HOWTO_GLYPH` and round keycap, and their tests (the keycap's test rewritten on a step it builds); (b) remove them | (b) deletes tests, which needs the engineer's approval, and "for now" may bring a task back | (a) |
 | LE4 | The room's markers | (a) remove `DropOff` only; (b) leave it | (b) a `circle` marker no rule reads, taken for a drop-off by the next reader | (a) |
 | LE5 | The tests and the shots | (a) rewrite §9.2's tests to the eight lessons, every changed assertion listed in the PR for his nod; the «?» shots go; (b) keep the old assertions where they still pass | (b) tests that check a lesson nobody plays | (a) |
 | LE6 | The deck | (a) no #825 issue types into `strings.csv`; new keys come with a UI tag through `ui-copy` in the first PR that needs them (825b; 825c's crouch key is named by #791's `control.crouch`); (b) add the drafts to the deck here | (b) the next `ui-copy` overwrites them and `strings.lock.json` no longer matches | (a) |

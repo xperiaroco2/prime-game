@@ -60,7 +60,8 @@ Recommended, each item in the design's §9 tables:
    (eight lessons); a throw lesson, if he takes it, after Hand and belt.
 6. **The words** (LD8 (a)): the first build uses only keys the deck has; a new step's words go to the UI track as
    drafts, marked so, at his word.
-7. **The parts stay** (LE3): `TasksDone`, `ClientSeen`'s `howto_opened` and their tests remain, used by no data.
+7. **The parts stay** (LE3): `TasksDone`, `ClientSeen`'s `howto_opened`, the «?» step's `HOWTO_GLYPH` and round
+   keycap and their tests remain, used by no data.
 8. **The tests** (LE5): every rewritten assertion is listed in the build PR for his nod.
 9. **The split** (LD9 (a)): 825a removes the tasks; 825b adds the throw lesson; 825c adds the crouch to lesson 1.
 
