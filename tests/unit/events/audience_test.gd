@@ -78,6 +78,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		ZoneProgressEvent.new(1, 0, 20, true, 0),
 		SwitchChangedEvent.new(2, true),
 		ButtonPressedEvent.new(1),
+		LiftChangedEvent.new(2, true, 40),
+		PartNeededEvent.new(3, &"spark_plug"),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),
