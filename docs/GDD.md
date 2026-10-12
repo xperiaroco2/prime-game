@@ -684,7 +684,7 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
 ## 15. Tutorial
 
 [`docs/design/tutorial.md`](design/tutorial.md) (#552, built by T1 to T4 and #492): an offline solo session in a
-room of its own, the UI track's nine lessons, and its points (D25 to D36) for the engineer.
+room of its own, the UI track's nine lessons, and its points D25 to D36 (his answers: ARCHITECTURE §9.5.17).
 
 The engineer's decision of 2026-10-11 (DD10, [PR #713](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402)):
 the tutorial deals no task at all and teaches only movement and the basic mechanics; the tasks leave with its
