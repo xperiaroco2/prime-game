@@ -1364,191 +1364,67 @@ refused.
 
 ### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--adr-reads] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
-baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
-reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
-path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
-`<key>--claude-worktrees-<n>/`. The main checkout is the parent of `git rev-parse --path-format=absolute
---git-common-dir`, so every worktree gets the same answer (workflow agents log under their parent session's folder
-anyway). Per session: its own `<session>.jsonl` (the manager), the subagents it ran by hand, and each workflow run
-under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.json`). Usage is deduplicated by message
-id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
-with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
-characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run, per review tier (#606: light, full, or
-unknown before #606 or with no publisher, read from the publisher's prompt; runs, wall time, review phase, API list $;
-`tiers` in `metrics.json`, and `--run` names a run's tier), per path (#875: "Update runs (#856)": first run, update
-run with a light delta, update run with a full delta, read from the "Update run (update, #856):" line of the agents'
-prompts, light or full by the run's tier; runs, median and mean API list $, wall, agents, blockers+majors, beside the
-$7.6 to $14 baseline of an update run before #856 and "fewer runs than 3: wait" until 3 update runs; `update_runs` in
-`metrics.json`, and one clause on `--compact`'s per-task line) and per session (a stage), per agent role
-(from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
-issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
-`review:code-control` and `ab-judge`; any other is "other"),
-local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
-the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
-writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
-as N, and the `test` shards that did not end with exit 0, #273, and how many of the window's recorded `check` steps
-passed although Godot crashed at exit, #449: records without the `exit_crash` field are not counted), review
-findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the plan
-phase per run with a planner (#469: the planner's model, the plan's and its critique's API list $, the files the
-planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
-code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
-valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
-`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), implementer context per
-run with an implementer (#559, `issue-task`'s `checkpoint`: implementer agents, handoffs (the `implement:#N#k`
-continuations), API calls, those over 200k of context and their API list $, against the target of under 5% from 14%;
-the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
-`<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
-`metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
-compact "task medians" line), the tool output per implementer (#572: the characters of its tool calls' text outputs
-and the part of the runner commands agents run in loops, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
-in tokens; per task `impl_outputs` in `metrics.json`, one pair per implementer that made a tool call; their medians at
-the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the launch
-prompt size per agent role (#470: the prompt the script gave each agent, in characters and estimated tokens, median and
-max; `prompt_sizes` in `metrics.json`, not in `--compact`), the Sonnet implementer trial (#560: per trial task, against the
-Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
-and CI fix rounds, tool calls and $, and, since the keep (2026-10-10 18:06Z), the revert rule's advice (blockers and
-majors over 0.3 a task across 10 tasks); `sonnet_trial` in `metrics.json`;
-[trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), the Sonnet publisher trial (#835: per task whose
-full publisher had a blocker or major left open, against the Opus publishers since 2026-10-08 12:25Z, open blockers
-and majors, not fixed, later findings, fix and CI fix rounds, publisher and run $, and its stop rule's advice; and
-per `pr-rebase` run, Sonnet against Opus, red runs, blockers and majors, not fixed and $; `publisher_trial` in
-`metrics.json`; the [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendment
-of 2026-10-11), per agent role and
-agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
-list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
-agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s
-phase line; `agent_types` in `metrics.json`), the prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
-(#555, §11.17; `bounded_waits` in `metrics.json`), the tool-call start-up (#568, §8.2: per class of call, shell calls
-started in the background (the start-up alone), foreground shell calls but `wait`, Read, Grep and Glob (no hook: the baseline)
-and Edit and Write (with the gd-edit hook), the median and p95 of the
-time from its tool_use line to its tool_result line, and of a `wait` call stopped by its deadline minus wait's own
-clock; `tool_latency` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
-session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
-by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
-call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
-minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
-how many of them wrote most of the context again (a call that still hit the cache counts, at $0); per
-run and then per agent, with its agent type from the `.meta.json`, API calls, longest gap and final context; split by
-what preceded the gap: the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep` (a keep-alive or a poll
-loop); another shell command; Monitor; Read or another tool, each when the previous call's longest foreground tool ran
-for half the gap or more; after a call that ended the agent's turn, the background task still running: the first of
-`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
-with their share of the agents' cache-write $ and the median gap; `idle` in
-`metrics.json`), the context per API call of every agent, not only #559's implementers (#584: input, cache write and
-cache read of each call; per agent role the average over its agents' calls and the peak, then the heavy agents, at 150k
-average or 300k peak, with run, issue, calls, average and peak: an agent that carries a large context through many calls
-pays for it on each; also at the end of the compact summary's first line and as `--run`'s last line, which lists the
-heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
-window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-lines, plus a note line when one was cut (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
-the % of the week, `verify` medians), each cut at 400 characters unless `--verbose` (#572; `metrics.md` holds them
-whole, and a last line says so when one was cut): the manager writes
-`metrics --since <wave start> --compact --verbose` (the lines whole: a wave comment is the durable record) straight into the
-comment's `--body-file`, without reading it. The % of the week counts cache reads at the central
-weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
-0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
-range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
-0.6 or 1 times the cache-read $) / $21.5 or $25.5; `WEEK_BRACKET`). At 1, $25.5 is #304's full list $ per 1% (66% at
-2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
-and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
-and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
-account (`--track`, below, reads every session of three checkouts). API list $ is a weight (one price table in
-`metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
-empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
-(#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
-run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
-agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
-the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
-open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
-journaled), the publisher's `fixed`, `not_fixed`,
-`needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
-(`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
-`ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
-Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
-`fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
-Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
-repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
-with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
-(wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
-the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
-"How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
-launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
-reads, its share of the role's $, the points at w = 0, 0.5 and the central 0.75 ((non-read $ + w x cache-read $) /
-$15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the window) and the files loaded twice in
-one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
-AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
-single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
-`instructions` in `metrics.json`, and one compact line. **`--adr-reads`** (#793) adds the table of ADR reads by file
-(`instructions.adr_reads` in `metrics.json` has it without the flag): per file under `docs/decisions/` that a tool
-read, the reads split whole (a `Read` with no offset or limit, or a `cat`, that returned over 150 lines), section
-(the runner's `section`, a `Read` with an offset or limit, `sed -n`, `head`, `tail`, a Grep or a search) and small (a
-file of 150 lines or fewer read in full), the tokens, the list $, the top 10 by $ and the agent types that read it by
-their share of its $. A `section <doc>` call is a (section) read of the doc in the by-file table too, but it carries
-no text to the by-§ tables of ARCHITECTURE and AGENT_WORKFLOW, so a doc's by-file $ can exceed its by-§ total; in a
-command with more steps, each other step's docs keep their own kind (a `cat` beside it is a plain read). Tests:
-`tools/runner/tests/test_metrics_adr_reads.py`. With it (#834) comes a table of `docs/ARCHITECTURE.md`'s tool reads by
-agent type (`instructions.arch_reads` without the flag): agents, reads split the same way, repeats (every line of the
-read already read by the same agent since the file last changed by its own Edit, Write, `sed -i` or `>`, a git
-rebase, checkout or reset, a runner `publish`, `normalize` or `merge`, or since a compaction) and partial repeats
-(some lines), tokens, list $, and the $ of whole reads and of repeated lines. Lines are a `Read`'s numbered lines, a
-`cat`'s or a `sed -n` range's, and each section `section` printed (its `--- <path>:<first>-<last>` head; the outline
-counts as one more line); a Grep, a search, `head`, `tail` or a `section` piped on is never a repeat. Tests:
-`tools/runner/tests/test_metrics_arch_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
-design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
-session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
-name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's
-from the folder names under `~/.claude/projects/` wherever they sit (#586: `C:\prime-game` with `D:\prime-game-ui`;
-a key such as `D--prime-game-ui` or `E--games-prime-game-art`, its worktrees' `<key>--claude-worktrees-<n>`); the
-session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
-its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
-across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
-`--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
-orchestrate-stage skill's §10 template (`kickoff-template.md`) and §7's handover carry one; any case, the key also
-`Трек:` for a translated
-kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's default
-(`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track (`all`: every
-track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the bracket, its list $
-and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the engineer's, N1 of the design, so
-there is no default) `of <budget>% this week; plan to date <budget x days since --since / 7, at most the budget>%`; then
-every session's total, which the manager holds against the weekly counter (`get_usage`), with the untracked share and
-its three largest sessions (a kickoff whose `Track:` line was left out or translated shows there). That total covers
-only the three checkouts: the counter also counts the account's sessions elsewhere (another project folder, a replay,
-another machine), so the two differ by more than the conversion's error. **`--since` is the moment the counter last
-restarted, not always the scheduled reset** (#677): a reset by hand (the engineer's spare reset, 2026-10-08 12:25 UTC,
-counter 1%) restarts the counter, and `--since` the scheduled reset then reads 103% against the counter's 31% (every
-message id counted once, no response in two files; against the counter's 99% at 11:48 UTC just before that reset, the
-same `metrics` read 95.9%, so the conversion holds). After a reset by hand, pass its time as `--since`; the plan to
-date then counts the days from it and runs low until the next scheduled reset (that week is shorter than 7 days), so
-hold a track's % against its budget directly. The last line names the checkouts read (each one's folder keys and
-worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so is its track's line
-when no session here has that track (`all` lists it too): its spend is unknown, never 0%. `tracks.json` lists them
-under `checkouts`.
-Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
-named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
-own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
-`--compact` the budget lines stay as they are). It writes `tracks.json` (`--out`, with `idle` per track), never
-`metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
-labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%. **`--run ID ...`** (#534),
-alone: one workflow run's spend so far, finished or in flight, for the manager's check after a large launch's first
-phase ([`docs/MANAGERS.md`](MANAGERS.md) §9). Each run whose folder name starts with an ID (`wf_` optional) in the
-folders of `TRACK_CHECKOUTS` (so a UI or art run too, from this repo's main checkout): the agents started (a retried
-one once) and answered, who works now (a started agent with no result), the minutes since the newest write to its
-journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
-message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
-phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
-three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
-several runs end with their total. It writes no file; an ID that names no run fails, naming the checkouts read (one
-with no folder here: not on this machine, #586); next to an ID that does, it gets a line `<id>: no run here (...)` first. On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
+baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts
+(`~/.claude/projects/<key>/` and `<key>--claude-worktrees-<n>/`, `<key>` the main checkout's path with every character
+but letters and digits replaced by `-`; `CLAUDE_CONFIG_DIR` replaces `~/.claude`). Per session: the manager's own
+lines, its hand-run subagents and each workflow run under `subagents/workflows/wf_*/`. Usage counts each message id
+once; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a
+past `--until` gives the same tables later. `--session dd93bf79=M4` labels sessions (one label: one stage). It prints
+and writes `tools/out/metrics/metrics.md` and `.json`; the `metrics.py` docstring has each table's fields. The tables,
+one line each (the key in `metrics.json` in brackets):
+- per finished `issue-task` run, per session (a stage) and per agent role, from the agent's label (§7.1);
+- per review tier (#606, `tiers`) and per path of an update run (#875, "Update runs (#856)", `update_runs`);
+- local `verify` by step, with its slot wait, runs over the limit, the red runs' failing tests and the `check` steps
+  that passed although Godot crashed at exit (#179, #185, #273, #449; from `tools/out/logs/verify-history.jsonl`);
+- review findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline);
+- the plan phase per run with a planner (#469, `plans`);
+- the code reviewer's A/B (#535, `ab_review`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md), whose stop
+  rule it advises on);
+- implementer context and checkpoint handoffs (#559, `handoffs`);
+- the tool output per implementer (#572, `impl_outputs`) and the launch prompt size per role (#470, `prompt_sizes`);
+- the Sonnet implementer trial (#560, `sonnet_trial`; [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md),
+  with its revert rule's advice);
+- the Sonnet publisher trial and `pr-rebase` by model (#835, `publisher_trial`; the
+  [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendment of 2026-10-11);
+- agents by role and agent type, and how many ran general (#557, `agent_types`);
+- cache re-writes after a `wait` or a CI wait (#555, §11.17, `bounded_waits`) and the tool-call start-up per class of
+  call (#568, §8.2, `tool_latency`);
+- manager sessions with their % of the week and their cache re-writes after an idle gap over 1 hour (#305), and the
+  subagents' re-writes after a gap of 5 minutes or more, by what preceded it (#558, `idle`);
+- the context per API call of every agent, with the heavy ones (#584, `context_per_call`);
+- the quality scorecard (#314, `quality`): per run, per session and per role setting, blockers and majors, skeptics'
+  refutations, "clean" (#315's rule), the publisher's fixes and rounds, and from `gh` (read-only, by default; `--no-gh`
+  skips it) the PR, its CI rounds, Found-by issues and later reverts or fixes; unknown is `?`, never 0;
+- "Instructions and docs per agent role" (#337, the instruction-diet ADR's method, `instructions`): loaded and read
+  tokens, the points at three cache-read weights, files loaded twice, cost by file, ARCHITECTURE's and
+  AGENT_WORKFLOW's list $ by § of today's file, and the open-PR pairs whose `merge-check` names an ARCHITECTURE
+  conflict;
+- `--adr-reads` (#793, `instructions.adr_reads`): ADR reads by file, whole, by section or small; with it the
+  ARCHITECTURE reads by agent type and their repeats (#834, `instructions.arch_reads`);
+- "Issues launched 2 or more times" (#833, `relaunches`): the runs per issue and their $ after the first; the cause of
+  a relaunch is in the run's notes and the issue's comments, not the transcripts.
 
-The report's section "Issues launched 2 or more times" (#833; `relaunches` in `metrics.json`) lists, per issue that 2
-or more issue-task or pr-rebase runs of the window worked on, the runs, their API list $ and the $ after the first
-run, the unfinished runs and their $, the implementer continuations after a checkpoint handoff, and the runs that
-started within 10 minutes after the previous one's end (an update that could have gone into that launch; an
-overlapping run is not). A pr-rebase run is labelled with its PR's number: it counts under the issue whose publisher
-returned that PR, else under a row "PR #N". Wave and other runs are left out (their labels may name several issues).
-The cause of a relaunch (the engineer's answer, a sibling PR merged, a crash) is not in the transcripts: it is in the
-run's notes and the issue's comments (#833's classification). Tests: `tools/runner/tests/test_metrics_relaunch.py`.
+`--ci N` adds CI from `gh`. `--compact` prints only a summary of at most 11 lines, each cut at 400 characters unless
+`--verbose` (#572): the manager writes `metrics --since <wave start> --compact --verbose` straight into the wave
+comment's `--body-file`, without reading it. The % of the week counts cache reads at the central weight #307 measured
+(`WEEK_CENTRAL`, #333: (list $ without cache reads + 0.75 x the cache-read $) / $23.0 per 1%), with the measured
+range in a bracket (`WEEK_BRACKET`). API list $ is a weight (one price table in `metrics.py`), not money spent; no
+transcripts or an empty window is a message and exit 0 (and an empty report). It covers only this checkout's sessions
+that ran a workflow or that `--session` names.
+
+**`--track NAME ...`** (#409) with `--since <the weekly reset>`: a track's spend this week against its budget, over
+every session of the main checkout and its `-ui` and `-art` checkouts (`TRACK_CHECKOUTS`, #586), each API call counted
+by its time in the window. A session's track: `--session <id>=<track>`, else a `Track: <name>` line in its kickoff
+(orchestrate-stage `kickoff-template.md`), else its checkout's, else `untracked`. One line per track (% of the week
+with the bracket, list $, sessions; with `--budget PCT ...` the budget and the plan to date), then every session's
+total, which the manager holds against the weekly counter; a checkout with no folder here is `not on this machine`,
+its spend unknown, never 0%. **`--since` is the moment the counter last restarted, not always the scheduled reset**
+(#677): after a reset by hand, pass its time; the plan to date then runs low until the next scheduled reset, so hold
+a track's % against its budget directly. It writes `tracks.json`, never `metrics.md`.
+**`--run ID ...`** (#534), alone: one workflow run's spend so far, finished or in flight, for the manager's check
+after a large launch's first phase ([`docs/MANAGERS.md`](MANAGERS.md) §9): its agents, who works now, the minutes
+since its last write, its % of the week and list $ by phase, its idle re-writes and context per call. It writes no
+file; an ID that names no run fails.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
