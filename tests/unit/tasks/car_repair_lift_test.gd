@@ -124,6 +124,40 @@ func test_walking_out_of_the_panels_cylinder_drops_the_car() -> void:
 	assert_int(game.state.players[P2].life).is_equal(PlayerState.Life.DEAD)
 
 
+func test_losing_sight_of_the_panel_drops_the_car() -> void:
+	var world := FlatWorldQuery.new()
+	var game := FixtureCarRepairModes.in_round(
+		FixtureCarRepairModes.basic(), [P1, P2, P3, P4], {}, {}, 7, {}, world
+	)
+	FixtureCarRepairModes.hold(game, P1)
+	FixtureItemModes.stand(game, P2, FixtureCarRepairModes.under())
+	FixtureModes.run_ticks(game, 3)
+	assert_array(_ups(game)).is_equal([true])
+	# A wall between the holder and the panel: ChannelTicks' StationInSight re-check fails.
+	var panel_at := game.state.stations[FixtureCarRepairModes.state_of(game).panel].position
+	world.add_wall(AABB(panel_at + Vector3(-1, 0, -0.3), Vector3(2, 3, 0.1)))
+	FixtureModes.run_ticks(game, 1)
+	assert_array(_ups(game)).is_equal([true, false])
+	assert_int(game.state.players[P2].life).is_equal(PlayerState.Life.DEAD)
+	assert_int(game.state.players[P1].life).is_equal(PlayerState.Life.ALIVE)
+	assert_object(Channels.of_actor(game.state, P1)).is_null()
+
+
+func test_the_holder_dying_drops_the_car() -> void:
+	var game := _round()
+	FixtureCarRepairModes.hold(game, P1)
+	FixtureItemModes.stand(game, P2, FixtureCarRepairModes.under())
+	FixtureModes.run_ticks(game, 3)
+	assert_array(_ups(game)).is_equal([true])
+	# Another part of the mode kills the holder outright (a tick system queuing its kill).
+	game.mode.find_phase(&"round").tick_systems.append(FixtureKillTick.queuing([P1]))
+	FixtureModes.run_ticks(game, 1)
+	assert_int(game.state.players[P1].life).is_equal(PlayerState.Life.DEAD)
+	assert_array(_ups(game)).is_equal([true, false])
+	assert_int(game.state.players[P2].life).is_equal(PlayerState.Life.DEAD)
+	assert_object(Channels.of_actor(game.state, P1)).is_null()
+
+
 func test_a_hit_does_not_drop_the_car_but_a_knockdown_does() -> void:
 	var game := _round()
 	FixtureCarRepairModes.hold(game, P1)
@@ -211,8 +245,14 @@ func test_the_car_takes_a_use_only_while_fully_up() -> void:
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable", &"unavailable"])
 	FixtureModes.run_ticks(game, 1)
 	FixtureCarRepairModes.use(game, P2, task_state.car, 3)
+	# A timed hold stops at its first re-check with no claim since its placement (ZE10).
+	FixtureMoves.claim(game, P2, game.state.players[P2].position)
 	FixtureModes.run_ticks(game, 1)
 	assert_array(FixtureModes.rejections(game, P2)).has_size(2)
+	# Applied, not merely not refused: the fit's hold runs at the car.
+	var fit := Channels.on_station(game.state, task_state.car)
+	assert_object(fit).is_not_null()
+	assert_int(fit.actor).is_equal(P2)
 
 
 func test_the_phases_end_lowers_the_car_without_a_kill() -> void:
