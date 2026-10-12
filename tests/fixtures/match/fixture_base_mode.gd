@@ -151,10 +151,11 @@ static func started(seed_value: int = 7) -> Match:
 
 
 ## `peer` connects and says Hello with `player_name` ("" asks for none: the host names it
-## Player<n>), the host's version and the content hash of a Match made without one (0).
-static func join(game: Match, peer: int, player_name: String = "") -> void:
+## Player<n>), the host's version and the content hash of a Match made without one (0), and
+## `key` as its return key (#638) unless it is null (a Hello with no key: none, P7).
+static func join(game: Match, peer: int, player_name: String = "", key: Variant = null) -> void:
 	FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
-	hello(game, peer, player_name)
+	hello(game, peer, player_name, JoinRules.PROTOCOL_VERSION, 0, 0, key)
 
 
 static func hello(
@@ -163,9 +164,12 @@ static func hello(
 	player_name: String,
 	version: int = JoinRules.PROTOCOL_VERSION,
 	seq: int = 0,
-	content: int = 0
+	content: int = 0,
+	key: Variant = null,
 ) -> void:
 	var fields := {"name": player_name, "version": version, "content": content}
+	if key != null:
+		fields["key"] = key
 	FixtureModes.send(game, Intents.HELLO, peer, fields, seq)
 
 
@@ -182,19 +186,20 @@ static func profile(
 	FixtureModes.send(game, Intents.SET_PROFILE, peer, fields, seq)
 
 
-## A lobby with `peers` joined and all ready: the match is in the countdown.
-static func in_countdown(peers: Array[int], seed_value: int = 7) -> Match:
+## A lobby with `peers` joined and all ready: the match is in the countdown. `keys` (peer -> return
+## key, #638) gives a peer's Hello its key; a peer it lacks sends none.
+static func in_countdown(peers: Array[int], seed_value: int = 7, keys: Dictionary = {}) -> Match:
 	var game := started(seed_value)
 	for peer: int in peers:
-		join(game, peer)
+		join(game, peer, "", keys.get(peer))
 	for peer: int in peers:
 		ready(game, peer)
 	return game
 
 
 ## `peers` in the countdown, then its ticks through its end tick (entry + 100): loading.
-static func in_loading(peers: Array[int], seed_value: int = 7) -> Match:
-	var game := in_countdown(peers, seed_value)
+static func in_loading(peers: Array[int], seed_value: int = 7, keys: Dictionary = {}) -> Match:
+	var game := in_countdown(peers, seed_value, keys)
 	FixtureModes.run_ticks(game, 101)
 	return game
 
@@ -205,16 +210,16 @@ static func load_ack(game: Match, peer: int, match_id: int = -1, seq: int = 0) -
 
 
 ## `peers` loaded: the match is in the pregame, entered at the last tick run.
-static func in_pregame(peers: Array[int], seed_value: int = 7) -> Match:
-	var game := in_loading(peers, seed_value)
+static func in_pregame(peers: Array[int], seed_value: int = 7, keys: Dictionary = {}) -> Match:
+	var game := in_loading(peers, seed_value, keys)
 	for peer: int in peers:
 		load_ack(game, peer)
 	return game
 
 
 ## `peers` loaded and the pregame's ticks run through its end tick: the match is in the round.
-static func in_round(peers: Array[int], seed_value: int = 7) -> Match:
-	var game := in_pregame(peers, seed_value)
+static func in_round(peers: Array[int], seed_value: int = 7, keys: Dictionary = {}) -> Match:
+	var game := in_pregame(peers, seed_value, keys)
 	through_pregame(game)
 	return game
 
@@ -226,8 +231,8 @@ static func through_pregame(game: Match) -> void:
 
 
 ## `peers` in the round, then the crew wins: the match is in End.
-static func in_end(peers: Array[int], seed_value: int = 7) -> Match:
-	var game := in_round(peers, seed_value)
+static func in_end(peers: Array[int], seed_value: int = 7, keys: Dictionary = {}) -> Match:
+	var game := in_round(peers, seed_value, keys)
 	game.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(game, 1)
 	game.state.set_counter(0, &"crew_win", 0)

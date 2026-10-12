@@ -35,8 +35,10 @@ extends RefCounted
 ## host text `short_axis`.
 ## 24 since #781 added the photo task's FilmLoaded (kind 77) and ShotTaken (kind 78) and the
 ## Rejected reasons `no_film`, `no_frames_left` and `film_exposed` and the host text
-## `photo_spot_near` (the photo ADR §3.2, §3.3, PE12).
-const VERSION := 24
+## `photo_spot_near` (the photo ADR §3.2, §3.3, PE12);
+## 25 since #638 added Hello's return `key` (an id decoded as a String; the returning-players ADR,
+## Decision 4).
+const VERSION := 25
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -219,8 +221,17 @@ static func _intents() -> Array[WireRow]:
 		"settings", _id(""), WireField.setting("", MAX_TASK_TYPES), MAX_ENTRIES, false
 	)
 	var has_map := WireField.when("has_map", [_of("map", WireField.Type.PATH)])
+	# The return key (#638) decodes as a String: a StringName is no key to core/ (ReturnKey).
 	var hello := _up(
-		HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64), _name("name")]
+		HELLO,
+		&"Hello",
+		8192,
+		[
+			_u16("version"),
+			_of("content", WireField.Type.S64),
+			_name("name"),
+			WireField.id("key", true),
+		]
 	)
 	var has_lobby_name := WireField.when("has_lobby_name", [_name("lobby_name")])
 	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map, has_lobby_name])

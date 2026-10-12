@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 ## rows 1 and 32 byte for byte, and the version.
 
 const CLIENT_TO_HOST := NetKindTable.Direction.CLIENT_TO_HOST
+## A usable return key (#638): 32 lowercase hex characters, 32 bytes on the wire.
+const KEY := "0123456789abcdef0123456789abcdef"
 const HOST_TO_CLIENT := NetKindTable.Direction.HOST_TO_CLIENT
 
 ## The rows whose content can take them past their cap at the maxima (WireBudget checks the mode).
@@ -204,16 +206,19 @@ func test_the_hello_row_is_frozen_byte_for_byte() -> void:
 	assert_int(hello.direction).is_equal(CLIENT_TO_HOST)
 	assert_int(hello.lane).is_equal(NetKindTable.Lane.RELIABLE)
 	assert_int(hello.cap).is_equal(8192)
-	var payload := schema.encode(
-		WireMessage.new(&"Hello", {"version": 0x0102, "content": 0x1122334455667788, "name": "Ді"})
-	)
-	# The version first (frozen); since protocol 10 (#550) the name: u8 length, then UTF-8.
-	assert_array(Array(payload)).is_equal(
-		[0x02, 0x01, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 4, 0xD0, 0x94, 0xD1, 0x96]
-	)
-	# The name is required: a Hello without one is refused, not sent short.
+	var fields := {"version": 0x0102, "content": 0x1122334455667788, "name": "Ді", "key": "abc"}
+	var payload := schema.encode(WireMessage.new(&"Hello", fields))
+	# The version first (frozen); since protocol 10 (#550) the name: u8 length, then UTF-8; since
+	# protocol 25 (#638) the return key, an id: u8 length, then ASCII.
+	var expected := [0x02, 0x01, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11]
+	expected.append_array([4, 0xD0, 0x94, 0xD1, 0x96])
+	expected.append_array([3, 0x61, 0x62, 0x63])
+	assert_array(Array(payload)).is_equal(expected)
+	# The name and the key are required: a Hello without one is refused, not sent short.
 	var nameless := schema.write(WireMessage.new(&"Hello", {"version": 1, "content": 2}))
 	assert_str(nameless.problem).is_equal("a missing field name")
+	var keyless := schema.write(WireMessage.new(&"Hello", {"version": 1, "content": 2, "name": ""}))
+	assert_str(keyless.problem).is_equal("a missing field key")
 
 
 func test_the_rejected_row_is_frozen_byte_for_byte() -> void:
@@ -248,17 +253,35 @@ func test_a_hello_of_another_version_decodes_to_its_version_alone() -> void:
 
 func test_a_hello_of_this_version_is_decoded_strictly() -> void:
 	var schema := WireSchema.game(false)
-	var payload := schema.encode(
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 5, "name": "Dima"})
-	)
-	assert_dict(schema.decode(WireSchema.HELLO, payload).fields).is_equal(
-		{"version": WireSchema.VERSION, "content": 5, "name": "Dima"}
-	)
+	var fields := {"version": WireSchema.VERSION, "content": 5, "name": "Dima", "key": KEY}
+	var payload := schema.encode(WireMessage.new(&"Hello", fields))
+	assert_int(payload.size()).is_equal(2 + 8 + 5 + 33)
+	var decoded := schema.decode(WireSchema.HELLO, payload)
+	assert_dict(decoded.fields).is_equal(fields)
+	# The key decodes as a String (WireField.id(..., true)): a StringName is no key to core/.
+	assert_int(typeof(decoded.fields["key"])).is_equal(TYPE_STRING)
 	assert_object(schema.decode(WireSchema.HELLO, payload.slice(0, 9))).is_null()
-	# The name's length promises more bytes than follow.
+	# The name's end, with no key after it.
+	assert_object(schema.decode(WireSchema.HELLO, payload.slice(0, 15))).is_null()
+	# The key's length promises more bytes than follow.
 	assert_object(schema.decode(WireSchema.HELLO, payload.slice(0, payload.size() - 1))).is_null()
-	payload.append(0)
-	assert_object(schema.decode(WireSchema.HELLO, payload)).is_null()
+	var trailing := payload.duplicate()
+	trailing.append(0)
+	assert_object(schema.decode(WireSchema.HELLO, trailing)).is_null()
+	# A key outside the id alphabet or longer than 32 bytes: the encoder refuses it, and so does the
+	# decoder, written by hand.
+	for bad: String in [KEY.to_upper(), KEY + "0"]:
+		var bad_fields := fields.duplicate()
+		bad_fields["key"] = bad
+		assert_str(schema.write(WireMessage.new(&"Hello", bad_fields)).problem).is_not_empty()
+		var bad_payload := payload.slice(0, 15)
+		bad_payload.append(bad.length())
+		bad_payload.append_array(bad.to_ascii_buffer())
+		(
+			assert_object(schema.decode(WireSchema.HELLO, bad_payload))
+			. override_failure_message(bad)
+			. is_null()
+		)
 
 
 func test_the_version_is_cores_protocol_version() -> void:

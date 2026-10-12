@@ -190,7 +190,7 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
-			args = {"version": WireSchema.VERSION, "content": 0, "name": ""}
+			args = {"version": WireSchema.VERSION, "content": 0, "name": "", "key": "nokey"}
 		Intents.SET_PROFILE:
 			args = _profile_args(phase)
 	return args

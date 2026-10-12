@@ -11,6 +11,12 @@ enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 var peer: int
 var name: String
+## The player's number in the host session (§3.5, the returning-players ADR, Decision 2): the
+## digits of its fallback name Player<number>, never sent on its own. Set at the join
+## (MatchState.give_number); a player who leaves and joins again where joins are allowed gets it
+## back by its return key, which only MatchState.numbers holds: no PlayerState holds a key, so no
+## event built from a player's fields can carry one. 0 for a player added without a join (tests).
+var number := 0
 ## The body colour, an index into PlayerColours (#551): public, kept for the session (ResetMatch
 ## leaves it), set at the join and by SetProfile in the lobby.
 var colour := 0

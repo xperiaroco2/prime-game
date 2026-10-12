@@ -1,10 +1,12 @@
 extends GdUnitTestSuite
-## MatchState: reset_match (ResetMatch, 2b), the join count and part_state (ARCHITECTURE §3.1,
-## §3.5, §9.1).
+## MatchState: reset_match (ResetMatch, 2b), the join count and the return keys' numbers (#638), and
+## part_state (ARCHITECTURE §3.1, §3.5, §9.1).
 
 const P1 := 1
 const P2 := 2
 const P3 := 3
+const KEY := "0123456789abcdef0123456789abcdef"
+const OTHER_KEY := "fedcba9876543210fedcba9876543210"
 
 
 func test_reset_match_clears_the_match_and_drops_who_left() -> void:
@@ -48,13 +50,38 @@ func test_reset_match_clears_the_match_and_drops_who_left() -> void:
 	assert_int(state.add_station(StationKind.new(), Vector3.ZERO, Color.RED).id).is_equal(1)
 
 
-func test_the_join_count_names_joiners_and_survives_reset_match() -> void:
+func test_the_join_count_numbers_joiners_and_survives_reset_match() -> void:
 	var state := _played_state()
-	assert_str(state.name_next_joiner()).is_equal("Player1")
-	assert_str(state.name_next_joiner()).is_equal("Player2")
+	assert_int(state.give_number(null)).is_equal(1)
+	assert_int(state.give_number(null)).is_equal(2)
 	state.reset_match()
 	assert_int(state.joins).is_equal(2)
-	assert_str(state.name_next_joiner()).is_equal("Player3")
+	assert_int(state.give_number(null)).is_equal(3)
+
+
+func test_a_key_gets_its_number_back_once_nobody_present_holds_it() -> void:
+	# The returning-players ADR, Decision 2: key -> number, session state.
+	var state := _played_state()
+	assert_int(state.give_number(KEY)).is_equal(1)
+	assert_dict(state.numbers).is_equal({KEY: 1})
+	state.player(P1).number = 1
+	assert_bool(state.holds_number(1)).is_true()
+	# P1 still holds 1: a second window with the key is a new number, and the key keeps 1.
+	assert_int(state.give_number(KEY)).is_equal(2)
+	# An unusable key, or none: a new number, no binding.
+	assert_int(state.give_number("zz")).is_equal(3)
+	assert_int(state.give_number(StringName(OTHER_KEY))).is_equal(4)
+	assert_dict(state.numbers).is_equal({KEY: 1})
+	# A player who left holds no number.
+	state.player(P2).number = 4
+	assert_bool(state.holds_number(4)).is_false()
+	state.reset_match()
+	assert_dict(state.numbers).is_equal({KEY: 1})
+	state.remove_player(P1)
+	assert_int(state.give_number(KEY)).is_equal(1)
+	assert_int(state.joins).is_equal(4)
+	assert_int(state.give_number(OTHER_KEY)).is_equal(5)
+	assert_dict(state.numbers).is_equal({KEY: 1, OTHER_KEY: 5})
 
 
 func test_part_state_is_made_once_per_key() -> void:

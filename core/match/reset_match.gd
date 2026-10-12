@@ -4,7 +4,8 @@ extends RuleEffect
 ## `End -> Lobby`. MatchState.reset_match() clears items, stations, tasks and their task states,
 ## bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the
 ## winner, and drops the players who left; then everyone is un-ready. It keeps the roster's
-## players and the session's join count (MatchState.joins, §3.5), so Player<n> numbering runs on.
+## players, the session's join count and its return keys (MatchState.joins and numbers, §3.5), so
+## Player<n> numbering runs on and a player who left still gets its number back.
 ##
 ## It must run before the row's PlacePlayers: placed first, a downed or dead player would be placed
 ## in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot.

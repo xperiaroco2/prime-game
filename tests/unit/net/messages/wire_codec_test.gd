@@ -345,7 +345,7 @@ func test_a_name_round_trips_in_utf8() -> void:
 	for each: String in [
 		"", "Dima", "Діма 2", emoji.repeat(20), "é".repeat(40), "x".repeat(WireField.NAME_MAX_BYTES)
 	]:
-		var hello := {"version": WireSchema.VERSION, "content": 1, "name": each}
+		var hello := {"version": WireSchema.VERSION, "content": 1, "name": each, "key": Samples.KEY}
 		var decoded := _round_trip(WireMessage.new(&"Hello", hello))
 		if decoded != null:
 			assert_str(decoded.fields["name"]).is_equal(each)
@@ -433,7 +433,9 @@ func test_every_name_character_round_trips() -> void:
 		if WireField.is_name_char(code):
 			batch += String.chr(code)
 		if batch.length() == PlayerNames.MAX_CHARS or (code == 0x10FFFF and not batch.is_empty()):
-			var hello := {"version": WireSchema.VERSION, "content": 1, "name": batch}
+			var hello := {
+				"version": WireSchema.VERSION, "content": 1, "name": batch, "key": Samples.KEY
+			}
 			var message := WireMessage.new(&"Hello", hello)
 			var decoded := _schema.decode(WireSchema.HELLO, _schema.encode(message))
 			if decoded == null or decoded.fields["name"] != batch:
@@ -443,7 +445,7 @@ func test_every_name_character_round_trips() -> void:
 	assert_array(Array(_errors.snapshot())).is_empty()
 
 
-## A Hello of this version whose name is `name_bytes`, written by hand.
+## A Hello of this version whose name is `name_bytes`, written by hand, with the key "zz".
 func _hello_with_name_bytes(name_bytes: PackedByteArray) -> PackedByteArray:
 	var payload := PackedByteArray()
 	payload.resize(10)
@@ -451,6 +453,7 @@ func _hello_with_name_bytes(name_bytes: PackedByteArray) -> PackedByteArray:
 	payload.encode_s64(2, 1)
 	payload.append(name_bytes.size())
 	payload.append_array(name_bytes)
+	payload.append_array(PackedByteArray([2, 0x7A, 0x7A]))
 	return payload
 
 

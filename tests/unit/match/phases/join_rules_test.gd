@@ -285,15 +285,41 @@ func test_a_long_duplicate_stays_within_16_characters() -> void:
 
 
 func test_the_fallback_never_repeats_a_chosen_name() -> void:
+	# P13 (b) of the returning-players ADR (the engineer's answer on #302): a chosen name of the
+	# form Player and digits is reserved, so P1's "player2" falls back to its own Player1 and the
+	# second join's fallback Player2 meets no chosen copy (before P13 it became "Player2 2").
 	var game := FixtureBaseMode.started()
 	FixtureBaseMode.join(game, P1, "player2")
-	# The second join's fallback is Player2, which P1 has (ignoring case).
+	assert_str(game.state.player(P1).name).is_equal("Player1")
 	FixtureBaseMode.join(game, P2)
 	assert_int(game.state.joins).is_equal(2)
-	assert_str(game.state.player(P2).name).is_equal("Player2 2")
-	# A chosen name counts as a join too: the next fallback is Player3.
+	assert_str(game.state.player(P2).name).is_equal("Player2")
+	# A chosen name counts as a join too: the next fallback is Player4.
+	FixtureBaseMode.join(game, P5, "Eve")
 	FixtureBaseMode.join(game, P3, "")
+	assert_str(game.state.player(P3).name).is_equal("Player4")
+	var names := {}
+	for peer: int in game.state.present_peers():
+		names[game.state.player(peer).name.to_lower()] = true
+	assert_int(names.size()).is_equal(4)
+
+
+func test_a_newcomer_naming_itself_like_a_fallback_keeps_its_own() -> void:
+	# P13 (b): while Player2 is away, a newcomer that names itself Player2 (in any case) keeps its
+	# own fallback name; nobody else may wear Player2.
+	var game := FixtureBaseMode.started()
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.join(game, peer)
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureBaseMode.join(game, P3, "Player2")
 	assert_str(game.state.player(P3).name).is_equal("Player3")
+	FixtureBaseMode.join(game, P5, "  PLAYER02 ")
+	assert_str(game.state.player(P5).name).is_equal("Player4")
+	assert_array(FixtureModes.rejections(game, P3)).is_empty()
+	assert_array(FixtureModes.rejections(game, P5)).is_empty()
+	# A name that only looks close stays its own.
+	FixtureBaseMode.join(game, 6, "Player 2")
+	assert_str(game.state.player(6).name).is_equal("Player 2")
 
 
 func test_a_hello_into_a_full_roster_is_rejected_and_disconnected() -> void:

@@ -84,8 +84,12 @@ class RawClient:
 	func send_bytes(kind: int, payload: PackedByteArray) -> Error:
 		return transport.send(NetTransport.HOST_ID, kind, payload)
 
-	func hello(content: int, version: int = WireSchema.VERSION, player_name := "") -> Error:
-		var fields := {"version": version, "content": content, "name": player_name}
+	## Hello with `key` as its return key (#638): by default a wire-valid id that is no usable key
+	## (ReturnKey.is_valid), so the host binds nothing.
+	func hello(
+		content: int, version: int = WireSchema.VERSION, player_name := "", key := "nokey"
+	) -> Error:
+		var fields := {"version": version, "content": content, "name": player_name, "key": key}
 		return send(WireMessage.new(&"Hello", fields))
 
 	func names() -> Array[StringName]:
@@ -189,11 +193,12 @@ static func layouts() -> Dictionary[String, LevelLayout]:
 
 
 ## A ClientSession joined over the hub with its own copy of `client_mode` (the host's by default),
-## its Hello asking for `player_name` ("" for none: Player<n>).
-func join(client_mode: GameMode = null, player_name := "") -> ClientSession:
+## its Hello asking for `player_name` ("" for none: Player<n>) and carrying `key` (#638; "" for a
+## random one of its own, ClientSession).
+func join(client_mode: GameMode = null, player_name := "", key := "") -> ClientSession:
 	var joining := LoopbackTransport.new(schema.kind_table(), hub)
 	joining.join("loopback", PORT)
-	return _client_on(joining, client_mode if client_mode != null else mode, player_name)
+	return _client_on(joining, client_mode if client_mode != null else mode, player_name, key)
 
 
 ## A ClientSession joined over the hub on a LossyTransport, which `lossy` holds.
@@ -332,8 +337,10 @@ func close() -> void:
 	session.close()
 
 
-func _client_on(on: NetTransport, client_mode: GameMode, player_name := "") -> ClientSession:
-	var client := ClientSession.new(on, client_mode, schema, player_name)
+func _client_on(
+	on: NetTransport, client_mode: GameMode, player_name := "", key := ""
+) -> ClientSession:
+	var client := ClientSession.new(on, client_mode, schema, player_name, key)
 	client.keep_history = true
 	client.load_levels = false
 	clients.append(client)

@@ -1,9 +1,10 @@
 # Returning players: a return key, the old number in the lobby, and #73's M7 split
 
-- **Status:** Proposed (#73). The items marked *the engineer's* are game rules or taste, tier (c) of the
-  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md): they wait for the engineer (Needs the engineer,
-  below). The *technical* items are tier (a): each stands as recommended unless the engineer or the M7 manager says
-  otherwise.
+- **Status:** Accepted (#73). The engineer's answers
+  ([#302 comment 6085059719](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)): P1 (c),
+  P3 (a), P4 (a), P9 (b), P11 (a), the split (a), P12 (a), P13 (b); the *technical* items stand as recommended (tier
+  (a) of the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). 73-A is built by #638; 73-B is
+  #639, 73-C #640.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer; designed by the agent in #73 under the meta manager session, on the engineer's word
   ([#302, item 3](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6079969242))

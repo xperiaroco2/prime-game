@@ -10,6 +10,8 @@ extends RefCounted
 ## The most characters (Unicode code points) a name keeps: the engineer's answer on #73. At most 4
 ## UTF-8 bytes each, so a name fits the wire's `name` type (a test pins the two).
 const MAX_CHARS := 16
+## The fallback names' prefix, lowercased (fallback, is_reserved).
+const RESERVED_PREFIX := "player"
 
 
 ## `raw` as a name: clean_to with MAX_CHARS. "" means no usable name (the host's fallback).
@@ -31,6 +33,27 @@ static func clean_to(raw: Variant, most: int) -> String:
 	if trimmed.size() > most:
 		trimmed = _trimmed(trimmed.slice(0, most))
 	return _as_string(trimmed)
+
+
+## The host's fallback name for the player with `number` (MatchState.give_number, §3.5).
+static func fallback(number: int) -> String:
+	return "Player%d" % number
+
+
+## Whether `name` (a clean() name) is reserved for the host's fallback names, so no player may take
+## it as its own (P13 (b) of the returning-players ADR, the engineer's answer on #302): "Player" in
+## any case followed by one or more ASCII digits and nothing else ("Player2", "player2",
+## "PLAYER02"). "Player", "Player 2" and "Player2 2" are not reserved.
+static func is_reserved(name: String) -> bool:
+	if name.length() <= RESERVED_PREFIX.length():
+		return false
+	if name.left(RESERVED_PREFIX.length()).to_lower() != RESERVED_PREFIX:
+		return false
+	for i: int in range(RESERVED_PREFIX.length(), name.length()):
+		var code := name.unicode_at(i)
+		if code < 0x30 or code > 0x39:
+			return false
+	return true
 
 
 ## `wanted` (a clean() name), or when a name in `taken` equals it ignoring case, the first of

@@ -7,6 +7,8 @@ extends RefCounted
 const ID_32 := "abcdefghijklmnopqrstuvwxyz_01234"
 ## The Hello sample's content hash (§4.3): any 64-bit number; this one needs all 8 bytes.
 const CONTENT_HASH := -0x123456789ABCDEF
+## A usable return key (#638, ReturnKey): 32 lowercase hex characters.
+const KEY := "0123456789abcdef0123456789abcdef"
 
 
 ## One event of every class core/ sends to a peer, keyed by class name (ItemSpawned twice: a knife
@@ -166,9 +168,13 @@ static func intents() -> Array[WireMessage]:
 	var settings := {&"tasks": 3, &"banned_task_types": PackedStringArray(["delivery"])}
 	return [
 		WireMessage.new(
-			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH, "name": "Діма"}
+			&"Hello",
+			{"version": WireSchema.VERSION, "content": CONTENT_HASH, "name": "Діма", "key": KEY}
 		),
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 0, "name": ""}),
+		# A wire-valid id that is no usable key: core/ reads it as none (P7).
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": 0, "name": "", "key": "zz"}
+		),
 		WireMessage.new(&"SetReady", {"ready": true}, 7),
 		WireMessage.new(&"ChangeSettings", {"settings": settings}, 8),
 		WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": "Діма's den"}, 13),

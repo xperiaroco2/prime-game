@@ -88,6 +88,10 @@ var load_levels := true
 var player_name := "":
 	set(value):
 		player_name = PlayerNames.clean(value)
+## The return key every Hello carries (ReturnKey, §3.5; the returning-players ADR, Decision 5): the
+## one _init was given, or a random one of this session. The host gives a player who left and joins
+## again with it its old number. Never shown: no other peer learns it.
+var return_key := ""
 var view := DecodedView.new()
 var model: ClientModel
 ## Why the session ended; empty while it runs.
@@ -150,11 +154,18 @@ var _placement_due := false
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
 ## the client's own copy of the game mode, whose ContentFingerprint Hello carries; `own_name` is
-## the name Hello asks for (UserSettings.player_name).
+## the name Hello asks for (UserSettings.player_name); `key` the return key Hello carries
+## (UserSettings.return_key for the join's target), or a random one of its own when it is no usable
+## key (ReturnKey.is_valid): the host's own client, a bot, a test.
 func _init(
-	transport: NetTransport, mode: GameMode, schema: WireSchema = null, own_name := ""
+	transport: NetTransport,
+	mode: GameMode,
+	schema: WireSchema = null,
+	own_name := "",
+	key := "",
 ) -> void:
 	player_name = own_name
+	return_key = key if ReturnKey.is_valid(key) else _random_key()
 	_transport = transport
 	_mode = mode
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
@@ -172,6 +183,12 @@ func _init(
 ## against the service's `found` use the same (the M6 ADR §2.5).
 static func content_of(mode: GameMode) -> int:
 	return ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+
+
+## A random return key of this session alone (16 bytes from Crypto, hex): it binds the number, but
+## no later session repeats it, so it never brings a number back.
+static func _random_key() -> String:
+	return Crypto.new().generate_random_bytes(ReturnKey.BYTES).hex_encode()
 
 
 ## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.
@@ -342,7 +359,9 @@ func _on_host_lost() -> void:
 
 
 func _on_connected(_own_id: int) -> void:
-	var hello := {"version": WireSchema.VERSION, "content": _content, "name": player_name}
+	var hello := {
+		"version": WireSchema.VERSION, "content": _content, "name": player_name, "key": return_key
+	}
 	_send(WireMessage.new(&"Hello", hello))
 
 

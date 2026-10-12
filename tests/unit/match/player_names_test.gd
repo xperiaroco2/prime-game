@@ -115,3 +115,20 @@ func test_dropped_and_blank_characters() -> void:
 
 func _c(code: int) -> String:
 	return String.chr(code)
+
+
+func test_the_fallback_is_player_and_the_number() -> void:
+	assert_str(PlayerNames.fallback(1)).is_equal("Player1")
+	assert_str(PlayerNames.fallback(12)).is_equal("Player12")
+	assert_bool(PlayerNames.is_reserved(PlayerNames.fallback(7))).is_true()
+
+
+func test_player_and_digits_are_reserved_in_any_case() -> void:
+	# P13 (b) of the returning-players ADR: no own name copies a fallback name.
+	for text: String in ["Player2", "player2", "PLAYER02", "pLaYeR123", "Player0"]:
+		assert_bool(PlayerNames.is_reserved(text)).override_failure_message(text).is_true()
+	for text: String in ["Player", "Player 2", "Player2 2", "Players2", "Player2a", "Plaer2", "2"]:
+		assert_bool(PlayerNames.is_reserved(text)).override_failure_message(text).is_false()
+	# Only ASCII digits: a full-width or Arabic-Indic digit is a name like any other.
+	assert_bool(PlayerNames.is_reserved("Player" + _c(0xFF12))).is_false()
+	assert_bool(PlayerNames.is_reserved("Player" + _c(0x0662))).is_false()

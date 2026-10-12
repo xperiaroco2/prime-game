@@ -240,13 +240,15 @@ func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
 	var host_hash := _decoded(
 		schema,
 		WireMessage.new(
-			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT, "name": "Діма"}
+			&"Hello",
+			{"version": WireSchema.VERSION, "content": CONTENT, "name": "Діма", "key": Samples.KEY}
 		)
 	)
 	var other_hash := _decoded(
 		schema,
 		WireMessage.new(
-			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1, "name": ""}
+			&"Hello",
+			{"version": WireSchema.VERSION, "content": CONTENT + 1, "name": "", "key": "zz"}
 		)
 	)
 	if host_hash == null or other_hash == null:
