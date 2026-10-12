@@ -24,6 +24,9 @@ func test_three_players_no_lobby_level_and_no_win_conditions() -> void:
 	assert_int(mode.max_players).is_equal(3)
 	assert_str(mode.lobby_level).is_empty()
 	assert_array(Array(mode.maps)).contains_exactly([ROOM])
+	# The saved file writes `bench_maps = null`: it must load as the empty default, not Nil.
+	assert_array(Array(mode.bench_maps)).is_empty()
+	assert_array(Array(mode.player_maps())).contains_exactly([ROOM])
 	assert_array(mode.win_conditions).is_empty()
 	assert_str(mode.first_phase).is_equal("gather")
 	var roles: Array[StringName] = []
@@ -50,16 +53,32 @@ func test_the_base_mode_s_player_rules_but_a_10_s_respawn() -> void:
 
 func test_the_deal_s_settings_are_fixed() -> void:
 	# No settings the player changes (§2.3): no phase accepts ChangeSettings, and each setting
-	# the deal reads has one value, Delivery's `packages` 1 and `knives` 1.
+	# the deal reads has one value: `packages` 1 (lesson 2's package, LD1 (a)) and `knives` 1.
 	var mode := _mode()
 	for spec: PhaseSpec in mode.phases:
 		assert_int(spec.senders_of(Intents.CHANGE_SETTINGS)).is_equal(0)
 	var defaults := mode.default_settings()
-	for id: StringName in [&"tasks", &"packages", &"knives"]:
+	var ids: Array[StringName] = []
+	for setting: SettingSpec in mode.settings:
+		ids.append(setting.id)
+	assert_array(ids).contains_exactly([&"packages", &"knives"])
+	for id: StringName in ids:
 		var setting := mode.find_setting(id)
-		assert_object(setting).override_failure_message(id).is_not_null()
 		assert_int(setting.min_value).override_failure_message(id).is_equal(setting.max_value)
 		assert_int(defaults[id]).override_failure_message(id).is_equal(1)
+
+
+func test_no_task_is_dealt() -> void:
+	# The tutorial without tasks (#900, LE1 (a)): no task type, no DealTasks in any row and no
+	# TaskTicks in any phase, so the loading screen finds no task card to show.
+	var mode := _mode()
+	assert_array(mode.task_types).is_empty()
+	for row: Transition in mode.transitions:
+		for action: RuleEffect in row.actions:
+			assert_bool(action is DealTasks).override_failure_message(row.from).is_false()
+	for spec: PhaseSpec in mode.phases:
+		for system: TickSystem in spec.tick_systems:
+			assert_bool(system is TaskTicks).override_failure_message(spec.id).is_false()
 
 
 func test_the_phases_as_the_design_s_table() -> void:
@@ -133,12 +152,12 @@ func test_the_tick_systems_with_life_ticks_only_in_the_death_stage() -> void:
 	var mode := _mode()
 	assert_array(mode.find_phase(&"gather").tick_systems).is_empty()
 	assert_array(mode.find_phase(&"loading").tick_systems).is_empty()
-	assert_array(_classes(mode.find_phase(&"lessons").tick_systems)).contains_exactly([TaskTicks])
+	assert_array(mode.find_phase(&"lessons").tick_systems).is_empty()
 	assert_array(_classes(mode.find_phase(&"raise_stage").tick_systems)).contains_exactly(
-		[ChannelTicks, TaskTicks]
+		[ChannelTicks]
 	)
 	var death := mode.find_phase(&"death_stage").tick_systems
-	assert_array(_classes(death)).contains_exactly([LifeTicks, ChannelTicks, TaskTicks])
+	assert_array(_classes(death)).contains_exactly([LifeTicks, ChannelTicks])
 	var respawn := (death[0] as LifeTicks).respawn
 	assert_str(respawn.tag).is_equal("respawn")
 
@@ -160,11 +179,18 @@ func test_the_rows_and_their_actions() -> void:
 		)
 	)
 	var deal := mode.transitions[1].actions
-	assert_array(_classes(deal)).contains_exactly([DealRoles, DealTasks, SpawnItems, PlacePlayers])
+	assert_array(_classes(deal)).contains_exactly([DealRoles, SpawnItems, SpawnItems, PlacePlayers])
 	var roles := deal[0] as DealRoles
 	assert_array(roles.quotas).is_empty()
 	assert_str(roles.default_role.id).is_equal("crew")
-	assert_str((deal[2] as SpawnItems).kind.id).is_equal("knife")
+	# The package first (LE2 (a)), so its item id comes before the knife's as under Delivery's deal.
+	var package := deal[1] as SpawnItems
+	assert_str(package.kind.id).is_equal("package")
+	assert_str(package.count_setting).is_equal("packages")
+	assert_str(package.rng_purpose).is_equal("packages")
+	var knife := deal[2] as SpawnItems
+	assert_str(knife.kind.id).is_equal("knife")
+	assert_str(knife.count_setting).is_equal("knives")
 	var place := deal[3] as PlacePlayers
 	assert_str(place.tag).is_equal("round_player")
 	assert_bool(place.ordered).is_true()
@@ -214,14 +240,24 @@ func test_a_match_from_gather_to_the_respawn_in_the_death_stage() -> void:
 	FixtureModes.run_ticks(game, 1)
 	assert_str(game.phase_id()).is_equal("lessons")
 	# Ordered placement (§2.5): peer 1 on the start, stand-in 1 on the raise spot, stand-in 2 in
-	# the corner; everyone crew, one package, one circle, one knife.
+	# the corner; everyone crew and no task; the package on the shelf, the knife on the table,
+	# and no station.
 	var spots := room.positions(&"round_player")
 	for i in peers.size():
 		var player := game.state.player(peers[i])
 		assert_vector(player.position).is_equal(spots[i])
 		assert_str(player.role).is_equal("crew")
-	assert_int(game.state.items.size()).is_equal(2)
-	assert_int(game.state.stations.size()).is_equal(1)
+	assert_int(game.state.tasks.size()).is_equal(0)
+	var kinds: Array[StringName] = []
+	var ids: Array = game.state.items.keys()
+	ids.sort()
+	# The package's SpawnItems comes first (LE2 (a)): its item id is the lower one.
+	for id: int in ids:
+		var item := game.state.items[id]
+		kinds.append(item.kind.id)
+		assert_vector(item.position).is_equal(room.positions(item.kind.spawn_tag)[0])
+	assert_array(kinds).contains_exactly([&"package", &"knife"])
+	assert_int(game.state.stations.size()).is_equal(0)
 	# A stand-in's NextStage is refused; the host's moves on and downs stand-in 1 for good.
 	FixtureStageModes.next_stage(game, 2)
 	FixtureModes.run_ticks(game, 1)

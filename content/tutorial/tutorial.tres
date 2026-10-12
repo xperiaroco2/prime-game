@@ -11,7 +11,6 @@
 [ext_resource type="Script" uid="uid://byqkvycd5044y" path="res://core/content/tutorial/own_life.gd" id="9_own_life"]
 [ext_resource type="Script" uid="uid://b1knp26j85ltw" path="res://core/content/tutorial/other_within.gd" id="10_other_within"]
 [ext_resource type="Script" uid="uid://cjnl13uy2naxw" path="res://core/content/tutorial/item_kind_is.gd" id="11_item_kind_is"]
-[ext_resource type="Script" uid="uid://dys0egc83oj0s" path="res://core/content/tutorial/tasks_done.gd" id="12_tasks_done"]
 [ext_resource type="Script" uid="uid://dqdbxfuhry7gv" path="res://core/content/tutorial/request_stage.gd" id="13_request_stage"]
 
 [sub_resource type="Resource" id="Seen_moved"]
@@ -88,24 +87,6 @@ script = ExtResource("2_lesson")
 list_key = &"tutorial.list.hand_belt"
 steps = Array[ExtResource("3_step")]([SubResource("Step_hand_belt")])
 
-[sub_resource type="Resource" id="Tasks_done"]
-script = ExtResource("12_tasks_done")
-
-[sub_resource type="Resource" id="Event_delivered"]
-script = ExtResource("7_event_seen")
-event = &"PackageDelivered"
-
-[sub_resource type="Resource" id="Step_deliver"]
-script = ExtResource("3_step")
-title_key = &"tutorial.step.deliver.title"
-done_when = Array[ExtResource("5_condition")]([SubResource("Tasks_done")])
-triggers = Array[ExtResource("4_trigger")]([SubResource("Event_delivered")])
-
-[sub_resource type="Resource" id="Lesson_deliver"]
-script = ExtResource("2_lesson")
-list_key = &"tutorial.list.deliver"
-steps = Array[ExtResource("3_step")]([SubResource("Step_deliver")])
-
 [sub_resource type="Resource" id="Seen_map"]
 script = ExtResource("8_client_seen")
 signal_name = &"map_opened"
@@ -117,22 +98,11 @@ how_key = &"tutorial.step.press"
 keys = Array[StringName]([&"map"])
 triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_map")])
 
-[sub_resource type="Resource" id="Seen_howto"]
-script = ExtResource("8_client_seen")
-signal_name = &"howto_opened"
-
-[sub_resource type="Resource" id="Step_howto"]
-script = ExtResource("3_step")
-title_key = &"tutorial.step.howto.title"
-how_key = &"tutorial.step.howto.how"
-keys = Array[StringName]([&"howto_glyph"])
-triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_howto")])
-
 [sub_resource type="Resource" id="Lesson_map"]
 script = ExtResource("2_lesson")
 list_key = &"tutorial.list.map"
 list_action = &"map"
-steps = Array[ExtResource("3_step")]([SubResource("Step_map"), SubResource("Step_howto")])
+steps = Array[ExtResource("3_step")]([SubResource("Step_map")])
 
 [sub_resource type="Resource" id="Stage_raise"]
 script = ExtResource("13_request_stage")
@@ -226,4 +196,4 @@ steps = Array[ExtResource("3_step")]([SubResource("Step_menu")])
 
 [resource]
 script = ExtResource("1_lessons")
-lessons = Array[ExtResource("2_lesson")]([SubResource("Lesson_move"), SubResource("Lesson_pick_up"), SubResource("Lesson_hand_belt"), SubResource("Lesson_deliver"), SubResource("Lesson_map"), SubResource("Lesson_downed"), SubResource("Lesson_death"), SubResource("Lesson_voice"), SubResource("Lesson_menu")])
+lessons = Array[ExtResource("2_lesson")]([SubResource("Lesson_move"), SubResource("Lesson_pick_up"), SubResource("Lesson_hand_belt"), SubResource("Lesson_map"), SubResource("Lesson_downed"), SubResource("Lesson_death"), SubResource("Lesson_voice"), SubResource("Lesson_menu")])

@@ -1,9 +1,11 @@
 # The tutorial without tasks: movement and the basic mechanics, the package as a plain item
 
-- **Status:** Proposed (#825), for the engineer. The LD items (LD1 to LD10) are his, tier (c) of the
-  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md) (game rules, taste and the words); the LE items
-  (LE1 to LE6) are the M7 manager session's, tier (a), each standing as recommended unless it reports otherwise.
-  Nothing here is built; no build issue opens before his answers
+- **Status:** Accepted: the engineer's answers on
+  [PR #894](https://github.com/xperiaroco2/prime-game/pull/894#issuecomment-6122434286), every LD item as
+  recommended (LD1 (a) with (c) later, LD4 (b) after #790 and #791); the LE items (LE1 to LE6) as recommended, the M7
+  manager session's. The LD items were his, tier (c) of the
+  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md) (game rules, taste and the words). 825a is
+  built in #900 (the mode, the eight lessons, the room); 825b (#901) and 825c (#902) follow
 - **Date:** 2026-10-12
 - **Deciders:** the engineer (the LD items); the M7 manager session (the LE items); designed by the agent in #825
   under the M7 manager session

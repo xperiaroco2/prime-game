@@ -2,10 +2,9 @@ extends Node3D
 ## A preview of the tutorial's screens (#492, TutorialScreen) for `tools\run.cmd shot`: the
 ## tutorial room (levels/tutorial/) seen from its start spot, the round HUD without the timer and
 ## the role (#489), and the s1 handoff's states: `invite` (the first launch's invite over the
-## room), `step` (lesson 2, its first instruction), `step-keys` (lesson 1's row of keycaps) and
-## `step-howto` (lesson 5's second instruction, the round «?»; the handoff draws neither the map
-## nor the HUD under it), in English or Ukrainian, at the default or the large text size. Dev
-## only: nothing here reaches the game.
+## room), `step` (lesson 2, its first instruction) and `step-keys` (lesson 1's row of keycaps), in
+## English or Ukrainian, at the default or the large text size. Dev only: nothing here reaches
+## the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/tutorial_mode.tres"
@@ -16,7 +15,7 @@ const NOW := 100
 const LOOK_FROM := Vector3(2.0, 0.0, 5.0)
 const LOOK_AT := Vector3(-1.0, 1.0, -2.0)
 
-@export_enum("invite", "step", "step-keys", "step-howto") var state := "invite"
+@export_enum("invite", "step", "step-keys") var state := "invite"
 @export var language := Languages.ENGLISH
 @export var large_text := false
 
@@ -54,12 +53,10 @@ func _ready() -> void:
 	local.stamina = float(mode.player_rules.stamina)
 	local.mic = true
 	ui.refresh_round(model, mode, NOW, local)
-	ui.hud.visible = state not in ["invite", "step-howto"]
+	ui.hud.visible = state != "invite"
 	var lessons := load(LESSONS) as TutorialLessons
 	# The lesson and step each state draws; the invite's none.
-	var places: Dictionary[String, Vector2i] = {
-		"step": Vector2i(2, 1), "step-keys": Vector2i(1, 1), "step-howto": Vector2i(5, 2)
-	}
+	var places: Dictionary[String, Vector2i] = {"step": Vector2i(2, 1), "step-keys": Vector2i(1, 1)}
 	var at: Vector2i = places.get(state, Vector2i.ZERO)
 	var done: Array[bool] = []
 	for number in range(1, lessons.lessons.size() + 1):

@@ -76,7 +76,7 @@ func test_the_invite_waits_over_the_room_and_start_begins_lesson_1() -> void:
 	assert_bool(game.ui.hud.timer.visible).is_false()
 	assert_bool(screen.step.visible).is_true()
 	assert_bool(screen.list.visible).is_true()
-	assert_str(screen.progress_label.text).is_equal("Step 1 of 9")
+	assert_str(screen.progress_label.text).is_equal("Step 1 of 8")
 	assert_str(String(screen.how.name)).is_equal("HowKeys")
 	assert_str(String(screen.rows.get_child(0).name)).is_equal("MoveNow")
 	assert_bool(game.player().reads_device_input).is_true()

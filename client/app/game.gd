@@ -412,7 +412,7 @@ func close_esc() -> void:
 	ui.close_esc()
 	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
 		pointer.capture(true)
-	# Last: after lesson 9 the tutorial leaves here (D32 (b)).
+	# Last: after lesson 8 the tutorial leaves here (D32 (b)).
 	tutorial.esc_closed()
 
 
