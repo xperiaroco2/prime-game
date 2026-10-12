@@ -24,6 +24,9 @@ func test_three_players_no_lobby_level_and_no_win_conditions() -> void:
 	assert_int(mode.max_players).is_equal(3)
 	assert_str(mode.lobby_level).is_empty()
 	assert_array(Array(mode.maps)).contains_exactly([ROOM])
+	# The saved file writes `bench_maps = null`: it must load as the empty default, not Nil.
+	assert_array(Array(mode.bench_maps)).is_empty()
+	assert_array(Array(mode.player_maps())).contains_exactly([ROOM])
 	assert_array(mode.win_conditions).is_empty()
 	assert_str(mode.first_phase).is_equal("gather")
 	var roles: Array[StringName] = []
@@ -246,11 +249,14 @@ func test_a_match_from_gather_to_the_respawn_in_the_death_stage() -> void:
 		assert_str(player.role).is_equal("crew")
 	assert_int(game.state.tasks.size()).is_equal(0)
 	var kinds: Array[StringName] = []
-	for id: int in game.state.items:
+	var ids: Array = game.state.items.keys()
+	ids.sort()
+	# The package's SpawnItems comes first (LE2 (a)): its item id is the lower one.
+	for id: int in ids:
 		var item := game.state.items[id]
 		kinds.append(item.kind.id)
 		assert_vector(item.position).is_equal(room.positions(item.kind.spawn_tag)[0])
-	assert_array(kinds).contains_exactly_in_any_order([&"package", &"knife"])
+	assert_array(kinds).contains_exactly([&"package", &"knife"])
 	assert_int(game.state.stations.size()).is_equal(0)
 	# A stand-in's NextStage is refused; the host's moves on and downs stand-in 1 for good.
 	FixtureStageModes.next_stage(game, 2)

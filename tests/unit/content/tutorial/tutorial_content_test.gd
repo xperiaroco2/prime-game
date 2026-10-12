@@ -127,7 +127,11 @@ func test_no_step_waits_for_what_nothing_can_complete() -> void:
 				var seen := trigger as ClientSeen
 				if seen != null and seen.signal_name == ClientSeen.HOWTO_OPENED:
 					assert_int(carded).override_failure_message("no how-to card").is_greater(0)
-			for condition: TutorialCondition in step.done_when:
+			var waits: Array[TutorialCondition] = []
+			waits.append_array(step.starts_when)
+			waits.append_array(step.conditions)
+			waits.append_array(step.done_when)
+			for condition: TutorialCondition in waits:
 				if condition is TasksDone:
 					(
 						assert_int(mode.task_types.size())
