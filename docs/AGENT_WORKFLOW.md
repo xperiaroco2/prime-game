@@ -1678,7 +1678,11 @@ with a past `--until` gives the same tables while sessions keep working. A sessi
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
 `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run, per review tier (#606: light, full, or
 unknown before #606 or with no publisher, read from the publisher's prompt; runs, wall time, review phase, API list $;
-`tiers` in `metrics.json`, and `--run` names a run's tier) and per session (a stage), per agent role
+`tiers` in `metrics.json`, and `--run` names a run's tier), per path (#875: "Update runs (#856)": first run, update
+run with a light delta, update run with a full delta, read from the "Update run (update, #856):" line of the agents'
+prompts, light or full by the run's tier; runs, median and mean API list $, wall, agents, blockers+majors, beside the
+$7.6 to $14 baseline of an update run before #856 and "fewer runs than 3: wait" until 3 update runs; `update_runs` in
+`metrics.json`, and one clause on `--compact`'s per-task line) and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
 issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
 `review:code-control` and `ab-judge`; any other is "other"),
