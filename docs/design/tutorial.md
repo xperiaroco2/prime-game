@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed (#552), for the engineer. Nothing here is built. The D items (§7) are the engineer's; the E items (§6) are the M6.2 manager's and stand as recommended unless reported otherwise, but E64 (a new kind in §1's `content/` row) and E65 (a wire row) go to the engineer too. The decisions, the batched questions and the rejected alternatives: [ADR](../decisions/2026-10-08-tutorial-offline-solo-session.md) |
+| **Status** | §1 to §8: designed in #552 and built by T1 to T4 and #492 (M6.2); ARCHITECTURE §4.7.43, §4.7.45, §9.5.17 and §9.6 record what was built and on which answers. §9, **the rework without tasks** (#825): proposed for the engineer ([ADR](../decisions/2026-10-12-tutorial-without-tasks.md)), not built; where it differs from §1 to §8, its build issues rewrite them. The D items (§7) are the engineer's; the E items (§6) are the M6.2 manager's and stand as recommended unless reported otherwise, but E64 (a new kind in §1's `content/` row) and E65 (a wire row) go to the engineer too. The decisions, the batched questions and the rejected alternatives: [ADR](../decisions/2026-10-08-tutorial-offline-solo-session.md) |
 | **Owner** | The engineer (the content area, #518). He asked for this design on #516 ([scope option A](https://github.com/xperiaroco2/prime-game/issues/516#issuecomment-6055436108), item 2) |
 | **His answer it builds on** | The tutorial is **offline, in a room of its own**: a solo session with no network, a small room with its own stations (chat with the M6.2 manager, 2026-10-08, recorded in #552's body) |
 | **Screens** | prime-game-ui `docs/handoff/s01-tutorial.md` at `ui-0.4.0` (built by #492), with s2 (the main menu's Tutorial), s5 (the Esc menu's `tutorial-game`), s8 (the map's «?» and its how-to card) and s9 (spectating). This page decides how the feature behind them runs, never how they look |
@@ -26,8 +26,8 @@ of `project.godot`, shown by `KeyLabel` (#211).
 | 1 | `move` | `move.title`, the key row (`move_forward`, `move_left`, `move_back`, `move_right`, `sprint`, `jump`) | the own claims report the player moving itself (`ClientSession.claim_sent`'s `moved_itself`, counted over the ticks each claim covers) for 1 s in all | the client | a floor and a start spot |
 | 2 | `pick_up` | (a) `pick_up.title`, `pick_up.how`, `interact`; (b) `put_down.title`, `press`, `put_down` | (a) an `ItemPickedUp` naming the own peer, of a package; (b) an `ItemPlaced` with cause `put_down` of the item the own hand held as the step started (`ItemPlaced` names no player) | the own events, the own model | a package |
 | 3 | `hand_belt` | `hand_belt.title`, `press`, `swap` | a `Swapped` naming the own peer | the own events | a one-handed item (D29): the package takes both hands and is refused (`two_handed`, ARCHITECTURE §9.5.14) |
-| 4 | `deliver` | `deliver.title`, `deliver.how`, no key | a `PackageDelivered`, or the task already done when the lesson starts | the own events, the own model | the package's circle (D30) |
-| 5 | `map` | (a) `map.title`, `press`, the map action (`map`, M, since #253); (b) `howto.title`, `howto.how`, the «?» keycap | (a) the map screen opens; (b) a how-to card opens from a task's «?» | the client | the room's map data (#306), the map (#490, #253) and the cards (#254) |
+| 4 | `deliver` | `deliver.title`, `deliver.how`, no key | a `PackageDelivered`, or the task already done when the lesson starts | the own events, the own model | the package's circle (D30). Goes with the tasks (#825, §9) |
+| 5 | `map` | (a) `map.title`, `press`, the map action (`map`, M, since #253); (b) `howto.title`, `howto.how`, the «?» keycap | (a) the map screen opens; (b) a how-to card opens from a task's «?» | the client | the room's map data (#306), the map (#490, #253) and the cards (#254). Step (b) goes with the tasks (#825, §9) |
 | 6 | `downed` | `downed.title`, `downed.how`, `interact` held | a `Revived` of another player (only the own player raises in the tutorial) | the own events | stage `raise`: a stand-in knocked down when the lesson starts (D27) |
 | 7 | `death` | `death.title`, `death.how`, `spectate_next` | while the own life is dead, the player switches the spectate target (`spectate_next` or `spectate_previous`; the first target, drawn at the death, does not count); D36 when the respawn comes first | the client, the own events | stage `death`: the own player dead when the lesson starts (D28), and two living players to watch (D26) |
 | 8 | `voice` | `voice.title`, `voice.how`, no key | once the own player lives again (`Respawned`): own voice frames sent while another player stands within the phase's voice radius; D31 when no microphone is open | the client | a stand-in near the respawn marker |
@@ -212,7 +212,7 @@ checks the markers, not the looks.
 | the start | `round_player` 1 (the own player, ordered placement) | 1 |
 | a shelf | `package` 1 | 2 |
 | a table | `knife` 1 | 3 |
-| the drop-off | `circle` 1, across the room from the shelf, so a package put down by the shelf in lesson 2 is not delivered by chance | 4 |
+| the drop-off | `circle` 1, across the room from the shelf, so a package put down by the shelf in lesson 2 is not delivered by chance; goes with the tasks (#825, §9) | 4 |
 | the raise spot | `round_player` 2 (stand-in 1) | 6 |
 | the corner | `round_player` 3 (stand-in 2), and `respawn` 1 farther than `PlayerRules.respawn_free_m` (1 m in the base mode) from it, so the marker is free, and within the voice radius | 7, 8 |
 
@@ -287,3 +287,133 @@ build what he has not chosen.
 Order: T1, then T2, then T3, with T4's runner built alongside T3 and wired after it, then #492. The map lesson (5)
 also waits for #490, #253 and #254 for its final look and its second step, the Esc lesson's menu for #491, the
 map's room for #306; none of them blocks T1 to T4.
+
+## 9. The rework without tasks (#825)
+Proposed (#825), for the engineer; the decisions, the batched questions and the rejected alternatives:
+[ADR](../decisions/2026-10-12-tutorial-without-tasks.md). He decided that the tutorial deals no task at all and
+teaches only movement and the basic mechanics (DD10 of the
+[Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), answered on
+[PR #713](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402), 2026-10-11), the tasks leaving
+with this rework, not as a change of their own
+([#825](https://github.com/xperiaroco2/prime-game/issues/825#issuecomment-6109457789)). Which mechanics, the order
+and the words are his call: the **LD** items (§9.4). The **LE** items (§9.5) are the M7 manager session's and stand
+as recommended unless it reports otherwise. No build issue (§9.7) opens before his answers.
+
+### 9.1 What today's tutorial teaches
+The lessons of `content/tutorial/tutorial.tres` (§1's table), by their list names (`tutorial.list.*`):
+
+| # | Lesson | What it teaches | Needs a task | After the rework (recommended) |
+|---|---|---|---|---|
+| 1 | Controls (`move`) | walking, `sprint`, `jump` | no | stays |
+| 2 | Picking up and putting down (`pick_up`) | `PickUp` and `PutDown`, of the package | its item: the package spawns only through Delivery's deal (`core/tasks/delivery.gd`) | stays; the package spawned by `SpawnItems` (LD1 (a), LE2) |
+| 3 | Hand and belt (`hand_belt`) | `Swap`, with the knife (D29) | no | stays |
+| 4 | Delivery (`deliver`) | carrying the package to its circle (`PackageDelivered`, `TasksDone`) | yes | goes |
+| 5 | Map and tasks (`map`) | (a) opening the map; (b) a task's how-to card from the map's «?» (`howto_opened`) | (b) yes | (a) stays, (b) goes (LD2 (a)) |
+| 6 | Downed (`downed`) | raising a downed player (`Raise`, `interact` held) | no | stays (stage `raise_stage`) |
+| 7 | Death (`death`) | watching another player while dead; the respawn (D36) | no | stays (stage `death_stage`) |
+| 8 | Voice nearby (`voice`) | proximity voice | no | stays |
+| 9 | Menu (`menu`) | the Esc menu | no | stays |
+
+The player's mechanics on main that the tutorial does not teach:
+
+| Mechanic | On main | In the tutorial today | Item |
+|---|---|---|---|
+| Throwing the held item (`throw` key) | built (#643 to #646, [throwing ADR](../decisions/2026-10-09-throwing-held-items.md)) | refused: the mode has no `Throw` rule | LD3 |
+| Crouching | designed ([crouch ADR](../decisions/2026-10-10-crouch.md)), not built: #790 and #791 (M7, open) build it; played where `PlayerRules.crouch_maps` says (empty: every map) | no key, no rule yet | LD4 |
+| The knife's strike (`Use`) | built | refused in every phase (ARCHITECTURE §9.5.17) | LD5 |
+| Giving up while downed (`GiveUp`) | built; the downed plate reads "Hold {key} to give up" (#497) | refused; lesson 7 kills at once (D28 (a)) | LD6 |
+| A station's `Interact` (#796) | built | none | none: stations belong to task types |
+| The Guide (the Esc menu's how-to cards) | built | lesson 9 opens the Esc menu that holds it | LD2 (c) |
+
+What stays fixed whatever he answers:
+- **The stages.** `lessons → raise_stage → death_stage`, staged by the host on `NextStage` (§2.4): lessons 6 and 7
+  keep their places, and an item lesson stays in `lessons`, since the death of lesson 7 drops both slots at the body.
+- **The deck.** `client/i18n/strings.csv` is copied byte for byte from prime-game-ui (ARCHITECTURE §4.7.26): no
+  #825 issue types a key into it; a key added or dropped is a UI track release taken by `ui-copy`. The Guide's basics
+  cards (`content/howto/basics/`) reuse the tutorial's step keys, so those stay in the deck whatever the tutorial
+  drops.
+- **Lesson 3's knife** (D29) and its open UI request (D29 (b), the first instruction to pick it up).
+
+### 9.2 What goes with the tasks
+The list the [Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md) left to #825; all of it is
+825a's (§9.7).
+
+| Where | Today | After |
+|---|---|---|
+| `content/modes/tutorial_mode.tres` | task types: Delivery; settings `tasks` 1, `banned_task_types`, `packages` 1 ("Packages (Delivery)"), `knives` 1; `loading → lessons`: `DealRoles`, `DealTasks`, `SpawnItems` (the knife), `PlacePlayers`; `TaskTicks` in `lessons`, `raise_stage` and `death_stage` | no task types, no `tasks` and no `banned_task_types`, no `DealTasks`, no `TaskTicks` (LE1); a `SpawnItems` of the package by `packages` (LE2) |
+| `content/tutorial/tutorial.tres` | nine lessons | lesson 4 and lesson 5's step (b) gone: eight lessons (LD2, LD7) |
+| `levels/tutorial/rooms/tutorial_room.tscn` | markers `Start`, `ShelfPackage`, `TableKnife`, `DropOff` (`spawn_circle`), `RaiseSpot`, `Corner`, `Respawn` | `DropOff` gone (LE4) |
+| `client/dev/tutorial_preview.gd` (its `step-howto` state), `client/dev/tutorial_step_howto_preview.tscn`, `client/dev/tutorial_step_howto_uk_preview.tscn` | the «?» step's shots (`step-howto`) | the two scenes and the script's `step-howto` state go with the step; the script stays for the invite and step shots (LE5) |
+| `tests/unit/content/tutorial_mode_test.gd` | the `tasks` and `packages` settings | no task settings; the package's `SpawnItems` (LE5) |
+| `tests/integration/levels/tutorial_map_test.gd` | the circle marker | no circle marker (LE5) |
+| `tests/unit/content/tutorial/tutorial_content_test.gd` | lesson 4's row; the «?» step's card check | the eight rows (LE5) |
+| `tests/integration/client/app/game_tutorial_lessons_test.gd` | the tasks done; the «?» card of Delivery | the eight lessons, no task (LE5) |
+| `tests/unit/client/ui/tutorial_screen_test.gd` (it loads the real `tutorial.tres`) | the nine rows; the deliver and «?» steps | the eight rows (LE5) |
+| ARCHITECTURE | §4.7.43 ("the tutorial teaches Delivery anyway"), §4.7.45 (nine lessons), §4.7.49 (the shots), §9.5.17, §9.6 (the room), the content tree | as built by 825a |
+| this page and the GDD | §1, §2.3, §4; GDD §15 | as built by 825a |
+
+What stays (LE3, LE6): `TasksDone` (`core/content/tutorial/tasks_done.gd`), `ClientSeen`'s `howto_opened` and its
+feed in `client/app/game_tutorial.gd`, and their tests (`tests/unit/content/tutorial/tutorial_parts_test.gd`,
+`tests/unit/client/tutorial/lesson_runner_test.gd`); `content/scenarios/tutorial_stages.tres`, which names no task
+(825a runs it again); every key of the deck.
+
+What the player sees change: eight lessons ("Step n of 8"); the package carries no circle's colour and is drawn white
+(`client/net/client_model.gd`); the loading screen shows no task card (`HowtoCards.deal_of` finds no `DealTasks`);
+lesson 5's map opens with its Tasks panel (`map.tasks`) empty. How the map looks with no task is the UI track's
+(a request, §9.7).
+
+### 9.3 The order and the words, as recommended
+Only keys the deck has (LD8 (a)); a new lesson's words go to the UI track as drafts, never typed into the deck here.
+
+| # | List key | Step: title, how, `{key}` | Done when | Note |
+|---|---|---|---|---|
+| 1 | `move` | as today | as today | 825c adds the crouch key to the row (LD4 (b)) |
+| 2 | `pick_up` | as today | as today | the package, spawned by `SpawnItems` (LD1 (a)) |
+| 3 | `hand_belt` | as today | as today | |
+| (new) | from the UI track | title and list name: drafts, not decisions, "Throw an item" and "Throwing"; how `press` with `throw` | an `ItemThrown` naming the own peer | 825b, only on LD3 (a) |
+| 4 | `map` | (a) only: `map.title`, `press`, `map` | the map screen opens | the list name stays "Map and tasks ({key})", the screen's own name (`control.map`) |
+| 5 to 8 | `downed`, `death`, `voice`, `menu` | as today | as today | today's 6 to 9 |
+
+### 9.4 LD items (the engineer's)
+| Item | Question | Options | The failure each prevents or brings | Recommended |
+|---|---|---|---|---|
+| LD1 | Lesson 2's item with no Delivery | (a) the package as a plain item, spawned on the shelf's marker by `SpawnItems`; (b) the knife for lesson 2 as for lesson 3, no package; (c) a House item of Delivery by meaning, once D2 builds it | (a) the words of lesson 2 and the Guide's basics cards, which name a package, stay true, with no wait; but after D2 the package plays only on the greybox test bench, so the tutorial names an item a House player never meets; (b) one item fewer, but lesson 2's words need new keys from the UI track; (c) waits on D2, which comes after #825, and on new words | (a); (c) as a later change once D2 has built its items |
+| LD2 | Lesson 5 with no task to open a card for | (a) the map step only; (b) lesson 5 goes; (c) the «?» step becomes "open the Guide" | (a) the map is taught with no new words; its list name says "tasks" in a tutorial with none, as the Controls row does; (b) the player first opens the map in a match; (c) a new client signal (the Guide opened) and new words for what lesson 9's Esc menu already shows | (a) |
+| LD3 | Teach the throw | (a) a lesson after Hand and belt (825b); (b) not taught | (a) a player who first throws in a match learns it by accident otherwise; placed after the item lessons, an item thrown out of reach blocks no later lesson; it needs the `Throw` rule in `lessons`, the throw's checks on the tutorial room (as #746 for the base mode's maps: walls of 3 m, no roof), an item in the hand (a belt item is never thrown, so after lesson 3 the step must say to take one) and two keys from the UI track; (b) a built mechanic left untaught | (a), as its own issue after 825a |
+| LD4 | Teach the crouch | (a) a lesson of its own with a low prop to crouch under; (b) the crouch key in lesson 1's key row (825c); (c) not taught | (a) a new trigger, a prop and new words for one key; (b) the row shows the key, but lesson 1 completes on walking alone, so nobody has to press it; (c) the player first meets the crouch under a House table. Whatever he picks, the tutorial mode's `crouch_maps` follows: #790 sets it in every mode, and an empty list plays the crouch everywhere, so (c) lists the House alone as the base mode does | (b), after #790 and #791 |
+| LD5 | Teach the knife's strike | (a) not taught, `Use` refused as today; (b) a swing at nobody, `Use` accepted in `lessons` | (a) the strike is first met in a match; (b) it teaches a key and not what a strike does, and a strike among the crew teaches a wrong idea of who strikes (D27's reason) | (a) |
+| LD6 | Teach giving up | (a) not taught: D28 (a) stands; (b) lesson 7 knocks the own player down first (`KnockDown` without `then_die`), `GiveUp` accepted from the downed in `death_stage`, the step done at the own death | (a) giving up is read from the downed plate in a match ("Hold {key} to give up", #497); (b) a longer lesson 7 and a knocked-down step with new words; D28's other failure (no downed plate) went with #497 | (a) |
+| LD7 | The order | (a) today's with the removed left out and a new lesson in place (§9.3); (b) the map just before the menu | (a) keeps the order the UI track drew (s01); (b) puts the two screens together, but changes the drawn order for no gain the player sees | (a) |
+| LD8 | The words | (a) 825a uses only the deck's keys; the new lessons' words come from the UI track as drafts at his word; the deck drops the unused keys at a later release; (b) the UI track redraws every step (s01) before any build | (a) the handoff draws nine lessons until the UI track updates it; (b) the build waits on a UI release | (a) |
+| LD9 | The split | (a) §9.7; (b) with his changes | (a) one logical change per issue, none waiting on another's blocker | (a) |
+
+### 9.5 LE items (the M7 manager's)
+| Item | Question | Options | The failure each prevents | Recommended |
+|---|---|---|---|---|
+| LE1 | How the mode deals no task | (a) drop `DealTasks`, the task types, the `tasks` and `banned_task_types` settings and every `TaskTicks`; (b) keep `DealTasks` with `tasks` 0 | (b): the loading screen's `HowtoCards.deal_of` still finds Delivery dealable and shows its card, and `DealTasks`' check (`tasks` at most the pool's size) keeps a task type the mode never deals | (a) |
+| LE2 | How the package spawns | (a) a `SpawnItems` of the package by the `packages` setting, with its own `rng_purpose`, in `loading → lessons` beside the knife's; the setting's display name drops "(Delivery)", which no screen shows here (no lobby, no `ChangeSettings`); (b) a setting of a new name | (b) renames what the tests and the mode check already read | (a) |
+| LE3 | The parts no data uses any more | (a) keep `TasksDone`, `howto_opened` and their tests; (b) remove them | (b) deletes tests, which needs the engineer's approval, and "for now" may bring a task back | (a) |
+| LE4 | The room's markers | (a) remove `DropOff` only; (b) leave it | (b) a `circle` marker no rule reads, taken for a drop-off by the next reader | (a) |
+| LE5 | The tests and the shots | (a) rewrite §9.2's tests to the eight lessons, every changed assertion listed in the PR for his nod; the «?» shots go; (b) keep the old assertions where they still pass | (b) tests that check a lesson nobody plays | (a) |
+| LE6 | The deck | (a) no #825 issue types into `strings.csv`; new keys come with a UI tag through `ui-copy` in the first PR that needs them (825b, 825c); (b) add the drafts to the deck here | (b) the next `ui-copy` overwrites them and `strings.lock.json` no longer matches | (a) |
+
+### 9.6 Shared files
+Scenes are single-owner: a scene has one open PR at a time, and the later PR starts after the earlier merges.
+
+| File | Also edited by | Here | Order |
+|---|---|---|---|
+| `levels/tutorial/rooms/tutorial_room.tscn` | #715 (the room's map record, which waits on #306) | 825a removes `DropOff`; 825b only if the throw's checks need the room changed | 825a first: it is ready once he answers, #715 is not |
+| `content/modes/tutorial_mode.tres` | #790 (the crouch's numbers and `crouch_maps` in every mode) | 825a (the tasks out, the package in), 825b (`Throw`), 825c (`crouch_maps`) | 825a, then #790 and 825b in either order, then 825c |
+| `client/i18n/strings.csv`, `client/i18n/strings.lock.json` | #715, #718, #306 (their keys) | through `ui-copy` only: 825b and 825c take a UI tag with their keys; 825a takes none | whoever takes a tag first; the next one rebases onto it |
+
+### 9.7 The split
+Sizes as in §8. Each issue's content files are provisional under the
+[MVP content ADR](../decisions/2026-09-29-mvp-content-built-by-the-engineer.md); its PR names them and ends
+"Approved by the engineer: <link>".
+
+| Issue | Goal | Acceptance | Files | Depends on | Size |
+|---|---|---|---|---|---|
+| 825a content | the tutorial without tasks | §9.2 done: the mode deals no task and spawns the package, both checks pass; the eight lessons of §9.3; no `DropOff`; §9.2's tests rewritten, each changed assertion listed in the PR; `tutorial_stages` green in the core and the bots runners; `shot` of lesson 5's map and of the loading screen; ARCHITECTURE, this page and GDD §15 updated | §9.2's | his answers (LD1, LD2, LD7 to LD9); before D2 and before #715 edits the room | M |
+| 825b content | the throw lesson | `Throw` accepted in `lessons` with the base mode's rule; the lesson after Hand and belt, done on an own `ItemThrown`, its words from a UI tag; a thrown item cannot leave the room; tests in the three tutorial test files; ARCHITECTURE §4.7.45, §9.5.17 | `content/modes/tutorial_mode.tres`, `content/tutorial/tutorial.tres`, the room if needed, `client/i18n/` through `ui-copy`, tests | 825a; LD3 (a); a UI tag with its keys | S |
+| 825c content | the crouch key in lesson 1 | lesson 1's row shows the crouch key; the tutorial mode's `crouch_maps` lets the room crouch; tests of the row; ARCHITECTURE §4.7.45, §9.5.17 | `content/tutorial/tutorial.tres`, `content/modes/tutorial_mode.tres`, tests | 825a, #790, #791; LD4 (b) | S |
+| UI track | the words | a request on #150: the drafts for 825b; D29 (b) still open; D30 (b) withdrawn; the unused keys (`tutorial.step.deliver.*`, `tutorial.list.deliver`, `tutorial.step.howto.*`) dropped at a later release; s01 redrawn with eight lessons (nine with 825b); the map with no task | prime-game-ui | his LD8 answer | — |
