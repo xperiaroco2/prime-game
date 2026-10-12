@@ -166,7 +166,7 @@ but `NextStage`. It is a pure `RefCounted` (`client/tutorial/lesson_runner.gd`),
 and signals, like `GameFlow` and `SpectateTargets`.
 
 **Lessons are data.** The classes are data only and live in `core/content/tutorial/`, next to the bot scenarios'
-(§9.7), so `content/` still uses only the content API; the nine lessons are `content/tutorial/tutorial.tres`
+(§9.7), so `content/` still uses only the content API; the eight lessons are `content/tutorial/tutorial.tres`
 (provisional); the runner that plays them is in `client/`. A lesson is a list of one or two steps; a step has the
 content API's shape, trigger → conditions → effects, where the effect of a completed step is always the same (the
 next step starts) and a step's own actions run when it starts:
