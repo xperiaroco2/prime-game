@@ -416,96 +416,21 @@ Rules for every workflow run:
   a stop keeps in full what its relaunch needs. Agents get digests of each other's results (#470, #696), and the
   publisher's prompt carries `finish-task`'s docs, intervention and credits steps itself.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
-  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` (with a `lean_reason` since
-  #557) gets the earlier agents byte for byte
-  (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
-  sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
-  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies, #818's reviewer rules, #815's ADR
-  line, #816's section reads in it).
-  `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
-  agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
-  most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
-  is cut before the critique and the implementer read it, and the result's `plan.clipped` says so), with a `file_map`:
-  the paths, line ranges and facts the plan rests on, read at its `base_sha`. The implementer runs one `git diff
-  --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
-  the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
-  planner on Sonnet with `models.plan` (orchestrate-stage §3, `launch-args.md`); the critique stays on the review
-  model. `metrics`' plan phase table (§11.12) gives the before and after.
-  `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
-  `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
-  new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
-  publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
-  for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is
-  under `client/ui/`, the light tier, #606). `second_review: true`: a second
-  `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1). `skeptic: true` or a
-  number: a read-only agent tries to refute each blocker or major finding before the publisher (a number caps the
-  agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
-  scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the
-  rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
-  review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean, publish_findings; `code`
-  is the diff's code reviewer alone and falls back to `review`, which also covers the plan critique, the netcode
-  reviews and the skeptics, #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
-  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
-  where the kickoff allows it (its amendment A,
-  §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
-  publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
-  design task; the result's `publish_clean` says whether it applied. `publish_findings` (#835, a trial under the
-  model-guard ADR's amendment of 2026-10-11; falls back to `publish`; only `sonnet`) is the full publisher of a
-  non-design run that left one open; the result's `publish_findings` says whether it applied. `ab_review: true`
-  (#535, needs `models.code` other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
-  with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
-  one, both reviews going on as usual, then a read-only
-  judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
-  the runs (+2; +1 when neither reviewer found anything). `checkpoint: true` (#559, `issue-task` only; opt-in, off
-  until the engineer's yes after `metrics` measured it): an implementer whose context passes 150,000 tokens hands over
-  to a fresh one. It reads its context from the harness's `<total_tokens>N tokens left` reminder after each tool
-  result (the budget, 15,000,000, less N is the context of the call before it; `metrics` checks this: exact on 282 of 283 readings, 2026-10-08), or stops after 60 tool
-  calls when it sees none; it commits, writes a note (done, left, decisions, gotchas, verify state) to
-  `a<n>/handoff-<k>.md` in the scratchpad and returns `handoff`, the note's path. The script then launches
-  `implement:#<n>#2` (then `#3`) with the same type, effort, model and schema, at most twice (the third cannot hand
-  over); each continuation's result covers the whole branch, the script joins their decisions, needs_engineer,
-  proposed_issues, provisional_content and commits, and a handoff's own red verify does not stop the run (only the
-  last implementer's does; `wave` waits for the continuation too). +0 agents, up to +2. A label `metrics` reads ends
-  `:#<n>` or `#<n>#<k>`, never `:<k>`. A missing `mutants` or `playcheck` on the task's
-  branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
-  +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
-  runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
-  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents run no standalone
-  verify before `publish`, §4.2 step 5). The root CLAUDE.md rule reaches every workflow agent without it once on
-  main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
-  (roles rebase, review, netcode, second_review, skeptic, fix, publish: `publish`, #835's trial, only `sonnet`, is the
-  fallback of rebase and fix, the two agents that publish); when skeptics refute every blocker or major, no fix
-  agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
-  The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
-  comment give the counts, the roles and their fallbacks.
-- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean` (`issue-task`
-  and `pr-rebase`, +0 agents, on by default since #458) runs the implementer, the plan agent and the test reviewer as
-  `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
-  or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
-  median of about 57k for a general implementer's whole first call under a desktop manager; the A/B's real tasks
-  started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
-  prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
-  manager's checkout must have both agent files (`agentType` resolves there; one with no file throws at `agent()`),
-  which `agents-check --launch` checks (§5). Since #557 (the lean ADR
-  amendment of 2026-10-08) every task runs lean: one that edits `.claude/workflows/` reads
-  `docs/workflow-scripts.md` (a path-scoped rule points there) instead of loading the bundled
-  `workflow-authoring` skill, which #557's probe priced at 8.1k more tokens on every call for a type with the Skill
-  tool and 6.2k for one preloading it. `lean: false` throws without `lean_reason` (a non-empty string, such as a
-  resume of a run launched before #458), which changes no prompt or option; its result's `lean_off` counts the
-  general agents. In 2026-10-06 to 08, 14 of 37 implementers and 13 of 32 publishers had run general.
-- **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
-  150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
-  about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
-  issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to five agents (more with the v2 options above), over
-  the `small` guideline, so the kickoff approves that and the stage's budget once; within the track's weekly budget
-  (the orchestrate-stage skill's `budget.md`; else 15% of the weekly limit) the manager's restatement is a report and
-  it goes on, above it or for an "ask and wait" item it waits for the human's yes (§7, the
-  [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). Code tasks wait for the
-  engineer's review of the stage's design PR; before launching anything, the manager lists the runs
-  another session may still own (issues In progress with no PR, fresh
-  worktree commits, a rebase in progress) and asks.
+  optional `issue-task` and `pr-rebase` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`,
+  `efforts`, `models`, `ab_review`, `checkpoint`, `bounded_waits`), all off by default but `bounded_waits` (#411) and
+  `lean` (#458). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
+  arg) and each script's header comment, `whenToUse` and args comment (the counts, the roles and their fallbacks);
+  `tools/runner/tests/workflow_snapshots/` pins the prompts and options they produce (`docs/workflow-scripts.md`).
+  The kickoff's approved agent count must cover the options the manager will pass.
+- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332, #458, #557): `lean`, the
+  default, runs the implementing agents as `task-implementer` and the publishing ones as `task-publisher` (§5), with
+  no desktop, MCP or Skill tools; the manager's checkout must have both agent files, which `agents-check --launch`
+  checks (§5). A task that edits `.claude/workflows/` reads `docs/workflow-scripts.md` instead of the bundled
+  `workflow-authoring` skill.
+- **Bounds:** the concurrency cap, the agents' tool-call bounds and the `a<n>/` scratchpad subfolder are in the
+  kickoff (orchestrate-stage `kickoff-template.md`, `launch-args.md`); the approval of the agent count and the budget,
+  the design gate and the runs another session may still own, in orchestrate-stage `SKILL.md`, `stage-setup.md` and
+  `budget.md` (the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tiers).
 - **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>` from
   `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base release/m<k>`). Before
   each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its base tip and each pair into the
