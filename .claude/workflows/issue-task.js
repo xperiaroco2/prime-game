@@ -49,8 +49,8 @@ export const meta = {
 //            (none on the branch's remote, or not an ancestor of HEAD), tier is 'full', or the delta touches any
 //            path of the full tier (REVIEWED), whatever its size (the engineer's answer 1C on PR #862). The result's
 //            update and the publisher's prompt (for the PR) name the path taken, the delta's size and what was
-//            skipped. -2 agents with plan_review, -1 with test_review, -1 a checked
-//            finding with skeptic, on the update path
+//            skipped. -2 agents with plan_review (on the full path too), -1 with
+//            test_review, -1 a checked finding with skeptic (the last two on the update path only)
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
 // false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
