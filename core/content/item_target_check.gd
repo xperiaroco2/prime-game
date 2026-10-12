@@ -79,3 +79,18 @@ static func _index_of(rule: Rule, condition_class: Script) -> int:
 		):
 			return i
 	return -1
+
+
+## A row's actions run with no actor, so a GiveItem among them (no target to give from) is an error.
+static func row_action(
+	from: StringName, outcome: StringName, action: RuleEffect
+) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if action is GiveItem:
+		errors.append(
+			(
+				"row %s, %s gives an item, which only a player's intent naming a target can"
+				% [from, outcome]
+			)
+		)
+	return errors

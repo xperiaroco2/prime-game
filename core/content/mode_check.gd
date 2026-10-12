@@ -40,17 +40,15 @@ extends RefCounted
 ## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
 ## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
 ## its items would never vanish (the cooking ADR, C10); an item kind's target_actions holding a
-## UseStation, AtStation, StationInSight or StationUsable (an intent naming an item names no
-## station), and a GiveItem anywhere but in an action on an intent that names a target (C1, #770;
-## its kind's bounds and a display station kind's actions are the parts' own checks); a number
-## outside its part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or
-## role-gated rule with an effect whose event goes to everyone (for a UseStation, an event its
-## station's task type's use_emits() lists; for a HoldStation, its hold_emits()), which reveals the
-## actor's role (§9.2); in a mode with a channel, any role-owned or role-gated action, since
-## applying it stops its actor's channel publicly (a raiser's RaiseStopped) while a refused one
-## stops nothing (§9.2); a row whose
-## KnockDown without then_die enters a phase with no LifeTicks, whose downed stays downed for good
-## (#599: the tutorial's raise_stage wants that, so a warning, not an error).
+## UseStation, AtStation, StationInSight or StationUsable (an item names no station), and a
+## GiveItem anywhere but in an action on an intent that names a target (C1); a number outside its
+## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
+## rule with an effect whose event goes to everyone (for a UseStation, an event its station's task
+## type's use_emits() lists; for a HoldStation, its hold_emits()), which reveals the actor's role
+## (§9.2); in a mode with a channel, any role-owned or role-gated action, since applying it stops
+## its actor's channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2);
+## a row whose KnockDown without then_die enters a phase with no LifeTicks, whose downed stays
+## downed for good (#599: the tutorial's raise_stage wants that, so a warning, not an error).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -69,8 +67,6 @@ var warnings := PackedStringArray()
 
 ## Whether any action of the mode starts a channel (_check_rules).
 var _has_channel := false
-## Whether _check_owner walks an item kind's target_actions (a GiveItem there takes from an item).
-var _item_target_rules := false
 
 
 static func run(mode: GameMode) -> ModeCheck:
@@ -163,9 +159,7 @@ func _check_rules(mode: GameMode) -> void:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
 			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
 			var targets := "item kind %s.target_actions" % kind.id
-			_item_target_rules = true
-			_check_owner(targets, kind.target_actions, station_intents(), false)
-			_item_target_rules = false
+			_check_owner(targets, kind.target_actions, station_intents(), false, [], true)
 			errors.append_array(ItemTargetCheck.target_rules(targets, kind.target_actions))
 	for kind: StationKind in Stations.kinds_in(mode):
 		var owner := "station kind %s.actions" % kind.id
@@ -282,7 +276,8 @@ func _check_owner(
 	rules: Array[Rule],
 	triggers: Array[StringName],
 	role_owned: bool,
-	uses: Array[TaskType] = []
+	uses: Array[TaskType] = [],
+	at_item := false
 ) -> void:
 	var on_intent := _all_intents(triggers)
 	var seen_triggers: Array[StringName] = []
@@ -304,7 +299,7 @@ func _check_owner(
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
 		_check_station_rule(owner, rule)
-		errors.append_array(ItemTargetCheck.give_rule(owner, rule, _item_target_rules))
+		errors.append_array(ItemTargetCheck.give_rule(owner, rule, at_item))
 		if gated and _has_channel and on_intent:
 			warnings.append(
 				(
@@ -654,13 +649,7 @@ func _check_rows(mode: GameMode) -> void:
 						% [row.from, row.outcome]
 					)
 				)
-			if action is GiveItem:
-				errors.append(
-					(
-						"row %s, %s gives an item, which only a player's intent naming a target can"
-						% [row.from, row.outcome]
-					)
-				)
+			errors.append_array(ItemTargetCheck.row_action(row.from, row.outcome, action))
 			var to_spec := mode.find_phase(row.to)
 			var from_spec := mode.find_phase(row.from)
 			if (
@@ -888,8 +877,7 @@ static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:
 
 
 ## Every rule on `intent` among the mode's, the roles', the item kinds' (their actions and their
-## target_actions) and the station kinds' actions (a station kind's and an item kind's target
-## actions handle Interact: GE2, CE1).
+## target_actions) and the station kinds' actions (the last two handle Interact: GE2, CE1).
 static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	var found: Array[Rule] = []
 	var lists: Array[Array] = [mode.actions]
