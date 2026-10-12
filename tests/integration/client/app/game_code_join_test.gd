@@ -24,6 +24,10 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 	assert_str(joiner.ui.menu.code_edit.text).is_equal(CODE)
 	(joiner.ui.menu.code_join.face as Button).pressed.emit()
 	assert_object(joiner.client()).is_not_null()
+	# Its Hello carries the return key of its secret for this code (#638); the host's own client
+	# has a random one of its own.
+	assert_str(joiner.client().return_key).is_equal(joiner.settings.return_key(CODE))
+	assert_str(host.client().return_key).is_not_equal(joiner.client().return_key)
 	# The connecting screen shows the code as the service knows it, no address (#494).
 	assert_int(joiner.screen()).is_equal(GameFlow.Screen.CONNECTING)
 	assert_str(joiner.ui.connecting.code_label.text).is_equal(CODE)

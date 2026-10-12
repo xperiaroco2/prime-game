@@ -292,7 +292,7 @@ func join_target(target: JoinTarget) -> void:
 		if make_transport.is_valid()
 		else target.transport(_schema.kind_table(), WireSchema.VERSION, _own_content)
 	)
-	_start_client(transport)
+	_start_client(transport, settings.return_key(target.return_target()))
 	_target = target
 	_join_transport = transport
 	_join_started_ms = Time.get_ticks_msec()
@@ -665,10 +665,12 @@ func _new_transport() -> NetTransport:
 	return EnetTransport.new(_schema.kind_table())
 
 
-func _start_client(transport: NetTransport) -> void:
+## Starts the session over `transport`, its Hello sending `key` (#638): the return key of a join's
+## target; none (the host's own client) makes ClientSession a random one of this session alone.
+func _start_client(transport: NetTransport, key := "") -> void:
 	_ending = false
 	failure = &""
-	_client = ClientSession.new(transport, mode, _schema, settings.player_name)
+	_client = ClientSession.new(transport, mode, _schema, settings.player_name, key)
 	_client.welcomed.connect(_on_welcomed)
 	_client.corrected.connect(_on_corrected)
 	_client.map_loaded.connect(_on_map_loaded)
