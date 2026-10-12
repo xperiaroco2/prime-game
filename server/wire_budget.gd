@@ -172,7 +172,15 @@ class _Content:
 		item = _longest(_ids(mode.item_kinds))
 		var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, largest, mode.max_players)
 		tags.assign(demands.markers.keys())
-		stations.assign(demands.colours.keys())
+		# The station kinds the mode's task types place (TaskType.station_kinds, DE4): a kind with
+		# no palette still has an id on the wire. The palettes a map demands are kept too, for a
+		# demand that names a kind no task type holds.
+		for kind: StationKind in Stations.kinds_in(mode):
+			if not kind.id.is_empty() and not stations.has(kind.id):
+				stations.append(kind.id)
+		for colour_kind: StringName in demands.colours.keys():
+			if not stations.has(colour_kind):
+				stations.append(colour_kind)
 		station = _longest(PackedStringArray(stations))
 
 	## `count` distinct players (peer ids 2 and up) at the origin.

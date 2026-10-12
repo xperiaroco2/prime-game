@@ -109,15 +109,10 @@ static func floor_tags_of(mode: GameMode) -> Array[StringName]:
 	for type: TaskType in mode.task_types:
 		if type == null:
 			continue
-		for property: Dictionary in type.get_property_list():
-			var usage: int = property["usage"]
-			if usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
-				continue
-			var value: Variant = type.get(property["name"] as String)
-			if value is StationKind:
-				var tag := (value as StationKind).spawn_tag
-				if not tag.is_empty() and not tags.has(tag):
-					tags.append(tag)
+		for kind: StationKind in type.station_kinds():
+			var tag := kind.spawn_tag
+			if not tag.is_empty() and not tags.has(tag):
+				tags.append(tag)
 	tags.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	return tags
 

@@ -206,3 +206,22 @@ func _marker(parent: Node, marker_name: String, group: StringName, at: Vector3) 
 	marker.add_to_group(group, true)
 	parent.add_child(marker)
 	return marker
+
+
+func test_floor_tags_include_the_kinds_an_overriding_type_names() -> void:
+	var mode := GameMode.new()
+	mode.task_types = [
+		FixtureKindsType.of(
+			&"kinds",
+			[FixtureKindsType.kind(&"kind_b", &"tag_b"), FixtureKindsType.kind(&"kind_a", &"tag_a")]
+		)
+	]
+	assert_array(MarkerReader.floor_tags_of(mode)).is_equal([&"tag_a", &"tag_b"])
+	# The override's kind is snapped to the floor like a circle.
+	var root := _root()
+	_marker(root, "Spot", &"spawn_tag_a", Vector3(3, 2, 3))
+	var result := MarkerReader.read(
+		root, LEVEL, FlatWorldQuery.new(), MarkerReader.floor_tags_of(mode)
+	)
+	assert_int(result.errors.size()).is_equal(0)
+	assert_array(Array(result.layout.positions(&"tag_a"))).is_equal([Vector3(3, 0, 3)])

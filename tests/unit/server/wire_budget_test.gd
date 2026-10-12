@@ -186,3 +186,18 @@ func _demanding(mode: GameMode, tags: int, stations: int) -> GameMode:
 		row.actions.append(FixtureDemand.of(StringName(_id(0)), setting, kind))
 	mode.transitions.append(row)
 	return mode
+
+
+func test_station_ids_come_from_the_task_types_kinds_not_from_the_palettes() -> void:
+	# The longest station id belongs to a kind no action demands a palette of: the wire still
+	# carries it in a StationPlaced (DE4, #827).
+	var mode := _mode(10, 3, 1, 1)
+	var kind := FixtureKindsType.kind(StringName(_id(100)), &"spot")
+	mode.task_types = [FixtureKindsType.of(&"kinds", [kind])]
+	var found := {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		found[message.name] = message
+	assert_bool(found.has(&"StationPlaced")).is_true()
+	var placed: WireMessage = found[&"StationPlaced"]
+	assert_str(str(placed.fields["kind"])).is_equal(_id(100))
+	assert_array(Array(WireBudget.check(mode))).is_empty()

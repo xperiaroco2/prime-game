@@ -61,6 +61,23 @@ func item_spawn_tags() -> Array[StringName]:
 	return []
 
 
+## The station kinds this type places, one per StationKind property, in property order (the
+## delivery-by-meaning ADR's DE4, #827): the one finder every reader of a type's kinds asks
+## (Stations, MarkerReader.floor_tags_of, ModeCheck's station check, CircleViews, WireBudget). By
+## default the reflection over the type's stored properties; a type that holds its kinds some
+## other way (a list, a built kind) overrides it, and its kinds are then snapped, checked and
+## drawn like any other.
+func station_kinds() -> Array[StationKind]:
+	var found: Array[StationKind] = []
+	for property: Dictionary in get_property_list():
+		if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
+			continue
+		var value: Variant = get(property["name"] as String)
+		if value is StationKind:
+			found.append(value as StationKind)
+	return found
+
+
 ## The event classes this type can emit (§9.2).
 func emits() -> Array[Script]:
 	return []
