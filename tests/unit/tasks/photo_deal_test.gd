@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The photo task's deal, its exact demands and its level fit check (the photo ADR §2.1, PE11,
 ## PE12, PD18; ARCHITECTURE §9.5): the five stations in the order camera, photo spot, film box,
 ## printer, board, StationPlaced for each in id order, then the dealt film's ItemSpawned; nothing
-## at 0 photos; exactly one marker of each tag; a photo spot within reach of the camera a layout
-## problem (FitCheck holds the lobby back on it, as the car repair's short axis). Fixture values only.
+## at 0 photos; exactly one marker of each tag; a photo spot within reach of the camera is a layout
+## problem (FitCheck holds the lobby back on it, as on the car repair's short axis). Fixture values
+## only.
 
 const MAP := FixtureModes.MAP
 const PEERS: Array[int] = [1, 2]
