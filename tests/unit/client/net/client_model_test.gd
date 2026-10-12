@@ -304,6 +304,49 @@ func test_an_item_vanished_is_forgotten_and_its_id_may_name_a_new_one() -> void:
 	assert_int(_model.items[4].holder).is_equal(ClientModel.NO_HOLDER)
 
 
+func test_an_item_changed_takes_its_new_kind_where_it_is() -> void:
+	# The cooking ADR, CE4: a patty on the grill turns fried, then burnt; it keeps its id, its place
+	# and its holder.
+	_to_round()
+	_fold(ItemSpawnedEvent.new(4, &"patty", Vector3(4, 0, 0)))
+	_fold(ItemSpawnedEvent.new(5, &"bun", Vector3(5, 0, 0)))
+	_fold(ItemPickedUpEvent.new(OWN, 5))
+	_fold(ItemChangedEvent.new(4, &"patty_fried"))
+	_fold(ItemChangedEvent.new(5, &"bun_toasted"))
+	assert_str(String(_model.items[4].kind)).is_equal("patty_fried")
+	assert_vector(_model.items[4].position).is_equal(Vector3(4, 0, 0))
+	assert_int(_model.items[4].holder).is_equal(ClientModel.NO_HOLDER)
+	assert_str(String(_model.items[5].kind)).is_equal("bun_toasted")
+	assert_int(_model.hand_item(OWN)).is_equal(5)
+	# An item the client never heard of changes nothing and is not made up.
+	_fold(ItemChangedEvent.new(40, &"patty_burnt"))
+	assert_bool(_model.items.has(40)).is_false()
+
+
+func test_a_pick_up_straight_onto_the_belt_keeps_the_hand_item_held() -> void:
+	# The cooking ADR, CE20, CE21: beside a two-handed hand item a one-handed take goes onto the
+	# belt, ItemPickedUp's `belted` naming the item itself; a full belt's item was put down first.
+	_to_round()
+	_fold(ItemSpawnedEvent.new(1, &"package", Vector3(1, 0, 0), 7, Color.BLUE))
+	_fold(ItemSpawnedEvent.new(2, &"knife", Vector3(2, 0, 0)))
+	_fold(ItemSpawnedEvent.new(3, &"knife", Vector3(3, 0, 0)))
+	_fold(ItemPickedUpEvent.new(OWN, 1))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 2))
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item(OWN)).is_equal(2)
+	assert_bool(_model.items[2].belted).is_true()
+	assert_bool(_model.items[1].belted).is_false()
+	_fold(ItemPlacedEvent.new(2, Vector3(0, 0, 0), &"put_down"))
+	_fold(ItemPickedUpEvent.new(OWN, 3, 3))
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item(OWN)).is_equal(3)
+	assert_bool(_model.items[2].rests()).is_true()
+	# Another player's take folds the same way.
+	_fold(ItemPickedUpEvent.new(1, 2, 2))
+	assert_int(_model.hand_item(1)).is_equal(-1)
+	assert_int(_model.belt_item(1)).is_equal(2)
+
+
 func test_task_state_gives_each_tasks_row_for_the_task_screen() -> void:
 	_to_round()
 	assert_int(_model.tasks.size()).is_equal(1)

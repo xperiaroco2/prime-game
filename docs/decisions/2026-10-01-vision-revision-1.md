@@ -499,8 +499,8 @@ Decided by the engineer on 2026-10-08 in chat with his agent while agreeing the 
 
 Decided by the engineer on 2026-10-10 on the cooking design's PR
 ([PR #701, comment 6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421));
-recorded in [the cooking ADR](2026-10-10-cooking-task.md) (CD3 (b), CE19 to CE21). Not built yet: the cooking ADR's
-issue C2 builds it.
+recorded in [the cooking ADR](2026-10-10-cooking-task.md) (CD3 (b), CE19 to CE21). Built by the cooking ADR's
+issue C2 (#771).
 
 - **Why:** a player carrying a box or a package who wants a one-handed item had to put the two-handed item down, pick
   up, and pick the two-handed item up again. Every take now does that routine for him.

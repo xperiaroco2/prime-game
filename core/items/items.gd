@@ -6,7 +6,16 @@ extends RefCounted
 ## core/items/ call it, and so do the parts of later stages:
 ##
 ## - take(): a pickup, into the hand; the hand item goes to the belt or rests where the picked one
-##   lay.
+##   lay. Beside a two-handed hand item a one-handed picked item goes onto the belt instead
+##   (give()'s belt move, the cooking ADR CE21).
+## - give(): an item a source hands out (a box's, a bed's, the grill's take; the cooking ADR §2's
+##   table, CD3 (b), CD5 (b), CE19, CE20) goes to a player, who makes room: the hand item to an
+##   empty belt or down at the taker's feet; beside a two-handed hand item the new item goes onto
+##   the belt, a full belt's item first down at the feet.
+## - change_kind(): an item becomes another kind, in place (the cooking ADR, CE4): ItemChanged.
+## - lock_at(), lay_on_station(): an item goes onto a station (the cooking ADR, CE5): locked at
+##   the station's spot (a patty on the grill, a right ingredient), or lying there, interactive,
+##   with item_rested (`on_station`; a wrong ingredient). The station's own event announces both.
 ## - swap(): the hand and belt items change places.
 ## - place(): an item comes to rest at a spot (a put-down, a pickup's swap, a dead player's items
 ##   at its body: the life rule, 2g, after player_died): ItemPlaced, then item_rested.
@@ -22,8 +31,8 @@ extends RefCounted
 ## - lay(): the one writer of an item's ground state (the cooking ADR, CE3, C10): the item lies at
 ##   a spot, out of any hand, belt or flight, its rest tick this tick. Every move that leaves an
 ##   item lying goes through it: place() (a put-down, a swap's rest, a death's or a leave's drop,
-##   a throw's landing) and spawn() (a deal's spawn); a later part's lay (C2's `on_station` lay at
-##   a place, Items.give's put-down) calls it or place(). Emits nothing.
+##   a throw's landing, give()'s put-down at the feet), spawn() (a deal's spawn) and
+##   lay_on_station() (a wrong ingredient at a place). Emits nothing.
 ## - spawn(): a new item of a kind lying at a spot (MatchState.add_item, then lay()); the deals
 ##   emit ItemSpawned and raise item_rested themselves.
 ## - lock(): an item at rest becomes locked where it is (a delivered package): not interactive,
@@ -31,7 +40,8 @@ extends RefCounted
 ## - vanish(): an item leaves the match for good (VanishTicks; C1's cap): ItemVanished to everyone,
 ##   its id freed for reuse (MatchState.remove_item).
 ##
-## A move into a hand, onto a belt or into flight (take(), swap(), launch()) clears the rest tick.
+## A move into a hand, onto a belt, into flight or into the locked state (take(), give(), swap(),
+## launch(), lock(), lock_at()) clears the rest tick.
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
 ##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
@@ -52,6 +62,9 @@ const LEAVE := &"leave"
 const SPAWN := &"spawn"
 ## The end of a thrown item's flight (FlightTicks, §7.1.16).
 const THROWN := &"thrown"
+## item_rested only: the item was laid on a station, interactive (a wrong ingredient at a place,
+## the cooking ADR CE5); the station's own event (IngredientPlaced) announces it.
+const ON_STATION := &"on_station"
 
 
 ## The item an intent or a fact is about: the `item` field of the intent being handled, else the
@@ -81,13 +94,18 @@ static func belted_by(state: MatchState, peer: int) -> ItemState:
 	return state.items.get(player.belt_item)
 
 
-## `item`, lying on the ground, goes into `peer`'s hand (vision revision 1, Two hands). The hand
-## item, if any, moves to the belt when it is one-handed and the belt is empty; otherwise it rests
-## where the picked-up one lay, a spot already known to be valid (§7.1), whichever of the two is
-## two-handed. Emits ItemPickedUp (with `belted`, the item moved to the belt, E29), then for a
-## hand item that rests ItemPlaced (swap) and item_rested. The rule's conditions checked the
-## ground, the reach and the sight; an item that is not on the ground here is a rule error, and
-## the sender of the intent gets `unavailable`.
+## `item`, lying on the ground, goes to `peer` (vision revision 1, Two hands, as the cooking ADR's
+## CE21 amends it). Beside a two-handed hand item a one-handed `item` goes onto the belt through
+## give()'s belt move (a full belt's item down at the taker's feet first, ItemPlaced `put_down`;
+## ItemPickedUp with `belted` the item itself), the two-handed item staying in the hand.
+## Otherwise `item` goes into the hand: the hand item, if any, moves to the belt when it is
+## one-handed and the belt is empty; else it rests where the picked-up one lay, a spot already
+## known to be valid (§7.1): a one-handed hand item beside a full belt, or a two-handed one when
+## `item` is two-handed too (the belt holds only a one-handed item). Emits ItemPickedUp (with
+## `belted`, the item moved to the belt, E29), then for a hand item that rests ItemPlaced (swap)
+## and item_rested. The rule's conditions checked the ground, the reach and the sight; an item
+## that is not on the ground here is a rule error, and the sender of the intent gets
+## `unavailable`.
 static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or item == null or item.where != ItemState.Where.GROUND:
@@ -97,23 +115,97 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 			ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
 		return
 	var before := held_by(ctx.state, peer)
+	if before != null and before.kind.is_two_handed() and not item.kind.is_two_handed():
+		_onto_belt(ctx, peer, item)
+		return
 	var spot := item.position
 	var belted: ItemState = null
 	var rests: ItemState = null
 	if before != null:
 		if not before.kind.is_two_handed() and player.belt_item < 0:
 			belted = before
-			belted.where = ItemState.Where.BELT
-			player.belt_item = belted.id
+			_to_belt(player, belted)
 		else:
 			rests = before
-	item.where = ItemState.Where.HAND
-	item.rest_tick = -1
-	item.holder = peer
-	player.held_item = item.id
-	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1))
+	_into_hand(ctx, peer, item, belted)
 	if rests != null:
 		place(ctx, rests, spot, SWAP)
+
+
+## `item`, a new item from a source or one locked on a station (a box's, a bed's or the grill's
+## take, the cooking ADR §2), goes to `peer`, who makes room (§2's table; CD3 (b), CD5 (b), both
+## the engineer's; CE19, CE20):
+## - empty hands: into the hand;
+## - a one-handed hand item and an empty belt: into the hand, the hand item to the belt
+##   (ItemPickedUp's `belted`, as a pickup's);
+## - a one-handed hand item and a full belt: into the hand, the hand item put down at the taker's
+##   feet first (ItemPlaced `put_down`, then item_rested);
+## - a two-handed hand item: onto the belt, a full belt's item put down at the feet first; the
+##   two-handed item stays in the hand, and ItemPickedUp's `belted` names `item` itself.
+## The feet: WorldQuery.rest_position from the eye straight down, the spot PutDownInFront uses for a
+## facing with no horizontal direction. A given kind is one-handed (CE14): a two-handed one, or an
+## item carried or in flight, is a rule error, logged, and nothing moves. Emits ItemPickedUp last.
+static func give(ctx: MatchContext, peer: int, item: ItemState) -> void:
+	var player := ctx.state.player(peer)
+	if player == null or item == null or item.is_carried() or item.is_in_flight():
+		ctx.error("give: item %s cannot go to player %d" % [_id(item), peer])
+		return
+	if item.kind.is_two_handed():
+		ctx.error("give: item %d of kind %s is two-handed" % [item.id, item.kind.id])
+		return
+	var hand := held_by(ctx.state, peer)
+	if hand != null and hand.kind.is_two_handed():
+		_onto_belt(ctx, peer, item)
+		return
+	var belted: ItemState = null
+	if hand != null:
+		if player.belt_item < 0:
+			belted = hand
+			_to_belt(player, belted)
+		else:
+			place(ctx, hand, _feet(ctx, player), PUT_DOWN)
+	_into_hand(ctx, peer, item, belted)
+
+
+## `item` becomes `kind` where it is (the cooking ADR, CE4: a patty on the grill turning fried,
+## then burnt): it keeps its id, its place, its holder and its rest tick. ItemChanged to everyone;
+## nothing at all when it already is that kind. A missing item or kind is a rule error, logged.
+static func change_kind(ctx: MatchContext, item: ItemState, kind: ItemKind) -> void:
+	if item == null or kind == null:
+		ctx.error("change_kind: item %s or its new kind is missing" % _id(item))
+		return
+	if item.kind == kind:
+		return
+	item.kind = kind
+	ctx.emit(ItemChangedEvent.new(item.id, kind.id))
+
+
+## `item` (in a hand, say) is locked at `at`, a station's spot (the cooking ADR, CE5: a patty on
+## the grill, a right ingredient on a place): out of any hand or belt, held by nobody, not
+## interactive (no PickUp takes it) and not lying, so it never vanishes. Only give() hands it out
+## again. Emits nothing: the station's event (GrillLoaded, IngredientPlaced) announces it. No item
+## is a rule error, logged, and nothing moves.
+static func lock_at(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
+	if item == null:
+		ctx.error("lock_at: no item to lock at %s" % at)
+		return
+	_release(ctx, item)
+	item.holder = 0
+	item.position = at
+	item.flight = null
+	lock(item)
+
+
+## `item` lies on the ground at `at`, a station's spot, interactive (the cooking ADR, CE5: a wrong
+## ingredient at a place, which PickUp takes back), its rest tick this tick (lay()); raises
+## item_rested with the cause `on_station`. No ItemPlaced: the station's event (IngredientPlaced)
+## says where it went. No item is a rule error, logged, and nothing moves.
+static func lay_on_station(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
+	if item == null:
+		ctx.error("lay_on_station: no item to lay at %s" % at)
+		return
+	lay(ctx, item, at)
+	raise_rested(ctx, item, ON_STATION)
 
 
 ## `peer`'s hand and belt items change places; either may be empty. Swapped (everyone). The rule's
@@ -287,6 +379,50 @@ static func eye_of(ctx: MatchContext, player: PlayerState) -> Vector3:
 ## `point` lifted by SURFACE_CLEARANCE_M, off the surface it lies on.
 static func lifted(point: Vector3) -> Vector3:
 	return point + Vector3.UP * SURFACE_CLEARANCE_M
+
+
+## give()'s belt move, which take() shares beside a two-handed hand item (CE21): a full belt's item
+## put down at `peer`'s feet (ItemPlaced `put_down`, item_rested), then `item` onto the belt, and
+## ItemPickedUp with `belted` the item itself (CE20). The hand item stays where it is.
+static func _onto_belt(ctx: MatchContext, peer: int, item: ItemState) -> void:
+	var player := ctx.state.player(peer)
+	var full := belted_by(ctx.state, peer)
+	if full != null:
+		place(ctx, full, _feet(ctx, player), PUT_DOWN)
+	item.holder = peer
+	item.rest_tick = -1
+	_to_belt(player, item)
+	ctx.emit(ItemPickedUpEvent.new(peer, item.id, item.id))
+
+
+## `item` into `peer`'s hand, held by it, no longer lying; ItemPickedUp with `belted` (the hand
+## item that moved to the belt, or none).
+static func _into_hand(ctx: MatchContext, peer: int, item: ItemState, belted: ItemState) -> void:
+	var player := ctx.state.player(peer)
+	item.where = ItemState.Where.HAND
+	item.rest_tick = -1
+	item.holder = peer
+	player.held_item = item.id
+	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1))
+
+
+## `item`, already held by `player` or being given to it, onto its belt.
+static func _to_belt(player: PlayerState, item: ItemState) -> void:
+	item.where = ItemState.Where.BELT
+	player.belt_item = item.id
+
+
+## Where an item a take displaces is put down (CE19): below `player`'s eye (Items.eye_of), as
+## PutDownInFront does for a facing with no horizontal direction. Without PlayerRules (a mode the
+## check refuses) the error is logged and the player's last accepted position stands in.
+static func _feet(ctx: MatchContext, player: PlayerState) -> Vector3:
+	if ctx.state.player_rules == null:
+		ctx.error(
+			"give: the mode has no PlayerRules; the put-down rests at player %d" % player.peer
+		)
+		return player.position
+	var eye := eye_of(ctx, player)
+	return ctx.world.rest_position(eye, eye)
 
 
 ## Empties the hand or belt slot that holds `item`, if any.

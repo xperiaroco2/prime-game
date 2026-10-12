@@ -301,7 +301,13 @@ func test_cores_constant_ids_fit_the_wire() -> void:
 			if value is StringName:
 				ids.append(str(value))
 	var causes: Array[StringName] = [
-		Items.PUT_DOWN, Items.SWAP, Items.DEATH, Items.LEAVE, Items.SPAWN, Items.THROWN
+		Items.PUT_DOWN,
+		Items.SWAP,
+		Items.DEATH,
+		Items.LEAVE,
+		Items.SPAWN,
+		Items.THROWN,
+		Items.ON_STATION,
 	]
 	for cause: StringName in causes:
 		ids.append(str(cause))
@@ -317,7 +323,7 @@ func test_the_items_causes_are_every_string_name_constant_of_items() -> void:
 		if value is StringName:
 			causes.append(str(value))
 	assert_array(causes).contains_exactly_in_any_order(
-		["put_down", "swap", "death", "leave", "spawn", "thrown"]
+		["put_down", "swap", "death", "leave", "spawn", "thrown", "on_station"]
 	)
 
 

@@ -210,15 +210,38 @@ func test_a_package_swapped_into_its_circle_is_delivered() -> void:
 	var circle := FixtureDeliveryModes.circle_of(game, task, 0)
 	FixtureItemModes.stand(game, P1, held.position + Vector3(0.5, 0, 0))
 	FixtureItemModes.pick_up(game, P1, held)
-	# A tool lies inside the held package's circle; picking it up swaps the package onto its spot.
-	var tool := FixtureItemModes.lay(game, &"tool", circle.position + Vector3(0.3, 0, 0))
+	# Another package lies inside the held package's circle; picking it up swaps the held one onto
+	# its spot. A two-handed picked item keeps the swap (the cooking ADR, CE21: the belt holds only
+	# a one-handed item; the one-handed case is the next test's).
+	var other := FixtureDeliveryModes.package_of(game, task, 1)
+	other.position = circle.position + Vector3(0.3, 0, 0)
 	FixtureItemModes.stand(game, P1, circle.position + Vector3(1.5, 0, 0))
-	FixtureItemModes.pick_up(game, P1, tool)
-	assert_int(tool.where).is_equal(ItemState.Where.HAND)
+	FixtureItemModes.pick_up(game, P1, other)
+	assert_int(other.where).is_equal(ItemState.Where.HAND)
 	assert_int(held.where).is_equal(ItemState.Where.LOCKED)
 	var placed := game.view_of(P1).events_named(&"ItemPlaced")[0] as ItemPlacedEvent
 	assert_str(placed.cause).is_equal("swap")
 	assert_array(game.view_of(P1).events_named(&"PackageDelivered")).has_size(1)
+
+
+## The engineer's belt rule for every take (the cooking ADR, CD3 (b), CE21; PR #701 comment
+## 6096157421): a package carrier who picks up a one-handed tool lying in the package's circle puts
+## the tool on the belt and keeps the package, so nothing comes to rest and nothing is delivered.
+func test_a_tool_picked_up_in_its_circle_goes_onto_the_belt_and_nothing_is_delivered() -> void:
+	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(2), [P1])
+	var task := FixtureDeliveryModes.task_of(game)
+	var held := FixtureDeliveryModes.package_of(game, task, 0)
+	var circle := FixtureDeliveryModes.circle_of(game, task, 0)
+	FixtureItemModes.stand(game, P1, held.position + Vector3(0.5, 0, 0))
+	FixtureItemModes.pick_up(game, P1, held)
+	var tool := FixtureItemModes.lay(game, &"tool", circle.position + Vector3(0.3, 0, 0))
+	FixtureItemModes.stand(game, P1, circle.position + Vector3(1.5, 0, 0))
+	FixtureItemModes.pick_up(game, P1, tool)
+	assert_int(tool.where).is_equal(ItemState.Where.BELT)
+	assert_int(held.where).is_equal(ItemState.Where.HAND)
+	assert_int(game.state.player(P1).held_item).is_equal(held.id)
+	assert_array(game.view_of(P1).events_named(&"ItemPlaced")).is_empty()
+	assert_array(game.view_of(P1).events_named(&"PackageDelivered")).is_empty()
 
 
 func test_a_package_dropped_at_a_death_inside_its_circle_is_delivered() -> void:

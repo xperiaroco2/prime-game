@@ -60,8 +60,9 @@ const FOR_ONE: Array[StringName] = [
 ## The events every player present for a whole match decodes alike (check_tasks). TaskState
 ## (M4-5) is public to the living, the downed and the dead alike: the task screen is everyone's;
 ## so is ZoneProgress (#647), the zone task's progress, ItemVanished (#779), an item left
-## lying going (the bot folds it once a scenario plays Cooking, the cooking ADR CE22), and the
-## Generator's SwitchChanged and ButtonPressed (#797).
+## lying going (the bot folds it once a scenario plays Cooking, the cooking ADR CE22), ItemChanged
+## (#771), an item turning another kind (folded the same way), and the Generator's SwitchChanged and
+## ButtonPressed (#797).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -72,6 +73,7 @@ const TASK_EVENTS: Array[StringName] = [
 	&"ItemVanished",
 	&"SwitchChanged",
 	&"ButtonPressed",
+	&"ItemChanged",
 ]
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary

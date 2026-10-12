@@ -369,6 +369,11 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			items[fields["item"] as int] = item
 		&"ItemPickedUp", &"Swapped":
 			_fold_slots(event_name, fields)
+		&"ItemChanged":
+			# Another kind where it is (the cooking ADR, CE4): its view is rebuilt with the new look.
+			var changed: Item = items.get(fields["item"] as int)
+			if changed != null:
+				changed.kind = fields["kind"]
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:
@@ -437,8 +442,10 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 
 
 ## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt
-## (E29); a hand item that did not fit the belt follows as ItemPlaced. A swap exchanges the
-## swapper's hand and belt items, either of which may be empty.
+## (E29); a hand item that did not fit the belt follows as ItemPlaced. When `belted` names the
+## item itself (the cooking ADR, CE20, CE21: a take beside a two-handed hand item), it goes
+## straight onto the belt and the hand item stays held. A swap exchanges the swapper's hand and
+## belt items, either of which may be empty.
 func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	var peer: int = fields["peer"]
 	if event_name == &"Swapped":

@@ -68,6 +68,9 @@ static func events() -> Dictionary[String, Array]:
 	found["ItemPlacedEvent"] = [ItemPlacedEvent.new(1, Vector3(0.5, 0.05, 0.5), &"put_down")]
 	found["PackageDeliveredEvent"] = [PackageDeliveredEvent.new(3, 1)]
 	found["ItemVanishedEvent"] = [ItemVanishedEvent.new(1), ItemVanishedEvent.new(0xFFFE)]
+	found["ItemChangedEvent"] = [
+		ItemChangedEvent.new(1, &"patty_fried"), ItemChangedEvent.new(0xFFFE, &"k")
+	]
 	found["TaskProgressEvent"] = [TaskProgressEvent.new(2, 0xFFFF)]
 	found["SwungEvent"] = [SwungEvent.new(2, Vector3(0.6, 0, -0.8))]
 	found["DamagedEvent"] = [DamagedEvent.new(2, 250, -0x80000000)]
