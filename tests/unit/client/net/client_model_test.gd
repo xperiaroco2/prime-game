@@ -658,3 +658,29 @@ func _assert_no_match_facts() -> void:
 
 func _fold(event: MatchEvent) -> void:
 	_model.fold(event.event_name(), event.to_dict())
+
+
+func test_the_lift_folds_up_and_its_tick_and_the_picture_its_needed_part() -> void:
+	# The car repair (#807): LiftChanged on the panel's station, PartNeeded on the picture's.
+	_to_round()
+	_fold(StationPlacedEvent.new(2, &"lift_panel", Color.WHITE, Vector3(3, 0, 20)))
+	_fold(StationPlacedEvent.new(5, &"part_picture", Color.WHITE, Vector3(0, 0, 25)))
+	var panel := _model.stations[2]
+	var shown := _model.stations[5]
+	assert_bool(panel.up).is_false()
+	assert_int(panel.lift_tick).is_equal(-1)
+	assert_str(String(shown.part)).is_empty()
+	_fold(PartNeededEvent.new(5, &"spark_plug"))
+	assert_str(String(shown.part)).is_equal("spark_plug")
+	_fold(LiftChangedEvent.new(2, true, 40))
+	assert_bool(panel.up).is_true()
+	assert_int(panel.lift_tick).is_equal(40)
+	_fold(LiftChangedEvent.new(2, false, 55))
+	assert_bool(panel.up).is_false()
+	assert_int(panel.lift_tick).is_equal(55)
+	_fold(PartNeededEvent.new(5, &""))
+	assert_str(String(shown.part)).is_empty()
+	# A station the model does not know changes nothing and is not added.
+	_fold(LiftChangedEvent.new(9, true, 60))
+	_fold(PartNeededEvent.new(9, &"spark_plug"))
+	assert_bool(_model.stations.has(9)).is_false()

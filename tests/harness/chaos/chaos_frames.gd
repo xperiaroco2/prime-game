@@ -84,16 +84,21 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## when Interact took it (#796), 20 took its place; 69 left it when ItemVanished took it (#779), 70
 ## took its place; 70 left it when SwitchChanged took it (#797, ButtonPressed took 71), 72 took its
 ## place; 72 left it when ItemChanged took it (#771), 73 took its place; 73 left it when OrderPosted
-## took it (#772, HerbsDealt took 74), 75 took its place.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 75, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## took it (#772, HerbsDealt took 74), 75 took its place; 75 left it when LiftChanged took it (#807,
+## PartNeeded took 76), 77 took its place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 77, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
-## `wrong_direction`), one drawn per packet: Rejected, and the Generator's events (#797), each
-## with valid fields.
-const WRONG_DIRECTION: Array[StringName] = [&"Rejected", &"SwitchChanged", &"ButtonPressed"]
+## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
+## repair's (#807), each with valid fields.
+const WRONG_DIRECTION: Array[StringName] = [
+	&"Rejected", &"SwitchChanged", &"ButtonPressed", &"LiftChanged", &"PartNeeded"
+]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
 	&"SwitchChanged": {"station": 1, "on": true},
 	&"ButtonPressed": {"station": 1},
+	&"LiftChanged": {"station": 1, "up": true, "tick": 1},
+	&"PartNeeded": {"station": 1, "kind": &"part"},
 }
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:

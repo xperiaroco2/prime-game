@@ -5,6 +5,7 @@ extends TaskType
 ## of a type's kinds (MarkerReader, ModeCheck's ZE3, CircleViews, WireBudget) must see them.
 
 var held: Array[StationKind] = []
+var layout_problems_count := 0
 
 
 ## A type `type_id` holding one kind per (id, spawn tag) pair.
@@ -26,3 +27,8 @@ static func kind(kind_id: StringName, tag: StringName) -> StationKind:
 
 func station_kinds() -> Array[StationKind]:
 	return held
+
+
+## How many layout problems the wire must size SettingsChanged for (TaskType.most_layout_problems).
+func most_layout_problems() -> int:
+	return layout_problems_count

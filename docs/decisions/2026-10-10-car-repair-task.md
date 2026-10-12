@@ -232,7 +232,7 @@ everyone, the holder included, while the fitter is still under the car (RD14's t
 | One swing hits the holder (the lower peer id) and a player in the footprint box, and knocks the holder down | the knockdown stops the hold, which records the second target; `Strike` damages it as usual (it is still alive), and once the swing has finished the drop kills it: its `Died` comes last, no rule error | RE17: `Strike` damages its targets in peer-id order after picking them all; a kill in the middle of the swing would leave `LifeRules.damage` with a dead player, a rule error that fails the tests and bots that require none. `Strike` still skips a target no longer alive (R2), a defensive check |
 | A player in the box swings, hits the holder first and knocks it down, and hits another target | every target of the swing is damaged; then the swinger's `Died`: no `Damaged` after it | RE17: no effect runs for an attacker the drop killed halfway |
 | The holder applies its own action (a `Use`, `Swap` or `PickUp`) while it stands in the box | the action's rule stops the hold, then pays and runs its effects for a living actor; then the holder's `Died`, and its slots drop at its body as for every death | RE17: a dead player never swings or picks up |
-| The holder sends `Raise` at a knocked-down player lying in the box | the raise stops the hold, then starts (`RaiseStarted`); once the command has finished, the drop kills the target, whose kill stops the raise (`RaiseStopped`): no channel on a dead player | RE17 |
+| The holder sends `Raise` at a knocked-down player lying in the box | the raise is refused `busy` (`ChannelFree` allows one channel per actor), so the hold runs on and nothing drops; the engineer chose this on 2026-10-12 (PR #888) over letting a raise stop the actor's own channel first | RE17 |
 | The holder leaves (or loses its connection) | the drop's `LiftChanged`, `PlayerLeft` and the leaver's drops, then the victims' `Died` (RD16 (a)); a leaver who stood in the box is skipped, it is no longer present | `LifeRules.leave` stops the player's channels first; RE17 |
 | The holder walks out of the panel's cylinder | the next tick's re-check fails `AtStation`: the drop | "only while someone holds E at the lift panel" |
 | The holder swings, swaps, picks up or uses another station | the action applies, which stops the hold first: the drop | §9.2: an applied action stops its actor's channel |
@@ -320,7 +320,7 @@ for the record, lettered on through a row's sub-questions; the last column is wh
   every stop of §2.3 each dropping the car, the box test (inside, beside, at the ends, on the roof, downed,
   invulnerable), the phase's end with no kill, RD11's refusal of a new hold only, RE17's mid-command drops (§4: the
   holder moved into the box and knocked down gives one `Died` and no `KnockedDown` after it; the holder's `Raise` at
-  a knocked-down player in the box ends with its `RaiseStopped` and no channel on the dead; a two-target swing from
+  a knocked-down player in the box is refused `busy` and the hold runs on (§4, PR #888); a two-target swing from
   inside the box gives no `Damaged` after the swinger's `Died`; the holder's own `PickUp` in the box leaves the item
   at its body, never in a dead player's slot), the role-swap check (two players'
   forced roles swapped: identical `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`, `TaskState`,

@@ -92,6 +92,15 @@ class Station:
 	## The Generator's button: the ButtonPressed events decoded for it, so a view can tell a new
 	## press (its sound, its animation) from one it has shown.
 	var presses := 0
+	## The car repair's lift panel (#807): whether the car is up or going up, and the host tick of
+	## the hold's start or stop, as its last LiftChanged told it (-1 before the first). The view
+	## derives the car's height from these and its own copy of `rise_seconds`; nothing names who
+	## holds.
+	var up := false
+	var lift_tick := -1
+	## The car repair's picture (#807): the part kind id the car needs now, as its last PartNeeded
+	## told it; empty for none.
+	var part := &""
 
 
 ## Its own peer id once welcomed; 0 before.
@@ -413,6 +422,15 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			var button: Station = stations.get(fields["station"] as int)
 			if button != null:
 				button.presses += 1
+		&"LiftChanged":
+			var panel: Station = stations.get(fields["station"] as int)
+			if panel != null:
+				panel.up = fields["up"]
+				panel.lift_tick = fields["tick"]
+		&"PartNeeded":
+			var shown: Station = stations.get(fields["station"] as int)
+			if shown != null:
+				shown.part = fields["kind"]
 		&"TaskProgress":
 			tasks_done = fields["done"]
 			tasks_total = fields["total"]

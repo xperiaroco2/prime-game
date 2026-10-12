@@ -23,6 +23,10 @@ const NO_LAYOUT := &"no_layout"
 ## The match asks for tasks, and no task type plays on the chosen map after the bans
 ## (TaskType.maps, #803). No arguments: SettingsChanged names the map.
 const NO_TASK_TYPES := &"no_task_types"
+## A car repair's `car_end` marker nearer its `car` marker than the car's radius (the car repair
+## ADR's RE14, #807; TaskType.layout_problems): a short axis. ids: [the car_end tag, the car's
+## tag]; numbers: need (the car's radius) and have (the distance), whole centimetres.
+const SHORT_AXIS := &"short_axis"
 
 ## What the text says (a wire id).
 var id: StringName

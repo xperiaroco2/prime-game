@@ -30,8 +30,10 @@ extends RefCounted
 ## 20 since #770 made Interact's `station` optional and added its optional `item`;
 ## 21 since #780 let a station refuse a use `wrong_item` (StationUsable.REASONS, the cooking ADR's
 ## CE11): a new Rejected reason, no row changed, so a client of 20 never meets it;
-## 22 since #772 added Cooking's OrderPosted (kind 73) and HerbsDealt (kind 74).
-const VERSION := 22
+## 22 since #772 added Cooking's OrderPosted (kind 73) and HerbsDealt (kind 74);
+## 23 since #807 added the car repair's LiftChanged (kind 75) and PartNeeded (kind 76), and the
+## host text `short_axis`.
+const VERSION := 23
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -483,6 +485,13 @@ static func _events() -> Array[WireRow]:
 			[_station("station"), _id("bun"), _id("patty"), _of("icon", WireField.Type.U8)]
 		),
 		herbs_dealt,
+		_down(75, &"LiftChanged", 7, [_station("station"), _bool("up"), _of("tick", _tick())]),
+		_down(
+			76,
+			&"PartNeeded",
+			36,
+			[_station("station"), WireField.when("has_kind", [_id("kind")], {"kind": &""})]
+		),
 	]
 
 
