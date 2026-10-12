@@ -162,6 +162,40 @@ func test_a_pick_up_and_put_down_in_the_loads_tick_empties_the_camera() -> void:
 	FixturePhotoModes.use(game, P3, FixturePhotoModes.camera_of(game))
 	assert_array(FixturePhotoModes.reasons(game, P3)).is_equal([&"no_film"])
 	assert_int(_shots(game)).is_equal(0)
+	# The next Interact with a fresh film is a load, not a shot.
+	var fresh := FixturePhotoModes.give_film(game, P3)
+	FixturePhotoModes.use(game, P3, FixturePhotoModes.camera_of(game))
+	assert_int(_shots(game)).is_equal(0)
+	assert_array(FixturePhotoModes.received(game, P3, &"FilmLoaded")).has_size(2)
+	assert_object(FixturePhotoModes.state_of(game).loaded).is_same(fresh)
+
+
+func test_a_pick_up_then_a_death_drop_back_on_the_camera_empties_it() -> void:
+	var killers: Array[FixtureKillTick] = []
+	var game := FixturePhotoModes.in_round_with_killer(PEERS, killers)
+	FixturePhotoModes.take(game, P1, FixturePhotoModes.dealt_film(game))
+	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
+	var film := FixturePhotoModes.dealt_film(game)
+	var camera := FixturePhotoModes.camera_of(game)
+	# P2 lifts the film, then dies on the camera's spot: the film drops back exactly where and as
+	# it lay, only the move serial differs.
+	FixturePhotoModes.take(game, P2, film)
+	assert_object(Items.held_by(game.state, P2)).is_same(film)
+	FixtureItemModes.stand(game, P2, FixturePhotoModes.CAMERA_AT)
+	var lifted_moves := film.moves
+	killers[0].queues = [P2]
+	FixtureModes.run_ticks(game, 1)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DEAD)
+	assert_int(film.where).is_equal(ItemState.Where.GROUND)
+	assert_vector(film.position).is_equal(FixturePhotoModes.CAMERA_AT)
+	assert_int(film.moves).is_greater(lifted_moves)
+	# The next Interact with a fresh film is a load, not a shot.
+	var fresh := FixturePhotoModes.give_film(game, P3)
+	FixturePhotoModes.use(game, P3, camera)
+	assert_int(_shots(game)).is_equal(0)
+	assert_array(FixturePhotoModes.reasons(game, P3)).is_empty()
+	assert_array(FixturePhotoModes.received(game, P3, &"FilmLoaded")).has_size(2)
+	assert_object(FixturePhotoModes.state_of(game).loaded).is_same(fresh)
 
 
 func test_a_vanished_film_whose_id_returns_on_the_camera_is_not_loaded() -> void:

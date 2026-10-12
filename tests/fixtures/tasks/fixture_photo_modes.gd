@@ -234,3 +234,13 @@ static func reasons(game: Match, peer: int) -> Array[StringName]:
 	for event: MatchEvent in game.view_of(peer).events_named(&"Rejected"):
 		found.append(StringName(str(event.to_dict().get("reason", ""))))
 	return found
+
+
+## A round of `mode` with a FixtureKillTick on the round phase, queuing nobody until the test sets
+## `queues` on it. Returns the match; the tick system is in `killers[0]`.
+static func in_round_with_killer(peers: Array[int], killers: Array[FixtureKillTick]) -> Match:
+	var mode := basic()
+	var killer := FixtureKillTick.queuing([])
+	killers.append(killer)
+	mode.find_phase(&"round").tick_systems.append(killer)
+	return in_round(mode, peers)
