@@ -223,9 +223,9 @@ SNAPSHOT_CASES = {
             "update-main",
             {"branch": "core/7-x", "update": True, "plan_review": True, "test_review": True, "skeptic": True},
             {"paths": ["core/x.gd"], "findings": [MAJOR], "queues": {"implement": [{
-                "verify_green": True, "complete": True, "summary": "s", "changed_paths": ["core/x.gd", "docs/x.md"],
+                "verify_green": True, "complete": True, "summary": "s", "changed_paths": ["core/x.gd", "client/ui/x.gd", "docs/x.md"],
                 "published_head": "89abcdef0123456789abcdef0123456789abcdef",
-                "delta": [{"path": "core/x.gd", "added": 3, "deleted": 1}, {"path": "docs/x.md", "added": 9, "deleted": 2}],
+                "delta": [{"path": "client/ui/x.gd", "added": 3, "deleted": 1}, {"path": "docs/x.md", "added": 9, "deleted": 2}],
             }]}},
         ),
         (
@@ -2866,14 +2866,16 @@ class UpdateRunTest(unittest.TestCase):
         self.assertFalse(any("Update run" in e["prompt"] or "published_head" in e["opts"] for e in agents(runs[0])))
 
     def test_the_update_path_drops_the_planner_the_test_review_and_the_skeptic(self) -> None:
-        (result,) = run_update([(dict(ALL_OPTIONS, branch="core/7-x"), updated([("core/x.gd", 3, 1), ("docs/y.md", 20, 5)]))])
+        # A core PR whose delta is outside the full tier's paths (client/ui/ is light): the delta's paths route the
+        # reviewers (the engineer's answer 2A on PR #862), so client/ui/ still gets the netcode review on a full PR.
+        (result,) = run_update([(dict(ALL_OPTIONS, branch="core/7-x"), updated([("client/ui/x.gd", 3, 1), ("docs/y.md", 20, 5)]))])
         self.assertIsNone(result["error"])
         labels = [e["label"] for e in agents(result)]
         self.assertEqual(labels, ["implement:#7", "review:code:#7", "review:netcode:#7", "review:godot-api:#7", "review:netcode-second:#7", "publish:#7"])
         out = result["returned"]
         self.assertEqual(
             out["update"],
-            {"path": "update", "head": HEAD, "files": 2, "lines": 29, "netcode_lines": 4, "skipped": ["plan_review", "test_review", "skeptic"]},
+            {"path": "update", "head": HEAD, "files": 2, "lines": 29, "skipped": ["plan_review", "test_review", "skeptic"]},
         )
         self.assertEqual(out["test_review"]["skipped"][:30], "an update run (update, #856): ")
         self.assertNotIn("skeptic", out)
@@ -2896,15 +2898,16 @@ class UpdateRunTest(unittest.TestCase):
                 self.assertNotIn(": `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
         pub = calls(result, "publish")[0]["prompt"]
         line = next(x for x in pub.split("\n\n") if x.startswith(UPDATE_LINE))
-        self.assertIn(f"the update path: the reviewers read only the delta since the PR's published head {HEAD}, 29 changed lines in 2 files (4 under", line)
+        self.assertIn(f"the update path: the reviewers read only the delta since the PR's published head {HEAD}, 29 changed lines in 2 files, none under core/", line)
         self.assertIn("skipped although the launch passed them: plan_review, test_review, skeptic", line)
         self.assertNotIn("Skeptics tried to refute", pub)
 
-    def test_a_delta_over_the_limit_under_a_full_tier_path_takes_the_full_chain(self) -> None:
+    def test_a_delta_touching_a_full_tier_path_takes_the_full_chain(self) -> None:
+        # The engineer's answer 1C on PR #862: any path of the full tier, whatever the delta's size (one line here).
         roots = ["core/x.gd", "server/x.gd", "net/x.gd", "client/hud/x.gd", "voice/x.gd", "tests/harness/x.gd"]
-        cases = [({"branch": "core/7-x"}, updated([(p, 20, 11), ("docs/y.md", 500, 0)])) for p in roots]  # 31 lines
-        cases += [({"branch": "core/7-x"}, updated([("core/a.gd", 10, 5), ("net/b.gd", 10, 6)]))]  # 31 lines in two
-        cases += [({"branch": "core/7-x"}, updated([("core/x.png", -1, -1)]))]  # a binary file there: over
+        cases = [({"branch": "core/7-x"}, updated([("docs/y.md", 500, 0), (p, 1, 0)])) for p in roots]
+        cases += [({"branch": "core/7-x"}, updated([("core/x.png", -1, -1)]))]  # a binary file there
+        cases += [({"branch": "core/7-x"}, updated([("core/a.gd", 1, 0), ("net/b.gd", 0, 1), ("voice/c.gd", 1, 1), ("server/d.gd", 2, 0)]))]
         results = run_update([(dict(ALL_OPTIONS, **a), impl) for a, impl in cases])
         for (args, impl), result in zip(cases, results):
             with self.subTest(delta=impl["delta"]):
@@ -2921,11 +2924,13 @@ class UpdateRunTest(unittest.TestCase):
                     self.assertNotIn(HEAD, review["prompt"])
                 pub = calls(result, "publish")[0]["prompt"]
                 self.assertIn(f"{UPDATE_LINE}the full chain ({out['why']}): the reviewers read the whole PR diff", pub)
-        self.assertEqual(results[0]["returned"]["update"]["why"], "the delta changes 31 lines under the full tier's paths, more than 30")
-        self.assertIn("a binary file under the full tier's paths (core/x.png)", results[-1]["returned"]["update"]["why"])
-        # At the limit, or over it only outside those paths (client/ui/ included): the update path.
+        whys = [r["returned"]["update"]["why"] for r in results]
+        self.assertEqual(whys[:len(roots)], [f"the delta touches the full tier's paths ({p})" for p in roots])
+        self.assertEqual(whys[-2], "the delta touches the full tier's paths (core/x.png)")
+        self.assertEqual(whys[-1], "the delta touches the full tier's paths (core/a.gd, net/b.gd, voice/c.gd, 1 more)")
+        # A delta of any size outside those paths (client/ui/ and tests/ but tests/harness/ included): the update path.
         cases = [
-            ({}, updated([("core/x.gd", 20, 10), ("tools/x.py", 400, 0)])),
+            ({}, updated([("tools/x.py", 400, 0), ("docs/x.md", 900, 300)])),
             ({}, updated([("client/ui/x.gd", 300, 40), ("tests/unit/x_test.gd", 90, 0)])),
             ({}, updated([("docs/x.png", -1, -1)])),
         ]
@@ -2963,7 +2968,7 @@ class UpdateRunTest(unittest.TestCase):
         cases = [
             ({"branch": "core/7-x"}, updated([("docs/x.md", 4, 0)])),  # a core PR, a docs delta: the code reviewer
             ({"branch": "core/7-x"}, updated([])),  # an empty delta is known: no reviewer for unknown paths
-            ({"branch": "core/7-x"}, updated([("core/x.gd", 4, 0)])),
+            ({"branch": "core/7-x"}, updated([("client/ui/x.gd", 4, 0)])),  # a core PR: the delta's client/ path routes the netcode review
             ({"branch": "docs/7-x", "design": True}, updated([("docs/x.md", 4, 0)])),  # a design task keeps its netcode review
             ({"branch": "client/7-x"}, dict(updated([("client/ui/x.gd", 4, 0)]), changed_paths=["client/ui/x.gd"])),  # light
         ]
@@ -2996,7 +3001,7 @@ class UpdateRunTest(unittest.TestCase):
 
     def test_the_publisher_gets_no_delta_rows(self) -> None:
         # The line of the update path carries the head, the file count and the line count; the rows would only add tokens.
-        (result,) = run_update([({"branch": "core/7-x"}, dict(updated([("core/rows_marker.gd", 3, 1)]), changed_paths=["core/x.gd"]))])
+        (result,) = run_update([({"branch": "core/7-x"}, dict(updated([("client/ui/rows_marker.gd", 3, 1)]), changed_paths=["core/x.gd"]))])
         pub = calls(result, "publish")[0]["prompt"]
         self.assertIn(f"published head {HEAD}", pub)
         self.assertNotIn("rows_marker", pub)

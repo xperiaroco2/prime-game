@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta changes more than 30 lines under the paths of the full tier. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
@@ -46,10 +46,10 @@ export const meta = {
 //            only where the tier allows it, and always for a design task), review `git diff <head>..HEAD` and read
 //            the rest of the PR only as context; test_review and skeptic are dropped. The full chain instead (today's
 //            reviews of the whole PR diff, test_review and skeptic when passed) when no published head comes back
-//            (none on the branch's remote, or not an ancestor of HEAD), tier is 'full', or the delta changes more
-//            than UPDATE_LINES (30) lines, added plus deleted, under the full tier's paths (REVIEWED; a binary file
-//            there counts as over). The result's update and the publisher's prompt (for the PR) name the path taken,
-//            the delta's size and what was skipped. -2 agents with plan_review, -1 with test_review, -1 a checked
+//            (none on the branch's remote, or not an ancestor of HEAD), tier is 'full', or the delta touches any
+//            path of the full tier (REVIEWED), whatever its size (the engineer's answer 1C on PR #862). The result's
+//            update and the publisher's prompt (for the PR) name the path taken, the delta's size and what was
+//            skipped. -2 agents with plan_review, -1 with test_review, -1 a checked
 //            finding with skeptic, on the update path
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
@@ -240,9 +240,6 @@ if (A.tier !== undefined && A.tier !== null && A.tier !== 'full') throw new Erro
 const FORCED_FULL = A.tier === 'full'
 // update (#856): a run that continues a published PR. Off, nothing below changes.
 const UPDATE = flag('update')
-// The most lines (added plus deleted) the delta may change under the full tier's paths (REVIEWED) and still be
-// reviewed alone: #856 proposed 30, a small fix of a rule or a handler that one reading of the delta covers.
-const UPDATE_LINES = 30
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
@@ -689,7 +686,7 @@ const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under
 const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
 // update (#856): the implementer records the PR's published head first (nothing is pushed before the publisher, so a
 // continuation reads the same head) and returns the delta since it.
-const UPDATE_RULE = `Update run (update, #856): this run continues the published PR of ${A.branch}; the change it asks for is in the task notes. Your first step, before any edit or commit: \`git -C ${WTB} fetch origin ${A.branch}\`, then \`git -C ${WTB} rev-parse origin/${A.branch}\`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of \`git -C ${WTB} diff --numstat --no-renames <published head>..HEAD\` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or \`git -C ${WTB} merge-base --is-ancestor <published head> HEAD\` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it changes more than ${UPDATE_LINES} lines under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.`
+const UPDATE_RULE = `Update run (update, #856): this run continues the published PR of ${A.branch}; the change it asks for is in the task notes. Your first step, before any edit or commit: \`git -C ${WTB} fetch origin ${A.branch}\`, then \`git -C ${WTB} rev-parse origin/${A.branch}\`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of \`git -C ${WTB} diff --numstat --no-renames <published head>..HEAD\` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or \`git -C ${WTB} merge-base --is-ancestor <published head> HEAD\` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it touches any path under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.`
 const implement = (k, note) => agent([
   RULES,
   `Task: GitHub issue #${N} (${A.title}). Effort: ${IMPL_EFFORT}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
@@ -748,8 +745,8 @@ const TIER_SKIPPED = [
 log(`#${N}: review tier ${TIER} (${TIER_WHY})${TIER_SKIPPED.length ? `; skipped: ${TIER_SKIPPED.join(', ')}` : ''}${PLAN_SKIPPED && !LIGHT ? '; the plan was skipped by the branch\'s area, but the diff is full: the full review runs' : ''}`)
 // update (#856): the path the run takes. update: the reviewers read the delta since the published head, and
 // test_review and skeptic are dropped; full: today's chain after the implementer. skipped lists the agents the launch
-// passed that the update dropped (plan_review on either path). A count that is not a whole number (a binary file's -1)
-// under REVIEWED counts as over the limit.
+// passed that the update dropped (plan_review on either path). A delta that touches any path under REVIEWED takes the
+// full chain whatever its size (the engineer's answer 1C on PR #862: no line threshold).
 const updatePath = () => {
   const passed = [PLAN_REVIEW && !PLAN_SKIPPED && 'plan_review']
   const full = why => ({ path: 'full', why, skipped: passed.filter(Boolean) })
@@ -759,18 +756,17 @@ const updatePath = () => {
   if (!/^[0-9a-f]{7,64}$/.test(head)) return full(`no published head returned${note}`)
   const delta = impl.delta
   if (!Array.isArray(delta) || delta.some(e => !e || typeof e.path !== 'string' || !e.path)) return full('no delta returned')
-  const count = e => (Number.isInteger(e.added) && Number.isInteger(e.deleted) && e.added >= 0 && e.deleted >= 0 ? e.added + e.deleted : null)
   const reviewed = delta.filter(e => REVIEWED.test(e.path))
-  const total = delta.reduce((s, e) => s + (count(e) || 0), 0)
-  const netcode = reviewed.reduce((s, e) => s + (count(e) || 0), 0)
-  if (reviewed.some(e => count(e) === null)) return full(`the delta changes a binary file under the full tier's paths (${reviewed.find(e => count(e) === null).path})`)
-  if (netcode > UPDATE_LINES) return full(`the delta changes ${netcode} lines under the full tier's paths, more than ${UPDATE_LINES}`)
-  return { path: 'update', head, files: delta.length, lines: total, netcode_lines: netcode, skipped: [...passed, TEST_REVIEW && !LIGHT && 'test_review', SKEPTICS > 0 && !LIGHT && 'skeptic'].filter(Boolean) }
+  if (reviewed.length) return full(`the delta touches the full tier's paths (${reviewed.slice(0, 3).map(e => e.path).join(', ')}${reviewed.length > 3 ? `, ${reviewed.length - 3} more` : ''})`)
+  // A binary file's -1 (or any count that is not a whole number) adds nothing to the size the result reports.
+  const count = e => (Number.isInteger(e.added) && Number.isInteger(e.deleted) && e.added >= 0 && e.deleted >= 0 ? e.added + e.deleted : 0)
+  const total = delta.reduce((s, e) => s + count(e), 0)
+  return { path: 'update', head, files: delta.length, lines: total, skipped: [...passed, TEST_REVIEW && !LIGHT && 'test_review', SKEPTICS > 0 && !LIGHT && 'skeptic'].filter(Boolean) }
 }
 const UPD = UPDATE ? updatePath() : null
 // The update path's delta, or null: every reviewer and the routing below read it.
 const DELTA = UPD && UPD.path === 'update' ? UPD : null
-if (UPD) log(`#${N}: update: ${DELTA ? `the delta since ${DELTA.head} (${DELTA.lines} lines in ${DELTA.files} files, ${DELTA.netcode_lines} under the full tier's paths) is reviewed alone` : `the full chain (${UPD.why})`}${UPD.skipped.length ? `; skipped: ${UPD.skipped.join(', ')}` : ''}`)
+if (UPD) log(`#${N}: update: ${DELTA ? `the delta since ${DELTA.head} (${DELTA.lines} lines in ${DELTA.files} files, none under the full tier's paths) is reviewed alone` : `the full chain (${UPD.why})`}${UPD.skipped.length ? `; skipped: ${UPD.skipped.join(', ')}` : ''}`)
 const SKEPTIC_LIMIT = LIGHT || DELTA ? 0 : SKEPTICS
 // visual: what the implementer's playcheck run gave; a missing command or a missing report is reported, not fatal.
 const shots = VISUAL ? (impl.playcheck || { available: false, pngs: [], notes: 'the implementer reported no playcheck run' }) : null
@@ -867,7 +863,7 @@ if (impl.verify_green) {
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
   // The light tier (#606) has no test review either: a light diff with production code has it only under client/ui/.
   if (TEST_REVIEW && DELTA && !LIGHT) {
-    testReviewSkipped = `an update run (update, #856): the delta since the published head ${DELTA.head} changes at most ${UPDATE_LINES} lines under the full tier's paths`
+    testReviewSkipped = `an update run (update, #856): the delta since the published head ${DELTA.head} touches none of the full tier's paths`
     log(`#${N}: test_review skipped: ${testReviewSkipped}`)
   } else if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
     testReviewSkipped = 'no changed path is production code (core/, server/, net/, client/, voice/)'
@@ -960,7 +956,7 @@ const brief = (stopped, pub, extra) => {
   out.tier = TIER
   if (TIER_SKIPPED.length) out.tier_skipped = TIER_SKIPPED
   // #856: an update run's path; no key: a launch without update.
-  if (UPD) out.update = DELTA ? pick(DELTA, ['path', 'head', 'files', 'lines', 'netcode_lines', ...(DELTA.skipped.length ? ['skipped'] : [])]) : pick(UPD, ['path', 'why', ...(UPD.skipped.length ? ['skipped'] : [])])
+  if (UPD) out.update = DELTA ? pick(DELTA, ['path', 'head', 'files', 'lines', ...(DELTA.skipped.length ? ['skipped'] : [])]) : pick(UPD, ['path', 'why', ...(UPD.skipped.length ? ['skipped'] : [])])
   // #469: the plan's comment, whether its result was cut, and the planner's model when the launch set one (the
   // manager's models.plan, orchestrate-stage §3), so the before and after of #469 read from the results.
   if (planned) {
@@ -1017,7 +1013,7 @@ const TIER_FACT = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the lig
 const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's verification section.`
 // update (#856): the path the update run took, for the PR (the result's update carries it too).
 const UPDATE_LINE = !UPD ? ''
-  : `Update run (update, #856): ${DELTA ? `the update path: the reviewers read only the delta since the PR's published head ${DELTA.head}, ${DELTA.lines} changed lines in ${DELTA.files} files (${DELTA.netcode_lines} under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/, at most ${UPDATE_LINES})` : `the full chain (${UPD.why}): the reviewers read the whole PR diff`}${UPD.skipped.length ? `; skipped although the launch passed them: ${UPD.skipped.join(', ')}` : ''}. Say the path, the delta's size and what was skipped in one line of the PR's verification section and in the handoff.`
+  : `Update run (update, #856): ${DELTA ? `the update path: the reviewers read only the delta since the PR's published head ${DELTA.head}, ${DELTA.lines} changed lines in ${DELTA.files} files, none under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/` : `the full chain (${UPD.why}): the reviewers read the whole PR diff`}${UPD.skipped.length ? `; skipped although the launch passed them: ${UPD.skipped.join(', ')}` : ''}. Say the path, the delta's size and what was skipped in one line of the PR's verification section and in the handoff.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 if (FINDINGS_TRIAL) log(`#${N}: publish_findings ${PUB_ROLE === 'publish_findings' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants

@@ -24,7 +24,7 @@ Task: GitHub issue #7 (t). Effort: high. Budget: at most about 250 tool calls; i
 
 An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/main..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
 
-Update run (update, #856): this run continues the published PR of core/7-x; the change it asks for is in the task notes. Your first step, before any edit or commit: `git -C /d/prime-game/.claude/worktrees/7 fetch origin core/7-x`, then `git -C /d/prime-game/.claude/worktrees/7 rev-parse origin/core/7-x`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of `git -C /d/prime-game/.claude/worktrees/7 diff --numstat --no-renames <published head>..HEAD` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or `git -C /d/prime-game/.claude/worktrees/7 merge-base --is-ancestor <published head> HEAD` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it changes more than 30 lines under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.
+Update run (update, #856): this run continues the published PR of core/7-x; the change it asks for is in the task notes. Your first step, before any edit or commit: `git -C /d/prime-game/.claude/worktrees/7 fetch origin core/7-x`, then `git -C /d/prime-game/.claude/worktrees/7 rev-parse origin/core/7-x`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of `git -C /d/prime-game/.claude/worktrees/7 diff --numstat --no-renames <published head>..HEAD` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or `git -C /d/prime-game/.claude/worktrees/7 merge-base --is-ancestor <published head> HEAD` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it touches any path under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.
 
 Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike); the code it builds on and its tests.
 
@@ -60,7 +60,7 @@ Issue #7 (t). Branch core/7-x in the worktree D:/prime-game/.claude/worktrees/7;
 
 Review read-only: the delta of this update run (update, #856): `git -C /d/prime-game/.claude/worktrees/7 diff 89abcdef0123456789abcdef0123456789abcdef..HEAD`, 15 changed lines in 2 files since the PR's published head 89abcdef0123456789abcdef0123456789abcdef (the rest was reviewed when the PR was published: read `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` only as context, and report outside the delta only what the delta breaks) and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","docs/x.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","client/ui/x.gd","docs/x.md"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### agent review:netcode:#7
@@ -74,7 +74,7 @@ Issue #7 (t). Branch core/7-x in the worktree D:/prime-game/.claude/worktrees/7;
 
 Review read-only: the delta of this update run (update, #856): `git -C /d/prime-game/.claude/worktrees/7 diff 89abcdef0123456789abcdef0123456789abcdef..HEAD`, 15 changed lines in 2 files since the PR's published head 89abcdef0123456789abcdef0123456789abcdef (the rest was reviewed when the PR was published: read `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` only as context, and report outside the delta only what the delta breaks) and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","docs/x.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","client/ui/x.gd","docs/x.md"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 
@@ -90,7 +90,7 @@ Issue #7 (t). Branch core/7-x in the worktree D:/prime-game/.claude/worktrees/7;
 
 Review read-only: the delta of this update run (update, #856): `git -C /d/prime-game/.claude/worktrees/7 diff 89abcdef0123456789abcdef0123456789abcdef..HEAD`, 15 changed lines in 2 files since the PR's published head 89abcdef0123456789abcdef0123456789abcdef (the rest was reviewed when the PR was published: read `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` only as context, and report outside the delta only what the delta breaks) and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","docs/x.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/x.gd","client/ui/x.gd","docs/x.md"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### phase Publish
@@ -124,9 +124,9 @@ Fix every blocker and major finding and the cheap minor ones, each in its own co
 
 Review tier (#606): full (the diff touches core/x.gd). Say the tier and why in one line of the PR's verification section.
 
-Update run (update, #856): the update path: the reviewers read only the delta since the PR's published head 89abcdef0123456789abcdef0123456789abcdef, 15 changed lines in 2 files (4 under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/, at most 30); skipped although the launch passed them: plan_review, test_review, skeptic. Say the path, the delta's size and what was skipped in one line of the PR's verification section and in the handoff.
+Update run (update, #856): the update path: the reviewers read only the delta since the PR's published head 89abcdef0123456789abcdef0123456789abcdef, 15 changed lines in 2 files, none under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/; skipped although the launch passed them: plan_review, test_review, skeptic. Say the path, the delta's size and what was skipped in one line of the PR's verification section and in the handoff.
 
-The test review (test_review) was skipped: an update run (update, #856): the delta since the published head 89abcdef0123456789abcdef0123456789abcdef changes at most 30 lines under the full tier's paths. Say so in the PR's verification section.
+The test review (test_review) was skipped: an update run (update, #856): the delta since the published head 89abcdef0123456789abcdef0123456789abcdef touches none of the full tier's paths. Say so in the PR's verification section.
 
 Then, in this order (the definition of done; the reviews above were its review step):
 - Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human's correction of how the agents work that the notes or the issue's comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\run.cmd credits`. Commit these too.
@@ -181,7 +181,6 @@ Return the structured result.
   "head": "89abcdef0123456789abcdef0123456789abcdef",
   "files": 2,
   "lines": 15,
-  "netcode_lines": 4,
   "skipped": [
    "plan_review",
    "test_review",
@@ -189,7 +188,7 @@ Return the structured result.
   ]
  },
  "test_review": {
-  "skipped": "an update run (update, #856): the delta since the published head 89abcdef0123456789abcdef0123456789abcdef changes at most 30 lines under the full tier's paths"
+  "skipped": "an update run (update, #856): the delta since the published head 89abcdef0123456789abcdef0123456789abcdef touches none of the full tier's paths"
  },
  "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
