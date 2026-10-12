@@ -444,6 +444,13 @@ DESIGN_TASK = "This is a DESIGN task: documents only"
 REVIEW_TIER = re.compile(r"^[ \t]*Review tier \(#606\): (light|full)\b", re.MULTILINE)
 # The tier of a run whose publisher's prompt names none: before #606, stopped before its publisher, or pr-rebase.
 NO_TIER = "unknown"
+# #875: issue-task.js (#856) opens an update run's implementer and publisher prompts with this line; a run whose agents
+# have none is a first run. Indented by the harness like REVIEW_TIER's line.
+UPDATE_RUN = re.compile(r"^[ 	]*Update run \(update, #856\):", re.MULTILINE)
+# The API list $ of an update run before #856 (#856's issue body): the baseline of the "Update runs" table.
+UPDATE_BASELINE = (7.6, 14.0)
+# The update runs the table wants before it judges the new path (#875).
+UPDATE_MIN_RUNS = 3
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
 BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
@@ -1364,6 +1371,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "design": DESIGN_TASK in both,
         "prompt_chars": len(launch) if launch else None,  # #470: the launch prompt's size
         "tier": (m.group(1) if (m := REVIEW_TIER.search(both)) else None),
+        "update": bool(UPDATE_RUN.search(both)),  # #875
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -1914,6 +1922,8 @@ def per_task(r: dict) -> dict:
         "start": r["start"],
         "wall": r["end"] - r["start"],
         "tier": tier,
+        "path": run_path(r, tier),
+        "agents": len(r["agents"]),
         "span": span,
         "tokens": total(tok),
         "fresh": fresh(tok),
@@ -1935,6 +1945,14 @@ def per_task(r: dict) -> dict:
         "over200_usd": impl["over200_usd"],
         "impl_outputs": impl["outputs"],
     }
+
+
+def run_path(r: dict, tier: str) -> str:
+    """#875: "first" for an issue-task run none of whose agents was told the update line, else "update-light" or
+    "update-full" by the run's review tier (as #606 reads it), "update-unknown" when no publisher named one."""
+    if not any(x["data"] and x["data"].get("update") for x in r["agents"]):
+        return "first"
+    return f"update-{tier}" if tier in ("light", "full") else "update-unknown"
 
 
 def implementer_context(r: dict) -> dict:
@@ -1995,6 +2013,8 @@ def build(
     md += task_section(tasks)
     tiers = tier_rows(tasks)
     md += tier_section(tiers)
+    updates = update_rows(tasks)
+    md += update_section(updates)
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
@@ -2048,6 +2068,7 @@ def build(
         "stages": stages,
         "tasks": tasks,
         "tiers": tiers,
+        "update_runs": updates,
         "runs": [
             {k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r), "types": run_types(r)} for r in counted
         ],
@@ -2121,6 +2142,52 @@ def tier_section(rows: list[dict]) -> list[str]:
     ]
 
 
+UPDATE_PATHS = (
+    ("first", "first run"), ("update-light", "update run (light delta)"), ("update-full", "update run (full delta)"),
+    ("update-unknown", "update run (no publisher: tier unknown)"),
+)  # fmt: skip
+
+
+def update_rows(tasks: list[dict]) -> list[dict]:
+    """#875: the finished issue-task runs per path (first run, light update, full update): runs, API list $ median and
+    mean, wall time, agents and blockers+majors found; a row only where a run took that path."""
+    rows = []
+    for key, label in UPDATE_PATHS:
+        t = [p for p in tasks if p.get("path", "first") == key]
+        if t:
+            rows.append({
+                "path": key, "label": label, "runs": len(t), "usd": med([p["usd"] for p in t]),
+                "usd_mean": statistics.mean(p["usd"] for p in t), "wall": med([p["wall"] for p in t]),
+                "agents": med([p.get("agents", 0) for p in t]),
+                "serious": sum(p.get("sev", {}).get("blocker", 0) + p.get("sev", {}).get("major", 0) for p in t),
+            })  # fmt: skip
+    return rows
+
+
+def update_advice(rows: list[dict]) -> str:
+    n = sum(r["runs"] for r in rows if r["path"].startswith("update"))
+    if n < UPDATE_MIN_RUNS:
+        return f"fewer runs than {UPDATE_MIN_RUNS}: wait ({n} update runs)"
+    return f"{n} update runs: compare their API list $ with the baseline"
+
+
+def update_section(rows: list[dict]) -> list[str]:
+    head = ["path", "runs", "API list $ median", "API list $ mean", "wall", "agents", "blockers+majors"]
+    body = [
+        [r["label"], r["runs"], fmt_usd(r["usd"]), fmt_usd(r["usd_mean"]), mins(r["wall"]), f"{r['agents']:.0f}",
+         r["serious"]]
+        for r in rows
+    ]
+    lo, hi = UPDATE_BASELINE
+    return [
+        "## Update runs (#856): finished issue-task runs per path, medians (wall in minutes, agents per run)", "",
+        table(head, body), "",
+        f"Baseline: an update run before #856 cost {fmt_usd(lo)} to {fmt_usd(hi)} API list $. {update_advice(rows)}. "
+        "A run is an update run when its agents' prompts carry the line \"Update run (update, #856):\"; light or full "
+        "is its review tier (#606).", "",
+    ]
+
+
 def stage_rows(tasks: list[dict], labels: list[str]) -> list[dict]:
     """Per session (a stage): medians of its finished issue-task runs."""
     stages = []
@@ -2138,7 +2205,7 @@ def stage_rows(tasks: list[dict], labels: list[str]) -> list[dict]:
             "usd": med([p["usd"] for p in t]), "usd_max": max(p["usd"] for p in t),
             "calls": med([p["calls"] for p in t]), "verify_runs": med([p["summaries"] for p in t]),
             "verify_s": med([p["summary_s"] for p in t]), "ci_s": med([p["ci_s"] for p in t]),
-            "majors": sum(p["sev"].get("blocker", 0) + p["sev"].get("major", 0) for p in t),
+            "majors": sum(p.get("sev", {}).get("blocker", 0) + p.get("sev", {}).get("major", 0) for p in t),
         })
     return stages
 
@@ -4469,6 +4536,13 @@ def quality_compact(quality: dict) -> str:
             f"Found-by follow-ups {counted('followups')}, fix-up PRs {counted('fixups')}; {cost}")
 
 
+def update_compact(rows: list[dict]) -> str:
+    """#875: one line for the compact summary: runs and median API list $ per path, the baseline, the advice."""
+    lo, hi = UPDATE_BASELINE
+    paths = ", ".join(f"{r['label']} {r['runs']} runs {fmt_usd(r['usd'])}" for r in rows)
+    return f"update runs (#856): {paths or 'none'}; baseline {fmt_usd(lo)} to {fmt_usd(hi)}; {update_advice(rows)}"
+
+
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
@@ -4486,6 +4560,8 @@ def compact_lines(
     if tasks:
         lines.append("per task (wall min, API list $): " + ", ".join(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
+        # #875: the update runs' clause ends this line; the summary keeps its line count
+        lines[-1] += " | " + update_compact(update_rows(tasks))
         wall, cost = med([p["wall"] for p in tasks]), med([p["usd"] for p in tasks])
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
         impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
