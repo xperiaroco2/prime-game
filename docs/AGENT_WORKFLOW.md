@@ -1593,13 +1593,8 @@ and the return to the lobby with no button, #212, and a second round, #276).
 
 ### 11.15 Runner [applied] ([ADR](decisions/2026-09-29-python-task-runner.md))
 Python core `tools/run.py` with
-`tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-`test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
-`merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `unattended` (§8.2.11), `section` (§3), `signal` (the signalling Worker's
-tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
-`ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
-lists only the names, §3). Pins and pass/fail
+`tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. `tools/run.sh --help` lists the commands and each one's
+`--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
 `tools/out/gdunit/`. The commands agents run in loops are quiet by default (#590, #572; `--verbose` prints the whole
