@@ -1,12 +1,14 @@
 extends GdUnitTestSuite
-## The host picks the match's map in the lobby (#627): a host and a client, two Game roots over a
-## LoopbackHub on a simulated clock (as game_loop_test.gd, each in its own SubViewport world). The
-## host's pick reaches both models, a guest's pick is refused, and the match then loads the picked
-## map, the House, on both machines.
+## A human match always loads the House (#767; the map pick of #627): a host and a client, two Game
+## roots over a LoopbackHub on a simulated clock (as game_loop_test.gd, each in its own SubViewport
+## world). Both lobbies start on the House, the mode's default map (the greybox, a test bench, is
+## never a match's default), a guest's pick is refused, and the match then loads the House on both
+## machines.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7420
 const HOUSE := "res://levels/house/house.tscn"
+const GREYBOX := "res://levels/greybox/greybox.tscn"
 ## The simulated clock moves this much per physics frame: five host ticks.
 const STEP_USEC := 250000
 const MAX_FRAMES := 600
@@ -22,22 +24,21 @@ func before_test() -> void:
 	_now = 1000000
 
 
-func test_the_host_s_map_is_loaded_by_everyone() -> void:
+func test_a_human_match_loads_the_house_on_every_machine() -> void:
 	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % PORT])
 	var guest := _game(["--join=127.0.0.1", "--port=%d" % PORT])
 	var games: Array[Game] = [host, guest]
 	assert_bool(await _until(_all_on.bind(games, S.LOBBY, 2))).is_true()
-	assert_bool(host.mode.maps.has(HOUSE)).is_true()
-	var first := host.mode.maps[0]
-	# A guest's pick is refused by the host: the map stays the default.
-	guest.change_map(HOUSE)
+	assert_bool(host.mode.maps.has(GREYBOX)).is_true()
+	assert_str(host.mode.default_map()).is_equal(HOUSE)
+	for game: Game in games:
+		assert_str(game.client().model.map).is_equal(HOUSE)
+	# A guest's pick is refused by the host: the map stays the House.
+	guest.change_map(GREYBOX)
 	host.change_setting(&"match_duration", 1)
 	assert_bool(await _until(_setting_is.bind(games, &"match_duration", 1))).is_true()
 	for game: Game in games:
-		assert_str(game.client().model.map).is_equal(first)
-	# The host's pick reaches everyone, and the match loads it.
-	host.change_map(HOUSE)
-	assert_bool(await _until(_map_is.bind(games, HOUSE))).is_true()
+		assert_str(game.client().model.map).is_equal(HOUSE)
 	for game: Game in games:
 		game.set_ready(true)
 	assert_bool(await _until(_on_the_map.bind(games))).is_true()
@@ -100,13 +101,6 @@ func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 func _setting_is(games: Array[Game], id: StringName, value: int) -> bool:
 	for game: Game in games:
 		if game.client() == null or game.client().model.settings.get(id, -1) != value:
-			return false
-	return true
-
-
-func _map_is(games: Array[Game], map: String) -> bool:
-	for game: Game in games:
-		if game.client() == null or game.client().model.map != map:
 			return false
 	return true
 

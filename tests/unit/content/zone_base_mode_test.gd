@@ -15,8 +15,10 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 	# (1 dissident; 2 tasks: Delivery's 6 packages and Hold the zone's 1 zone; 2 knives).
 	var mode := FixtureBaseModeWithZones.mode()
 	var layouts := _layouts_for(mode)
-	var map := layouts[mode.maps[0]]
+	# On the flat fake world the test bench plays, the greybox (#767).
+	var map := layouts[GREYBOX]
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
+	game.state.map = GREYBOX
 	game.keep_history = true
 	game.start(0)
 	var peers: Array[int] = [1, 2, 3, 4]
@@ -248,6 +250,8 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 ## (lone_player_test's, at its seed 7 and 1 dissident set).
 func _lone_in_pregame(mode: GameMode) -> Match:
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	# On the flat fake world the test bench plays, the greybox (#767).
+	game.state.map = GREYBOX
 	game.keep_history = true
 	game.start(0)
 	FixtureBaseMode.join(game, LONE)

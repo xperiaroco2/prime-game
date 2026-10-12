@@ -10,6 +10,7 @@ extends GdUnitTestSuite
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const LONE := 1
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
+const GREYBOX := "res://levels/greybox/greybox.tscn"
 ## Seeds the deal runs with: the quota's count does not depend on the draw, so these stand for
 ## every seed.
 const SEEDS := 32
@@ -90,6 +91,8 @@ func _lone_in_pregame(
 	mode: GameMode, layouts: Dictionary[String, LevelLayout], seed_value: int, dissidents: int
 ) -> Match:
 	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts)
+	# On the flat fake world the test bench plays, the greybox (#767).
+	game.state.map = GREYBOX
 	game.keep_history = true
 	game.start(0)
 	FixtureBaseMode.join(game, LONE)
