@@ -215,7 +215,7 @@ class WorkflowNotesTest(unittest.TestCase):
         self.assertLessEqual(len(notes), 6000)
         self.assertRegex(notes, r"Checked against Claude Code \d+\.\d+\.\d+ on \d{4}-\d{2}-\d{2}")
         for phrase in ("export const meta", "pure literal", "Date.now()", "Math.random()", "No filesystem", "agentType",
-                       "not found", "resumeFromRunId", "PRIME_WORKFLOW_SNAPSHOTS=update", "unbounded/", "withModel"):
+                       "not found", "resumeFromRunId", "PRIME_WORKFLOW_SNAPSHOTS=update", "RETIRED", "withModel"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, notes)
 

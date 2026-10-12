@@ -417,8 +417,8 @@ Rules for every workflow run:
   publisher's prompt carries `finish-task`'s docs, intervention and credits steps itself.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`, `efforts`,
-  `models`, `ab_review`, `checkpoint`, `bounded_waits`, `lean`; `pr-rebase` takes `second_review`, `skeptic`,
-  `bounded_waits`, `efforts`, `models` and `lean`), all off by default but `bounded_waits` (#411) and `lean` (#458). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
+  `models`, `ab_review`, `checkpoint`; `pr-rebase` takes `second_review`, `skeptic`, `efforts` and `models`), all off
+  by default; bounded waits (#411) and the lean agent types (#458) are always on (#883 removed their switches). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
   arg) and each script's header comment, `whenToUse` and args comment (the counts, the roles and their fallbacks);
   `tools/runner/tests/workflow_snapshots/` pins the prompts and options they produce (`docs/workflow-scripts.md`).
   The kickoff's approved agent count must cover the options the manager will pass.
@@ -1610,7 +1610,7 @@ clean, else 1 with the reason: the test `publish` runs before it reuses that ver
 whose base predates `wait`, the agents run these commands in the foreground as before. Tests:
 `tools/runner/tests/test_wait.py` (a fake clock; the launch line and `wait` through Git Bash, cmd and PowerShell 5.1;
 the commands pass the permission model outside bypass). The rule is one Shell bullet of root CLAUDE.md, the commands are
-`bounded_waits` (§7.1).
+the workflow prompts' bounded-waits paragraph (§7.1).
 
 ### 11.18 An own `user://` per worktree [applied] (#182)
 Godot names `user://` after the project, so every checkout of
