@@ -6522,7 +6522,8 @@ Settings (CE14): five `StationKind`s, `order_board` and `herb_board` (`display` 
 `place` (each with an `Interact` rule ending in `UseStation`); the lists `buns`, `raw_patties`, `fried_patties` (in
 the raw ones' order), `burnt`, `herbs` (at most 255) and `boxes` (two-handed item kinds on tags of their own, each
 giving one bun or raw patty kind by its `target_actions`' `GiveItem`); `subtasks_setting`; `fry_seconds` and
-`burn_seconds` (`ZoneTask`'s bounds, both counted from the patty going on, burnt after fried); the RNG purposes
+`burn_seconds` (`ZoneTask`'s bounds; the first counted from the patty going on, the second from its turning fried,
+as the ADR's 200 and 100 ticks); the RNG purposes
 `boxes_rng`, `orders_rng`, `code_rng` and `beds_rng` (§3.3); `TaskType.maps` as every type's.
 - Deal (the ADR's §2.1, CE8): N = 0 places nothing, and the task, with no subtasks, is done. Otherwise the order board, the
   herb board and the grill on the one marker of their tags, a bed on every `herb_bed` marker and N places on the

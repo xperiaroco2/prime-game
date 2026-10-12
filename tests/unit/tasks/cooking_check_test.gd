@@ -106,7 +106,7 @@ func test_at_most_255_herbs() -> void:
 	assert_str("\n".join(type.check(null))).contains("Cooking cooking has 256 herbs, more than 255")
 
 
-func test_the_seconds_are_within_bounds_burnt_after_fried_and_default_outside() -> void:
+func test_the_seconds_are_within_bounds_burn_counted_from_fried_and_default_outside() -> void:
 	assert_float(Cooking.new().fry_seconds).is_equal(0.0)
 	assert_float(Cooking.new().burn_seconds).is_equal(0.0)
 	var cases := {[0.0, 2.0]: "fry_seconds", [601.0, 602.0]: "fry_seconds", [1.0, 601.0]: "burn"}
@@ -117,18 +117,20 @@ func test_the_seconds_are_within_bounds_burnt_after_fried_and_default_outside() 
 		assert_str(_errors(mode)).override_failure_message(str(pair)).contains(
 			"Cooking cooking %s" % cases[pair]
 		)
-	for pair: Array in [[1.0, 1.0], [2.0, 1.0]]:
+	for pair: Array in [[0.05, 600.0], [600.0, 0.05], [2.0, 1.0]]:
 		var mode := FixtureCookingModes.basic()
 		FixtureCookingModes.type_of(mode).fry_seconds = pair[0]
 		FixtureCookingModes.type_of(mode).burn_seconds = pair[1]
-		assert_str(_errors(mode)).contains("burn_seconds must come after fry_seconds")
-	var mode := FixtureCookingModes.basic()
-	FixtureCookingModes.type_of(mode).fry_seconds = 0.05
-	FixtureCookingModes.type_of(mode).burn_seconds = 600.0
-	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+		var errors := Array(ModeCheck.run(mode).errors)
+		assert_array(errors).override_failure_message(str(pair)).is_empty()
 	var type := FixtureCookingModes.cooking_type()
 	assert_int(type.fried_ticks()).is_equal(20)
-	assert_int(type.burnt_ticks()).is_equal(40)
+	assert_int(type.burnt_ticks()).is_equal(60)
+	# The ADR's row 14: 10 s to fry, then 5 s to burn: fried at 200 ticks, burnt at 300 (§2.4).
+	type.fry_seconds = 10.0
+	type.burn_seconds = 5.0
+	assert_int(type.fried_ticks()).is_equal(200)
+	assert_int(type.burnt_ticks()).is_equal(300)
 
 
 func test_the_subtasks_setting_starts_at_0_at_least() -> void:

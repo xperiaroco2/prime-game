@@ -103,9 +103,9 @@ class State:
 @export var boxes: Array[ItemKind] = []
 ## Cooking's own subtasks setting: its burgers.
 @export var subtasks_setting: StringName
-## How long a patty on the grill takes to turn fried, and to turn burnt, both counted from when it
-## goes on (ADR §2.4: the fried tick and the burnt tick, both set then): 0.05 to 600, burnt after
-## fried. The neutral defaults are out of bounds on purpose: the data sets them.
+## How long a patty on the grill takes to turn fried from going on, and then to turn burnt from
+## turning fried (ADR row 14: 10 s and 5 s, 200 and 100 ticks; §2.4: burnt at now plus 300): each
+## 0.05 to 600. The neutral defaults are out of bounds on purpose: the data sets them.
 @export var fry_seconds := 0.0
 @export var burn_seconds := 0.0
 ## The RNG purposes it draws from (§3.3, CE8; provisional ids): the boxes' markers, the orders, the
@@ -126,9 +126,10 @@ func fried_ticks() -> int:
 	return maxi(1, Ticks.from_seconds(fry_seconds))
 
 
-## The host ticks from a patty going on the grill to its turning burnt.
+## The host ticks from a patty going on the grill to its turning burnt: the fried ticks plus
+## `burn_seconds` by the one rounding rule, at least 1, so a patty is always fried first.
 func burnt_ticks() -> int:
-	return maxi(1, Ticks.from_seconds(burn_seconds))
+	return fried_ticks() + maxi(1, Ticks.from_seconds(burn_seconds))
 
 
 ## The fried kind of the raw patty kind `raw` (the same index), or null for any other kind.
@@ -242,7 +243,7 @@ func emits() -> Array[Script]:
 ## in UseStation; their spawn tags distinct across the mode is ModeCheck's, ZE3); the lists; every
 ## kind distinct, listed in the mode, one-handed but the boxes, which are two-handed and placed on
 ## tags of their own; each box giving one bun or raw patty kind, and each of those given by a box;
-## at most MAX_HERBS herbs; the seconds within bounds, burnt after fried; the subtasks setting from
+## at most MAX_HERBS herbs; the seconds within bounds; the subtasks setting from
 ## at least 0 (ModeCheck checks it names a declared whole-number setting); non-empty RNG purposes;
 ## the cap on every given kind (CE3) and `vanish_seconds` on every ingredient (CD6 (c)).
 func check(mode: GameMode) -> PackedStringArray:
@@ -263,10 +264,6 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds("Cooking %s burn_seconds" % id, burn_seconds, MIN_SECONDS, MAX_SECONDS),
 		]
 	)
-	if burnt_ticks() <= fried_ticks():
-		found.append(
-			"Cooking %s: burn_seconds must come after fry_seconds, or no patty is ever fried" % id
-		)
 	if subtasks_setting.is_empty():
 		found.append("Cooking %s has no subtasks_setting" % id)
 	if boxes_rng.is_empty() or orders_rng.is_empty() or code_rng.is_empty() or beds_rng.is_empty():
