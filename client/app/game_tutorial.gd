@@ -215,7 +215,7 @@ func esc_opened() -> void:
 	_see(ClientSeen.ESC_OPENED)
 
 
-## Game.close_esc: the Esc menu closed (Resume or Esc); after lesson 9 that leaves (D32 (b)).
+## Game.close_esc: the Esc menu closed (Resume or Esc); after lesson 8 that leaves (D32 (b)).
 func esc_closed() -> void:
 	var current := runner
 	if current != null:
