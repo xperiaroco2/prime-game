@@ -26,7 +26,7 @@ var shot: int
 var record: Array[Dictionary] = []
 
 
-func _init(station_id: int, film_id: int, shot_id: int, rows: Array[Dictionary]) -> void:
+func _init(station_id: int, film_id: int, shot_id: int, rows: Array[Dictionary] = []) -> void:
 	station = station_id
 	film = film_id
 	shot = shot_id

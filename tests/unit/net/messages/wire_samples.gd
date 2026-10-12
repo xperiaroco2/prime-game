@@ -128,6 +128,29 @@ static func events() -> Dictionary[String, Array]:
 		PartNeededEvent.new(3, &""),
 		PartNeededEvent.new(0xFFFE, StringName("p".repeat(32)))
 	]
+	found["FilmLoadedEvent"] = [FilmLoadedEvent.new(1, 2), FilmLoadedEvent.new(0xFFFE, 0xFFFE)]
+	var rows: Array[Dictionary] = [
+		{
+			"peer": 2,
+			"position": Vector3(1, 0, -2.5),
+			"facing": Vector3.FORWARD,
+			"downed": false,
+			"held_item": -1,
+			"belt_item": 3,
+		},
+		{
+			"peer": WireField.PEER_MAX,
+			"position": Vector3(-0.0, 0, 5),
+			"facing": Vector3.LEFT,
+			"downed": true,
+			"held_item": 0xFFFE,
+			"belt_item": -1,
+		},
+	]
+	var none: Array[Dictionary] = []
+	found["ShotTakenEvent"] = [
+		ShotTakenEvent.new(1, 2, 0, none), ShotTakenEvent.new(0xFFFE, 0xFFFE, 0xFFFF, rows)
+	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),
