@@ -201,10 +201,10 @@ static func use(game: Match, peer: int, station: int, seq: int = 0) -> void:
 	FixtureStationModes.interact(game, peer, station, seq)
 
 
-## `peer` stands by `item` and picks it up.
-static func take(game: Match, peer: int, item: ItemState, seq: int = 0) -> void:
-	FixtureItemModes.stand(game, peer, item.position + Vector3(0, 0, -0.5))
-	FixtureItemModes.pick_up(game, peer, item, seq)
+## `peer` stands by `lifted` and picks it up.
+static func take(game: Match, peer: int, lifted: ItemState, seq: int = 0) -> void:
+	FixtureItemModes.stand(game, peer, lifted.position + Vector3(0, 0, -0.5))
+	FixtureItemModes.pick_up(game, peer, lifted, seq)
 
 
 ## `peer` puts its hand item down in front of it, facing +X (away from the camera's line).

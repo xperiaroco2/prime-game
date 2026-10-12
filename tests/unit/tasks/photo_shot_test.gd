@@ -155,19 +155,19 @@ func test_shot_ids_follow_each_other_across_films() -> void:
 func test_the_load_and_the_shot_each_emit_one_event() -> void:
 	var game := FixturePhotoModes.in_round(FixturePhotoModes.basic(), PEERS)
 	FixturePhotoModes.take(game, P1, FixturePhotoModes.dealt_film(game))
-	var before := game.view_of(P3).events.size()
+	var seen := game.view_of(P3).events.size()
 	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
-	assert_array(_names_after(game, before)).is_equal([&"FilmLoaded"])
-	before = game.view_of(P3).events.size()
+	assert_array(_names_after(game, seen)).is_equal([&"FilmLoaded"])
+	seen = game.view_of(P3).events.size()
 	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
-	assert_array(_names_after(game, before)).is_equal([&"ShotTaken"])
+	assert_array(_names_after(game, seen)).is_equal([&"ShotTaken"])
 
 
 ## The events P3 received after its first `skip`, but the fixture's notes (its item_rested
 ## reaction's FixtureNote).
 func _names_after(game: Match, skip: int) -> Array[StringName]:
 	var found: Array[StringName] = []
-	for name: StringName in FixtureItemModes.names_after(game, P3, skip):
-		if name != &"FixtureNote":
-			found.append(name)
+	for event_name: StringName in FixtureItemModes.names_after(game, P3, skip):
+		if event_name != &"FixtureNote":
+			found.append(event_name)
 	return found

@@ -503,7 +503,7 @@ static func _events() -> Array[WireRow]:
 ## its velocity and invulnerability, with its peer, at most MAX_AVATARS rows (15 * 33 bytes). Its
 ## rows grow with the mode's players, so WireBudget holds its worst case (the photo ADR §3.3).
 static func _shot_taken() -> WireRow:
-	var row := (
+	var shot_row := (
 		WireField
 		. record(
 			"",
@@ -525,7 +525,7 @@ static func _shot_taken() -> WireRow:
 			_station("station"),
 			_item("film"),
 			_u16("shot"),
-			WireField.list("record", row, MAX_AVATARS),
+			WireField.list("record", shot_row, MAX_AVATARS),
 		]
 	)
 	shot.content_sized = true

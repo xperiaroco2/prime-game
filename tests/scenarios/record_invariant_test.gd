@@ -21,9 +21,9 @@ func _row(peer: int, at: Vector3) -> Dictionary:
 
 
 func _problems(rows: Array, living: PackedInt32Array, accepted: Dictionary) -> PackedStringArray:
-	var before: Dictionary[int, Vector3] = {}
-	before.assign(accepted)
-	var lists: Array[Dictionary] = [before, {}]
+	var earlier: Dictionary[int, Vector3] = {}
+	earlier.assign(accepted)
+	var lists: Array[Dictionary] = [earlier, {}]
 	return ScenarioInvariants.record_problems(rows, LENS, RANGE_M, STEP_M, living, lists)
 
 
@@ -64,9 +64,9 @@ func test_a_row_a_step_away_from_every_accepted_position_is_caught() -> void:
 
 func test_a_row_matching_only_the_later_accepted_position_passes() -> void:
 	var at := Vector3(0, 0, -3)
-	var before: Dictionary[int, Vector3] = {2: at + Vector3(5, 0, 0)}
+	var earlier: Dictionary[int, Vector3] = {2: at + Vector3(5, 0, 0)}
 	var now: Dictionary[int, Vector3] = {2: at}
-	var lists: Array[Dictionary] = [before, now]
+	var lists: Array[Dictionary] = [earlier, now]
 	var problems := ScenarioInvariants.record_problems(
 		[_row(2, at)], LENS, RANGE_M, STEP_M, PackedInt32Array([2]), lists
 	)
