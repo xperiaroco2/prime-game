@@ -83,6 +83,17 @@ func test_a_head_just_inside_the_frames_edge_counts_and_just_outside_does_not() 
 	assert_array(_rows(outside)).is_equal([_row(outside, P2)])
 
 
+func test_the_top_and_bottom_edges_count_a_head_just_inside_only() -> void:
+	# The head is the feet plus the eye height, the lens at the eye height: a feet height of dy is a
+	# head dy above or below the lens's, and the half-height at 6 m is 6 · tan(fov / 2).
+	var half := 6.0 * tan(deg_to_rad(FixturePhotoModes.FOV_DEG / 2.0))
+	for sign_of: float in [1.0, -1.0]:
+		var inside := _shot(FixturePhotoModes.IN_FRAME + Vector3(0, sign_of * (half - 0.01), 0))
+		assert_array(Array(_subjects(inside))).is_equal([P2])
+		var outside := _shot(FixturePhotoModes.IN_FRAME + Vector3(0, sign_of * (half + 0.01), 0))
+		assert_array(Array(_subjects(outside))).is_empty()
+
+
 func test_a_wall_between_the_lens_and_the_head_hides_it() -> void:
 	var wall := FlatWorldQuery.new().add_wall(AABB(Vector3(-1, 0, 23), Vector3(2, 3, 0.5)))
 	var game := _shot(FixturePhotoModes.IN_FRAME, wall)

@@ -223,6 +223,25 @@ func test_the_refusal_order_puts_the_station_conditions_first() -> void:
 	assert_array(FixturePhotoModes.reasons(game, P2)).is_equal([&"out_of_reach"])
 
 
+func test_an_actor_failing_two_station_conditions_gets_the_first_reason() -> void:
+	var game := _round()
+	var camera := FixturePhotoModes.camera_of(game)
+	FixturePhotoModes.take(game, P1, FixtureItemModes.lay(game, &"package", Vector3(20, 0, 0)))
+	# Two-handed and out of reach at once: HandNotTwoHanded is the rule's first condition.
+	FixtureItemModes.stand(game, P1, FixturePhotoModes.CAMERA_AT + Vector3(0, 0, -5))
+	FixtureStationModes.interact(game, P1, camera)
+	assert_array(FixturePhotoModes.reasons(game, P1)).is_equal([&"two_handed"])
+
+
+func test_a_wall_between_the_actor_and_the_camera_refuses_blocked_before_any_film_reason() -> void:
+	var wall := FlatWorldQuery.new().add_wall(AABB(Vector3(-1, 0, 19.7), Vector3(2, 3, 0.1)))
+	var game := FixturePhotoModes.in_round(FixturePhotoModes.basic(), PEERS, {}, wall)
+	# Empty-handed with an empty camera would be no_film were it not for the wall.
+	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
+	assert_array(FixturePhotoModes.reasons(game, P1)).is_equal([&"blocked"])
+	assert_array(FixturePhotoModes.received(game, P1, &"FilmLoaded")).is_empty()
+
+
 func test_the_film_box_printer_and_board_are_unavailable_in_p2() -> void:
 	var game := _round()
 	var task_state := FixturePhotoModes.state_of(game)
