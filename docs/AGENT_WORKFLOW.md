@@ -39,7 +39,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 ### 2.1 Cloud sessions
 A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) runs `tools/run.sh verify` as CI
 does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.sh`, then `tools/run.sh doctor`.
-- **`tools/cloud/setup.sh`** (from any folder; idempotent; 7 s in #345's session, the Godot download included): installs
+- **`tools/cloud/setup.sh`** (from any folder; idempotent): installs
   the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned
   gdtoolkit with pip, the pinned Node.js in `~/node` (SHA-256 checked; the runner takes it there in a cloud session,
   since the image's own Node 22 comes first on PATH and Claude Code runs on it; #368), and raises
@@ -48,24 +48,21 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   (`CLAUDE_CODE_REMOTE=true`) it also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension`
   and its `.uid`, the M5 voice ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux
   Godot prints an `ERROR:` line for the extension and every Godot step of `verify` fails. git still tracks both files,
-  so `git status` stays clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought
-  the file back on a switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse
-  patterns held through all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a
+  so `git status` stays clean and no commit can take their deletion; the sparse patterns hold through a switch,
+  `reset --hard` and a new worktree (`git update-index --skip-worktree` alone did not). Undo with
+  `git sparse-checkout disable`. If Godot imported the project before, a
   `run` still loads the extension until the next `check` (ARCHITECTURE §6.5.2 The addon in the repo); `verify` runs
   `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
   is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
   The webrtc-native extension (`addons/webrtc_native/`, the M6 ADR's E57, #367) is not left out: it ships a Linux
   x86_64 library, which loads headless, so a cloud session runs `check` and the WebRTC tests with it, as CI does.
-- **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
-  environment caches the resulting filesystem while each session starts from a fresh clone
-  (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
-  nor is it documented that `CLAUDE_CODE_REMOTE` is set at that point. Hence the first command above; `doctor` says
-  when it is due. The sysctl also fell back to 212992 within #346's session (seemingly when the idle VM was restored),
-  and `verify`'s `freeze` and `stall` failed until `setup.sh` ran again: rerun it whenever `doctor` warns.
+- **Why first, and again:** an environment's cached setup may not carry the sparse checkout or the sysctl into a new
+  session, and the sysctl can fall back to 212992 within one (#346: `verify`'s `freeze` and `stall` failed until
+  `setup.sh` ran again): rerun it whenever `doctor` warns.
 - **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.10, 3.12 and 3.13 are
   installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
   3.11, and since #349 CI's job `python-min` keeps the minimum true.
-- **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
+- **Network access:** `github.com` with `release-assets.githubusercontent.com`
   for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit; `nodejs.org` for Node (#368). The
   session's proxy refuses API calls and feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
   reads public pages (docs, release pages) for research.
@@ -80,11 +77,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   nothing tracks the base). On its task branch the clone is the session's own worktree for the guard (#381, §8.2.1):
   `reset`, `rebase`, `checkout -- <path>` and `clean` there pass without a prompt, which nobody would answer. Before
   #381 the M6-3 session waited 30 minutes on `git reset --soft HEAD~2`. On `main` or `release/*` they still ask.
-- **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
-  passed on its transcript). The Workflow tool is offered, under the `small` size guideline; #345's session launched
-  none.
-- **Timing (measured in #345's session, 4 CPUs):** `doctor` 5 s; a full `verify` 6 minutes (the Python lane 3.8,
-  the Godot lane 5.9; `test` 3.4 and `selftest` 3.3 the longest).
+- **Agents:** the subagents in `.claude/agents/` run there (`agents-check` works on their transcripts). The Workflow
+  tool is offered, under the `small` size guideline.
 - **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` or run `playcheck` (they
   stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
   humans' settings files, the TwoVoIP round trip).
