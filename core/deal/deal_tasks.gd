@@ -77,6 +77,9 @@ func add_demands(settings: Dictionary[StringName, int], players: int, into: Dema
 	var wanted := mini(asked, pool.size())
 	if wanted <= 0:
 		return
+	for type: TaskType in pool:
+		if not into.task_types.has(type):
+			into.task_types.append(type)
 	var markers: Dictionary[StringName, Array] = {}
 	var colours: Dictionary[StringName, Array] = {}
 	var exact: Dictionary[StringName, bool] = {}

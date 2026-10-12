@@ -54,6 +54,14 @@ func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: D
 	pass
 
 
+## What is wrong with `layout`, a map this type may be dealt on, beyond its marker counts (the car
+## repair ADR's RE14, #807: CarRepair's short axis), as HostTexts: at most one (WireBudget sizes
+## SettingsChanged with one per task type). FitCheck.shortfalls appends them, so `all_ready` holds
+## back on such a map before Match starts. Read only from `layout`; none by default.
+func layout_problems(_layout: LevelLayout) -> Array[HostText]:
+	return []
+
+
 ## The spawn tags of the level markers where this type's items may lie (Delivery: its package
 ## kind's), for the map screen's zones (#253): the client lights each room that holds a marker of
 ## such a tag. Level data every client has, never a place a deal chose. None by default.

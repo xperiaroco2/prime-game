@@ -21,9 +21,10 @@ static func demands(ctx: MatchContext) -> Demands:
 
 ## Every reason the settings do not fit, as HostTexts (#548): the player count first
 ## (`players_few` or `players_many`, with `count` off the bound, `min` and `max`), then `no_layout`
-## or the map's shortfalls (Demands.shortfalls), then `no_task_types` when the match asks for tasks
-## and no task type plays on the map after the bans (GE15, #803; no arguments: SettingsChanged
-## names the map). Empty when they fit.
+## or the map's shortfalls (Demands.shortfalls) and the layout problems of every task type the
+## rows may deal there (TaskType.layout_problems, in the mode's order; the car repair ADR's RE14,
+## #807), then `no_task_types` when the match asks for tasks and no task type plays on the map
+## after the bans (GE15, #803; no arguments: SettingsChanged names the map). Empty when they fit.
 static func shortfalls(ctx: MatchContext, needed: Demands) -> Array[HostText]:
 	var found: Array[HostText] = []
 	var players := ctx.state.present_peers().size()
@@ -42,6 +43,8 @@ static func shortfalls(ctx: MatchContext, needed: Demands) -> Array[HostText]:
 		found.append(HostText.of(HostText.NO_LAYOUT))
 	else:
 		found.append_array(needed.shortfalls(layout))
+		for type: TaskType in needed.task_types:
+			found.append_array(type.layout_problems(layout))
 	if needed.no_task_types:
 		found.append(HostText.of(HostText.NO_TASK_TYPES))
 	return found

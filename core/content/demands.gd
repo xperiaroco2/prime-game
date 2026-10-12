@@ -29,6 +29,9 @@ var map: String
 ## Set by DealTasks when `tasks` asks for tasks but no task type plays on `map` after the bans:
 ## the fit check refuses the map with HostText.NO_TASK_TYPES.
 var no_task_types := false
+## The task types DealTasks may deal on `map` (its pool, when `tasks` asks for some): the fit check
+## asks each for its own layout problems (TaskType.layout_problems, the car repair ADR's RE14).
+var task_types: Array[TaskType] = []
 
 
 ## `for_mode` is required so that no caller summing demands can forget it; null only in tests

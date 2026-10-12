@@ -116,8 +116,10 @@ static func _settings_changed(content: _Content) -> WireMessage:
 	var shortfalls: Array[Dictionary] = []
 	# At most one per demanded spawn tag and station kind, plus the player count and
 	# `no_task_types` (FitCheck; a missing layout, `no_layout`, comes instead of the map's
-	# shortfalls), each counted as the longest host text the wire takes (#548).
-	for i: int in content.tags.size() + content.stations.size() + 2:
+	# shortfalls), and one layout problem per task type (TaskType.layout_problems, #807), each
+	# counted as the longest host text the wire takes (#548).
+	var texts := content.tags.size() + content.stations.size() + 2 + content.mode.task_types.size()
+	for i: int in texts:
 		shortfalls.append(_longest_text())
 	var fields := {
 		"settings": content.numbers,
