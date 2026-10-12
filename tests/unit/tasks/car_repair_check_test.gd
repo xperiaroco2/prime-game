@@ -143,6 +143,26 @@ func test_the_car_holds_for_a_time_and_the_panel_without_end() -> void:
 	)
 
 
+func test_a_hold_without_station_usable_or_with_the_wrong_hit_rule_is_refused() -> void:
+	var mode := FixtureCarRepairModes.basic()
+	var type := FixtureCarRepairModes.type_of(mode)
+	var car_rule := FixtureStationModes.hold_rule(FixtureStationModes.hold(1.0, false, false))
+	car_rule.conditions = car_rule.conditions.filter(
+		func(c: Condition) -> bool: return not c is StationUsable
+	)
+	type.car.actions = [car_rule]
+	type.lift_panel.actions = [FixtureStationModes.hold_rule(FixtureStationModes.hold(0.0, true))]
+	var errors := _errors(mode)
+	assert_str(errors).contains(
+		"CarRepair car_repair: the car's Interact rule has no StationUsable"
+	)
+	assert_str(errors).contains("CarRepair car_repair: the car's HoldStation must stop when hit")
+	assert_str(errors).contains(
+		"CarRepair car_repair: the lift_panel's HoldStation must go on when hit"
+	)
+	assert_str(errors).not_contains("the lift_panel's Interact rule has no StationUsable")
+
+
 func test_the_numbers_must_be_within_bounds_and_default_outside_them() -> void:
 	var fresh := CarRepair.new()
 	assert_float(fresh.rise_seconds).is_less(0.0)

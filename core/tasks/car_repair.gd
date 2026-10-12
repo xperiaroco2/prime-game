@@ -452,7 +452,10 @@ func _check_holds(found: PackedStringArray) -> void:
 		var endless := holds[label][1] as bool
 		if kind == null:
 			continue
-		var hold := _last_hold(kind)
+		var rule := _hold_rule(kind)
+		var hold: HoldStation = null
+		if rule != null:
+			hold = rule.effects[rule.effects.size() - 1] as HoldStation
 		if hold == null or hold.endless != endless:
 			found.append(
 				(
@@ -460,17 +463,35 @@ func _check_holds(found: PackedStringArray) -> void:
 					% [id, label, "an endless" if endless else "a timed"]
 				)
 			)
+			continue
+		# The ADR's §1.1 rows 5, 8 and 18 (RD10 (c)): a hit never drops the car and always stops
+		# a fit; use_problem reads the task's state only through StationUsable.
+		if hold.hit_stops == endless:
+			found.append(
+				(
+					"CarRepair %s: the %s's HoldStation must %s when hit"
+					% [id, label, "go on" if endless else "stop"]
+				)
+			)
+		if not _has_station_usable(rule):
+			found.append("CarRepair %s: the %s's Interact rule has no StationUsable" % [id, label])
 
 
-## The HoldStation that ends `kind`'s Interact rule, or null.
-static func _last_hold(kind: StationKind) -> HoldStation:
+## The Interact rule of `kind` that ends in a HoldStation, or null.
+static func _hold_rule(kind: StationKind) -> Rule:
 	for rule: Rule in kind.actions:
 		if rule == null or rule.trigger != Intents.INTERACT or rule.effects.is_empty():
 			continue
-		var last := rule.effects[rule.effects.size() - 1]
-		if last is HoldStation:
-			return last as HoldStation
+		if rule.effects[rule.effects.size() - 1] is HoldStation:
+			return rule
 	return null
+
+
+static func _has_station_usable(rule: Rule) -> bool:
+	for condition: Condition in rule.conditions:
+		if condition is StationUsable and not condition.negate:
+			return true
+	return false
 
 
 ## The part `bin`'s Interact rule gives (its last effect, a GiveItem), or null.
