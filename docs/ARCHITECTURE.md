@@ -6601,7 +6601,10 @@ players plus the subtasks maximum plus 1, CE3), `subtasks_setting` (a whole-numb
   channel's step (RE17).
 - A use (`use_problem`; reads no role): the car takes a use only while fully up and the task not done (`unavailable`;
   the fit's own refusals are R4's); a bin never refuses for the task's state.
-- Mode checks (RE14, `CarRepair.check`): the bullets above, each with its own message.
+- Mode checks (RE14, `CarRepair.check`): the bullets above, each with its own message. A bin's `Cooldown` sits on the
+  same Interact rule that ends in its `GiveItem`; the car's and the panel's rules each hold `StationUsable` (a use's
+  task state is read only through it) and end in the right hold: the car's timed with `hit_stops` true, the panel's
+  endless with `hit_stops` false (RD10 (c)).
 
 Produces: `StationPlaced` and `PartNeeded` (everyone) in the deal; `LiftChanged` (everyone) on a hold's start and stop
 (`hold_emits`); a drop's deaths are `Died`, as every death. Its task state (`CarRepair.State`): the stations' ids, the
