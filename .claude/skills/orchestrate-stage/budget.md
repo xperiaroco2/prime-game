@@ -86,9 +86,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 Each option is described once, in [launch-args.md](launch-args.md) (the table, its `models` and `checkpoint` rows); here
 only what the budget and the trials decide.
 - **Always on, pass nothing**: the lean agent types (#458; [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md);
-  also for a task that edits `.claude/workflows/`, #557: its agents read `docs/workflow-scripts.md`) and bounded waits
-  (#411); #883 removed `lean: false`, `lean_reason` and `bounded_waits: false`. A resume takes the args of its launch
-  ([resume.md](resume.md) §7); a run launched before #411 or #458 is relaunched fresh, not resumed.
+  also for a task that edits `.claude/workflows/`, #557) and bounded waits (#411); launch-args.md says the rest. A
+  resume takes the args of its launch ([resume.md](resume.md) §7).
 - **The launch check** (#557): before each `issue-task` or `pr-rebase` launch or resume, `tools\run.cmd agents-check
   --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
   files that differ from origin/main: pull `main` (or have it pulled) and run it again. No arg gets around it.
@@ -112,8 +111,7 @@ only what the budget and the trials decide.
   amendment of 2026-10-11, the engineer's yes on #302): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s
   "Sonnet publisher trial (#835)" tables before each wave; once either gives advice other than "continue", post it
   on #302 with the table and stop passing that role.
-- **`checkpoint: true`** (#759) on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it,
-  then the engineer decides on a script default.
+- **`checkpoint: true`** (#759): when to pass it and the engineer's decision after 10 tasks are in launch-args.md.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff
@@ -122,7 +120,8 @@ only what the budget and the trials decide.
 - **The rules every track's manager follows**, UI and art included, are in
   [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
   keep-alive, when to hand over (§5: the 500k, 12-hour and 250k thresholds, N6 (b) as changed on
-  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287)), the handover comment and the
+  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287); the paste and the 500k:
+  [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), the handover comment and the
   paste (§6), route C (§7); how game and meta carry it out: [handover.md](handover.md). While the engineer is away no
   successor starts, so a manager hands over only when a threshold forces it. A start-up costs about the successor's
   first 20 calls.
