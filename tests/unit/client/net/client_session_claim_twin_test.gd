@@ -116,7 +116,7 @@ func test_an_interact_resends_the_last_claim_right_before_it() -> void:
 	_harness.session.set_motion(Vector3(3, 0, -1), Vector3.ONE, Vector3.LEFT, true, true, true)
 	_harness.pump(TICK_USEC)
 	var told := _told.size()
-	var seq := _harness.session.send_intent(Intents.INTERACT, {"station": 4})
+	var seq := _harness.session.send_intent(Intents.INTERACT, {"station": 4, "item": -1})
 	assert_int(seq).is_greater(0)
 	_harness.deliver()
 	var last := _harness.sent.slice(-3)
@@ -147,7 +147,7 @@ func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 		Intents.GIVE_UP: {},
 		Intents.SWAP: {},
 		Intents.THROW: {"facing": Vector3.FORWARD},
-		Intents.INTERACT: {"station": 1},
+		Intents.INTERACT: {"station": 1, "item": -1},
 	}
 	_harness.welcome(&"lobby", 1)
 	for intent: StringName in controls:

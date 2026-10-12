@@ -39,14 +39,16 @@ extends RefCounted
 ## markers without asking whether one stands there, and Demands keys palettes by the kind's id); a
 ## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
 ## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
-## its items would never vanish (the cooking ADR, C10); a number outside its part's bounds; an id
-## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
-## whose event goes to everyone (for a UseStation, an event its station's task type's use_emits()
-## lists; for a HoldStation, its hold_emits()), which reveals the actor's role (§9.2); in a mode
-## with a channel, any role-owned or role-gated action, since applying it stops its actor's channel
-## publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose
-## KnockDown without then_die enters a phase with no LifeTicks, whose downed stays downed for good
-## (#599: the tutorial's raise_stage wants that, so a warning, not an error).
+## its items would never vanish (the cooking ADR, C10); an item kind's target_actions holding a
+## UseStation, AtStation, StationInSight or StationUsable (an item names no station), and a
+## GiveItem anywhere but in an action on an intent that names a target (C1); a number outside its
+## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
+## rule with an effect whose event goes to everyone (for a UseStation, an event its station's task
+## type's use_emits() lists; for a HoldStation, its hold_emits()), which reveals the actor's role
+## (§9.2); in a mode with a channel, any role-owned or role-gated action, since applying it stops
+## its actor's channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2);
+## a row whose KnockDown without then_die enters a phase with no LifeTicks, whose downed stays
+## downed for good (#599: the tutorial's raise_stage wants that, so a warning, not an error).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -156,6 +158,9 @@ func _check_rules(mode: GameMode) -> void:
 		if kind != null:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
 			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
+			var targets := "item kind %s.target_actions" % kind.id
+			_check_owner(targets, kind.target_actions, station_intents(), false, [], true)
+			errors.append_array(ItemTargetCheck.target_rules(targets, kind.target_actions))
 	for kind: StationKind in Stations.kinds_in(mode):
 		var owner := "station kind %s.actions" % kind.id
 		var type := Stations.owner_of(mode, kind)
@@ -271,7 +276,8 @@ func _check_owner(
 	rules: Array[Rule],
 	triggers: Array[StringName],
 	role_owned: bool,
-	uses: Array[TaskType] = []
+	uses: Array[TaskType] = [],
+	at_item := false
 ) -> void:
 	var on_intent := _all_intents(triggers)
 	var seen_triggers: Array[StringName] = []
@@ -293,6 +299,7 @@ func _check_owner(
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
 		_check_station_rule(owner, rule)
+		errors.append_array(ItemTargetCheck.give_rule(owner, rule, at_item))
 		if gated and _has_channel and on_intent:
 			warnings.append(
 				(
@@ -642,6 +649,7 @@ func _check_rows(mode: GameMode) -> void:
 						% [row.from, row.outcome]
 					)
 				)
+			errors.append_array(ItemTargetCheck.row_action(row.from, row.outcome, action))
 			var to_spec := mode.find_phase(row.to)
 			var from_spec := mode.find_phase(row.from)
 			if (
@@ -868,8 +876,8 @@ static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:
 	)
 
 
-## Every rule on `intent` among the mode's, the roles', the item kinds' and the station kinds'
-## actions (a station kind's handle Interact, GE2).
+## Every rule on `intent` among the mode's, the roles', the item kinds' (their actions and their
+## target_actions) and the station kinds' actions (the last two handle Interact: GE2, CE1).
 static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	var found: Array[Rule] = []
 	var lists: Array[Array] = [mode.actions]
@@ -879,6 +887,7 @@ static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
 			lists.append(kind.actions)
+			lists.append(kind.target_actions)
 	for station_kind: StationKind in Stations.kinds_in(mode):
 		lists.append(station_kind.actions)
 	for rules: Array in lists:

@@ -1,9 +1,11 @@
 class_name ItemSpawnedEvent
 extends MatchEvent
 ## An item was placed by the deal (ARCHITECTURE §3.3, §4.2): a package (Delivery) or a knife
-## (SpawnItems). Emitted in item-id order, and ids follow spawn-point order, so an id follows the
-## level, not the draw. A package also names its station (its circle) and that station's
-## colour, which is what players see. Items on the ground are public. Audience: everyone.
+## (SpawnItems), emitted in item-id order, and ids follow spawn-point order, so an id follows the
+## level, not the draw; or given mid-round by GiveItem (the cooking ADR's CE2, #770), then not in
+## spawn-point order, at the source's position and with no station. A package also names its
+## station (its circle) and that station's colour, which is what players see. Items on the ground
+## are public. Audience: everyone.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE

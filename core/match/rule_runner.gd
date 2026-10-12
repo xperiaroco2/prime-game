@@ -1,10 +1,11 @@
 class_name RuleRunner
 extends RefCounted
 ## Runs one rule (ARCHITECTURE §9.2): every condition and cost is checked in order, and the first
-## that fails stops the rule with its reason; then, for an action (a rule on an intent), the
-## actor's running channel stops (Channels.interrupt: any other action of a raiser stops the raise,
-## vision revision 1); then every cost is paid in order; then the effects run in order. So a
-## refused intent pays nothing and stops nothing.
+## that fails stops the rule with its reason, and so does an effect's refusal (RuleEffect.refusal,
+## asked of every effect in order after the conditions); then, for an action (a rule on an
+## intent), the actor's running channel stops (Channels.interrupt: any other action of a raiser
+## stops the raise, vision revision 1); then every cost is paid in order; then the effects run in
+## order. So a refused intent pays nothing and stops nothing.
 
 
 ## Runs `rule` in `ctx`. Returns the rejection reason of the first failing condition, or an empty
@@ -15,6 +16,10 @@ static func run(rule: Rule, ctx: MatchContext) -> StringName:
 	for condition: Condition in rule.conditions:
 		if not condition.passes(ctx):
 			return condition.rejection_reason()
+	for effect: RuleEffect in rule.effects:
+		var refused := effect.refusal(ctx)
+		if not refused.is_empty():
+			return refused
 	if ctx.command != null:
 		Channels.interrupt(ctx, ctx.actor)
 	for cost: Cost in rule.costs():

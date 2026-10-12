@@ -246,15 +246,16 @@ func test_a_player_behind_a_wall_within_the_radius_is_blocked() -> void:
 	assert_array(_dicts(game, P2, &"ButtonPressed")).is_empty()
 
 
-func test_an_unknown_station_or_a_fixed_switch_is_nothing_to_do_with_no_event() -> void:
+func test_an_unknown_station_or_a_fixed_switch_is_nothing_to_do_and_none_is_bad_args() -> void:
 	var game := _round(2, [P1, P2])
 	var fixed := _fixed_spot(game)
 	FixtureItemModes.stand(game, P1, fixed + FixtureGeneratorModes.SHORT)
 	FixtureStationModes.interact(game, P1, UNPLACED)
 	FixtureStationModes.interact(game, P1, game.state.stations.size() + 1, 1)
+	# Station -1 with no item names nothing: bad_args under CE1 (#770), not nothing_to_do.
 	FixtureStationModes.interact(game, P1, -1, 2)
 	assert_array(FixtureModes.rejections(game, P1)).is_equal(
-		[&"nothing_to_do", &"nothing_to_do", &"nothing_to_do"]
+		[&"nothing_to_do", &"nothing_to_do", &"bad_args"]
 	)
 	for event_name: StringName in [&"SwitchChanged", &"ButtonPressed"]:
 		assert_array(_dicts(game, P2, event_name)).is_empty()

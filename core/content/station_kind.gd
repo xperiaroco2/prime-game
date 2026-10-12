@@ -21,12 +21,20 @@ extends ContentPart
 ## StationInSight, StationUsable); its effect is UseStation, which hands the use to the kind's
 ## task type. Empty for a station nobody uses (a delivery circle, a zone).
 @export var actions: Array[Rule] = []
+## A display station (the cooking ADR's CE6, #770: the order board, the herb board): placed by its
+## task type's deal so the fit check demands its marker and the client finds its scene, but never
+## used. Match refuses an Interact naming one `nothing_to_do` before any owner is tried (the
+## station's kind, the role's, the mode's), as an unknown station id, so no role or mode rule ever
+## receives it; it holds no `actions` (its check refuses them).
+@export var display := false
 
 
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():
 		found.append("a station kind has no id")
+	if display and not actions.is_empty():
+		found.append("station kind %s is a display kind and holds actions, which never run" % id)
 	if spawn_tag.is_empty():
 		found.append("station kind %s has no spawn_tag" % id)
 	append_found(
