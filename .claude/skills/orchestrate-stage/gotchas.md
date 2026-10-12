@@ -46,5 +46,3 @@ when a run fails in a way you have not seen.
 - **Idle re-writes.** A call after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens ($4 at
   500k); a wake reads it once at $0.20 per 1M, so 14 wakes (12 hours) cost less than one re-write. Hence §7's
   keep-alive and handover; `metrics` reports each manager session's re-writes: with a timer armed it should be 0.
-- Tasks that edit `.claude/` (any path) or `addons/` prompt unless the session runs in bypass: run them only while
-  the human is present.
