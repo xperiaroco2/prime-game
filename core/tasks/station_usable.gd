@@ -4,19 +4,31 @@ extends Condition
 ## the intent names, or on a re-check the channel's, the car repair ADR's RE2) takes a use of it
 ## now (TaskType.use_problem empty; the Generator ADR's GE2, #796). On a re-check
 ## (MatchContext.channel set) use_problem says whether a running hold may go on. Rejects with the
-## type's reason, which is one of REASONS: today only `unavailable` (the Generator: any station of
-## its task once the task is done). Each reason says only public state of a station the actor has
-## in reach and in sight (ModeCheck requires AtStation and StationInSight before this condition),
-## and never a role, so a task whose stations hold state the rules hide (cooking, #682) inherits
-## the limit. A reason outside REASONS is a match error and refused `unavailable`.
+## type's own reason (the cooking ADR's CE11, #780): one the type lists in TaskType.use_reasons(),
+## each of which is one of REASONS (ModeCheck). Each reason says only public state of a station the
+## actor has in reach and in sight (ModeCheck requires AtStation and StationInSight before this
+## condition), and what the actor holds, never a role, so a task whose stations hold state the
+## rules hide inherits the limit. A reason outside either list is a match error and refused
+## `unavailable`.
 ##
-## Condition.rejection_reason() has no MatchContext, so the reason is the one of REASONS: a second
-## reason needs the condition to carry its run's reason first (the seam is _test here).
+## The reason depends on the run, so it comes from rejection_reason_in(), which asks use_problem
+## again (a query that changes nothing); rejection_reason(), which has no MatchContext, is
+## `unavailable` (ModeCheck's alphabet check of every condition's reason).
 
+## The station takes no use now: the task is done (the Generator), or the station has nothing to
+## give.
 const UNAVAILABLE := &"unavailable"
-## Every reason use_problem may return. A new one updates ARCHITECTURE §9.4.1's row (what it
-## reveals) and station_usable_test.gd.
-const REASONS: Array[StringName] = [UNAVAILABLE]
+## The station does not take what the actor holds (the cooking ADR's CE11: a cooked patty at an
+## empty grill, a knife at a place).
+const WRONG_ITEM := &"wrong_item"
+## The use needs an item in the actor's hand, and it holds none (HoldsItem's reason).
+const EMPTY_HAND := HoldsItem.EMPTY_HAND
+## The use would put an item beside a two-handed one (HandNotTwoHanded's reason).
+const TWO_HANDED := HandNotTwoHanded.TWO_HANDED
+## Every reason use_problem may return, and a type may list in use_reasons(). A new one updates
+## ARCHITECTURE §9.4.1's row (what it reveals) and station_usable_test.gd, and the protocol
+## version (a client of the old one never gets it).
+const REASONS: Array[StringName] = [UNAVAILABLE, WRONG_ITEM, EMPTY_HAND, TWO_HANDED]
 
 
 ## It needs a station (Stations.target_of), which no fact carries, and also reads the actor (the
@@ -25,25 +37,41 @@ func needs_target() -> bool:
 	return true
 
 
+func rejection_reason_in(ctx: MatchContext) -> StringName:
+	if negate:
+		return RejectReasons.NOT_ALLOWED
+	# An empty answer the second time breaks "a query that changes nothing"; an empty reason would
+	# make RuleRunner report the intent applied (no Rejected), so refuse `unavailable` instead.
+	var reason := _problem(ctx, false)
+	return UNAVAILABLE if reason.is_empty() else reason
+
+
 func _test(ctx: MatchContext) -> bool:
-	var station := Stations.target_of(ctx)
-	if station == null:
-		return false
-	var type := Stations.owner_of(ctx.mode, station.kind)
-	if type == null:
-		return false
-	var reason := type.use_problem(ctx, Stations.task_of(ctx.state, type), station)
-	if reason.is_empty():
-		return true
-	if not REASONS.has(reason):
-		ctx.error(
-			(
-				"task type %s refused a use of station %d with %s, which is not one of %s"
-				% [type.id, station.id, reason, REASONS]
-			)
-		)
-	return false
+	return _problem(ctx, true).is_empty()
 
 
 func _reason() -> StringName:
+	return UNAVAILABLE
+
+
+## Why the type refuses the use `ctx` names, or empty when it takes it: the type's reason when it
+## lists it and REASONS has it, else `unavailable`, which `report` also logs as a match error.
+func _problem(ctx: MatchContext, report: bool) -> StringName:
+	var station := Stations.target_of(ctx)
+	if station == null:
+		return UNAVAILABLE
+	var type := Stations.owner_of(ctx.mode, station.kind)
+	if type == null:
+		return UNAVAILABLE
+	var reason := type.use_problem(ctx, Stations.task_of(ctx.state, type), station)
+	if reason.is_empty() or (REASONS.has(reason) and type.use_reasons().has(reason)):
+		return reason
+	if report:
+		var listed := type.use_reasons()
+		ctx.error(
+			(
+				"task type %s refused a use of station %d with %s, not one of its %s and REASONS %s"
+				% [type.id, station.id, reason, listed, REASONS]
+			)
+		)
 	return UNAVAILABLE

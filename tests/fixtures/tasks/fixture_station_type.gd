@@ -4,7 +4,8 @@ extends TaskType
 ## (core/tasks/station_*.gd, use_station.gd; the Generator ADR's GE1 to GE4, #796). Its deal
 ## places one panel on each marker of the panel's spawn tag, in marker order, and adds its task.
 ## use_problem() returns `problem` (empty by default: every use is taken), so a test sets
-## `unavailable`, or a reason outside StationUsable.REASONS to see it held to the list.
+## `unavailable`, or a reason outside StationUsable.REASONS or outside `reasons` (use_reasons())
+## to see it held to both lists.
 ## The hold hooks (HoldStation; the car repair ADR's RE1 to RE4, #805) note "hold started",
 ## "hold stopped" (" phase_ended" when its phase ended) and "hold completed" with the station, the
 ## actor and the ticks run, to everyone (hold_emits(); nothing when `quiet`).
@@ -15,10 +16,16 @@ extends TaskType
 
 ## Why use_problem() refuses every use, or empty.
 var problem: StringName = &""
+## What use_reasons() lists: TaskType's default, [`unavailable`], unless a test sets its own.
+var reasons: Array[StringName] = [StationUsable.UNAVAILABLE]
 ## Whether use_emits() lists nothing (a use that reaches nobody), for ModeCheck's warning.
 var quiet := false
 ## What kills() answers (the car repair ADR's RE6, #806), for ModeCheck's LifeTicks rule.
 var killing := false
+## Whether use_problem() answers empty from its second ask on (a type that breaks "a query that
+## changes nothing"), to see a refused intent still gets its Rejected.
+var empty_after_first_ask := false
+var _asked := 0
 
 
 func _init() -> void:
@@ -36,7 +43,14 @@ func deal(ctx: MatchContext) -> void:
 
 
 func use_problem(_ctx: MatchContext, _task: MatchTask, _station: StationState) -> StringName:
+	_asked += 1
+	if empty_after_first_ask and _asked > 1:
+		return &""
 	return problem
+
+
+func use_reasons() -> Array[StringName]:
+	return reasons
 
 
 func use_station(ctx: MatchContext, task: MatchTask, station: StationState) -> void:

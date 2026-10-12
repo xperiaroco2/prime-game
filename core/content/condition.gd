@@ -1,7 +1,7 @@
 class_name Condition
 extends ContentPart
 ## "Only if" (ARCHITECTURE §9.2): checked in order, changing nothing. The first that fails stops
-## its rule: for an intent the sender gets Rejected with rejection_reason(); for a fact nothing
+## its rule: for an intent the sender gets Rejected with rejection_reason_in(); for a fact nothing
 ## happens. A subclass overrides _test() and _reason(), and says in its §9.4 entry what its
 ## refusal reveals: a reason may depend only on facts the sender is entitled to (§4.1).
 
@@ -19,6 +19,13 @@ func rejection_reason() -> StringName:
 	if negate:
 		return RejectReasons.NOT_ALLOWED
 	return _reason()
+
+
+## The reason the sender is told when this condition stops an intent in `ctx` (RuleRunner, right
+## after passes() failed in the same step): rejection_reason(), unless the reason depends on the
+## run (StationUsable passes on its task type's own, the cooking ADR's CE11).
+func rejection_reason_in(_ctx: MatchContext) -> StringName:
+	return rejection_reason()
 
 
 ## True when this condition reads the actor's role (ActorRole, #34): ModeCheck then warns about

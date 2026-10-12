@@ -154,9 +154,18 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append(
 			"Delivery %s names item kind %s, which the mode does not declare" % [id, package.id]
 		)
-	elif package.vanishes():
-		# The task knows a package by its item id alone, and a vanished item's id is reused.
-		found.append("Delivery %s: the package kind %s must not vanish" % [id, package.id])
+	else:
+		if package.spawn_tag.is_empty():
+			# An item kind may name no marker (CE18 (a)): the deal places packages on markers.
+			found.append(
+				(
+					"Delivery %s: the package kind %s has no spawn_tag to place it on"
+					% [id, package.id]
+				)
+			)
+		if package.vanishes():
+			# The task knows a package by its item id alone, and a vanished item's id is reused.
+			found.append("Delivery %s: the package kind %s must not vanish" % [id, package.id])
 	if circle == null:
 		found.append("Delivery %s has no circle station kind" % id)
 	elif package != null and circle.spawn_tag == package.spawn_tag:

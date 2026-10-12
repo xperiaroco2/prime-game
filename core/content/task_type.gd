@@ -100,6 +100,15 @@ func check(mode: GameMode) -> PackedStringArray:
 			found.append(
 				"task type %s lists the map %s, which is not one of the mode's maps" % [id, map]
 			)
+	for reason: StringName in use_reasons():
+		var text := ""
+		if not ModeCheck.is_wire_id(reason):
+			text = 'task type %s lists the use reason "%s", which is not an id: 1 to %d characters'
+			text += " of a-z, 0-9 and _ (the wire's alphabet)"
+			found.append(text % [id, reason, ModeCheck.MAX_ID_LENGTH])
+		elif not StationUsable.REASONS.has(reason):
+			text = "task type %s lists the use reason %s, which is not one of StationUsable.REASONS"
+			found.append(text % [id, reason])
 	return found
 
 
@@ -111,12 +120,20 @@ func plays_on(map: String) -> bool:
 
 ## Why this type refuses a use of `station`, a placed station of its kind, by the actor of `ctx`
 ## now (StationUsable, the Generator ADR's GE2, #796), or empty when it takes it. Only a reason
-## of StationUsable.REASONS: each says only public state of a station the actor has in reach and
-## in sight (AtStation and StationInSight run before StationUsable), and never reads a role.
+## use_reasons() lists: each says only public state of a station the actor has in reach and in
+## sight (AtStation and StationInSight run before StationUsable) and what the actor holds, and
+## never reads a role. A query that changes nothing: StationUsable may ask it twice in one step.
 ## `task` is the type's task (null when the deal dealt none). By default every use is refused
 ## `unavailable`: a type whose stations nobody uses takes no use.
 func use_problem(_ctx: MatchContext, _task: MatchTask, _station: StationState) -> StringName:
 	return StationUsable.UNAVAILABLE
+
+
+## Every reason use_problem() may return (the cooking ADR's CE11, #780): StationUsable refuses a
+## use with one of them, and with `unavailable` (a match error) for any other. ModeCheck refuses
+## one outside the wire's alphabet or StationUsable.REASONS. By default `unavailable` alone.
+func use_reasons() -> Array[StringName]:
+	return [StationUsable.UNAVAILABLE]
 
 
 ## Uses `station` (UseStation, after StationUsable passed): the type writes its own task state

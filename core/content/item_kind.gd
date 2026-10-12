@@ -10,6 +10,10 @@ const MAX_VANISH_SECONDS := 3600
 
 @export var id: StringName
 @export var display_name: String
+## The markers a deal places it on (§9.6), or empty for a kind no deal places: one only given or
+## changed into (the cooking ADR's CE18 (a), C11). The kind's check takes an empty tag; each part
+## that places a kind on markers (SpawnItems, Delivery's package) refuses one without a tag in its
+## own check, where the tag is used.
 @export var spawn_tag: StringName
 ## How many hands it takes, 1 or 2 (vision revision 1, Two hands): a one-handed item may go on the
 ## belt, a two-handed one never does, and a player holding one in the hand cannot swap (§7.1). The
@@ -50,8 +54,6 @@ func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():
 		found.append("an item kind has no id")
-	if spawn_tag.is_empty():
-		found.append("item kind %s has no spawn_tag" % id)
 	append_found(found, [out_of_bounds("item kind %s hands" % id, hands, 1, 2)])
 	if vanish_seconds != 0:
 		var label := "item kind %s vanish_seconds" % id

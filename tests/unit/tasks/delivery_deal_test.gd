@@ -331,6 +331,18 @@ func test_the_mode_check_refuses_undeclared_names_and_numbers_out_of_bounds() ->
 	assert_str(errors).contains("repeats palette colour 1")
 
 
+func test_the_mode_check_refuses_a_package_kind_without_a_spawn_tag() -> void:
+	# The cooking ADR's CE18 (a), C11: an item kind may have no tag (one only given), so the deal
+	# that places packages on markers refuses one without it (mode_check_test.gd).
+	var mode := FixtureDeliveryModes.basic()
+	FixtureDeliveryModes.delivery_of(mode).package.spawn_tag = &""
+	var errors := ModeCheck.run(mode).errors
+	assert_array(Array(errors)).has_size(1)
+	assert_str(errors[0]).contains(
+		"Delivery delivery: the package kind package has no spawn_tag to place it on"
+	)
+
+
 func test_the_mode_check_refuses_circles_and_packages_sharing_a_spawn_tag() -> void:
 	var mode := FixtureDeliveryModes.basic()
 	var delivery := FixtureDeliveryModes.delivery_of(mode)
@@ -346,6 +358,17 @@ func test_the_mode_check_refuses_a_package_kind_that_vanishes() -> void:
 	delivery.package.vanish_seconds = 30
 	var errors := "\n".join(ModeCheck.run(mode).errors)
 	assert_str(errors).contains("Delivery delivery: the package kind package must not vanish")
+
+
+func test_a_package_kind_without_a_tag_that_also_vanishes_gets_both_errors() -> void:
+	# Both problems at once, not one per load.
+	var mode := FixtureDeliveryModes.basic()
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	delivery.package.spawn_tag = &""
+	delivery.package.vanish_seconds = 30
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("the package kind package has no spawn_tag to place it on")
+	assert_str(errors).contains("the package kind package must not vanish")
 
 
 func test_a_circle_that_forgot_its_radius_or_height_is_refused() -> void:

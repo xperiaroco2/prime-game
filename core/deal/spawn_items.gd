@@ -67,6 +67,9 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append("SpawnItems has no kind")
 	elif mode.find_item_kind(kind.id) == null:
 		found.append("SpawnItems: item kind %s is not an item kind of the mode" % kind.id)
+	elif kind.spawn_tag.is_empty():
+		# An item kind may name no marker (CE18 (a)): the placer refuses it where the tag is used.
+		found.append("SpawnItems: item kind %s has no spawn_tag to place it on" % kind.id)
 	if count_setting.is_empty():
 		found.append("SpawnItems has no count_setting")
 	if rng_purpose.is_empty():
