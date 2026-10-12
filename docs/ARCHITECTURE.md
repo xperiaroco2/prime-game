@@ -918,7 +918,7 @@ directive has no row, because it reaches no peer.
 | 70 | `SwitchChanged` | `station: station`, `on: bool` (audience *everyone*, #797; GE9 of the [Generator ADR](decisions/2026-10-10-generator-task.md)) | 3; 3 |
 | 71 | `ButtonPressed` | `station: station` (audience *everyone*, #797, GE9) | 2; 2 |
 | 72 | `ItemChanged` | `item: item`, `kind: id` (audience *everyone*, #771; the cooking ADR, CE4) | 4 to 35; 35 |
-| 73 | `OrderPosted` | `station: station`, `bun: id`, `patty: id`, `icon: u8` (audience *everyone*, #772; the cooking ADR, CE9) | 5 to 69; 69 |
+| 73 | `OrderPosted` | `station: station`, `bun: id`, `patty: id`, `icon: u8` (audience *everyone*, #772; the cooking ADR, CE9) | 7 to 69; 69 |
 | 74 | `HerbsDealt` | `code: list<id>`, `beds: list<id>`, each a u8 count up to `WireSchema.MAX_HERBS` (255; audience *everyone*, #772; CE9, CD13 (b)) | content-sized (`WireBudget`); 2048 |
 
 #### 4.3.5 State and voice
