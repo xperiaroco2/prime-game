@@ -6,7 +6,8 @@ extends RefCounted
 ## words it with tr, so two players of one lobby each read it in their own language. Pure: no node.
 ##
 ## The deck (ui-0.4.0) has a key for `players_few` only. `players_many`, `markers`,
-## `markers_exact` (#797), `colours`, `no_layout` and `no_task_types` (#803) have none: no key is
+## `markers_exact` (#797), `colours`, `no_layout`, `no_task_types` (#803) and `short_axis` (#807)
+## have none: no key is
 ## invented here, so they show plain(), a neutral line of the id and its arguments, until the UI
 ## track's deck adds theirs (a gap the PR lists). A start held back must still say why.
 
