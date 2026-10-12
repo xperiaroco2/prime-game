@@ -43,7 +43,6 @@ SCHEMAS = (1,)
 TAG_RE = re.compile(r"^ui-\d+\.\d+\.\d+$")
 TEXT_SUFFIXES = (".json", ".svg")
 LOCK_KEYS = ("repo", "tag", "commit", "files", "imported", "deferred")
-HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 GDIGNORE = ".gdignore"
 # The imported copy of the pack's assets (#520): a folder Godot imports, under assets/ui/ (docs/ARCHITECTURE.md §11.1).

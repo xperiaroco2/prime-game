@@ -42,17 +42,6 @@ def folder_pattern(root: Path) -> re.Pattern[str]:
     return re.compile(head + sep + sep.join(re.escape(p) for p in parts) + r"(?![\w-]|\.\w)", re.IGNORECASE)
 
 
-def project_dirs(config: Path, checkout: Path) -> list[Path]:
-    """The checkout's project folder and its worktree sessions' folders (metrics.py's module docstring)."""
-    from .metrics import project_key
-
-    key = project_key(checkout)
-    base = config / "projects"
-    if not base.is_dir():
-        return []
-    return sorted(p for p in base.iterdir() if p.is_dir() and (p.name == key or p.name.startswith(key + "--claude-worktrees-")))
-
-
 def first_line(path: Path) -> str:
     try:
         with path.open(encoding="utf-8", errors="replace") as f:
@@ -112,7 +101,7 @@ def main(at: int = AT, hard: int = HARD, transcript: str | None = None) -> int:
     else:
         from .metrics import main_checkout
 
-        dirs = project_dirs(agents_check.config_dir(), main_checkout())
+        dirs = agents_check.project_dirs(main_checkout())
         path = find_transcript(dirs, ROOT)
     tokens = context_of(path) if path and path.is_file() else None
     if path is None or tokens is None:

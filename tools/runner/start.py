@@ -28,6 +28,7 @@ from .common import (
     Failure,
     Result,
     app_data_dir,
+    must,
     ok,
     project_name,
     run,
@@ -53,17 +54,11 @@ def _git(*args: str, cwd: Path | None = None, timeout: float = TIMEOUT) -> Resul
     return run(["git", *args], timeout=timeout, cwd=cwd or REPO)
 
 
-def _must(res: Result, what: str) -> str:
-    if res.timed_out or res.rc != 0:
-        raise Failure(f"{what} failed: {res.out.strip()[-600:]}")
-    return res.out.strip()
-
-
 def _gh(*args: str) -> str:
     exe = shutil.which("gh")
     if not exe:
         raise Failure("GitHub CLI (gh) not found: winget install --id GitHub.cli")
-    return _must(run([exe, *args], timeout=60, cwd=REPO), f"gh {' '.join(args[:2])}")
+    return must(run([exe, *args], timeout=60, cwd=REPO), f"gh {' '.join(args[:2])}")
 
 
 def slug(title: str) -> str:
@@ -135,7 +130,7 @@ def main(
     engineer = login == board.OWNER
     ok(f"#{number} '{issue['title']}' ({', '.join(labels) or 'no labels'}); you are {login}")
 
-    _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
+    must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
     existing = existing_branch(number)
     if existing and base:
         warn(f"--base {base} is ignored: {existing} already exists and is resumed as it is")
@@ -203,9 +198,9 @@ def record_parent(branch: str, parent: str, dry_run: bool) -> None:
     if dry_run:
         say(f"        would record {parent} as the base for publish ({publish.base_key(branch)})")
         return
-    tip = _must(_git("rev-parse", f"{REMOTE}/{parent}^{{commit}}"), "reading the parent's tip")
-    _must(_git("config", publish.base_key(branch), parent), "recording the base")
-    _must(_git("config", publish.tip_key(branch), tip), "recording the parent's tip")
+    tip = must(_git("rev-parse", f"{REMOTE}/{parent}^{{commit}}"), "reading the parent's tip")
+    must(_git("config", publish.base_key(branch), parent), "recording the base")
+    must(_git("config", publish.tip_key(branch), tip), "recording the parent's tip")
     ok(f"recorded {parent} as the base for publish and the PR")
 
 
@@ -236,7 +231,7 @@ def switch(
             record_parent(branch, parent, dry_run)
         return
     if dirty and stash:
-        _must(
+        must(
             _git("stash", "push", "--include-untracked", "-m", f"start #{number}: left on {current or 'HEAD'}"),
             "git stash push",
         )
@@ -265,7 +260,7 @@ def worktrees_root() -> Path:
 
 def main_checkout() -> Path:
     """The main checkout, also when the runner runs from inside a worktree."""
-    common = Path(_must(_git("rev-parse", "--path-format=absolute", "--git-common-dir"), "finding the git dir"))
+    common = Path(must(_git("rev-parse", "--path-format=absolute", "--git-common-dir"), "finding the git dir"))
     return common.parent
 
 
@@ -303,7 +298,7 @@ def create_worktree(number: int, branch: str, dry_run: bool, parent: str = BASE)
         if new:
             record_parent(branch, parent, dry_run)
         return path
-    _must(_git(*args), "git worktree add")
+    must(_git(*args), "git worktree add")
     ok(f"created the worktree {path} on {branch} from {source}")
     if new:
         record_parent(branch, parent, dry_run)
@@ -401,9 +396,9 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
     dirty = _git("status", "--porcelain", "--untracked-files=all", cwd=path).out.strip()
     if dirty:
         raise Failure(f"the worktree has uncommitted changes; nothing was removed:\n{dirty}")
-    _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
+    must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
     # The commit checked out there, not just the branch name: a detached HEAD can hold commits no branch has.
-    head = _must(_git("rev-parse", "HEAD", cwd=path), "reading the worktree's HEAD")
+    head = must(_git("rev-parse", "HEAD", cwd=path), "reading the worktree's HEAD")
     merged = _is_ancestor(head, f"{REMOTE}/{BASE}") and (not branch or _is_ancestor(branch, f"{REMOTE}/{BASE}"))
     if not merged and not pushed:
         raise Failure(

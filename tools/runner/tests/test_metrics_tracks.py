@@ -89,7 +89,7 @@ class TracksTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def spend(self, labels: dict | None = None) -> dict:
-        dirs = metrics.track_dirs(CHECKOUT, self.root)
+        dirs = [(d, c["track"]) for c in metrics.track_checkouts(CHECKOUT, self.root) for d in c["folders"]]
         return metrics.track_spend(dirs, labels or {}, metrics.parse_time(SINCE), metrics.parse_time(UNTIL))
 
     def run_main(self, *names: str, budgets: tuple = (), labels: tuple = ("lab=meta",), until: str = UNTIL,
@@ -102,7 +102,7 @@ class TracksTest(unittest.TestCase):
         return buf.getvalue()
 
     def test_the_folders_of_the_three_checkouts_and_their_worktrees(self) -> None:
-        names = [(d.name, default) for d, default in metrics.track_dirs(CHECKOUT, self.root)]
+        names = [(d.name, c["track"]) for c in metrics.track_checkouts(CHECKOUT, self.root) for d in c["folders"]]
         self.assertEqual(names, [("D--prime-game", None), ("D--prime-game--claude-worktrees-7", None),
                                  ("D--prime-game-ui", "ui"), ("D--prime-game-art", "art")])  # fmt: skip
 

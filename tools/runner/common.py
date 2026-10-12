@@ -270,6 +270,13 @@ class Result:
         return self.out.splitlines()
 
 
+def must(res: Result, what: str) -> str:
+    """The stripped output of a command that ran and exited 0; else a Failure naming `what` and the output's tail."""
+    if res.timed_out or res.rc != 0:
+        raise Failure(f"{what} failed: {res.out.strip()[-600:]}")
+    return res.out.strip()
+
+
 def kill_tree(proc: subprocess.Popen[bytes]) -> None:
     _kill_group(proc)
     proc.wait()

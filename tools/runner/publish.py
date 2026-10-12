@@ -24,7 +24,7 @@ import re
 import shutil
 
 from . import verify, wait
-from .common import AGENT_ENV, ROOT, Failure, Result, bad, ok, run, say, warn
+from .common import AGENT_ENV, ROOT, Failure, Result, bad, must, ok, run, say, warn
 
 REMOTE = "origin"
 # The checkout publish works on (tests point it at a temp repo).
@@ -36,12 +36,6 @@ TIMEOUT = 300
 
 def _git(*args: str, env: dict[str, str] | None = None) -> Result:
     return run(["git", *args], timeout=TIMEOUT, env=env, cwd=REPO)
-
-
-def _must(res: Result, what: str) -> str:
-    if res.timed_out or res.rc != 0:
-        raise Failure(f"{what} failed: {res.out.strip()[-600:]}")
-    return res.out.strip()
 
 
 def pr_base(branch: str) -> str | None:
@@ -124,7 +118,7 @@ def main(base: str | None = None, verbose: bool = False) -> int:
     # Read before the prune below deletes it: the parent's tip as this checkout last saw it.
     stale = _sha(f"refs/remotes/{REMOTE}/{parent}") if parent else ""
     # --prune drops remote-tracking refs of deleted branches, so the lease below never expects a branch that is gone.
-    _must(_git("fetch", "--prune", REMOTE), f"git fetch {REMOTE}")
+    must(_git("fetch", "--prune", REMOTE), f"git fetch {REMOTE}")
     # An open PR's base wins over the recorded parent: GitHub retargets it to main once the parent is merged.
     base = base or pr_base(branch)
     source, unstack = "", False
@@ -160,7 +154,7 @@ def main(base: str | None = None, verbose: bool = False) -> int:
             warn(f"the parent {parent} is merged but its branch remains: gh pr edit {branch} --base main")
     base = base or "main"
     upstream = f"{REMOTE}/{base}"
-    _must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
+    must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
     ok(f"fetched {REMOTE}; base {upstream}{source}")
     onto = bool(tip) and (unstack or base == parent)
     fork = _git("merge-base", "HEAD", upstream).out.strip() if onto else ""
@@ -169,7 +163,7 @@ def main(base: str | None = None, verbose: bool = False) -> int:
         # are upstream's own, and replaying them from the stale tip would stop on a conflict (#113).
         tip = fork
 
-    before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
+    before = must(_git("rev-parse", "HEAD"), "reading HEAD")
     remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
     if remote_oid and not was_local(branch, remote_oid):
         raise Failure(
@@ -191,14 +185,14 @@ def main(base: str | None = None, verbose: bool = False) -> int:
                 f"the rebase on {upstream} stopped, usually on a conflict. Publish aborted it: {branch} is unchanged "
                 f"at {before[:10]}. Ask the human how to resolve it.\n{res.out.strip()[-600:]}"
             )
-    after = _must(_git("rev-parse", "HEAD"), "reading HEAD")
+    after = must(_git("rev-parse", "HEAD"), "reading HEAD")
     ok(f"rebased on {upstream}" + (" (already up to date)" if after == before else f": {before[:10]} -> {after[:10]}"))
     if unstack:
         _git("config", "--unset", tip_key(branch))
-        _must(_git("config", "--unset", base_key(branch)), "forgetting the recorded parent")
+        must(_git("config", "--unset", base_key(branch)), "forgetting the recorded parent")
         ok(f"the parent {parent} is merged: the base is main from now on")
     elif parent and base == parent:
-        _must(_git("config", tip_key(branch), _sha(upstream)), "recording the parent's tip")
+        must(_git("config", tip_key(branch), _sha(upstream)), "recording the parent's tip")
 
     say()
     why = reuse_refusal()
