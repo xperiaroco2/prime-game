@@ -83,8 +83,9 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs; 18 left it
 ## when Interact took it (#796), 20 took its place; 69 left it when ItemVanished took it (#779), 70
 ## took its place; 70 left it when SwitchChanged took it (#797, ButtonPressed took 71), 72 took its
-## place; 72 left it when ItemChanged took it (#771), 73 took its place.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 73, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## place; 72 left it when ItemChanged took it (#771), 73 took its place; 73 left it when OrderPosted
+## took it (#772, HerbsDealt took 74), 75 took its place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 75, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, and the Generator's events (#797), each
 ## with valid fields.

@@ -29,8 +29,9 @@ extends RefCounted
 ## 19 since #771 added ItemChanged (kind 72);
 ## 20 since #770 made Interact's `station` optional and added its optional `item`;
 ## 21 since #780 let a station refuse a use `wrong_item` (StationUsable.REASONS, the cooking ADR's
-## CE11): a new Rejected reason, no row changed, so a client of 20 never meets it.
-const VERSION := 21
+## CE11): a new Rejected reason, no row changed, so a client of 20 never meets it;
+## 22 since #772 added Cooking's OrderPosted (kind 73) and HerbsDealt (kind 74).
+const VERSION := 22
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -56,6 +57,8 @@ const MAX_AVATARS := MAX_PLAYERS - 1
 ## Settings, spawn tags and station kinds per map.
 const MAX_ENTRIES := 32
 const MAX_TASK_TYPES := 16
+## Cooking's herbs (HerbsDealt's lists, #772): a list's count is a u8, as an order's icon is.
+const MAX_HERBS := 255
 const MAX_SHORTFALLS := 32
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
@@ -348,6 +351,17 @@ static func _events() -> Array[WireRow]:
 	var item_spawned := _down(
 		47, &"ItemSpawned", 66, [_item("item"), _id("kind"), _vec3("position"), package]
 	)
+	# Cooking's herb per icon and per bed (#772, the cooking ADR's CE9): a u8 count each, as many as
+	# the herbs; WireBudget sizes them from the mode's Cooking types.
+	var herbs_dealt := _down(
+		74,
+		&"HerbsDealt",
+		2048,
+		[
+			WireField.list("code", _id(""), MAX_HERBS, TYPE_PACKED_STRING_ARRAY),
+			WireField.list("beds", _id(""), MAX_HERBS, TYPE_PACKED_STRING_ARRAY),
+		]
+	)
 	for sized: WireRow in [
 		welcome,
 		settings_changed,
@@ -355,7 +369,8 @@ static func _events() -> Array[WireRow]:
 		load_match,
 		teammates,
 		station_placed,
-		item_spawned
+		item_spawned,
+		herbs_dealt,
 	]:
 		sized.content_sized = true
 	return [
@@ -461,6 +476,13 @@ static func _events() -> Array[WireRow]:
 		_down(70, &"SwitchChanged", 3, [_station("station"), _bool("on")]),
 		_down(71, &"ButtonPressed", 2, [_station("station")]),
 		_down(72, &"ItemChanged", 35, [_item("item"), _id("kind")]),
+		_down(
+			73,
+			&"OrderPosted",
+			69,
+			[_station("station"), _id("bun"), _id("patty"), _of("icon", WireField.Type.U8)]
+		),
+		herbs_dealt,
 	]
 
 

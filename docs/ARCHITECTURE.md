@@ -159,7 +159,8 @@ countdown changes no scene and places nobody.
   re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `switches`, `knives`, `spawns`), named in the data of the part that
+  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `switches`, `knives`, `spawns`; Cooking's
+  `cooking_boxes`, `cooking_orders`, `herb_code` and `herb_beds`, #772, provisional ids), named in the data of the part that
   draws (§9.4), gets its own `RandomNumberGenerator`, seeded by a fixed mixing function of the match seed and the
   purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the name; not `String.hash()`, whose
   algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
@@ -177,7 +178,11 @@ countdown changes no scene and places nobody.
   of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
   *i* is subtask *i* in station-id order. The Generator's deal (#797, §9.5.19): its generator on the one
   `generator` marker, then a switch on as many of the `switch` markers as its subtasks setting asks, drawn with `switches`, in level
-  order; switch *i* is subtask *i*. Then each task's `TaskState` (its id, type and
+  order; switch *i* is subtask *i*. Cooking's deal (#772, §9.5.20): its fixed stations in level order (the boards,
+  the grill, a bed on every `herb_bed` marker, N places), then a box per box kind on a random free marker of its tag
+  (`cooking_boxes`), then per place its order's bun, raw patty and herb (`cooking_orders`), then the code
+  (`herb_code`) and the herbs over the beds (`herb_beds`), each a Fisher–Yates permutation; place *i* is subtask *i*.
+  Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
   every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
@@ -729,6 +734,8 @@ wire schemas of the events and the snapshot are §4.3.
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `ItemVanished` | item | everyone: items on the ground are public, and it names no player | an item of a kind with `vanish_seconds` lay on the ground that long (`VanishTicks`, §9.4.5; the cooking ADR, CD6 (c), #779); its id may later name a new item (§9.3) |
 | `ItemChanged` | item, kind | everyone: items are public, and it names no player | `Items.change_kind` (the cooking ADR, CE4, #771): an item became another kind where it is (a patty on the grill turning fried, then burnt), keeping its id, place and holder; nothing is sent when it already is that kind |
+| `OrderPosted` | a place's station, the bun's kind, the fried patty's kind and the index of the herb's icon (#772; the cooking ADR, CE8, CE9) | everyone: tasks are shared, and it names no player; it carries the icon, never the herb (CE9 (a)) | Cooking's deal (§9.5.20), one per place in station order, after its `StationPlaced`s and the boxes' `ItemSpawned`s |
+| `HerbsDealt` | the herb's kind per icon (the code) and per herb bed in station order (#772; CE8, CE9, CD13 (b)) | everyone, as `OrderPosted`; an honest client draws the code only on the herb board and a bed's herb only on its bed | Cooking's deal, once, after its `OrderPosted`s; none when its subtasks setting is 0 |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
 | `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress`. The Generator's charge shares it (#797, the Generator ADR's GE7 and GE8; §9.5.19): its station is the generator's; at 0 in the deal, after the `StationPlaced`s; a start or stop by a use, after its `SwitchChanged` or `ButtonPressed`, with `tick` the tick before (the charge counted through it), or held to its window's end; the full charge in its own tick, before the `TaskState`s and `TaskProgress` |
@@ -759,7 +766,7 @@ reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for 
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
 in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`. #779: `ItemVanished`. #797 (Generator G2): `SwitchChanged` and
 `ButtonPressed`, and the Generator's `ZoneProgress`. #771: `ItemChanged`, and
-`ItemPickedUp`'s `belted` naming the item itself.
+`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -801,7 +808,8 @@ These maxima bound the decoder, not the payload: at the maxima some kinds exceed
 `id_sets` alone could reach about 18 KB). How big they get depends on the content, so the content is checked
 (E16): `WireBudget` (`server/`, 3d) computes, from a game mode, the worst case of every kind whose size its content
 sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
-`PlayersPlaced`), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
+`PlayersPlaced`, and since #772 `HerbsDealt`, both lists as long as the mode's longest Cooking herbs, every case with
+empty lists when it has none), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
 spawn tag and station kind, plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
@@ -910,6 +918,8 @@ directive has no row, because it reaches no peer.
 | 70 | `SwitchChanged` | `station: station`, `on: bool` (audience *everyone*, #797; GE9 of the [Generator ADR](decisions/2026-10-10-generator-task.md)) | 3; 3 |
 | 71 | `ButtonPressed` | `station: station` (audience *everyone*, #797, GE9) | 2; 2 |
 | 72 | `ItemChanged` | `item: item`, `kind: id` (audience *everyone*, #771; the cooking ADR, CE4) | 4 to 35; 35 |
+| 73 | `OrderPosted` | `station: station`, `bun: id`, `patty: id`, `icon: u8` (audience *everyone*, #772; the cooking ADR, CE9) | 7 to 69; 69 |
+| 74 | `HerbsDealt` | `code: list<id>`, `beds: list<id>`, each a u8 count up to `WireSchema.MAX_HERBS` (255; audience *everyone*, #772; CE9, CD13 (b)) | content-sized (`WireBudget`); 2048 |
 
 #### 4.3.5 State and voice
 
@@ -948,7 +958,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed). M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1676,6 +1686,9 @@ House). What stands in until then is not a plant that the leak test caught: `gen
 every event the Generator emits), `generator_rules_test` (every present player, downed and dead included, receives the
 same `SwitchChanged`, `ButtonPressed` and `ZoneProgress`, so an audience-narrowing change fails there) and the wire test
 `host_session_generator_test` (each client's decoded events equal `view_of`).
+**#772 (cooking C3)** added `OrderPosted` and `HerbsDealt` to both `TASK_EVENTS` lists; no bot plays Cooking (CE22,
+§9.7), so their plant waits for the House's scenarios. `cooking_check_test` holds both lists to every event
+`Cooking.emits()` names, and `cooking_events_name_no_player_test` keeps both events free of a player field.
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
@@ -1834,8 +1847,8 @@ The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no 
 and 25 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
 `ButtonPressed`) sent the wrong way, one drawn
 per packet, and unassigned kinds (0, 19, 20, 23, 26, 31,
-73, 80, 95, 97, 111,
-113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
+75, 80, 95, 97, 111,
+113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
 that every intent is in a phase of `ACCEPTS` or in that list;
@@ -4496,7 +4509,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
   and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647; `ItemVanished`, an item left lying too long, #779; `ItemChanged`, an item that became another kind, #771; the Generator's
-  `SwitchChanged`, `ButtonPressed` and charge `ZoneProgress`, which name no player, and whose uses read no role, #797); no
+  `SwitchChanged`, `ButtonPressed` and charge `ZoneProgress`, which name no player, and whose uses read no role, #797;
+  Cooking's `OrderPosted` and `HerbsDealt`, which name no player, #772; an order carries its herb's icon, the code
+  says which herb an icon means); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -6496,6 +6511,46 @@ fit check), `tests/unit/content/demands_test.gd`, `tests/unit/client/net/client_
 `tests/unit/client/ui/host_text_view_test.gd`, and over the wire `tests/integration/server/host_session_generator_test.gd`
 (each client's decoded events equal `view_of`); fixtures `tests/fixtures/tasks/fixture_generator_modes.gd`.
 
+#### 9.5.20 Cooking (task type)
+What it does: one shared task (#682) whose subtasks are its N burgers, N the subtasks setting: each place shows an
+order (a bun, a patty and a herb shown as an icon); the players take buns and raw patties from boxes, fry the patty on
+the grill, pick the herb the herb board's code names from its bed and fill the place. Nobody owns it: any living
+player of any role takes, fries and fills. Designed in the [cooking ADR](decisions/2026-10-10-cooking-task.md) (the ADR's §8,
+the split); C3 (#772) built its data, deal, board events, demands and checks; the uses of the grill, the beds and the
+places, the grill's tick and the client's boards are later parts (C4 on), and no shipped mode deals it yet.
+Settings (CE14): five `StationKind`s, `order_board` and `herb_board` (`display` kinds), `grill`, `herb_bed` and
+`place` (each with an `Interact` rule ending in `UseStation`); the lists `buns`, `raw_patties`, `fried_patties` (in
+the raw ones' order), `burnt`, `herbs` (at most 255) and `boxes` (two-handed item kinds on tags of their own, each
+giving one bun or raw patty kind by its `target_actions`' `GiveItem`); `subtasks_setting`; `fry_seconds` and
+`burn_seconds` (`ZoneTask`'s bounds; the first counted from the patty going on, the second from its turning fried,
+as the ADR's 200 and 100 ticks); the RNG purposes
+`boxes_rng`, `orders_rng`, `code_rng` and `beds_rng` (§3.3); `TaskType.maps` as every type's.
+- Deal (the ADR's §2.1, CE8): N = 0 places nothing, and the task, with no subtasks, is done. Otherwise the order board, the
+  herb board and the grill on the one marker of their tags, a bed on every `herb_bed` marker and N places on the
+  first N `place` markers, all in level order (station ids in that order); one box per box kind on a random free
+  marker of its tag; per place an order of a bun, a raw patty and a herb, each drawn on its own (CD11 (a): two
+  orders may share a kind); the code (which herb each icon means) and the beds' herbs, two permutations of the
+  herbs (CD13 (b)). A map short of markers deals nothing and logs a match error, as Delivery's.
+- Demands: exactly one marker each for the boards and the grill and exactly as many `herb_bed` markers as herbs
+  (§9.4.4's exact demands), at least N `place` markers and at least one per box kind's tag, whatever the players.
+- Mode checks (`Cooking.check`, CE14): every station kind set and of the right sort, every listed item kind
+  distinct and in the mode, the ingredients one-handed with `vanish_seconds` (CD6 (c)), a cap (`max_items`) on every
+  given kind (CE3), the boxes as above and never vanishing, each bun and raw patty kind given by some box, the seconds
+  in bounds, the setting from at least 0, non-empty RNG purposes.
+
+Produces: `StationPlaced` per station in id order, `ItemSpawned` per box, `OrderPosted` per place in station order,
+then `HerbsDealt` (all everyone) in the deal, then the task's `TaskState` and `TaskProgress`; then `item_rested`
+(spawn) per box. Its task state (`Cooking.State`, CE12 (a)): the boards', grill's and beds' stations, each bed's herb,
+the code, the orders (`Cooking.Order`: its place, bun, raw patty, herb, the items locked on its slots, done) and the
+grill's patty with its fried and burnt ticks, in `MatchState`. Visible to: everyone; an order carries its fried
+patty and its herb's icon, never the herb (CE9 (a)); no event names a player, and nothing reads a role (§9.2).
+Status: `core/` built in #772 (cooking C3): `core/tasks/cooking.gd`, `core/events/order_posted_event.gd`,
+`core/events/herbs_dealt_event.gd`, wire kinds 73 and 74 (protocol 22), `WireBudget`'s `HerbsDealt`.
+Tests: `tests/unit/tasks/cooking_deal_test.gd`, `cooking_check_test.gd` (CE14, `emits`, the leak lists),
+`cooking_demands_test.gd` (the exact demands through `LayoutCheck` and the fit check),
+`tests/unit/events/cooking_events_name_no_player_test.gd`, `tests/unit/server/wire_budget_test.gd` and the wire
+schema tests; fixtures `tests/fixtures/tasks/fixture_cooking_modes.gd`.
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
@@ -6773,7 +6828,7 @@ costs outside it.
 | Car repair (#688): hold the lift, fit the part, on the House map (designed in the [car repair ADR](decisions/2026-10-10-car-repair-task.md), proposed; being built: R1, the channels on stations and `HoldStation` (#805), and R2, `LifeRules.kill` and the kill queue (#806), are in, the task type is not; the engineer answered all its questions on 2026-10-10, the drafted words included, and approved it for the MVP only: a more interesting mechanic will replace it later) | a task type `.tres` (four station kinds, the car, the lift panel and one bin per part kind, each with its `Interact` rule, and the needed part's picture on a garage wall, a display kind; the list of part item kinds; the fit's and the rise's seconds; the car footprint's half-width and clearance; its own subtasks setting), one item kind per part kind, the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays car repair; unit, House and wire tests stand in, the ADR's §7), the mode's task types | on top of the Generator's `Interact` parts (#679, G1) and the cooking design's `GiveItem` and `Items.give` (#682, C1, C2; a take beside a two-handed item goes onto the belt, the engineer's rule for every take): one task type, `CarRepair`, whose deal draws the needed parts and whose hold hooks raise and drop the car and fit a part; one effect, `HoldStation`, a channel on a station (timed for the fit, with no end for the lift). The channel primitive gains a station as its subject, a channel with no end and a mark for a stop at the phase's end; `LifeRules` gains `kill`, a death with no knockdown, for the drop, with a queue of kills (`kill_later`, `settle_kills`) that `Match` drains after each command's dispatch and each tick system and `Channels.advance` after each channel's step (a change to `Match`'s step, ADR RE17); `FitCheck.shortfalls` appends a new `TaskType.layout_problems` (RE14); the mode check gains the `kills()` and `LifeTicks` rule (RE6); `LifeRules.damage` stops a channel only when its effect's `hit_stops` is set | four, all to everyone: `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`; a drop's deaths are `Died`, as every death | no new intent: `Interact` starts a hold, `StopRaise` (already "stop my channel") ends it. Outside `core/`: the wire rows and two protocol bumps; a client-only collision layer for the moving car, since the host's world reads layer 1 only (§4.5.9) and the host does not check movement through walls (§7.1.9); a House integration test of a drop that kills only the players under the car (bots do not play House, §9.7). It depends on two mechanics designed elsewhere: a crouch for every player (#727, the [crouch ADR](decisions/2026-10-10-crouch.md); the fitter works crouched, the raised car too low to stand under) and the reworked knockdown (#728) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), its answers given on #302, §7.1.16; the flying state, the arc and `FlightTicks` built in #642; the intent, `ThrowItem`, `OverFloor` and `ItemThrown` in #643; the base mode's rule in #646) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2): `HoldsItem`, `OverFloor`, `ThrowItem`; its numbers are the engineer's (TD1) | three: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact, and the `OverFloor` condition (`no_floor`), so no throw leaves its item in the air | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
-| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built so far: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 21 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule), the 15 ingredients vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | six, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded` and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: six wire rows and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
+| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built so far: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1; C3, #772, `Cooking`'s data, deal, demands and checks, `OrderPosted` and `HerbsDealt`, §9.5.20) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 21 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule), the 15 ingredients vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | six, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded` and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: six wire rows and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
 
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
 world by id, and owners for fixed interactables (a marker kind in `levels/`, such as a meeting button) and for

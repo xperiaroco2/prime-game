@@ -7,7 +7,7 @@ const CLIENT_TO_HOST := NetKindTable.Direction.CLIENT_TO_HOST
 const HOST_TO_CLIENT := NetKindTable.Direction.HOST_TO_CLIENT
 
 ## The rows whose content can take them past their cap at the maxima (WireBudget checks the mode).
-const OVER_CAP_AT_MAXIMA := [&"ChangeSettings", &"Welcome", &"SettingsChanged"]
+const OVER_CAP_AT_MAXIMA := [&"ChangeSettings", &"Welcome", &"SettingsChanged", &"HerbsDealt"]
 ## A content-sized row whose cap holds it even at the maxima (32 settings and a 255-byte path).
 const UNDER_CAP_AT_MAXIMA := [&"LoadMatch"]
 
@@ -148,6 +148,7 @@ func test_content_sized_rows_are_the_ones_wire_budget_checks() -> void:
 				&"Teammates",
 				&"StationPlaced",
 				&"ItemSpawned",
+				&"HerbsDealt",
 			]
 		)
 	)

@@ -30,7 +30,7 @@ static func check(mode: GameMode) -> PackedStringArray:
 
 
 ## The largest payload the mode can give each content-sized kind. A kind the mode never sends (no
-## role, item kind or station kind to name) is left out.
+## role, item kind or station kind to name) is left out, but HerbsDealt (_herbs_dealt).
 static func worst_cases(mode: GameMode) -> Array[WireMessage]:
 	var content := _Content.new(mode)
 	var found: Array[WireMessage] = [
@@ -59,7 +59,30 @@ static func worst_cases(mode: GameMode) -> Array[WireMessage]:
 			"colour": Color.WHITE,
 		}
 		found.append(WireMessage.new(&"ItemSpawned", spawned))
+	found.append(_herbs_dealt(mode))
 	return found
+
+
+## Cooking's HerbsDealt (#772, the cooking ADR's CE9): both lists hold the type's herbs, each once
+## (the code and the beds are two permutations of them), so the type's own ids are its exact size;
+## the largest over the mode's Cooking types. A mode without Cooking still gets the case, with
+## empty lists, so every content-sized kind has one in every mode (as the base mode's test asks).
+static func _herbs_dealt(mode: GameMode) -> WireMessage:
+	var largest := PackedStringArray()
+	var largest_bytes := -1
+	for type: TaskType in mode.task_types:
+		if not type is Cooking:
+			continue
+		var ids := PackedStringArray()
+		var bytes := 0
+		for herb: ItemKind in (type as Cooking).herbs:
+			var herb_id := String(herb.id) if herb != null else ""
+			ids.append(herb_id)
+			bytes += 1 + herb_id.length()
+		if bytes > largest_bytes:
+			largest = ids
+			largest_bytes = bytes
+	return WireMessage.new(&"HerbsDealt", {"code": largest, "beds": largest})
 
 
 static func _welcome(content: _Content) -> WireMessage:

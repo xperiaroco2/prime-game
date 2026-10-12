@@ -201,3 +201,38 @@ func test_station_ids_come_from_the_task_types_kinds_not_from_the_palettes() -> 
 	var placed: WireMessage = found[&"StationPlaced"]
 	assert_str(str(placed.fields["kind"])).is_equal(_id(100))
 	assert_array(Array(WireBudget.check(mode))).is_empty()
+
+
+func test_herbs_dealt_carries_the_cooking_herbs_and_a_mode_without_cooking_none() -> void:
+	var mode := _mode(10, 3, 1, 1)
+	var cases := {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		cases[message.name] = message
+	var empty: WireMessage = cases[&"HerbsDealt"]
+	assert_array(Array(empty.fields["code"] as PackedStringArray)).is_empty()
+	mode.task_types.append(_cooking(5))
+	assert_array(Array(WireBudget.check(mode))).is_empty()
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		cases[message.name] = message
+	var herbs: WireMessage = cases[&"HerbsDealt"]
+	assert_int((herbs.fields["code"] as PackedStringArray).size()).is_equal(5)
+	assert_int((herbs.fields["beds"] as PackedStringArray).size()).is_equal(5)
+	assert_str((herbs.fields["code"] as PackedStringArray)[4]).is_equal(_id(204))
+
+
+func test_too_many_long_herbs_are_refused() -> void:
+	var mode := _mode(10, 3, 1, 1)
+	mode.task_types.append(_cooking(40))
+	assert_str("\n".join(WireBudget.check(mode))).contains("HerbsDealt (kind 74): ")
+
+
+## A Cooking whose `count` herbs have 32-character ids (from _id(200)).
+func _cooking(count: int) -> Cooking:
+	var type := Cooking.new()
+	type.id = &"cooking"
+	for i: int in count:
+		var herb := ItemKind.new()
+		herb.id = StringName(_id(200 + i))
+		herb.hands = 1
+		type.herbs.append(herb)
+	return type
