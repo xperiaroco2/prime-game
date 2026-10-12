@@ -136,10 +136,10 @@ func rise_ticks() -> int:
 	return maxi(0, Ticks.from_seconds(rise_seconds))
 
 
-## Whether the car is fully up at host tick `tick` (RE11): a hold runs and began at least
+## Whether the car is fully up at host tick `at_tick` (RE11): a hold runs and began at least
 ## rise_ticks() ago.
-func is_up(task_state: State, tick: int) -> bool:
-	return task_state.held_since >= 0 and tick - task_state.held_since >= rise_ticks()
+func is_up(task_state: State, at_tick: int) -> bool:
+	return task_state.held_since >= 0 and at_tick - task_state.held_since >= rise_ticks()
 
 
 func kills() -> bool:
