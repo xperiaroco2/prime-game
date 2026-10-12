@@ -684,10 +684,12 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
 ## 15. Tutorial
 
 [`docs/design/tutorial.md`](design/tutorial.md) (#552, built by T1 to T4 and #492): an offline solo session in a
-room of its own, the UI track's nine lessons, and its points D25 to D36 (his answers: ARCHITECTURE §9.5.17).
+room of its own, the UI track's lessons, and its points D25 to D36 (his answers: ARCHITECTURE §9.5.17).
 
 The engineer's decision of 2026-10-11 (DD10, [PR #713](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402)):
-the tutorial deals no task at all and teaches only movement and the basic mechanics; the tasks leave with its
-rework, not before (#825). Its design, [`docs/design/tutorial.md`](design/tutorial.md) §9, and its
-[ADR](decisions/2026-10-12-tutorial-without-tasks.md) are proposed: which mechanics it teaches (the throw, the
-crouch, the knife's strike, giving up), the lessons' order and their words are his open points LD1 to LD10.
+the tutorial deals no task at all and teaches only movement and the basic mechanics (#825). Its design,
+[`docs/design/tutorial.md`](design/tutorial.md) §9, and its [ADR](decisions/2026-10-12-tutorial-without-tasks.md):
+his answers on [PR #894](https://github.com/xperiaroco2/prime-game/pull/894#issuecomment-6122434286) (LD1 (a), LD2
+(a), LD7 to LD10 (a)). Built in #900 (825a): the package is a plain item, no task is dealt, no drop-off stands in
+the room, and eight lessons remain (Controls, Picking up and putting down, Hand and belt, Map and tasks, Downed,
+Death, Voice nearby, Menu). The throw lesson (#901) and the crouch key (#902) are later issues.

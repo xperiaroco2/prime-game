@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | §1 to §8: designed in #552 and built by T1 to T4 and #492 (M6.2); ARCHITECTURE §4.7.43, §4.7.45, §9.5.17 and §9.6 record what was built and on which answers. §9, **the rework without tasks** (#825): proposed for the engineer ([ADR](../decisions/2026-10-12-tutorial-without-tasks.md)), not built; where it differs from §1 to §8, its build issues rewrite them. The D items (§7) are the engineer's; the E items (§6) are the M6.2 manager's and stand as recommended unless reported otherwise, but E64 (a new kind in §1's `content/` row) and E65 (a wire row) go to the engineer too. The decisions, the batched questions and the rejected alternatives: [ADR](../decisions/2026-10-08-tutorial-offline-solo-session.md) |
+| **Status** | §1 to §8: designed in #552 and built by T1 to T4 and #492 (M6.2); ARCHITECTURE §4.7.43, §4.7.45, §9.5.17 and §9.6 record what was built and on which answers. §9, **the rework without tasks** (#825, [ADR](../decisions/2026-10-12-tutorial-without-tasks.md)): answered by the engineer on [PR #894](https://github.com/xperiaroco2/prime-game/pull/894#issuecomment-6122434286) (LD1 to LD10 as recommended); 825a (#900) built it and rewrote §1 to §5 to its eight lessons (§6 to §8 keep the numbers they were decided with); 825b (#901) and 825c (#902) follow. The D items (§7) are the engineer's; the E items (§6) are the M6.2 manager's and stand as recommended unless reported otherwise, but E64 (a new kind in §1's `content/` row) and E65 (a wire row) go to the engineer too. The decisions, the batched questions and the rejected alternatives: [ADR](../decisions/2026-10-08-tutorial-offline-solo-session.md) |
 | **Owner** | The engineer (the content area, #518). He asked for this design on #516 ([scope option A](https://github.com/xperiaroco2/prime-game/issues/516#issuecomment-6055436108), item 2) |
 | **His answer it builds on** | The tutorial is **offline, in a room of its own**: a solo session with no network, a small room with its own stations (chat with the M6.2 manager, 2026-10-08, recorded in #552's body) |
 | **Screens** | prime-game-ui `docs/handoff/s01-tutorial.md` at `ui-0.4.0` (built by #492), with s2 (the main menu's Tutorial), s5 (the Esc menu's `tutorial-game`), s8 (the map's «?» and its how-to card) and s9 (spectating). This page decides how the feature behind them runs, never how they look |
@@ -12,12 +12,13 @@
 - **The first launch** opens in the tutorial room, dimmed, under the invite: two language chips, Start and Skip. Start
   begins lesson 1; Skip or Esc goes to the main menu. Either hides the invite for good (a `user://` flag, #492).
 - **Later**, the main menu's Tutorial (s2) starts lesson 1 again.
-- **In the room** the round HUD shows without the timer and the role, the current lesson at the top, the nine
+- **In the room** the round HUD shows without the timer and the role, the current lesson at the top, the eight
   lessons at the right. A lesson advances when the game sees its action; a lesson with two instructions swaps them
-  within one step number. After lesson 9 the game returns to the main menu with no end screen. The Esc menu shows
+  within one step number. After lesson 8 the game returns to the main menu with no end screen. The Esc menu shows
   Game, Guide and Settings; its Leave reads "Leave the tutorial" and returns to the main menu.
 
-The nine lessons, with the action this design detects for each and what the world must hold. Keys are deck keys of
+The eight lessons (#900 removed the Delivery lesson and the map lesson's «?» step, §9), with the action this design
+detects for each and what the world must hold. Keys are deck keys of
 `client/i18n/strings.csv` (`tutorial.step.*`, `tutorial.list.*`); the key that fills `{key}` is an InputMap action
 of `project.godot`, shown by `KeyLabel` (#211).
 
@@ -26,14 +27,13 @@ of `project.godot`, shown by `KeyLabel` (#211).
 | 1 | `move` | `move.title`, the key row (`move_forward`, `move_left`, `move_back`, `move_right`, `sprint`, `jump`) | the own claims report the player moving itself (`ClientSession.claim_sent`'s `moved_itself`, counted over the ticks each claim covers) for 1 s in all | the client | a floor and a start spot |
 | 2 | `pick_up` | (a) `pick_up.title`, `pick_up.how`, `interact`; (b) `put_down.title`, `press`, `put_down` | (a) an `ItemPickedUp` naming the own peer, of a package; (b) an `ItemPlaced` with cause `put_down` of the item the own hand held as the step started (`ItemPlaced` names no player) | the own events, the own model | a package |
 | 3 | `hand_belt` | `hand_belt.title`, `press`, `swap` | a `Swapped` naming the own peer | the own events | a one-handed item (D29): the package takes both hands and is refused (`two_handed`, ARCHITECTURE §9.5.14) |
-| 4 | `deliver` | `deliver.title`, `deliver.how`, no key | a `PackageDelivered`, or the task already done when the lesson starts | the own events, the own model | the package's circle (D30). Goes with the tasks (#825, §9) |
-| 5 | `map` | (a) `map.title`, `press`, the map action (`map`, M, since #253); (b) `howto.title`, `howto.how`, the «?» keycap | (a) the map screen opens; (b) a how-to card opens from a task's «?» | the client | the room's map data (#306), the map (#490, #253) and the cards (#254). Step (b) goes with the tasks (#825, §9) |
-| 6 | `downed` | `downed.title`, `downed.how`, `interact` held | a `Revived` of another player (only the own player raises in the tutorial) | the own events | stage `raise`: a stand-in knocked down when the lesson starts (D27) |
-| 7 | `death` | `death.title`, `death.how`, `spectate_next` | while the own life is dead, the player switches the spectate target (`spectate_next` or `spectate_previous`; the first target, drawn at the death, does not count); D36 when the respawn comes first | the client, the own events | stage `death`: the own player dead when the lesson starts (D28), and two living players to watch (D26) |
-| 8 | `voice` | `voice.title`, `voice.how`, no key | once the own player lives again (`Respawned`): own voice frames sent while another player stands within the phase's voice radius; D31 when no microphone is open | the client | a stand-in near the respawn marker |
-| 9 | `menu` | `menu.title`, `press`, `ui_cancel` | the Esc menu opens | the client | nothing; then back to the main menu (D32) |
+| 4 | `map` | `map.title`, `press`, the map action (`map`, M, since #253) | the map screen opens | the client | the room's map data (#306) and the map (#490, #253) |
+| 5 | `downed` | `downed.title`, `downed.how`, `interact` held | a `Revived` of another player (only the own player raises in the tutorial) | the own events | stage `raise`: a stand-in knocked down when the lesson starts (D27) |
+| 6 | `death` | `death.title`, `death.how`, `spectate_next` | while the own life is dead, the player switches the spectate target (`spectate_next` or `spectate_previous`; the first target, drawn at the death, does not count); D36 when the respawn comes first | the client, the own events | stage `death`: the own player dead when the lesson starts (D28), and two living players to watch (D26) |
+| 7 | `voice` | `voice.title`, `voice.how`, no key | once the own player lives again (`Respawned`): own voice frames sent while another player stands within the phase's voice radius; D31 when no microphone is open | the client | a stand-in near the respawn marker |
+| 8 | `menu` | `menu.title`, `press`, `ui_cancel` | the Esc menu opens | the client | nothing; then back to the main menu (D32) |
 
-Five of the nine actions (the map, the «?», the spectate switch, the voice and the Esc menu) never reach the host as
+Four of the eight actions (the map, the spectate switch, the voice and the Esc menu) never reach the host as
 anything it can react to: they are screens and the microphone of the own client. That fact shapes §3.
 
 ## 2. The solo session
@@ -69,7 +69,7 @@ works in the tutorial without a tutorial branch, and the tutorial cannot show wh
 | The leak test and chaos bots | kind 15 leaves `ChaosFrames.UNASSIGNED` (16 takes its place) and §4.6.5.3's list; the new row in `ChaosOracle.ACCEPTS` (accepted in no base-mode phase), a `NextStage` in `ChaosHostile._refused` that expects `not_accepted`, and its malformed shapes (a missing `seq`, trailing bytes); no new event, so no new audience |
 
 ### 2.2 Stand-ins (D25, D26, D35, E67)
-Lessons 6 to 8 need another player: someone down to raise, someone to watch while dead, someone near to talk to.
+Lessons 5 to 7 need another player: someone down to raise, someone to watch while dead, someone near to talk to.
 The raise checks that its target is a downed player the host knows (§7.1.8), spectating draws its targets from the
 roster (`SpectateTargets`), and voice is routed between players (§6). So the others must be **players of the
 session**, not props.
@@ -87,14 +87,14 @@ A **stand-in** is an in-process client of the tutorial's hub, run by the game (`
 The host names it as any joiner (Player2, Player3; #550's own names when it lands); its body looks like any player's.
 Once #550 puts the player's name in `Hello`, a stand-in's `Hello` carries whatever #550 defines as "no name", so
 the host's default for a joiner applies (D35 (a)); the game picks no name for it.
-Two stand-ins (D26): one to raise in lesson 6, and a second so that lesson 7's "watch another player" has another
+Two stand-ins (D26): one to raise in lesson 5, and a second so that lesson 6's "watch another player" has another
 player to switch to (with one living player `spectate_next` keeps the same target).
 
 ### 2.3 The tutorial mode (E68)
 `content/modes/tutorial_mode.tres`, provisional under the [MVP content
 ADR](../decisions/2026-09-29-mvp-content-built-by-the-engineer.md), built from existing parts plus §2.5's. Players:
 1 + the stand-ins, minimum and maximum alike (3), so `all_ready` waits for everyone. `PlayerRules`: the base mode's,
-but `respawn_s` 10 (a placeholder, "not a decision": lesson 7 is a short wait, not 30 s). No settings the player
+but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait, not 30 s). No settings the player
 changes, no win conditions, no Pregame (#213) and no End: the tutorial has no roles to reveal and no winner, and it
 ends when the own client leaves.
 
@@ -102,15 +102,15 @@ ends when the own client leaves.
 |---|---|---|---|---|---|---|---|
 | `gather` | Lobby | none | `Hello` (newcomers), `SetReady` (any player) | none | Silent | stopped | no |
 | `loading` | Loading, deadline 60 s (the base mode's) | the room | `LoadAck` | none | Silent | stopped | no |
-| `lessons` | Round | the room | living: `MoveClaim`, `PickUp`, `PutDown`, `Swap`; host: `NextStage` | TaskTicks | RoundVoice, `living_m` 8 m (the base mode's) | stopped | yes |
-| `raise_stage` | Round | the room | as `lessons`, plus `Raise` and `StopRaise` from the living; downed: `MoveClaim` | ChannelTicks, TaskTicks; **no LifeTicks** | as `lessons` | stopped | yes |
-| `death_stage` | Round | the room | as `raise_stage`, but no `NextStage` (with D28 (b), plus `GiveUp` from the downed) | LifeTicks with a Respawn (`respawn`), ChannelTicks, TaskTicks | as `lessons` | stopped | yes |
+| `lessons` | Round | the room | living: `MoveClaim`, `PickUp`, `PutDown`, `Swap`; host: `NextStage` | none | RoundVoice, `living_m` 8 m (the base mode's) | stopped | yes |
+| `raise_stage` | Round | the room | as `lessons`, plus `Raise` and `StopRaise` from the living; downed: `MoveClaim` | ChannelTicks; **no LifeTicks** | as `lessons` | stopped | yes |
+| `death_stage` | Round | the room | as `raise_stage`, but no `NextStage` (with D28 (b), plus `GiveUp` from the downed) | LifeTicks with a Respawn (`respawn`), ChannelTicks | as `lessons` | stopped | yes |
 
 | From | Outcome | To | Actions |
 |---|---|---|---|
 | (start) | the session starts | `gather` | |
 | `gather` | `all_ready` | `loading` | |
-| `loading` | `all_loaded` | `lessons` | `DealRoles` with no quota (everyone the default role, crew), `DealTasks` (Delivery, `packages` 1), `SpawnItems` (Knife, `knives` 1), `PlacePlayers` (`round_player`, ordered: §2.5); no `StartClock` |
+| `loading` | `all_loaded` | `lessons` | `DealRoles` with no quota (everyone the default role, crew), `SpawnItems` (Package, `packages` 1, its own `rng_purpose`), `SpawnItems` (Knife, `knives` 1), `PlacePlayers` (`round_player`, ordered: §2.5); no `StartClock` |
 | `lessons` | `next` | `raise_stage` | `KnockDown` of the first other player (stand-in 1) |
 | `raise_stage` | `next` | `death_stage` | `KnockDown` of the host's player, dying at once (D28) |
 
@@ -125,15 +125,15 @@ level whose layout failed to load, and that case must still record its match err
 - **No `Use`** in any phase: the knife of lesson 3 swings at nobody (`not_accepted`), so the player cannot knock a
   stand-in down before its lesson, and no lesson needs a strike.
 - **`raise_stage` has no LifeTicks**, so the downed stand-in waits however long the player takes; with them it would
-  die after `knockdown_s` and lesson 6 could not finish. The M4-3 mode check asks for LifeTicks only where a *rule* can
+  die after `knockdown_s` and lesson 5 could not finish. The M4-3 mode check asks for LifeTicks only where a *rule* can
   knock someone down (a `Strike`), and a row's action is no rule, so the phase passes as written. Once `KnockDown`
   exists, that gap lets any mode knock a player down for good by a row; T1 closes it with a mode-check **warning**
   (not an error) on a row whose `KnockDown` without `then_die` enters a phase with no LifeTicks, and §9.4.3's
   `KnockDown` row names `raise_stage` as the intended case.
-- **`death_stage` has LifeTicks** for the respawn, which lesson 8 waits for.
+- **`death_stage` has LifeTicks** for the respawn, which lesson 7 waits for.
 
 ### 2.4 Stages: how the host learns that a lesson starts (E65)
-Only two lessons change the world: lesson 6 (a stand-in down) and lesson 7 (the own player dead). The lesson runner
+Only two lessons change the world: lesson 5 (a stand-in down) and lesson 6 (the own player dead). The lesson runner
 on the client decides when a lesson starts (§3), so the host must hear it: the own client sends **`NextStage`**, a
 new intent with no argument. The tutorial mode's action rule on it has one effect, `ReportOutcome(next)`; the phase
 that accepts it has one `next` row, so the host moves `lessons → raise_stage → death_stage` and runs each row's
@@ -174,11 +174,11 @@ next step starts) and a step's own actions run when it starts:
 | Field of a step | What it holds | Lesson that needs it |
 |---|---|---|
 | `title_key`, `how_key`, `keys` | the deck keys and the InputMap actions (or the «?» glyph) the plate shows (#492) | every |
-| `starts_when` | conditions that must hold before the step shows; until then the previous lesson stays done and nothing is current | 8: the own life living (after the respawn) |
-| `on_start` | actions run once when the step starts | 6 and 7: `RequestStage` |
-| `done_when` | conditions that complete the step at once when they already hold as it starts (the "checked on entry" of §3.1) | 4: every task done; so a package put down inside its circle in lesson 2 does not lock lesson 4 |
-| `triggers` | the events or signals that complete it, any one of them, matched only from the step's start | every; two in lesson 7 with D36 (a): the switch, or the own `Respawned` |
-| `conditions` | what must hold when a trigger fires; the first that fails ignores that firing | 2: the item is a package; 8: another player within the radius. Lesson 7 needs none: `LifeView` switches targets only while the own player is dead |
+| `starts_when` | conditions that must hold before the step shows; until then the previous lesson stays done and nothing is current | 7: the own life living (after the respawn) |
+| `on_start` | actions run once when the step starts | 5 and 6: `RequestStage` |
+| `done_when` | conditions that complete the step at once when they already hold as it starts (the "checked on entry" of §3.1) | no lesson since #900 (it held the Delivery lesson's "every task done") |
+| `triggers` | the events or signals that complete it, any one of them, matched only from the step's start | every; two in lesson 6 with D36 (a): the switch, or the own `Respawned` |
+| `conditions` | what must hold when a trigger fires; the first that fails ignores that firing | 2: the item is a package; 7: another player within the radius. Lesson 6 needs none: `LifeView` switches targets only while the own player is dead |
 
 The parts, a closed list like §9's (a new one is an engine request):
 
@@ -212,15 +212,14 @@ checks the markers, not the looks.
 | the start | `round_player` 1 (the own player, ordered placement) | 1 |
 | a shelf | `package` 1 | 2 |
 | a table | `knife` 1 | 3 |
-| the drop-off | `circle` 1, across the room from the shelf, so a package put down by the shelf in lesson 2 is not delivered by chance; goes with the tasks (#825, §9) | 4 |
-| the raise spot | `round_player` 2 (stand-in 1) | 6 |
-| the corner | `round_player` 3 (stand-in 2), and `respawn` 1 farther than `PlayerRules.respawn_free_m` (1 m in the base mode) from it, so the marker is free, and within the voice radius | 7, 8 |
+| the raise spot | `round_player` 2 (stand-in 1) | 5 |
+| the corner | `round_player` 3 (stand-in 2), and `respawn` 1 farther than `PlayerRules.respawn_free_m` (1 m in the base mode) from it, so the marker is free, and within the voice radius | 6, 7 |
 
 No `lobby_player` marker and no lobby scene: `gather` plays at no level (E72).
 
 The map lesson needs the room's records (#306: id, names, outline), and the room's names are the engineer's (D34).
 T2 writes the record if #306 has merged; otherwise T2 opens a follow-up issue for it, linked from #306, so the map
-of lesson 5 does not open with no room on it.
+of lesson 4 does not open with no room on it.
 The mode check and the layout check run on it in `content_modes_test.gd` like every mode in `content/modes/`.
 
 ## 5. The flow in the game (E69, E70)
@@ -230,7 +229,7 @@ The mode check and the layout check run on it in `content_modes_test.gd` like ev
 | **The main menu's Tutorial** | `start_tutorial(invite = false)`: lesson 1 once the room is in |
 | `gather`, `loading` | the loading screen (#494); the game sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key) |
 | The lesson phases | the round screen: #489's HUD without the timer (no clock runs) and the role, the lesson plates (#492); the Esc menu's tutorial variant (#491) |
-| **After lesson 9** (D32), or Leave in the Esc menu | the own client leaves: the `HostNode` is freed as on a host's Leave today (`Game._end_session`), and the stand-ins with it, with no confirmation (s5: "In the tutorial: … back to the main menu"), and the main menu shows no reason for the end |
+| **After lesson 8** (D32), or Leave in the Esc menu | the own client leaves: the `HostNode` is freed as on a host's Leave today (`Game._end_session`), and the stand-ins with it, with no confirmation (s5: "In the tutorial: … back to the main menu"), and the main menu shows no reason for the end |
 | `--tutorial` after `--` | starts it without the invite, for `playcheck` (a `tutorial` scenario header that launches one window with `--tutorial` and no bots, T3; today window 1 is always `--host --local`). `shot` renders a scene by path and takes no game options, so the room's shot needs no flag |
 
 Tests, the runner's `host`, `join`, `playcheck` and `shot` windows, and any launch with an option never start the
@@ -289,7 +288,8 @@ also waits for #490, #253 and #254 for its final look and its second step, the E
 map's room for #306; none of them blocks T1 to T4.
 
 ## 9. The rework without tasks (#825)
-Proposed (#825), for the engineer; the decisions, the batched questions and the rejected alternatives:
+Accepted (#825; the engineer's answers on PR #894, every LD item as recommended; 825a built in #900); the decisions,
+the batched questions and the rejected alternatives:
 [ADR](../decisions/2026-10-12-tutorial-without-tasks.md). He decided that the tutorial deals no task at all and
 teaches only movement and the basic mechanics (DD10 of the
 [Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), answered on
@@ -297,7 +297,7 @@ teaches only movement and the basic mechanics (DD10 of the
 with this rework, not as a change of their own
 ([#825](https://github.com/xperiaroco2/prime-game/issues/825#issuecomment-6109457789)). Which mechanics, the order
 and the words are his call: the **LD** items (§9.4). The **LE** items (§9.5) are the M7 manager session's and stand
-as recommended unless it reports otherwise. No build issue (§9.7) opens before his answers.
+as recommended unless it reports otherwise. His answers came on PR #894; the build issues are #900, #901 and #902.
 
 ### 9.1 What today's tutorial teaches
 The lessons of `content/tutorial/tutorial.tres` (§1's table), by their list names (`tutorial.list.*`):
