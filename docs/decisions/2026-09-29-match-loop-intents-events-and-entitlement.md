@@ -1,6 +1,7 @@
 # Match loop, intents and events, and who may see what
 
-- **Status:** Proposed: the engineer reviews it in #32's PR
+- **Status:** Accepted on 2026-09-29: the engineer merged #32's PR (#42). (Was: Proposed: the engineer reviews it in
+  #32's PR.)
 - **Date:** 2026-09-29
 - **Deciders:** designed by the agent in #32; the rule gaps it found were answered by the engineer in #32's session
   and recorded in the [MVP rules](2026-09-29-mvp-rules.md)

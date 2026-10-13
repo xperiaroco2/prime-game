@@ -201,9 +201,10 @@ map's card (#254); `spectate_switched` from `LifeView` when the player switches 
 runner's `finished` ends the session (§5).
 
 ## 4. The room (D34)
-Greybox first, as `levels/CLAUDE.md` asks: one scene, `levels/tutorial/tutorial_room.tscn` (the path is a proposal:
-the level conventions are the engineer's, `new-level-piece` step 1), with `StaticBody3D` colliders on layer 1 for
-the floor and walls and CSG for looks. One room of about 12 × 10 m (a placeholder) with its stations along the
+Greybox first, as `levels/CLAUDE.md` asks: one room, `levels/tutorial/rooms/tutorial_room.tscn`, placed by
+`levels/tutorial/tutorial.tscn` (proposed here as `levels/tutorial/tutorial_room.tscn`; built under the
+[level piece conventions](../decisions/2026-10-09-level-piece-conventions.md)), with `StaticBody3D` colliders on
+layer 1 for the floor and walls and CSG for looks. One room of about 12 × 10 m (a placeholder) with its stations along the
 walls, in lesson order; the environment track dresses it later and keeps every marker where it is, since the mode
 checks the markers, not the looks.
 

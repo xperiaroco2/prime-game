@@ -32,6 +32,9 @@
   the tutorial deals no task at all and teaches only movement and the basic mechanics, its rework the M7 backlog issue
   #825, and this Delivery does not reach it (§5). The DE items are technical, the game-design manager
   session's to decide and report (tier (a)): decided here, each revertible in its issue.
+- **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
+  ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
+  "nothing here is built" above is history. On main: D2a and D3a (#827, #829); the rest of §8 is open.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules: DD1 to DD8, answered on 2026-10-10 in PR #713's comment 6095445718; DD9 and
   §5.1's drafts in its comment 6100696677, which approved the design; DD10 on 2026-10-11 in its comment 6108665402,

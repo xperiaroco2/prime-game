@@ -1,7 +1,7 @@
 # Level piece conventions: folders, one grid with the art kit, rooms placed by the design doc
 
-- **Status:** Proposed in #607; accepted when the engineer merges its PR (the content area: `levels/` and the skill
-  `new-level-piece`)
+- **Status:** Accepted on 2026-10-09: the engineer merged its PR (#611). (Was: Proposed in #607; accepted when the
+  engineer merges its PR (the content area: `levels/` and the skill `new-level-piece`).)
 - **Amended 2026-10-09 (#658):** greybox role materials in `levels/kit/` and a `Name` label per room, after the
   first playtest found one grey unreadable ("Looks and collision" below).
 - **Date:** 2026-10-09
