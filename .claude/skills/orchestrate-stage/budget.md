@@ -106,7 +106,8 @@ only what the budget and the trials decide.
   with the table and stop passing it.
 - **Ended 2026-10-13** (#302 comment 6145513919, 3A to 5A): `ab_review` with `models.code`, `models.implement:
   "sonnet"` and `models.publish_findings`; pass none of them.
-- **`checkpoint: true`** (#759): when to pass it and the engineer's decision after 10 tasks are in launch-args.md.
+- **`checkpoint`** (#759, #920): on by default since the engineer's answer 6A (#302 comment 6145513919); pass nothing.
+  launch-args.md says the rest.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff

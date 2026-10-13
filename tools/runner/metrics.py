@@ -243,7 +243,7 @@ the control did; after AB_RUNS judged runs keep the trial model when it missed a
 least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
 AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
 
-Implementer context and checkpoint handoffs (#559, issue-task's opt-in `checkpoint`): per run with an
+Implementer context and checkpoint handoffs (#559, issue-task's `checkpoint`, the default since #920): per run with an
 implementer, its implementer agents (a continuation is labelled `implement:#N#k`, k >= 2, and counts as a handoff),
 their API calls, those whose context (input + cache write + cache read) is over HIGH_CTX and their API list $, and the
 implementers' $; the totals against the issue's target (under 5% of implementer calls over 200k, from 14%). Then the
