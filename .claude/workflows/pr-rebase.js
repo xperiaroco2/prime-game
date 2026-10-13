@@ -178,7 +178,8 @@ const waits = (publishes, loops = false) => [
 // The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
 // the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
 // to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent. #920: the
-// key full says what the path holds, so no "whole results: " before it (room for issue-task's default checkpoint keys).
+// key full says what the path holds, so no "whole results: " before it (the size guard needs the room for issue-task's
+// default checkpoint keys; pr-rebase keeps the same text, which CompactResultTest compares).
 const FULL = '~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
 const line = (s, max = 160) => {
   const t = s === undefined || s === null ? '' : String(s).trim()
