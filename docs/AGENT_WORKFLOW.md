@@ -418,7 +418,7 @@ Rules for every workflow run:
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`, `efforts`,
   `models`, `ab_review` (ended 2026-10-13: never pass it), `checkpoint`; `pr-rebase` takes `second_review`, `skeptic`, `efforts` and `models`), all off
-  by default; bounded waits (#411) and the lean agent types (#458) are always on (#883 removed their switches). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
+  by default but `checkpoint` (on since #920, the engineer's answer 6A on #302: `checkpoint: false` turns it off); bounded waits (#411) and the lean agent types (#458) are always on (#883 removed their switches). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
   arg) and each script's header comment, `whenToUse` and args comment (the counts, the roles and their fallbacks);
   `tools/runner/tests/workflow_snapshots/` pins the prompts and options they produce (`docs/workflow-scripts.md`).
   The kickoff's approved agent count must cover the options the manager will pass.

@@ -15,7 +15,8 @@ The kickoff must state:
   about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
   about 60, each skeptic about 30, a publisher that only reports a stop about 30);
 - explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
-  3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and the `Track:` line,
+  3 to 5 agents plus those of the v2 args the kickoff names, §3, and up to 2 more implementers when checkpoint's
+  default hands over; `small` means fewer than 5), and the `Track:` line,
   whose weekly budget (budget.md) covers the stage: you do not ask before each workflow (root `CLAUDE.md`);
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of

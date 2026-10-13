@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint (on unless false, #920) none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, efforts and models add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
@@ -65,15 +65,16 @@ export const meta = {
 //                 agents read docs/workflow-scripts.md (#557). .claude/agents/ in the manager's checkout must have
 //                 both files (`tools\run.cmd agents-check --launch`; an agentType with no file throws at agent()).
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default. With none of them every agent's prompt, label, phase, schema and options stay as they were
-// (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args is unchanged, but
-// for the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines,
-// #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
-// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
+// by default but checkpoint (on since #920). With none of them every agent's prompt, label, phase, schema and options
+// stay as they were (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args
+// is unchanged, but for the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's
+// RULES lines, #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's
+// digest of the implementer's report, the implementer's summary cap, and the publisher's plan summary and inline
+// finish-task steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
 // pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the read-only agents' hooks-path and wait lines, and
 // Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
-// 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`).
+// 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`; #920's checkpoint
+// default: its rule paragraph and the implementer's handoff schema key in every launch without checkpoint: false).
 // The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
@@ -127,8 +128,8 @@ export const meta = {
 //                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
 //                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
 //                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
-//   checkpoint    true (#559; opt-in, off until the engineer's yes after a measurement): an implementer past 150,000
-//                 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
+//   checkpoint    on by default (#559; #920, the engineer's answer 6A on #302 after #759's measurement), false turns it
+//                 off: an implementer past 150,000 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
 //                 its own transcript's last API call; HANDOFF NOW at 150,000) every ~15 tool calls and after each
 //                 verify, and hands over after 60 tool calls in any case; it commits, writes
 //                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
@@ -136,7 +137,8 @@ export const meta = {
 //                 same type, effort and model, continues from the note and the worktree; at most 2 handoffs (the third
 //                 implementer cannot hand over). The implementer's result is then the last one's with the union of the
 //                 decisions, needs_engineer, proposed_issues, provisional_content and commits, and the compact result
-//                 shows checkpoint: true and handoffs (#597). Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
+//                 shows checkpoint: true and handoffs (#597). false: every prompt, label and option as before #920 (no
+//                 rule, no handoff key), and the result shows neither. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
@@ -225,7 +227,9 @@ const AB_REVIEW = flag('ab_review')
 if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
 if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
 if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
-const CHECKPOINT = flag('checkpoint')
+// #920 (the engineer's answer 6A on #302, comment 6145513919): on by default; checkpoint: false turns it off.
+flag('checkpoint')
+const CHECKPOINT = A.checkpoint !== false
 // #606: only the full tier can be forced; a forced light tier would let a core/ diff skip the reviews it needs.
 if (A.tier !== undefined && A.tier !== null && A.tier !== 'full') throw new Error('issue-task: args.tier must be \'full\' (or missing: the diff after the implementer chooses the review tier, its worst path winning; light cannot be forced)')
 const FORCED_FULL = A.tier === 'full'
@@ -519,8 +523,10 @@ const WORK = DESIGN
 // The compact result's helpers come before the agents: the reviewers' digest (#470) uses them too.
 // The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
 // the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
-// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
-const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent. #920: the
+// key full says what the path holds, so no "whole results: " before it (the size guard needs the room for issue-task's
+// default checkpoint keys; pr-rebase keeps the same text, which CompactResultTest compares).
+const FULL = '~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
 const line = (s, max = 160) => {
   const t = s === undefined || s === null ? '' : String(s).trim()
   const first = t.split('\n')[0].trim()
@@ -660,8 +666,9 @@ if (PLAN_REVIEW && !PLAN_SKIPPED && !UPDATE) {
 // checkpoint (#559): the context at which an implementer hands over, measured by `tools/run.sh ctx` from its own
 // transcript (#597: the rule's reminder arithmetic never fired on #561's run), the context past which "only the final
 // verify left" no longer lets it finish, the unconditional tool-call backstop, and the most handoffs per task. Implementer k (0 first) is labelled implement:#N, then
-// implement:#N#2 and #3 (metrics.role_of reads both as the implementer; never :2). Off, implement(0, null) is today's
-// agent call byte for byte; on, only the rule paragraph and the schema's handoff key are added to it.
+// implement:#N#2 and #3 (metrics.role_of reads both as the implementer; never :2). With checkpoint: false,
+// implement(0, null) is the agent call before #920 byte for byte; on (the default), only the rule paragraph and the
+// schema's handoff key are added to it.
 const HANDOFF_AT = 150000
 const HANDOFF_HARD = 200000
 const HANDOFF_CALLS = 60
@@ -916,8 +923,9 @@ const brief = (stopped, pub, extra) => {
   }
   Object.assign(out, pick(impl, ['verify_green', 'complete']))
   out.summary = line(impl.summary)
-  // #597: a launch (or resume) with checkpoint says so, with its handoffs, 0 too; no key: it ran without. Off adds
-  // nothing: CompactResultTest's size guard (a tenth of the whole results) has no room for checkpoint: false.
+  // #597: a launch (or resume) with checkpoint (the default since #920) says so, with its handoffs, 0 too; no key: it
+  // ran with checkpoint: false. Off adds nothing: CompactResultTest's size guard (a tenth of the whole results) has no
+  // room for checkpoint: false.
   if (CHECKPOINT) Object.assign(out, { checkpoint: true, handoffs: handedOver.length })
   // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
   // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.

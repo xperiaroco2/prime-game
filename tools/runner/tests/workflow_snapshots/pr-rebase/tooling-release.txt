@@ -71,6 +71,6 @@ Report findings with severity (blocker, major, minor, nit), file, line, problem 
   }
  ],
  "fix": null,
- "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
+ "full": "~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

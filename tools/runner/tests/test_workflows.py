@@ -12,14 +12,16 @@ publishing agents' options end in an `agentType`) are always on. Until #883 an `
 with `bounded_waits: false` and `lean: false`, the text a resume of a run launched before #411 or #458 replayed; #883
 removed both switches and that folder once no such run could resume (the engineer's approval on #876). Most cases pass
 no v2 arg; `publish-clean-main` pins the publish_clean trial of #308, `plan-review-main` #469's plan phase,
-`ab-review-main` #535's A/B of the code reviewer's model, `checkpoint-main` #559's implementer handoffs,
+`ab-review-main` #535's A/B of the code reviewer's model, `checkpoint-main` #559's implementer handoffs (the default
+since #920; `checkpoint-off-main` its opt-out, `checkpoint: false`),
 `publish-findings-main` and pr-rebase's `publish-sonnet-main` #835's Sonnet publisher trial, and `update-main` #856's
 update run. A deliberate change of a default prompt rewrites them: run `selftest` once with
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
 commit it with the change, and run `selftest` again without the variable. Such a change merges between waves, with no
 issue-task run before its publisher, because a run that resumes after the merge replays its publisher fresh; the
-scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834; issue-task.js
-also records #555's 180 s wait, #563's Cross-area line, #572's reading a log by search and #574's `verify --fail-fast`).
+scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834, #920;
+issue-task.js also records #555's 180 s wait, #563's Cross-area line, #572's reading a log by search and #574's
+`verify --fail-fast`).
 Each snapshot ends with the run's return value, which a resume does not replay (#386 made it compact).
 """
 
@@ -141,6 +143,9 @@ SNAPSHOT_CASES = {
         ("client-release", {"branch": "client/7-x", "base": "release/m5"}, {"paths": ["client/hud/hud.gd", "client/hud/hud.tscn"]}),
         ("voice-stacked", {"branch": "voice/7-x", "base": "net/5-parent"}, {"paths": ["voice/mixer.gd"]}),
         ("tooling-main", {"branch": "tooling/7-x"}, {"paths": ["tools/runner/start.py", "docs/AGENT_WORKFLOW.md"]}),
+        # #920: checkpoint: false, the opt-out of the default (a case with a v2 arg): no rule, no handoff key, and the
+        # compact result without checkpoint and handoffs.
+        ("checkpoint-off-main", {"branch": "tooling/7-x", "checkpoint": False}, {"paths": ["tools/runner/start.py", "docs/AGENT_WORKFLOW.md"]}),
         ("content-release", {"branch": "content/7-x", "base": "release/m5"}, {"paths": ["content/roles/x.tres", "levels/rooms/x.tscn"]}),
         ("design-main", {"branch": "docs/7-x", "design": True}, {"paths": ["docs/ARCHITECTURE.md", "docs/decisions/x.md"]}),
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
@@ -189,10 +194,11 @@ SNAPSHOT_CASES = {
             },
             {"paths": ["core/match/vote.gd"], "findings": [MAJOR, MINOR]},
         ),
-        # #559's checkpoint: three implementers that each hand over; the third may not, so all three prompts are pinned.
+        # #559's checkpoint, on by default since #920: three implementers that each hand over; the third may not, so all
+        # three prompts are pinned.
         (
             "checkpoint-main",
-            {"branch": "tooling/7-x", "checkpoint": True},
+            {"branch": "tooling/7-x"},
             {"paths": ["tools/runner/x.py"], "queues": {"implement": [
                 {"verify_green": True, "complete": False, "summary": f"part {k}", "changed_paths": ["tools/runner/x.py"], "decisions": [f"d{k}"], "handoff": f"C:/scratchpad/a7/handoff-{k}.md"}
                 for k in (1, 2, 3)
@@ -707,7 +713,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-main, publish-findings-main,
+        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-off-main, publish-findings-main,
         # publish-sonnet-main and update-main passes no v2 arg). Each case runs as launched (`<case>.txt`), with
         # bounded waits (#411) and the lean agent types (#458) always on.
         jobs, files = [], []
@@ -2456,28 +2462,38 @@ def without_rule(prompt: str) -> str:
 class CheckpointTest(unittest.TestCase):
     PATHS = {"paths": ["tools/runner/x.py"]}
 
-    def test_checkpoint_off_changes_nothing(self) -> None:
-        # Without the arg (or false, or null) a handoff in the result is not followed: the agents are today's.
+    def test_checkpoint_false_ignores_a_handoff(self) -> None:
+        # #920: checkpoint: false turns the default off: a handoff in the result is not followed, the agents are those
+        # of a launch with checkpoint: false and no handoff, and the prompts carry no rule.
+        off = {"checkpoint": False}
         stub = dict(self.PATHS, queues={"implement": [implemented(["tools/runner/x.py"], handoff=NOTE)]})
-        jobs = [("issue-task.js", dict(ARGS), self.PATHS)] + [
-            ("issue-task.js", dict(ARGS, **extra), s) for extra, s in (({"checkpoint": False}, self.PATHS), ({"checkpoint": None}, self.PATHS), ({}, stub))
-        ]
-        base, *others = run_jobs(jobs)
+        base, other = run_jobs([("issue-task.js", dict(ARGS, **off), self.PATHS), ("issue-task.js", dict(ARGS, **off), stub)])
         want = [(e["label"], e["opts"], e["prompt"]) for e in agents(base)]
-        for result in others:
+        got = [(e["label"], e["opts"], e["prompt"]) for e in agents(other)]
+        # The publisher embeds the implementer's whole result, so the stub's own handoff key shows there only.
+        self.assertEqual([g[0] for g in got], [w[0] for w in want])
+        self.assertEqual(got[:-1], want[:-1])
+        for result in (base, other):
             self.assertIsNone(result["error"])
-            got = [(e["label"], e["opts"], e["prompt"]) for e in agents(result)]
-            # The publisher embeds the implementer's whole result, so the stub's own handoff key shows there only.
-            self.assertEqual([g[0] for g in got], [w[0] for w in want])
-            self.assertEqual(got[:-1], want[:-1])
             self.assertNotIn("handoffs", result["returned"])
             self.assertNotIn("checkpoint", result["returned"])  # #597: no key, so a launch or resume without it shows
             self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "handoff" in e["message"]])
         self.assertNotIn(RULE_HEAD, json.dumps(want))
+        self.assertFalse([e for e in agents(base) if "handoff" in options(e)["schema"]["properties"]])
+
+    def test_checkpoint_is_on_by_default(self) -> None:
+        # #920 (the engineer's answer 6A on #302): a launch without the arg, or with null, is a launch with true.
+        on, *others = run_jobs([("issue-task.js", dict(ARGS, **extra), self.PATHS) for extra in ({"checkpoint": True}, {}, {"checkpoint": None})])
+        want = [(e["label"], e["opts"], e["prompt"]) for e in agents(on)]
+        self.assertIn(RULE_HEAD, calls(on, "implement")[0]["prompt"])
+        for result in others:
+            self.assertIsNone(result["error"])
+            self.assertEqual([(e["label"], e["opts"], e["prompt"]) for e in agents(result)], want)
+            self.assertEqual((result["returned"]["checkpoint"], result["returned"]["handoffs"]), (True, 0))
 
     def test_checkpoint_adds_only_the_rule_and_the_schema_key(self) -> None:
         for extra in ({}, {"visual": True}):
-            off, on = run_jobs([("issue-task.js", dict(ARGS, **extra), self.PATHS), ("issue-task.js", dict(ARGS, checkpoint=True, **extra), self.PATHS)])
+            off, on = run_jobs([("issue-task.js", dict(ARGS, checkpoint=False, **extra), self.PATHS), ("issue-task.js", dict(ARGS, **extra), self.PATHS)])
             with self.subTest(**{k: str(v) for k, v in extra.items()}):
                 self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
                 # #597: the compact result shows checkpoint: true, and with it the handoffs, 0 too.
@@ -2509,7 +2525,7 @@ class CheckpointTest(unittest.TestCase):
     def test_a_handoff_launches_a_fresh_implementer_with_the_note(self) -> None:
         first = handing_over(decisions=["d1"], needs_engineer=["n1"], commits=["c1"], left=["the rest"], summary="first part")
         last = implemented(["tools/runner/x.py", "docs/x.md"], decisions=["d2", "d1"], commits=["c2"], summary="the whole branch")
-        result = run_one("issue-task.js", {"checkpoint": True}, dict(self.PATHS, queues={"implement": [first, last]}))
+        result = run_one("issue-task.js", {}, dict(self.PATHS, queues={"implement": [first, last]}))
         self.assertIsNone(result["error"])
         one, two = calls(result, "implement")
         self.assertEqual([one["label"], two["label"]], ["implement:#7", "implement:#7#2"])

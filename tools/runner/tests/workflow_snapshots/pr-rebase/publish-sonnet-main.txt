@@ -123,6 +123,6 @@ Return the structured result.
   "fixed": 0
  },
  "not_fixed": [],
- "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
+ "full": "~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

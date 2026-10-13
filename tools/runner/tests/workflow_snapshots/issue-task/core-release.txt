@@ -1,6 +1,6 @@
 ### phase Implement
 ### agent implement:#7
-opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string","maxLength":1200},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]},"agentType":"task-implementer"}
+opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string","maxLength":1200},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}},"handoff":{"type":"string"}},"required":["verify_green","complete","summary","changed_paths"]},"agentType":"task-implementer"}
 You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
 - Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch core/7-x, PR base release/m5; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
@@ -42,6 +42,8 @@ Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mut
 - CI: `cd /d/prime-game/.claude/worktrees/7 && timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout set to 300000 (in PowerShell `timeout` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red. CI runs every test (`verify --full`; a local `verify` is doctor, lint and check, #605): its green is the test gate, so never run `verify --full` locally.
 - In your inner loop you may run `verify --fail-fast` (it stops at the first red step); the run you report as verify_tail, like publish's, is a whole `verify --changed` (no `--fail-fast`).
 - If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.
+
+Checkpoint (checkpoint, #559): keep your context under 150,000 tokens. Measure it, never estimate it: run `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000` every ~15 tool calls and after each verify (each `wait` that ends one); it reads your own transcript and prints your context. When it prints HANDOFF NOW, or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript), hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to a7/handoff-1.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path. If only the final verify and the return are left, finish instead, unless ctx printed past 200,000. A fresh implementer of the same kind continues from your note and the worktree (at most 2 handoffs per task).
 
 Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
 
@@ -151,6 +153,8 @@ Return the structured result.
  "verify_green": true,
  "complete": true,
  "summary": "s",
+ "checkpoint": true,
+ "handoffs": 0,
  "needs_engineer": [],
  "human_steps": [],
  "not_fixed": [],
@@ -167,6 +171,6 @@ Return the structured result.
   }
  ],
  "tier": "full",
- "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
+ "full": "~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null
