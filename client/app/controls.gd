@@ -15,9 +15,10 @@ extends RefCounted
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
 ## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: `throw`,
-##   G, #645, whose name the copy deck lacks, #851) keeps its key for the phases it acts in: a
-##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
-##   press never does both (Use on G would swing and throw).
+##   G, #645, whose name the copy deck lacks, #851; `crouch`, Ctrl, #791, whose `control.crouch`
+##   the deck lacks too) keeps its key for the phases it acts in: a binding that would put an
+##   action of such a phase on it is refused, as a fixed key is, so one press never does both (Use
+##   on G would swing and throw).
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
 ##   default.
 ## - Never sent to anyone.
@@ -34,8 +35,9 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: `throw` (G) while living, until the deck names it (`control.throw`, #851).
-const UNLISTED: Dictionary[StringName, int] = {&"throw": Phase.ALIVE}
+## those phases: `throw` (G) while living, until the deck names it (`control.throw`, #851), and
+## `crouch` (Ctrl, the crouch ADR's KE8) while living, until the deck names it (`control.crouch`).
+const UNLISTED: Dictionary[StringName, int] = {&"throw": Phase.ALIVE, &"crouch": Phase.ALIVE}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,

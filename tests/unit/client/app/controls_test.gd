@@ -98,7 +98,9 @@ func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
 	# #842's review: throw (G, #645) is no Settings row yet (#851), so a living action bound to G
 	# would swing and throw on one press. Such a binding is refused, as a fixed key is; an action
 	# that never acts while living may take G.
-	assert_dict(Controls.UNLISTED).is_equal({&"throw": Controls.Phase.ALIVE})
+	assert_dict(Controls.UNLISTED).is_equal(
+		{&"throw": Controls.Phase.ALIVE, &"crouch": Controls.Phase.ALIVE}
+	)
 	assert_bool(Controls.ACTIONS.has(&"throw")).is_false()
 	assert_int(_key(Controls.default_event(&"throw"))).is_equal(KEY_G)
 	var controls := Controls.new()
@@ -113,6 +115,32 @@ func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
 	assert_array(Controls.unlisted_on(&"give_up", _press(KEY_G))).is_empty()
 	# Another key for a living action is still fine.
 	assert_bool(controls.bind(&"use", _press(KEY_H))).is_true()
+
+
+func test_the_crouch_is_on_ctrl_and_no_living_action_takes_it() -> void:
+	# The crouch ADR's KE8 (#791): `crouch` on the physical Ctrl, either one (no location), acting
+	# while living. Its deck key `control.crouch` is not in the copy deck yet, so it is no Settings
+	# row: UNLISTED, as throw is (#851), and Ctrl is refused to every living action.
+	assert_bool(Controls.ACTIONS.has(&"crouch")).is_false()
+	var ctrl := Controls.default_event(&"crouch") as InputEventKey
+	assert_int(_key(ctrl)).is_equal(KEY_CTRL)
+	assert_int(ctrl.location).is_equal(KEY_LOCATION_UNSPECIFIED)
+	assert_bool(ctrl.ctrl_pressed or ctrl.shift_pressed or ctrl.alt_pressed).is_false()
+	# No default binding clashes with it: no other action is on Ctrl.
+	for action: StringName in Controls.ACTIONS:
+		assert_array(Controls.unlisted_on(action, Controls.default_event(action))).is_empty()
+	var controls := Controls.new()
+	for action: StringName in [&"use", &"sprint", &"jump", &"interact", &"voice_talk"]:
+		(
+			assert_bool(controls.bind(action, _press(KEY_CTRL)))
+			. override_failure_message(str(action))
+			. is_false()
+		)
+	assert_array(Controls.unlisted_on(&"jump", _press(KEY_CTRL))).contains_exactly([&"crouch"])
+	# Ready acts only in the lobby, where the crouch never plays: Ctrl is its to take.
+	assert_bool(controls.bind(&"ready", _press(KEY_CTRL))).is_true()
+	# KeyLabel names it from the binding (headless: the key's own name).
+	assert_str(KeyLabel.of_action(&"crouch")).is_equal(OS.get_keycode_string(KEY_CTRL))
 
 
 func test_a_saved_living_binding_on_the_throw_key_reads_as_its_default() -> void:
