@@ -3,15 +3,17 @@ extends Node3D
 ## M4-8's part of the round under World (ARCHITECTURE §4.7): the items (ItemViews), the circles
 ## and the destination marker (CircleViews), the zones and their fill (ZoneViews, #650), the item
 ## keys and the crosshair's target (ItemInteractions; the throw key's arc, #645) and the world
-## sounds (WorldSounds), all from the own ClientModel, the interpolated poses and the client's own
-## copy of the mode. It also gives the HUD what the model does not hold (`hud_local`): the
-## predicted stamina and the item under the crosshair.
+## sounds (WorldSounds; the photo task's shutter, print and hang, #785) and the photo camera's
+## flash (PhotoFlashes, #785), all from the own ClientModel, the interpolated poses and the
+## client's own copy of the mode. It also gives the HUD what the model does not hold
+## (`hud_local`): the predicted stamina and the item under the crosshair.
 
 var items := ItemViews.new()
 var circles := CircleViews.new()
 var zones := ZoneViews.new()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
+var flashes := PhotoFlashes.new()
 
 var _model: ClientModel
 var _mode: GameMode
@@ -25,7 +27,8 @@ func _init() -> void:
 	zones.name = "ZoneViews"
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
-	for each: Node3D in [items, circles, zones, interactions, sounds]:
+	flashes.name = "PhotoFlashes"
+	for each: Node3D in [items, circles, zones, interactions, sounds, flashes]:
 		add_child(each)
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
@@ -49,6 +52,11 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	interactions.setup(client, game_mode)
 	sounds.model = _model
 	sounds.avatars = views
+	# A photo camera's lens stands the eye height above its marker, as PhotoTask's.
+	var lens_m := game_mode.player_rules.eye_height_m if game_mode.player_rules != null else 0.0
+	sounds.lens_m = lens_m
+	flashes.model = _model
+	flashes.lens_m = lens_m
 	client.event_received.connect(on_event)
 
 
@@ -70,6 +78,8 @@ func reset() -> void:
 	zones.model = null
 	zones.host_tick = Callable()
 	sounds.model = null
+	flashes.clear()
+	flashes.model = null
 	interactions.setup(null, _mode)
 	interactions.player = null
 	items.player = null
@@ -87,13 +97,14 @@ func hud_local() -> HudText.Local:
 	return local
 
 
-## The session's events: the arcs of the items in flight, and the world sounds. A throw's launch
-## and landing sounds wait for the drawn item to launch and land (ItemViews' sound_due), so they
-## are not played here.
+## The session's events: the arcs of the items in flight, the photo flashes and the world
+## sounds. A throw's launch and landing sounds wait for the drawn item to launch and land
+## (ItemViews' sound_due), so they are not played here.
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if _model == null:
 		return
 	items.on_event(event_name, fields)
+	flashes.on_event(event_name, fields)
 	if event_name == &"ItemThrown":
 		return
 	if event_name == &"ItemPlaced" and fields.get("cause", &"") == Items.THROWN:
