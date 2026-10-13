@@ -540,8 +540,12 @@ def throwaway(test: unittest.TestCase) -> Iterator[Path]:
         except Exception as exc:
             kept = common.LOGS / test.id().rsplit(".", 1)[-1]
             shutil.rmtree(kept, ignore_errors=True)
-            shutil.copytree(Path(tmp) / "logs", kept)
-            exc.add_note(f"its Godot logs: {kept}")
+            try:
+                shutil.copytree(Path(tmp) / "logs", kept)
+            except OSError as copy_error:  # a log a killed Godot still holds: the test's own failure still goes up
+                exc.add_note(f"its Godot logs could not be kept in {kept}: {copy_error}")
+            else:
+                exc.add_note(f"its Godot logs: {kept}")
             raise
 
 
@@ -574,6 +578,12 @@ class ThrowawayTest(unittest.TestCase):
 
     def test_a_pass_keeps_nothing(self) -> None:
         self.assertEqual(self.run_throwaway(fail=False)[1], [""])
+
+    def test_logs_it_cannot_copy_leave_the_tests_own_failure(self) -> None:
+        # On Windows a killed Godot may still hold a log: the copy's error must not replace the test's failure.
+        with mock.patch.object(shutil, "copytree", side_effect=PermissionError("in use")):
+            kept, seen = self.run_throwaway(fail=True)
+        self.assertEqual(seen, ["", f"its Godot logs could not be kept in {kept}: in use"])
 
 
 @starts_godot
