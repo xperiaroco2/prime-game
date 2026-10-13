@@ -37,7 +37,7 @@ outline_size = 16
 
 [node name="Stations" type="Node3D" parent="." unique_id=448974277]
 
-[node name="GardenDropOff" type="Marker3D" parent="Stations" unique_id=743312008]
+[node name="GardenDropOff" type="Marker3D" parent="Stations" unique_id=743312008 groups=["spawn_drop_garden"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 22)
 
 [node name="Markers" type="Node3D" parent="." unique_id=811928258]

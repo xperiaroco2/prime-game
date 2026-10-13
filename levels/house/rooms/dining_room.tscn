@@ -254,7 +254,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1822075430]
 
-[node name="DiningTable" type="Marker3D" parent="Stations" unique_id=1267227030]
+[node name="DiningTable" type="Marker3D" parent="Stations" unique_id=1267227030 groups=["spawn_drop_dining_table"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 3)
 
 [node name="Markers" type="Node3D" parent="." unique_id=963271132]
