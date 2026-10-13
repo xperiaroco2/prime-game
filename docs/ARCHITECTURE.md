@@ -5868,6 +5868,16 @@ issue of 728e (#849) holds the open question.
   for step) and `tests/integration/client/life/life_raise_in_lowered_car_test.gd` (KD15 (a)'s push with a stand-in
   for the lowered car on layer 4: it measured the capsule pushed down into the floor on its own screen, not out, and
   3 `Correction`s on the way out, the stop the ADR's §2 names; #849 holds the open question).
+- **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
+  convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
+  `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece is listed there or in
+  `LOCKED`, the roof); a flood fill of the crouched capsule from the `round_player` spawn markers over those pieces'
+  `Floor` and stair-step tops (0.5 m apart in two halves, each rise at most `step_height_m`, any drop) gives the
+  spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
+  `Strike` of the base mode's item kinds (read from the data) knocks a body down in 8 directions, and each rest must
+  lie off the locked roof and within the raise's reach of a spot (`TargetInReach`'s distance from its feet, read from
+  the `Raise` rule, and `TargetInSight` from its crouched eye). On the House as it stands every knife launch passes;
+  seen red with the reach cut to a tenth. A rest out of reach is reported, the scene being the humans'.
 
 ## 8. Debug tooling
 
@@ -6586,7 +6596,8 @@ the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the l
 (provisional under the MVP content ADR, for the engineer's approval); the launch in 728e (#849), provisional the same
 way.
 Tests: `tests/integration/levels/house_knife_launch_test.gd` (the launch on the House rests a body where a crouching
-player fits; none on the greybox, §7.1.18), `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
+player fits; none on the greybox, §7.1.18), `tests/integration/levels/house_body_reach_test.gd` (every rest within a
+raise's reach of a spot walked to from the spawn, 728f), `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped, a target dead at its turn skipped, #806), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),

@@ -63,13 +63,13 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - **Hiding spots** (the same revision): a dissident may hide a package anywhere a put-down allows, so every floor a
   put-down can reach must also be reachable for a pickup (the pick-up reach and line of sight, from somewhere a
   player can stand). No gap, ledge or thin wall may keep a package for good; a playtest checks it.
-- **Thrown items** ([throwing ADR](../docs/decisions/2026-10-09-throwing-held-items.md) TD5 (a), #646): a thrown
-  item rests wherever its flight ends, so the levels keep every surface a throw can reach within reach of a spot
-  where a player can stand (the pick-up's 2 m from the feet, with line of sight): no shelf, ledge, canopy or roof
-  that a throw lands on and no player reaches. The throw speed is kept below what reaches a lockable roof;
-  `tests/integration/levels/house_roof_throw_test.gd` guards House's. It throws from every floor of sampled columns
-  near the roof (every metre on the balcony and its railings, every 2 m elsewhere; `house_throws.gd`), so a higher
-  floor or a perch placed there turns it red; a new standable area near the roof gets its columns there too.
+- **Thrown items and launched bodies** ([throwing ADR](../docs/decisions/2026-10-09-throwing-held-items.md) TD5 (a),
+  #646; [knockdown ADR](../docs/decisions/2026-10-10-knockdown-reworked.md) KD12 (a), #850): each rests where its
+  flight ends, so every surface a throw or a launch reaches (shelf, ledge, canopy, table, roof) lies within reach of
+  a spot players walk to: the pick-up's 2 m, or the raise's (`TargetInReach`, `TargetInSight` from the crouched eye);
+  no rule in `core/`. House's guards (ARCHITECTURE): `house_roof_throw_test.gd` (no throw rests on the roof; a perch
+  near it gets columns in `house_throws.gd`) and `house_body_reach_test.gd` (every launch's rest within a raise of a
+  spot walked to from the spawn; a new piece goes in its `WALKABLE` or `LOCKED`). Out of reach: the humans' to fix.
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
