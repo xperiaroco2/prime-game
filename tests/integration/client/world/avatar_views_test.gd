@@ -402,6 +402,19 @@ func test_a_body_first_drawn_crouched_has_its_head_down_at_once() -> void:
 	assert_float(body.head().position.y).is_equal_approx(_views.rules.crouch_eye_height_m, 1e-5)
 
 
+func test_a_downed_body_keeps_its_points_up_while_the_crouch_flag_trails_the_knockdown() -> void:
+	# The life comes from the newest snapshot, the crouch flag from the drawn tick's: for the
+	# interpolation delay after a knockdown, a body that lies can still be told "crouched".
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	var mouth_y := body.mouth_point().position.y
+	body.set_downed(true)
+	body.set_crouched(true, INF)
+	assert_float(body.mouth_point().position.y).is_equal_approx(mouth_y, 1e-5)
+	assert_float(body.hand_point().position.y).is_equal_approx(RemotePlayerBody.HAND_POINT.y, 1e-5)
+
+
 func test_a_mode_without_a_step_height_lowers_the_head_at_once_with_no_nan() -> void:
 	# 0 * INF is NaN: a first draw of a mode with step_height_m 0 would blank every point.
 	_views.rules.step_height_m = 0.0

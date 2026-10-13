@@ -148,7 +148,11 @@ func set_crouched(crouched: bool, delta: float) -> void:
 		and not is_inf(delta)
 	):
 		step = rules.step_height_m / tuning.view_catch_up_seconds * delta
-	var target := rules.eye_height_m - rules.crouch_eye_height_m if crouched else 0.0
+	# A downed body lies at standing size (its crouch flag can trail the life by the interpolation
+	# delay): its points stay with the standing pose.
+	var target := (
+		rules.eye_height_m - rules.crouch_eye_height_m if crouched and not _downed else 0.0
+	)
 	_lowered = move_toward(_lowered, target, step)
 	_place_points()
 
