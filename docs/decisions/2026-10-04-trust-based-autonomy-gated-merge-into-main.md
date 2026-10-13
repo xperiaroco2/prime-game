@@ -29,7 +29,8 @@ engineer. The `main` rulesets ask only for a pull request and the green `verify`
    designer, relayed by the engineer" as today); the permission and safety files (`.claude/settings*.json`,
    `.claude/githooks/`, the guard `tools/runner/guard.py`), which the engineer merges; an ADR added or changed, which
    the engineer approves (an "Approved by the engineer: <link>" line in the PR body).
-2. **Release branches stay.** The manager merges task PRs into `release/m<k>` as before, and also merges the
+2. **Release branches stay.** (From M7 on replaced: every task PR goes into `main`, see the [amendment of
+   2026-10-13](2026-10-01-release-branch-per-milestone.md).) The manager merges task PRs into `release/m<k>` as before, and also merges the
    milestone's closing PR into `main` after the engineer's one "go" for the milestone (a playtest, once every task is
    merged and the engineer's human checks are done or postponed).
 3. **The engineer's agents only.** The designer's PRs and agents keep today's flow; the designer opts in when the
