@@ -432,20 +432,15 @@ Rules for every workflow run:
   kickoff (orchestrate-stage `kickoff-template.md`, `launch-args.md`); the approval of the agent count and the budget,
   the design gate and the runs another session may still own, in orchestrate-stage `SKILL.md`, `stage-setup.md` and
   `budget.md` (the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tiers).
-- **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>` from
-  `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base release/m<k>`). Before
-  each merge the manager runs `tools\run.cmd merge-check` (#181, #207: each open PR onto its base tip, each pair into
-  the same base and, across bases, each pair that changes a shared file, textually and by symbols; `--trial` merges
-  them in a scratch worktree and runs its fast `verify`; the `merge.py` docstring has the rules). The manager merges a
-  task PR once CI is green and the fresh reviews left no open blocker or major, only with `tools\run.cmd merge <pr>
-  --base release/m<k>` (CI green on a head that contains the base; a behind head is refused unless nothing overlaps,
-  #632), never by its git steps or a typed `gh pr merge`, which stays denied (the `main` rulesets ask only for a PR and
-  green checks, so it would let any agent merge into `main`). **No local `verify`** (#622, #605): CI runs on pushes to
-  `release/**`. At a wave boundary, when the AI productivity track (#170) says `main` has something the stage needs,
-  `merge --sync-main --base release/m<k>` takes `origin/main` in. The stage ends with one PR from `release/m<k>` into
-  `main`, which the manager merges through the gate below once the engineer gave the milestone's go; the stage's
-  issues stay open until then (`Closes` fires only on the default branch) and the manager closes them. The steps:
-  orchestrate-stage `merges.md`.
+- **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md), amended 2026-10-13: from M7 on no
+  release branch): every task PR of a stage targets `main`; the manager merges it through the gate below, never by
+  git steps or a typed `gh pr merge`, which stays denied (the `main` rulesets ask only for a PR and green checks, so
+  it would let any agent merge into `main`). Before each merge the manager runs `tools\run.cmd merge-check` (#181,
+  #207: each open PR onto its base tip and each pair into it, textually and by symbols; `--trial` merges them in a
+  scratch worktree and runs its fast `verify`; the `merge.py` docstring has the rules). **No local `verify`** (#622,
+  #605): CI tests. The milestone ends with its playtest and the closing of its issues. A kickoff may still name a
+  release branch `release/m<k>` for a stage (`merge --base release/m<k>`, `--sync-main`; CI runs on pushes to
+  `release/**`): the steps are in orchestrate-stage `merges.md`.
   - **Into `main`** (#300, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)): the
     engineer's manager runs `tools\run.cmd merge <pr> --base main` from the main checkout once the fresh reviews left no
     open blocker or major (`--dry-run` first, from any checkout). Its gate collects every refusal (the `merge.py`
@@ -466,14 +461,13 @@ Rules for every workflow run:
     gate does not read. It never pushes `main` and never merges a gate exception.
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
-  its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
-  milestone takes `main` in: Git flow above). How many task workflows run at once, each track's budget and its spend
+  its PRs into `main` like every track, each merged by its manager through the gate (Git flow above, "Into `main`"). How many task workflows run at once, each track's budget and its spend
   reports: N3 (b) of the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), whose rules
   the orchestrate-stage skill's `budget.md` holds. Shared files (N5 (c)): `.claude/workflows/` and the
   orchestrate-stage skill change only through the tooling track, between the other managers' waves; `tools/runner/`
   and this file may be changed by any track between waves, after `merge-check`, which pairs PRs across bases when both
-  change a shared file (`tools/`, `.claude/`, `.github/`, this file); a flagged pair: the PR into `main` merges first,
-  the milestone takes `main` in and rebases its PR (orchestrate-stage `stage-setup.md` item 8, `merges.md`). After a
+  change a shared file (`tools/`, `.claude/`, `.github/`, this file); a flagged pair: the PR that merges first
+  goes through the gate, the other rebases on its base (`main`; a release branch a kickoff names: after `merge --sync-main`; orchestrate-stage `stage-setup.md` item 8, `merges.md`). After a
   change to a shared file reaches `main`, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
   weekly limit), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges
@@ -1040,7 +1034,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the designer's PRs are merged by the engineer, with the Merge button on GitHub or in the Desktop PR pane, after CI
   is green: he reviews the designer's PRs, and no PR waits for the designer (§9). Content and levels are judged
   through `shot` screenshots and a playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a
-  stage the manager merges task PRs into the milestone's `release/m<k>` (§7.1,
+  stage the manager merges task PRs into `main` through the gate (§7.1,
   [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
 - **Board:** a Project owned by the engineer, linked to the repo; the designer is invited to the project and the
   repo. Built-in workflows: keep closed → Done and PR merged → Done; item added → Backlog; disable

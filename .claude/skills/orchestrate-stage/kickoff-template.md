@@ -8,7 +8,7 @@ The kickoff must state:
 - the scope (issue numbers, or the design handoff to open them from, and fillers) and the plan issue to report on.
   A new milestone gets its own plan issue (`M<k>: plan and order`, opened by you after the yes, its body written
   once and never edited); if the kickoff names none, recommend that;
-- the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
+- the git flow: every task PR into `main` through the gate (a release branch only if I name one),
   and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
 - the concurrency cap (default three tasks at once, fewer where budget.md's PC share is lower: meta by day 1)
   and "one task = one issue-task workflow" with per-agent bounds (implementer about 250 tool calls, reviewers
@@ -20,7 +20,7 @@ The kickoff must state:
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
   that model's own weekly window (at most half across all tracks). You stay on the shared models;
-- the rules: you merge into `release/m<k>` and, through the gate, into `main` (§5); you close issues, workflow
+- the rules: you merge task PRs into `main` through the gate (§5); you close issues, workflow
   agents never; each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
   and `levels/` files are provisional;
@@ -44,14 +44,12 @@ order.>
 (docs/MANAGERS.md §6); I paste it as it is.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
-Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
-with tools\run.cmd merge after green CI on a head up to date with release/m<k>, fresh reviews with no open blocker or
-major, and merge-check (no local verify: CI tests the push); you merge it into main through one PR at the end, through the gate, after my go | every PR straight
-into main (the tooling track); you merge each with merge <pr> --base main after merge-check>.
+Git flow: <every task PR into main; you merge each with merge <pr> --base main after merge-check, green CI on a head up to
+date with main, fresh reviews with no open blocker or major and the gate's exceptions answered | a release branch
+release/m<k> I name: merges.md "A release branch">.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.
-Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
-base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
+Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
 each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment's notes end with the ready

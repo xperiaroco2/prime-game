@@ -7,7 +7,7 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | arg | what |
 |---|---|
 | `n`, `title`, `wt`, `branch` | the issue, its title, the worktree path, the task branch (required) |
-| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` outside a stage and on the tooling track); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
+| `base` | the PR base: `"main"`, or the parent's branch for a stacked task; a non-`main` base reaches `gh pr create --base`, a release branch's also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
@@ -23,10 +23,10 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | arg | when | adds (tool calls each) |
 |---|---|---|
 | `plan_review: true` | the issue's Files line touches `core/ server/ net/ tests/harness/`, or its Size is M or more | 2: a plan agent (80) and a fresh critique (40) |
-| `test_review: true` | the same paths, once `mutants` (#184) is on the task's base (`git show origin/<base>:tools/runner/mutants.py`) | 1 (60); none for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is under `client/ui/` (the light tier, #606) |
+| `test_review: true` | the same paths | 1 (60); none for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is under `client/ui/` (the light tier, #606) |
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
-| `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
+| `visual: true`, a scenario or a list | `client/` UI and camera tasks; the notes name the scenarios | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `implement: "sonnet"` on a qualifying task, a standing habit since 2026-10-10 (budget.md; [trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); red twice: relaunched once more on Opus without asking, in place of §4's stop); `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no clean-run publisher and rejects the role); `publish_findings: "sonnet"` beside it and `pr-rebase`'s `publish: "sonnet"` (its rebase and fix agents) on every launch, #835's trial (budget.md; only `sonnet` passes either script's whitelist); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
 | `ab_review: true` | #535's A/B ([ADR](../../../docs/decisions/2026-10-07-code-reviewer-model-ab.md)): on every non-design `issue-task` launch, with `models.code: "sonnet"` (the diff's code reviewer alone; other than `code-reviewer.md`'s `model:`, the control's) beside `publish_clean`, until `metrics`' A/B table gives a verdict other than "continue"; then report it on #302 and stop passing both (`issue-task` only) | 2: a control code reviewer (60) and a judge (40); 1 when neither reviewer found anything |
@@ -50,7 +50,7 @@ green, never publishes) → fresh reviewers in parallel, chosen from the changed
 `netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a design task; `godot-api-checker`
 for `.gd .tscn .tres`; then, when passed, the second netcode review, the test review with `mutants` and a skeptic per
 blocker or major) → publisher (fixes blocker, major and cheap minor findings, `publish` (`--base` for a release
-base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most two fix rounds,
+branch), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most two fix rounds,
 handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the
 implementer ends red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
 

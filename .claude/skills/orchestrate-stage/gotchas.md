@@ -22,8 +22,7 @@ when a run fails in a way you have not seen.
   agents rerun once before debugging.
 - **Agents see the human's mid-turn messages relayed**; they ignore requests outside their task. Tell the human that a
   message meant for you should go to your session, not to a running workflow.
-- **Pass `publish --base release/m<k>` and `gh pr create --base release/m<k>`** (the workflows pass `base`): a
-  checkout without `start`'s record needs it.
+- **A checkout without `start`'s record** needs `publish --base <base>` and `gh pr create --base <base>` (the workflows pass `base`).
 - **The information-leak test gets a netcode review.** The workflows route `tests/harness/` to
   `netcode-security-reviewer` (#115); for a leak-test change elsewhere (a new runner in `tools/`), run one by hand
   before the merge.

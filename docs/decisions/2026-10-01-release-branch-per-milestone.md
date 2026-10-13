@@ -1,7 +1,7 @@
 # A release branch per milestone: the manager merges task PRs, humans merge the milestone into main
 
 - **Status:** Accepted; one Decision bullet added 2026-10-02 (a tooling track beside a milestone, the engineer's
-  answer N2, #183)
+  answer N2, #183); **from M7 on there is no release branch** (the amendment at the end, #904)
 - **Amended 2026-10-04 (#300):** the manager also merges the milestone's closing PR into `main` once the engineer gave
   the milestone's go (an "Approved by the engineer: <link>" line in its body), and the tooling track's PRs go into
   `main` through the same gate, merged by its manager ([trust-based
@@ -86,3 +86,21 @@ GitHub retargets to `main` when its parent's branch is deleted.
   `tools\run.cmd merge-check` checks the open PRs against each other and their base before each merge
   (`docs/AGENT_WORKFLOW.md` §7.1).
 - Amends [only humans merge](2026-09-28-humans-merge-prs.md): humans still merge everything into `main`.
+
+## Amendment 2026-10-13 (#904): no release branch from M7 on
+The engineer decided "Everything into main" on 2026-10-11
+([#676](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)) and approved recording it
+([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6124603760)).
+- **From M7 on a stage has no release branch.** Every task PR targets `main` through the gate of the [trust
+  ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md): CI green on an up-to-date head, fresh reviews without an
+  open blocker or major finding, the content area and ADRs only with "Approved by the engineer". The manager merges
+  and closes the issues as that ADR says.
+- **A milestone ends with its playtest and the closing of what is still open of it** (task issues close with their PRs'
+  `Closes`; the plan and milestone issues close after the playtest), not with a merge of a release branch into `main`.
+  This replaces item 2 of the trust ADR ("Release branches stay") for M7 on.
+- **Why.** Two bases (design and content into `main`, engine code into `release/m7`) caused cross-base conflicts;
+  `release/m7` fell 908 commits behind `main` with 19 conflicting files (#837); finished work waited days for the
+  playtest; the gate already gives the protection the release branch was for.
+- **What stays.** A kickoff may still name a release branch for a stage; then everything above in this ADR holds for
+  it, and `merge --base release/m<k>`, `merge-check` and `merge --sync-main` keep working. The text above is history:
+  read "every task PR targets `release/m<k>`" and "humans merge the milestone" as the M3-M6 flow.

@@ -63,7 +63,7 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
    - the rules that bind them: their paths (Ownership in root `CLAUDE.md`: the engineer owns the content area too, the
      designer is optional), `engine-request` issues for missing engine parts (designer), the engineer's manager merges
      into `main` through a gate after green CI and the engineer merges its exceptions and the designer's PRs (a stage's
-     manager merges task PRs into `release/m<k>`), the content area changes only on the engineer's word
+     manager merges task PRs the same way), the content area changes only on the engineer's word
      (`docs/AGENT_WORKFLOW.md` §9), content and levels are judged through `shot` screenshots and playtests,
      save-first, one-time guard answers; the designer never uses worktrees and works at medium effort;
    - they may reopen any decision that binds them: say so, and the agent opens an issue for both humans.

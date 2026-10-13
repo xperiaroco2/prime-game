@@ -19,7 +19,7 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 |---|---|---|---|---|---|---|
 | % of the week | 26 | 20 | 20 | 12 | 5 | 10 |
 
-- The tracks: **game** (the milestones; `D:\prime-game`, PRs into `release/m<k>`), **UI** (`D:\prime-game-ui`), **art**
+- The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
   `main`). The engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until
   he says otherwise. The buffer lies below the 93% stop (below).
@@ -78,9 +78,7 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   a time (headless Blender and off-screen Godot, outside the verify slots); UI is uncapped (no Godot or Blender in
   its checks).
 - **A launch only while no run waits for a verify slot**, and while the engineer uses the PC he runs
-  `tools\run.cmd slots --quiet <hours>` (one slot for that time). If `tools\run.cmd slots --help` lists no `--quiet`
-  (`slots --status` and `--quiet` are #416, P2), the cap above is the rule and the engineer's word in the chat pauses
-  launches.
+  `tools\run.cmd slots --quiet <hours>` (one slot for that time).
 
 ## Launch args (N4 (b), N5 (a))
 Each option is described once, in [launch-args.md](launch-args.md) (the table, its `models` and `checkpoint` rows); here

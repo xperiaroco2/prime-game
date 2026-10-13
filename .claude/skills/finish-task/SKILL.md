@@ -61,11 +61,11 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    task branch with a lease; a red verify pushes nothing. Its line `base origin/<base>` names the PR's base. If it
    stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human.
    Never push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check
-   the parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. A task of a stage (its PR
-   targets `release/m<k>`): `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
+   the parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. On a checkout without `start`'s record, run
+   `tools\run.cmd publish --base <the PR's base>`.
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
-   `publish` just reported: `main`, a stage's `release/m<k>` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
+   `publish` just reported: `main` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
    - `Closes #<n>`; a summary; the verification commands with their output (at least the `verify` tail); docs
      updated yes/no.
    - Screenshots: `tools\run.cmd shot <scene>` PNGs for visual changes, else "none". `gh` cannot upload images:
@@ -77,8 +77,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - End the body with the attribution line this session requires.
 7. **Handoff.** `gh issue comment <n> --body-file <file>` with four headings: Done, Left, Decisions, Gotchas, plus
    the PR link. Then `tools\run.cmd board move <n> in-review`.
-8. **Tell the human** the PR link and that CI runs on it. A stage's task PR into `release/m<k>` is merged by its manager
-   session ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). A workflow agent (`issue-task`,
+8. **Tell the human** the PR link and that CI runs on it. A stage's task PR is merged by its manager
+   session through the gate ([ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). A workflow agent (`issue-task`,
    `pr-rebase`) stops after telling: its manager merges. A PR into `main` from an interactive solo session: in the
    engineer's session ask once, "merge it yourself, or shall I merge it through the gate?", and only on the engineer's
    word for this PR (or this session) run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr> --base main

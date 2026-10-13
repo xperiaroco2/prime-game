@@ -15,7 +15,7 @@ skill itself).
    and `Tracking: #<plan>`, and `gh issue create --title "<area>: <what>" --label area:<x> --milestone M<k>
    --body-file <file>` (one `area:` label, which `start` needs for the branch prefix). Put the new numbers in a
    plan-issue comment.
-5. **The release branch** (a milestone only, once, after the yes): from the main checkout, without leaving your
+5. **A release branch** (only when the kickoff names one, once, after the yes; merges.md "A release branch"): from the main checkout, without leaving your
    shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
    && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
@@ -29,5 +29,4 @@ skill itself).
    change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` also
    pairs your PRs with every open PR into another base when both change a shared file (`tools/`, `.claude/`,
    `.github/`, `docs/AGENT_WORKFLOW.md`; its table "across bases", #207). A flagged pair: name it on that track's
-   plan issue; the PR into `main` merges first (through the gate, §5), the milestone takes `main` in
-   (`merge --sync-main`, §5) and its PR is rebased on that before it merges (what you do meanwhile: §5).
+   plan issue; the PR that merges first goes through the gate (§5), the other is rebased on its base before it merges (`main`; a release branch a kickoff names: after `merge --sync-main`).

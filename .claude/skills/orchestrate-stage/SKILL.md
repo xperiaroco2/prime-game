@@ -1,6 +1,6 @@
 ---
 name: orchestrate-stage
-description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for a manager kickoff that names a stage or a list of issues (one task = one issue-task workflow), "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
+description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging every task PR into main through a gate while the engineer answers. Use for a manager kickoff that names a stage or a list of issues (one task = one issue-task workflow), "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -28,9 +28,7 @@ You are the **manager**: you plan, launch and watch workflows, relay questions a
 docs, reviews, publishing) runs inside workflows; your inline work is `start`, trivial rebases, opening issues and
 posting answers. Talk to the human in their chat language, in plain words; GitHub and the repo are English. Commands:
 `tools\run.cmd` (Git Bash: `tools/run.sh`). The method: [ADR](../../../docs/decisions/2026-09-30-orchestrator-session.md).
-Git flow: every task PR targets the milestone's `release/m<k>`, you merge task PRs into it and, after the engineer's
-go, the milestone into `main` ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)); the tooling
-track (#170) sends its PRs straight into `main`, each merged by you through the gate (§5). What you decide alone, tell
+Git flow: every task PR targets `main` and you merge each through the gate (§5; no release branch from M7 on, [ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md) amendment); the stage ends with the engineer's playtest and closing its issues. What you decide alone, tell
 at once or ask: the tiers of the [trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md).
 
 **Read on demand.** The core below is what every session needs; the rest is in files beside it, each keeping its §
@@ -41,7 +39,7 @@ number (a split section's second part repeats its number). After a compaction, r
 | §2 (steps 3-5, 7, 8) | a new milestone or stage, a design handoff, tasks sharing files | [stage-setup.md](stage-setup.md) |
 | §3 (the args) | composing a launch's `args` | [launch-args.md](launch-args.md) |
 | §4, §7 (parts) | a failed or stopped run; a crash, restart, sleep, plan limit or new session with runs | [resume.md](resume.md) |
-| §5 | a merge, a rebase, a conflict, `--sync-main`, the stage's end | [merges.md](merges.md) |
+| §5 | a merge, a rebase, a conflict, the stage's end, a release branch | [merges.md](merges.md) |
 | §8 | the human is needed; a merged task's worktree | [notifications.md](notifications.md) |
 | §9 | a stage's first kickoff (not a handover's); a failure you have not seen | [gotchas.md](gotchas.md) |
 | §1 (part), §10 | checking a stage's first kickoff; writing a handover's ready kickoff (not at your own start) | [kickoff-template.md](kickoff-template.md) |
@@ -65,9 +63,7 @@ wait for their yes. That covers every later `issue-task` and `pr-rebase` run of 
 **Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
 scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
 (`Select-String -Path D:/prime-game/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
-and ignores them, so the reviews they add would silently not run). The merges of §5 need `merge-check` and `merge`
-in the main checkout's runner (`tools\run.cmd merge-check --help`, #181; merges into `main` need `--dry-run` in
-`tools\run.cmd merge --help`, #300: without it, the engineer merges those). Missing: ask the human to pull; a session
+and ignores them, so the reviews they add would silently not run). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
 
 **Your effort is high, not xhigh, in bypass** (MANAGERS.md §1, #308); `effortLevel` never goes into shared settings.
@@ -83,7 +79,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    the branch and worktree as they are), and a second implementer then works beside the first. A second live
    manager of your track (#484; [handover.md](handover.md) §3): stop before any launch or merge and ask.
 
-Steps 3 to 5, 7 and 8 (the design gate, issues from a design handoff, the release branch, ownership splits, files
+Steps 3 to 5, 7 and 8 (the design gate, issues from a design handoff, an optional release branch, ownership splits, files
 shared across tracks): [stage-setup.md](stage-setup.md).
 
 6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree), the
@@ -96,7 +92,7 @@ shared across tracks): [stage-setup.md](stage-setup.md).
 `git -C <wt> ...` or PowerShell `Push-Location <wt>; ...; Pop-Location`.
 
 ## 3. Launching a task
-1. `tools\run.cmd start <n> --base release/m<k>` (plain `start <n>` on the tooling track; `--base <parent branch>`,
+1. `tools\run.cmd start <n>` (`--base <parent branch>`,
    a branch on origin, for a task stacked on an unmerged PR) in **your** session, from the main checkout, never in
    an agent. From its output take the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in
    the worktree <path>`.
@@ -106,8 +102,8 @@ shared across tracks): [stage-setup.md](stage-setup.md).
    [MANAGERS.md §9](../../../docs/MANAGERS.md): any other workflow too, and over about 5% a check after its first phase.
 
 The args, the v2 args, `models`' fallbacks, staying within the approved count and the notes that worked:
-[launch-args.md](launch-args.md). Always: `n`, `title`, `wt`, `branch` and `notes`; `base` (`"release/m<k>"`, a
-parent's branch, or `main` on the tooling track), `plan` (default 30: set it) and `manager`; budget.md's args.
+[launch-args.md](launch-args.md). Always: `n`, `title`, `wt`, `branch` and `notes`; `base` (`"main"` or a
+parent's branch), `plan` (default 30: set it) and `manager`; budget.md's args.
 
 ## 4. On each completion
 Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `needs_engineer` and `human_steps` in
@@ -117,7 +113,7 @@ also `plan` (with its comment's link, `clipped` when its result was cut, and the
 `publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where; a `result` line has the `key` of
 its agent's `started` line): read it only when a field you act on points there. `handoff_posted` or `board_in_review`
 false: post the handoff or `board move <n> in-review` yourself. Merge it into
-its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and in which
+`main` when the gate in §5 holds, and tell the human what you merged and in which
 order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
 what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
 human with one short "For you:" block in their language, numbered, listing only what needs them now (a merge the gate
@@ -138,7 +134,7 @@ that changes shared design. An answer with two readings that build different thi
 (AskUserQuestion; a session a scheduled task started has none: plain chat, §7) before it is recorded; if the human
 dismisses the question and explains, read back again. An answer that changes a published PR: a trivial one inline in
 its worktree, in a subshell (§9), then
-`publish --base release/m<k>` in the background with `wait <log>`; otherwise `issue-task`
+`publish` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
 ## 6. Reporting and keeping slots busy
@@ -154,7 +150,7 @@ again for that issue with the answers in `notes` (its agents find the branch and
   transcript (#277; no args files): each running run's args as launched (worktree included), its runId and your
   session, and each failed, killed or stopped run since then not yet relaunched. A successor (§7) relaunches from it.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
-  independent part with a "fetch and check whether X is on origin/release/m<k>" step, fillers, the next milestone's
+  independent part with a "fetch and check whether X is on origin/main" step, fillers, the next milestone's
   design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop
   (§7: a keep-alive timer or a handover).
 - Tasks that edit `.claude/` (any path) or `addons/` prompt unless the session runs in bypass: run them only while
