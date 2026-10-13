@@ -6749,7 +6749,9 @@ players plus the subtasks maximum plus 1, CE3), `subtasks_setting` (a whole-numb
   A hit that stops the fit sends `FitChanged(car, 0)` to everyone in the tick of the attacker's public `Swung`, so
   it confirms the hit landed (the fitter was not invulnerable). This follows from RD10 (c) (a hit stops the fit) and
   RD15 (a) (`FitChanged` is public); the engineer's answer 7 on PR #133 covered `RaiseStopped` only, so the exception
-  to "no hit confirmation" awaits his acknowledgement (PR #917).
+  to "no hit confirmation" was accepted by the engineer on 2026-10-13
+  ([PR #917, comment 6146566084](https://github.com/xperiaroco2/prime-game/pull/917#issuecomment-6146566084)), as his
+  answer 7 on PR #133 did for `RaiseStopped`.
 - The bins (the ADR's §2.5, RE13): cooking's item source (#770: a `Cooldown`, then `GiveItem` of its part;
   `Items.give` makes room, the kind's `max_items` caps it, vanishing the part that lay longest) with no busy-hands
   condition: RD17's belt rule gives a package carrier its part onto the belt.
