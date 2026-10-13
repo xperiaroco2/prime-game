@@ -100,14 +100,14 @@ func test_a_crouched_sprint_is_charged_as_a_sprint() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO, CROUCHED)
-	var before := player.stamina
+	var stamina_before := player.stamina
 	var fields := FixtureMoves.sprinting()
 	fields.merge(CROUCHED)
 	# 0.14 m a tick is the faster crouch walk (2.8 m/s): the sprint state, its cost (KD5 (b)).
 	FixtureMoves.step(game, P1, EAST * 0.14, fields)
 	assert_bool(player.sprinting).is_true()
 	assert_bool(player.crouched).is_true()
-	assert_int(player.stamina).is_equal(before - 1000)
+	assert_int(player.stamina).is_equal(stamina_before - 1000)
 
 
 func test_the_rounds_placement_stands_everyone_up() -> void:
