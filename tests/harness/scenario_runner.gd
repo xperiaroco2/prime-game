@@ -17,6 +17,9 @@ extends ScenarioPlay
 ## settings and map in one ChangeSettings from the host's bot right after the joins (bot 1 joins at
 ## the start then); a LoadAck at once for every LoadMatch that no LoadAck step answers; RefuseJoins
 ## and AllowJoins; DisconnectPeer ends that bot, and its PeerLeft follows on the next tick.
+## A knocked-down body's LaunchBody and StopBody go to a HostBodies with no world, which holds
+## the body still where it starts; its BodyMoved reports head each tick's commands, as HostSession
+## puts them (KE14), so the body rests after the rest time.
 
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 
@@ -27,6 +30,8 @@ var _invariants: ScenarioInvariants
 var _commands: Array[MatchCommand] = []
 var _to_leave: Array[int] = []
 var _refusing := false
+## The bodies server/ would simulate, held still (no physics here).
+var _bodies := HostBodies.new()
 
 
 func _init(bot_scenario: BotScenario) -> void:
@@ -83,6 +88,9 @@ func run() -> void:
 
 func _run_tick(at_tick: int) -> void:
 	_commands.clear()
+	for report: MatchCommand in _bodies.reports():
+		report.tick = game.ticked_through() + 1
+		_commands.append(report)
 	for peer: int in _to_leave:
 		_queue(Intents.PEER_LEFT, peer)
 	_to_leave.clear()
@@ -256,6 +264,11 @@ func _carry_out(directive: MatchEvent) -> void:
 		_refusing = true
 	elif directive is AllowJoinsEvent:
 		_refusing = false
+	elif directive is LaunchBodyEvent:
+		var launch := directive as LaunchBodyEvent
+		_bodies.launch(launch.peer, launch.epoch, launch.origin, launch.velocity)
+	elif directive is StopBodyEvent:
+		_bodies.stop((directive as StopBodyEvent).peer)
 	elif directive is DisconnectPeerEvent:
 		var peer := (directive as DisconnectPeerEvent).peer
 		var bot := _bot_of(peer)
