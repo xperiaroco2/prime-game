@@ -89,5 +89,5 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   timeouts and the backlog in one process (#95),
   `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. Their WebRTC twins
   (`webrtc_host_and_two_clients.gd`, `webrtc_freeze.gd` with `--instances 3`; `webrtc_stall.gd`, `webrtc_silence.gd`)
-  take `-- --port=<p>` for `LanSignalling`. `verify` and CI run all seven on a free port.
+  take `-- --port=<p>` for `LanSignalling`. `verify --full` (CI) runs all seven on a free port.
 - At finish, `netcode-security-reviewer` reviews every `net/` change.

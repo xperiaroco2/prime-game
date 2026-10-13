@@ -723,7 +723,7 @@ const LIGHT = TIER === 'light'
 // light diff never routed (no netcode path, no production code). test_review and second_review are listed so the
 // result says why, and netcode_review where a path routes it (only client/ui/ in the light tier), so the PR says that
 // the review AGENT_WORKFLOW §4.2 routes for a client/ change did not run.
-const NETCODE_PATH = /^(core|server|net|client|tests\/harness)\//
+const NETCODE_PATH = /^(core|server|net|voice|client|tests\/harness)\//
 const TIER_SKIPPED = [
   PLAN_SKIPPED && 'plan_review', LIGHT && (impl.changed_paths || []).some(p => NETCODE_PATH.test(p)) && 'netcode_review',
   LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review', LIGHT && SKEPTICS > 0 && 'skeptic',

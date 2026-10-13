@@ -32,7 +32,8 @@ decisions: `docs/decisions/`; "KICKOFF §n": `docs/history/KICKOFF.md`.
    commands in, events out. Randomness only through an injected seeded RNG.
 4. **Mechanics are data.** Roles, items, modes and win conditions are `Resource`s of rules (trigger → conditions →
    effects); task types are classes with settings. The parts are the **content API**, the engine–content contract.
-5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Round → End → Lobby.
+5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Pregame → Round →
+   End → Lobby.
 6. **Voice routing is game logic** in `core/` (who hears whom, and how). Spatialization happens on the listener.
 7. **Movement:** client-side for the local player with host sanity checks; remote players are interpolated.
 8. **Debug tools** (dev console, bots, forced roles) may show hidden info locally in debug builds only.
@@ -72,9 +73,9 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
   (AGENT_WORKFLOW §11.2).
 
 ## Routing
-A code diff → `code-reviewer`, plus `netcode-security-reviewer` if `core/ server/ net/ client/ tests/harness/`
-changed; `.gd/.tscn/.tres` changed → `godot-api-checker`; tests, only failures back → `test-runner`.
-Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`).
+A code diff → `code-reviewer`, plus `netcode-security-reviewer` if `core/ server/ net/ voice/ tests/harness/` or
+`client/` (not `client/ui/`) changed; `.gd/.tscn/.tres` → `godot-api-checker`; tests, only failures back →
+`test-runner`. Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`).
 
 ## Definition of done (AGENT_WORKFLOW §4.2)
 1. `verify` (lint and check) green, its tail pasted; CI (the full suite) green on the PR; red → stop and report.

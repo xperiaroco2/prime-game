@@ -2673,6 +2673,15 @@ class ReviewTierTest(unittest.TestCase):
         for want in ("review:netcode:#7", "review:netcode-second:#7", "test-review:#7", "skeptic:#7"):
             self.assertIn(want, labels)
 
+    def test_a_voice_diff_routes_the_netcode_review(self) -> None:
+        # #921: voice/ was full-tier but missed NETCODE_PATH, so a voice/-only diff ran no leak review (AGENT_WORKFLOW §4.2).
+        (voice,) = run_jobs([("issue-task.js", dict(ARGS, branch="voice/7-x", **ALL_OPTIONS), {"paths": ["voice/x.gd"]})])
+        self.assertIsNone(voice["error"])
+        self.assertEqual(voice["returned"]["tier"], "full")
+        labels = [e["label"] for e in agents(voice)]
+        for want in ("review:netcode:#7", "review:netcode-second:#7"):
+            self.assertIn(want, labels)
+
     def test_plan_review_follows_the_branch_area_before_the_diff_exists(self) -> None:
         cases = [
             ("core/7-x", {}, ["docs/x.md"], True, "light", ["skeptic"]),  # a full area plans; the light diff drops the skeptic
