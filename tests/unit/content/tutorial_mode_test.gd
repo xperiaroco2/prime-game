@@ -53,9 +53,10 @@ func test_the_base_mode_s_player_rules_but_a_10_s_respawn() -> void:
 			. override_failure_message("PlayerRules_tutorial.%s" % number)
 			. is_equal_approx(want, 1e-6)
 		)
-	# The base mode's House is not the tutorial's map: an empty list crouches on every map (#790,
-	# which asks the engineer).
-	assert_array(Array(rules.crouch_maps)).is_empty()
+	# The tutorial lists its own map explicitly, not an empty list that reads as every map (#790,
+	# the engineer's answer (c)); the base mode's House is not the tutorial's map.
+	assert_array(Array(rules.crouch_maps)).is_equal([ROOM])
+	assert_array(Array(rules.crouch_maps)).is_equal(Array(_mode().maps))
 
 
 func test_the_deal_s_settings_are_fixed() -> void:

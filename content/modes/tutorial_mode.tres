@@ -294,6 +294,7 @@ crouch_height_m = 1.2
 crouch_eye_height_m = 1.0
 crouch_speed_mps = 2.0
 crouch_fast_speed_mps = 2.8
+crouch_maps = PackedStringArray("res://levels/tutorial/tutorial.tscn")
 
 [sub_resource type="Resource" id="Setting_packages"]
 script = ExtResource("4_setting")

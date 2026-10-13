@@ -5612,7 +5612,7 @@ reads, do not move.
   `MovementRule` from an accepted living claim only where the crouch plays, never from a downed one, false at each
   placement, knockdown and respawn and on entering a phase where it does not play; the snapshot avatar's `crouched`;
   `Items.eye_of`, `Strike`, `FlightTicks` and `ThrowItem`'s largest radius reading the crouched eye and capsule; the
-  photo task's subject head and `ShotTaken`'s record row (§9.5.22); the protocol bump to 28 (§4.3.5);
+  photo task's subject head and `ShotTaken`'s record row (§9.5.22); the protocol bump to 29 (§4.3.5);
   `ClientSession.set_motion`'s `crouched` (727b passes the controller's) and `ClientModel.is_crouched`; the base mode's
   numbers and the House alone (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem`, run on every
   tick's snapshots by `check_tick`. The House is not played by bots (§9.7), and the greybox carries no new mechanic
@@ -6539,8 +6539,8 @@ What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68)
 Settings:
 - Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
   (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
-  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait) and `crouch_maps` empty
-  (so the crouch plays on the tutorial's map; provisional, until the engineer decides, #790). No `lobby_level` (E72), no
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait) and `crouch_maps` listing its own map
+  (the crouch plays on the tutorial's map; the engineer's answer (c), #790). No `lobby_level` (E72), no
   win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
   bound equal to its value): `packages` 1, `knives` 1 (no `tasks` or `banned_task_types` since #900).
 - Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. No task type (#900). Actions: PickUp,
@@ -6939,7 +6939,7 @@ pose at the claim's last physics step. The host keeps it on a living player wher
 claim with the crouched numbers in `PlayerRules` (`crouch_height_m` 1.2, `crouch_eye_height_m` 1.0,
 `crouch_speed_mps` 2.0, `crouch_fast_speed_mps` 2.8; provisional, "not a decision").
 Settings: `PlayerRules.crouch_maps`, the maps the crouch plays on (empty: every map). The base mode lists the House
-alone (KE10); the greybox gets no crouch.
+alone (KE10) and the tutorial mode its own room (#790, the engineer's answer (c)); the greybox gets no crouch.
 Why not a part: as for sprint.
 Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player where the crouch plays.
 Status: designed in #727; the host's part and the wire built in #790. Tests:
