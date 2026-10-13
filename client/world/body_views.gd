@@ -9,7 +9,9 @@ extends Node3D
 ## never saw knocked down, a join after it) gets a fresh one lying at rest along -Z, since a body's
 ## facing is not sent. A dead ragdoll is on no layer (RagdollView.make_dead), so no ray stops at a
 ## body. Each view is in SightHider's group, so the downed camera shows no body the body's eye could
-## not see; the view's visibility hides its ragdoll and cross alike.
+## not see; the view's visibility hides its ragdoll and cross alike. A handed-over ragdoll stays in
+## the group too, by its own sight point, the same body point: taken out, a ragdoll the hider had
+## hidden at the handover would stay hidden, since nothing else sets a grouped view's visibility.
 
 const PHYSICS_PRIORITY := -70
 
