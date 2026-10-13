@@ -91,7 +91,7 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 81, 82, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
-## repair's (#807) and the photo task's (#781), each with valid fields.
+## repair's (#807), the photo task's (#781) and the cooking task's (#773), each with valid fields.
 const WRONG_DIRECTION: Array[StringName] = [
 	&"Rejected",
 	&"SwitchChanged",
@@ -100,6 +100,8 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"PartNeeded",
 	&"FilmLoaded",
 	&"ShotTaken",
+	&"GrillLoaded",
+	&"IngredientPlaced",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -108,6 +110,8 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"LiftChanged": {"station": 1, "up": true, "tick": 1},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
 	&"FilmLoaded": {"station": 1, "item": 1},
+	&"GrillLoaded": {"station": 1, "item": 1, "fried": 2, "burnt": 3},
+	&"IngredientPlaced": {"item": 1, "station": 1, "right": true},
 	&"ShotTaken":
 	{
 		"station": 1,
