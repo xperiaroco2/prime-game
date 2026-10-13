@@ -2419,7 +2419,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Watching: <name>" (§4.7.37) and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
-  (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
+  (`PlayerRules.eye_height_m`; at the crouched eye, `crouch_eye_height_m`, where the crouch's stand-up test (KE6)
+  finds no room over the body, so a player downed or killed crouched under a low ceiling never looks past it,
+  `LifeView.downed_eye_of`, #958), pointing back along the look, never above its pivot (the arm's pitch is clamped to
   level or lower), with `collision_mask` the world layer and a small sphere `shape`, so it stops before a wall rather
   than looking through it. Its length is a placeholder (2 m, "not a decision"). The arm alone would still see past
   the end of a short wall the body lies against, more than standing at the body would (vision revision 1): so while

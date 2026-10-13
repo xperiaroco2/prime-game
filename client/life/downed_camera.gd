@@ -3,7 +3,8 @@ extends Node3D
 ## The third-person camera over a downed body (ARCHITECTURE §4.7, the engineer's answer 9 (a) on
 ## PR #133; the M4 ADR's §3 item 3): for the own player while downed, and for a spectator watching a
 ## downed target. A SpringArm3D whose pivot (this node) is on the body at the mode's standing eye
-## height, pointing back along the look, with the world layer as its mask and a small sphere, so
+## height (the crouched eye's where the standing capsule finds no room, LifeView.downed_eye_of,
+## #958), pointing back along the look, with the world layer as its mask and a small sphere, so
 ## the camera stops before a wall rather than looking through it. The arm never rises above its
 ## pivot: its pitch is clamped to level or lower, and a look further down tilts the camera alone.
 ## Placed every frame by its user (place()); the level stays drawn, and SightHider hides what the
@@ -38,7 +39,8 @@ func _init() -> void:
 	_arm.add_child(_camera)
 
 
-## Puts the pivot at `eye` (the body's feet plus the standing eye height) and points the arm back
+## Puts the pivot at `eye` (LifeView.downed_eye_of: the body's feet plus the standing eye height,
+## or the crouched one under a low ceiling) and points the arm back
 ## along the look of `yaw` and `pitch` (radians, as a player's): a look up lowers the arm, a look
 ## down tilts only the camera. Called from a physics step at a priority below
 ## ARM_PHYSICS_PRIORITY, the arm reaches its new length in the same step.

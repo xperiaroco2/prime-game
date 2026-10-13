@@ -448,9 +448,37 @@ func _spectate() -> void:
 
 ## The DownedCamera over the feet at `feet` with that look; SightHider casts from its pivot.
 func _show_downed(feet: Vector3, yaw: float, pitch: float) -> void:
-	_downed_camera.place(feet + Vector3.UP * mode.player_rules.eye_height_m, yaw, pitch)
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	_downed_camera.place(downed_eye_of(space, feet, mode.player_rules), yaw, pitch)
 	_show(View.DOWNED)
 	_hider.watch_from(_downed_camera.pivot())
+
+
+## The downed camera's pivot over the feet at `feet` (#958): the standing eye, or the crouched eye
+## where the standing capsule finds no room there, so a player downed or killed crouched under a low
+## ceiling never sees past it. The room is the crouch's stand-up test (KE6): the crouched capsule
+## swept up by the height difference meets nothing on the world layer. Only its top hemisphere
+## leads that sweep, so a sphere of the capsule's radius from there is swept instead, clear of the
+## floor the feet rest on. The standing eye where the rules have no crouch lower than the standing
+## capsule, or with no `space`.
+static func downed_eye_of(
+	space: PhysicsDirectSpaceState3D, feet: Vector3, rules: PlayerRules
+) -> Vector3:
+	var standing := feet + Vector3.UP * rules.eye_height_m
+	var rise := rules.capsule_height_m - rules.crouch_height_m
+	if space == null or rules.crouch_height_m <= 0.0 or rise <= 0.0:
+		return standing
+	var top := SphereShape3D.new()
+	top.radius = rules.capsule_radius_m
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = top
+	query.transform = Transform3D(
+		Basis.IDENTITY, feet + Vector3.UP * (rules.crouch_height_m - rules.capsule_radius_m)
+	)
+	query.motion = Vector3.UP * rise
+	query.collision_mask = PhysicsLayers.WORLD
+	var fits := space.cast_motion(query)[0] >= 1.0
+	return standing if fits else feet + Vector3.UP * rules.crouch_eye_height_m
 
 
 ## Makes `which` the current camera; SightHider runs only with the downed camera, the music only
