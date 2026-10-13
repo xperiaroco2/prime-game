@@ -144,6 +144,8 @@ func test_a_hostile_crouch_bit_is_kept_only_where_the_crouch_plays() -> void:
 static func _mode() -> GameMode:
 	var made := Harness.fixture_mode()
 	made.player_rules.crouch_maps = PackedStringArray([Harness.MAP])
+	# A body moves only where the crouch plays (KD11): nothing is knocked down here.
+	made.player_rules.motion_maps = PackedStringArray([Harness.MAP])
 	assert(made.player_rules.check(made).is_empty())
 	return made
 

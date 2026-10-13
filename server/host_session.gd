@@ -11,7 +11,9 @@ extends RefCounted
 ## ticked_through() + 1 and that tick runs, then every tick up to the due one minus one runs with no
 ## command; (2) refill every peer's budgets; (3) poll: arrivals and departures become PeerConnected
 ## and PeerLeft, intents are queued by arrival, voice is relayed right after the poll; (4) when
-## the due tick has not run: every queued command stamped with it, then Match.tick; (5) every
+## the due tick has not run: one BodyMoved per body the host simulates (HostBodies.reports, in
+## peer-id order, KE14) at the head of the batch, then every queued command, each stamped with it,
+## then Match.tick (step 1's catch-up gets no report: the physics did not run through it); (5) every
 ## Match call's outbox slice is delivered as soon as it is taken; (6) snapshots for the step's own
 ## tick; (7) the hello deadlines, in a step that ran (4) only.
 ##
@@ -20,7 +22,10 @@ extends RefCounted
 ## PeerLeft(p), p (peer ids are reused). Directives are carried out where they stand:
 ## RefuseJoins/AllowJoins set the transport's refusal, DisconnectPeer disconnects after what came
 ## before it (its Rejected) was sent, and is dropped while the peer's leave is pending (it is about
-## the connection that left).
+## the connection that left). LaunchBody and StopBody start and free a body in HostBodies, which
+## the level's world holds (HostWorldQuery.bodies, KE13; with another WorldQuery, a world with no
+## physics, each body is held still where it starts and so rests after the rest time); the end
+## frees every body.
 ##
 ## Peer 1, the host's own client, is exempt from the budgets, the malformed-message disconnect and
 ## the hello deadline: the transport cannot disconnect it, so a broken own client ends the session.
@@ -117,6 +122,9 @@ var _voice_batch: VoiceBatchEncoder
 var _meter: RelayMeter = RelayMeter.new() if _debug else null
 ## An end asked for inside the poll, carried out right after it.
 var _end_after_poll: StringName = &""
+## The bodies of HostWorldQuery.bodies (KE13); with another WorldQuery (no host physics) bodies
+## held still where they start. Null before start().
+var _bodies: HostBodies = null
 
 
 ## One connected peer's bookkeeping.
@@ -194,6 +202,8 @@ func start_with(
 		return false
 	content_hash = fingerprint
 	game = made
+	# A world with no physics (the bots' FlatWorldQuery) holds each launched body still (HostBodies).
+	_bodies = (world as HostWorldQuery).bodies if world is HostWorldQuery else HostBodies.new()
 	own_client = LoopbackTransport.own_client_of(_transport)
 	_started = true
 	_start_usec = now_usec
@@ -268,6 +278,11 @@ func step(now_usec: int) -> void:
 	_send_voice()
 	# 4. Apply, when the due tick has not run yet; else the queue waits for the next one.
 	if game.ticked_through() < due:
+		# The bodies' reports head the batch (KE14): applied before every command stamped `due`.
+		if _bodies != null:
+			var batch := _bodies.reports()
+			batch.append_array(_queue)
+			_queue = batch
 		if not _apply_queue(due) or not _run_tick(due):
 			return
 		# 6. Snapshots for this step's own tick only, after its events.
@@ -361,6 +376,13 @@ func _carry_out(directive: MatchEvent) -> void:
 			# It answers a command of the connection that left; a new one may hold the id now.
 			return
 		_disconnect(peer)
+	elif directive is LaunchBodyEvent:
+		var launch := directive as LaunchBodyEvent
+		if _bodies != null:
+			_bodies.launch(launch.peer, launch.epoch, launch.origin, launch.velocity)
+	elif directive is StopBodyEvent:
+		if _bodies != null:
+			_bodies.stop((directive as StopBodyEvent).peer)
 	else:
 		push_error("host: unknown directive %s" % directive.event_name())
 
@@ -482,6 +504,8 @@ func _end(reason: StringName) -> void:
 		return
 	_ended = true
 	end_reason = reason
+	if _bodies != null:
+		_bodies.clear()
 	if reason != CLOSED:
 		push_error("host: the session ended (%s): %s" % [reason, "; ".join(errors)])
 	if _debug and _started and not replay_dir.is_empty():

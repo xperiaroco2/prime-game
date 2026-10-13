@@ -1,0 +1,156 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5v6s5"]
+size = Vector3(60, 1, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ucg86"]
+size = Vector3(60, 1, 16)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_y2jhk"]
+size = Vector3(4, 2, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gmqx1"]
+size = Vector3(0.3, 3, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_28tw5"]
+size = Vector3(2, 0.1, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4ntqw"]
+size = Vector3(0.1, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_soqfh"]
+size = Vector3(0.1, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_7arny"]
+size = Vector3(0.1, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_n1lcx"]
+size = Vector3(0.1, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_x4uk6"]
+size = Vector3(6, 0.2, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_k0c8r"]
+size = Vector3(2, 1, 3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_3ncye"]
+size = Vector3(0.5, 0.8, 3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_8pf5u"]
+size = Vector3(0.5, 0.6, 3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_mdvy1"]
+size = Vector3(0.5, 0.4, 3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_t7sor"]
+size = Vector3(0.5, 0.2, 3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2pcxe"]
+size = Vector3(0.1, 0.05, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_yg2qw"]
+size = Vector3(3, 0.2, 3)
+
+[node name="BodyRestCourse" type="Node3D" unique_id=14027106]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1978290172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.5, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=667482206]
+shape = SubResource("BoxShape3D_5v6s5")
+
+[node name="FarFloor" type="StaticBody3D" parent="." unique_id=1084920356]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.5, 22)
+
+[node name="Shape" type="CollisionShape3D" parent="FarFloor" unique_id=608152724]
+shape = SubResource("BoxShape3D_ucg86")
+
+[node name="Ledge" type="StaticBody3D" parent="." unique_id=981484435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Ledge" unique_id=1703918452]
+shape = SubResource("BoxShape3D_y2jhk")
+
+[node name="Wall" type="StaticBody3D" parent="." unique_id=816267322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Wall" unique_id=677961070]
+shape = SubResource("BoxShape3D_gmqx1")
+
+[node name="LowTable" type="StaticBody3D" parent="." unique_id=1396005086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.05, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="LowTable" unique_id=1102569321]
+shape = SubResource("BoxShape3D_28tw5")
+
+[node name="TableLeg" type="StaticBody3D" parent="." unique_id=342299709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.05, 0.5, -0.95)
+
+[node name="Shape" type="CollisionShape3D" parent="TableLeg" unique_id=1674431262]
+shape = SubResource("BoxShape3D_4ntqw")
+
+[node name="TableLeg2" type="StaticBody3D" parent="." unique_id=767291408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.95, 0.5, -0.95)
+
+[node name="Shape" type="CollisionShape3D" parent="TableLeg2" unique_id=250489075]
+shape = SubResource("BoxShape3D_soqfh")
+
+[node name="TableLeg3" type="StaticBody3D" parent="." unique_id=1167549257]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.05, 0.5, 0.95)
+
+[node name="Shape" type="CollisionShape3D" parent="TableLeg3" unique_id=601414891]
+shape = SubResource("BoxShape3D_7arny")
+
+[node name="TableLeg4" type="StaticBody3D" parent="." unique_id=863336887]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.95, 0.5, 0.95)
+
+[node name="Shape" type="CollisionShape3D" parent="TableLeg4" unique_id=1378649733]
+shape = SubResource("BoxShape3D_n1lcx")
+
+[node name="Ramp" type="StaticBody3D" parent="." unique_id=1425534096]
+transform = Transform3D(0.9396926, 0.34202012, 0, -0.34202012, 0.9396926, 0, 0, 0, 1, 30, 1, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Ramp" unique_id=579699690]
+shape = SubResource("BoxShape3D_x4uk6")
+
+[node name="Landing" type="StaticBody3D" parent="." unique_id=1208545508]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0.5, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Landing" unique_id=642767650]
+shape = SubResource("BoxShape3D_k0c8r")
+
+[node name="Step" type="StaticBody3D" parent="." unique_id=727914775]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.4, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Step" unique_id=675089768]
+shape = SubResource("BoxShape3D_3ncye")
+
+[node name="Step2" type="StaticBody3D" parent="." unique_id=2100651654]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.3, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Step2" unique_id=1022125178]
+shape = SubResource("BoxShape3D_8pf5u")
+
+[node name="Step3" type="StaticBody3D" parent="." unique_id=30170546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.25, 0.2, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Step3" unique_id=1270623701]
+shape = SubResource("BoxShape3D_mdvy1")
+
+[node name="Step4" type="StaticBody3D" parent="." unique_id=785511129]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0.1, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Step4" unique_id=1204998975]
+shape = SubResource("BoxShape3D_t7sor")
+
+[node name="Railing" type="StaticBody3D" parent="." unique_id=225903749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1, -10)
+
+[node name="Shape" type="CollisionShape3D" parent="Railing" unique_id=1545981973]
+shape = SubResource("BoxShape3D_2pcxe")
+
+[node name="LowCeiling" type="StaticBody3D" parent="." unique_id=1296563546]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1.4, -20)
+
+[node name="Shape" type="CollisionShape3D" parent="LowCeiling" unique_id=1854687558]
+shape = SubResource("BoxShape3D_yg2qw")
