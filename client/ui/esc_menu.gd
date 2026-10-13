@@ -142,6 +142,9 @@ func refresh(
 		lobby.refresh(model, host_tick, state.may_change_settings, state.in_round)
 	if state.selected == EscMenuState.Tab.ROLE:
 		role.show_facts(RoleFacts.of(model, mode))
+	if model != null:
+		# The Guide's task cards follow the picked or the match's map (DE16).
+		guide.set_map(model.map)
 	_sync()
 	if state.selected != before:
 		_focus()
