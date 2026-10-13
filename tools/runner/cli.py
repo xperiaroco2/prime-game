@@ -734,7 +734,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="A manager's finished and running runs and handover args, from its transcript and the journals: "
         "--since T writes the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; "
         "--base B: whose merges, open PRs and merge-check; it posts nothing; its last line is the handover verdict, "
-        "'handover due: <why>' or 'handover not due'); --args N prints issue N's latest launch args as JSON; "
+        "'handover due: <why>' or 'handover not due', after a line naming merged instruction changes and their diff "
+        "when there are some, #930); --args N prints issue N's latest launch args as JSON; "
         "--stalled flags the other sessions on this machine with a run finished or a notification queued over "
         "--minutes ago and no turn after it (#731; exit 3 when one is flagged).",
     )

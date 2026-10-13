@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -21,6 +22,9 @@ from runner.common import Failure
 T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
 NOW = T0.timestamp() + 4 * 3600  # 12:00
 SID = "5ef6e325-aaaa-bbbb-cccc-000000000001"
+# The instructions line's diff since the session start at T0 (#930).
+DIFF = ('git diff "$(git rev-list -1 --first-parent --before=2026-10-03T08:00:00Z origin/main)..origin/main" -- '
+        "CLAUDE.md docs/MANAGERS.md .claude/rules .claude/agents")
 SINCE = "2026-10-03T08:00:00Z"
 # The verdict's last step at a handover (#511: the paste by default, route C a fallback), for a session whose kickoff
 # has no Track: line and for meta.
@@ -1233,28 +1237,64 @@ class WaveTest(unittest.TestCase):
                  "files": [{"path": f, "additions": 1, "deletions": 1} for f in paths[d["number"]]]}
                 for d in merged]  # fmt: skip
 
-    def test_verdict_instruction_change_waits_for_the_boundary(self) -> None:
+    def test_instruction_change_is_a_diff_not_a_handover(self) -> None:
+        """#930: a merge that changed root CLAUDE.md prints the diff line and 'handover not due', runs in flight or
+        not."""
         self.in_flight(0, 466)
         merged = self.instruction_merges()
         target = self.root / "w.md"
         names = "#463 (CLAUDE.md), #464 (.claude/rules/x.md), #465 (.claude/agents/y.md)"
+        line = (f"Instructions: merges into main since the session start changed them: {names}; read `{DIFF}` once "
+                "per new merge and go on, no handover; your workflow agents get this session's root CLAUDE.md, not "
+                "the new one: put what the next launches need of the change in their notes.")  # fmt: skip
         # The wave starts after the merges; the session started before them: they count.
         late = "2026-10-03T11:00:00Z"
-        rc, out, _ = self.main(since=late, out=str(target), merge_check=False,
-                               sources=FakeSources(merged=merged, files=self.files_rows(merged)))  # fmt: skip
-        self.assertEqual((rc, out.strip().splitlines()[-1]),
-                         (0, "handover not due; instruction change pending: launch nothing new; due once the 1 run in "
-                             f"flight ends: {names}."))  # fmt: skip
-        self.p.add(enqueue(100, note_text("t466", "wt466")))
-        _, out, _ = self.main(since=late, out=str(target), merge_check=False,
-                              sources=FakeSources(merged=merged, files=self.files_rows(merged)))  # fmt: skip
-        verdict = ("handover due: merges into main since the session start changed the instructions (the agents' or "
-                   f"the managers'): {names}; post the handover; pull the main checkout before the successor starts; "
-                   f"then {START}.")  # fmt: skip
-        self.assertEqual(out.strip().splitlines()[-1], verdict)
-        self.assertEqual(target.read_text(encoding="utf-8").strip().splitlines()[-1], verdict)
+        for finished in (False, True):
+            if finished:
+                self.p.add(enqueue(100, note_text("t466", "wt466")))
+            rc, out, _ = self.main(since=late, out=str(target), merge_check=False,
+                                   sources=FakeSources(merged=merged, files=self.files_rows(merged)))  # fmt: skip
+            self.assertEqual((rc, out.strip().splitlines()[-2:]), (0, [line, "handover not due."]), finished)
+            self.assertEqual(target.read_text(encoding="utf-8").strip().splitlines()[-3:],
+                             [line, "", "handover not due."], "the footer ends the same way")  # fmt: skip
         for decoy in ("#480", "#481", "#482", "#483", "#484"):
-            self.assertNotIn(decoy, verdict)
+            self.assertNotIn(decoy, line)
+        agents = [m for m in merged if m["number"] == 465]
+        _, out, _ = self.main(since=late, out=str(target), merge_check=False,
+                              sources=FakeSources(merged=agents, files=self.files_rows(agents)))  # fmt: skip
+        self.assertEqual(out.strip().splitlines()[-2:],
+                         ["Instructions: merges into main since the session start changed them: #465 "
+                          f"(.claude/agents/y.md); read `{DIFF}` once per new merge and go on, no handover.",
+                          "handover not due."], "no root CLAUDE.md: no note on the agents' copy")  # fmt: skip
+
+    def test_diff_command_reads_the_change_since_the_start(self) -> None:
+        """The printed command, run by a shell, diffs origin/main's first-parent commit before the start to now."""
+        dates: dict[str, str] = {}
+
+        def git(*args: str) -> str:
+            res = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=repo,
+                                 capture_output=True, text=True, encoding="utf-8", timeout=120,
+                                 env={**os.environ, "GIT_TERMINAL_PROMPT": "0", **dates})  # fmt: skip
+            self.assertEqual(res.returncode, 0, res.stderr)
+            return res.stdout.strip()
+
+        repo = self.root / "main"
+        repo.mkdir()
+        git("init", "-q")
+        for when, names in (("2026-10-03T07:00:00Z", ("CLAUDE.md",)), ("2026-10-03T09:00:00Z", ("CLAUDE.md", "x.py"))):
+            dates.update(GIT_AUTHOR_DATE=when, GIT_COMMITTER_DATE=when)
+            for name in names:
+                (repo / name).write_text(when + "\n", encoding="utf-8")
+            git("add", "-A")
+            git("commit", "-q", "-m", when)
+        git("update-ref", "refs/remotes/origin/main", git("rev-parse", "HEAD"))
+        self.assertEqual(wave.diff_command(T0.timestamp()), DIFF)
+        bash = shutil.which("bash")
+        if bash is None:
+            self.skipTest("no bash on PATH")
+        res = subprocess.run([bash, "-c", DIFF.replace("git diff", "git diff --name-only", 1)], cwd=repo,
+                             capture_output=True, text=True, encoding="utf-8", timeout=120)  # fmt: skip
+        self.assertEqual((res.returncode, res.stdout.split()), (0, ["CLAUDE.md"]), res.stderr)
 
     def test_instruction_files_query(self) -> None:
         self.context(0, 1000)
@@ -1267,13 +1307,14 @@ class WaveTest(unittest.TestCase):
                  wave.FILES_FIELDS)  # fmt: skip
         self.assertEqual([c for c in src.gh_calls if wave.FILES_FIELDS in c or c[:2] == ("pr", "view")],
                          [query, ("pr", "view", "465", "--json", "files")])  # fmt: skip
-        self.assertIn("#465 (.claude/agents/y.md)", out.strip().splitlines()[-1])
-        self.assertTrue(out.strip().splitlines()[-1].startswith("handover due: merges into main"))
+        self.assertIn("#465 (.claude/agents/y.md)", out.strip().splitlines()[-2])
+        self.assertEqual(out.strip().splitlines()[-1], "handover not due.")
         before = [merged_pr(483, "tooling/7-g", at(-30)), merged_pr(484, "tooling/8-h", at(90), base="release/m6")]
         src = FakeSources(merged=before)
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
         self.assertEqual([c for c in src.gh_calls if wave.FILES_FIELDS in c or c[:2] == ("pr", "view")], [],
                          "no merge into main since the session start: no files call")  # fmt: skip
+        self.assertNotIn("Instructions:", out)
         self.assertEqual(out.strip().splitlines()[-1], "handover not due.")
 
     def test_instruction_source_failure(self) -> None:
@@ -1283,13 +1324,14 @@ class WaveTest(unittest.TestCase):
         rc, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
         self.assertEqual(rc, 0)
         self.assertIn("warn  wave: instruction changes unavailable: gh: HTTP 502", out)
-        self.assertEqual(out.strip().splitlines()[-1],
-                         "handover not due; instruction changes unavailable: gh: HTTP 502.")
+        self.assertEqual(out.strip().splitlines()[-2:],
+                         ["Instructions: changes unavailable: gh: HTTP 502.", "handover not due."])  # fmt: skip
         self.context(1, 600_000)
         src = FakeSources(fail={"merged": Failure("gh: HTTP 503")})
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.60M is over 500k; post the "
-                         f"handover; instruction changes unavailable: merged PRs: gh: HTTP 503; then {START}.",
+        self.assertEqual(out.strip().splitlines()[-2:],
+                         ["Instructions: changes unavailable: merged PRs: gh: HTTP 503.",
+                          f"handover due: the context 0.60M is over 500k; post the handover; then {START}."],
                          "the context still decides")  # fmt: skip
 
     def test_instruction_changes_incomplete_when_gh_cut_the_list(self) -> None:
@@ -1300,25 +1342,29 @@ class WaveTest(unittest.TestCase):
                    merged_pr(311, "tooling/11-x", at(20), updated_at=at(30))]  # fmt: skip
             _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False,
                                   sources=FakeSources(merged=cut))  # fmt: skip
-            self.assertEqual(out.strip().splitlines()[-1], "handover not due; instruction changes may be incomplete "
-                             f"(gh's merged list is cut at {at(30)[:19]}Z, after the session start).")  # fmt: skip
+            self.assertEqual(out.strip().splitlines()[-2:],
+                             [f"Instructions: changes may be incomplete (gh's merged list is cut at {at(30)[:19]}Z, "
+                              "after the session start).", "handover not due."])  # fmt: skip
             whole = [merged_pr(310, "tooling/10-x", at(60)), merged_pr(312, "tooling/12-x", at(70)),
                      merged_pr(309, "tooling/9-x", at(-90), updated_at=at(-10))]  # fmt: skip
             _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False,
                                   sources=FakeSources(merged=whole))  # fmt: skip
-            self.assertEqual(out.strip().splitlines()[-1], "handover not due.", "the cut is before the session start")
+            self.assertNotIn("Instructions:", out, "the cut is before the session start")
+            self.assertEqual(out.strip().splitlines()[-1], "handover not due.")
 
     def test_main_checkout_behind(self) -> None:
         self.context(0, 1000)
         src = FakeSources(behind=["CLAUDE.md", ".claude/rules/tests.md"])
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover not due; the main checkout's instruction files are "
-                         "behind origin/main (CLAUDE.md, .claude/rules/tests.md): the human pulls it before the "
-                         "successor starts.")  # fmt: skip
+        self.assertEqual(out.strip().splitlines()[-2:],
+                         ["Instructions: the main checkout's files are behind origin/main (CLAUDE.md, "
+                          ".claude/rules/tests.md), and the agents load the agent files and rules from it: the human "
+                          "pulls it.", "handover not due."])  # fmt: skip
         src = FakeSources(fail={"behind": Failure("git diff failed")})
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover not due; the main checkout's instruction files "
-                         "unavailable: git diff failed.")  # fmt: skip
+        self.assertEqual(out.strip().splitlines()[-2:],
+                         ["Instructions: the main checkout's files unavailable: git diff failed.",
+                          "handover not due."])  # fmt: skip
         self.context(1, 600_000)  # #484 review: the successor's start comes after the pull it waits for
         src = FakeSources(behind=["CLAUDE.md"])
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)

@@ -52,21 +52,23 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
   main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
   "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
   ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since;
-- for the handover verdict (#467): the PRs merged into main since the session's first record (not --since) whose
+- for the instructions line (#930): the PRs merged into main since the session's first record (not --since) whose
   files include root CLAUDE.md, docs/MANAGERS.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list
   --base main --json files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call
   when nothing merged into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main
   checkout (no fetch).
-The handover verdict ends the footer and is stdout's last line (orchestrate-stage §7 runs it at each turn end):
+The footer's last two lines end stdout too (orchestrate-stage §7 runs it at each turn end). The instructions line,
+only when it has something: the merges that changed those files and the `git diff` that reads them (the manager reads
+it and goes on: never a handover, #930), a note when root CLAUDE.md changed (workflow agents get the session's copy),
+the main checkout behind origin/main on them, a failed or incomplete read. Then the handover verdict, the last line:
 "handover due: <why>" when the last call's context is over 500k or the session over 12 h old, even with runs in
 flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent;
-while the human is away, let them end instead), or, once no run is in flight, when such a merge changed the
-instructions (until then "launch nothing new"); else "handover not due", with "at a stop for the human: due" when no
+while the human is away, let them end instead); else "handover not due", with "at a stop for the human: due" when no
 run is in flight and the context is over 250k. A due line ends with the successor (#511, docs/MANAGERS.md §6): the
 handover comment's notes end with the ready kickoff, which the last For you carries too, for the human to paste into a
 new session; route C (#484, update_scheduled_task on the track's task, named after the kickoff's `Track:` line,
 metrics.kickoff_track) only if he asked for it. A run with no line for over STALE_MINUTES is named as stale, not
-counted in flight. A failed read says so in the line.
+counted in flight.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -137,9 +139,9 @@ HANDOVER_HOURS = 12.0
 STOP_CONTEXT = HANDOVER_CONTEXT // 2
 # The central rules every track's manager follows (#511); the UI and art repos' CLAUDE.md files point to it.
 MANAGER_RULES = "docs/MANAGERS.md"
-# The agents' instructions a manager hands its workflow agents from its own cache: root CLAUDE.md only (core/CLAUDE.md
-# and the like load from disk in the agent's own folder), the rules and the agent types; and the managers' own rules,
-# which a manager reads once at its start.
+# The instructions (#930): root CLAUDE.md (a manager's workflow agents get its session's copy, not the file: seen in
+# #930's own run; core/CLAUDE.md and the like load from disk in the agent's folder), the managers' rules, the rules and
+# the agent types (Claude Code reloads both from disk). A merge that changes them is read as a diff, not a handover.
 INSTRUCTION_FILES = ("CLAUDE.md", MANAGER_RULES)
 INSTRUCTION_DIRS = (".claude/rules/", ".claude/agents/")
 FILES_FIELDS = "number,baseRefName,mergedAt,files"
@@ -1370,36 +1372,25 @@ def successor_text(track: str | None) -> str:
 def handover_verdict(w: Wave) -> str:
     """One line: 'handover due: <why>' or 'handover not due' with its clauses (orchestrate-stage §7, #467).
     Due, even with runs in flight: the last call's context over HANDOVER_CONTEXT or the session over HANDOVER_HOURS
-    old. Due once no run of this session is in flight: a merge into main since the session start changed the agents'
-    instructions (until then: launch nothing new). Not due, no run in flight and the context over STOP_CONTEXT: a
-    stop for the human hands over instead of arming a keep-alive. Each due line ends with successor_text. A stale run
-    (is_stale) is named but not in flight."""
+    old. Not due, no run in flight and the context over STOP_CONTEXT: a stop for the human hands over instead of
+    arming a keep-alive. Each due line ends with successor_text. A stale run (is_stale) is named but not in flight.
+    Changed instructions never make it due (#930): instructions_line."""
     s = w.session
     ctx = s.last_ctx
     age = (w.now - s.first) / 3600 if s.first is not None else 0.0
     running = [r for r in w.runs if not r.finished and not is_stale(r, w.now)]
     stale = [r for r in w.runs if not r.finished and is_stale(r, w.now)]
-    changes = w.instructions if isinstance(w.instructions, list) else []
     reasons = []
     if ctx > HANDOVER_CONTEXT:
         reasons.append(f"the context {metrics.fmt_tok(ctx)} is over {HANDOVER_CONTEXT // 1000}k")
     if age > HANDOVER_HOURS:
         reasons.append(f"the session is {age:.1f} h old, over {HANDOVER_HOURS:g} h")
-    if changes and (reasons or not running):
-        reasons.append(f"merges into main since the session start changed the instructions (the agents' or the "
-                       f"managers'): {changes_text(changes)}")  # fmt: skip
     due = bool(reasons)
     if reasons:
         line = "handover due: " + "; ".join(reasons)
         line += "; " + (in_flight_text(running, w.now) if running else "post the handover")
-        if changes:
-            line += "; pull the main checkout before the successor starts"
     else:
         line = "handover not due"
-        if changes:
-            n = len(running)
-            line += (f"; instruction change pending: launch nothing new; due once the {n} "
-                     f"{plural(n, 'run in flight ends', 'runs in flight end')}: {changes_text(changes)}")  # fmt: skip
         if not running and ctx > STOP_CONTEXT:
             due = True
             line += (f"; at a stop for the human: due (the context {metrics.fmt_tok(ctx)} is over "
@@ -1409,19 +1400,49 @@ def handover_verdict(w: Wave) -> str:
         line += (f"; {n} stale {plural(n, 'run', 'runs')}, no line for over {STALE_MINUTES} min, not counted in flight "
                  f"({runs_text(stale, w.now)}): check {plural(n, 'it', 'each')}, stop {plural(n, 'it', 'them')} "
                  "before a handover")  # fmt: skip
-    if isinstance(w.instructions, str):
-        line += f"; instruction changes unavailable: {cell(w.instructions)}"
-    elif w.merged_cut is not None and s.first is not None and w.merged_cut > s.first:
-        line += (f"; instruction changes may be incomplete (gh's merged list is cut at {metrics.iso(w.merged_cut)}, "
-                 "after the session start)")  # fmt: skip
-    if isinstance(w.behind, str):
-        line += f"; the main checkout's instruction files unavailable: {cell(w.behind)}"
-    elif w.behind:
+    if due and isinstance(w.behind, list) and w.behind:
         line += (f"; the main checkout's instruction files are behind origin/main ({', '.join(w.behind)}): the human "
                  "pulls it before the successor starts")  # fmt: skip
     if due:  # last, after every clause that must hold before the successor starts (stale runs, a pull)
         line += "; then " + successor_text(s.track)
     return line.rstrip(".") + "."
+
+
+def diff_command(start: float) -> str:
+    """The `git diff` of the instruction paths from origin/main as it was at start (its first-parent commit then) to
+    origin/main now; the same text runs in Git Bash and PowerShell."""
+    paths = " ".join((*INSTRUCTION_FILES, *(d.rstrip("/") for d in INSTRUCTION_DIRS)))
+    base = f"$(git rev-list -1 --first-parent --before={metrics.iso(start)} origin/main)"
+    return f'git diff "{base}..origin/main" -- {paths}'
+
+
+def instructions_line(w: Wave) -> str | None:
+    """The line above the verdict, None when it has nothing (#930): the merges into main since the session start
+    that changed the instructions and the diff that reads them (the manager reads it once per new merge and goes on,
+    no handover); a root CLAUDE.md change reaches the workflow agents only through the next launches' notes (they get
+    the session's copy); the main checkout behind origin/main on them (its agent files and rules are what the agents
+    load); a failed or incomplete read."""
+    s = w.session
+    start = s.first if s.first is not None else w.since
+    parts = []
+    if isinstance(w.instructions, list) and w.instructions:
+        parts.append(f"merges into main since the session start changed them: {changes_text(w.instructions)}; read "
+                     f"`{diff_command(start)}` once per new merge and go on, no handover")  # fmt: skip
+        if any("CLAUDE.md" in c.paths for c in w.instructions):
+            parts.append("your workflow agents get this session's root CLAUDE.md, not the new one: put what the next "
+                         "launches need of the change in their notes")  # fmt: skip
+    elif isinstance(w.instructions, str):
+        parts.append(f"changes unavailable: {cell(w.instructions)}")
+    cut = w.merged_cut
+    if not isinstance(w.instructions, str) and cut is not None and s.first is not None and cut > s.first:
+        parts.append(f"changes may be incomplete (gh's merged list is cut at {metrics.iso(cut)}, after the "
+                     "session start)")  # fmt: skip
+    if isinstance(w.behind, str):
+        parts.append(f"the main checkout's files unavailable: {cell(w.behind)}")
+    elif w.behind:
+        parts.append(f"the main checkout's files are behind origin/main ({', '.join(w.behind)}), and the agents load "
+                     "the agent files and rules from it: the human pulls it")  # fmt: skip
+    return "Instructions: " + "; ".join(parts) + "." if parts else None
 
 
 def footer_section(w: Wave) -> list[str]:
@@ -1435,7 +1456,8 @@ def footer_section(w: Wave) -> list[str]:
           f"{metrics.fmt_usd(mean_usd(last))} ({len(s.calls)} calls)."]  # fmt: skip
     if s.skipped:
         md += ["", "Skipped: " + ", ".join(f"{k} {v}" for k, v in s.skipped.items()) + "."]
-    return [*md, "", handover_verdict(w), ""]
+    instructions = instructions_line(w)
+    return [*md, "", *([instructions, ""] if instructions else []), handover_verdict(w), ""]
 
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
@@ -1646,5 +1668,8 @@ def main(
     while part_path(target, k).exists():
         warn(f"{part_path(target, k)} is from an earlier run of wave, not part of this body")
         k += 1
+    instructions = instructions_line(w)
+    if instructions:
+        say(instructions)
     say(handover_verdict(w))  # the last line: the turn-end check reads it (orchestrate-stage §7)
     return 0
