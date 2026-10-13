@@ -2562,7 +2562,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   body on another screen; `hold()` cuts any to `SnapshotBuffer.SNAP_SPEED_MPS`. Each step a spring and a
   damper pull its centre to the lying centre over the host's interpolated point (the point plus the radius, never
   into the floor), across the floor only as much as it lies, and a centre farther than `SNAP_M` moves there at once.
-  Its constants (`SNAP_M`, `SPRING_K`, `SPRING_D`, `TIP_RAD_PER_S`, `FRICTION`) are placeholders, "not a decision".
+  Its constants (`SNAP_M`, `SPRING_K`, `SPRING_D`, `TIP_RAD_PER_S`, `FRICTION`, `STILL_MPS`) and `DownedCamera`'s
+  `FLOOR_RAY_M` are placeholders, "not a decision"; `CEILING_MARGIN_M` is the knockdown ADR's own placeholder.
   `AvatarViews` draws every knocked-down avatar, the own one included (KE5), as a ragdoll beside the bodies, in
   SightHider's group with the host's point as its sight point; `point_of(peer, fallback)` is that point, which the
   own camera, ears, held items, world sounds and the map's own place read (`LifeView.own_point()`, the controller
@@ -5140,8 +5141,8 @@ The local player's controller (#46, `client/player/`):
   claim from the claim the status names (#155, §7.1.5 Speed).
 - A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) holds still where the host has it and
   only looks (§7.1.7, #728 KE4): every physics step moves nothing, with no gravity, no sprint and no jump
-  (`PlayerController._hold`), the living's capsule left standing under a lying mesh, and its claims carry where it
-  lay and its look; `StaminaSource` refuses sprint and jump to the downed, and their stamina regenerates as usual.
+  (`PlayerController._hold`), the living's capsule left standing and no mesh drawn (its body is the own avatar's
+  ragdoll, §4.7.9), and its claims carry where it lay and its look; `StaminaSource` refuses sprint and jump to the downed, and their stamina regenerates as usual.
   There is no flight (the engineer's correction of 2026-09-30, #46). The crawl (M4-2) and the raise's hold (`held`)
   went with #728. A dead player has no collision layer, no mesh and no physics step. `Game` sets `life` from its own
   life fold; any life change drops a pending jump. A knocked-down joiner holding the move keys over the loopback

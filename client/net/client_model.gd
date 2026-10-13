@@ -167,7 +167,7 @@ var ended_by: StringName = &""
 var round_seconds := -1
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed, crouched,
 ## invulnerable, held_item, belt_item}): the other players', and the own player's only while it is
-## knocked down (KE5; AvatarViews skips it until 728d draws it).
+## knocked down (KE5; AvatarViews draws it as its ragdoll, 728d).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.
