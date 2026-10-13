@@ -70,6 +70,19 @@ func test_the_claim_carries_the_movers_motion() -> void:
 	assert_bool(claim["on_floor"] as bool).is_false()
 
 
+func test_a_claim_says_crouched_as_the_last_step_set_it() -> void:
+	# The pose at the step, not "any step since": a stand-up before the claim sends standing.
+	_harness.welcome()
+	var at := Vector3(1.5, 0.25, -3)
+	assert_bool(_harness.claims()[-1].fields["crouched"] as bool).is_false()
+	_harness.session.set_motion(at, Vector3.ZERO, Vector3.FORWARD, false, true, true, true)
+	_harness.pump(TICK_USEC)
+	assert_bool(_harness.claims()[-1].fields["crouched"] as bool).is_true()
+	_harness.session.set_motion(at, Vector3.ZERO, Vector3.FORWARD, false, true, true, false)
+	_harness.pump(TICK_USEC)
+	assert_bool(_harness.claims()[-1].fields["crouched"] as bool).is_false()
+
+
 func test_set_facing_changes_only_the_next_claims_facing() -> void:
 	# A mover turned outside its physics step (a respawn looks level, #191).
 	_harness.welcome()
