@@ -5,8 +5,8 @@ extends GdUnitTestSuite
 ## found it; the pivot keeps the eye height above the floor below the point in mid-flight and
 ## stops under the fixture's low slab; the ragdoll's root stays within the snap distance of the
 ## point in every frame. At a death the ragdoll stays as the body (KD7 (a)). A dead spectator's
-## camera over a launched target keeps the floor clamp, and a raise after the rest stands the
-## joiner at the host's point with its ragdoll gone.
+## camera over a launched target keeps the floor clamp and stops under the slab, and a raise after
+## the rest stands the joiner at the host's point with its ragdoll gone.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 const RESPAWN_S := 2.0
@@ -172,6 +172,52 @@ func test_a_spectators_camera_over_a_launched_target_keeps_the_floor_clamp() -> 
 	await _pair.stop()
 
 
+## KE8 for a spectator: over a target launched in under the low slab, the pivot stops
+## CEILING_MARGIN_M under it while the target's point still slides in (728d's acceptance).
+func test_a_spectators_camera_over_a_target_launched_under_a_low_ceiling_stops_under_it() -> void:
+	# The host walks to the slab first: the joiner respawns RESPAWN_S after its death.
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	assert_bool(await _pair.walk_to(_pair.host.player(), SLAB_START)).is_true()
+	assert_bool(await _dead_joiner(false)).is_true()
+	var model := _pair.client.client().model
+	var target := _pair.peer_of(_pair.host)
+	var life := _pair.client.life()
+	var avatars := _pair.client.avatars()
+	_pair.knock_down(_pair.host, LOW_LAUNCH)
+	var above := func() -> bool:
+		return (
+			model.life_of(target) == ClientModel.Life.DOWNED
+			and life.view() == LifeView.View.SPECTATE_ABOVE
+		)
+	assert_bool(await _until(above)).is_true()
+	var under := 0
+	var moving_under := 0
+	var last := Vector3.INF
+	for i: int in FLIGHT_FRAMES:
+		await _pair.frames(1)
+		var body := avatars.body_of(target)
+		if body == null:
+			continue
+		var point := body.global_position
+		var pivot := life.downed_camera().pivot()
+		_assert_over(pivot, point, "frame %d" % i)
+		var flat := Vector2(point.x, point.z)
+		if flat.clamp(SLAB_MIN, SLAB_MAX) == flat:
+			under += 1
+			if point.distance_to(last) > EPS:
+				moving_under += 1
+			(
+				assert_float(pivot.y)
+				. override_failure_message("frame %d: pivot %s under the slab" % [i, pivot])
+				. is_less_equal(SLAB_UNDERSIDE_M - DownedCamera.CEILING_MARGIN_M + EPS)
+			)
+		last = point
+	assert_int(under).is_greater(0)
+	assert_int(moving_under).is_greater(0)
+	await _pair.stop()
+
+
 func test_a_raise_after_the_rest_stands_the_joiner_at_the_hosts_point() -> void:
 	assert_bool(await _pair.start()).is_true()
 	assert_bool(await _pair.to_round()).is_true()
@@ -258,9 +304,9 @@ func test_a_death_keeps_the_ragdoll_in_its_pose_greyed_with_the_cross() -> void:
 
 
 ## The joiner dead on MOTION_LEVEL (knocked down where it stands, then given up), spectating the
-## host with its eyes.
-func _dead_joiner() -> bool:
-	if not await _pair.start() or not await _pair.to_round():
+## host with its eyes. `start`: start the match and the round first.
+func _dead_joiner(start := true) -> bool:
+	if start and (not await _pair.start() or not await _pair.to_round()):
 		return false
 	var joiner := _pair.peer_of(_pair.client)
 	var session := _pair.client.client()
