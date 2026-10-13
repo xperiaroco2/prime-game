@@ -212,9 +212,9 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
-   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
-   can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only such
-   paths are under `client/ui/`, the screens: §7.1, #606); plus
+   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `voice/`, `client/` (what it
+   renders can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only
+   such paths are under `client/ui/`, the screens: §7.1, #606); plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
