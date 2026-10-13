@@ -5793,7 +5793,8 @@ space under them, so a body may rest under a table a crouching player fits under
 with no level rule that closes tables; and a player raised from a body launched into the lowered car (client-only,
 so the host's body rests inside it) is pushed out by its own client, the car's accepted quirk (its ADR's RE8 and
 RD6 (a)), with nothing new in code. That push starts with the feet inside the footprint box, deeper than the 0.4 m
-from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once.
+from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once. It
+measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7), so KD15 is back with the engineer.
 - **Still** (built in 728a, #846: §7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
   takes its facing only (a spectator watching a knocked-down target looks through it) and ignores the rest, with no
   movement check and no `Correction` (KE4). §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's
@@ -5843,7 +5844,8 @@ from its edge RD6 (a) accepts, so 728e's test records it and stops if the host c
   once (KD7), crouched until the standing capsule fits (KD11; the crouch's controller, §7.1.17, KE6).
 - **Numbers.** The launch speeds, the rest speed and time and the longest motion are placeholders the agents set,
   marked "not a decision" (KD9 (b)), each with bounds in its data; the gravity, mass, friction and bounce are the
-  physics engine's. The base mode's: 0.1 m/s for 0.5 s, 8 s at the longest; the knife launches nothing (728e).
+  physics engine's. The base mode's: 0.1 m/s for 0.5 s, 8 s at the longest; the knife's launch 4 m/s away and
+  2 m/s up (728e), which moves a body on the House alone (`motion_maps`).
 - **Built in 728b (#847).** `core/`: `BodyMotion` (`core/life/body_motion.gd`), `LifeRules.knock_down`, `body_moved`,
   `count_motion`, `rest`, `stop_motion`; `LaunchBody`, `StopBody`; `Intents.BODY_MOVED`; `Strike`'s launch; `TargetDowned`'s
   `moving`; `PlayerRules.motion_maps` and the rest's numbers; `Snapshots.for_peer`'s own avatar (protocol 30).
@@ -5856,6 +5858,15 @@ from its edge RD6 (a) accepts, so 728e's test records it and stops if the host c
   ceiling, nosing and railing of `tests/fixtures/levels/body_rest_course.tscn`).
 - **Built in 728d (#848).** The ragdolls, the own camera and ears from the own avatar, KE8's clamps and the dead body
   (KD7): §4.7.9's "Ragdolls". The client's `AvatarViews` draws the own avatar since.
+- **Built in 728e (#849).** The knife launches: `content/items/knife.tres`'s `Strike` 4 m/s away and 2 m/s up
+  (placeholders, "not a decision", provisional for the engineer's approval, §9.5.6); `motion_maps` stays the House
+  alone (KE12). Tests: `tests/integration/levels/house_knife_launch_test.gd` (the base mode on the House in the
+  host's world: launches in 8 directions from the yard, the terrace, the balcony and the top of the outside stairs,
+  each read from the level's floors, rest on a floor within the longest motion where a crouched capsule is clear,
+  KD11, never at an exact point, KE1 (b); on the greybox a knife knockdown starts no host body and is today's, step
+  for step) and `tests/integration/client/life/life_raise_in_lowered_car_test.gd` (KD15 (a)'s push with a stand-in
+  for the lowered car on layer 4: it measured the capsule pushed down into the floor on its own screen, not out, and
+  3 `Correction`s on the way out, so KD15 went back to the engineer, the ADR's §2).
 
 ## 8. Debug tooling
 
@@ -6289,7 +6300,7 @@ names the facts that do.
 | `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `ThrowItem` | the hand item leaves the actor's eye (`Items.eye_of`) into a flight (§7.1.16): the claimed facing normalized, else the last accepted claim's, times `speed_mps`, without the actor's velocity; the fallback rest below its feet is asked once (`Items.fallback_rest`). Only in an intent's rule, after `HoldsItem` and `OverFloor` (ModeCheck requires both); over no floor anyway it logs an error and throws nothing. A phase that accepts such an intent lists `FlightTicks` | `speed_mps` (1 to 40), `gravity_mps2` (1 to 40), `radius_m` (0.02 to 0.5 and at most `ThrowItem.largest_radius` of the mode's `PlayerRules`), `longest_flight_s` (0.5 to 30); each defaults to 0, so the data sets it; the bounds are placeholders, "not a decision" | `ItemThrown` (everyone); the flight's rest: `ItemPlaced` (thrown) through `FlightTicks` | 37c (#643, `core/items/throw_item.gd`) |
-| `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2), and on a map `PlayerRules.motion_maps` lists launched (KE9): `launch_mps` away from the attacker horizontally, foot to foot (along the zone's direction where they coincide), plus `launch_up_mps` up; a knockdown on another map drops the launch | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50); `launch_mps` (0 to 20) and `launch_up_mps` (0 to 10), 0 launching nothing, the default (bounds placeholders, "not a decision", KD9 (b); the knife sets none until 728e) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed), and on a listed map `LaunchBody` (server, #847); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
+| `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2), and on a map `PlayerRules.motion_maps` lists launched (KE9): `launch_mps` away from the attacker horizontally, foot to foot (along the zone's direction where they coincide), plus `launch_up_mps` up; a knockdown on another map drops the launch | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50); `launch_mps` (0 to 20) and `launch_up_mps` (0 to 10), 0 launching nothing, the default (bounds placeholders, "not a decision", KD9 (b); the knife 4 and 2, placeholders, 728e) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed), and on a listed map `LaunchBody` (server, #847); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) (it holds still, as every knocked-down player does, §7.1.7). Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health`, a placement (#728 KE6) | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `Correction` and `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
@@ -6557,7 +6568,9 @@ Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f 
 What it does: the MVP's weapon: `Use` strikes in front of the holder.
 Settings: id `knife`; display name "Knife"; spawn tag `knife`; `hands` 1 (M4-5: it fits the belt, and one player
 may carry both knives, one in hand and one on the belt, V13); actions: one rule on `Use` with costs `Cooldown`
-(key `hit`, 0.5 s) and `StaminaCost` (25), and the effect `Strike` (30°, 1.5 m, 50 damage). The cooldown key is per
+(key `hit`, 0.5 s) and `StaminaCost` (25), and the effect `Strike` (30°, 1.5 m, 50 damage; a knockdown launches the
+body 4 m/s away from the attacker and 2 m/s up, `launch_mps` and `launch_up_mps`, placeholders marked "not a
+decision", KD9 (b), §7.1.18; a body moves only on the mode's `motion_maps`, the House alone, KE12). The cooldown key is per
 player, so swapping to a second knife does not skip the interval (§7.1.10). Placed by `SpawnItems` (`knives`).
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; on `Use`: `Swung`, `Damaged`, `SelfStatus` (the attacker's
 stamina, the victim's health), and on a knockdown `KnockedDown` and the downed player's `Correction` (M4-2).
@@ -6569,8 +6582,10 @@ Status: designed in #33; the item kind (id, name, spawn tag) and its `SpawnItems
 `content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
 `tests/unit/content/content_modes_test.gd`; the parts built in 2g (#63): `Cooldown`, `Strike` (`core/combat/`) and
 the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the living in Round's allowlist
-(provisional under the MVP content ADR, for the engineer's approval).
-Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
+(provisional under the MVP content ADR, for the engineer's approval); the launch in 728e (#849), provisional the same
+way.
+Tests: `tests/integration/levels/house_knife_launch_test.gd` (the launch on the House rests a body where a crouching
+player fits; none on the greybox, §7.1.18), `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped, a target dead at its turn skipped, #806), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
