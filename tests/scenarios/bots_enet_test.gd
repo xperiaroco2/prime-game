@@ -303,6 +303,28 @@ func test_a_returned_bot_writes_its_view_at_the_end_of_its_script_another_waits_
 	assert_bool(runner._view_due(bot)).override_failure_message("a returned bot waits").is_true()
 
 
+func test_a_returned_bot_inside_a_match_waits_for_its_end_or_its_connection_to_close() -> void:
+	var scenario := _scenario([[], []])
+	scenario.expected_ends = [&"dissidents"]
+	var runner := RemoteBot.new(scenario)
+	var bot := runner.add_bot()
+	runner.now_usec = START_USEC
+	runner._join_host(bot)
+	bot.lives.append({"peer": 70, "events": []})
+	# Its script is over, its current connection plays a round, and no MatchEnded came yet (#918).
+	bot.phase = &"round"
+	assert_bool(runner._view_due(bot)).override_failure_message("wrote mid-match").is_false()
+	# Its MatchEnded came: it writes.
+	runner.ends.append(&"dissidents")
+	assert_bool(runner._view_due(bot)).override_failure_message("waits past the end").is_true()
+	# Without its MatchEnded, its connection's close also ends the wait.
+	runner.ends.clear()
+	assert_bool(runner._view_due(bot)).override_failure_message("ended too soon").is_false()
+	var client: BotClient = runner.clients[2]
+	client.leave()
+	assert_bool(runner._view_due(bot)).override_failure_message("waits a closed one").is_true()
+
+
 func _write_text(path: String, text: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(text)

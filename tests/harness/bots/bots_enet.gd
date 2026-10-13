@@ -199,12 +199,24 @@ func _step_quietly(bot: ScenarioBot) -> void:
 
 
 ## Whether `bot` writes its view file now: it left for good (not to join again), its script ended
-## once the match did (a bot that joined again may have left it before its MatchEnded), or it
-## failed.
+## once the match did, or it failed. A bot that joined again writes at the end of its script while
+## its connection is outside a match (one that joined after the end never decodes MatchEnded), but
+## inside one it waits for the end or its connection's close like any other (#918).
 func _view_due(bot: ScenarioBot) -> bool:
 	if bot.gone and not bot.returns():
 		return true
-	return bot.finished() and (_ended() or not bot.lives.is_empty()) or not failures.is_empty()
+	var returned_outside := not bot.lives.is_empty() and not _in_match(bot)
+	return bot.finished() and (_ended() or returned_outside) or not failures.is_empty()
+
+
+## Whether `bot`'s current connection is open and in a phase of a match (a map's level, not the
+## lobby's): its MatchEnded may still come.
+func _in_match(bot: ScenarioBot) -> bool:
+	var client: BotClient = clients.get(bot.number)
+	if client != null and client.is_ended():
+		return false
+	var spec := scenario.mode.find_phase(bot.phase)
+	return spec != null and spec.level != PhaseSpec.Level.LOBBY
 
 
 ## Bot 1 acts once its lobby is full (_lobby_full); a remote bot once it read bot 1's map, or at
