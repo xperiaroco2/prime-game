@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (#535). The A/B itself is the engineer's decision 3 of 2026-10-07; the design below (which
   launches, the judge, the sample size and the stop rule) is the task's, under his delegation of technical choices
-  (#134). Its numbers are proposals he may change on the PR ("Needs the engineer" there).
+  (#134). Its numbers are proposals he may change on the PR ("Needs the engineer" there). The code reviewer's half
+  ended 2026-10-13 with a drop (Outcome below).
 - **Date:** 2026-10-07
 - **Deciders:** the engineer ([#302 comment 6038401263](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6038401263),
   item 3: "A Sonnet A/B on code-reviewer, the publisher and the art critic, with the findings' quality checked")
@@ -111,3 +112,11 @@ rule like the one above, and the result reported on prime-game #302. Its manager
 - The judge is Opus judging Opus against Sonnet; the prompts hide which is which, and the reviewers' order is fixed
   (reviewer 1 is always the trial), so a position bias, if any, is the same in every run.
 - `models.code` stays after the trial: with no default it changes nothing unless a launch passes it.
+
+## Outcome (2026-10-13)
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919 (3A, on the
+[weekly report](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6144997756)). Over the 12 judged
+runs since 2026-10-11 11:00Z, Sonnet against Opus: 16 against 38 valid findings (42%, the bar 80%), 27 against 5
+missed, 13 of 29 invalid (45%) against 10 of 48 (21%), $0.21 against $0.63 a run. The advice "drop the trial model"
+held in the week's window (14 runs) and since 2026-09-30 (27). Opus stays the code reviewer; the manager no longer
+passes `ab_review` or `models.code`, which the script keeps (a launch without them runs as before).

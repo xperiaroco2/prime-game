@@ -3,7 +3,8 @@
 - **Status:** Accepted (#560). The trial is the engineer's decision 2 of 2026-10-08; the qualifying tasks, the scoring
   and the stop rule below are the issue's acceptance criteria, written by the meta manager under his delegation of
   technical choices (#134). Its numbers are proposals he may change on the PR ("Needs the engineer" there). The trial
-  ended 2026-10-10 with a keep (Outcome below): the Sonnet implementer is a standing habit under a revert rule.
+  ended 2026-10-10 with a keep (Outcome below): the Sonnet implementer is a standing habit under a revert rule. The
+  habit ended 2026-10-13 (Outcome (2026-10-13) below).
 - **Date:** 2026-10-08
 - **Deciders:** the engineer. Approved by the engineer:
   https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6056243207 (item 2: "a trial of a Sonnet
@@ -86,3 +87,12 @@ item 1): Sonnet stays the implementer of Size XS and S tooling and docs tasks, a
 pass 0.3 a task over the next 10 Sonnet-implemented tasks. The standing habit is the model-guard ADR's amendment of
 2026-10-10; `metrics` reads the revert rule over the tasks started after the keep (18:06Z that day, so none of the six
 counts; the trial table's advice after it).
+
+## Outcome (2026-10-13)
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919 (4A, on the
+[weekly report](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6144997756)). Since the keep,
+`metrics` counted 7 of the 10 Sonnet-implemented tasks at 0.86 blockers and majors a task, about 6 against the 3 the
+revert rule allows over 10 (0.3 a task): the revert was certain before the last 3 launches, so the habit ends now and
+the manager no longer passes `models.implement: "sonnet"`. The per-task split behind the 0.86 was not recomputed.
+Since 2026-09-30, 13 Sonnet against 37 Opus Size S tasks: $3.01 against $6.21 a task, no red runs, blockers and majors
+0.54 against 0.14 a task.
