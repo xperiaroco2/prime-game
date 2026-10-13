@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 ## floor under a put-down package and a curb in front of it (the ray aims above the sound), while a
 ## wall just in front of the ears does; a sound out of range casts no ray and plays nothing.
 
+const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 const EARS := Vector3(0, 1.5, 0)
 const WALL_AT := Vector3(0, 1.5, -1.5)
 const WALL_SIZE := Vector3(4, 3, 0.2)
@@ -142,6 +143,45 @@ func test_a_launch_behind_a_wall_plays_muffled_and_none_plays_beyond_the_range()
 
 
 ## An ItemPlaced at `at`; returns the player it started.
+## KE5: knocked down, the own sounds come from the own avatar's point, which moves with the host's
+## body, not from the controller, which holds still where the knockdown found it.
+func test_the_own_downed_players_place_is_its_avatars_point_not_the_controller() -> void:
+	var world := PlayerTestWorld.new()
+	add_child(world)
+	var player := world.call(&"add_player", Vector3(0, 0, 5)) as PlayerController
+	var mode := FixtureBaseMode.mode()
+	var model := ClientModel.new(mode)
+	model.own_peer = 1
+	var avatars := AvatarViews.new()
+	avatars.model = model
+	avatars.buffer = SnapshotBuffer.new()
+	avatars.rules = mode.player_rules
+	var now := [1000000]
+	avatars.clock = func() -> int: return now[0]
+	world.add_child(avatars)
+	var sounds := WorldSounds.new()
+	sounds.model = model
+	sounds.avatars = avatars
+	sounds.player = player
+	sounds.listener = func() -> Variant: return EARS
+	world.add_child(sounds)
+	await _physics(2)
+	assert_vector(sounds.position_of(1) as Vector3).is_equal(player.global_position)
+	model.fold(&"KnockedDown", {"peer": 1, "position": player.global_position})
+	var moved := player.global_position + Vector3(2, 0, -1)
+	for tick: int in range(1, 4):
+		now[0] += 50000
+		var avatar := {"position": moved, "velocity": Vector3.ZERO, "facing": Vector3.FORWARD}
+		var fields := {"tick": tick, "avatars": {1: avatar}}
+		model.fold_snapshot(fields)
+		avatars.buffer.add(tick, fields["avatars"] as Dictionary, now[0] as int)
+	now[0] += 500000
+	await _physics(2)
+	assert_vector(sounds.position_of(1) as Vector3).is_equal(moved)
+	assert_bool(player.global_position.is_equal_approx(moved)).is_false()
+	world.free()
+
+
 func _put_down(at: Vector3) -> AudioStreamPlayer3D:
 	var before := _sounds.played()
 	_sounds.on_event(&"ItemPlaced", {"item": 5, "position": at, "cause": &"put_down"})
