@@ -6998,6 +6998,22 @@ invariant). As in
 cooking's C9, a server path that broadcasts what the filter should route stays unseen there (every photo event goes to
 every player, and Round refuses joins) until bots play the photo task. And the box's flood guard and the film cap
 against one peer's burst of takes (§4.6.5.3).
+The client's flash and sounds, P6 built in #785: `client/world/photo_flashes.gd` (`PhotoFlashes`, under `ItemWorld`):
+each `ShotTaken` at a camera the model knows lights one `OmniLight3D` at its lens (the station's marker plus the
+client's own copy of the mode's eye height, as `PhotoTask`'s lens), `shadow_enabled` and `omni_range` 4 m (a light
+without shadows passes through walls and would light a room where no eye sees the camera), no mesh, sprite or marker;
+held on until `release(shot)` (the call P8's render makes once it has drawn; this light is that render's flash), at
+least `PULSE_S` 0.1 s, and ended by the fallback at `HOLD_LIMIT_S` 1 s when no render calls (a headless client;
+P8 is not built yet); the session's end ends every flash. `SoundChooser` places `ShotTaken`'s shutter at the lens,
+`PhotoPrinted`'s print where the photo lies on the tray and `PhotoHung`'s hang at the board's marker (its ray aims
+1 m up), each cut at the 12 m hearing range; `WorldSounds` plays them muffled behind the level (M5-7) with blips
+built in code (`photo_blip()`, PD15) until the engineer's files arrive. Every number placeholders, "not a decision".
+Tests: `tests/unit/client/world/photo_flashes_test.gd` (the light, its shadows and range, the hold with a test caller,
+the shortest pulse, the fallback by `advance` and over the tree's frames, a recycled shot id; planted shadows off,
+no hold and no fallback, each failed, reverted), `photo_sounds_test.gd` (the places, the cut-off, the blips; planted
+the photo sounds uncut, failed, reverted), `tests/integration/client/world/item_world_photo_test.gd` (off the
+loopback wire through `ItemWorld`: the flash and the shutter at the lens, the print, the hang, the shutter muffled
+behind a wall (planted unmuffled, failed, reverted), none beyond 12 m, the session's end).
 
 #### 9.5.23 Crouch (not a part in v0)
 What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
