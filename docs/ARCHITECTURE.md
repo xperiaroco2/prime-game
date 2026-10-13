@@ -1669,9 +1669,9 @@ Compares what each bot b decoded with `view_of(b)`:
   it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
   (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
   present for a whole round decode the same task events; no decoded message has a field that names a seed, nor one
-  that holds a return key (each bot's `ScenarioBot.key_of` and every key of the host's `numbers`; `LeakCheck.set_keys`
+  that holds a return key (each bot's `ScenarioBot.key_of` and every key of the host's `numbers`; and the key of the bot that does not exist, which a hostile Hello may carry; `LeakCheck.set_keys`
   and `ScenarioInvariants.keys`, #639: a key planted in `PlayerJoined`'s name failed both, then reverted); a peer
-  that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
+  that is not a player decodes at most the `Rejected`s of its own intents (a returning bot's refused try too: a snapshot, voice or another event it decodes fails the run, #639); one that sends nothing (the lurker)
   decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
   window and drops what it compared.
 
@@ -1958,7 +1958,7 @@ the hostile's joining `Hello` carries an honest bot's key (`ChaosScenario.KEY_BO
 sent once the host holds that bot's `PlayerJoined` (`ChaosJoining` makes each chaos transport without joining; the
 hostile's client exists from the start and `ChaosRun._after_host_step` joins it then). The key is a present
 player's, so the hostile joins as a new number and binds none, and bot 2 plays on with its own:
-`ChaosOracle.key_problems` checks that at the end of every run. The hostile's extra `Hello`s carry, in turn by a
+`ChaosOracle.key_problems` checks that at the end of every run (a hostile that is no player by then is named too). The hostile's extra `Hello`s carry, in turn by a
 counter (no draw from its rng, so a seed's stream is unchanged), a malformed key, bot 2's, bot 1's and one no player
 holds: each is `not_accepted`, whatever it carries. A malformed key is 73-A's core unit test and wire-fuzz case.
 
@@ -7020,7 +7020,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once. `tests/scenarios/leave_and_return_test.gd` (#639) plays a leave and a return in the core
     runner and over the loopback (new peer ids, the kept number, the retries until the lobby, a deadline that fails,
-    the fixed keys, a decoded key as a leak), and `scenario_peers_test.gd` the peers map.
+    the fixed keys, a decoded key as a leak, the invariants failing a planted key, a refused try that decoded more than its Rejected), and `scenario_peers_test.gd` the peers map.
   - *Bots* (M3, 3h): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
     bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over ENet
     on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
