@@ -2120,7 +2120,7 @@ lives for the whole process:
 
 | Node | What it is |
 |---|---|
-| `Game` | `client/app/game.gd`: the menu's choices, the sessions, the level swap, leaving and quitting, the end reasons |
+| `Game` | `client/app/game.gd`: the menu's choices, the sessions, the level swap, leaving and quitting, the end reasons; its helpers sit beside it: `GameHowto`, `GameSettings`, `GameTutorial`, and `GameTalk` (the per-frame talk key and Voice panel, #964, out of `game.gd` for lint's 1000 lines) |
 | `HostNode` | on a host only: steps `HostSession` (§4.5) at `process_physics_priority` -100 |
 | `SessionNode` | steps the `ClientSession` at priority -90 |
 | `World` | a `Node3D`: `Level` (the lobby or the map instance), the views of stations, items and bodies, `Avatars` (a `RemotePlayerBody` per other player) and `Player` (the local `PlayerController` and its cameras) |
@@ -2820,7 +2820,7 @@ CI's LFS step with #515):
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
   stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
   (`voice_talk`, V), under the Esc menu too since #488 but never while a text field has the focus or a key capture
-  runs (`Game._typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
+  runs (`GameTalk.typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
   the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked (a chip over
@@ -3531,9 +3531,9 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
 - **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
   the map key closes), else toggles the map; under the Esc menu or the tutorial's invite (`GameUi.blocks_keys`, #492) it does nothing and returns false.
 - **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
-  the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `Game._typing()`
+  the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `GameTalk.typing()`
   alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
-  runs, since a handled key still reads as pressed in `Input`; and `Game._talk_blocked` keeps it shut after the
+  runs, since a handled key still reads as pressed in `Input`; and `GameTalk.talk_blocked` keeps it shut after the
   typing stops until the talk key has been let go once (a V that ended the capture is still held). With the map open the keys work and the look stops
   (`mouse_free`). The lobby HUD, the round HUD and the life screen (#497) take no mouse (the destination row, the life
   panel's column and bar were PASS or STOP); the pregame takes no input, as the post game screen (its backdrop,
@@ -3558,7 +3558,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   a dropdown and the host's question by the end screen, the menu by the lobby; seen failing on the old `Game`),
   `map_input_test.gd` (a stub card closes first on Esc and on M, M under the
   menu does nothing, the keys work and the look stops with the map open), `game_voice_test.gd` (Talk sends under
-  the menu, a focused text field or a capture stops it; seen failing without `_typing`). The playcheck scenarios
+  the menu, a focused text field or a capture stops it; seen failing without `GameTalk.typing`). The playcheck scenarios
   `esc_menu` (the host's Leave question, one Esc back; the guest's menu left open closed by the pregame, #726) and
   `map`.
 
@@ -4205,7 +4205,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
 - **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `Game._refresh_join`): the code to the host and every
   code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
-  explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`Game._refresh_voice`).
+  explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
 - **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
