@@ -200,7 +200,18 @@ func test_a_death_during_a_motion_emits_stop_body() -> void:
 	assert_object(downed.motion).is_null()
 	assert_int(_emitted(game, &"StopBody").size()).is_equal(1)
 	assert_bool(game.state.bodies.has(P2)).is_true()
+	# The body dies where it was last reported (KD8 (a)), not at the knockdown's fallback.
+	var body: Vector3 = game.state.bodies[P2]
+	assert_float(body.x).is_equal_approx(0.0, 0.05)
+	assert_float(body.z).is_equal_approx(2.0, 0.05)
 	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_negated_target_downed_refuses_not_allowed() -> void:
+	var negated := TargetDowned.new()
+	negated.negate = true
+	assert_str(negated.rejection_reason_in(null)).is_equal(String(RejectReasons.NOT_ALLOWED))
+	assert_str(TargetDowned.new().rejection_reason()).is_equal(String(TargetDowned.NOT_DOWNED))
 
 
 func test_a_give_up_during_a_motion_emits_stop_body() -> void:
@@ -289,11 +300,11 @@ func _rest_by_reports(game: Match, at: Vector3) -> void:
 	assert_object(downed.motion).is_null()
 
 
-## Every emitted event named `name`, recipients included.
-func _emitted(game: Match, name: StringName) -> Array[EmittedEvent]:
+## Every emitted event named `event_name`, recipients included.
+func _emitted(game: Match, event_name: StringName) -> Array[EmittedEvent]:
 	var found: Array[EmittedEvent] = []
 	for emitted: EmittedEvent in game.emitted():
-		if emitted.event.event_name() == name:
+		if emitted.event.event_name() == event_name:
 			found.append(emitted)
 	return found
 

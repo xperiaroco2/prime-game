@@ -21,6 +21,8 @@ func needs_target() -> bool:
 
 
 func rejection_reason_in(ctx: MatchContext) -> StringName:
+	if negate:
+		return rejection_reason()
 	var target := ctx.state.player(Channels.target_of(ctx))
 	if target != null and target.life == PlayerState.Life.DOWNED and target.motion != null:
 		return MOVING
