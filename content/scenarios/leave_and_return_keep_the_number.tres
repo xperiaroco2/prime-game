@@ -1,0 +1,214 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://ds1xjkao842e2"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mh30d"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_0k2xg"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_wp10r"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_rip6h"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_5e8u6"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_oytap"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="7_7pcxl"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="8_cvyye"]
+[ext_resource type="Script" uid="uid://b24raaym4k6ob" path="res://core/content/scenario/step_return_to_lobby.gd" id="9_a340m"]
+[ext_resource type="Script" uid="uid://cjt2ujfkybai6" path="res://core/content/scenario/step_leave.gd" id="10_2a3qr"]
+[ext_resource type="Script" uid="uid://bepcrummjhkfs" path="res://core/content/scenario/step_join.gd" id="11_r4rcc"]
+
+[sub_resource type="Resource" id="Resource_dwytk"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 4
+}
+
+[sub_resource type="Resource" id="Resource_n0suf"]
+script = ExtResource("7_7pcxl")
+event = &"PlayerLeft"
+fields = {
+"peer": 2
+}
+within_s = 10.0
+
+[sub_resource type="Resource" id="Resource_7y87i"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_g1y3x"]
+script = ExtResource("8_cvyye")
+
+[sub_resource type="Resource" id="Resource_almjt"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_xq4ly"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "end"
+}
+
+[sub_resource type="Resource" id="Resource_1dayy"]
+script = ExtResource("9_a340m")
+
+[sub_resource type="Resource" id="Resource_ldfjq"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Resource_ei5aj"]
+script = ExtResource("4_rip6h")
+steps = Array[ExtResource("5_5e8u6")]([SubResource("Resource_dwytk"), SubResource("Resource_n0suf"), SubResource("Resource_7y87i"), SubResource("Resource_g1y3x"), SubResource("Resource_almjt"), SubResource("Resource_xq4ly"), SubResource("Resource_1dayy"), SubResource("Resource_ldfjq")])
+
+[sub_resource type="Resource" id="Resource_pvrwn"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Resource_high1"]
+script = ExtResource("10_2a3qr")
+
+[sub_resource type="Resource" id="Resource_flnyh"]
+script = ExtResource("11_r4rcc")
+at_s = 14.0
+deadline_s = 45.0
+
+[sub_resource type="Resource" id="Resource_k8xf0"]
+script = ExtResource("7_7pcxl")
+event = &"PlayerJoined"
+fields = {
+"name": "Player2",
+"peer": 2
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Resource_l8565"]
+script = ExtResource("8_cvyye")
+
+[sub_resource type="Resource" id="Resource_ch88n"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_2klt0"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "end"
+}
+
+[sub_resource type="Resource" id="Resource_fq64f"]
+script = ExtResource("4_rip6h")
+steps = Array[ExtResource("5_5e8u6")]([SubResource("Resource_pvrwn"), SubResource("Resource_high1"), SubResource("Resource_flnyh"), SubResource("Resource_k8xf0"), SubResource("Resource_l8565"), SubResource("Resource_ch88n"), SubResource("Resource_2klt0")])
+
+[sub_resource type="Resource" id="Resource_rpjti"]
+script = ExtResource("11_r4rcc")
+at_s = 3.0
+
+[sub_resource type="Resource" id="Resource_5lwgc"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 4
+}
+
+[sub_resource type="Resource" id="Resource_ibgwj"]
+script = ExtResource("7_7pcxl")
+event = &"PlayerLeft"
+fields = {
+"peer": 2
+}
+within_s = 10.0
+
+[sub_resource type="Resource" id="Resource_d64op"]
+script = ExtResource("6_oytap")
+event = &"PlayerJoined"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_g12lr"]
+script = ExtResource("8_cvyye")
+
+[sub_resource type="Resource" id="Resource_i6dt0"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_r52wh"]
+script = ExtResource("10_2a3qr")
+
+[sub_resource type="Resource" id="Resource_nbj7m"]
+script = ExtResource("11_r4rcc")
+deadline_s = 80.0
+
+[sub_resource type="Resource" id="Resource_hh8o2"]
+script = ExtResource("7_7pcxl")
+event = &"PlayerJoined"
+fields = {
+"name": "Player3",
+"peer": 3
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Resource_b7ay4"]
+script = ExtResource("4_rip6h")
+steps = Array[ExtResource("5_5e8u6")]([SubResource("Resource_rpjti"), SubResource("Resource_5lwgc"), SubResource("Resource_ibgwj"), SubResource("Resource_d64op"), SubResource("Resource_g12lr"), SubResource("Resource_i6dt0"), SubResource("Resource_r52wh"), SubResource("Resource_nbj7m"), SubResource("Resource_hh8o2")])
+
+[sub_resource type="Resource" id="Resource_7ge7b"]
+script = ExtResource("11_r4rcc")
+at_s = 7.0
+
+[sub_resource type="Resource" id="Resource_f7rg7"]
+script = ExtResource("7_7pcxl")
+event = &"PlayerJoined"
+fields = {
+"name": "Player4",
+"peer": 4
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Resource_42i27"]
+script = ExtResource("8_cvyye")
+
+[sub_resource type="Resource" id="Resource_e1cpn"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_swxra"]
+script = ExtResource("6_oytap")
+event = &"PhaseChanged"
+fields = {
+"phase": "end"
+}
+
+[sub_resource type="Resource" id="Resource_kqbcb"]
+script = ExtResource("4_rip6h")
+steps = Array[ExtResource("5_5e8u6")]([SubResource("Resource_7ge7b"), SubResource("Resource_f7rg7"), SubResource("Resource_42i27"), SubResource("Resource_e1cpn"), SubResource("Resource_swxra")])
+
+[resource]
+script = ExtResource("3_wp10r")
+mode = ExtResource("1_mh30d")
+session_seed = 639000000001
+bots = 4
+forced_roles = Dictionary[int, StringName]({
+1: &"dissident"
+})
+scripts = Array[ExtResource("4_rip6h")]([SubResource("Resource_ei5aj"), SubResource("Resource_fq64f"), SubResource("Resource_b7ay4"), SubResource("Resource_kqbcb")])
+expected_ends = Array[StringName]([&"dissidents"])
+clock_s = 10
+time_limit_s = 90.0

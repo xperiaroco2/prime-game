@@ -175,13 +175,14 @@ func _round_return_scenario() -> BotScenario:
 
 
 ## Three bots join; bot 2 leaves; bot 4 joins; bot 2 returns: the lobby part of the content
-## scenario, with the same waits.
+## scenario, with the same waits. Bot 3 joins 3 s in and bot 2 leaves once it saw that join, so
+## the bots hold the numbers 1 to 3 in bot order over a network too (a number goes by join order).
 static func _lobby_scripts() -> Array:
 	return [
 		[_wait_for_joined(4), _expect_left(2), _wait_for_joined(2)],
-		[StepLeave.new(), _join(4.0, 30.0), _expect_joined(2, "Player2")],
-		[_wait_for_joined(4), _expect_left(2), _wait_for_joined(2)],
-		[_join(2.0, 0.0), _expect_joined(4, "Player4")],
+		[_wait_for_joined(3), StepLeave.new(), _join(14.0, 45.0), _expect_joined(2, "Player2")],
+		[_join(3.0, 0.0), _wait_for_joined(4), _expect_left(2), _wait_for_joined(2)],
+		[_join(7.0, 0.0), _expect_joined(4, "Player4")],
 	]
 
 
