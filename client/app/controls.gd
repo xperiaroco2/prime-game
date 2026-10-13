@@ -36,7 +36,8 @@ const ALL_DEVICES := -1
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
 ## those phases: `throw` (G) while living, until the deck names it (`control.throw`, #851), and
-## `crouch` (Ctrl, the crouch ADR's KE8) while living, until the deck names it (`control.crouch`).
+## `crouch` (Ctrl, the crouch ADR's KE8) while living, until the deck names it (`control.crouch`;
+## the follow-up that moves it out is named in #791's handoff, as #851 is for `throw`).
 const UNLISTED: Dictionary[StringName, int] = {&"throw": Phase.ALIVE, &"crouch": Phase.ALIVE}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
