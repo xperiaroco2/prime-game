@@ -402,3 +402,35 @@ func test_the_hostile_throws_with_each_facing_and_only_those() -> void:
 		)
 		seen[facing] = seen.get(facing, 0) + 1
 	assert_int(seen.size()).is_equal(ChaosFrames.THROW_FACINGS.size())
+
+
+func test_the_oracle_names_a_hostile_that_took_the_number_of_the_key_it_borrowed() -> void:
+	var key := ScenarioBot.key_of(ChaosScenario.KEY_BOT)
+	var state := MatchState.new(1)
+	# Peers 1-3 join with their own keys, then the hostile (peer 9) with bot 2's (#639).
+	for peer: int in [1, 2, 3, 9]:
+		var player := PlayerState.new(peer, "")
+		player.number = state.give_number(key if peer == 9 else ScenarioBot.key_of(peer))
+		state.players[peer] = player
+	assert_int(state.players[9].number).is_equal(4)
+	assert_array(ChaosOracle.key_problems(state, 9, 2, key)).is_empty()
+	state.players[9].number = 2
+	var found := ChaosOracle.key_problems(state, 9, 2, key)
+	assert_array(found).has_size(2)
+	assert_str(found[0]).contains("the hostile peer holds number 2")
+	state.players[9].number = 4
+	state.numbers[ScenarioBot.key_of(7)] = 4
+	found = ChaosOracle.key_problems(state, 9, 2, key)
+	assert_array(found).has_size(1)
+	assert_str(found[0]).contains("number 4 is bound to a key")
+	state.numbers.erase(ScenarioBot.key_of(7))
+	state.players[2].number = 5
+	found = ChaosOracle.key_problems(state, 9, 2, key)
+	assert_array(found).has_size(1)
+	assert_str(found[0]).contains("the honest bot holds number 5, its key binds 2")
+	# A hostile that is no player at the end has nothing to check: that is named, not passed.
+	state.players[2].number = 2
+	state.players.erase(9)
+	found = ChaosOracle.key_problems(state, 9, 2, key)
+	assert_array(found).has_size(1)
+	assert_str(found[0]).contains("the hostile peer is no player at the end")

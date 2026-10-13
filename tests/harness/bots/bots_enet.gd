@@ -46,6 +46,9 @@ const MARGIN_S := 10
 ## The transport's room besides the bots, as BotsRunner.EXTRA_CLIENTS: every join of the watchers.
 const EXTRA_CLIENTS := BotsRunner.EXTRA_CLIENTS
 const PEERS_FILE := "peers"
+## How often a remote bot reads bot 1's map again: a bot that left and joined again has a new peer
+## id (ScenarioPeers keeps its earlier ones).
+const PEERS_READ_USEC := 250_000
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
 ## The fault shim's seed: this, plus the instance times SHIM_SEED_STRIDE, plus a count of the
@@ -74,6 +77,9 @@ var _leaks: LeakCheck
 var _wrote_view := false
 var _finished := false
 var _known_peers := 0
+## Bot number -> the text of its peer file the host last read (_read_peer_files).
+var _peer_texts: Dictionary[int, String] = {}
+var _next_peers_read_usec := 0
 var _relay_before: Dictionary[StringName, int] = {}
 var _next_window_usec := 0
 ## Over WebRTC: the host's signalling service and transport; the transports this instance made.
@@ -154,13 +160,16 @@ func step(now: int) -> void:
 		_join_again(bot)
 		# A join lost for good fails at once: its view file below carries the reason (#483).
 		_fail_lost_join(bot)
+		if now >= _next_peers_read_usec:
+			_next_peers_read_usec = now + PEERS_READ_USEC
+			_read_peers(peers)
 	if webrtc and _wrote_view and not is_host():
 		_step_quietly(bot)
 	else:
 		step_clients()
 		if _may_act(bot):
 			play_frame(tick_now)
-	if not _wrote_view and (bot.gone or (bot.finished() and _ended()) or not failures.is_empty()):
+	if not _wrote_view and _view_due(bot):
 		_write_view()
 	if is_host():
 		_finished = _host_done()
@@ -187,6 +196,15 @@ func _step_quietly(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if client != null and not client.is_ended():
 		client.step(now_usec)
+
+
+## Whether `bot` writes its view file now: it left for good (not to join again), its script ended
+## once the match did (a bot that joined again may have left it before its MatchEnded), or it
+## failed.
+func _view_due(bot: ScenarioBot) -> bool:
+	if bot.gone and not bot.returns():
+		return true
+	return bot.finished() and (_ended() or not bot.lives.is_empty()) or not failures.is_empty()
 
 
 ## Bot 1 acts once its lobby is full (_lobby_full); a remote bot once it read bot 1's map, or at
@@ -358,30 +376,38 @@ func _peer_known(bot: ScenarioBot) -> void:
 	if file == null:
 		failures.append("cannot write %s" % dir.path_join("peer-%d" % bot.number))
 		return
-	file.store_string(str(bot.peer))
+	# Every peer id it had, a line each, the earlier ones first: the host takes whole lines only.
+	var lines := PackedStringArray()
+	for id: int in peers.peers_of(bot.number):
+		lines.append(str(id))
+	file.store_string("\n".join(lines) + "\n")
 	file.close()
 
 
-## The host reads the peer ids the other instances wrote, and writes the map when it grew.
+## The host reads the peer ids the other instances wrote (a file read again when its text changed:
+## a bot that joined again), and writes the map when it grew: a line `<bot> <peer>` per connection,
+## each bot's earlier ones first.
 func _read_peer_files() -> void:
 	for number in range(2, scenario.bots + 1):
-		if peers.has_bot(number):
-			continue
 		var path := dir.path_join("peer-%d" % number)
 		if not FileAccess.file_exists(path):
 			continue
 		var text := FileAccess.get_file_as_string(path)
-		if text.is_valid_int():
-			peers.set_peer(number, text.to_int())
-	var known := peers.to_dict()
-	if known.size() == _known_peers:
-		return
-	for number in range(1, scenario.bots + 1):
-		if _joins_at_start(number) and not known.has(number):
-			return  # the first map holds every bot that joins at the start
+		if text == _peer_texts.get(number, ""):
+			continue
+		_peer_texts[number] = text
+		# Whole lines only: the last one may be half written.
+		var whole := text.left(text.rfind("\n") + 1)
+		for id: String in whole.split("\n", false):
+			_learn_peer(peers, number, id)
 	var lines := PackedStringArray()
-	for number: int in known:
-		lines.append("%d %d" % [number, known[number]])
+	for number in range(1, scenario.bots + 1):
+		if _joins_at_start(number) and not peers.has_bot(number):
+			return  # the first map holds every bot that joins at the start
+		for id: int in peers.peers_of(number):
+			lines.append("%d %d" % [number, id])
+	if lines.size() == _known_peers:
+		return
 	var file := FileAccess.open(dir.path_join(PEERS_FILE + ".part"), FileAccess.WRITE)
 	if file == null:
 		failures.append("cannot write the peers file in %s" % dir)
@@ -391,7 +417,14 @@ func _read_peer_files() -> void:
 	# A remote bot reading `peers` can block the rename on Windows: the next frame tries again.
 	var part := dir.path_join(PEERS_FILE + ".part")
 	if DirAccess.rename_absolute(part, dir.path_join(PEERS_FILE)) == OK:
-		_known_peers = known.size()
+		_known_peers = lines.size()
+
+
+## Maps `text`, a peer id of bot `number`, unless that bot had it already (its earlier ones come
+## first, so the last one read is its current one).
+static func _learn_peer(map: ScenarioPeers, number: int, text: String) -> void:
+	if text.is_valid_int() and map.bot_of(text.to_int()) != number:
+		map.set_peer(number, text.to_int())
 
 
 ## A remote bot plays once it has read bot 1's map.
@@ -412,7 +445,7 @@ func _read_peers(map: ScenarioPeers) -> void:
 		var pair := line.split(" ")
 		if pair.size() == 2 and pair[0].is_valid_int() and pair[1].is_valid_int():
 			if pair[0].to_int() != instance:
-				map.set_peer(pair[0].to_int(), pair[1].to_int())
+				_learn_peer(map, pair[0].to_int(), pair[1])
 
 
 func _write_view() -> void:
@@ -428,10 +461,8 @@ func _write_view() -> void:
 				label, bot.peer, client.transport(), client.bad_payloads, false
 			)
 		)
-	var order := {}
-	if client != null and client.transport() is BotWebRtc:
-		order = (client.transport() as BotWebRtc).order.to_data(NetTransport.HOST_ID)
-	if not ViewFile.write(dir, bot.number, bot.peer, view, failures, order):
+	var order := order_of(client) if client != null else {}
+	if not ViewFile.write(dir, bot.number, bot.peer, view, failures, order, earlier_views(bot)):
 		failures.append("cannot write the view file of bot %d" % bot.number)
 
 
@@ -467,6 +498,7 @@ func _compare() -> void:
 		if line.begins_with("error:"):
 			failures.append("match %s" % line)
 	_leaks.set_seeds(_invariants.seeds())
+	_leaks.set_keys(_invariants.keys())
 	var views: Dictionary[String, DecodedView] = {}
 	# The host's own bot, stepped in this frame after the session: exactly what it decoded so far.
 	var own: BotClient = clients[1]
@@ -482,16 +514,13 @@ func _compare() -> void:
 			continue
 		for failure: String in file["failures"] as PackedStringArray:
 			failures.append("bot %d: %s" % [number, failure])
-		var peer: int = file["peer"]
-		var view: DecodedView = file["view"]
-		var label := "bot %d" % number
-		failures.append_array(_leaks.check_bot(label, peer, view, true, true))
-		if _host_rtc != null and peer != 0:
-			var lists := OrderLog.from_data(file["order"])
-			failures.append_array(_host_rtc.order.check_client(label, peer, lists))
-			print("%s order, %s" % [_log_label(), _host_rtc.order.summary(label, peer, lists)])
-		if peer != 0:
-			views[label] = view
+		# A bot that left and joined again: each earlier connection is its own view, a prefix.
+		var earlier: Array = file["earlier"]
+		for i in earlier.size():
+			var life: Dictionary = earlier[i]
+			var life_label := "bot %d (connection %d)" % [number, i + 1]
+			_compare_view(life_label, life, false, views)
+		_compare_view("bot %d" % number, file, true, views)
 	failures.append_array(_leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(_leaks.check_watcher(watcher))
@@ -511,3 +540,19 @@ func _compare() -> void:
 					% [_log_label(), _host_rtc.order.summary(watcher.label, watcher.peer, lists)]
 				)
 			)
+
+
+## The leak checks of one connection's view file entry `entry` ({peer, view, order}); `to_last_end`
+## for a bot's last connection, which must reach view_of's last MatchEnded.
+func _compare_view(
+	label: String, entry: Dictionary, to_last_end: bool, views: Dictionary[String, DecodedView]
+) -> void:
+	var peer: int = entry["peer"]
+	var view: DecodedView = entry["view"]
+	failures.append_array(_leaks.check_bot(label, peer, view, true, to_last_end))
+	if _host_rtc != null and peer != 0:
+		var lists := OrderLog.from_data(entry["order"])
+		failures.append_array(_host_rtc.order.check_client(label, peer, lists))
+		print("%s order, %s" % [_log_label(), _host_rtc.order.summary(label, peer, lists)])
+	if peer != 0:
+		views[label] = view

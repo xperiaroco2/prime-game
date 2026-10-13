@@ -19,7 +19,7 @@ extends RefCounted
 ##   respawns. Its chaos traffic rides on its connection (ChaosHostile), with no hostile claim
 ##   while it is frozen or near a zone (a Correction there would change the zone's count, which
 ##   the honest bots see, from the baseline's); in the baseline run it sends only this script's
-##   traffic.
+##   traffic. Its joining Hello carries bot KEY_BOT's return key (ChaosRun._key_of).
 ## `until_dead` adds the knockdown time (10 s) to the round: the long run of the night job has it,
 ## the short one of `verify` not.
 ## Every role is forced (debug builds): bot 1 dissident, the rest crew, or, with `swapped`, bot 3
@@ -29,6 +29,9 @@ extends RefCounted
 
 ## The hostile chaos peer's bot.
 const HOSTILE := 4
+## The honest bot whose return key the hostile's joining Hello carries, sent once the host holds
+## that bot's PlayerJoined (#639): the hostile still joins as a new number.
+const KEY_BOT := 2
 const BOTS := 4
 const SEED := 488_000_000_001
 const MODE := "res://tests/fixtures/tasks/base_mode_with_zones.tres"

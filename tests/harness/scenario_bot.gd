@@ -37,12 +37,22 @@ var sent_peer := 0
 var connected := false
 ## Its Welcome arrived.
 var joined := false
-## It left, or the host disconnected it: it acts and receives no more.
+## It left, or the host disconnected it: it acts and receives no more, unless it left by its own
+## Leave and a Join follows (returns()).
 var gone := false
+## Its own Leave step made it gone (a host's DisconnectPeer does not): a Join may follow.
+var left := false
 ## Its synthetic voice sends frames (a network runner's, BotVoice); a Talk step turns it off or on.
 var talking := true
 ## Every event it received, in order: name and fields (the event's to_dict()).
 var events: Array[WireMessage] = []
+## Its connections before the current one, oldest first, each {peer, events}: a bot that joined
+## again after its Leave (P12 (a) of the returning-players ADR) starts each connection empty.
+var lives: Array[Dictionary] = []
+## A returning Join's next try (P12 (t2)): the tick before which it does not connect again, and
+## why its last try was refused ("" before any).
+var retry_tick := 0
+var last_refusal := ""
 
 ## What its client knows of itself.
 var epoch := 0
@@ -102,15 +112,52 @@ func current_step() -> ScenarioStep:
 
 
 func finished() -> bool:
-	return gone or current_step() == null
+	return (gone and not returns()) or current_step() == null
 
 
-## Whether its script joins it later (a Join step) instead of at the start.
+## Whether it left by its own Leave and its next step joins it again: it acts again, on a new
+## connection (begin_return).
+func returns() -> bool:
+	return gone and left and current_step() is StepJoin
+
+
+## Whether a runner lets it act this tick: it is not gone, or it returns.
+func acts() -> bool:
+	return not gone or returns()
+
+
+## Whether it is joining again after its Leave and its Welcome has not arrived yet.
+func returning() -> bool:
+	return not lives.is_empty() and not joined
+
+
+## Starts its next connection on `new_peer` (0 until a network bot learns it): the one that ended
+## goes to `lives`, and everything a connection learns starts empty again (its script goes on).
+func begin_return(new_peer: int) -> void:
+	lives.append({"peer": peer, "events": events})
+	_new_connection(new_peer)
+
+
+## A returning Join's try was refused for `reason`: it tries again from tick `next_tick` on a new
+## connection (on the same peer id until a network runner learns another), and what the refused
+## one received is dropped: it never joined.
+func refused(reason: String, next_tick: int) -> void:
+	last_refusal = reason
+	retry_tick = next_tick
+	_new_connection(peer)
+
+
+## The return key bot `number` sends in every Hello (ARCHITECTURE §3.5, §9.7): fixed from its
+## number, in every runner and over every transport, so a bot that left and joins again is known by
+## it (P12 (a) of the returning-players ADR). Not a secret: a test key.
+static func key_of(bot_number: int) -> String:
+	return ReturnKey.of("bot%d" % bot_number, "bots")
+
+
+## Whether its script joins it later (a Join first) instead of at the start. A Join after its own
+## Leave is no late join: the bot joined at the start before it left.
 func joins_late() -> bool:
-	for step: ScenarioStep in steps:
-		if step is StepJoin:
-			return true
-	return false
+	return not steps.is_empty() and steps[0] is StepJoin
 
 
 func start_step(at_tick: int) -> void:
@@ -390,3 +437,40 @@ func _ids_of_kind(kind: StringName) -> Array[int]:
 
 static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
+
+
+## A new connection on `new_peer`: not connected, nothing received, nothing known of the match.
+func _new_connection(new_peer: int) -> void:
+	peer = new_peer
+	connected = false
+	joined = false
+	gone = false
+	left = false
+	events = []
+	step_started = -1
+	step_cursor = 0
+	previous_cursor = 0
+	sent_seq = -1
+	sent_item = -1
+	sent_peer = 0
+	epoch = 0
+	jumps = 0
+	position = Vector3.ZERO
+	downed = false
+	dead = false
+	role = &""
+	held = -1
+	belted = -1
+	sprint_available = true
+	phase = &""
+	match_id = 0
+	load_ack_due = false
+	auto_acked_match = -1
+	unanswered_load = -1
+	items.clear()
+	stations.clear()
+	station_kinds.clear()
+	seen.clear()
+	_next_seq = 1
+	_client_tick = 0
+	_correction_due = false

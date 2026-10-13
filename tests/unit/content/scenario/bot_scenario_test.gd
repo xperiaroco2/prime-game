@@ -104,16 +104,61 @@ func test_steps_and_targets_report_their_problems() -> void:
 	)
 
 
-func test_a_join_is_the_first_step_and_only_once() -> void:
-	# Before its Welcome a bot runs only a Join: a Join later in the script would never run.
+func test_a_join_is_the_first_step_or_follows_a_leave() -> void:
+	# Before its Welcome a bot runs only a Join: a Join anywhere else would never run.
 	var scenario := _scenario()
 	scenario.settings = {}
 	scenario.scripts[0].steps.append(StepJoin.new())
-	assert_array(Array(scenario.problems())).is_equal(["bot 1: Join must be its first step"])
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 1: a Join is its first step or directly follows its own Leave"]
+	)
 	scenario.scripts[0].steps.push_front(StepJoin.new())
-	assert_array(Array(scenario.problems())).is_equal(["bot 1 has 2 Join steps; at most one"])
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 1: a Join is its first step or directly follows its own Leave"]
+	)
 	scenario.scripts[0].steps.pop_back()
 	assert_array(Array(scenario.problems())).is_empty()
+
+
+func test_a_join_may_follow_the_bots_own_leave() -> void:
+	# P12 (a) of the returning-players ADR: a bot that left joins again, as its own Join step.
+	var scenario := _scenario()
+	scenario.scripts.append(BotScript.new())
+	scenario.scripts[1].steps = [StepLeave.new(), _join(1.0, 5.0), StepReady.new()]
+	assert_array(Array(scenario.problems())).is_empty()
+	# Twice is fine too: the rule is per Leave.
+	scenario.scripts[1].steps.append_array([StepLeave.new(), _join(6.0, 9.0)])
+	assert_array(Array(scenario.problems())).is_empty()
+
+
+func test_a_join_after_a_leave_has_its_deadline_and_nothing_between() -> void:
+	var scenario := _scenario()
+	scenario.scripts.append(BotScript.new())
+	scenario.scripts[1].steps = [StepLeave.new(), StepReady.new(), _join(1.0, 5.0)]
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 2: a Join is its first step or directly follows its own Leave"]
+	)
+	# A Join as the second step, after a step that is no Leave, is misplaced as well.
+	scenario.scripts[1].steps = [StepReady.new(), _join(1.0, 0.0)]
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 2: a Join is its first step or directly follows its own Leave"]
+	)
+	scenario.scripts[1].steps = [StepLeave.new(), _join(5.0, 5.0)]
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 2: a Join after its Leave needs deadline_s above at_s (5.0 s)"]
+	)
+	# A first Join has no deadline: its refusal fails it at once.
+	scenario.scripts[1].steps = [_join(1.0, 5.0), StepLeave.new()]
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 2: a first Join has no deadline_s; only a Join after its Leave retries"]
+	)
+	# The host's own client sends the setup and hosts the session: it never leaves to return.
+	scenario.settings = {}
+	scenario.scripts[0].steps.append_array([StepLeave.new(), _join(1.0, 5.0)])
+	scenario.scripts[1].steps = []
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 1 is the host's own client: it does not join again after its Leave"]
+	)
 
 
 func test_every_step_names_itself_as_in_section_9_7() -> void:
@@ -250,3 +295,10 @@ func _scenario() -> BotScenario:
 	script.steps = [ready, walk]
 	scenario.scripts = [script]
 	return scenario
+
+
+func _join(at_s: float, deadline_s: float) -> StepJoin:
+	var join := StepJoin.new()
+	join.at_s = at_s
+	join.deadline_s = deadline_s
+	return join

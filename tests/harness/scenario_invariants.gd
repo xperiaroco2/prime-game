@@ -71,6 +71,9 @@ var _peers: ScenarioPeers
 var _seeds: Array[int] = []
 ## Each present player's accepted position at the end of the last tick (the record invariant).
 var _accepted: Dictionary[int, Vector3] = {}
+## keys() for a numbers map of `_keys_for` entries (-1: not built yet).
+var _keys := PackedStringArray()
+var _keys_for := -1
 
 
 ## `peers` is the runner's map from bot number to peer id (the `never` check); the core runner's by
@@ -98,6 +101,24 @@ func check_call(command: MatchCommand, slice: Array[EmittedEvent]) -> PackedStri
 ## The session seed and every match seed seen so far: no message may hold one.
 func seeds() -> Array[int]:
 	return _seeds.duplicate()
+
+
+## Every return key a Hello carried: each bot's (ScenarioBot.key_of) and each the host keeps (its
+## numbers map; the chaos hostile's too), and the one no player holds that a hostile's Hello may
+## carry (ScenarioBot.key_of(bots + 1)). No message may hold one (§3.5, the returning-players ADR).
+## The list is rebuilt only when the host's numbers map grew (asked once per event and per tick).
+func keys() -> PackedStringArray:
+	var held := _game.state.numbers.size()
+	if held == _keys_for:
+		return _keys
+	_keys = PackedStringArray()
+	for number in range(1, _scenario.bots + 2):
+		_keys.append(ScenarioBot.key_of(number))
+	for key: String in _game.state.numbers:
+		if not _keys.has(key):
+			_keys.append(key)
+	_keys_for = held
+	return _keys
 
 
 ## The broken invariants of one emitted event, checked right after the step that emitted it.
@@ -135,6 +156,8 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 	for seed_value: int in _seeds:
 		if holds_int(event.to_dict(), seed_value):
 			found.append("%s holds a seed" % name)
+	if holds_text(event.to_dict(), keys()):
+		found.append("%s holds a return key" % name)
 	found.append_array(_check_dead_recipients(emitted))
 	if event is DamagedEvent:
 		for peer: int in emitted.recipients:
@@ -150,7 +173,7 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 		if not ScenarioPlay.event_matches(event, never.event, never.fields, _peers):
 			continue
 		for peer: int in emitted.recipients:
-			if never.bot == 0 or _peers.peer_of(never.bot) == peer:
+			if never.bot == 0 or _peers.peers_of(never.bot).has(peer):
 				found.append("peer %d received %s, which the scenario says never" % [peer, name])
 	if event is ShotTakenEvent:
 		found.append_array(_check_record(event as ShotTakenEvent))
@@ -168,6 +191,8 @@ func check_tick() -> PackedStringArray:
 		for seed_value: int in _seeds:
 			if holds_int(snapshot, seed_value):
 				found.append("peer %d's snapshot holds a seed" % peer)
+		if holds_text(snapshot, keys()):
+			found.append("peer %d's snapshot holds a return key" % peer)
 		for other: int in avatars:
 			var avatar: Dictionary = avatars[other]
 			for field: Variant in avatar:
@@ -384,6 +409,26 @@ func _learn_role(peer: int, about: int, role: StringName, found: PackedStringArr
 	var own_role := _game.mode.find_role(own)
 	if own_role == null or not own_role.knows_teammates or truth != own:
 		found.append("peer %d (%s) learned the role of peer %d (%s)" % [peer, own, about, truth])
+
+
+## Whether `value` holds any of `texts` in a String or StringName, at any depth (a key or a
+## value).
+static func holds_text(value: Variant, texts: PackedStringArray) -> bool:
+	if value is String or value is StringName:
+		var text := str(value)
+		for wanted: String in texts:
+			if text.contains(wanted):
+				return true
+	elif value is Dictionary:
+		var fields: Dictionary = value
+		for key: Variant in fields:
+			if holds_text(key, texts) or holds_text(fields[key], texts):
+				return true
+	elif value is Array or value is PackedStringArray:
+		for element: Variant in value:
+			if holds_text(element, texts):
+				return true
+	return false
 
 
 ## Whether `value` holds the whole number `number`, at any depth.

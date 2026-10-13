@@ -106,10 +106,15 @@ WEBRTC_STALL_RUN = "tests/integration/net/webrtc_stall.gd"
 WEBRTC_SILENCE_RUN = "tests/integration/net/webrtc_silence.gd"
 WEBRTC_SECONDS = 60
 # The bot scenarios and the information-leak test (#102): every scenario in one process on a simulated clock (about
-# 8 s), then one scenario over ENet, one process per bot on the real clock: about 48 s since M4-3 (#139), whose
-# scenario ends by time up on a 40 s clock it forces (BotScenario.clock_s).
+# 8 s), then two scenarios over ENet, one process per bot on the real clock: the first about 48 s since M4-3 (#139),
+# whose scenario ends by time up on a 40 s clock it forces (BotScenario.clock_s); then a leave and a return, each
+# returning bot on a new connection (#639, the engineer's answer on PR #914; about 40 s). The WebRTC step plays both.
 BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
 BOTS_ENET_INSTANCES = 3
+BOTS_RETURN_SCENARIO = "leave_and_return_keep_the_number"
+BOTS_RETURN_INSTANCES = 4
+# (scenario, instances) in the order bots-enet and bots-webrtc play them.
+BOTS_NETWORK_RUNS = ((BOTS_ENET_SCENARIO, BOTS_ENET_INSTANCES), (BOTS_RETURN_SCENARIO, BOTS_RETURN_INSTANCES))
 # The chaos bots (#188): one seed, the short match, three runs in one process over the loopback (about 6 s).
 CHAOS_SEED = 188001
 
@@ -302,14 +307,23 @@ def bots_one_process() -> int:
 
 
 def bots_enet() -> int:
-    """`bots <BOTS_ENET_SCENARIO> --instances 3`: one scenario over ENet on a free port."""
-    return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES)
+    """`bots <BOTS_ENET_SCENARIO> --instances 3`, then `bots <BOTS_RETURN_SCENARIO> --instances 4`: two scenarios over
+    ENet, each on a free port (BOTS_NETWORK_RUNS); both always run, and either one red fails the step."""
+    return _network_bots()
 
 
 def bots_webrtc() -> int:
-    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`: the same scenario over WebRTC on a free port (M6-6,
-    #371), with the fault shim on and the leak test's order check; one process per bot, about 50 s."""
-    return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES, transport="webrtc")
+    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`, then `bots <BOTS_RETURN_SCENARIO> --instances 4
+    --transport webrtc`: the same two scenarios over WebRTC, each on a free port (M6-6, #371; #639), with the fault
+    shim on and the leak test's order check; one process per bot, about 50 s and 40 s."""
+    return _network_bots(transport="webrtc")
+
+
+def _network_bots(transport: str | None = None) -> int:
+    """Each of BOTS_NETWORK_RUNS in order, every one run; the first red exit code, else 0."""
+    extra = {} if transport is None else {"transport": transport}
+    codes = [bots.main([scenario], instances=instances, **extra) for scenario, instances in BOTS_NETWORK_RUNS]
+    return next((code for code in codes if code != 0), 0)
 
 
 def chaos() -> int:

@@ -534,7 +534,9 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of �
     the fault shim's late RELIABLE packets too), and a channel not open under a live connection: on a client at once (it is how
     `disconnect_peer` ends it); on the host after `CHANNEL_GRACE_MS` (1 s) with the connection still up, counted as
     `CHANNEL_CLOSED` (a client's own close resets its channels just before its connection ends, and under load the
-    host read the first a poll before the second: 1 run in 10). `DISCONNECTED` is transient. A join not admitted
+    host read the first a poll before the second: 1 run in 10). Inside that grace a send on a channel the client
+    closed returns `ERR_DOES_NOT_EXIST`, as for a peer gone, so the host logs no error for it (#639: a leave in
+    `bots-webrtc` did in 3 runs of 4). `DISCONNECTED` is transient. A join not admitted
     `JOIN_TIMEOUT_MS` (15 s) after `join()` gives up with `host_unreachable` (no offer came, or the channels never
     opened); the host closes a half-made connection after as long. A join whose socket to the service has not opened
     by `Signaller.CONNECT_TIMEOUT_MS` (5 s, §4.8) gives up before that with `service_unreachable` (#431, #461): on
@@ -1477,14 +1479,15 @@ A scenario's forced roles go as the core runner sends them, one `ForceRole` per 
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
 the wire tells bot 1 which peer is bot i: a name is no id (a wire bot's `Hello` asks for none, so the host names it
-`Player<n>`, §3.5; the core runner's bots ask for `bot<i>`, which the host keeps), and over ENet the clients choose
-their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
+`Player<n>`, §3.5; the core runner's bots ask for no name either, so every bot is `Player<n>`), and over ENet the
+clients choose their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
 `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
 runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
-(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
-on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
-and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
-is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer ids to `tools/out/bots/<scenario>/peer-<i>`
+on `connected`, one id per line, one line per connection (a bot that left and returned has a line for each); bot 1
+waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
+the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer
+ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
 after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
 listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
 like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
@@ -1598,6 +1601,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
 #### 4.6.4 The information-leak test (§5)
 Compares what each bot b decoded with `view_of(b)`:
 - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
+  a bot that left and joined again (a `Join` after its `Leave`, §9.7; #639) has one view per connection, each
+  checked against `view_of` of that connection's peer id: every earlier one as a prefix, labelled
+  "bot N (connection i)" (`NetPlay.earlier_views`; over ENet `ViewFile`'s `earlier` lives), the last one as "bot N";
 - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
   lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
   (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
@@ -1665,8 +1671,10 @@ Compares what each bot b decoded with `view_of(b)`:
   so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for
   it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
   (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
-  present for a whole round decode the same task events; no decoded message has a field that names a seed; a peer
-  that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
+  present for a whole round decode the same task events; no decoded message has a field that names a seed, nor one
+  that holds a return key (each bot's `ScenarioBot.key_of` and every key of the host's `numbers`; and the key of the bot that does not exist, which a hostile Hello may carry; `LeakCheck.set_keys`
+  and `ScenarioInvariants.keys`, #639: a key planted in `PlayerJoined`'s name failed both, then reverted); a peer
+  that is not a player decodes at most the `Rejected`s of its own intents (a returning bot's refused try too: a snapshot, voice or another event it decodes fails the run, #639); one that sends nothing (the lurker)
   decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
   window and drops what it compared.
 
@@ -1756,6 +1764,12 @@ passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd`
 routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
 with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
 fails that sweep).
+
+**#639** planted the joiner's return key as `PlayerJoined`'s name in `JoinRules.hello`: `bots
+late_join_cancels_the_countdown` failed on `ScenarioInvariants` (`invariant at tick 1: PlayerJoined holds a return
+key`), and with that check switched off on `LeakCheck` for each bot (`decoded PlayerJoined holding a return key`);
+then passed with the plant reverted. `leave_and_return_test.gd` keeps a decoded key as a unit case, and a plant in
+the earlier connection's view of a bot that returned fails naming "bot 2 (connection 1)".
 
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
@@ -1942,6 +1956,14 @@ The chaos run plays the greybox, which holds no Cooking, and a take it applied w
 `tests/integration/server/host_session_cooking_test.gd` one peer's burst of `Interact(item)` naming a box gets at most
 one applied take per 5 ticks and `too_soon` for the rest (CE17), and never more than the kind's `max_items` exist
 (CE3); seen failing with the boxes' `Cooldown` planted out and with the cap raised to 1000.
+Kind 1's `key` (`Hello`, the return key of the [returning-players ADR](decisions/2026-10-09-returning-players-keep-their-number.md); #639):
+the hostile's joining `Hello` carries an honest bot's key (`ChaosScenario.KEY_BOT`, bot 2's `ScenarioBot.key_of`),
+sent once the host holds that bot's `PlayerJoined` (`ChaosJoining` makes each chaos transport without joining; the
+hostile's client exists from the start and `ChaosRun._after_host_step` joins it then). The key is a present
+player's, so the hostile joins as a new number and binds none, and bot 2 plays on with its own:
+`ChaosOracle.key_problems` checks that at the end of every run (a hostile that is no player by then is named too). The hostile's extra `Hello`s carry, in turn by a
+counter (no draw from its rng, so a seed's stream is unchanged), a malformed key, bot 2's, bot 1's and one no player
+holds: each is `not_accepted`, whatever it carries. A malformed key is 73-A's core unit test and wire-fuzz case.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
@@ -1998,7 +2020,10 @@ a message delivered after one sent later, a RELIABLE message skipped, a recordin
 the host's lists are whole, a message never sent to that peer (a swapped id-to-connection map). A remote bot's
 lists end with its view file, so the walk of what the host delivered from it stops at the first message missing
 from them. The host checks both directions of each remote bot (its view file carries its lists), the lurker and
-the refused bot; bot 1 is the host's own loopback client. Over WebRTC the relay counters' upload adds no IP and UDP
+the refused bot; bot 1 is the host's own loopback client. A bot that left and joined again (§9.7, #639) has one
+pair of lists per connection, each life of its view file its own, checked against the host's lists of that
+connection's peer id; its `Hello` carries the same return key over every transport (`ScenarioBot.key_of`, fixed from
+its number). Over WebRTC the relay counters' upload adds no IP and UDP
 bytes per datagram: E56's 108 B per packet already counts them (`RelayReport.window`).
 `tools\run.cmd bots --chaos [--seed N] --transport webrtc` (`--enet` is `--transport enet`) runs `ChaosRun` in one
 process the same way (the library set up first, before the host's transport: `WebRtcWarmUp.wait()`, #510), paced to
@@ -2007,8 +2032,9 @@ are real time), with the ENet variant's invariants plus the order check, both wa
 watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
 packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
 `LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
-so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
-about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
+so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s, then since #639
+`leave_and_return_keep_the_number --instances 4`, about 40 s; `bots-enet` plays the same two) and `chaos-webrtc`
+(seed 188001, about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
 `tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC, and a join lost for good whose reason reaches the
 view file), `tests/unit/net/transport/fault_shim_test.gd`,
 `tools/runner/tests/test_bots.py` and `test_verify.py`.
@@ -6895,7 +6921,7 @@ told. One format runs in two runners.
 
 | Step | The bot | Done when |
 |---|---|---|
-| `Join(at_s)` | sends `Hello` `at_s` seconds after the start instead of at once (a late join that cancels the countdown, or one refused in Loading) | its `Welcome` arrives |
+| `Join(at_s, deadline_s)` | sends `Hello` `at_s` seconds after the start instead of at once (a late join that cancels the countdown, or one refused in Loading); directly after the bot's own `Leave` it joins again on a peer id new to the session, and a `joins_closed` or a refused connection tries again every 0.5 s until `deadline_s` (P12 (a), (t2) of the returning-players ADR; #639) | its `Welcome` arrives |
 | `LoadAck(skip)` | answers the next `LoadMatch`: with `skip`, never, so the loading deadline drops it | the ack is sent, or skipped |
 | `Ready(ready)` | sends `SetReady` | its `ReadyChanged` arrives |
 | `Setting(id, value)` | (the host's bot) sends `ChangeSettings` | `SettingsChanged` arrives |
@@ -6929,7 +6955,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - `WaitFor` and `ExpectNone` look at the events from their own start; `Expect` also at those since the previous
   step started, so it sees what arrived with the previous step's answer (a `PackageDelivered` after a
   `PutDown`). `Expect` with `within` 0 checks only what already arrived. A bot runs its steps in one tick until
-  one waits or sends; before its `Welcome` only `Join` runs, so a `Join` is a script's first step, at most once.
+  one waits or sends; before its `Welcome` only `Join` runs, so a `Join` is a script's first step, or directly follows
+  the bot's own `Leave` (not bot 1's: the host's own client does not join again), with `deadline_s` above `at_s`
+  there and 0 on a first `Join` (`BotScenario.problems()`). The step after a `Leave` waits for the next tick. A refused
+  or failed try is dropped and the next one starts on a new connection; past `deadline_s` the step fails naming the
+  last refusal (#639).
 - `LoadAck` answers the `LoadMatch` that arrives while it is the bot's current step; one that arrived during an
   earlier step was acknowledged at once, and the `LoadAck` step then fails, saying so. A `Join` refused in Loading
   cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
@@ -6941,7 +6971,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings and sets in one `ChangeSettings` from bot 1 after them (`BotScenario.setup_change()`, in both runners).
 - `fields` match a subset of the event's payload, as the bot received it (name and fields): text as text, numbers
-  and vectors approximately, and `peer` (and the raise events' `raiser` and `target`, M4-4) holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
+  and vectors approximately, and `peer` (and the raise events' `raiser` and `target`, M4-4) holds a bot's number, mapped through the runner's `ScenarioPeers`, which keeps a returning bot's earlier peer ids (`peers_of`, `bot_of` maps
+  each back to the bot; a `Never` names every one; #639); an event
   for one peer whose payload names none (`SelfStatus`) matches `peer` as the bot that received it (3h). `never` names an event, fields and a
   bot (0: every bot).
 
@@ -6969,7 +7000,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     applied in bot order with the tick's stamp, the tick runs, and each event goes to exactly its recorded
     recipients (`take_outbox`), so a bot holds its peer's `view_of`, which the runner asserts at the end. It
     stands in for `server/`: joins (`PeerConnected`, then `Hello`), `RefuseJoins` and `AllowJoins`, and
-    `DisconnectPeer`, after which the bot is gone and its `PeerLeft` follows on the next tick. A bot that stands still
+    `DisconnectPeer`, after which the bot is gone and its `PeerLeft` follows on the next tick. Its `Hello` asks for no
+    name (the host names each player `Player<n>`, as for the network bots) and carries the bot's return key,
+    `ScenarioBot.key_of(n)`, fixed from its number, as every runner's does (#639); a returning bot's earlier
+    connections keep their events, each checked against `view_of` of its own peer id. A bot that stands still
     claims where it stands every tick, as every `ClientSession` does, so the host settles its stamina as it stands
     (M4-3). Until `server/`'s
     `WorldQuery` exists (M3) a flat fake answers the geometry (`FlatWorldQuery`, one floor at y = 0): the levels
@@ -6988,7 +7022,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
-    failure fail once.
+    failure fail once. `tests/scenarios/leave_and_return_test.gd` (#639) plays a leave and a return in the core
+    runner and over the loopback (new peer ids, the kept number, the retries until the lobby, a deadline that fails,
+    the fixed keys, a decoded key as a leak, the invariants failing a planted key, a refused try that decoded more than its Rejected), and `scenario_peers_test.gd` the peers map.
   - *Bots* (M3, 3h): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
     bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over ENet
     on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
@@ -7018,6 +7054,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `StopRaise` gets `not_channeling`, and the bot respawns 30 s later; time up on a 55 s clock),
   `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina; End's
   return to the lobby with no intent, #212),
+  `leave_and_return_keep_the_number` (#639, provisional: three bots join, bot 3 a `Join` 3 s in so that the numbers
+  follow bot order over a network too; bot 2 leaves the lobby once it saw that join, bot 4 joins as Player4, bot 2
+  returns as Player2; in the round bot 3 leaves and, after `ReturnToLobby`, returns as Player3; the `bots-enet` and
+  `bots-webrtc` steps play it with 4 instances after `dissident_kills_the_crew`),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).

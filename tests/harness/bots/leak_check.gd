@@ -100,6 +100,7 @@ const SEQ_MODULO := 0x10000
 
 var _game: Match
 var _seeds: Array[int] = []
+var _keys := PackedStringArray()
 ## Tick -> the present living, downed and dead players after that tick.
 var _alive_at: Dictionary[int, PackedInt32Array] = {}
 var _downed_at: Dictionary[int, PackedInt32Array] = {}
@@ -176,6 +177,11 @@ func set_seeds(seeds: Array[int]) -> void:
 	_seeds = seeds
 
 
+## The return keys no decoded message may hold (ScenarioInvariants.keys()).
+func set_keys(keys: PackedStringArray) -> void:
+	_keys = keys
+
+
 ## Whether `event` is for one peer, its `peer` the subject: listed in FOR_ONE, or its class declares
 ## a one-peer audience (ONLY or SENDER).
 static func for_one(event: MatchEvent) -> bool:
@@ -236,6 +242,7 @@ func check_bot(
 	_check_snapshots(view, decoded, found)
 	_check_voice(view, decoded, peer, found)
 	_check_seeds(decoded, found)
+	_check_keys(decoded, found)
 	return _labelled(label, peer, found)
 
 
@@ -598,6 +605,17 @@ func _check_seeds(decoded: DecodedView, found: PackedStringArray) -> void:
 		for at_tick: int in decoded.snapshots:
 			if ScenarioInvariants.holds_int(decoded.snapshots[at_tick], seed_value):
 				found.append("the snapshot of tick %d holds a seed" % at_tick)
+
+
+func _check_keys(decoded: DecodedView, found: PackedStringArray) -> void:
+	if _keys.is_empty():
+		return
+	for event: WireMessage in decoded.events:
+		if ScenarioInvariants.holds_text(event.fields, _keys):
+			found.append("decoded %s holding a return key" % event.name)
+	for at_tick: int in decoded.snapshots:
+		if ScenarioInvariants.holds_text(decoded.snapshots[at_tick], _keys):
+			found.append("the snapshot of tick %d holds a return key" % at_tick)
 
 
 ## The tick of core/'s first DisconnectPeer of `peer`, or -1 (loopback ids are never reused in one

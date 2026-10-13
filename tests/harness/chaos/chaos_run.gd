@@ -86,8 +86,8 @@ var honest_claims := ChaosHonestClaims.new()
 var _hostile_client: BotClient
 var _hostile_budget := ChaosBudget.new()
 var _malformed_budget := ChaosBudget.new()
-var _take_hostile := Callable()
-var _take_malformed := Callable()
+var _hostile_joining: ChaosJoining
+var _malformed_joining: ChaosJoining
 var _claimed_tick := -1
 var _corrections_seen := 0
 ## Peer -> its epoch and position after the last Match call (Welcome and Correction events).
@@ -276,44 +276,37 @@ func _joining() -> NetTransport:
 	return transport
 
 
-## A chaos transport joining the host: `take` gets its outbox, `send_raw` its raw sends.
-func _chaos_joining() -> Dictionary:
-	if webrtc:
-		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
-		rtc.keep_outbox = true
-		rtc.join(BotWebRtc.CODE, 0)
-		return {"transport": rtc, "take": rtc.take_outbox, "send_raw": rtc.send_raw}
-	if over_network:
-		var enet := ChaosEnet.new(schema.kind_table())
-		enet.join(ENET_ADDRESS, port)
-		return {"transport": enet, "take": enet.take_outbox, "send_raw": enet.send_raw}
-	var loopback := ChaosLoopback.new(schema.kind_table(), hub)
-	loopback.join("loopback", port)
-	return {"transport": loopback, "take": loopback.take_outbox, "send_raw": loopback.send_raw}
+## A chaos peer's transport to the host, not joined yet (ChaosJoining).
+func _chaos_joining() -> ChaosJoining:
+	return ChaosJoining.make(schema.kind_table(), port, hub, over_network, webrtc, _shim_seed)
+
+
+## The hostile's Hello carries an honest bot's return key (ChaosScenario.KEY_BOT, #639).
+func _key_of(bot: ScenarioBot) -> String:
+	if bot.number == HOSTILE:
+		return ScenarioBot.key_of(ChaosScenario.KEY_BOT)
+	return super(bot)
 
 
 func _join_host(bot: ScenarioBot) -> String:
 	if bot.number != HOSTILE:
 		return super(bot)
-	var joined := _chaos_joining()
-	_hostile_client = add_client(bot, joined["transport"] as NetTransport)
-	_take_hostile = joined["take"]
+	_hostile_joining = _chaos_joining()
+	_hostile_client = add_client(bot, _hostile_joining.transport)
 	if chaos_mode == Mode.CHAOS:
 		var budget: ChaosBudget = null if over_network else _hostile_budget
-		hostile = ChaosHostile.new(
-			bot, _hostile_client, schema, joined["send_raw"] as Callable, budget, chaos_seed
-		)
+		var raw := _hostile_joining.send_raw
+		hostile = ChaosHostile.new(bot, _hostile_client, schema, raw, budget, chaos_seed)
 		hostile.quiet = _hostile_quiet
 	return ""
 
 
 func _join_everyone() -> void:
 	super()
-	var joined := _chaos_joining()
-	_take_malformed = joined["take"]
-	malformed = ChaosMalformed.new(
-		joined["transport"] as NetTransport, joined["send_raw"] as Callable, schema, chaos_seed + 1
-	)
+	_malformed_joining = _chaos_joining()
+	_malformed_joining.join()
+	var raw := _malformed_joining.send_raw
+	malformed = ChaosMalformed.new(_malformed_joining.transport, raw, schema, chaos_seed + 1)
 	malformed.active = chaos_mode == Mode.CHAOS
 
 
@@ -355,8 +348,11 @@ func _pace() -> void:
 func _after_host_step() -> void:
 	if _signalling != null:
 		_signalling.poll()
-	var from_hostile: Array[ChaosFrames.Packet] = _take_hostile.call()
-	var from_malformed: Array[ChaosFrames.Packet] = _take_malformed.call()
+	# The hostile, made at the start, joins once the host holds bot KEY_BOT's PlayerJoined (#639).
+	if _hostile_joining.join_after(peers, ChaosScenario.KEY_BOT, session.game.state):
+		_join_retry(HOSTILE).start(_join_clock_usec())
+	var from_hostile: Array[ChaosFrames.Packet] = _hostile_joining.take.call()
+	var from_malformed: Array[ChaosFrames.Packet] = _malformed_joining.take.call()
 	if over_network:
 		_note_chaos_sent(hostile_peer(), from_hostile)
 		_note_chaos_sent(malformed.peer if malformed != null else 0, from_malformed)
@@ -619,6 +615,9 @@ func _check_after() -> void:
 	super()
 	if freeze_gained < 0:
 		failures.append("bot 4 never ended its freeze in the zone")
+	var key_bot := peers.peer_of(ChaosScenario.KEY_BOT)
+	var key := ScenarioBot.key_of(ChaosScenario.KEY_BOT)
+	failures.append_array(ChaosOracle.key_problems(game.state, hostile_peer(), key_bot, key))
 	failures.append_array(honest_claims.failures())
 	if honest_claims.accepted == 0:
 		failures.append("chaos: the host accepted no honest MoveClaim of bot 4")
