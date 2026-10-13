@@ -51,9 +51,9 @@ from pathlib import Path
 from . import instructions
 from .common import ROOT, Failure, bad, ok, say, skip, warn
 
-# --launch (#557): the lean agent types of issue-task and pr-rebase, the scripts, and the folders compared with origin/main.
+# --launch (#557, #928): the lean agent types of issue-task, pr-rebase and quick-task, the scripts, and the folders compared with origin/main.
 LAUNCH_AGENTS = ("task-implementer", "task-publisher")
-LAUNCH_SCRIPTS = ("issue-task.js", "pr-rebase.js")
+LAUNCH_SCRIPTS = ("issue-task.js", "pr-rebase.js", "quick-task.js")
 LAUNCH_PATHS = (".claude/workflows", ".claude/agents")
 
 FAMILY_RE = re.compile(r"^claude-([a-z]+)-")
