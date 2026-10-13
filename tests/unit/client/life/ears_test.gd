@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## Where the ears are (Ears.point(); E40, the M5 ADR §1.5 and §3 item 4): the own eye while living,
 ## the own body's head where it lies while downed (never the downed camera above and behind it),
-## a spectated living target's eye, a downed target's head where it lies, and with no target the
-## own body's head.
+## a spectated living target's eye (its drawn head while crouched, the crouch ADR's KE7), a downed
+## target's head where it lies, and with no target the own body's head.
 
 const OWN_FEET := Vector3(2, 0, 3)
 const EYE := Vector3(2, 1.6, 3)
@@ -46,6 +46,23 @@ func test_the_head_lies_where_the_lying_capsule_puts_the_eyes_and_turns_with_the
 func test_the_dead_hear_from_a_living_targets_eye() -> void:
 	var at := _point(ClientModel.Life.DEAD, 7, ClientModel.Life.ALIVE)
 	assert_vector(at).is_equal(TARGET_FEET + Vector3.UP * _rules.eye_height_m)
+
+
+func test_the_dead_hear_from_a_crouched_targets_drawn_eye() -> void:
+	# The crouch ADR, KE7: the drawn head's height, not the standing eye's; never for the living
+	# own player or a downed target, which lies at standing size.
+	var low := _rules.crouch_eye_height_m
+	var feet := _feet(TARGET_FEET)
+	var dead := ClientModel.Life.DEAD
+	var alive := ClientModel.Life.ALIVE
+	var at := Ears.point(dead, _feet(OWN_FEET), EYE, 7, alive, feet, _rules, low)
+	assert_vector(at).is_equal(TARGET_FEET + Vector3.UP * low)
+	var own := Ears.point(alive, _feet(OWN_FEET), EYE, 0, alive, feet, _rules, low)
+	assert_vector(own).is_equal(EYE)
+	var downed := Ears.point(
+		dead, _feet(OWN_FEET), EYE, 7, ClientModel.Life.DOWNED, feet, _rules, low
+	)
+	assert_vector(downed).is_equal_approx(Ears.lying_head(feet, _rules), Vector3.ONE * 1e-5)
 
 
 func test_the_dead_hear_from_a_downed_targets_head() -> void:

@@ -2353,8 +2353,15 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - **The crouch** (#791, §7, §7.1.17): the controller claims its crouch as the pose of the step it sends (the claim's
   `crouched` flag), and only where `GameFlow.crouch_plays` says it plays, the same test the host's `MovementRule`
   keeps the flag by, so an honest crouched walk or crouched sprint is never corrected: 0 `Correction`s over the
-  loopback, also with packets held back and with jitter (`player_network_crouch_test.gd`). Its remote pose (727c) is
-  not built.
+  loopback, also with packets held back and with jitter (`player_network_crouch_test.gd`). Its remote pose: the next
+  bullet (727c).
+- **Remote players crouched** (#792, the crouch ADR's KE7; §7.1.17): the pose's `crouched` is the flag of the
+  snapshot at or before the drawn tick, never blended. `AvatarViews` calls `RemotePlayerBody.set_crouched` before
+  `set_pose`, so the capsule (a new `CapsuleShape3D` of `crouch_height_m`, the feet staying, placed with
+  `force_update_transform()`) is what the push search finds in that same frame; the greybox look and the sight point
+  switch with it, and the head, with the mouth, hand, belt and carry points hung on it, eases down by the eye
+  heights' difference at `PlayerTuning.view_catch_up_seconds`' rate (a body drawn for the first time: at once). A
+  downed body lies at standing size. The spectate camera stands at the target body's head, crouched or not.
 
 #### 4.7.7 Built in M4-7 (#143), movement on the network
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
@@ -3963,6 +3970,14 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
     player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
     none (never muffled).
+  - **Quiet** (#792, the crouch ADR's KD1 (b)): where the crouch plays (`WorldSounds.crouch_plays`, KE10, which
+    `Game` sets with the controller's), a step, the own or another player's, at or below the mode's
+    `crouch_fast_speed_mps` plays
+    `FootstepCadence.QUIET_STEP_DB` (−6 dB, added to the muffle's) and is heard within `QUIET_STEP_RANGE_M` (6 m:
+    `SoundChooser.step`'s cut and `max_distance` alike); both ease linearly to a walk's step at the walk speed
+    (`quiet_of`). Both are placeholders, "not a decision". It is read from the step's speed, averaged over the
+    step (`step_speed_mps`, so one jittery frame of a pose never sets it), never the crouch flag. Elsewhere every
+    step is today's.
   - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
     hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
     untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
@@ -3991,7 +4006,11 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   claimed velocity, a claimed run standing still is silent, none and no ray beyond 12 m, muffled behind a wall,
   none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
   downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
-  engineer's, in a two-client `host`/`join` session (the PR).
+  engineer's, in a two-client `host`/`join` session (the PR). The quiet step (#792):
+  `footstep_cadence_test.gd` (`quiet_of` at, below, between and above the speeds; a mode without them; the step's
+  speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at crouch speed, today's at the walk speed
+  whatever the flag, eased between, cut beyond 6 m, the own slow steps too, and today's where the crouch does not
+  play).
 #### 4.7.43 Built in #601 (M6.2), the solo tutorial session in the game
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
@@ -4934,6 +4953,9 @@ target's head, the own body without a target. Godot measures a 3D player's dista
 docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
 concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
+A crouched speaker or target (#792, the crouch ADR's KE7): the mouth hangs on the body's head, lowered with its
+crouched eye, and a spectator's ears and spectate camera sit at the target body's head (`Ears.point`'s `target_eye_m`),
+crouched or not, never the mode's standing eye; tests `ears_test.gd` and `life_ears_test.gd` (§7.1.17).
 
 #### 6.5.5 Buses and the mix (E43, D15)
 `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
@@ -5612,9 +5634,9 @@ there would not follow from the commands.
   (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
   thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
-#### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790, the local crouch in #791)
-Status: the host's part and the wire are built (#790), and the local player's crouch (727b, #791); others' crouch
-(727c) is not.
+#### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790, the local crouch in #791, others' in #792)
+Status: the host's part and the wire are built (#790), the local player's crouch (727b, #791) and others' crouch
+with the quiet steps (727c, #792); #522's crouch animation clips are not on main.
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
@@ -5662,7 +5684,7 @@ reads, do not move.
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
   numbers, `crouch_maps`; #790, built), 727b (the local crouch; #791, built), 727c (others' crouch: pose, voice,
-  the quiet steps).
+  the quiet steps; #792, built).
 - **Built in #790 (727a)**, the host's part and the wire: `PlayerRules`' four crouch numbers and `crouch_maps`
   (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
   `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
@@ -5701,6 +5723,27 @@ reads, do not move.
   `Input.parse_input_event`; the Esc menu releasing Ctrl; nothing in the lobby or on a map the list leaves out),
   `tests/unit/client/app/game_flow_test.gd` (`crouch_plays`) and `controls_test.gd` (the crouch on Ctrl, no living
   action on it).
+- **Built in #792 (727c)**, others' crouch and the quiet steps (KE7, KD1 (b)): `SnapshotBuffer.Pose.crouched`, the
+  flag of the snapshot at or before the drawn tick (never blended); `AvatarViews` calls
+  `RemotePlayerBody.set_crouched` before `set_pose` (at once for a body drawn for the first time), which switches
+  the capsule, the greybox look (`LifeLooks.capsule`, `shell`) and the sight point at once and eases the head with
+  the mouth, hand, belt and carry points down by the eye heights' difference at the own view's catch-up rate
+  (§4.7.6); a downed body lies at standing size. The spectate camera and the spectator's `Ears` sit at the target
+  body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
+  its two placeholders, used by `WorldSounds` where its `crouch_plays` is set (§4.7.40); `Game` sets
+  `WorldSounds.crouch_plays` from the same answer as the controller's (`_apply_player_flags`). #522's crouch
+  animation clips are not on main: the bodies stay capsules until they land. A `shot` preview:
+  `client/dev/crouch_preview.tscn`.
+- **Tests (727c):** `tests/unit/client/world/snapshot_buffer_test.gd` (the pose's flag),
+  `tests/integration/client/world/avatar_views_test.gd` (the push search finds the crouched capsule in the frame it
+  crouches; the head, mouth, points and look lowered and eased; a body first drawn crouched at once),
+  `tests/unit/client/life/ears_test.gd` and `tests/integration/client/life/life_ears_test.gd` (the dead see and hear
+  from a crouched target's crouched eye), `tests/unit/client/world/footstep_cadence_test.gd` (`quiet_of` at, below,
+  between and above the speeds, a mode without them; the step's speed over the step) and
+  `tests/integration/client/world/world_sounds_steps_test.gd` (the quiet step at crouch speed, today's at the walk
+  speed whatever the flag, eased between, cut beyond 6 m, the own slow steps quiet too, and today's step where the
+  crouch does not play, on a fixture world); `player_network_crouch_test.gd` (each `Game`'s
+  `WorldSounds.crouch_plays` set in the Round on a listed map, clear in the lobby and on an unlisted map).
 
 #### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's

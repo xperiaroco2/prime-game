@@ -316,18 +316,166 @@ func test_a_replaced_model_no_longer_reads_this_views_host_tick() -> void:
 	assert_bool(other.host_tick_now.is_valid()).is_false()
 
 
+func test_the_push_search_finds_the_crouched_capsule_in_the_frame_it_crouches() -> void:
+	# The crouch ADR, KE7: the capsule switches before the body is placed, so the local player's
+	# push search (priority 0, after AvatarViews' -80) never meets a standing capsule 0.6 m taller
+	# than a crouched player, nor misses a standing one, in any frame.
+	var spot := Vector3(2, 0, 0)
+	for tick: int in range(1, 4):
+		_snapshot(tick, spot, Vector3.FORWARD)
+	await _drawn()
+	var seen: Array[Vector3i] = []
+	var search := func() -> void:
+		var body := _views.body_of(PEER)
+		seen.append(Vector3i(int(body.is_crouched()), _living_at(spot, 1.5), _living_at(spot, 0.6)))
+	var step := Step.new(0, search, false)
+	auto_free(step)
+	add_child(step)
+	await _drawn()
+	for tick: int in range(4, 8):
+		_snapshot(tick, spot, Vector3.FORWARD, false, true)
+		await _drawn()
+	for tick: int in range(8, 12):
+		_snapshot(tick, spot, Vector3.FORWARD)
+		await _drawn()
+	# Standing, then crouched, then standing again: the capsule's top follows in every frame.
+	assert_bool(seen.has(Vector3i(0, 1, 1))).is_true()
+	assert_bool(seen.has(Vector3i(1, 0, 1))).is_true()
+	assert_bool(seen.has(Vector3i(1, 1, 1))).is_false()
+	assert_bool(seen.has(Vector3i(0, 0, 1))).is_false()
+	assert_int(seen.filter(func(row: Vector3i) -> bool: return row.z == 0).size()).is_equal(0)
+	assert_bool(seen.back() == Vector3i(0, 1, 1)).is_true()
+
+
+func test_a_crouched_body_lowers_its_head_mouth_points_and_look() -> void:
+	var rules := _views.rules
+	var drop := rules.eye_height_m - rules.crouch_eye_height_m
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	var mesh := body.get_node("Mesh") as MeshInstance3D
+	assert_float(body.head().position.y).is_equal_approx(rules.eye_height_m, 1e-5)
+	assert_float(_mesh_top(mesh)).is_equal_approx(rules.capsule_height_m, 1e-3)
+	for tick: int in range(2, 6):
+		_snapshot(tick, Vector3.ZERO, Vector3.FORWARD, false, true)
+	await _until_crouched(body)
+	# The capsule and its look switch at once; the head eases down at the step's catch-up rate.
+	assert_float(_mesh_top(mesh)).is_equal_approx(rules.crouch_height_m, 1e-3)
+	assert_float(body.sight_point().y).is_equal_approx(rules.crouch_height_m * 0.5, 1e-5)
+	assert_float(body.head().position.y).is_greater(rules.crouch_eye_height_m + 1e-3)
+	assert_float(body.head().position.y).is_less(rules.eye_height_m)
+	await _frames(30)
+	assert_float(body.head().position.y).is_equal_approx(rules.crouch_eye_height_m, 1e-5)
+	# The mouth, where the voice plays (M5-5), and the item points come down with the head.
+	assert_float(body.mouth_point().position.y).is_equal_approx(
+		rules.crouch_eye_height_m - RemotePlayerBody.MOUTH_BELOW_EYE_M, 1e-5
+	)
+	assert_float(body.hand_point().position.y).is_equal_approx(
+		RemotePlayerBody.HAND_POINT.y - drop, 1e-5
+	)
+	assert_float(body.belt_point().position.y).is_equal_approx(
+		RemotePlayerBody.BELT_POINT.y - drop, 1e-5
+	)
+	assert_float(body.carry_point().position.y).is_equal_approx(
+		RemotePlayerBody.CARRY_POINT.y - drop, 1e-5
+	)
+	# Standing again: everything back up.
+	for tick: int in range(6, 10):
+		_snapshot(tick, Vector3.ZERO, Vector3.FORWARD)
+	await _frames(30)
+	assert_bool(body.is_crouched()).is_false()
+	assert_float(_mesh_top(mesh)).is_equal_approx(rules.capsule_height_m, 1e-3)
+	assert_float(body.head().position.y).is_equal_approx(rules.eye_height_m, 1e-5)
+	assert_float(body.mouth_point().position.y).is_equal_approx(
+		rules.eye_height_m - RemotePlayerBody.MOUTH_BELOW_EYE_M, 1e-5
+	)
+	assert_vector(body.hand_point().position).is_equal_approx(
+		RemotePlayerBody.HAND_POINT, Vector3.ONE * 1e-5
+	)
+
+
+func test_a_body_first_drawn_crouched_has_its_head_down_at_once() -> void:
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, false, true)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_bool(body.is_crouched()).is_true()
+	assert_float(body.head().position.y).is_equal_approx(_views.rules.crouch_eye_height_m, 1e-5)
+
+
+func test_a_downed_body_keeps_its_points_up_while_the_crouch_flag_trails_the_knockdown() -> void:
+	# The life comes from the newest snapshot, the crouch flag from the drawn tick's: for the
+	# interpolation delay after a knockdown, a body that lies can still be told "crouched".
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	var mouth_y := body.mouth_point().position.y
+	body.set_downed(true)
+	body.set_crouched(true, INF)
+	assert_float(body.mouth_point().position.y).is_equal_approx(mouth_y, 1e-5)
+	assert_float(body.hand_point().position.y).is_equal_approx(RemotePlayerBody.HAND_POINT.y, 1e-5)
+
+
+func test_a_mode_without_a_step_height_lowers_the_head_at_once_with_no_nan() -> void:
+	# 0 * INF is NaN: a first draw of a mode with step_height_m 0 would blank every point.
+	_views.rules.step_height_m = 0.0
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, false, true)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_float(body.head().position.y).is_equal_approx(_views.rules.crouch_eye_height_m, 1e-5)
+	assert_bool(is_nan(body.mouth_point().position.y)).is_false()
+	for tick: int in range(2, 6):
+		_snapshot(tick, Vector3.ZERO, Vector3.FORWARD)
+	await _frames(10)
+	assert_float(body.head().position.y).is_equal_approx(_views.rules.eye_height_m, 1e-5)
+
+
+func test_an_unchanged_crouch_flag_rewrites_no_looks() -> void:
+	# AvatarViews calls set_crouched every frame for every body: the shape's transform goes to the
+	# physics server only when the flag turns.
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	var shape := body.get_node("CollisionShape3D") as CollisionShape3D
+	var marker := Transform3D(Basis.IDENTITY, Vector3(0.0, 7.0, 0.0))
+	shape.transform = marker
+	await _frames(3)
+	assert_bool(shape.transform == marker).is_true()
+
+
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func _drawn() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 
 
-func _snapshot(tick: int, at: Vector3, facing: Vector3, invulnerable := false) -> void:
+## Waits `count` physics frames (the head eases 0.6 m in about 12 at 60 Hz).
+func _frames(count: int) -> void:
+	for frame: int in count:
+		await get_tree().physics_frame
+
+
+## Waits for the physics frame that draws `body` crouched (at most a second of frames).
+func _until_crouched(body: RemotePlayerBody) -> void:
+	for frame: int in 60:
+		if body.is_crouched():
+			return
+		await get_tree().physics_frame
+
+
+## The top of `mesh` above the feet.
+func _mesh_top(mesh: MeshInstance3D) -> float:
+	return (mesh.global_transform * mesh.get_aabb()).end.y
+
+
+func _snapshot(
+	tick: int, at: Vector3, facing: Vector3, invulnerable := false, crouched := false
+) -> void:
 	var avatar := {
 		"position": at,
 		"velocity": Vector3.ZERO,
 		"facing": facing,
 		"downed": false,
+		"crouched": crouched,
 		"invulnerable": invulnerable,
 		"held_item": -1,
 	}
@@ -352,13 +500,14 @@ func _ray_hits_at(height: float) -> int:
 	return 0 if space.intersect_ray(query).is_empty() else 1
 
 
-## 1 when a shape query on the living layer, as the push search's, finds a body at `at`; else 0.
-func _living_at(at: Vector3) -> int:
+## 1 when a shape query on the living layer, as the push search's, finds a body at `at`, `height`
+## above it; else 0.
+func _living_at(at: Vector3, height := 0.9) -> int:
 	var sphere := SphereShape3D.new()
 	sphere.radius = 0.2
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = sphere
-	query.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * 0.9)
+	query.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * height)
 	query.collision_mask = PhysicsLayers.LIVING
 	var space := _views.get_world_3d().direct_space_state
 	return 0 if space.intersect_shape(query).is_empty() else 1

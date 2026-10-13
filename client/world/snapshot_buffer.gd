@@ -15,7 +15,8 @@ extends RefCounted
 ##   time. Past the newest snapshot a player holds still (no extrapolation: a player who stopped
 ##   running is not drawn on into a wall). A placement snaps (snap(), and any two snapshots further
 ##   apart than SNAP_SPEED_MPS could carry anyone). The velocity is the newest snapshot's and only
-##   picks an animation: a claimed velocity never moves a body on another screen.
+##   picks an animation: a claimed velocity never moves a body on another screen. The crouch flag
+##   (the crouch ADR, KE7) is the snapshot's at or before the render time: a flag is never blended.
 ## - A relayed facing can be degenerate in honest play (a bot falling straight down claims
 ##   (0, -1, 0), a standing one may claim zero): every pose has a unit facing and a yaw and pitch
 ##   kept from the last usable facing, and the pitch is within ±MAX_PITCH (the M4 ADR's §3).
@@ -54,6 +55,9 @@ class Pose:
 	var pitch := 0.0
 	## The newest snapshot's velocity: for picking an animation only.
 	var velocity := Vector3.ZERO
+	## The avatar's crouch (the crouch ADR, KE7) in the snapshot at or before the render time, or
+	## the only one held: a flag is never blended.
+	var crouched := false
 
 
 ## Snapshots of this host tick or older are not kept (clear()): -1 before the first clear.
@@ -181,6 +185,7 @@ func pose_of(peer: int, at: float) -> Pose:
 		return null
 	var pose := Pose.new()
 	pose.velocity = _field(newest, peer, "velocity")
+	pose.crouched = _flag(before if before >= 0 else after, peer, "crouched")
 	if before < 0 or after < 0:
 		var only := before if before >= 0 else after
 		pose.position = _field(only, peer, "position")
@@ -268,6 +273,12 @@ func _field(index: int, peer: int, key: String) -> Vector3:
 	var avatar: Dictionary = _avatars[index][peer]
 	var value: Variant = avatar.get(key, Vector3.ZERO)
 	return value as Vector3 if value is Vector3 else Vector3.ZERO
+
+
+func _flag(index: int, peer: int, key: String) -> bool:
+	var avatar: Dictionary = _avatars[index][peer]
+	var value: Variant = avatar.get(key, false)
+	return value as bool if value is bool else false
 
 
 func _forget_arrivals(now_usec: int) -> void:

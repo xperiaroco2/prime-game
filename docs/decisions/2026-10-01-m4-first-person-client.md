@@ -145,6 +145,11 @@ design routes it for M4's client PRs, and since #158 the root routing and the sa
     event from farther away; about 12 m, a placeholder, "not a decision"). `Swung`, `ItemPickedUp` and
     `ItemPlaced` reach everyone with a position, and a fading but uncut sound would tell every crew client, through
     the walls, where a dissident just put a package down. Occlusion is M5's.
+    *Amended 2026-10-13 (#792, the [crouch ADR](2026-10-10-crouch.md)'s KD1 (b), KE7):* where the crouch plays, a
+    step at crouch speed is heard within a narrower range (6 m, a placeholder), never a wider one, read from the
+    drawn pose's speed, never the crouch flag. A remote body is drawn crouched only by its snapshot's `crouched`
+    (the host's state, relayed with the pose), and the spectate camera and the ears sit at the target body's drawn
+    head: nothing of a crouch is drawn or heard that the snapshot does not hold.
 
 **Host trust:** the client sends intents only, and the host checks every one again (reach, sight, life, slots,
 stamina, the raise's conditions every tick). The facing is a claim whose only effects are the hit zone's direction,

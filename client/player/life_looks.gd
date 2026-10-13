@@ -2,7 +2,8 @@ class_name LifeLooks
 extends RefCounted
 ## The greybox looks of the life states (the M4 ADR's D8 (a), placeholders "distinct at a glance in
 ## a `shot`"): a downed player is their capsule lying on its side in their colour; a body the same
-## in grey with a dark cross; invulnerability a translucent white shell that pulses. Shared by the
+## in grey with a dark cross; invulnerability a translucent white shell that pulses; a crouched
+## player the shorter crouched capsule (the crouch ADR, KE7, until #522's clips). Shared by the
 ## own PlayerController, RemotePlayerBody and the body views (client/world/body_views.gd), sized
 ## from the client's own copy of the mode's PlayerRules.
 
@@ -19,11 +20,14 @@ const SHELL_PULSES_PER_S := 2.0
 const CROSS_BAR := Vector3(0.9, 0.02, 0.12)
 
 
-## A capsule of the rules' size in `colour`.
-static func capsule(rules: PlayerRules, colour: Color, margin := 0.0) -> CapsuleMesh:
+## A capsule of the rules' size in `colour`, of the crouched capsule's height where `crouched` (the
+## crouch ADR, KE7: the greybox's crouch until #522's clips replace it).
+static func capsule(
+	rules: PlayerRules, colour: Color, margin := 0.0, crouched := false
+) -> CapsuleMesh:
 	var mesh := CapsuleMesh.new()
 	mesh.radius = rules.capsule_radius_m + margin
-	mesh.height = rules.capsule_height_m + margin * 2.0
+	mesh.height = rules.height_of(crouched) + margin * 2.0
 	var material := StandardMaterial3D.new()
 	material.albedo_color = colour
 	mesh.material = material
@@ -37,9 +41,9 @@ static func lying(rules: PlayerRules) -> Transform3D:
 	return Transform3D(along_z, Vector3(0.0, rules.capsule_radius_m, 0.0))
 
 
-## Where a capsule mesh stands, from the feet.
-static func standing(rules: PlayerRules) -> Transform3D:
-	return Transform3D(Basis.IDENTITY, Vector3(0.0, rules.capsule_height_m * 0.5, 0.0))
+## Where a capsule mesh stands, from the feet; the crouched capsule where `crouched`.
+static func standing(rules: PlayerRules, crouched := false) -> Transform3D:
+	return Transform3D(Basis.IDENTITY, Vector3(0.0, rules.height_of(crouched) * 0.5, 0.0))
 
 
 ## A body (Died): the grey lying capsule with a dark cross on top, as one node, from the feet.
@@ -65,10 +69,10 @@ static func body(rules: PlayerRules) -> Node3D:
 	return root
 
 
-## The invulnerable shell: a translucent white capsule a little larger than the body, unshaded,
-## whose alpha pulse() moves.
-static func shell(rules: PlayerRules) -> CapsuleMesh:
-	var mesh := capsule(rules, SHELL_COLOUR, SHELL_MARGIN)
+## The invulnerable shell: a translucent white capsule a little larger than the body (crouched
+## where `crouched`), unshaded, whose alpha pulse() moves.
+static func shell(rules: PlayerRules, crouched := false) -> CapsuleMesh:
+	var mesh := capsule(rules, SHELL_COLOUR, SHELL_MARGIN, crouched)
 	var material := mesh.material as StandardMaterial3D
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

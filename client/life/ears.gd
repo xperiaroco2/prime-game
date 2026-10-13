@@ -8,7 +8,8 @@ extends AudioListener3D
 ## - downed: the own body's head where it lies (vision revision 1: the downed hear the living
 ##   "from where they lie"), never the downed camera up to 2 m behind and 1.6 m above, whose ray
 ##   would pass over the crate the body lies against;
-## - dead, spectating a living target: the target's eye; a downed target: its body's head; no
+## - dead, spectating a living target: the target's eye (its drawn head, lower while it is drawn
+##   crouched, the crouch ADR's KE7); a downed target: its body's head; no
 ##   target: the own body's head. The dead hear no voice (the host routes none and VoiceViews
 ##   plays none), so there the ears serve the world sounds around the target (V11).
 ## SoundChooser measures its hearing range from here too (E40's amendment of E33). Godot mixes a
@@ -19,7 +20,9 @@ extends AudioListener3D
 ## Where the ears are. `own_life` is the own life fold; `own_feet` the own body (the controller's
 ## transform while living or downed, the body's place while dead); `own_eye` the first-person
 ## camera's position; `target` 0 or the spectated peer, `target_life` its life fold and
-## `target_feet` its RemotePlayerBody's transform; `rules` the client's own PlayerRules.
+## `target_feet` its RemotePlayerBody's transform; `rules` the client's own PlayerRules;
+## `target_eye_m` how high above its feet the living target's drawn head is (crouched or not, the
+## crouch ADR, KE7), NAN for the standing eye.
 static func point(
 	own_life: ClientModel.Life,
 	own_feet: Transform3D,
@@ -27,7 +30,8 @@ static func point(
 	target: int,
 	target_life: ClientModel.Life,
 	target_feet: Transform3D,
-	rules: PlayerRules
+	rules: PlayerRules,
+	target_eye_m := NAN
 ) -> Vector3:
 	match own_life:
 		ClientModel.Life.ALIVE:
@@ -37,7 +41,8 @@ static func point(
 	if target == 0:
 		return lying_head(own_feet, rules)
 	if target_life == ClientModel.Life.ALIVE:
-		return target_feet.origin + Vector3.UP * rules.eye_height_m
+		var eye_m := rules.eye_height_m if is_nan(target_eye_m) else target_eye_m
+		return target_feet.origin + Vector3.UP * eye_m
 	return lying_head(target_feet, rules)
 
 
