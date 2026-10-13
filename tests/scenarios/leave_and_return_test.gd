@@ -153,6 +153,30 @@ func test_a_decoded_return_key_is_a_leak() -> void:
 	assert_str(found).contains("the snapshot of tick %d holds a return key" % at_tick)
 
 
+func test_the_invariants_fail_an_event_or_a_snapshot_that_holds_a_return_key() -> void:
+	var net := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(net.failures)).is_empty()
+	var invariants: ScenarioInvariants = net._invariants
+	var key := ScenarioBot.key_of(2)
+	var clean := EmittedEvent.new(
+		0, PlayerJoinedEvent.new(3, "Player3", Vector3.ZERO, 0), PackedInt32Array([1]), false
+	)
+	assert_str("\n".join(invariants.check_event(clean))).not_contains("return key")
+	# A key in a declared text field of an event.
+	var planted := EmittedEvent.new(
+		0, PlayerJoinedEvent.new(3, key, Vector3.ZERO, 0), PackedInt32Array([1]), false
+	)
+	assert_str("\n".join(invariants.check_event(planted))).contains(
+		"PlayerJoined holds a return key"
+	)
+	# A snapshot: the key the host keeps is "avatars", which every snapshot holds as a field name.
+	assert_str("\n".join(invariants.check_tick())).not_contains("return key")
+	net.game.state.numbers["avatars"] = 9
+	assert_str("\n".join(invariants.check_tick())).contains("snapshot holds a return key")
+
+
 func test_a_refused_try_that_decoded_more_than_its_rejected_fails_the_run() -> void:
 	var core := ScenarioRunner.play(_round_return_scenario())
 	assert_array(Array(core.failures)).is_empty()
