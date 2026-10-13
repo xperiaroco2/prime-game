@@ -18,7 +18,13 @@ extends RefCounted
 ##   drawn item launches, and a thrown item's ItemPlaced when it lands at its rest). ItemThrown
 ##   reaches everyone with its origin: uncut, the launch would tell every client where a package
 ##   was just thrown to hide it;
-## - a footstep (step(), #525, no event): at the feet of a walking player as this client draws it.
+## - a footstep (step(), #525, no event): at the feet of a walking player as this client draws it;
+## - the photo task (#785, photo P6; the photo ADR §1.1 row 7, §4, PD15): ShotTaken's shutter at
+##   the camera's lens (its station's marker plus `lens_m`, the mode's eye height, as PhotoTask's
+##   lens), PhotoPrinted's print where the photo lies on the printer's tray (its ItemSpawned came
+##   right before), PhotoHung's hang at the board's marker. Each event reaches everyone with its
+##   place already public (the stations, the tray); the same cut-off keeps a shot, a print or a
+##   hang beyond the hearing range silent, and the muffle ray applies as to every sound.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -41,6 +47,15 @@ const FOOTSTEP := &"footstep"
 ## A step plays at the feet and aims like an item, a hand above the floor it is on: a ray to the
 ## feet would end in that floor. A placeholder, "not a decision".
 const STEP_AIM_M := ITEM_AIM_M
+## The photo task's sounds (#785, PD15): the shot's shutter, a photo printed, a photo hung.
+const SHUTTER := &"shutter"
+const PRINT := &"print"
+const HANG := &"hang"
+## The shutter plays at the lens, in the air: the ray aims at the lens itself.
+const SHUTTER_AIM_M := 0.0
+## A hang plays at the board's marker, on the floor below the board: the ray aims at about where a
+## photo goes on it, as a swing aims at a chest. A placeholder, "not a decision".
+const HANG_AIM_M := SWING_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -58,16 +73,18 @@ class Sound:
 
 ## The sound for event `event_name` (already folded into `model`) within `hearing_m` of
 ## `listener`, or null: a silent event, an unknown place, or too far. `position_of` gives a peer's
-## position (a Vector3), or null when the client draws no such player.
+## position (a Vector3), or null when the client draws no such player. `lens_m`: how far above a
+## camera's marker its lens is (the client's own copy of the mode's eye height, as PhotoTask's).
 static func choose(
 	event_name: StringName,
 	fields: Dictionary,
 	model: ClientModel,
 	position_of: Callable,
 	listener: Vector3,
-	hearing_m := HEARING_RANGE_M
+	hearing_m := HEARING_RANGE_M,
+	lens_m := 0.0
 ) -> Sound:
-	var sound := source(event_name, fields, model, position_of)
+	var sound := source(event_name, fields, model, position_of, lens_m)
 	if sound == null or not audible(sound.position, listener, hearing_m):
 		return null
 	return sound
@@ -76,7 +93,11 @@ static func choose(
 ## The sound an event makes and where, wherever the listener is; null for a silent event or an
 ## unknown place.
 static func source(
-	event_name: StringName, fields: Dictionary, model: ClientModel, position_of: Callable
+	event_name: StringName,
+	fields: Dictionary,
+	model: ClientModel,
+	position_of: Callable,
+	lens_m := 0.0
 ) -> Sound:
 	match event_name:
 		&"Swung":
@@ -89,6 +110,17 @@ static func source(
 			return Sound.new(PUT_DOWN, fields["position"] as Vector3, ITEM_AIM_M)
 		&"ItemThrown":
 			return Sound.new(THROW, fields["origin"] as Vector3, THROW_AIM_M)
+		&"ShotTaken":
+			var camera: ClientModel.Station = model.stations.get(fields["station"] as int)
+			if camera == null:
+				return null
+			return Sound.new(SHUTTER, camera.position + Vector3.UP * lens_m, SHUTTER_AIM_M)
+		&"PhotoPrinted":
+			var photo: ClientModel.Item = model.items.get(fields["item"] as int)
+			return Sound.new(PRINT, photo.position, ITEM_AIM_M) if photo != null else null
+		&"PhotoHung":
+			var board: ClientModel.Station = model.stations.get(fields["station"] as int)
+			return Sound.new(HANG, board.position, HANG_AIM_M) if board != null else null
 	return null
 
 

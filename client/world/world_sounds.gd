@@ -19,9 +19,19 @@ extends Node3D
 ## its feet; the own steps cast none (nothing stands between the ears and the own feet).
 ## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
+## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
+## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens
+## (`lens_m` above its marker).
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
+## The photo task's placeholder blips (#785, PD15) and the length of each in seconds:
+## placeholders, "not a decision", until the engineer's CC0 files arrive with their credits.
+const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
+	SoundChooser.SHUTTER: 0.08,
+	SoundChooser.PRINT: 0.6,
+	SoundChooser.HANG: 0.12,
+}
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -34,6 +44,9 @@ var player: PlayerController
 var listener := Callable()
 ## The streams.
 var sfx := SfxSet.new()
+## How far above a photo camera's marker its lens is, where the shutter plays: the client's own
+## copy of the mode's eye height (ItemWorld sets it).
+var lens_m := 0.0
 
 var _played := 0
 var _rays := 0
@@ -45,6 +58,8 @@ var _feet: Dictionary[int, Vector3] = {}
 var _cadences: Dictionary[int, FootstepCadence] = {}
 ## The throw's placeholder (throw_blip()), made once.
 var _throw_blip: AudioStreamWAV = null
+## The photo sounds' placeholders (photo_blip()), each made once, by sound id.
+var _photo_blips: Dictionary[StringName, AudioStreamWAV] = {}
 
 
 ## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
@@ -61,7 +76,15 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	var heard_from: Variant = _heard_from()
 	if not heard_from is Vector3:
 		return
-	var sound := SoundChooser.choose(event_name, fields, model, position_of, heard_from as Vector3)
+	var sound := SoundChooser.choose(
+		event_name,
+		fields,
+		model,
+		position_of,
+		heard_from as Vector3,
+		SoundChooser.HEARING_RANGE_M,
+		lens_m
+	)
 	if sound == null:
 		return
 	_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
@@ -99,6 +122,41 @@ static func throw_blip() -> AudioStreamWAV:
 	for i: int in count:
 		var value := rng.randf_range(-1.0, 1.0) * sin(PI * float(i) / count) * 0.8
 		data.encode_s16(i * 2, int(value * 0.5 * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = MIX_RATE
+	stream.data = data
+	return stream
+
+
+## The placeholder sound of the photo task's sound `id` (#785, PD15: blips built in code, as
+## throw_blip(), until the engineer's files arrive): a 16-bit mono burst PHOTO_BLIP_SECONDS long.
+## The shutter two quick clicks; the printer a buzz stepping a dozen times a second; the hang a
+## low tap. Null for an id with no blip.
+static func photo_blip(id: StringName) -> AudioStreamWAV:
+	if not PHOTO_BLIP_SECONDS.has(id):
+		return null
+	var seconds: float = PHOTO_BLIP_SECONDS[id]
+	var data := PackedByteArray()
+	var count := int(MIX_RATE * seconds)
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for i: int in count:
+		var t := float(i) / MIX_RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		var value := 0.0
+		if id == SoundChooser.SHUTTER:
+			value = noise * exp(-t / 0.004)
+			if t >= 0.045:
+				value += 0.7 * noise * exp(-(t - 0.045) / 0.004)
+		elif id == SoundChooser.PRINT:
+			var fade := minf(1.0, minf(t / 0.02, (seconds - t) / 0.05))
+			var step := 0.6 + 0.4 * signf(sin(TAU * 12.0 * t))
+			value = 0.5 * signf(sin(TAU * 180.0 * t)) * step * fade
+		else:
+			value = sin(TAU * 140.0 * t) * exp(-t / 0.03) + 0.5 * noise * exp(-t / 0.003)
+		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = MIX_RATE
@@ -175,14 +233,18 @@ func _step(at: Vector3, heard_from: Vector3, occlude: bool) -> void:
 		_steps += 1
 
 
-## The stream of an event's sound `id`: SfxSet's, else, for a throw's launch, which has no file
-## yet, its placeholder (throw_blip()); null for none.
+## The stream of an event's sound `id`: SfxSet's, else, for a throw's launch or a photo sound, which
+## have no file yet, its placeholder (throw_blip(), photo_blip()); null for none.
 func _stream_of(id: StringName) -> AudioStream:
 	var stream: AudioStream = sfx.stream_for(id)
 	if stream == null and id == SoundChooser.THROW:
 		if _throw_blip == null:
 			_throw_blip = throw_blip()
 		stream = _throw_blip
+	if stream == null and PHOTO_BLIP_SECONDS.has(id):
+		if not _photo_blips.has(id):
+			_photo_blips[id] = photo_blip(id)
+		stream = _photo_blips[id]
 	return stream
 
 
