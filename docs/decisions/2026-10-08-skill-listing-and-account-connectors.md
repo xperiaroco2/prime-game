@@ -1,7 +1,13 @@
 # The skill listing and the account's connectors in our sessions
 
-- **Status:** Proposed in #562; accepted when the engineer merges its PR (it changes `.claude/settings.json`, a gate
-  exception of the trust ADR)
+- **Status:** Accepted on 2026-10-08: the engineer merged PR #581. (Was: Proposed in #562; accepted when the engineer
+  merges its PR (it changes `.claude/settings.json`, a gate exception of the trust ADR).)
+- **Amended 2026-10-13 (#925):** his answers to "Left to the engineer"
+  ([#302, comment 6065480161](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6065480161), the
+  connector amended in [comment 6065587857](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6065587857)):
+  the Claude Docs connector **(c)**, kept (no account-level switch was found, and the saving is small); the
+  `anthropic-skills` plugin **(a)**, he turns the unused ones off on his account (his click); `claude-api` hidden
+  from the model, accepted.
 - **Date:** 2026-10-08
 - **Deciders:** the engineer (the merge); the options under "Left to the engineer" are his
 - **Tracking:** #562, #302 (token efficiency), #170 (AI productivity)
