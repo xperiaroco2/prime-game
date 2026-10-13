@@ -64,7 +64,8 @@ const FOR_ONE: Array[StringName] = [
 ## (#771), an item turning another kind (folded the same way), and the Generator's SwitchChanged and
 ## ButtonPressed (#797), and Cooking's OrderPosted and HerbsDealt (#772: the bot folds them once
 ## a scenario plays Cooking, CE22), the car repair's LiftChanged and PartNeeded (#807; read
-## once bots play the House, its RD13), and the photo task's FilmLoaded and ShotTaken (#781).
+## once bots play the House, its RD13), the photo task's FilmLoaded and ShotTaken (#781), and
+## Cooking's GrillLoaded and IngredientPlaced (#773: folded once a scenario plays Cooking, CE22).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -82,6 +83,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"PartNeeded",
 	&"FilmLoaded",
 	&"ShotTaken",
+	&"GrillLoaded",
+	&"IngredientPlaced",
 ]
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary

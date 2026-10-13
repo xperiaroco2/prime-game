@@ -37,8 +37,9 @@ extends RefCounted
 ## Rejected reasons `no_film`, `no_frames_left` and `film_exposed` and the host text
 ## `photo_spot_near` (the photo ADR §3.2, §3.3, PE12);
 ## 25 since #638 added Hello's return `key` (an id decoded as a String; the returning-players ADR,
-## Decision 4).
-const VERSION := 25
+## Decision 4);
+## 26 since #773 added Cooking's GrillLoaded (kind 79) and IngredientPlaced (kind 80).
+const VERSION := 26
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -508,6 +509,13 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(77, &"FilmLoaded", 4, [_station("station"), _item("item")]),
 		_shot_taken(),
+		_down(
+			79,
+			&"GrillLoaded",
+			12,
+			[_station("station"), _item("item"), _of("fried", _tick()), _of("burnt", _tick())]
+		),
+		_down(80, &"IngredientPlaced", 5, [_item("item"), _station("station"), _bool("right")]),
 	]
 
 

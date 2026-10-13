@@ -82,6 +82,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		PartNeededEvent.new(3, &"spark_plug"),
 		FilmLoadedEvent.new(1, 2),
 		ShotTakenEvent.new(1, 2, 0),
+		GrillLoadedEvent.new(1, 2, 200, 300),
+		IngredientPlacedEvent.new(2, 1, true),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),

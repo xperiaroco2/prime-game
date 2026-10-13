@@ -5,11 +5,13 @@ extends RefCounted
 ## numbers are fixture values, not the engineer's provisional ones (those land in data, C6).
 ##
 ## basic(burgers): FixtureCombatModes.raising() (PickUp, PutDown, the two-handed package, the knife,
-## the raise; Round lists LifeTicks, then ChannelTicks) with VanishTicks added to Round, Interact
-## from the living in Round, the settings `tasks` (1), `banned_task_types` and `burgers` (`burgers`
-## by default, 0 to MOST_BURGERS), and the task type Cooking in place of the mode's: the display
-## kinds `order_board` and `herb_board`, the kinds `grill`, `herb_bed` and `place` with the use
-## rule (FixtureGeneratorModes.kind), the buns `bun_a` and `bun_b`, the raw patties `raw_a` and
+## the raise; Round lists LifeTicks, then ChannelTicks) with VanishTicks and then TaskTicks added
+## to Round, Interact from the living in Round, the settings `tasks` (1), `banned_task_types` and
+## `burgers` (`burgers` by default, 0 to MOST_BURGERS), and the task type Cooking in place of the
+## mode's: the display kinds `order_board` and `herb_board`, the kinds `grill` and `herb_bed` with
+## the use rule less HandNotTwoHanded (a take beside a box, CD3 (b): AtStation, StationInSight,
+## StationUsable; UseStation) and `place` with the whole use rule (FixtureGeneratorModes.kind,
+## HandNotTwoHanded first), the buns `bun_a` and `bun_b`, the raw patties `raw_a` and
 ## `raw_b`, the fried `fried_a` and `fried_b`, `burnt`, the herbs `herb_a` to `herb_c` (no spawn
 ## tag, `vanish_seconds` VANISH, the given ones `max_items` CAP) and one two-handed box per bun and
 ## raw patty (`box_bun_a` ...), each on its own tag with FixtureGiveModes' take. The deal
@@ -22,6 +24,9 @@ const CAP := 64
 const VANISH := 60
 const FRY_SECONDS := 1.0
 const BURN_SECONDS := 2.0
+## The beds' Cooldown (CE17): one tick, so a second use in the same tick is `too_soon`.
+const BED_SECONDS := 0.05
+const BED_KEY := &"herb_take"
 const ORDER_BOARD_AT := Vector3(0, 0, 20)
 const HERB_BOARD_AT := Vector3(2, 0, 20)
 const GRILL_AT := Vector3(4, 0, 20)
@@ -54,8 +59,8 @@ static func winning(burgers: int = 1) -> GameMode:
 	return mode
 
 
-## Adds the settings, the type and its item kinds, Interact from the living and VanishTicks in
-## Round.
+## Adds the settings, the type and its item kinds, Interact from the living, and VanishTicks and
+## then TaskTicks last in Round.
 static func _add_cooking(mode: GameMode, burgers: int) -> void:
 	if mode.find_setting(&"tasks") == null:
 		mode.settings.append(FixtureModes.setting(&"tasks", 1, 1, 1))
@@ -71,6 +76,7 @@ static func _add_cooking(mode: GameMode, burgers: int) -> void:
 	var round_phase := mode.find_phase(&"round")
 	round_phase.accepts.append(AcceptSpec.of(Intents.INTERACT, AcceptSpec.From.LIVING))
 	round_phase.tick_systems.append(VanishTicks.new())
+	round_phase.tick_systems.append(TaskTicks.new())
 
 
 static func cooking_type() -> Cooking:
@@ -79,8 +85,8 @@ static func cooking_type() -> Cooking:
 	made.description = "Cook the burgers on the order board."
 	made.order_board = board(&"order_board")
 	made.herb_board = board(&"herb_board")
-	made.grill = FixtureGeneratorModes.kind(&"grill")
-	made.herb_bed = FixtureGeneratorModes.kind(&"herb_bed")
+	made.grill = taking(&"grill")
+	made.herb_bed = bed(&"herb_bed")
 	made.place = FixtureGeneratorModes.kind(&"place")
 	made.buns = [ingredient(&"bun_a", true), ingredient(&"bun_b", true)]
 	made.raw_patties = [ingredient(&"raw_a", true), ingredient(&"raw_b", true)]
@@ -101,6 +107,28 @@ static func cooking_type() -> Cooking:
 	made.subtasks_setting = &"burgers"
 	made.fry_seconds = FRY_SECONDS
 	made.burn_seconds = BURN_SECONDS
+	return made
+
+
+## A station kind whose use is (or may be) a take, so its rule has no HandNotTwoHanded (CD3 (b)):
+## AtStation, StationInSight, StationUsable; UseStation. Its spawn tag its id.
+static func taking(kind_id: StringName) -> StationKind:
+	var made := FixtureGeneratorModes.kind(kind_id)
+	made.actions = [
+		FixtureModes.rule(
+			Intents.INTERACT,
+			[AtStation.new(), StationInSight.new(), StationUsable.new()],
+			[UseStation.new()]
+		)
+	]
+	return made
+
+
+## A bed's station kind: `taking`'s rule with a Cooldown of BED_SECONDS (CE17's flood guard) among
+## its conditions.
+static func bed(kind_id: StringName) -> StationKind:
+	var made := taking(kind_id)
+	made.actions[0].conditions.append(FixtureCombatModes.cooldown(BED_KEY, BED_SECONDS))
 	return made
 
 
@@ -153,15 +181,23 @@ static func layouts(
 
 
 ## A match of `mode` on `found_layouts` (layouts() when empty) with `peers` all ready: the deal has
-## run and the match is in the round (FixtureGeneratorModes.in_round).
+## run and the match is in the round (FixtureGeneratorModes.in_round), with `settings` over the
+## defaults and `forced` roles (peer -> role id).
 static func in_round(
 	mode: GameMode,
 	peers: Array[int],
 	found_layouts: Dictionary[String, LevelLayout] = {},
-	seed_value: int = 7
+	seed_value: int = 7,
+	settings: Dictionary[StringName, int] = {},
+	forced: Dictionary[int, StringName] = {}
 ) -> Match:
 	return FixtureGeneratorModes.in_round(
-		mode, peers, found_layouts if not found_layouts.is_empty() else layouts(), {}, seed_value
+		mode,
+		peers,
+		found_layouts if not found_layouts.is_empty() else layouts(),
+		settings,
+		seed_value,
+		forced
 	)
 
 
@@ -183,3 +219,84 @@ static func dicts(game: Match, peer: int, event_name: StringName) -> Array[Dicti
 	for event: MatchEvent in game.view_of(peer).events_named(event_name):
 		found.append(event.to_dict())
 	return found
+
+
+## The grill's station id.
+static func grill_of(game: Match) -> int:
+	return state_of(game).grill
+
+
+## The station id of the bed whose herb of the round is `herb_id`.
+static func bed_of(game: Match, herb_id: StringName) -> int:
+	var task_state := state_of(game)
+	for i in task_state.beds.size():
+		if task_state.bed_herbs[i].id == herb_id:
+			return task_state.beds[i]
+	return -1
+
+
+## The station id of place `index`: order `index`'s.
+static func place_of(game: Match, index: int) -> int:
+	return state_of(game).orders[index].station
+
+
+## `peer` stands at `station` (inside its cylinder) and names it in an Interact.
+static func use(game: Match, peer: int, station: int, seq: int = 0) -> void:
+	FixtureGeneratorModes.use(game, peer, station, seq)
+
+
+## The box that gives `kind_id`, where the deal laid it.
+static func box_giving(game: Match, kind_id: StringName) -> ItemState:
+	for item: ItemState in game.state.items.values():
+		if BOXES.get(item.kind.id, &"") == kind_id:
+			return item
+	return null
+
+
+## `peer` stands 1 m from the box that gives `kind_id` and takes from it (Interact naming it).
+static func take(game: Match, peer: int, kind_id: StringName, seq: int = 0) -> void:
+	var box := box_giving(game, kind_id)
+	FixtureItemModes.stand(game, peer, box.position + Vector3(0, 0, 1))
+	FixtureGiveModes.interact_item(game, peer, box.id, seq)
+
+
+## `peer` picks the herb `herb_id` at its bed.
+static func pick(game: Match, peer: int, herb_id: StringName, seq: int = 0) -> void:
+	use(game, peer, bed_of(game, herb_id), seq)
+
+
+## The item in `peer`'s hand, or null.
+static func held(game: Match, peer: int) -> ItemState:
+	return Items.held_by(game.state, peer)
+
+
+## The item on `peer`'s belt, or null.
+static func belted(game: Match, peer: int) -> ItemState:
+	return Items.belted_by(game.state, peer)
+
+
+## `peer` takes a raw patty of `raw_id` from its box, puts it on the empty grill, runs the ticks
+## through the one it turns fried in and takes it off, fried: it is in `peer`'s hand. Returns it.
+static func fry(game: Match, peer: int, raw_id: StringName) -> ItemState:
+	take(game, peer, raw_id)
+	var patty := held(game, peer)
+	use(game, peer, grill_of(game))
+	FixtureModes.run_ticks(game, type_of(game.mode).fried_ticks() + 1)
+	use(game, peer, grill_of(game))
+	return patty
+
+
+## Every right ingredient of order `index` into `peer`'s hand and onto its place, in the order bun,
+## patty, herb, with one tick after each.
+static func cook(game: Match, peer: int, index: int) -> void:
+	var order := state_of(game).orders[index]
+	var place_id := place_of(game, index)
+	take(game, peer, order.bun.id)
+	use(game, peer, place_id)
+	FixtureModes.run_ticks(game, 1)
+	fry(game, peer, order.raw_patty.id)
+	use(game, peer, place_id)
+	FixtureModes.run_ticks(game, 1)
+	pick(game, peer, order.herb.id)
+	use(game, peer, place_id)
+	FixtureModes.run_ticks(game, 1)

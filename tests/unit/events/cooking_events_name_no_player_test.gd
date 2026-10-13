@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## declarations: each cooking event's to_dict() keys and its wire row's fields are held to a list
 ## written here, so a `peer` added to either fails this test even if its audience still says
 ## everyone. Each part adds its own events (C2, C3, C4, C10): ItemVanished is C10's (#779),
-## ItemChanged C2's (#771), OrderPosted and HerbsDealt C3's (#772).
+## ItemChanged C2's (#771), OrderPosted and HerbsDealt C3's (#772), GrillLoaded and
+## IngredientPlaced C4's (#773).
 
 ## Event -> the keys of its to_dict() and the fields of its wire row, in order.
 const KEYS := {
@@ -11,6 +12,8 @@ const KEYS := {
 	&"ItemChanged": ["item", "kind"],
 	&"OrderPosted": ["station", "bun", "patty", "icon"],
 	&"HerbsDealt": ["code", "beds"],
+	&"GrillLoaded": ["station", "item", "fried", "burnt"],
+	&"IngredientPlaced": ["item", "station", "right"],
 }
 
 
@@ -43,4 +46,6 @@ func _samples() -> Array[MatchEvent]:
 		HerbsDealtEvent.new(
 			PackedStringArray(["mint", "dill"]), PackedStringArray(["dill", "mint"])
 		),
+		GrillLoadedEvent.new(4, 9, 220, 320),
+		IngredientPlacedEvent.new(9, 5, true),
 	]

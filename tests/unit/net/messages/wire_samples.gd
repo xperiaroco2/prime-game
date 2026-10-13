@@ -153,6 +153,13 @@ static func events() -> Dictionary[String, Array]:
 	found["ShotTakenEvent"] = [
 		ShotTakenEvent.new(1, 2, 0, none), ShotTakenEvent.new(0xFFFE, 0xFFFE, 0xFFFF, rows)
 	]
+	found["GrillLoadedEvent"] = [
+		GrillLoadedEvent.new(3, 7, 220, 320),
+		GrillLoadedEvent.new(0xFFFE, 0xFFFE, 0xFFFFFFFD, 0xFFFFFFFE),
+	]
+	found["IngredientPlacedEvent"] = [
+		IngredientPlacedEvent.new(7, 4, true), IngredientPlacedEvent.new(0xFFFE, 0xFFFE, false)
+	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),
