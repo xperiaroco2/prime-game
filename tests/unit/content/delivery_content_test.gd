@@ -7,6 +7,9 @@ extends GdUnitTestSuite
 ## (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const TUTORIAL_MODE := "res://content/modes/tutorial_mode.tres"
+const HOUSE := "res://levels/house/house.tscn"
+const GREYBOX := "res://levels/greybox/greybox.tscn"
 
 
 func test_the_task_settings_and_their_numbers() -> void:
@@ -61,6 +64,23 @@ func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_deli
 	# zone_base_mode_test.gd checks the fixture mode that still deals it.
 	assert_int(mode.task_types.size()).is_equal(2)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
+
+
+func test_each_delivery_plays_on_one_map_of_the_base_mode_the_two_apart() -> void:
+	# The delivery-by-meaning ADR §7, DE15 (i): with `tasks` 1 to 1, a map that both Deliveries
+	# played on would draw one at random and show two "Delivery" chips in its lobby.
+	var mode := load(BASE_MODE) as GameMode
+	var tutorial := load(TUTORIAL_MODE) as GameMode
+	var by_meaning: TaskType = mode.find_task_type(&"delivery")
+	var by_colours: TaskType = mode.find_task_type(&"colour_delivery")
+	assert_bool(by_meaning is DeliveryByMeaning).is_true()
+	assert_bool(by_colours is Delivery).is_true()
+	assert_array(Array(by_meaning.maps)).is_equal([HOUSE])
+	assert_array(Array(by_colours.maps)).is_equal([GREYBOX])
+	for type: TaskType in [by_meaning, by_colours]:
+		assert_bool(mode.maps.has(type.maps[0])).is_true()
+		for map: String in tutorial.maps:
+			assert_bool(type.plays_on(map)).override_failure_message(map).is_false()
 
 
 func _delivery(mode: GameMode) -> Delivery:
