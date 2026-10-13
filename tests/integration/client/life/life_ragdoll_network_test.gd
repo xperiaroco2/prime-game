@@ -4,8 +4,9 @@ extends GdUnitTestSuite
 ## camera and ears follow its own avatar's point, never the controller held where the knockdown
 ## found it; the pivot keeps the eye height above the floor below the point in mid-flight and
 ## stops under the fixture's low slab; the ragdoll's root stays within the snap distance of the
-## point in every frame. A dead spectator's camera over a launched target keeps the floor clamp,
-## and a raise after the rest stands the joiner at the host's point with its ragdoll gone.
+## point in every frame. At a death the ragdoll stays as the body (KD7 (a)). A dead spectator's
+## camera over a launched target keeps the floor clamp, and a raise after the rest stands the
+## joiner at the host's point with its ragdoll gone.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 const RESPAWN_S := 2.0
@@ -92,7 +93,7 @@ func test_a_launched_joiners_camera_and_ears_follow_its_avatar_with_the_floor_cl
 				Vector2(player.global_position.x, player.global_position.z)
 			)
 		)
-	assert_int(followed).is_greater(FLIGHT_FRAMES / 2)
+	assert_int(followed * 2).is_greater(FLIGHT_FRAMES)
 	# It flew: above the floor clamp's reach, and away from the held controller.
 	assert_float(highest).is_greater(1.0)
 	assert_float(farthest).is_greater(1.0)
@@ -225,6 +226,34 @@ func test_a_raise_after_the_rest_stands_the_joiner_at_the_hosts_point() -> void:
 		. is_less(0.05)
 	)
 	assert_bool(player.is_downed()).is_false()
+	await _pair.stop()
+
+
+func test_a_death_keeps_the_ragdoll_in_its_pose_greyed_with_the_cross() -> void:
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var avatars := _pair.client.avatars()
+	var bodies := _pair.client.bodies()
+	_pair.knock_down(_pair.client, HIGH_LAUNCH)
+	assert_bool(await _until(func() -> bool: return avatars.ragdoll_of(joiner) != null)).is_true()
+	await _pair.frames(FLIGHT_FRAMES)
+	var ragdoll := avatars.ragdoll_of(joiner)
+	var basis := ragdoll.global_basis
+	_pair.client.life().give_up()
+	assert_bool(await _until(func() -> bool: return bodies.view_of(joiner) != null)).is_true()
+	var view := bodies.view_of(joiner)
+	# KD7 (a): the very ragdoll, now the body's, in the pose it lay in.
+	assert_bool(is_instance_valid(ragdoll)).is_true()
+	assert_bool(is_same(view.get_node(^"Ragdoll"), ragdoll)).is_true()
+	assert_object(avatars.ragdoll_of(joiner)).is_null()
+	assert_bool(ragdoll.is_dead()).is_true()
+	assert_object(ragdoll.colour()).is_equal(LifeLooks.BODY_COLOUR)
+	assert_int(ragdoll.collision_layer).is_equal(0)
+	assert_float(ragdoll.global_basis.y.dot(basis.y)).is_greater(0.99)
+	assert_int(view.get_node(^"Cross").get_child_count()).is_equal(2)
+	await _pair.frames(10)
+	assert_bool(is_instance_valid(ragdoll) and ragdoll.is_inside_tree()).is_true()
 	await _pair.stop()
 
 

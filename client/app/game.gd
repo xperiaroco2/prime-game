@@ -699,8 +699,7 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_avatars.buffer = _buffer
 	_avatars.rules = mode.player_rules
 	_avatars.clock = clock
-	_bodies.model = _client.model
-	_bodies.rules = mode.player_rules
+	_bodies.setup(_client.model, mode.player_rules, _avatars)
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items

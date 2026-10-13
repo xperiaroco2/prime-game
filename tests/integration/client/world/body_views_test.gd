@@ -1,6 +1,9 @@
 extends GdUnitTestSuite
 ## BodyViews (ARCHITECTURE §4.7 Others, E26): a body appears where Died put it, the own player's
 ## too, and is removed at its player's Respawned or PlayerLeft; each is in SightHider's group.
+## With no knocked-down ragdoll to keep (no AvatarViews here), a body is a fresh ragdoll lying at
+## rest along -Z, grey, on no layer, with the dark cross over its point (KD7 (a)); the ragdoll
+## AvatarViews hands over at a death is life_ragdoll_network_test's.
 
 const OWN := 2
 const OTHER := 5
@@ -35,6 +38,36 @@ func test_bodies_appear_at_a_death_and_go_at_a_respawn_or_a_leave() -> void:
 	assert_float(point.y).is_equal_approx(FixtureModes.player_rules().capsule_radius_m, 1e-4)
 	_model.fold(&"Respawned", {"peer": OWN, "position": Vector3.ZERO})
 	_model.fold(&"PlayerLeft", {"peer": OTHER})
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_int(_views.count()).is_equal(0)
+
+
+func test_a_body_is_a_grey_ragdoll_lying_at_rest_on_no_layer_with_the_cross() -> void:
+	var rules := FixtureModes.player_rules()
+	var at := Vector3(3, 0, -4)
+	_model.fold(&"Died", {"peer": OTHER, "position": at})
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var view := _views.view_of(OTHER)
+	var ragdoll := view.get_node(^"Ragdoll") as RagdollView
+	assert_object(ragdoll).is_not_null()
+	assert_bool(ragdoll.is_dead()).is_true()
+	assert_object(ragdoll.colour()).is_equal(LifeLooks.BODY_COLOUR)
+	assert_int(ragdoll.collision_layer).is_equal(0)
+	assert_bool(ragdoll.top_level).is_true()
+	assert_vector(ragdoll.held_point()).is_equal(at)
+	# Lying along -Z over the point (no floor here: the spring holds it up, sagging a little).
+	assert_float(absf(ragdoll.global_basis.y.normalized().z)).is_greater(0.99)
+	assert_float(ragdoll.global_position.distance_to(ragdoll.lying_centre())).is_less(0.3)
+	var cross := view.get_node(^"Cross") as Node3D
+	assert_int(cross.get_child_count()).is_equal(2)
+	var bar := cross.get_child(0) as MeshInstance3D
+	var dark := (bar.mesh as BoxMesh).material as StandardMaterial3D
+	assert_object(dark.albedo_color).is_equal(LifeLooks.CROSS_COLOUR)
+	assert_float(bar.global_position.y).is_greater(rules.capsule_radius_m * 2.0)
+	assert_vector(Vector3(bar.global_position.x, 0, bar.global_position.z)).is_equal(at)
+	_model.fold(&"Respawned", {"peer": OTHER, "position": Vector3.ZERO})
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	assert_int(_views.count()).is_equal(0)

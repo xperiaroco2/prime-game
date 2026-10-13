@@ -1,7 +1,8 @@
 extends Node3D
 ## A preview of the life looks for `tools\run.cmd shot` (the M4 ADR's §6 and D8): from the left, a
-## living player, a downed one lying on its side in its colour, a body (grey with a dark cross) and
-## an invulnerable player in its white shell, on a floor; the LifeScreen (#497) of a downed player
+## living player, a knocked-down one as its ragdoll at rest in its colour (RagdollView, KE7), a body
+## (that ragdoll greyed, with a dark cross, KD7 (a)) and an invulnerable player in its white shell,
+## on a floor; the LifeScreen (#497) of a downed player
 ## being raised over them, or (`raised` off, life_give_up_preview.tscn) of a downed player holding
 ## the give-up key, named by the key bound now (#211). Dev only: nothing here reaches the game.
 
@@ -19,13 +20,12 @@ func _ready() -> void:
 	_add_light()
 	var standing := _add_player(rules, Vector3(-3.0, 0.0, 0.0))
 	standing.set_downed(false)
-	var downed := _add_player(rules, Vector3(-1.0, 0.0, 0.0))
-	downed.set_living(false)
-	downed.set_downed(true)
-	var body := LifeLooks.body(rules)
-	body.position = Vector3(1.0, 0.0, 0.0)
-	body.rotation = Vector3(0.0, PI * 0.5, 0.0)
-	add_child(body)
+	_add_ragdoll(rules, Vector3(-1.0, 0.0, 0.0), LifeLooks.PLAYER_COLOUR)
+	var body := _add_ragdoll(rules, Vector3(1.0, 0.0, 0.0), LifeLooks.BODY_COLOUR)
+	body.make_dead(Vector3(1.0, 0.0, 0.0))
+	var cross := LifeLooks.cross(rules)
+	cross.position = Vector3(1.0, 0.0, 0.0)
+	add_child(cross)
 	var shielded := _add_player(rules, Vector3(3.0, 0.0, 0.0))
 	shielded.set_invulnerable(true)
 	shielded.set_process(false)
@@ -69,11 +69,21 @@ func _add_player(rules: PlayerRules, at: Vector3) -> RemotePlayerBody:
 	player.rules = rules
 	player.position = at
 	add_child(player)
-	# A quarter turn, so the lying capsule and the visor show their length.
+	# A quarter turn, so the visor shows.
 	player.rotation = Vector3(0.0, PI * 0.5, 0.0)
 	return player
 
 
+## A ragdoll lying at rest at `at`, a quarter turn like the players.
+func _add_ragdoll(rules: PlayerRules, at: Vector3, colour: Color) -> RagdollView:
+	var ragdoll := RagdollView.new()
+	ragdoll.setup(rules, 0, colour)
+	ragdoll.lie_at_rest(at, PI * 0.5)
+	add_child(ragdoll)
+	return ragdoll
+
+
+## The floor: a plane to see, and a box under it on the world layer for the ragdolls to lie on.
 func _add_floor() -> void:
 	var floor_mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -83,6 +93,15 @@ func _add_floor() -> void:
 	plane.material = material
 	floor_mesh.mesh = plane
 	add_child(floor_mesh)
+	var ground := StaticBody3D.new()
+	ground.collision_layer = PhysicsLayers.WORLD
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(14.0, 1.0, 10.0)
+	shape.shape = box
+	shape.position = Vector3(0.0, -0.5, 0.0)
+	ground.add_child(shape)
+	add_child(ground)
 
 
 func _add_light() -> void:
