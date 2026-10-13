@@ -145,21 +145,48 @@ func problems() -> PackedStringArray:
 			)
 		)
 	for bot in range(1, scripts.size() + 1):
-		var joins := 0
-		for step: ScenarioStep in steps_of(bot):
-			if step is StepJoin:
-				joins += 1
-		if joins > 1:
-			found.append("bot %d has %d Join steps; at most one" % [bot, joins])
-		elif joins == 1 and not steps_of(bot)[0] is StepJoin:
-			# Before its Welcome a bot runs only a Join, so a later Join would never be reached.
-			found.append("bot %d: Join must be its first step" % bot)
+		found.append_array(_join_problems(bot))
 		for step: ScenarioStep in steps_of(bot):
 			if step == null:
 				found.append("bot %d has an empty step" % bot)
 				continue
 			for problem: String in step.problems():
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
+	return found
+
+
+## The problems of bot `bot`'s Join steps, each once (§9.7). Before its Welcome a bot runs only a
+## Join, and a bot that left receives nothing: so a Join is its first step or the step directly
+## after its own Leave (P12 (a) of the returning-players ADR), anything else would never be
+## reached. A Join after a Leave tries again until its deadline_s (P12 (t2)), so that lies above
+## its at_s; a first Join fails at its first refusal and has none. Bot 1, the host's own client,
+## never joins again: its Leave ends the session it hosts.
+func _join_problems(bot: int) -> PackedStringArray:
+	var found := PackedStringArray()
+	var steps := steps_of(bot)
+	var misplaced := false
+	for i in steps.size():
+		var join := steps[i] as StepJoin
+		if join == null:
+			continue
+		var returning := i > 0 and steps[i - 1] is StepLeave
+		if i > 0 and not returning:
+			misplaced = true
+		elif returning and bot == 1:
+			found.append("bot 1 is the host's own client: it does not join again after its Leave")
+		elif returning and join.deadline_s <= join.at_s:
+			found.append(
+				(
+					"bot %d: a Join after its Leave needs deadline_s above at_s (%s s)"
+					% [bot, join.at_s]
+				)
+			)
+		elif not returning and join.deadline_s != 0.0:
+			found.append(
+				"bot %d: a first Join has no deadline_s; only a Join after its Leave retries" % bot
+			)
+	if misplaced:
+		found.append("bot %d: a Join is its first step or directly follows its own Leave" % bot)
 	return found
 
 
