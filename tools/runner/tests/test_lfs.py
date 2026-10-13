@@ -4,6 +4,7 @@ in one summary line; locally nothing changes; the credits check still covers poi
 fails on one. RealPointerTest proves it with the pinned Godot in a throwaway project: a texture imported on a PC with
 LFS, then checked out as a pointer file as CI does."""
 
+import contextlib
 import io
 import os
 import shutil
@@ -12,6 +13,7 @@ import subprocess
 import tempfile
 import unittest
 import zlib
+from collections.abc import Iterator
 from pathlib import Path
 from unittest import mock
 
@@ -521,6 +523,24 @@ detect_3d/compress_to=1
 """
 
 
+@contextlib.contextmanager
+def throwaway(test: unittest.TestCase) -> Iterator[Path]:
+    """A temporary folder for a test with the pinned Godot, with an empty logs/ for common.LOGS. Its Godot logs go
+    with it, so on a failure they are first copied to tools/out/logs/<test method>/, which CI keeps as an artifact
+    (#949: the log of an import that crashed was lost), and the failure names that folder."""
+    # A killed engine may still hold files of the temp project for a moment on Windows.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        (Path(tmp) / "logs").mkdir()
+        try:
+            yield Path(tmp)
+        except Exception as exc:
+            kept = common.LOGS / test.id().rsplit(".", 1)[-1]
+            shutil.rmtree(kept, ignore_errors=True)
+            shutil.copytree(Path(tmp) / "logs", kept)
+            exc.add_note(f"its Godot logs: {kept}")
+            raise
+
+
 @starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealPointerTest(unittest.TestCase):
@@ -530,11 +550,9 @@ class RealPointerTest(unittest.TestCase):
     load); in local mode the same checkout fails as it always did. Then every stand-in, as a new asset."""
 
     def test_ci_mode_skips_the_pointer_file_and_local_mode_does_not(self) -> None:
-        # A killed engine may still hold files of the temp project for a moment on Windows.
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            root = repo(Path(tmp))
-            logs = Path(tmp) / "logs"
-            logs.mkdir()
+        with throwaway(self) as tmp:
+            root = repo(tmp)
+            logs = tmp / "logs"
             write(root, "project.godot", PROJECT)
             check_script = root / "tools/check/check_project.gd"
             check_script.parent.mkdir(parents=True)
@@ -579,10 +597,9 @@ class RealPointerTest(unittest.TestCase):
     def test_every_stand_in_imports_under_its_committed_import_file(self) -> None:
         # The PC with LFS: each stand-in is the real asset, imported and its .import file committed. The checkout in
         # CI: pointer files, no .godot/. Nothing fails, nothing is dropped, every .import file stays as committed.
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            root = repo(Path(tmp))
-            logs = Path(tmp) / "logs"
-            logs.mkdir()
+        with throwaway(self) as tmp:
+            root = repo(tmp)
+            logs = tmp / "logs"
             write(root, ".gitattributes", "".join(f"*{suffix} filter=lfs diff=lfs merge=lfs -text\n"
                                                   for suffix in lfs.STAND_INS))  # fmt: skip
             write(root, "project.godot", PROJECT)
