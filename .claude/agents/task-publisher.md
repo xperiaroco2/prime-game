@@ -17,6 +17,7 @@ budget; root `CLAUDE.md` applies in full.
   and has no file: for a script in `.claude/workflows/` read `docs/workflow-scripts.md`.
 - Long jobs: the Bash tool's `run_in_background` with `tools/run.sh wait <log>` (or Monitor) as the prompt says;
   TaskStop only for a job you started.
+- Never poll with a foreground `sleep N` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>` or a background command.
 - SendUserFile: no workflow prompt uses it today (a visual PR lists its PNG paths for the engineer); use it only
   if a prompt names it.
 - Code like docs (#468): a file over 400 lines by `cd <your worktree> && tools/run.sh section <file>` (its symbols)

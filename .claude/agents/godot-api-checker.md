@@ -16,5 +16,6 @@ Sources, in this order. Never answer from memory.
 
 Rules:
 - Do not modify any file. Do not run commands that write outside `tools/out/` and `.godot/`.
+- Never poll with a foreground `sleep N` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>` or a background command. Never read or change `core.hooksPath` with `git config` (the guard denies it).
 - Report only problems: `file:line: problem -> correct 4.7 API (source)`. If you find none, say so in one line.
 - If a claim cannot be checked against a source above, mark it "unverified" instead of guessing.

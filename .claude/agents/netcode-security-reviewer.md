@@ -33,5 +33,6 @@ For a change under `client/`, also check what the client renders against the che
 - What a command prints stays in your context to the end: `git diff --stat` first, then the diff file by file or by
   range (a large file with `git diff <base> -- <file>`, or `git show` of one commit), never a whole large doc or
   one huge diff in a single read; the `section` outline before any doc section beyond the three above.
+- Never poll with a foreground `sleep N` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>` or a background command. Never read or change `core.hooksPath` with `git config` (the guard denies it).
 - Output: findings ranked by severity, each with `file:line`, the leak or trust path, a concrete exploit scenario,
   and the fix. If there are no findings, say so in one line.
