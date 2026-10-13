@@ -30,7 +30,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
-  `spawn_circle`, `spawn_zone`). A marker in two such groups is a load error. The host reads them in scene-tree
+  `spawn_circle`, `spawn_zone`; House only, provisional (Delivery by meaning DE10, #826): `spawn_drop_dining_table`,
+  `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one marker each, none on the greybox). A marker in two such groups is a load error. The host reads them in scene-tree
   order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a
   scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on
   those, no station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of
