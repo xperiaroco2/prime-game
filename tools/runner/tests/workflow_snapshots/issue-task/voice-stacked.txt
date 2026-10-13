@@ -61,6 +61,22 @@ Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/net/5-pa
 The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["voice/mixer.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+### agent review:netcode:#7
+opts {"label":"review:netcode:#7","phase":"Review","agentType":"netcode-security-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
+Issue #7 (t). Branch voice/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/net/5-parent. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+
+- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.
+- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.
+- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main's copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.
+- The task's ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.
+
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/net/5-parent...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["voice/mixer.gd"]}
+
+Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+
+Focus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay. Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.
 ### agent review:godot-api:#7
 opts {"label":"review:godot-api:#7","phase":"Review","agentType":"godot-api-checker","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
 Issue #7 (t). Branch voice/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/net/5-parent. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
@@ -100,7 +116,7 @@ An earlier attempt may have got part of the way (a resumed run): check `gh pr li
 
 The implementer reported (its commits, changed paths and verify tail left out: `git log`, `git diff --name-only` and your `publish` give them): {"verify_green":true,"complete":true,"summary":"s"}
 
-Fresh reviewers found (each finding's fix only on a blocker or major): [{"reviewer":"r","findings":[]},{"reviewer":"r","findings":[]}]
+Fresh reviewers found (each finding's fix only on a blocker or major): [{"reviewer":"r","findings":[]},{"reviewer":"r","findings":[]},{"reviewer":"r","findings":[]}]
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and `tools\run.cmd check`, then publish (below) with no standalone `verify` before it: `publish` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
 
@@ -142,6 +158,9 @@ Return the structured result.
  "reviews": [
   {
    "by": "code-reviewer"
+  },
+  {
+   "by": "netcode-security-reviewer"
   },
   {
    "by": "godot-api-checker"
