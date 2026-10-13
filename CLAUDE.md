@@ -50,7 +50,7 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
 - File writes and `Remove-Item` go in separate commands (the delete guard misreads combined ones).
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Temporary files only in your scratchpad, or under `res://` in the gitignored `tests/scratch/`; no other temp folder.
-- Push only your task branch (`git push -u origin <branch>` or `publish`; a manager also `release/m<k>`), never `main`,
+- Push only your task branch (`git push -u origin <branch>` or `publish`), never `main`,
   no hand force push (hook-blocked): rebased, only `publish`.
 - No `git stash` (one for all worktrees): a WIP commit, later `git reset --soft HEAD~1`; a fix: `git commit
   --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
@@ -82,7 +82,7 @@ Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAG
 3. Docs updated if durable knowledge changed; intervention and credit entries if any.
 4. Engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; others ask once: "Publish now?". Then
    `publish`, the PR, the handoff comment.
-5. Merges: the engineer's manager (`merge <pr> --base main`, the trust ADR's gate; task PRs into `release/m<k>`); gate exceptions, the designer's PRs and solo sessions without his word go
+5. Merges: the engineer's manager (`merge <pr> --base main`, the trust ADR's gate, task PRs included); gate exceptions, the designer's PRs and solo sessions without his word go
    to the engineer. A child left on a merged parent: `gh pr edit <n> --base <its base>` (AGENT_WORKFLOW §8.5).
 
 ## Stop and ask before

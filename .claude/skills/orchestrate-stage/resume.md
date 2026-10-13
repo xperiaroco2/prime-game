@@ -26,7 +26,7 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   changed `issue-task.js` since the launch, expect the changed agents to run again.
 - A result with `stopped` is never resumed (§4): relaunch fresh.
 - A stacked task whose parent has merged since the launch: do not resume; relaunch fresh with
-  `base: "release/m<k>"`.
+  `base: "main"`.
 - After a PC restart or a crashed session: reopen the same session (`claude --resume`, or the app) and resume each
   run as above. In a **new** session there is no run to resume ("nothing to resume") and no old scratchpad: take
   each run's args from the latest wave comment on the plan issue (§6), confirm with the human that the old session
