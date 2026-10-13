@@ -13,10 +13,19 @@ const WAIT_MS := 500
 ## Stops every sound under the root of `tree`, calls `leave` (ending the session), and quits once
 ## the audio server has let go of the sounds stopped (or after WAIT_MS).
 static func quit(tree: SceneTree, leave: Callable) -> void:
-	var playbacks := stop(tree.root)
-	leave.call()
+	var playbacks := stop_and_leave(tree.root, leave)
 	await released(tree, playbacks)
 	tree.quit()
+
+
+## Stops every sound player under `root`, calls `leave`, and stops them again: leaving can start
+## sounds (a voice speaker's flush on its way out restarts its playback, then is queue_free'd and
+## so still in the tree this frame). A weak reference to each playback stopped, of both sweeps.
+static func stop_and_leave(root: Node, leave: Callable) -> Array[WeakRef]:
+	var playbacks := stop(root)
+	leave.call()
+	playbacks.append_array(stop(root))
+	return playbacks
 
 
 ## Stops every sound player under `root`: a weak reference to each playback it stopped (a player

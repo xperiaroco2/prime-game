@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## SoundStopper (#891): stop() stops every sound player under a root, of each kind, and keeps only a
-## weak reference to each playback it stopped (one not playing gives none); held() says whether
+## weak reference to each playback it stopped (one not playing gives none); stop_and_leave() stops
+## again after `leave`, which can start sounds; held() says whether
 ## any of them is not freed yet, and released() of none returns at once.
 
 
@@ -34,6 +35,26 @@ func test_a_player_not_playing_gives_no_playback() -> void:
 	root.add_child(idle)
 	add_child(root)
 	assert_int(SoundStopper.stop(root).size()).is_equal(0)
+
+
+func test_a_sound_leaving_starts_is_stopped_and_tracked_too() -> void:
+	var root: Node = auto_free(Node.new())
+	var before := AudioStreamPlayer.new()
+	var speaker := AudioStreamPlayer3D.new()
+	before.stream = _tone()
+	speaker.stream = _tone()
+	root.add_child(before)
+	root.add_child(speaker)
+	add_child(root)
+	before.play()
+	var leave := func() -> void:
+		speaker.play()
+		speaker.queue_free()
+	var playbacks := SoundStopper.stop_and_leave(root, leave)
+	assert_int(playbacks.size()).is_equal(2)
+	assert_bool(before.playing).is_false()
+	assert_bool(speaker.playing).is_false()
+	assert_bool(speaker.has_stream_playback()).is_false()
 
 
 func test_held_while_a_playback_lives_and_not_once_freed() -> void:
