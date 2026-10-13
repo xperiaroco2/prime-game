@@ -133,6 +133,14 @@ class State:
 		return done_count() >= photos
 
 	## The entry of `item` if it is that very film and has a shot, else null (fresh).
+	## The next shot id no live shot has: a wrapped counter must not hand out the id that a photo
+	## still unhung shows, since the hang reads its shot by id.
+	func free_shot_id() -> int:
+		var id := next_shot
+		while shots.has(id):
+			id = (id + 1) % SHOT_IDS
+		return id
+
 	func film_of(item: ItemState) -> Film:
 		var entry: Film = films.get(item.id)
 		return entry if entry != null and entry.item == item else null
@@ -523,7 +531,8 @@ func _use_camera(ctx: MatchContext, task_state: State, station: StationState) ->
 ## The print (ADR §2.6, PD3, PD16 (a), PE8, PE11): each shot of the actor's exposed film, in shot
 ## order, a photo on the tray (the photo kind's cap first: GiveItem.make_room), ItemSpawned,
 ## PhotoPrinted, item_rested `spawn`; then the film vanishes and its entry goes. Should the cap
-## find no loose photo (the check's floor keeps that from happening) the film keeps the shots
+## find no loose photo (the check's floor keeps that from happening, bar a recycled item id past
+## MAX_ITEM_ID, which a normal match never reaches) the film keeps the shots
 ## not printed, with the error logged.
 func _print(ctx: MatchContext, task_state: State) -> void:
 	var item := _exposed(ctx, task_state)
@@ -654,7 +663,7 @@ func _shoot(ctx: MatchContext, task_state: State, station: StationState, item: I
 	var aim := spot.position + eye if spot != null else lens + Vector3.FORWARD
 	var frame := PhotoFrame.between(lens, aim, fov_deg, aspect, range_m)
 	var shot := Shot.new()
-	shot.id = task_state.next_shot
+	shot.id = task_state.free_shot_id()
 	shot.film = item.id
 	shot.tick = ctx.tick
 	var record: Array[Dictionary] = []
@@ -688,7 +697,7 @@ func _shoot(ctx: MatchContext, task_state: State, station: StationState, item: I
 				)
 			)
 	shot.has_person = not shot.subjects.is_empty()
-	task_state.next_shot = (task_state.next_shot + 1) % SHOT_IDS
+	task_state.next_shot = (shot.id + 1) % SHOT_IDS
 	task_state.shots[shot.id] = shot
 	var entry := task_state.film_of(item)
 	if entry == null:

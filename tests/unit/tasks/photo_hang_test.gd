@@ -161,3 +161,25 @@ func test_a_package_carrier_is_refused_two_handed_but_takes_a_photo_off_the_boar
 	assert_array(FixturePhotoModes.reasons(game, P2)).is_equal([&"two_handed"])
 	assert_object(Items.belted_by(game.state, P2)).is_same(photo)
 	assert_array(FixturePhotoModes.received(game, P2, &"PhotoHung")).has_size(1)
+
+
+func test_a_wrapped_shot_id_never_reuses_the_id_an_unhung_photo_still_shows() -> void:
+	var game := _printed(false, 1)
+	var old_photo := FixturePhotoModes.printed(game)[0]
+	var task_state := FixturePhotoModes.state_of(game)
+	assert_array(task_state.shots.keys()).is_equal([0])
+	# The counter wraps back onto the id that the photo on the tray still shows.
+	task_state.next_shot = 0
+	var home := game.state.player(P1).position
+	var film_item := FixturePhotoModes.give_film(game, P1)
+	FixtureItemModes.stand(game, P1, home)
+	FixtureItemModes.stand(game, P2, FixturePhotoModes.IN_FRAME)
+	FixturePhotoModes.expose(game, P1, film_item, 1)
+	assert_array(task_state.shots.keys()).contains_exactly_in_any_order([0, 1])
+	assert_bool(task_state.shots[0].has_person).is_false()
+	assert_bool(task_state.shots[1].has_person).is_true()
+	_hang(game, P1, old_photo)
+	assert_array(FixturePhotoModes.received(game, P1, &"PhotoHung")).is_equal(
+		[{"item": old_photo.id, "station": _station(game, &"board"), "counted": false}]
+	)
+	assert_array(Array(task_state.counted)).is_empty()
