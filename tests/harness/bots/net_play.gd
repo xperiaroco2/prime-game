@@ -240,7 +240,7 @@ func earlier_views(bot: ScenarioBot) -> Array[Dictionary]:
 	var lives: Array = earlier_clients.get(bot.number, [])
 	for i in lives.size():
 		var client: BotClient = lives[i]
-		found.append({"peer": bot.lives[i]["peer"], "view": client.view, "order": order_of(client)})
+		found.append({"peer": client.view.peer, "view": client.view, "order": order_of(client)})
 	return found
 
 
