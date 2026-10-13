@@ -102,6 +102,28 @@ func test_a_held_item_never_counts_nor_one_held_by_a_carrier_knocked_down_in_its
 	assert_array(game.view_of(P2).events_named(&"PackageDelivered")).is_empty()
 
 
+func test_an_item_rested_while_held_inside_its_place_is_not_delivered() -> void:
+	# Only an item on the ground is delivered. No shipped part raises item_rested for a held item
+	# today; should one (raised by hand here), the item stays in the hands and nothing is done.
+	var game := FixtureMeaningModes.in_round(FixtureMeaningModes.basic(4), [P1, P2])
+	var task := FixtureMeaningModes.task_of(game)
+	var item := FixtureMeaningModes.item_of(game, 0)
+	var place := FixtureMeaningModes.station_of(game, 0)
+	FixtureItemModes.stand(game, P1, item.position + Vector3(0.5, 0, 0))
+	FixtureItemModes.pick_up(game, P1, item)
+	FixtureItemModes.stand(game, P1, place.position)
+	assert_int(item.where).is_equal(ItemState.Where.HAND)
+	item.position = place.position
+	assert_bool(place.contains(item.position)).is_true()
+	var seen := game.view_of(P2).events.size()
+	Items.raise_rested(_context(game), item, Items.PUT_DOWN)
+	assert_int(item.where).is_equal(ItemState.Where.HAND)
+	assert_array(game.view_of(P2).events.slice(seen)).is_empty()
+	assert_bool(FixtureMeaningModes.state_of(game).done[0]).is_false()
+	assert_int(task.state.done_count()).is_equal(0)
+	assert_bool(place.done).is_false()
+
+
 func test_an_item_dropped_at_a_death_inside_its_place_is_delivered() -> void:
 	var mode := FixtureMeaningModes.basic(4)
 	mode.actions.append(FixtureModes.rule(Intents.USE, [], [FixtureDropHeld.of(Items.DEATH)]))
