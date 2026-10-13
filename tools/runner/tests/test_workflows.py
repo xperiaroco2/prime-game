@@ -2469,12 +2469,12 @@ class CheckpointTest(unittest.TestCase):
         stub = dict(self.PATHS, queues={"implement": [implemented(["tools/runner/x.py"], handoff=NOTE)]})
         base, other = run_jobs([("issue-task.js", dict(ARGS, **off), self.PATHS), ("issue-task.js", dict(ARGS, **off), stub)])
         want = [(e["label"], e["opts"], e["prompt"]) for e in agents(base)]
+        got = [(e["label"], e["opts"], e["prompt"]) for e in agents(other)]
+        # The publisher embeds the implementer's whole result, so the stub's own handoff key shows there only.
+        self.assertEqual([g[0] for g in got], [w[0] for w in want])
+        self.assertEqual(got[:-1], want[:-1])
         for result in (base, other):
             self.assertIsNone(result["error"])
-            got = [(e["label"], e["opts"], e["prompt"]) for e in agents(result)]
-            # The publisher embeds the implementer's whole result, so the stub's own handoff key shows there only.
-            self.assertEqual([g[0] for g in got], [w[0] for w in want])
-            self.assertEqual(got[:-1], want[:-1])
             self.assertNotIn("handoffs", result["returned"])
             self.assertNotIn("checkpoint", result["returned"])  # #597: no key, so a launch or resume without it shows
             self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "handoff" in e["message"]])
