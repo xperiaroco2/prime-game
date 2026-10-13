@@ -24,6 +24,9 @@ const CAP := 64
 const VANISH := 60
 const FRY_SECONDS := 1.0
 const BURN_SECONDS := 2.0
+## The beds' Cooldown (CE17): one tick, so a second use in the same tick is `too_soon`.
+const BED_SECONDS := 0.05
+const BED_KEY := &"herb_take"
 const ORDER_BOARD_AT := Vector3(0, 0, 20)
 const HERB_BOARD_AT := Vector3(2, 0, 20)
 const GRILL_AT := Vector3(4, 0, 20)
@@ -83,7 +86,7 @@ static func cooking_type() -> Cooking:
 	made.order_board = board(&"order_board")
 	made.herb_board = board(&"herb_board")
 	made.grill = taking(&"grill")
-	made.herb_bed = taking(&"herb_bed")
+	made.herb_bed = bed(&"herb_bed")
 	made.place = FixtureGeneratorModes.kind(&"place")
 	made.buns = [ingredient(&"bun_a", true), ingredient(&"bun_b", true)]
 	made.raw_patties = [ingredient(&"raw_a", true), ingredient(&"raw_b", true)]
@@ -118,6 +121,14 @@ static func taking(kind_id: StringName) -> StationKind:
 			[UseStation.new()]
 		)
 	]
+	return made
+
+
+## A bed's station kind: `taking`'s rule with a Cooldown of BED_SECONDS (CE17's flood guard) among
+## its conditions.
+static func bed(kind_id: StringName) -> StationKind:
+	var made := taking(kind_id)
+	made.actions[0].conditions.append(FixtureCombatModes.cooldown(BED_KEY, BED_SECONDS))
 	return made
 
 

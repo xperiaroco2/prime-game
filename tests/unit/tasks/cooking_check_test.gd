@@ -57,6 +57,21 @@ func test_the_boards_are_display_kinds_and_the_others_end_in_their_use() -> void
 	assert_str(errors).not_contains("order_board is not")
 
 
+func test_a_herb_bed_without_a_cooldown_in_its_use_rule_is_refused() -> void:
+	var mode := FixtureCookingModes.basic()
+	var type := FixtureCookingModes.type_of(mode)
+	assert_str(_errors(mode)).not_contains("with a Cooldown")
+	type.herb_bed = FixtureCookingModes.taking(&"herb_bed")
+	assert_str(_errors(mode)).contains("station kind herb_bed has no Interact rule with a Cooldown")
+	# A negated cooldown does not count.
+	var cooldown := FixtureCombatModes.cooldown(&"x", 1.0)
+	cooldown.negate = true
+	type.herb_bed.actions[0].conditions.append(cooldown)
+	assert_str(_errors(mode)).contains("has no Interact rule with a Cooldown")
+	type.herb_bed.actions[0].conditions[-1] = FixtureCombatModes.cooldown(&"x", 1.0)
+	assert_str(_errors(mode)).not_contains("with a Cooldown")
+
+
 func test_every_kind_is_named_once_and_held_in_the_right_hands() -> void:
 	var mode := FixtureCookingModes.basic()
 	var type := FixtureCookingModes.type_of(mode)

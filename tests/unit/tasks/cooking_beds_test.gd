@@ -140,3 +140,17 @@ func _carry_box(peer: int) -> ItemState:
 	FixtureModes.run_ticks(_game, 1)
 	assert_object(FixtureCookingModes.held(_game, peer)).is_same(box)
 	return box
+
+
+func test_a_second_pick_in_the_same_tick_is_refused_too_soon_and_the_next_tick_gives() -> void:
+	FixtureCookingModes.pick(_game, P1, &"herb_a", 1)
+	var herb := FixtureCookingModes.held(_game, P1)
+	var seen := _game.view_of(P2).events.size()
+	FixtureCookingModes.pick(_game, P1, &"herb_a", 2)
+	assert_array(FixtureModes.rejections(_game, P1)).is_equal([&"too_soon"])
+	assert_array(FixtureItemModes.names_after(_game, P2, seen)).is_empty()
+	assert_object(FixtureCookingModes.held(_game, P1)).is_same(herb)
+	FixtureModes.run_ticks(_game, 1)
+	FixtureCookingModes.pick(_game, P1, &"herb_a", 3)
+	assert_object(FixtureCookingModes.held(_game, P1)).is_not_same(herb)
+	assert_object(FixtureCookingModes.belted(_game, P1)).is_same(herb)

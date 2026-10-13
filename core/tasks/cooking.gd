@@ -511,6 +511,10 @@ func _check_station_kinds(found: PackedStringArray) -> void:
 					% [id, kind.id]
 				)
 			)
+		elif property == "herb_bed" and not _has_cooldown(kind):
+			found.append(
+				"Cooking %s: station kind %s has no Interact rule with a Cooldown" % [id, kind.id]
+			)
 
 
 func _check_lists(found: PackedStringArray) -> void:
@@ -636,6 +640,20 @@ static func _gives(box: ItemKind) -> Array[ItemKind]:
 			if effect is GiveItem:
 				found.append((effect as GiveItem).kind)
 	return found
+
+
+## Whether the Interact rule of `kind` that ends in UseStation holds a Cooldown (CE17: a bed's
+## `too_soon`, the flood guard of a take): the cooldown and the use are one rule.
+static func _has_cooldown(kind: StationKind) -> bool:
+	for rule: Rule in kind.actions:
+		if rule == null or rule.trigger != Intents.INTERACT or rule.effects.is_empty():
+			continue
+		if not rule.effects[-1] is UseStation:
+			continue
+		for condition: Condition in rule.conditions:
+			if condition is Cooldown and not condition.negate:
+				return true
+	return false
 
 
 ## Whether `kind` has an Interact rule whose last effect is UseStation.
