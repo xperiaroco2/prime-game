@@ -17,7 +17,7 @@ extends RigidBody3D
 ## over its lowest end rather than being held up by its centre. The engine's gravity acts on it as
 ## on the host's body, so in flight the two fall alike.
 ##
-## start() stands it on the point, turned with the player's yaw, with the snapshot's velocity, and
+## start() stands it on the point, turned with the player's yaw, with the host's velocity, and
 ## tips it towards its horizontal velocity, or backwards with none: a balanced upright capsule
 ## pulled down through its centre would otherwise stay standing (every launch is 0 today).
 ## lie_at_rest() lays it along the yaw's forward axis at rest: a body with no ragdoll to keep.
@@ -91,7 +91,7 @@ func start(point: Vector3, yaw: float, velocity: Vector3) -> void:
 	hold(point, velocity)
 	var turn := Basis(Vector3.UP, yaw)
 	transform = Transform3D(turn, point + Vector3.UP * _rules.capsule_height_m * 0.5)
-	var flat := Vector3(velocity.x, 0.0, velocity.z)
+	var flat := Vector3(_velocity.x, 0.0, _velocity.z)
 	var towards := flat.normalized() if flat.length() > STILL_MPS else turn.z
 	_set_velocities(_velocity, Vector3.UP.cross(towards) * TIP_RAD_PER_S)
 
@@ -104,10 +104,18 @@ func lie_at_rest(point: Vector3, yaw: float) -> void:
 	_set_velocities(Vector3.ZERO, Vector3.ZERO)
 
 
-## Holds it to the host's `point` moving at `velocity` from the next physics step on.
+## Holds it to the host's `point` moving at `velocity` from the next physics step on. A velocity
+## that is not finite counts as none, and one faster than SnapshotBuffer.SNAP_SPEED_MPS, which no
+## one runs or flies, is cut to it: the spring writes it into the body's state every step.
 func hold(point: Vector3, velocity: Vector3) -> void:
 	_point = point
-	_velocity = velocity if velocity.is_finite() else Vector3.ZERO
+	var finite := velocity if velocity.is_finite() else Vector3.ZERO
+	_velocity = finite.limit_length(SnapshotBuffer.SNAP_SPEED_MPS)
+
+
+## The velocity it is held to.
+func held_velocity() -> Vector3:
+	return _velocity
 
 
 ## The host's point it is held to.

@@ -4,31 +4,30 @@ extends Node3D
 ## own ClientModel's newest snapshot, placed each physics frame at SnapshotBuffer's interpolated
 ## pose (E23) at priority -80, after the session (-90) and before the local player (0), so the
 ## player's push search sees this frame's capsules (static bodies placed with
-## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
-## model's life fold says its player is living, and wears the invulnerable shell while the newest
-## snapshot's avatar has the flag, and is painted its player's body colour as the model's roster
-## has it (BodyColours, #551). It is crouched while its pose says so (the snapshot's flag at or
-## before the drawn tick; RemotePlayerBody.set_crouched, the crouch ADR's KE7), before it is
-## placed, so the push search sees the crouched capsule in the same frame. Every knocked-down
-## player, the own one included (its snapshot carries its own avatar while it is knocked down,
-## KE5), is drawn as a RagdollView held to its interpolated point (KE7, §4.7.9): started standing
-## from the first pose with the snapshot's velocity, a sibling of the bodies (a body turns with its
-## player's look every frame), in SightHider's group by the host's point; the own player gets no
-## RemotePlayerBody, and another's hides its capsule and turns its collision off while the ragdoll
-## is its body. Every body is in
-## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
-## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) and a phase on another level
-## (End -> Lobby) forget the poses: drawn behind the interpolation delay, the round's would stand
-## a player at its round spot in the lobby and push whoever was placed there (#241). A snapshot
-## sent before such a change but arriving after it is kept by neither the buffer nor the model:
-## both floor at the host tick estimated at the change (host_tick(), which the model reads, #251).
-## A body whose player the model drops (a new map, the lobby, a leave, a death) leaves the tree at
-## once and is freed after: a queued node stays in the physics space until the end of the physics
-## frame (4.7.2), and the local player's push search runs later in that frame (#242). A ragdoll
-## goes the same way once its player is no longer knocked down (a revive stands the avatar up at
-## once, KD7 (a)), except at a death with a body: it is parked for BodyViews (-70) to take in the
-## same physics frame (release_ragdoll()), which greys it where it lies; one not taken by the next
-## frame goes.
+## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the model's
+## life fold says its player is living, and wears the invulnerable shell while the newest snapshot's
+## avatar has the flag, and is painted its player's body colour as the model's roster has it
+## (BodyColours, #551). It is crouched while its pose says so (the snapshot's flag at or before the
+## drawn tick; RemotePlayerBody.set_crouched, the crouch ADR's KE7), before it is placed, so the
+## push search sees the crouched capsule in the same frame. Every knocked-down player, the own one
+## included (its snapshot carries its own avatar while it is knocked down, KE5), is drawn as a
+## RagdollView held to its interpolated point (KE7, §4.7.9): started standing from the first pose
+## with the host's velocity of a downed snapshot (none before one), a sibling of the bodies (a body
+## turns with its player's look every frame), in SightHider's group by the host's point; the own
+## player gets no RemotePlayerBody, and another's hides its capsule and turns its collision off
+## while the ragdoll is its body. Every body is in SightHider's group: the downed camera hides those
+## out of the body's eye's sight. A placement (PlayersPlaced) snaps the players it names; a new map
+## (LoadMatch) and a phase on another level (End -> Lobby) forget the poses: drawn behind the
+## interpolation delay, the round's would stand a player at its round spot in the lobby and push
+## whoever was placed there (#241). A snapshot sent before such a change but arriving after it is
+## kept by neither the buffer nor the model: both floor at the host tick estimated at the change
+## (host_tick(), which the model reads, #251). A body whose player the model drops (a new map, the
+## lobby, a leave, a death) leaves the tree at once and is freed after: a queued node stays in the
+## physics space until the end of the physics frame (4.7.2), and the local player's push search runs
+## later in that frame (#242). A ragdoll goes the same way once its player is no longer knocked down
+## (a revive stands the avatar up at once, KD7 (a)), except at a death with a body: it is parked for
+## BodyViews (-70) to take in the same physics frame (release_ragdoll()), which greys it where it
+## lies; one not taken by the next frame goes.
 
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
@@ -204,19 +203,24 @@ func _physics_process(delta: float) -> void:
 		body.set_pose(pose)
 
 
-## Starts `peer`'s ragdoll at `pose` the first time, then holds it to the pose's point.
+## Starts `peer`'s ragdoll at `pose` the first time, then holds it to the pose's point. Only a
+## snapshot that shows the player knocked down gives it a velocity, the host body's (KE14): the
+## reliable KnockedDown can overtake the knockdown tick's snapshot, and the newest one before it
+## carries the living player's claimed velocity, which never moves a body on another screen.
 func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	var colour := BodyColours.of(model.colour_of(peer))
+	var shown_downed: bool = (model.avatars[peer] as Dictionary).get("downed", false)
+	var velocity := pose.velocity if shown_downed else Vector3.ZERO
 	var ragdoll: RagdollView = _ragdolls.get(peer)
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
 		ragdoll.setup(rules, peer, colour)
-		ragdoll.start(pose.position, pose.yaw, pose.velocity)
+		ragdoll.start(pose.position, pose.yaw, velocity)
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll
 		add_child(ragdoll)
 		return
-	ragdoll.hold(pose.position, pose.velocity)
+	ragdoll.hold(pose.position, velocity)
 	ragdoll.set_colour(colour)
 
 

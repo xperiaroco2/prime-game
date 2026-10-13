@@ -154,6 +154,36 @@ func test_the_own_knocked_down_avatar_is_drawn_as_its_ragdoll_only() -> void:
 	assert_object(_views.body_of(OWN)).is_null()
 
 
+## KE14, the client ADR's host trust: a ragdoll takes its velocity only from a snapshot that shows
+## its player knocked down, the host body's. When the reliable KnockedDown overtakes that snapshot,
+## the newest one still carries the living player's claimed velocity: the ragdoll starts with none.
+## A velocity past SnapshotBuffer.SNAP_SPEED_MPS is cut to it, a huge one stays finite.
+func test_a_ragdoll_takes_no_claimed_velocity_only_a_downed_snapshots() -> void:
+	var claimed := Vector3(20.0, 0.0, 0.0)
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, false, false, claimed)
+	await _drawn()
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_vector(ragdoll.held_velocity()).is_equal(Vector3.ZERO)
+	assert_bool(ragdoll.linear_velocity.is_finite()).is_true()
+	assert_float(ragdoll.linear_velocity.length()).is_less(SnapshotBuffer.SNAP_SPEED_MPS)
+	assert_bool(ragdoll.global_position.is_finite()).is_true()
+	_snapshot(2, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(2.0, 1.0, 0.0), true)
+	await _drawn()
+	assert_vector(ragdoll.held_velocity()).is_equal(Vector3(2.0, 1.0, 0.0))
+	_snapshot(3, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(0.0, 0.0, 90.0), true)
+	await _drawn()
+	assert_vector(ragdoll.held_velocity()).is_equal_approx(
+		Vector3(0.0, 0.0, SnapshotBuffer.SNAP_SPEED_MPS), Vector3.ONE * 0.001
+	)
+	_snapshot(4, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(0.0, 0.0, 3.0e38), true)
+	await _drawn()
+	assert_bool(ragdoll.held_velocity().is_finite()).is_true()
+	assert_float(ragdoll.held_velocity().length()).is_less_equal(SnapshotBuffer.SNAP_SPEED_MPS)
+	assert_bool(ragdoll.global_position.is_finite()).is_true()
+
+
 ## KD7 (a): at a death the ragdoll is parked for BodyViews in that physics frame; one nobody takes
 ## goes at the next.
 func test_a_death_parks_the_ragdoll_for_the_body_views_and_drops_it_untaken() -> void:
@@ -538,13 +568,19 @@ func _mesh_top(mesh: MeshInstance3D) -> float:
 
 
 func _snapshot(
-	tick: int, at: Vector3, facing: Vector3, invulnerable := false, crouched := false
+	tick: int,
+	at: Vector3,
+	facing: Vector3,
+	invulnerable := false,
+	crouched := false,
+	velocity := Vector3.ZERO,
+	downed := false,
 ) -> void:
 	var avatar := {
 		"position": at,
-		"velocity": Vector3.ZERO,
+		"velocity": velocity,
 		"facing": facing,
-		"downed": false,
+		"downed": downed,
 		"crouched": crouched,
 		"invulnerable": invulnerable,
 		"held_item": -1,

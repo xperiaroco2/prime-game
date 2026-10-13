@@ -2556,7 +2556,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - **Ragdolls (728d, #848; the knockdown ADR's KE7, KE8, KD7).** `client/player/RagdollView`: on today's capsule
   avatar one `RigidBody3D` capsule of the client's `PlayerRules` on the `downed` layer with the world mask only,
   top-level, never asleep; `start()` stands it on the snapshot's point with its velocity and tips it (towards the
-  velocity, else backwards: an upright capsule pulled through its centre stays standing); each step a spring and a
+  velocity, else backwards: an upright capsule pulled through its centre stays standing). That velocity is the host
+  body's, from a snapshot that shows the player downed only, else none: the reliable `KnockedDown` can overtake the
+  knockdown tick's snapshot, and the one before it carries the living player's claimed velocity, which never moves a
+  body on another screen; `hold()` cuts any to `SnapshotBuffer.SNAP_SPEED_MPS`. Each step a spring and a
   damper pull its centre to the lying centre over the host's interpolated point (the point plus the radius, never
   into the floor), across the floor only as much as it lies, and a centre farther than `SNAP_M` moves there at once.
   Its constants (`SNAP_M`, `SPRING_K`, `SPRING_D`, `TIP_RAD_PER_S`, `FRICTION`) are placeholders, "not a decision".
