@@ -710,7 +710,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map, lobby_name)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). The optional `lobby_name` (#214, §3.5) is text (else `bad_args`, which only a `core/` caller can reach: the wire's type is `name`), never refused for its content: `LobbyName.clean` keeps 20 characters, "" is the default again. All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (its facing only, the rest ignored and never corrected, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, crouched, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (its facing only, the rest ignored and never corrected, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5); beside a two-handed hand item a one-handed picked item goes onto the belt instead, a full belt's item put down at the feet first (the cooking ADR's CE21, #771) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
@@ -773,7 +773,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `FitChanged` | the car's station, the fitting player's peer, or 0 when the fit stopped, the host tick (#808, the car repair ADR's §2.4, RE10) | everyone: the engineer accepted that every client learns who fits (RD15 (a)), drawn only on the fitter's avatar; nothing at the lift panel reads it | `CarRepair.hold_started` and `hold_stopped` for the car's timed hold: a fit's start, and a stop before it completed (its progress is lost, RD10 (d); a stop by a hit confirms the hit to everyone, the exception `RaiseStopped` has); a completed fit sends `PartFitted` instead |
 | `PartFitted` | the car's station, the fitted part's item (#808, RE10, RE12) | everyone, as `LiftChanged`: it names no player | `CarRepair.hold_completed`: the part leaves the fitter's hand, locked at the car's use spot (`Items.lock_at`, no `ItemPlaced`); then the task's `TaskState` and `TaskProgress`, then `PartNeeded` |
 | `FilmLoaded` | the camera's station, the film's item (#781, the photo ADR §2.2, §3.1) | everyone: it names no player (PD13), and items and stations are public | an accepted `Interact` at an empty camera: the actor's fresh film lies on the camera (`item_rested` on_station, no `ItemPlaced`) |
-| `ShotTaken` | the camera's station, the film's item, the shot's id (u16, wrapping), the record: up to 15 rows of `peer`, `position`, `facing`, `downed`, `held_item`, `belt_item` (#781, §3.3) | everyone: the rows hold what every player's snapshots show anyway, the recipient's own pose included (§5); it names no shooter and never says whether a person counted (PE5) | an accepted `Interact` at a loaded camera with frames left (§9.5.22) |
+| `ShotTaken` | the camera's station, the film's item, the shot's id (u16, wrapping), the record: up to 15 rows of `peer`, `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (#781, §3.3) | everyone: the rows hold what every player's snapshots show anyway, the recipient's own pose included (§5); it names no shooter and never says whether a person counted (PE5) | an accepted `Interact` at a loaded camera with frames left (§9.5.22) |
 | `PhotoPrinted` | the photo's item, the shot it shows (#782, the photo ADR §2.6, PE8) | everyone: it names no player and never says whether a person is in the shot (PE5); every shot was public already | an accepted `Interact` at the printer: per shot of the actor's exposed film, in shot order, after the photo's `ItemSpawned` on the tray; the film's `ItemVanished` follows the last (§9.5.22) |
 | `PhotoHung` | the photo's item, the board's station, whether it counted (#782, the photo ADR §2.7, PE9) | everyone: it names no player; the board shows what hangs on it and the count is the public task state | an accepted `Interact` at the board: counted, the photo is locked there for good and `TaskState`, `TaskProgress` follow; not, it lies there (`item_rested` on_station, no `ItemPlaced`) for `PickUp` |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
@@ -879,7 +879,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
-| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
+| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`, 8 `crouched`, #790: the pose at the claim's last physics step, kept only where the crouch plays, §7.1.17; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
 | 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
@@ -958,7 +958,7 @@ directive has no row, because it reaches no peer.
 | 75 | `LiftChanged` | `station: station`, `up: bool`, `tick: tick` (audience *everyone*, #807; the car repair ADR's §3) | 7; 7 |
 | 76 | `PartNeeded` | `station: station`, `kind: id` (optional, behind a `has_kind` flag; absent, the kind is empty: every part fitted) (audience *everyone*, #807, RD3) | 3 to 36; 36 |
 | 77 | `FilmLoaded` | `station: station`, `item: item` (audience *everyone*, #781; the [photo ADR](decisions/2026-10-10-photo-task.md) §3.1) | 4; 4 |
-| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed), held_item: maybe<item>, belt_item: maybe<item>>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
+| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
 | 79 | `GrillLoaded` | `station: station`, `item: item`, `fried: tick`, `burnt: tick` (audience *everyone*, #773; the cooking ADR, CE10) | 12; 12 |
 | 80 | `IngredientPlaced` | `item: item`, `station: station`, `right: bool` (audience *everyone*, #773; CE5) | 5; 5 |
 | 81 | `FitChanged` | `station: station`, `fitter: peer` (optional, behind a `has_fitter` flag; absent, the fitter is 0: the fit stopped), `tick: tick` (audience *everyone*, #808; the car repair ADR's RE10, RD15 (a)) | 7 to 11; 11 |
@@ -970,7 +970,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player where the crouch plays, §7.1.17; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -1004,7 +1004,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`. M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row. M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1306,7 +1306,8 @@ round).
   times `cast_motion`'s safe fraction (b when nothing is in the way; an r of 0 or less is the ray's hit). Jolt finds a
   sphere touching a box clear and one 1 mm into it overlapping (`host_world_query_sweep_test.gd`), so
   `WorldQuery.THROW_RADIUS_MARGIN_M` is 0.01 m: a throw radius at most `min(capsule_radius_m, capsule_height_m -
-  eye_height_m)` less it leaves the sphere at a pressed capsule's eye clear of the wall or ceiling (a technical
+  eye_height_m, crouch_height_m - crouch_eye_height_m)` (the crouched pair since #790) less it leaves the sphere at
+  a pressed capsule's eye clear of the wall or ceiling (a technical
   constant, not a game number). `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
   gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
@@ -4616,7 +4617,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   The rule is evaluated when the event is emitted, against the state after the command. An event has one audience: when
   parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
-  living or downed player's avatar (position, velocity, facing, the flag `downed`, hand and belt items) reaches every player of
+  living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable` and `crouched`,
+  the last only for a living player where the crouch plays, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`. #728's design (§7.1.18, not built) adds one exception: the own avatar while
@@ -5371,8 +5373,10 @@ behind a wall, without a weapon, or without stamina.
 attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide around the horizontal part of
 the facing; a target's capsule has a point in it when its circle of `capsule_radius_m` around the target's
 position touches the sector (so an overlapping capsule touches the apex whatever the facing); it overlaps
-vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's eye
-(`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
+vertically when the target's feet lie at most its own height below the attacker's and at most the attacker's
+height above them (each `capsule_height_m`, or `crouch_height_m` while crouched, #790, §7.1.17); the line of sight
+runs from the attacker's eye (`Items.eye_of`, the floor below plus the eye height, crouched or not) to the middle
+of the target's capsule, crouched or not. A facing with no
 horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
 cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
 
@@ -5554,7 +5558,7 @@ there would not follow from the commands.
   (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
   thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
-#### 7.1.17 The crouch (designed in #727; answered by the engineer, not built)
+#### 7.1.17 The crouch (designed in #727; answered by the engineer; the host's part and the wire built in #790, the client's not built)
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
@@ -5600,7 +5604,28 @@ reads, do not move.
   ends), and the level's walls block that whole band; whichever of R8 and 727a lands second widens it. Prevents: a
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
-  numbers, `crouch_maps`), 727b (the local crouch), 727c (others' crouch: pose, voice, the quiet steps).
+  numbers, `crouch_maps`; #790, built), 727b (the local crouch), 727c (others' crouch: pose, voice, the quiet steps).
+- **Built in #790 (727a)**, the host's part and the wire: `PlayerRules`' four crouch numbers and `crouch_maps`
+  (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
+  `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
+  `MovementRule` from an accepted living claim only where the crouch plays, never from a downed one, false at each
+  placement, knockdown and respawn and on entering a phase where it does not play; the snapshot avatar's `crouched`;
+  `Items.eye_of`, `Strike`, `FlightTicks` and `ThrowItem`'s largest radius reading the crouched eye and capsule; the
+  photo task's subject head and `ShotTaken`'s record row (§9.5.22); the protocol bump to 28 (§4.3.5);
+  `ClientSession.set_motion`'s `crouched` (727b passes the controller's) and `ClientModel.is_crouched`; the base mode's
+  numbers and the House alone (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem`, run on every
+  tick's snapshots by `check_tick`. The House is not played by bots (§9.7), and the greybox carries no new mechanic
+  (the engineer's answer (a) on #790): the wire is tested through the host session harness on a fixture mode instead,
+  as cooking C9 did. The car repair's RE15 eye band (R8, not built) is widened when R8 lands.
+- **Tests:** `tests/unit/movement/movement_rule_crouch_test.gd` (kept where it plays, ignored on an unlisted map, in
+  the lobby and from the downed, cleared by placement and by a phase off the map, the walk bound and the sprint
+  charge), `tests/unit/content/player_rules_test.gd` (bounds, `crouch_maps`, the helpers), `strike_test.gd`,
+  `flight_ticks_test.gd`, `mode_check_throw_test.gd`, `photo_shot_test.gd`, `respawn_test.gd`, `view_of_test.gd`,
+  the client's `client_session_claims_test.gd` and `client_model_test.gd`, `chaos_frames_test.gd` (each flag bit
+  past `crouched`), `tests/scenarios/crouch_invariant_test.gd` (the invariant), `content_modes_test.gd` (the base mode
+  crouches on the House alone) and `tests/integration/server/host_session_crouch_test.gd` (over the real wire: a
+  crouched avatar shown, a downed claim's bit, an unlisted map's and the lobby's ignored, a raw client's crouched
+  claim alike; each client's decode equals its `view_of`).
 
 #### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846, the rest not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
@@ -6076,7 +6101,7 @@ names the facts that do.
 |---|---|---|---|---|---|
 | `ItemOnGround` | the rule's item (the intent's `item`: `PickUp`'s, or since #770 `Interact`'s, in an item kind's `target_actions`, where it, `InReach` and `InSight` check the targeted box) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | an action, or a reaction on `item_rested`, whose fact carries the item (reads no actor; needs an item): the mode check refuses it in a win condition and in a reaction on any other fact, which have no item (#379) | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | actions only: reads the actor | 2e (#61) |
-| `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
+| `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, or `crouch_eye_height_m` while crouched, #790; §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | 2e (#61) |
 | `OverFloor` | there is a floor below the actor's last accepted position (`WorldQuery.floor_below` of it lifted, the point `Items.fallback_rest` asks): the base mode's `Throw`; ModeCheck requires it, not negated, in every rule with a `ThrowItem` (§7.1.16) | none | `no_floor`: only the sender's own position | actions only: reads the actor | 37c (#643, `core/items/over_floor.gd`) |
 | `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | actions only: reads the actor | M4-5 (#141, `core/items/carries_item.gd`) |
@@ -6226,7 +6251,11 @@ Settings:
   placeholders, "not a decision"); the dead respawn after 30 s (`respawn_s`, 1 to 300) at a `respawn` marker with
   no living or downed player within 1 m (`respawn_free_m`, 0 to 5) and are invulnerable for 3 s (`invulnerable_s`,
   0 to 30; M4-3, the bounds placeholders); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
-  the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
+  the height); step 0.3 m (0 to 1); the crouch (§7.1.17, the crouch ADR's KE2, #790): crouched height 1.2 m
+  (`crouch_height_m`, twice the radius to the height), crouched eye 1.0 m (`crouch_eye_height_m`, below the crouched
+  height), crouch walk 2.0 m/s (`crouch_speed_mps`, 0.1 to the walk) and with Shift 2.8 m/s (`crouch_fast_speed_mps`,
+  the crouch walk to the walk), playing on the House alone (`crouch_maps`, each one of the mode's maps; empty is
+  every map). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
   `PlayerRules`' class defaults are 0,
   so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
   check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1.6) is not in `PlayerRules`: `push_speed_factor`,
@@ -6509,7 +6538,8 @@ What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68)
 Settings:
 - Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
   (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
-  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait). No `lobby_level` (E72), no
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait) and `crouch_maps` empty
+  (the crouch plays on the tutorial's map; #790, which asks the engineer). No `lobby_level` (E72), no
   win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
   bound equal to its value): `packages` 1, `knives` 1 (no `tasks` or `banned_task_types` since #900).
 - Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. No task type (#900). Actions: PickUp,
@@ -6842,11 +6872,12 @@ kind's), `subtasks_setting` (a whole-number setting from at least 0), `frames_pe
   `ItemPlaced`) and `FilmLoaded` goes to everyone. At a loaded camera a shot (§3.2 of the ADR): the lens is the camera
   marker raised by the eye height, aimed at the photo spot's marker raised alike (`PhotoFrame`: a frustum from 0.3 m
   to `range_m`); a candidate is an ALIVE player whose feet lie outside the camera's cylinder (`StationState.contains`,
-  so the shooter, who uses it from inside, never is), and it counts when its head (feet plus the eye height) lies in
-  the frame with a clear `WorldQuery.line_of_sight` from the lens; whether any counted is kept on the host (PE5). The
-  record (§3.3): one row per ALIVE or knocked-down player with its feet outside the cylinder within `range_m` +
-  `RECORD_MARGIN_M` (2 m) of the lens, in peer order, at most 15: `peer`, `position`, `facing`, `downed`,
-  `held_item`, `belt_item` (the snapshot's avatar row without velocity and invulnerability). Then the film's next shot
+  so the shooter, who uses it from inside, never is), and it counts when its head (feet plus the eye height, the
+  crouched eye while crouched, #790) lies in the frame with a clear `WorldQuery.line_of_sight` from the lens; whether
+  any counted is kept on the host (PE5). The record (§3.3): one row per ALIVE or knocked-down player with its feet
+  outside the cylinder within `range_m` + `RECORD_MARGIN_M` (2 m) of the lens, in peer order, at most 15: `peer`,
+  `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (the snapshot's avatar row without
+  velocity and invulnerability). Then the film's next shot
   (`ShotTaken` to everyone: the camera, the film, the shot id, wrapping at 0x10000, and the record). A film keeps its
   shots whoever carries it until it is printed or vanishes.
 - The box (the photo ADR §2.5, PE7, PE14, PD12, #782): a take gives the actor a fresh film through `GiveItem.give_new` (§9.4.2: the
