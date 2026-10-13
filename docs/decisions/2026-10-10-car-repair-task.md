@@ -16,6 +16,9 @@
   are game rules and taste (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (c)).
   The RE items are technical, the game-design manager session's to decide and report (tier (a)): decided here, each
   revertible in its issue. Option labels are letters, continued across the sub-questions of one row.
+- **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
+  ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
+  "nothing is built now" above is history. On main: R1 to R4 and R9 (#805 to #808, #813); the rest of §8 is open.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules; RD1 to RD17, answered on 2026-10-10 in PR #709's comments 6095445261,
   6097878738 and 6100556321; the approval for the MVP only); the game-design manager session of #676 (RE1 to RE17). Designed by the agent of #688,

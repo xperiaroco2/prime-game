@@ -20,6 +20,10 @@
   items are game rules and taste (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier
   (c)), all answered. The CE items are technical, the game-design manager session's to decide and report (tier (a)):
   decided here, each revertible in its issue.
+- **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
+  ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
+  "nothing is built now" above is history. On main: C1 to C4 and C9 to C11 (#770 to #773, #778 to #780); the rest
+  of §8 is open.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules, CD1 to CD16, CD15 as his read-back of the Generator's GD7, and the drafts,
   the herbs, CD3 (b)'s reach and CD5 (b)'s spot, answered on 2026-10-10); the game-design manager session of #676
