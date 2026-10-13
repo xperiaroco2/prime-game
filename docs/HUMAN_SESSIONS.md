@@ -19,7 +19,8 @@ every call).
 
 ## Launching a workflow
 Costs money, so it is a stop-and-ask item of root `CLAUDE.md`: state the agent count (fewer than 5) and rough cost, wait
-for a yes (a manager: none up to 15% of the weekly limit, trust ADR); its prompt states its bounds (AGENT_WORKFLOW §7);
+for a yes (a manager: none within its track's weekly budget, else 15% of the weekly limit, trust ADR); its prompt
+states its bounds (AGENT_WORKFLOW §7);
 "ultracode" alone never exceeds the size guideline. A manager's estimate and checks: `docs/MANAGERS.md`.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
 

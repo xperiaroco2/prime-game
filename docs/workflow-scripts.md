@@ -47,9 +47,9 @@ agent `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `metrics` reads
   opt-out.
 - Every agent's options are built in `withModel` (`asReviewer` for a reviewer): models, efforts and the lean agent
   type are appended last, so a launch without them keeps its options.
-- `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents (`selftest`, part of
-  `verify`). The snapshots in `tools/runner/tests/workflow_snapshots/` pin every agent's prompt and options, each
-  case as launched. A deliberate change regenerates them (also after a rebase that touched the scripts): run the
+- `tools/runner/tests/test_workflows.py` runs the three scripts under Node with stub agents (`selftest`, part of
+  `verify`). The snapshots in `tools/runner/tests/workflow_snapshots/` (issue-task, pr-rebase; quick-task has none,
+  only `QuickTaskTest`) pin every agent's prompt and options, each case as launched. A deliberate change regenerates them (also after a rebase that touched the scripts): run the
   tests once with `PRIME_WORKFLOW_SNAPSHOTS=update`, read the diff (only the intended lines may change), commit it
   with the change, run them again without it. Never edit a snapshot by hand.
 - The compact result (#386): `CompactResultTest` bounds its size.
@@ -64,4 +64,4 @@ agent `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `metrics` reads
   `implement:#<n>#2`; pr-rebase's `fix:#<n>#2`). A suffix `:<k>` makes the label unknown ("other").
 - `quick-task.js` (#608, launch-args.md): one `task-publisher` agent takes an XS/S task through `lint`, `check`, a
   PR and CI; only a diff under `core/ server/ net/ client/ voice/ tests/harness/` adds the two reviewers
-  (`code-reviewer` alone under `client/ui/`: `NETCODE`) and, on a blocker or major, a fix agent. `QuickTaskTest`.
+  (`code-reviewer` alone under `client/ui/`: `NETCODE`) and, on a blocker or major, a fix agent. `QuickTaskTest`. Args: `n`, `title`, `wt`, `branch`, `base`, `notes`, `models` (`{quick, review, fix}`).

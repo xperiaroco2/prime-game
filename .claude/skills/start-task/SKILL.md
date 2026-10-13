@@ -37,9 +37,9 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
      use the parent as base. "origin has no branch": the parent is not pushed yet; ask the human. On a branch that
      already exists `--base` is ignored (it says so).
    - "uncommitted changes": show the human the list and ask one question: do these changes belong to this task
-     (`--include`) or should they be put away (`--stash`)? Never discard them. Run `start` again with the answer.
-     After `--stash`, tell the human the changes wait in the stash of the old branch (`git stash list`; switch back
-     and `git stash pop` to get them).
+     (`--include`) or should they be put away? Never discard them. `git stash` is forbidden (one stash for all worktrees): put
+     them in a WIP commit on the old branch (later `git reset --soft HEAD~1` there). Run `start` again with the answer
+     (`--include`, or no flag once they are committed).
    - "no area label": ask which area it is and run `start` again with `--area <x>`; add the label to the issue only
      if the human wants it.
    - Output line `WORKTREE <path>`: the engineer's task has its own worktree (the default; `--here` keeps a task in
