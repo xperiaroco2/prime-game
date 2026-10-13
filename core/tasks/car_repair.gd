@@ -114,8 +114,6 @@ class State:
 @export var picture: StationKind
 ## The part item kinds, one-handed, each given by exactly one bin (RE13).
 @export var parts: Array[ItemKind] = []
-## The car repair's own subtasks setting: the parts needed, at least 0.
-@export var subtasks_setting: StringName
 ## The spawn tag of the marker at the middle of the car's front (RE7): no station.
 @export var car_end_tag: StringName = &"car_end"
 ## Seconds from a hold's start to the car fully up (RD5 (b)): 0 to 60. The neutral default is out
@@ -421,9 +419,8 @@ func hold_emits() -> Array[Script]:
 ## belt rule) and ending in GiveItem; the car's
 ## rule ending in a timed HoldStation and the panel's in an endless one; `rise_seconds`,
 ## `half_width_m` and `clearance_m` within bounds; the car kind's cylinder within the box (its
-## `radius_m` at most `half_width_m`, its `height_m` at most `clearance_m`); the subtasks setting
-## from at least 0 (ModeCheck checks it names a declared whole-number setting); a non-empty RNG
-## purpose.
+## `radius_m` at most `half_width_m`, its `height_m` at most `clearance_m`); a non-empty RNG
+## purpose. The subtasks setting, from at least 0, is TaskType.check's (G0).
 func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
 	var named: Dictionary[String, StationKind] = {
@@ -467,12 +464,6 @@ func check(mode: GameMode) -> PackedStringArray:
 	if car != null and car.height_m > clearance_m:
 		var tall := "CarRepair %s: the car's height_m %s is above clearance_m %s"
 		found.append(tall % [id, number(car.height_m), number(clearance_m)])
-	if subtasks_setting.is_empty():
-		found.append("CarRepair %s has no subtasks_setting" % id)
-	elif mode != null:
-		var spec := mode.find_setting(subtasks_setting)
-		if spec != null and spec.is_number() and spec.min_value < 0:
-			found.append("CarRepair %s: setting %s goes below 0" % [id, subtasks_setting])
 	if parts_rng.is_empty():
 		found.append("CarRepair %s has an empty RNG purpose" % id)
 	return found

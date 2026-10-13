@@ -18,6 +18,10 @@ const DOWNED := AcceptSpec.From.DOWNED
 ## from where the unit tests stand their players.
 const RESPAWNS: Array[Vector3] = [Vector3(-25, 0, 15), Vector3(25, 0, 15), Vector3(5, 0, -25)]
 const RESPAWN_TAG := &"respawn"
+## The subtasks setting the fixture task types name (TaskType requires one, the Generator ADR's G0,
+## #795): `knives`, the whole-number setting from 0 that basic() and FixtureDealModes declare. They
+## deal a fixed count or nothing, so none of them reads it.
+const SUBTASKS_SETTING := &"knives"
 
 
 static func basic() -> GameMode:

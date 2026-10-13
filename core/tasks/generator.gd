@@ -83,8 +83,6 @@ class State:
 @export var generator: StationKind
 ## The switches' station kind.
 @export var switch: StationKind
-## The Generator's own subtasks setting: its active switches, 0 to `switches`.
-@export var subtasks_setting: StringName
 ## The switch devices every map it plays on holds, exactly (GE10): the demands ask for that many
 ## `switch` markers, and the panel draws one bar per switch. At least 1. The neutral default is out
 ## of bounds on purpose: the data sets it.
@@ -253,9 +251,9 @@ func emits() -> Array[Script]:
 
 
 ## GE10: both station kinds, with different spawn tags, each with an Interact rule whose effect is
-## UseStation; `switches` at least 1; the subtasks setting a whole number from at least 0 to at
-## most `switches` (ModeCheck checks it names a declared whole-number setting); `seconds` within
-## bounds; a non-empty RNG purpose.
+## UseStation; `switches` at least 1; the subtasks setting at most `switches` (TaskType.check
+## requires it, from at least 0; ModeCheck checks it names a declared whole-number setting);
+## `seconds` within bounds; a non-empty RNG purpose.
 func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
 	if generator == null:
@@ -273,20 +271,19 @@ func check(mode: GameMode) -> PackedStringArray:
 			)
 	if switches < 1:
 		found.append("Generator %s has %d switches, fewer than 1" % [id, switches])
-	if subtasks_setting.is_empty():
-		found.append("Generator %s has no subtasks_setting" % id)
-	elif mode != null:
-		var spec := mode.find_setting(subtasks_setting)
-		if spec != null and spec.is_number():
-			if spec.min_value < 0:
-				found.append("Generator %s: setting %s goes below 0" % [id, subtasks_setting])
-			if spec.max_value > switches:
-				found.append(
-					(
-						"Generator %s: setting %s goes up to %d, above its %d switches"
-						% [id, subtasks_setting, spec.max_value, switches]
-					)
-				)
+	# TaskType.check refuses an empty subtasks setting and one below 0 (G0); the top is the type's.
+	var spec := (
+		mode.find_setting(subtasks_setting)
+		if mode != null and not subtasks_setting.is_empty()
+		else null
+	)
+	if spec != null and spec.is_number() and spec.max_value > switches:
+		found.append(
+			(
+				"Generator %s: setting %s goes up to %d, above its %d switches"
+				% [id, subtasks_setting, spec.max_value, switches]
+			)
+		)
 	if switches_rng.is_empty():
 		found.append("Generator %s has an empty RNG purpose" % id)
 	append_found(

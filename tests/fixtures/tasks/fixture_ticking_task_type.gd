@@ -8,6 +8,7 @@ static func of(type_id: StringName) -> FixtureTickingTaskType:
 	var made := FixtureTickingTaskType.new()
 	made.id = type_id
 	made.description = "A ticking task."
+	made.subtasks_setting = FixtureModes.SUBTASKS_SETTING
 	return made
 
 

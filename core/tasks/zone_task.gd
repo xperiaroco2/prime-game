@@ -68,8 +68,6 @@ class State:
 
 ## The station kind of the zones: spawn tag, radius, height and colour palette.
 @export var zone: StationKind
-## The zone task's own subtasks setting: its zones.
-@export var subtasks_setting: StringName
 ## How long living players must stand in a zone, in all (ZD1, ZD7: data, not a lobby setting).
 ## 0.05 to 600; converted once to host ticks (needed_ticks). The neutral default is out of bounds
 ## on purpose: the data sets it, so the mode check refuses a zone task that forgot it.
@@ -195,8 +193,6 @@ func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
 	if zone == null:
 		found.append("ZoneTask %s has no zone station kind" % id)
-	if subtasks_setting.is_empty():
-		found.append("ZoneTask %s has no subtasks_setting" % id)
 	if zones_rng.is_empty():
 		found.append("ZoneTask %s has an empty RNG purpose" % id)
 	append_found(

@@ -13,6 +13,7 @@ static func of(type_id: StringName, kinds: Array[StationKind]) -> FixtureKindsTy
 	var type := FixtureKindsType.new()
 	type.id = type_id
 	type.description = "Hold the kinds."
+	type.subtasks_setting = FixtureModes.SUBTASKS_SETTING
 	type.held = kinds
 	return type
 

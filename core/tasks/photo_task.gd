@@ -159,8 +159,6 @@ class State:
 @export var board: StationKind
 @export var film: ItemKind
 @export var photo: ItemKind
-## The photo task's own subtasks setting: the photos with a person to hang.
-@export var subtasks_setting: StringName
 ## How many shots a film takes. At least 1. The neutral default is out of bounds on purpose.
 @export var frames_per_film := 0
 ## The frame's vertical field of view in degrees, 1 to 179. Out of bounds by default on purpose.
@@ -351,8 +349,8 @@ func most_layout_problems() -> int:
 ## PE12: the five station kinds, with different spawn tags; the photo spot a display kind with no
 ## rule; the four others each an Interact rule ending in UseStation, the box's paying a Cooldown;
 ## the film and photo kinds declared by the mode, one-handed, their spawn tags none of a station
-## kind's; frames_per_film at least 1; the frame's numbers within bounds; the subtasks setting a
-## declared whole number from at least 0; the item kinds' caps (CE3's floor).
+## kind's; frames_per_film at least 1; the frame's numbers within bounds; the item
+## kinds' caps (CE3's floor). The subtasks setting, from at least 0, is TaskType.check's (G0).
 func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
 	var names := ["camera", "photo_spot", "film_box", "printer", "board"]
@@ -393,12 +391,6 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds("PhotoTask %s range_m" % id, range_m, MIN_RANGE_M, MAX_RANGE_M),
 		]
 	)
-	if subtasks_setting.is_empty():
-		found.append("PhotoTask %s has no subtasks_setting" % id)
-	elif mode != null:
-		var spec := mode.find_setting(subtasks_setting)
-		if spec != null and spec.is_number() and spec.min_value < 0:
-			found.append("PhotoTask %s: setting %s goes below 0" % [id, subtasks_setting])
 	if mode != null:
 		_check_caps(mode, found)
 	return found

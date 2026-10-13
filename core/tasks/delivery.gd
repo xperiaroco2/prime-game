@@ -48,8 +48,6 @@ class State:
 ## The station kind of the circles: spawn tag, radius, height and colour palette. One circle per
 ## package, fixed (#79), not a setting.
 @export var circle: StationKind
-## Delivery's own subtasks setting: the packages of its task (`packages`).
-@export var subtasks_setting: StringName
 ## The RNG purposes it draws from (§3.3): the circles' markers and colours, the packages'
 ## markers, and which circle each package goes to.
 @export var circles_rng: StringName = &"circles"
@@ -171,8 +169,6 @@ func check(mode: GameMode) -> PackedStringArray:
 	elif package != null and circle.spawn_tag == package.spawn_tag:
 		# One tag would let packages spawn on circle markers, delivered before anyone moves.
 		found.append("Delivery %s: circle and package share spawn tag %s" % [id, circle.spawn_tag])
-	if subtasks_setting.is_empty():
-		found.append("Delivery %s has no subtasks_setting" % id)
 	if circles_rng.is_empty() or packages_rng.is_empty() or tasks_rng.is_empty():
 		found.append("Delivery %s has an empty RNG purpose" % id)
 	return found
