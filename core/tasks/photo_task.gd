@@ -119,7 +119,7 @@ class State:
 	## Film item id -> its entry.
 	var films: Dictionary[int, Film] = {}
 	## Photo item id -> its entry.
-	var prints: Dictionary[int, Print] = {}
+	var print_entries: Dictionary[int, Print] = {}
 	## The shots whose photos were hung counted, in hang order.
 	var counted := PackedInt32Array()
 
@@ -139,7 +139,7 @@ class State:
 
 	## The entry of `item` if it is that very photo, printed by this task, else null.
 	func print_of(item: ItemState) -> Print:
-		var entry: Print = prints.get(item.id)
+		var entry: Print = print_entries.get(item.id)
 		return entry if entry != null and entry.item == item else null
 
 
@@ -542,7 +542,7 @@ func _print(ctx: MatchContext, task_state: State) -> void:
 		var binding := Print.new()
 		binding.item = made
 		binding.shot = shot
-		task_state.prints[made.id] = binding
+		task_state.print_entries[made.id] = binding
 		ctx.emit(ItemSpawnedEvent.new(made.id, photo.id, made.position))
 		ctx.emit(PhotoPrintedEvent.new(made.id, shot))
 		Items.raise_rested(ctx, made, Items.SPAWN)
@@ -626,17 +626,17 @@ func _carried_photo(ctx: MatchContext) -> ItemState:
 ## vanishing command; ARCHITECTURE §9.5): a film's, a photo's, the shots none of the rest shows,
 ## and the camera's film. The identity checks already keep a recycled id from reading them.
 func _prune(state: MatchState, task_state: State) -> void:
-	for id: int in task_state.films.keys():
-		if state.items.get(id) != task_state.films[id].item:
-			task_state.films.erase(id)
-	for id: int in task_state.prints.keys():
-		if state.items.get(id) != task_state.prints[id].item:
-			task_state.prints.erase(id)
+	for item_id: int in task_state.films.keys():
+		if state.items.get(item_id) != task_state.films[item_id].item:
+			task_state.films.erase(item_id)
+	for item_id: int in task_state.print_entries.keys():
+		if state.items.get(item_id) != task_state.print_entries[item_id].item:
+			task_state.print_entries.erase(item_id)
 	var shown: Dictionary[int, bool] = {}
 	for entry: Film in task_state.films.values():
 		for shot: int in entry.shots:
 			shown[shot] = true
-	for entry: Print in task_state.prints.values():
+	for entry: Print in task_state.print_entries.values():
 		shown[entry.shot] = true
 	for shot: int in task_state.shots.keys():
 		if not shown.has(shot):

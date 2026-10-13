@@ -132,7 +132,9 @@ func test_a_print_at_the_photo_cap_vanishes_the_oldest_photo_before_each_spawn()
 	assert_array(_vanished(game).slice(-3)).is_equal([old[0].id, old[1].id, second.id])
 	var task_state := FixturePhotoModes.state_of(game)
 	var fresh := FixturePhotoModes.printed(game).slice(FixturePhotoModes.FRAMES)
-	assert_array(task_state.prints.keys()).contains_exactly_in_any_order([fresh[0].id, fresh[1].id])
+	assert_array(task_state.print_entries.keys()).contains_exactly_in_any_order(
+		[fresh[0].id, fresh[1].id]
+	)
 	assert_array(task_state.shots.keys()).contains_exactly_in_any_order([2, 3])
 	assert_bool(task_state.films.has(second.id)).is_false()
 
