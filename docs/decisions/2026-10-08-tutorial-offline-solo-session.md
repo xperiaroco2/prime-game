@@ -1,10 +1,15 @@
 # The tutorial: an offline solo session with stand-ins, host-staged lessons and a client-side lesson runner
 
-- **Status:** Proposed (#552). The D items (D25 to D36) are the engineer's, tier (c) of the
+- **Status:** Accepted on 2026-10-09: the engineer took every item as recommended
+  ([PR #596, comment 6079458154](https://github.com/xperiaroco2/prime-game/pull/596#issuecomment-6079458154)); T1 to
+  T4 built it. (Was: Proposed (#552). The D items (D25 to D36) are the engineer's, tier (c) of the
   [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md); the E items (E62 to E72) are the M6.2 manager
   session's, tier (a), each standing as recommended unless it reports otherwise, but for E64's new kind in the
   `content/` row of ARCHITECTURE §1 (a boundary) and E65's wire row, which go to the engineer with the D items
-  (Needs the engineer, below)
+  (Needs the engineer, below).)
+- **Amended 2026-10-13 (#925):** the [tutorial without tasks](2026-10-12-tutorial-without-tasks.md) (2026-10-12)
+  reworks it: eight lessons and no task, where the text below has nine. D25 to D36 and E62 to E72 stand where that
+  ADR does not reopen them.
 - **Date:** 2026-10-08
 - **Deciders:** the engineer (the D items, E64, E65); the M6.2 manager session (the other E items); designed by the
   agent in #552 under the M6.2 manager session
