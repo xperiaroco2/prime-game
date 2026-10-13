@@ -1941,7 +1941,7 @@ The chaos run plays the greybox, which holds no Cooking, and a take it applied w
 (class 4), so Cooking's flood guard and cap are held outside it (#778, the cooking ADR's §7): in
 `tests/integration/server/host_session_cooking_test.gd` one peer's burst of `Interact(item)` naming a box gets at most
 one applied take per 5 ticks and `too_soon` for the rest (CE17), and never more than the kind's `max_items` exist
-(CE3); seen failing with the boxes' `Cooldown` planted out.
+(CE3); seen failing with the boxes' `Cooldown` planted out and with the cap raised to 1000.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,

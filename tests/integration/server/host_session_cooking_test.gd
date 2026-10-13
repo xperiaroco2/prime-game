@@ -61,7 +61,10 @@ func test_a_burger_and_its_leftovers_reach_every_client_as_its_view() -> void:
 	_take(_h.own, game, order.bun.id)
 	_use(_h.own, place)
 	_take(_h.own, game, _other_bun(game, order.bun).id)
+	var red_bun := FixtureCookingModes.held(game, _h.peer_of(_h.own))
+	assert_object(red_bun).is_not_null()
 	_use(_h.own, place)
+	assert_int(red_bun.where).is_equal(ItemState.Where.GROUND)
 	# The patty: on the grill, fried, off and onto the place; the herb from its bed.
 	_take(_h.own, game, order.raw_patty.id)
 	_use(_h.own, task_state.grill)
@@ -74,6 +77,7 @@ func test_a_burger_and_its_leftovers_reach_every_client_as_its_view() -> void:
 	# What lies loose (the bun at the feet, the red bun) vanishes.
 	_h.pump_seconds(FixtureWireCooking.VANISH_SECONDS + 0.5)
 	assert_bool(game.state.items.has(first_bun.id)).is_false()
+	assert_bool(game.state.items.has(red_bun.id)).is_false()
 	for client: ClientSession in _h.clients:
 		for event_name: StringName in EVENTS:
 			(
@@ -104,11 +108,11 @@ func test_a_burst_of_takes_gets_one_per_cooldown_and_never_passes_the_cap() -> v
 		second.send_intent(Intents.INTERACT, {"station": -1, "item": box.id})
 		_h.pump()
 		most = maxi(most, _count_of(game, bun.id))
-	var ticks := game.ticked_through() - first_tick
 	_h.pump_seconds(0.5)
+	var ticks := game.ticked_through() - first_tick
 	var arrived := 0
-	for call: String in _h.calls.slice(calls_before):
-		if call.split(" ")[1] == String(Intents.INTERACT):
+	for entry: String in _h.calls.slice(calls_before):
+		if entry.split(" ")[1] == String(Intents.INTERACT):
 			arrived += 1
 	var spawned := 0
 	var too_soon := 0
@@ -120,9 +124,11 @@ func test_a_burst_of_takes_gets_one_per_cooldown_and_never_passes_the_cap() -> v
 			too_soon += 1
 	# Every Interact that reached the match is a take or too_soon; at most one take per 5 ticks.
 	assert_int(spawned + too_soon).is_equal(arrived)
-	assert_int(spawned).is_less_equal(ticks / FixtureWireCooking.TAKE_TICKS + 1)
+	assert_int(spawned).is_less_equal(floori(float(ticks) / FixtureWireCooking.TAKE_TICKS) + 1)
 	assert_int(too_soon).is_greater(0)
-	# Past the cap: the oldest loose bun vanished before each take, and never more than CAP lay.
+	# Past the cap: the oldest loose bun vanished before each take (the burst is shorter than
+	# VANISH_SECONDS, so no timed vanish), and never more than CAP lay though the burst would lay
+	# about 2 * CAP (seen failing with the kind's max_items planted out).
 	assert_int(spawned).is_greater(FixtureWireCooking.CAP)
 	assert_int(most).is_equal(FixtureWireCooking.CAP)
 	assert_array(second.view.events_named(&"ItemVanished")).is_not_empty()

@@ -30,7 +30,7 @@ const TAKE_KEY := &"cooking_take"
 ## CE17's 0.25 s: 5 host ticks at 20 Hz.
 const TAKE_SECONDS := 0.25
 const TAKE_TICKS := 5
-const VANISH_SECONDS := 3.0
+const VANISH_SECONDS := 6
 ## The least cap Cooking.check allows: twice the mode's 4 players, 3 burgers, 1.
 const CAP := 12
 ## The round_player markers, the players' spots in the round.
