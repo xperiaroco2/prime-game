@@ -6877,7 +6877,7 @@ line, the cylinder, the range, the record), `photo_check_test.gd` (PE12, the cap
 lists, `use_emits`, no shot or print saying whether a person counted), `photo_role_swap_test.gd` (the whole chain; planted
 "the frame skips dissidents" and "a dissident's hang counts nothing", each failed both, reverted), `photo_box_test.gd`
 (the take, the belt, the cooldown, after done), `photo_print_test.gd` (shot order, the hand before the belt, the
-refusals), `photo_hang_test.gd` (counted and locked, uncounted and taken down, the belt's photo, done),
+refusals), `photo_hang_test.gd` (counted and locked, uncounted and taken down, the belt's photo, done, a wrapped shot id skipping the ids of live shots because the hang reads its shot by id),
 `photo_cap_test.gd` (the tiers, the photo cap at a print, a recycled id; planted the tier-blind order and each
 `_prune` call left out, each failed, reverted), `tests/unit/items/give_item_test.gd` (the tiered cap),
 `photo_frame_test.gd`, `tests/unit/items/items_station_test.gd` (the move
