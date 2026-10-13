@@ -3,8 +3,8 @@ extends TaskType
 ## Cooking (#682; ARCHITECTURE §3.3, §9.5; the cooking ADR, 2026-10-10-cooking-task.md):
 ## one shared task whose subtasks are its N burgers, N the subtasks setting. Nobody owns it: any
 ## living player of any role takes from a box, picks a herb, uses the grill and fills a place.
-## This part (C3, #772) holds the data, the deal and the board events; the uses of the grill, the
-## beds and the places and the grill's tick are C4's.
+## C3 (#772) built the data, the deal and the board events; C4 (#773) the uses of the grill, the
+## beds and the places (use_problem, use_station) and the grill's tick (tick, through TaskTicks).
 ##
 ## The deal (DealTasks calls deal() when the draw picks it, on a map its `maps` lists; ADR §2.1,
 ## CE8): with N = 0 nothing at all is placed (no station, no box, no order, no HerbsDealt) and the
@@ -208,6 +208,205 @@ func deal(ctx: MatchContext) -> void:
 		Items.raise_rested(ctx, item, Items.SPAWN)
 
 
+func has_tick() -> bool:
+	return true
+
+
+## Why the actor's use of `station` is refused (StationUsable, after AtStation and StationInSight;
+## the ADR's §2.3 to §2.5, CE11), from what lies on the station and what the actor holds, never a
+## role:
+## - the grill, empty: a two-handed hand item `two_handed` (a put is not a take, CD3 (b); the
+##   grill's rule has no HandNotTwoHanded, which would refuse the take-off too), no hand item
+##   `empty_hand`, anything but a raw patty `wrong_item` (CD7 (a)); occupied, nothing: taking its
+##   patty off is a take, which makes its own room (CD3 (b), CD5 (b));
+## - a bed: `unavailable` only when its herb is at its cap with none loose (CE3, GiveItem's);
+## - a place: `unavailable` once its burger is done, `empty_hand`, or `wrong_item` for a hand item
+##   that is none of the buns, the fried patties and the herbs (a knife, a raw or burnt patty, CD8
+##   (b)); its rule's HandNotTwoHanded refuses `two_handed` before.
+## Any other station of the task, or no task, `unavailable`.
+func use_problem(ctx: MatchContext, task: MatchTask, station: StationState) -> StringName:
+	if task == null:
+		return StationUsable.UNAVAILABLE
+	var task_state := task.state as State
+	var hand := Items.held_by(ctx.state, ctx.actor)
+	if station.id == task_state.grill:
+		return _grill_problem(task_state, hand)
+	var bed := task_state.beds.find(station.id)
+	if bed >= 0:
+		return GiveItem.cap_problem(ctx.state, task_state.bed_herbs[bed])
+	return _place_problem(_order_at(task_state, station.id), hand)
+
+
+func use_reasons() -> Array[StringName]:
+	return [
+		StationUsable.UNAVAILABLE,
+		StationUsable.TWO_HANDED,
+		StationUsable.EMPTY_HAND,
+		StationUsable.WRONG_ITEM,
+	]
+
+
+## The use itself, after use_problem() passed (the ADR's §2.3 to §2.5):
+## - the grill, empty: the hand's raw patty is locked on it (Items.lock_at), fried and burnt at
+##   now plus fried_ticks() and burnt_ticks(), with GrillLoaded; occupied: its patty, whatever its
+##   kind, goes to the actor (Items.give, which makes room: the belt, or the feet; a box carrier's
+##   onto the belt), and the grill is empty;
+## - a bed: a new item of the bed's herb of the round, spawned at the bed and given to the actor
+##   (GiveItem.give_new: the cap, ItemSpawned, Items.give);
+## - a place: the hand item goes on. Right (the order's bun, fried patty or herb, its slot still
+##   empty): locked there, the slot filled; wrong (anything else the place takes, or a second one
+##   for a filled slot): it lies on the ground at the place (Items.lay_on_station, `on_station`),
+##   where PickUp takes it back. IngredientPlaced either way, first (CE13); the third right one
+##   makes the place done (StationState.done), then Tasks.subtask_done (CE13; the detail: the
+##   order's index and the place).
+func use_station(ctx: MatchContext, task: MatchTask, station: StationState) -> void:
+	if task == null:
+		return  # StationUsable refused it.
+	var task_state := task.state as State
+	if station.id == task_state.grill:
+		_use_grill(ctx, task_state, station)
+		return
+	var bed := task_state.beds.find(station.id)
+	if bed >= 0:
+		GiveItem.give_new(ctx, task_state.bed_herbs[bed], station.position)
+		return
+	var index := task_state.orders.find(_order_at(task_state, station.id))
+	if index < 0:
+		ctx.error("Cooking: station %d is neither its grill, a bed nor a place" % station.id)
+		return
+	_use_place(ctx, task, index, station)
+
+
+func use_emits() -> Array[Script]:
+	return [
+		GrillLoadedEvent,
+		IngredientPlacedEvent,
+		ItemSpawnedEvent,
+		ItemVanishedEvent,
+		ItemPlacedEvent,
+		ItemPickedUpEvent,
+		TaskStateEvent,
+		TaskProgressEvent,
+	]
+
+
+## The grill's patty turns fried when its fried tick has come and burnt when its burnt tick has
+## (the ADR's §2.4, CE4, CE10): Items.change_kind, ItemChanged to everyone. A burnt one stays as it
+## is until someone takes it off. Through TaskTicks, in the phases that list it (Round).
+func tick(ctx: MatchContext) -> void:
+	for task_id: int in ctx.state.tasks:
+		var task := ctx.state.tasks[task_id]
+		if task.type != self:
+			continue
+		var task_state := task.state as State
+		if task_state.grill_item < 0:
+			continue
+		var patty: ItemState = ctx.state.items.get(task_state.grill_item)
+		if patty == null:
+			ctx.error("Cooking: the grill's patty %d is gone" % task_state.grill_item)
+			_empty_grill(task_state)
+			continue
+		if patty.kind == burnt:
+			continue
+		if ctx.tick >= task_state.burnt_tick:
+			Items.change_kind(ctx, patty, burnt)
+		elif ctx.tick >= task_state.fried_tick and raw_patties.has(patty.kind):
+			Items.change_kind(ctx, patty, fried_of(patty.kind))
+
+
+func _use_grill(ctx: MatchContext, task_state: State, station: StationState) -> void:
+	if task_state.grill_item >= 0:
+		var patty: ItemState = ctx.state.items.get(task_state.grill_item)
+		_empty_grill(task_state)
+		if patty == null:
+			ctx.error("Cooking: the grill's patty is gone")
+			return
+		Items.give(ctx, ctx.actor, patty)
+		return
+	var hand := Items.held_by(ctx.state, ctx.actor)
+	if hand == null:
+		ctx.error("Cooking: player %d put nothing on the grill" % ctx.actor)
+		return
+	Items.lock_at(ctx, hand, station.position)
+	task_state.grill_item = hand.id
+	task_state.fried_tick = ctx.tick + fried_ticks()
+	task_state.burnt_tick = ctx.tick + burnt_ticks()
+	ctx.emit(
+		GrillLoadedEvent.new(station.id, hand.id, task_state.fried_tick, task_state.burnt_tick)
+	)
+
+
+func _use_place(ctx: MatchContext, task: MatchTask, index: int, station: StationState) -> void:
+	var task_state := task.state as State
+	var order := task_state.orders[index]
+	var hand := Items.held_by(ctx.state, ctx.actor)
+	if hand == null:
+		ctx.error("Cooking: player %d put nothing on place %d" % [ctx.actor, station.id])
+		return
+	var right := true
+	if hand.kind == order.bun and order.bun_item < 0:
+		order.bun_item = hand.id
+	elif hand.kind == fried_of(order.raw_patty) and order.patty_item < 0:
+		order.patty_item = hand.id
+	elif hand.kind == order.herb and order.herb_item < 0:
+		order.herb_item = hand.id
+	else:
+		right = false
+	ctx.emit(IngredientPlacedEvent.new(hand.id, station.id, right))
+	if not right:
+		Items.lay_on_station(ctx, hand, station.position)
+		return
+	Items.lock_at(ctx, hand, station.position)
+	if order.bun_item < 0 or order.patty_item < 0 or order.herb_item < 0:
+		return
+	order.done = true
+	station.done = true
+	Tasks.subtask_done(ctx, task, {"subtask": index, "station": station.id})
+
+
+## The grill's refusal (use_problem()): none when occupied, the take-off being a take.
+func _grill_problem(task_state: State, hand: ItemState) -> StringName:
+	if task_state.grill_item >= 0:
+		return &""
+	if hand == null:
+		return StationUsable.EMPTY_HAND
+	if hand.kind.is_two_handed():
+		return StationUsable.TWO_HANDED
+	if not raw_patties.has(hand.kind):
+		return StationUsable.WRONG_ITEM
+	return &""
+
+
+## A place's refusal (use_problem()); `order` null: the station is no place of the task.
+func _place_problem(order: Order, hand: ItemState) -> StringName:
+	if order == null or order.done:
+		return StationUsable.UNAVAILABLE
+	if hand == null:
+		return StationUsable.EMPTY_HAND
+	if not _takes(hand.kind):
+		return StationUsable.WRONG_ITEM
+	return &""
+
+
+static func _empty_grill(task_state: State) -> void:
+	task_state.grill_item = -1
+	task_state.fried_tick = -1
+	task_state.burnt_tick = -1
+
+
+## The order on the place `station_id`, or null.
+static func _order_at(task_state: State, station_id: int) -> Order:
+	for order: Order in task_state.orders:
+		if order.station == station_id:
+			return order
+	return null
+
+
+## Whether a place takes `kind` at all (right or wrong): a bun, a fried patty or a herb.
+func _takes(kind: ItemKind) -> bool:
+	return buns.has(kind) or fried_patties.has(kind) or herbs.has(kind)
+
+
 ## Exactly one marker each for the boards and the grill, and exactly as many `herb_bed` markers
 ## as herbs (exact counts, as the Generator's GE10: a second board or grill scene, or a bed no herb
 ## grows on, would stand unused), at least N `place` markers (N the setting; an unused place hides
@@ -234,6 +433,10 @@ func emits() -> Array[Script]:
 		ItemSpawnedEvent,
 		OrderPostedEvent,
 		HerbsDealtEvent,
+		GrillLoadedEvent,
+		IngredientPlacedEvent,
+		ItemChangedEvent,
+		ItemVanishedEvent,
 		TaskStateEvent,
 		TaskProgressEvent,
 	]
