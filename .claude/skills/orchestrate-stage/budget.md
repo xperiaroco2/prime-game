@@ -14,10 +14,13 @@ Every budget is a % of the week: (list $ without cache reads + 0.75 x cache-read
 over all of a track's sessions, its handovers and its other checkout included. `tools\run.cmd metrics` converts; the
 weekly counter (the desktop app's `get_usage` tool) is the check.
 
-## Budgets per track (N1 (b))
+## Budgets per track
+From the reset of 2026-10-13 10:00 UTC, the engineer's answer 1A to the weekly report
+([#302 comment 6145513919](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919)):
+
 | track | game | UI | art | meta | the engineer | buffer |
 |---|---|---|---|---|---|---|
-| % of the week | 26 | 20 | 20 | 12 | 5 | 10 |
+| % of the week | 34 | 6 | 20 | 12 | 5 | 16 |
 
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
@@ -25,9 +28,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   he says otherwise. The buffer lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
-- What a budget buys is planned at row 8's all-in cost per task, re-measured at each reset: game 0.73% a task, meta
-  0.61% a task, art 1.13% an issue, UI 1.18% a run. A day's share (game 3.7%, UI 2.9%, art 2.9%, meta 1.7%) is a
-  guide; the weekly budget is the limit.
+- What a budget buys is planned at row 8's all-in cost per task, re-measured at each reset (2026-10-13: game 0.60% a
+  run, meta 0.30% a run, art 0.77% an issue; UI not measured, 1.18% a run before). A day's share (game 4.9%, UI 0.9%,
+  art 2.9%, meta 1.7%) is a guide; the weekly budget is the limit.
 - From the next reset on, the meta track posts with its weekly report the past week's spend per track against its
   budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones. A workflow that
   gathers it passes the lean types (AGENT_WORKFLOW §5, #466): its gatherers `{agentType: 'lean-reader'}` on Sonnet,
@@ -96,19 +99,12 @@ only what the budget and the trials decide.
 - **`models.plan: "sonnet"`** (#469): the result's `plan.model` shows it; `metrics`' plan phase table compares the plan
   and critique $, the planner files the implementer read again and the critique's findings with the runs before (they
   must not rise).
-- **`models.implement: "sonnet"`** beside `publish_clean` (a standing habit since 2026-10-10, #560: [trial
-  ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md), model-guard ADR amendment; the engineer's yes on
-  #302) on every qualifying `issue-task` launch: Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing
-  under `core/ server/ net/ client/ voice/`, not a design task, no `.claude/workflows/` edit. Red once: the fresh
-  relaunch stays on Sonnet; red twice: relaunch once more without `models.implement` (Opus). Revert rule: read
-  `tools\run.cmd metrics --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave; once its
-  advice says revert (blockers and majors over 0.3 a task across the 10 Sonnet tasks since the keep, 2026-10-10
-  18:06Z), post it on #302 with the table and stop passing `implement`.
-- **`models.publish_findings: "sonnet"`** beside `publish_clean`, and **`models.publish: "sonnet"`** on every
-  `pr-rebase` launch (#835, a trial: [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)
-  amendment of 2026-10-11, the engineer's yes on #302): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s
-  "Sonnet publisher trial (#835)" tables before each wave; once either gives advice other than "continue", post it
-  on #302 with the table and stop passing that role.
+- **`models.publish: "sonnet"`** on every `pr-rebase` launch (#835, a trial: [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)
+  amendments of 2026-10-11 and 2026-10-13): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s "Sonnet
+  publisher trial (#835)" before each wave; once its "Advice (pr-rebase)" is other than "continue", post it on #302
+  with the table and stop passing it.
+- **Ended 2026-10-13** (#302 comment 6145513919, 3A to 5A): `ab_review` with `models.code`, `models.implement:
+  "sonnet"` and `models.publish_findings`; pass none of them.
 - **`checkpoint: true`** (#759): when to pass it and the engineer's decision after 10 tasks are in launch-args.md.
 
 ## Managers (N6 (b), N7 (a))
