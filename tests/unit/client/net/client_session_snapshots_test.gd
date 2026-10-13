@@ -118,6 +118,7 @@ func _snapshot(tick: int, at: Vector3) -> void:
 		"facing": Vector3.FORWARD,
 		"downed": false,
 		"invulnerable": false,
+		"crouched": false,
 		"held_item": -1,
 		"belt_item": -1,
 	}

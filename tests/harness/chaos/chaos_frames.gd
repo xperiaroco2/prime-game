@@ -133,6 +133,7 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 				"position": Vector3.ZERO,
 				"facing": Vector3.FORWARD,
 				"downed": false,
+				"crouched": false,
 				"held_item": -1,
 				"belt_item": 1,
 			}
@@ -266,6 +267,7 @@ static func claim(
 		"sprint": false,
 		"moving": true,
 		"on_floor": true,
+		"crouched": false,
 		"jumps": jumps,
 		"sprint_ticks": 0,
 		"moved_ticks": HONEST_MOVED_TICKS,
@@ -386,7 +388,7 @@ static func _bad_payload(
 		Shape.FLAG_BITS:
 			packet = claim(Claim.TELEPORT, schema, 0, 0, Vector3.ZERO, 0)
 			bytes = packet.bytes.duplicate()
-			bytes[at + CLAIM_FLAGS_AT] = bytes[at + CLAIM_FLAGS_AT] | (8 << rng.randi_range(0, 4))
+			bytes[at + CLAIM_FLAGS_AT] = bytes[at + CLAIM_FLAGS_AT] | (16 << rng.randi_range(0, 3))
 		Shape.BAD_ID:
 			packet = message(schema, &"ChangeSettings", {"settings": {"packages": 2}}, CHAOS_SEQ)
 			bytes = packet.bytes.duplicate()

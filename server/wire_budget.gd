@@ -99,6 +99,7 @@ static func _shot_taken() -> WireMessage:
 					"position": Vector3.ONE,
 					"facing": Vector3.FORWARD,
 					"downed": true,
+					"crouched": true,
 					"held_item": 0xFFFE,
 					"belt_item": 0xFFFD,
 				}

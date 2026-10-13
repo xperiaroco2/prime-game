@@ -172,6 +172,7 @@ static func _avatar(at: Vector3) -> Dictionary:
 		"facing": Vector3.FORWARD,
 		"downed": false,
 		"invulnerable": false,
+		"crouched": false,
 		"held_item": -1,
 		"belt_item": -1,
 	}

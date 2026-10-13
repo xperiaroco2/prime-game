@@ -213,6 +213,7 @@ func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool) -> v
 		"moving": not velocity.is_zero_approx(),
 		"jumps": bot.jumps,
 		"on_floor": true,
+		"crouched": false,
 	}
 	_queue(Intents.MOVE_CLAIM, bot.peer, args, bot.next_seq())
 	bot.position = to
