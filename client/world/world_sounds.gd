@@ -17,6 +17,10 @@ extends Node3D
 ## range before any ray; FootstepSurface's ray down finds the floor's surface, and no floor (a
 ## jump) plays none. Another player's step casts the muffle ray to SoundChooser.STEP_AIM_M above
 ## its feet; the own steps cast none (nothing stands between the ears and the own feet).
+## Where the crouch plays (crouch_plays), a step at or below the mode's crouch_fast_speed_mps is
+## FootstepCadence.QUIET_STEP_DB quieter and heard within its QUIET_STEP_RANGE_M, easing to a walk's
+## step at the walk speed (#792, the crouch ADR's KD1 (b)): read from the step's speed, never the
+## crouch flag.
 ## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
 ## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
@@ -47,6 +51,10 @@ var sfx := SfxSet.new()
 ## How far above a photo camera's marker its lens is, where the shutter plays: the client's own
 ## copy of the mode's eye height (ItemWorld sets it).
 var lens_m := 0.0
+## Whether the crouch plays where this client is (the crouch ADR's KE10; Game sets it as it sets
+## the controller's): there a slow step, the own or another player's, is quiet (KD1 (b),
+## FootstepCadence.quiet_of() of its speed); elsewhere every step is a walk's.
+var crouch_plays := false
 
 var _played := 0
 var _rays := 0
@@ -208,8 +216,14 @@ func _physics_process(delta: float) -> void:
 		var due := _cadences[peer].advance(
 			moved, delta, rules.walk_speed_mps, rules.sprint_speed_mps
 		)
-		if due and heard_from is Vector3:
-			_step(at, heard_from as Vector3, peer != 0)
+		if not due or not heard_from is Vector3:
+			continue
+		var quiet := 0.0
+		if crouch_plays:
+			quiet = FootstepCadence.quiet_of(
+				_cadences[peer].step_speed_mps, rules.crouch_fast_speed_mps, rules.walk_speed_mps
+			)
+		_step(at, heard_from as Vector3, peer != 0, quiet)
 
 
 ## The movement numbers of `peer`'s steps (0: the own player): the client's own copy of the mode's.
@@ -219,9 +233,12 @@ func _rules_of(peer: int) -> PlayerRules:
 	return avatars.rules
 
 
-## A footstep of feet at `at` heard from `heard_from`, muffled by the level if `occlude`.
-func _step(at: Vector3, heard_from: Vector3, occlude: bool) -> void:
-	var sound := SoundChooser.step(at, heard_from)
+## A footstep of feet at `at` heard from `heard_from`, muffled by the level if `occlude`; `quiet`
+## (FootstepCadence.quiet_of(), 0 a walk's step) lowers it toward QUIET_STEP_DB and narrows its
+## hearing range toward QUIET_STEP_RANGE_M (the cut and max_distance alike).
+func _step(at: Vector3, heard_from: Vector3, occlude: bool, quiet: float) -> void:
+	var hearing_m := lerpf(SoundChooser.HEARING_RANGE_M, FootstepCadence.QUIET_STEP_RANGE_M, quiet)
+	var sound := SoundChooser.step(at, heard_from, hearing_m)
 	if sound == null:
 		return
 	var surface: Variant = FootstepSurface.DEFAULT
@@ -229,7 +246,9 @@ func _step(at: Vector3, heard_from: Vector3, occlude: bool) -> void:
 		surface = FootstepSurface.under(get_world_3d().direct_space_state, at)
 	if surface == null:
 		return
-	if _start(sound, sfx.stream_for(SfxSet.footstep(surface as StringName)), heard_from, occlude):
+	var stream: AudioStream = sfx.stream_for(SfxSet.footstep(surface as StringName))
+	var quieter_db := lerpf(0.0, FootstepCadence.QUIET_STEP_DB, quiet)
+	if _start(sound, stream, heard_from, occlude, hearing_m, quieter_db):
 		_steps += 1
 
 
@@ -248,20 +267,26 @@ func _stream_of(id: StringName) -> AudioStream:
 	return stream
 
 
-## Starts `sound` with `stream`, muffled if `occlude` and the level is in the way; false (and
-## nothing started) with no stream.
+## Starts `sound` with `stream`, muffled if `occlude` and the level is in the way, heard within
+## `hearing_m` (max_distance) and `quieter_db` added to its volume; false (and nothing started)
+## with no stream.
 func _start(
-	sound: SoundChooser.Sound, stream: AudioStream, heard_from: Vector3, occlude: bool
+	sound: SoundChooser.Sound,
+	stream: AudioStream,
+	heard_from: Vector3,
+	occlude: bool,
+	hearing_m := SoundChooser.HEARING_RANGE_M,
+	quieter_db := 0.0,
 ) -> bool:
 	if stream == null:
 		return false
 	var sound_player := AudioStreamPlayer3D.new()
 	sound_player.name = "Sound%d" % _played
 	sound_player.stream = stream
-	sound_player.max_distance = SoundChooser.HEARING_RANGE_M
+	sound_player.max_distance = hearing_m
 	var muffle := Muffle.new()
 	muffle.follow(occlude and _blocked(heard_from, sound.aim), 0.0)
-	sound_player.volume_db = muffle.volume_db()
+	sound_player.volume_db = muffle.volume_db() + quieter_db
 	sound_player.bus = muffle.bus_for(AudioBuses.EFFECTS)
 	sound_player.position = sound.position
 	sound_player.finished.connect(sound_player.queue_free)

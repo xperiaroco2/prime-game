@@ -3,7 +3,9 @@ extends GdUnitTestSuite
 ## steps from how its interpolated pose moves, whatever velocity its snapshots claim; within the
 ## hearing range only, casting no ray beyond it; muffled behind a wall, clear in the open; not
 ## while downed or dead, nor off the floor; the floor's tag picks the surface. The local player
-## steps from its own movement, never muffled (no ray), and not while downed.
+## steps from its own movement, never muffled (no ray), and not while downed. Where the crouch
+## plays (#792, KD1 (b)), a step at crouch speed is quieter and heard nearer, eased to a walk's at
+## the walk speed, by the speed and never the flag; where it does not, every step is today's.
 
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 const PEER := 2
@@ -148,10 +150,92 @@ func test_the_local_player_steps_on_stairs_where_the_floor_flag_flickers() -> vo
 	assert_int(_sounds.steps()).is_greater_equal(3)
 
 
+func test_where_the_crouch_plays_a_step_at_crouch_speed_is_quieter_and_heard_nearer() -> void:
+	_sounds.crouch_plays = true
+	var slow := Vector3.LEFT * _views.rules.crouch_fast_speed_mps
+	await _walk(Vector3(3, 0, -2), slow, Vector3.ZERO, 150, false, true)
+	assert_int(_sounds.steps()).is_greater(0)
+	var step := _last()
+	assert_str(step["bus"] as String).is_equal(String(AudioBuses.EFFECTS))
+	assert_float(step["volume_db"] as float).is_equal_approx(FootstepCadence.QUIET_STEP_DB, 0.05)
+	assert_float(step["max_distance"] as float).is_equal_approx(
+		FootstepCadence.QUIET_STEP_RANGE_M, 0.05
+	)
+
+
+func test_where_the_crouch_plays_a_step_at_walk_speed_is_todays_whatever_the_flag() -> void:
+	# Read from the speed, never the flag: a peer drawn crouched that moves at the walk speed.
+	_sounds.crouch_plays = true
+	var walk := Vector3.LEFT * _views.rules.walk_speed_mps
+	await _walk(Vector3(3, 0, -2), walk, Vector3.ZERO, 120, false, true)
+	assert_int(_sounds.steps()).is_greater(0)
+	var step := _last()
+	assert_float(step["volume_db"] as float).is_equal(0.0)
+	assert_float(step["max_distance"] as float).is_equal(SoundChooser.HEARING_RANGE_M)
+
+
+func test_where_the_crouch_plays_a_step_between_the_speeds_eases() -> void:
+	_sounds.crouch_plays = true
+	var rules := _views.rules
+	var between := lerpf(rules.crouch_fast_speed_mps, rules.walk_speed_mps, 0.5)
+	await _walk(Vector3(4, 0, -2), Vector3.LEFT * between, Vector3.ZERO, 150)
+	assert_int(_sounds.steps()).is_greater(0)
+	var step := _last()
+	var half_db := FootstepCadence.QUIET_STEP_DB / 2.0
+	assert_float(step["volume_db"] as float).is_equal_approx(half_db, 0.3)
+	var half_m := (SoundChooser.HEARING_RANGE_M + FootstepCadence.QUIET_STEP_RANGE_M) / 2.0
+	assert_float(step["max_distance"] as float).is_equal_approx(half_m, 0.6)
+
+
+func test_a_quiet_step_beyond_its_range_is_cut_where_a_walks_is_heard() -> void:
+	_sounds.crouch_plays = true
+	var rules := _views.rules
+	var far := FootstepCadence.QUIET_STEP_RANGE_M + 1.5
+	await _walk(
+		Vector3(-2, 0, -far), Vector3.RIGHT * rules.crouch_fast_speed_mps, Vector3.ZERO, 150
+	)
+	assert_object(_views.body_of(PEER)).is_not_null()
+	assert_int(_sounds.played()).is_equal(0)
+	assert_int(_sounds.rays()).is_equal(0)
+	await _walk(Vector3(-2, 0, -far), Vector3.RIGHT * rules.walk_speed_mps, Vector3.ZERO, 120)
+	assert_int(_sounds.steps()).is_greater(0)
+
+
+func test_where_the_crouch_plays_the_local_players_slow_steps_are_quiet_too() -> void:
+	# Half the stick: half the walk speed, below the crouch's fast speed.
+	_sounds.crouch_plays = true
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.move_input = Vector2(0, 0.5)
+	await _world.frames(150)
+	assert_int(_sounds.steps()).is_greater(0)
+	var step := _last()
+	assert_float(step["volume_db"] as float).is_equal_approx(FootstepCadence.QUIET_STEP_DB, 0.05)
+	assert_float(step["max_distance"] as float).is_equal_approx(
+		FootstepCadence.QUIET_STEP_RANGE_M, 0.05
+	)
+
+
+func test_where_the_crouch_does_not_play_a_step_at_crouch_speed_is_todays() -> void:
+	# A map without the crouch (this fixture world, crouch_plays false): every step is today's.
+	var slow := Vector3.LEFT * _views.rules.crouch_fast_speed_mps
+	await _walk(Vector3(3, 0, -2), slow, Vector3.ZERO, 150)
+	assert_int(_sounds.steps()).is_greater(0)
+	var step := _last()
+	assert_float(step["volume_db"] as float).is_equal(0.0)
+	assert_float(step["max_distance"] as float).is_equal(SoundChooser.HEARING_RANGE_M)
+
+
 ## PEER's snapshots for `frames` physics frames, one a tick: from `from` moving at `velocity`
-## (m/s), each claiming `claimed`; `downed` as the snapshot says.
+## (m/s), each claiming `claimed`; `downed` and `crouched` as the snapshot says.
 func _walk(
-	from: Vector3, velocity: Vector3, claimed: Vector3, frames: int, downed := false
+	from: Vector3,
+	velocity: Vector3,
+	claimed: Vector3,
+	frames: int,
+	downed := false,
+	crouched := false,
 ) -> void:
 	for i: int in frames:
 		_now += FRAME_USEC
@@ -163,6 +247,7 @@ func _walk(
 				"velocity": claimed,
 				"facing": Vector3.FORWARD,
 				"downed": downed,
+				"crouched": crouched,
 				"invulnerable": false,
 				"held_item": -1,
 			}
