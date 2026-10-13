@@ -3,8 +3,10 @@ extends GdUnitTestSuite
 ## §5, §9.5): ModeCheck refuses a PhotoTask without its parts, with its numbers out of bounds or its
 ## item kinds' caps below the floor (one below refused, at the floor accepted); both leak lists
 ## name every event emits() returns; use_emits() names the events a use sends; and "the shot never
-## says whether a person counted" is held apart from the declarations: ShotTaken's keys and its
-## wire row's fields are the lists written here. Fixture values only.
+## says whether a person counted" is held apart from the declarations: ShotTaken's and
+## PhotoPrinted's keys and their wire rows' fields are the lists written here (#782: a photo's
+## print says no more than its shot did; PhotoHung's `counted` is the public count, PE9). Fixture
+## values only.
 
 
 func _errors(mode: GameMode) -> String:
@@ -101,7 +103,23 @@ func test_the_item_caps_at_the_floor_pass_and_one_below_is_refused() -> void:
 
 
 func test_use_emits_names_the_events_a_use_sends() -> void:
-	assert_array(_names(PhotoTask.new().use_emits())).is_equal([&"FilmLoaded", &"ShotTaken"])
+	(
+		assert_array(_names(PhotoTask.new().use_emits()))
+		. is_equal(
+			[
+				&"FilmLoaded",
+				&"ShotTaken",
+				&"PhotoPrinted",
+				&"PhotoHung",
+				&"ItemSpawned",
+				&"ItemVanished",
+				&"ItemPlaced",
+				&"ItemPickedUp",
+				&"TaskState",
+				&"TaskProgress",
+			]
+		)
+	)
 
 
 func test_both_leak_lists_name_every_event_the_photo_task_emits() -> void:
@@ -132,11 +150,13 @@ func test_the_shot_never_says_whether_a_person_counted() -> void:
 		["station", "film", "shot", "record"]
 	)
 	assert_array(FilmLoadedEvent.new(1, 2).to_dict().keys()).is_equal(["station", "item"])
+	assert_array(PhotoPrintedEvent.new(1, 2).to_dict().keys()).is_equal(["item", "shot"])
 	var schema := WireSchema.game(false)
 	assert_array(_fields(schema.row_named(&"ShotTaken"))).is_equal(
 		["station", "film", "shot", "record"]
 	)
 	assert_array(_fields(schema.row_named(&"FilmLoaded"))).is_equal(["station", "item"])
+	assert_array(_fields(schema.row_named(&"PhotoPrinted"))).is_equal(["item", "shot"])
 
 
 ## The event names of `scripts` (each class's global name without its `Event`).

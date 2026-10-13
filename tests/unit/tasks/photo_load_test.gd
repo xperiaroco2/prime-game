@@ -242,15 +242,13 @@ func test_a_wall_between_the_actor_and_the_camera_refuses_blocked_before_any_fil
 	assert_array(FixturePhotoModes.received(game, P1, &"FilmLoaded")).is_empty()
 
 
-func test_the_film_box_printer_and_board_are_unavailable_in_p2() -> void:
+func test_the_photo_spot_takes_no_use() -> void:
 	var game := _round()
-	var task_state := FixturePhotoModes.state_of(game)
-	FixturePhotoModes.use(game, P1, task_state.film_box)
-	FixturePhotoModes.use(game, P1, task_state.printer)
-	FixturePhotoModes.use(game, P1, task_state.board)
-	assert_array(FixturePhotoModes.reasons(game, P1)).is_equal(
-		[&"unavailable", &"unavailable", &"unavailable"]
-	)
+	var task := FixturePhotoModes.task_of(game)
+	var spot: StationState = game.state.stations[FixturePhotoModes.state_of(game).photo_spot]
+	var ctx := MatchContext.new(game)
+	ctx.actor = P1
+	assert_str(task.type.use_problem(ctx, task, spot)).is_equal("unavailable")
 
 
 func test_a_done_task_refuses_the_camera_unavailable() -> void:
@@ -261,10 +259,20 @@ func test_a_done_task_refuses_the_camera_unavailable() -> void:
 	assert_int(_shots(game)).is_equal(0)
 
 
-func test_use_reasons_lists_the_four_reasons_of_p2() -> void:
+func test_use_reasons_lists_the_six_reasons() -> void:
 	var reasons := FixturePhotoModes.type_of(FixturePhotoModes.basic()).use_reasons()
-	assert_array(reasons).contains_exactly_in_any_order(
-		[&"unavailable", &"no_film", &"no_frames_left", &"film_exposed"]
+	(
+		assert_array(reasons)
+		. contains_exactly_in_any_order(
+			[
+				&"unavailable",
+				&"no_film",
+				&"no_frames_left",
+				&"film_exposed",
+				&"nothing_to_print",
+				&"no_photo",
+			]
+		)
 	)
 	for reason: StringName in reasons:
 		assert_bool(StationUsable.REASONS.has(reason)).is_true()

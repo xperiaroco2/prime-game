@@ -40,7 +40,9 @@ extends RefCounted
 ## Decision 4);
 ## 26 since #773 added Cooking's GrillLoaded (kind 79) and IngredientPlaced (kind 80).
 ## 27 since #808 added the car repair's FitChanged (kind 81) and PartFitted (kind 82).
-const VERSION := 27
+## 28 since #782 added the photo task's PhotoPrinted (kind 83) and PhotoHung (kind 84) and the
+## Rejected reasons `nothing_to_print` and `no_photo` (the photo ADR §2.6, §2.7, PE16).
+const VERSION := 28
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -528,6 +530,8 @@ static func _events() -> Array[WireRow]:
 			]
 		),
 		_down(82, &"PartFitted", 4, [_station("station"), _item("item")]),
+		_down(83, &"PhotoPrinted", 4, [_item("item"), _u16("shot")]),
+		_down(84, &"PhotoHung", 5, [_item("item"), _station("station"), _bool("counted")]),
 	]
 
 

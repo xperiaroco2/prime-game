@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 ## station) and gives it to the actor (Items.give: ItemPickedUp), with no item_rested for it. The
 ## cap: at `max_items` the loose bun that has lain longest vanishes first (ItemVanished; the
 ## earliest rest tick, then the lowest id); with none loose the take is refused `unavailable`,
-## nothing spawned and nothing paid. A carried box answers `unavailable` (ItemOnGround). Driven by
+## nothing spawned and nothing paid. The tiers (the photo ADR's PE10, #782): the lowest
+## TaskType.cap_tier first, the highest answer of the dealt types, 0 by default, then that order.
+## A carried box answers `unavailable` (ItemOnGround). Driven by
 ## commands on a seeded FixtureGiveModes match; asserted on the events, view_of and the state.
 
 const P1 := 1
@@ -157,3 +159,48 @@ func test_a_downed_or_dead_sender_naming_a_box_is_not_accepted() -> void:
 		FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id, 7)
 		assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
 		assert_array(FixtureGiveModes.ids_of(game, &"bun")).is_empty()
+
+
+func test_the_cap_vanishes_the_lowest_tier_first_whatever_lay_longest() -> void:
+	var game := FixtureGiveModes.in_round([P1, P2])
+	var newer := FixtureGiveModes.lay_bun(game, AWAY_A, 30)
+	var older := FixtureGiveModes.lay_bun(game, AWAY_B, 10)
+	var type := FixtureTierType.new()
+	type.tiers = {older.id: 1}
+	game.state.add_task(type)
+	FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id)
+	assert_bool(game.state.items.has(newer.id)).is_false()
+	assert_bool(game.state.items.has(older.id)).is_true()
+
+
+func test_an_items_tier_is_the_highest_answer_of_the_dealt_types() -> void:
+	var game := FixtureGiveModes.in_round([P1, P2])
+	var newer := FixtureGiveModes.lay_bun(game, AWAY_A, 30)
+	var older := FixtureGiveModes.lay_bun(game, AWAY_B, 10)
+	var low := FixtureTierType.new()
+	low.tiers = {older.id: 0, newer.id: 1}
+	var high := FixtureTierType.new()
+	high.tiers = {older.id: 2}
+	game.state.add_task(low)
+	game.state.add_task(high)
+	FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id)
+	assert_bool(game.state.items.has(newer.id)).is_false()
+	assert_bool(game.state.items.has(older.id)).is_true()
+
+
+func test_within_one_tier_the_order_is_the_rest_tick_then_the_id() -> void:
+	var game := FixtureGiveModes.in_round([P1, P2])
+	var newer := FixtureGiveModes.lay_bun(game, AWAY_A, 30)
+	var older := FixtureGiveModes.lay_bun(game, AWAY_B, 10)
+	var type := FixtureTierType.new()
+	type.tiers = {older.id: 1, newer.id: 1}
+	game.state.add_task(type)
+	FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id)
+	assert_bool(game.state.items.has(older.id)).is_false()
+	assert_bool(game.state.items.has(newer.id)).is_true()
+
+
+func test_a_task_types_cap_tier_is_0_by_default() -> void:
+	var game := FixtureGiveModes.in_round([P1, P2])
+	var bun := FixtureGiveModes.lay_bun(game, AWAY_A, 30)
+	assert_int(TaskType.new().cap_tier(game.state, bun)).is_equal(0)

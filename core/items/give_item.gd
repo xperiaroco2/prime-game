@@ -8,7 +8,8 @@ extends RuleEffect
 ## (Cooking.use_station for a herb bed, C4).
 ##
 ## The cap (CE3): `kind.max_items` set, a kind with that many items in the match first vanishes the
-## loose one of the kind that has lain longest (on the ground: the earliest rest tick, then the
+## loose one of the kind that the cap ranks first (on the ground: the lowest TaskType.cap_tier, PE10
+## of the photo ADR, #782; then the one that has lain longest: the earliest rest tick, then the
 ## lowest id; Items.vanish, ItemVanished), so a take is never refused for spam; with none loose
 ## (every one held, locked or flying) the intent is refused `unavailable` (refusal(), before
 ## anything is paid) and nothing is spawned.
@@ -82,7 +83,7 @@ static func target_spot(ctx: MatchContext) -> Vector3:
 static func cap_problem(state: MatchState, given: ItemKind) -> StringName:
 	if given == null or not given.is_capped():
 		return &""
-	if _count(state, given) < given.max_items or _oldest_loose(state, given) != null:
+	if _count(state, given) < given.max_items or _first_loose(state, given) != null:
 		return &""
 	return ItemOnGround.UNAVAILABLE
 
@@ -95,19 +96,31 @@ static func give_new(ctx: MatchContext, given: ItemKind, at: Vector3) -> ItemSta
 	if given == null:
 		ctx.error("GiveItem: no kind to give")
 		return null
-	if given.is_capped() and _count(ctx.state, given) >= given.max_items:
-		var oldest := _oldest_loose(ctx.state, given)
-		if oldest == null:
-			if ctx.command != null:
-				ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
-			return null
-		Items.vanish(ctx, oldest)
+	if not make_room(ctx, given):
+		if ctx.command != null:
+			ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
+		return null
 	var made := Items.spawn(ctx, given, at)
 	if made == null:
 		return null
 	ctx.emit(ItemSpawnedEvent.new(made.id, given.id, at))
 	Items.give(ctx, ctx.actor, made)
 	return made
+
+
+## The cap before a new item of `given` (CE3; the photo ADR's PE10): with `max_items` items of the
+## kind in the match, the loose one first in the cap's order (_first_loose) vanishes (Items.vanish,
+## ItemVanished). False, with nothing changed, when the kind is at its cap and none is loose: no
+## new item may come. True otherwise (an uncapped kind, or room). A printer's photos (PhotoTask)
+## make room through it too.
+static func make_room(ctx: MatchContext, given: ItemKind) -> bool:
+	if not given.is_capped() or _count(ctx.state, given) < given.max_items:
+		return true
+	var first := _first_loose(ctx.state, given)
+	if first == null:
+		return false
+	Items.vanish(ctx, first)
+	return true
 
 
 ## How many items of `given` the match holds, wherever they are.
@@ -119,17 +132,32 @@ static func _count(state: MatchState, given: ItemKind) -> int:
 	return count
 
 
-## The item of `given` lying on the ground that has lain longest (the earliest rest tick, then the
-## lowest id), or null: a held, locked or flying item is never loose.
-static func _oldest_loose(state: MatchState, given: ItemKind) -> ItemState:
+## The item of `given` lying on the ground that the cap vanishes first, or null: a held, locked or
+## flying item is never loose. The lowest tier first (TaskType.cap_tier, the highest answer of the
+## match's dealt task types; the photo ADR's PE10: the camera's film last), then the one that has
+## lain longest (the earliest rest tick, then the lowest id).
+static func _first_loose(state: MatchState, given: ItemKind) -> ItemState:
 	var found: ItemState = null
+	var found_tier := 0
 	for item: ItemState in state.items.values():
 		if item.kind != given or item.where != ItemState.Where.GROUND:
 			continue
+		var tier := _tier(state, item)
 		if (
 			found == null
-			or item.rest_tick < found.rest_tick
-			or (item.rest_tick == found.rest_tick and item.id < found.id)
+			or tier < found_tier
+			or (tier == found_tier and item.rest_tick < found.rest_tick)
+			or (tier == found_tier and item.rest_tick == found.rest_tick and item.id < found.id)
 		):
 			found = item
+			found_tier = tier
 	return found
+
+
+## The highest cap_tier any task of the match gives `item` (0 with no task).
+static func _tier(state: MatchState, item: ItemState) -> int:
+	var tier := 0
+	for task: MatchTask in state.tasks.values():
+		if task.type != null:
+			tier = maxi(tier, task.type.cap_tier(state, item))
+	return tier
