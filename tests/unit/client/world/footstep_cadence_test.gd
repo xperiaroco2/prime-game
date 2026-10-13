@@ -1,10 +1,12 @@
 extends GdUnitTestSuite
 ## FootstepCadence (#525): the step interval as a pure function of the speed (walk vs run), and
 ## the cadence fed how far the drawn feet moved each frame: steps at that interval while walking,
-## none while standing, none for a placement (a move no one could make in a frame).
+## none while standing, none for a placement (a move no one could make in a frame); the quiet step
+## (#792): how quiet a step is by its speed, and the speed a step carries.
 
 const WALK := 4.5
 const SPRINT := 7.0
+const CROUCH_FAST := 2.8
 const FRAME := 1.0 / 60.0
 
 
@@ -70,6 +72,46 @@ func test_only_horizontal_movement_counts() -> void:
 	var cadence := FootstepCadence.new()
 	for i: int in 120:
 		assert_bool(cadence.advance(Vector3(0, -WALK * FRAME, 0), FRAME, WALK, SPRINT)).is_false()
+
+
+func test_a_step_at_or_below_the_crouch_fast_speed_is_wholly_quiet() -> void:
+	assert_float(FootstepCadence.quiet_of(CROUCH_FAST, CROUCH_FAST, WALK)).is_equal(1.0)
+	assert_float(FootstepCadence.quiet_of(2.0, CROUCH_FAST, WALK)).is_equal(1.0)
+	assert_float(FootstepCadence.quiet_of(0.0, CROUCH_FAST, WALK)).is_equal(1.0)
+
+
+func test_a_step_at_or_above_the_walk_speed_is_a_walks() -> void:
+	assert_float(FootstepCadence.quiet_of(WALK, CROUCH_FAST, WALK)).is_equal(0.0)
+	assert_float(FootstepCadence.quiet_of(SPRINT, CROUCH_FAST, WALK)).is_equal(0.0)
+
+
+func test_between_the_crouch_fast_and_the_walk_speed_the_quiet_eases_linearly() -> void:
+	var middle := (CROUCH_FAST + WALK) / 2.0
+	assert_float(FootstepCadence.quiet_of(middle, CROUCH_FAST, WALK)).is_equal_approx(0.5, 0.0001)
+	var quarter := lerpf(CROUCH_FAST, WALK, 0.25)
+	assert_float(FootstepCadence.quiet_of(quarter, CROUCH_FAST, WALK)).is_equal_approx(0.75, 0.0001)
+
+
+func test_a_mode_without_a_crouch_speed_below_its_walk_has_no_quiet_step() -> void:
+	assert_float(FootstepCadence.quiet_of(1.0, 0.0, WALK)).is_equal(0.0)
+	assert_float(FootstepCadence.quiet_of(1.0, WALK, WALK)).is_equal(0.0)
+	assert_float(FootstepCadence.quiet_of(1.0, 6.0, WALK)).is_equal(0.0)
+
+
+func test_a_step_carries_its_speed_over_the_step_not_one_frame() -> void:
+	# Frames of 2.0 and 3.0 m/s alternate (an interpolated pose's jitter): the step's speed is
+	# their mean; a standing frame between them neither counts nor resets it.
+	var cadence := FootstepCadence.new()
+	var stepped := false
+	for i: int in 600:
+		var speed := 2.0 if i % 2 == 0 else 3.0
+		if i % 7 == 3:
+			speed = 0.0
+		if cadence.advance(Vector3(speed * FRAME, 0, 0), FRAME, WALK, SPRINT):
+			stepped = true
+			break
+	assert_bool(stepped).is_true()
+	assert_float(cadence.step_speed_mps).is_between(2.4, 2.6)
 
 
 ## How many steps `seconds` of walking at `speed` play, frame by frame.
