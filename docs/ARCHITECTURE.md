@@ -4140,11 +4140,11 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   (ui-0.4.0; LD8 (a)): lesson 3 as drawn (D29 (a)) until the UI track's first instruction exists (#150); #900 (the
   tutorial without tasks, its ADR `docs/decisions/2026-10-12-tutorial-without-tasks.md`) dropped the Delivery
   lesson and the map lesson's «?» step (LD2 (a), LD7 (a)): lesson 4 only opens the map; lesson 6 completes on the
-  switch or the own `Respawned` (D36 (a)); lesson 7 waits for the own life living. The parts `TasksDone`,
+  switch or the own `Respawned` (D36 (a)); lesson 1's key row also lists `crouch` after `jump` (825c, #902, LD4 (b); the row only shows the key, lesson 1 completes on walking alone), its label the raw action name until the UI track puts `control.crouch` in the deck and `Controls.ACTIONS` (#791 follow-up). lesson 7 waits for the own life living. The parts `TasksDone`,
   `howto_opened` and `TutorialStep.HOWTO_GLYPH` stay, used by no lesson (LE3 (a)). The numbers (1 s, 3 s) are
   D33's placeholders. If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
 - Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
-  against `ClientModel.Life`), `tutorial_content_test.gd` (the eight lessons as §1's rows, deck keys and actions,
+  against `ClientModel.Life`), `tutorial_content_test.gd` (the eight lessons as §1's rows, lesson 1's row with `crouch`, deck keys and actions,
   `RequestStage` only in 5 and 6, no step waiting on what nothing can complete: a `howto_opened` with no card, a
   `TasksDone` with no task type), `tests/unit/client/tutorial/lesson_runner_test.gd`
   (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
@@ -6629,7 +6629,7 @@ Settings:
 - Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
   (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
   numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait) and `crouch_maps` listing its own map
-  (the crouch plays on the tutorial's map; the engineer's answer (c), #790). No `lobby_level` (E72), no
+  (the crouch plays on the tutorial's map; the engineer's answer (c), #790), which lesson 1's key row names (825c, #902; the mode file is unchanged). No `lobby_level` (E72), no
   win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
   bound equal to its value): `packages` 1, `knives` 1 (no `tasks` or `banned_task_types` since #900).
 - Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. No task type (#900). Actions: PickUp,
