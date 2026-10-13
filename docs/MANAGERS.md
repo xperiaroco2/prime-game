@@ -181,3 +181,11 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
   estimate (1.5: #534's reading, until the engineer confirms it): go on, and the plan-issue comment gives both numbers.
   Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left, go on and
   report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.
+
+## 10. An answer that changes the docs
+When you record an engineer's answer that changes a documented flow, rule or number (an ADR, a file under `docs/`, a
+skill, a `CLAUDE.md`), open a docs task for it in the same wave, or add it to an open one, and link that task in the
+recorded answer ([#905](https://github.com/xperiaroco2/prime-game/issues/905)). An answer left only in a comment drifts
+from the docs that still say the old thing: the release-branch ADR and the manager skill outlived the engineer's
+"everything into `main`" ([#676 comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003),
+#904). The night audit's `decisions` lens finds the ones missed.

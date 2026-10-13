@@ -1,7 +1,7 @@
 ---
 name: night-audit
-description: One read-only audit lens a night for prime-game (docs drift; coverage, flaky tests, dead code by weekday), every finding re-checked by a skeptic before it becomes an issue, and a summary on the "Night jobs" issue. Use as the prompt of the engineer's nightly Desktop scheduled task, or when a human says "night audit" or runs /night-audit with a lens.
-argument-hint: "[docs-drift | coverage | flaky | dead-code]"
+description: One read-only audit lens a night for prime-game (docs drift, decisions vs docs, coverage, flaky tests, dead code by weekday), every finding re-checked by a skeptic before it becomes an issue, and a summary on the "Night jobs" issue. Run by the meta manager as a workflow before each night, or when a human says "night audit" or runs /night-audit with a lens.
+argument-hint: "[docs-drift | decisions | coverage | flaky | dead-code]"
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -39,8 +39,8 @@ Unattended: nobody answers at night, so never ask in chat and never wait for a r
 weekday below). Work in English. Root `CLAUDE.md` applies in full.
 
 ## Bounds (state them in the summary)
-- **One lens** a run. **At most 2 agents**: you (the auditor) and one skeptic subagent. **About 100 tool calls**
-  together: you about 70, the skeptic about 30. About $10 list a night.
+- **One lens** a run. **At most 2 agents**: you (the auditor) and one skeptic subagent (as a workflow 3, below).
+  **About 100 tool calls** together: you about 70, the skeptic about 30. About $10 list a night.
 - **Read-only on the repo:** never Edit or Write a tracked file, never commit, push, open a PR, run `publish` or
   `start`, and never close, reopen or edit an issue. The only writes: `gh issue create` (confirmed findings, at most
   5 a night) and `gh issue comment` on the "Night jobs" issue. Issue bodies go in the gitignored `tests/scratch/`
@@ -51,7 +51,9 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
   `docs-drift`.
 
 ## As a workflow
-A manager may run one lens as a workflow instead, each `agent()` call with its lean type (AGENT_WORKFLOW §5, #466).
+The meta manager runs the night's lens as a workflow from its own session (the engineer's choice, #302 comment
+6107272934: a scheduled session starts in acceptEdits and stalls on its first permission card), each `agent()`
+call with its lean type (AGENT_WORKFLOW §5, #466).
 Bounds: 3 agents, about 100 tool calls split among them (auditor about 60, skeptic about 30, filer about 10), the
 rest of the bounds above. Steps 1 and 2 are the script's or the manager's, not an agent's: a workflow agent starts in
 the manager's checkout, where step 1's own-worktree test would skip the run and a lean type may not switch
@@ -64,12 +66,12 @@ have no Skill tool: each prompt names this file and the steps that agent follows
 ## Steps
 1. **Where you are.** Find the Night jobs issue first: `gh issue list --state open --search "\"Night jobs\"
    in:title" --json number,title`, the one titled exactly "Night jobs" (none: create it as in step 6 when you first
-   need it). `git rev-parse --git-dir` and `git rev-parse --git-common-dir` must differ (a linked worktree: the
-   scheduled task's worktree toggle). If they are equal, or `git status --porcelain` shows changes, comment
+   need it). `git rev-parse --git-dir` and `git rev-parse --git-common-dir` must differ (a linked worktree).
+   If they are equal, or `git status --porcelain` shows changes, comment
    "night-audit skipped: not in a clean worktree of its own" on the Night jobs issue and stop. Otherwise
    `git fetch origin` and `git switch --detach origin/main`: you audit what is on `main`.
-2. **The lens.** An argument names it; else the local weekday: Monday, Thursday, Saturday `docs-drift`; Tuesday
-   `coverage`; Wednesday, Sunday `flaky`; Friday `dead-code`. If today's summary comment ("night-audit <lens>,
+2. **The lens.** An argument names it; else the local weekday: Monday, Thursday `docs-drift`; Saturday `decisions`;
+   Tuesday `coverage`; Wednesday, Sunday `flaky`; Friday `dead-code`. If today's summary comment ("night-audit <lens>,
    <today's date>") is already on the Night jobs issue (a catch-up run after a missed one), stop.
 3. **Candidates.** Follow the lens below. Each candidate: one claim, the file and line, and the evidence (what the
    doc or code says, and the command or file that shows otherwise). Mechanical evidence first (a missing path, an
@@ -81,7 +83,7 @@ have no Skill tool: each prompt names this file and the steps that agent follows
    output lines), so a log the skeptic cannot fetch again is still judged. It answers CONFIRMED, REFUTED or UNSURE
    per candidate. Only CONFIRMED becomes an issue; UNSURE and REFUTED go in the summary.
 5. **Issues.** One per confirmed finding, `gh issue create --title "<area>: <lens>: <what>" --label area:<x>
-   --body-file tests/scratch/night-audit/<k>.md` (add `--label documentation` for docs drift). The area is the
+   --body-file tests/scratch/night-audit/<k>.md` (docs drift, decisions: add `--label documentation`). The area is the
    owner of the path to fix: `core/` core, `server/` server, `net/` net, `client/` client, `voice/` voice, `content/`
    `docs/GDD.md` `docs/design/` content, `levels/` level, and `tools/ .github/ .claude/ CLAUDE.md
    docs/AGENT_WORKFLOW.md` tooling; `tests/<x>/` and an `ARCHITECTURE.md` section take the area of the code they
@@ -105,6 +107,22 @@ or classes: root and nested `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.
 a runner command or flag missing from `tools/run.sh <command> --help`; a class, function, signal or constant the
 code no longer has (Grep); a number (timeout, port, budget, count) that differs from the code's constant; a link
 to a missing file; a "Built in" or "Tests" line naming a test that does not exist.
+
+**decisions.** An engineer's answer of the last 7 days that changes a documented flow, rule or number while an ADR,
+a doc, a skill or a `CLAUDE.md` on `main` still says the old thing (MANAGERS.md §10). List the answers (`<date>`:
+7 days ago). The list cuts silently at `--limit` and at each issue's first 100 comments: on `issues: 100` or a
+timeout, split the week by `updated:<from>..<to>` ranges; on each `refetch #<n>`, run the same comment filter on
+`gh issue view <n> --json comments`, which returns them all:
+```bash
+gh issue list --state all --search "\"The engineer's answer\" in:comments updated:>=<date>" --limit 100 \
+  --json number,comments --jq '"issues: \(length)", (.[] | select(.comments | length >= 100) | "refetch #\(.number)"),
+  (.[].comments[] | select(.createdAt >= "<date>") | select(.body | split("\n")[0] | test("engineer.s answer"; "i"))
+  | .url + " " + (.body[0:300] | gsub("\n"; " ")))'
+```
+Skip a choice inside one task (an option, an approval, a scene); read the others whole. Each: grep `docs/`,
+`.claude/` and the `CLAUDE.md` files for the old rule's words; still there, and no open issue or PR carries the change
+(the docs task the answer links, or `gh issue list --search "<words> in:body"`): a candidate, with the answer's link
+and lines and the doc's file:line.
 
 **coverage.** Behaviour with no test, in files changed in the last 14 days (`git log --since=14.days`): a public
 class or method in `core/ server/ net/ client/ voice/` that no test under `tests/` names, a runner command or rule
