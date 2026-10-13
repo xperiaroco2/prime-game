@@ -42,9 +42,38 @@ extends ContentPart
 @export var eye_height_m := 0.0
 ## The tallest ledge a player walks up without a jump.
 @export var step_height_m := 0.0
+## The crouch (the crouch ADR, KE2): the crouched capsule's height and eye, which the host reads
+## for a crouched player's eye (Items.eye_of) and capsule (Strike, the throw's contact and radius
+## bound), and the crouch walk's speeds without and with Shift, which only the client moves at (KE3
+## (a): the host checks a crouched claim with the walk's and the sprint's bounds). Placeholders,
+## "not a decision", as are their bounds.
+@export var crouch_height_m := 0.0
+@export var crouch_eye_height_m := 0.0
+@export var crouch_speed_mps := 0.0
+@export var crouch_fast_speed_mps := 0.0
+## The paths of the mode's maps the crouch plays on (KE10), empty for every map, the shape of
+## TaskType.maps: it plays only in a phase on the match's map (PhaseSpec.level MAP) that this
+## lists, never in the lobby (MatchContext.crouch_plays). Each path must be one of the mode's maps.
+@export var crouch_maps: PackedStringArray = PackedStringArray()
 
 
-func check(_mode: GameMode) -> PackedStringArray:
+## The capsule's height of a player standing, or crouched where `crouched`.
+func height_of(crouched: bool) -> float:
+	return crouch_height_m if crouched else capsule_height_m
+
+
+## The eye's height above the feet of a player standing, or crouched where `crouched`.
+func eye_height_of(crouched: bool) -> float:
+	return crouch_eye_height_m if crouched else eye_height_m
+
+
+## Whether the crouch plays on the map at `path` (KE10): the list is empty or holds it. Says
+## nothing of the phase: MatchContext.crouch_plays asks this only in a phase on the match's map.
+func crouch_plays_on(path: String) -> bool:
+	return crouch_maps.is_empty() or crouch_maps.has(path)
+
+
+func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	append_found(
 		found,
@@ -66,6 +95,17 @@ func check(_mode: GameMode) -> PackedStringArray:
 			out_of_bounds("capsule_height_m", capsule_height_m, 0.5, 3),
 			out_of_bounds("eye_height_m", eye_height_m, 0, capsule_height_m),
 			out_of_bounds("step_height_m", step_height_m, 0, 1),
+			out_of_bounds(
+				"crouch_height_m", crouch_height_m, 2.0 * capsule_radius_m, capsule_height_m
+			),
+			out_of_bounds("crouch_eye_height_m", crouch_eye_height_m, 0, crouch_height_m),
+			out_of_bounds("crouch_speed_mps", crouch_speed_mps, 0.1, walk_speed_mps),
+			out_of_bounds(
+				"crouch_fast_speed_mps", crouch_fast_speed_mps, crouch_speed_mps, walk_speed_mps
+			),
 		]
 	)
+	for map: String in crouch_maps:
+		if mode == null or not mode.maps.has(map):
+			found.append("crouch_maps lists %s, which is not one of the mode's maps" % map)
 	return found

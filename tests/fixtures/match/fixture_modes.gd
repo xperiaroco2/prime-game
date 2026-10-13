@@ -100,6 +100,10 @@ static func player_rules() -> PlayerRules:
 	rules.capsule_height_m = 1.8
 	rules.eye_height_m = 1.6
 	rules.step_height_m = 0.3
+	rules.crouch_height_m = 1.2
+	rules.crouch_eye_height_m = 1.0
+	rules.crouch_speed_mps = 2.0
+	rules.crouch_fast_speed_mps = 2.8
 	return rules
 
 
