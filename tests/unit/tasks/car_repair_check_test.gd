@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## CarRepair without its kinds, with a picture that is not a display kind, a kind on the `car_end`
 ## tag, parts that are missing, repeated, not the mode's or capped too low, a bin without its
 ## Cooldown or its part, a car or panel without the right HoldStation, a number out of bounds and
-## a car kind wider or taller than the footprint box. Fixture values only.
+## a car kind wider or taller than the footprint box, and a bin take with a busy-hands condition
+## (RD17). Fixture values only.
 
 
 func test_the_fixture_modes_pass_the_mode_check() -> void:
@@ -124,6 +125,26 @@ func test_a_cooldown_on_another_rule_than_the_give_does_not_count() -> void:
 	assert_str(_errors(mode)).contains(
 		"CarRepair car_repair: bin bin_spark_plug has no Interact rule with a Cooldown"
 	)
+
+
+## RD17's belt rule (the ADR's §2.5): a bin's take holds no busy-hands condition, so a package
+## carrier takes a part onto the belt; a negated HandNotTwoHanded is not that condition.
+func test_a_bin_take_with_hand_not_two_handed_is_refused() -> void:
+	var mode := FixtureCarRepairModes.basic()
+	var type := FixtureCarRepairModes.type_of(mode)
+	var busy := HandNotTwoHanded.new()
+	type.bins[0].actions[0].conditions.append(busy)
+	var negated := HandNotTwoHanded.new()
+	negated.negate = true
+	type.bins[1].actions[0].conditions.append(negated)
+	var errors := _errors(mode)
+	assert_str(errors).contains(
+		(
+			"CarRepair car_repair: bin bin_spark_plug's take holds HandNotTwoHanded:"
+			+ " a bin refuses no busy hands"
+		)
+	)
+	assert_str(errors).not_contains("bin bin_filter's take holds HandNotTwoHanded")
 
 
 func test_the_car_holds_for_a_time_and_the_panel_without_end() -> void:

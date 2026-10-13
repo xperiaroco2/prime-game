@@ -87,11 +87,13 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## took it (#772, HerbsDealt took 74), 75 took its place; 75 left it when LiftChanged took it (#807,
 ## PartNeeded took 76), 77 took its place; 77 left it when FilmLoaded took it (#781, ShotTaken took
 ## 78), 79 took its place; 79 and 80 left it when GrillLoaded and IngredientPlaced took them
-## (#773), 81 and 82 took their places.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 81, 82, 95, 97, 111, 113, 127, 128, 200, 255]
+## (#773), 81 and 82 took their places; 81 and 82 left it when FitChanged and PartFitted took them
+## (#808), 83 and 84 took theirs.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 83, 84, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
-## repair's (#807), the photo task's (#781) and the cooking task's (#773), each with valid fields.
+## repair's (#807, #808), the photo task's (#781) and the cooking task's (#773), each with valid
+## fields.
 const WRONG_DIRECTION: Array[StringName] = [
 	&"Rejected",
 	&"SwitchChanged",
@@ -102,6 +104,8 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"ShotTaken",
 	&"GrillLoaded",
 	&"IngredientPlaced",
+	&"FitChanged",
+	&"PartFitted",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -129,6 +133,8 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 			}
 		],
 	},
+	&"FitChanged": {"station": 1, "fitter": 2, "tick": 1},
+	&"PartFitted": {"station": 1, "item": 1},
 }
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:

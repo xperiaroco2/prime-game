@@ -42,6 +42,10 @@ class Item:
 	var station := -1
 	var colour := Color.WHITE
 	var delivered := false
+	## A car repair part fitted to the car (PartFitted, #808): locked at the car's use spot, held by
+	## nobody and never taken again. `rests()` ignores `fitted` for now, so a view still draws it at
+	## the car: the car repair client issue (R7) hides it (the car repair ADR's RE12).
+	var fitted := false
 	## In flight (§7.1.16): from its ItemThrown until its ItemPlaced (cause `thrown`) or
 	## PackageDelivered. The launch exactly as the event carries it, so a client draws the arc
 	## from the same vectors the host's flight uses (37e): the thrower, the origin, velocity and
@@ -101,6 +105,14 @@ class Station:
 	## The car repair's picture (#807): the part kind id the car needs now, as its last PartNeeded
 	## told it; empty for none.
 	var part := &""
+	## The car repair's car (#808): the player fitting a part, 0 for none, and the host tick the fit
+	## began or stopped, as its last FitChanged told it (-1 before the first); a completed fit
+	## (PartFitted) leaves no fitter. The fitter's own view derives its progress from the tick and
+	## its copy of the fit's seconds. Nothing at the lift panel reads it (the ADR's §3, RD14 (a)).
+	var fitter := 0
+	var fit_tick := -1
+	## The parts fitted to the car, as the PartFitted events decoded for it told it.
+	var fitted := 0
 
 
 ## Its own peer id once welcomed; 0 before.
@@ -431,6 +443,13 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			var shown: Station = stations.get(fields["station"] as int)
 			if shown != null:
 				shown.part = fields["kind"]
+		&"FitChanged":
+			var fitting: Station = stations.get(fields["station"] as int)
+			if fitting != null:
+				fitting.fitter = fields["fitter"]
+				fitting.fit_tick = fields["tick"]
+		&"PartFitted":
+			_fold_part_fitted(fields)
 		&"TaskProgress":
 			tasks_done = fields["done"]
 			tasks_total = fields["total"]
@@ -497,6 +516,23 @@ func _fold_throw(fields: Dictionary) -> void:
 	item.flight_gravity = fields["gravity"]
 	item.flight_tick = fields["tick"]
 	item.position = item.flight_origin
+
+
+## PartFitted (#808): the part leaves the fitter's hand, locked at the car's use spot, and the
+## car has no fitter any more.
+func _fold_part_fitted(fields: Dictionary) -> void:
+	var car: Station = stations.get(fields["station"] as int)
+	if car != null:
+		car.fitter = 0
+		car.fitted += 1
+	var item: Item = items.get(fields["item"] as int)
+	if item != null:
+		item.holder = NO_HOLDER
+		item.belted = false
+		item.flying = false
+		item.fitted = true
+		if car != null:
+			item.position = car.position
 
 
 ## The item `peer` carries in the hand (`on_belt` false) or on the belt, or -1.

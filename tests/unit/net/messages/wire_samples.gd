@@ -160,6 +160,12 @@ static func events() -> Dictionary[String, Array]:
 	found["IngredientPlacedEvent"] = [
 		IngredientPlacedEvent.new(7, 4, true), IngredientPlacedEvent.new(0xFFFE, 0xFFFE, false)
 	]
+	found["FitChangedEvent"] = [
+		FitChangedEvent.new(1, 2, 40),
+		FitChangedEvent.new(1, 0, 41),
+		FitChangedEvent.new(0xFFFE, 0x7FFFFFFF, 0xFFFFFFFE)
+	]
+	found["PartFittedEvent"] = [PartFittedEvent.new(1, 2), PartFittedEvent.new(0xFFFE, 0xFFFE)]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),

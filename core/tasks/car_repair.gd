@@ -4,8 +4,8 @@ extends TaskType
 ## one shared task whose subtasks are the N parts the car needs, fitted one at a time under the
 ## raised car, N the subtasks setting (RD4 (a)). Nobody owns it: any living player of any role holds
 ## the lift, takes a part from a bin or fits it (Interact, through the station kinds' rules), and
-## no condition reads a role. This part is R3 (#807): the deal, the lift and the drop; the fit and
-## its parts are R4's (#808).
+## no condition reads a role. R3 (#807) built the deal, the lift and the drop; R4 (#808) the fit
+## and its parts.
 ##
 ## The deal (the ADR's §2.1; DealTasks calls deal() when the draw picks it): a station on every
 ## marker of the type's kinds (each a device, so the demands are exact counts, RE14): the car, the
@@ -30,9 +30,28 @@ extends TaskType
 ## kills them in peer-id order once the command, the tick system or the channel's step has finished,
 ## so nobody dies halfway through someone's command.
 ##
+## The fit (the ADR's §2.4, RD8 (a), RD10 (d)): the car's Interact rule ends in a timed
+## HoldStation. After the rule's own refusals (`two_handed`, `out_of_reach`, `blocked`, `busy`)
+## the type refuses it `unavailable` (the car not fully up, or the task done), `empty_hand` (no
+## item in the hand) or `wrong_item` (an item other than the part needed now: another part or
+## anything else, RD8 (a)). The same refusals run on every re-check, so the car going down or the
+## part leaving the hand stops the fit, and AtStation stops a fitter whose last accepted claim is
+## too old (RE2). Its start emits FitChanged(car, fitter, tick), a stop FitChanged(car, 0, tick):
+## the progress is lost (RD10 (d)). Completed, the part leaves the hand, locked at the car's use
+## spot (Items.lock_at, RE12), then PartFitted(car, item), the subtask (Tasks.subtask_done:
+## TaskState, TaskProgress, subtask_done), then PartNeeded(picture, next part), with no kind once
+## the last is fitted and the task is done. The hold goes on: the fitter must get out before the
+## holder lets go.
+##
+## The bins (the ADR's §2.5, RE13): each bin's Interact rule is cooking's item source (a
+## Cooldown, then GiveItem of its part: Items.give makes room, the kind's max_items caps it) with
+## no busy-hands condition (RD17's belt rule: a package carrier's part goes onto the belt). A bin
+## never refuses for the task's state.
+##
 ## Emits: StationPlaced and PartNeeded (everyone) in the deal; LiftChanged (everyone) on a hold's
-## start and stop (hold_emits). No event names a player (the ADR's §3): LiftChanged names neither
-## the holder nor who let go.
+## start and stop; FitChanged (everyone) on a fit's start and stop; PartFitted, TaskState,
+## TaskProgress and PartNeeded (everyone) on a fit's completion (hold_emits). LiftChanged names
+## neither the holder nor who let go (the ADR's §3); FitChanged names the fitter (RD15 (a)).
 
 ## The bounds of `rise_seconds` (RE14).
 const MAX_RISE_SECONDS := 60.0
@@ -201,9 +220,12 @@ func bin_of(part: ItemKind) -> StationKind:
 
 
 ## The lift panel takes a new hold until the task is done; a running hold passes its re-check
-## whatever the task's state (RD11 (a): MatchContext.channel is set there). The car takes a use
-## only while it is fully up and the task is not done (the ADR's §2.4; the fit's own refusals are
-## R4's). A bin never refuses for the task's state (the ADR's §2.5). Reads no role.
+## whatever the task's state (RD11 (a): MatchContext.channel is set there). The car takes a fit
+## (the ADR's §2.4) only while it is fully up and the task is not done (`unavailable`), from an
+## actor holding the part needed now in its hand (`empty_hand`, then `wrong_item`: RD8 (a)); a
+## running fit's re-check asks the same, so it stops when the car goes down or the part leaves the
+## hand. A bin never refuses for the task's state (the ADR's §2.5). Reads no role: only the car's
+## public state and what the actor holds.
 func use_problem(ctx: MatchContext, task: MatchTask, station: StationState) -> StringName:
 	if task == null:
 		return StationUsable.UNAVAILABLE
@@ -213,18 +235,38 @@ func use_problem(ctx: MatchContext, task: MatchTask, station: StationState) -> S
 			return &""
 		return StationUsable.UNAVAILABLE if task_state.is_done() else &""
 	if station.id == task_state.car:
-		if task_state.is_done() or not is_up(task_state, ctx.tick):
-			return StationUsable.UNAVAILABLE
+		return _fit_problem(ctx, task_state)
 	return &""
 
 
-## A hold at the lift panel started: the car starts rising (LiftChanged, up).
+## Why the car refuses a fit by the actor of `ctx` now, or empty (the ADR's §2.4, RD8 (a)).
+func _fit_problem(ctx: MatchContext, task_state: State) -> StringName:
+	if task_state.is_done() or not is_up(task_state, ctx.tick):
+		return StationUsable.UNAVAILABLE
+	var held := Items.held_by(ctx.state, ctx.actor)
+	if held == null:
+		return StationUsable.EMPTY_HAND
+	if held.kind == null or held.kind.id != task_state.next_part():
+		return StationUsable.WRONG_ITEM
+	return &""
+
+
+## The car's refusals and the panel's (the cooking ADR's CE11): StationUsable lists each.
+func use_reasons() -> Array[StringName]:
+	return [StationUsable.UNAVAILABLE, StationUsable.EMPTY_HAND, StationUsable.WRONG_ITEM]
+
+
+## A hold at the lift panel started: the car starts rising (LiftChanged, up). A fit at the car
+## started: FitChanged names its fitter.
 func hold_started(
-	ctx: MatchContext, task: MatchTask, station: StationState, _channel: Channel
+	ctx: MatchContext, task: MatchTask, station: StationState, channel: Channel
 ) -> void:
 	if task == null:
 		return
 	var task_state := task.state as State
+	if station.id == task_state.car:
+		ctx.emit(FitChangedEvent.new(station.id, channel.actor, ctx.tick))
+		return
 	if station.id != task_state.panel:
 		return
 	task_state.held_since = ctx.tick
@@ -233,13 +275,17 @@ func hold_started(
 
 ## A hold at the lift panel stopped: the drop. LiftChanged (down) first, then, unless the phase's
 ## end stopped it (RE4), every living or downed player inside the footprint box is queued for the
-## kill (RE7, RE17), in peer-id order.
+## kill (RE7, RE17), in peer-id order. A fit at the car stopped before it completed, for any
+## reason: FitChanged(car, 0, tick); its progress is lost with the channel (RD10 (d)).
 func hold_stopped(
 	ctx: MatchContext, task: MatchTask, station: StationState, channel: Channel
 ) -> void:
 	if task == null:
 		return
 	var task_state := task.state as State
+	if station.id == task_state.car:
+		ctx.emit(FitChangedEvent.new(station.id, 0, ctx.tick))
+		return
 	if station.id != task_state.panel:
 		return
 	task_state.held_since = -1
@@ -259,6 +305,33 @@ func hold_stopped(
 			continue
 		if in_box(car_station.position, task_state.car_end, player.position):
 			LifeRules.kill_later(ctx, peer)
+
+
+## A fit at the car completed (the ADR's §2.4, RE12): the part leaves the fitter's hand, locked at
+## the car's use spot (Items.lock_at, as a delivered package: no PickUp takes it and it never
+## vanishes), then PartFitted(car, item), the subtask done (Tasks.subtask_done: TaskState,
+## TaskProgress, the fact with the subtask's index and the car), then PartNeeded(picture, next
+## part), with no kind once the last part is fitted. The completing step's re-check passed just
+## before (Channels: re-check, then completion), so the hand holds the needed part; anything else
+## is a rule error and nothing is fitted.
+func hold_completed(
+	ctx: MatchContext, task: MatchTask, station: StationState, channel: Channel
+) -> void:
+	if task == null:
+		return
+	var task_state := task.state as State
+	if station.id != task_state.car:
+		return
+	var part := Items.held_by(ctx.state, channel.actor)
+	if part == null or part.kind == null or part.kind.id != task_state.next_part():
+		ctx.error("CarRepair: peer %d completed a fit without the needed part" % channel.actor)
+		return
+	Items.lock_at(ctx, part, station.position)
+	ctx.emit(PartFittedEvent.new(station.id, part.id))
+	var index := task_state.fitted
+	task_state.fitted += 1
+	Tasks.subtask_done(ctx, task, {"subtask": index, "station": station.id})
+	ctx.emit(PartNeededEvent.new(task_state.picture, task_state.next_part()))
 
 
 ## Whether `feet` lie inside the car's footprint box (RE7): the oriented box on the floor around
@@ -317,11 +390,26 @@ func most_layout_problems() -> int:
 
 
 func emits() -> Array[Script]:
-	return [StationPlacedEvent, PartNeededEvent, LiftChangedEvent]
+	return [
+		StationPlacedEvent,
+		PartNeededEvent,
+		LiftChangedEvent,
+		FitChangedEvent,
+		PartFittedEvent,
+		TaskStateEvent,
+		TaskProgressEvent,
+	]
 
 
 func hold_emits() -> Array[Script]:
-	return [LiftChangedEvent]
+	return [
+		LiftChangedEvent,
+		FitChangedEvent,
+		PartFittedEvent,
+		TaskStateEvent,
+		TaskProgressEvent,
+		PartNeededEvent,
+	]
 
 
 ## RE14: the car, panel, bin and picture kinds set, the picture a display kind and the others not;
@@ -329,7 +417,8 @@ func hold_emits() -> Array[Script]:
 ## across the mode, ZE3); `parts` non-empty and distinct, each given by exactly one bin (one bin per
 ## part) and listed in the mode's `item_kinds`, each capped at least at twice the mode's maximum
 ## of players plus the subtasks maximum plus 1 (CE3's bound: the hands and the car never hold every
-## part of a kind); every bin's Interact rule holding a Cooldown and ending in GiveItem; the car's
+## part of a kind); every bin's Interact rule holding a Cooldown and no HandNotTwoHanded (RD17's
+## belt rule) and ending in GiveItem; the car's
 ## rule ending in a timed HoldStation and the panel's in an endless one; `rise_seconds`,
 ## `half_width_m` and `clearance_m` within bounds; the car kind's cylinder within the box (its
 ## `radius_m` at most `half_width_m`, its `height_m` at most `clearance_m`); the subtasks setting
@@ -432,6 +521,9 @@ func _check_parts(mode: GameMode, found: PackedStringArray) -> void:
 			found.append("CarRepair %s: bin %s gives none of its parts" % [id, bin.id])
 		if not _has_cooldown(bin):
 			found.append("CarRepair %s: bin %s has no Interact rule with a Cooldown" % [id, bin.id])
+		if _has_busy_hands(bin):
+			var busy := "CarRepair %s: bin %s's take holds HandNotTwoHanded: a bin refuses no busy hands"
+			found.append(busy % [id, bin.id])
 
 
 ## The fewest items a part kind must be capped at (RE14, CE3), or -1 when the mode does not say.
@@ -515,6 +607,21 @@ static func _has_cooldown(bin: StationKind) -> bool:
 			continue
 		for condition: Condition in rule.conditions:
 			if condition is Cooldown and not condition.negate:
+				return true
+	return false
+
+
+## Whether the Interact rule of `bin` that ends in a GiveItem holds HandNotTwoHanded, not negated:
+## RD17's belt rule (cooking's CD3 (b), CE21) gives a package carrier its part onto the belt, so a
+## take refuses no busy hands (the ADR's §2.5).
+static func _has_busy_hands(bin: StationKind) -> bool:
+	for rule: Rule in bin.actions:
+		if rule == null or rule.trigger != Intents.INTERACT or rule.effects.is_empty():
+			continue
+		if not rule.effects[rule.effects.size() - 1] is GiveItem:
+			continue
+		for condition: Condition in rule.conditions:
+			if condition is HandNotTwoHanded and not condition.negate:
 				return true
 	return false
 
