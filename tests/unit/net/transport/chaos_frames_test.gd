@@ -110,6 +110,9 @@ func test_the_flag_bits_shape_sets_one_bit_past_the_claims_four_flags() -> void:
 		var flags: int = packet.bytes[NetFrame.HEADER_BYTES + ChaosFrames.CLAIM_FLAGS_AT]
 		assert_int(flags & 0x0F).is_equal(0b0110)
 		assert_int([0x10, 0x20, 0x40, 0x80].count(flags & 0xF0)).is_equal(1)
+		# The schema still refuses the bit drawn: a malformed flag stays malformed.
+		var payload := packet.bytes.slice(NetFrame.HEADER_BYTES)
+		assert_object(_schema.decode(_schema.kind_of(&"MoveClaim"), payload)).is_null()
 		seen |= flags & 0xF0
 	assert_int(seen).is_equal(0xF0)
 
