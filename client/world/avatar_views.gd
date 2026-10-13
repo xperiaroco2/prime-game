@@ -8,7 +8,10 @@ extends Node3D
 ## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
 ## model's life fold says its player is living, lies while it says downed (M4-9), and wears the
 ## invulnerable shell while the newest snapshot's avatar has the flag, and is painted its player's
-## body colour as the model's roster has it (BodyColours, #551). Every body is in
+## body colour as the model's roster has it (BodyColours, #551). It is crouched while its pose
+## says so (the snapshot's flag at or before the drawn tick; RemotePlayerBody.set_crouched, the
+## crouch ADR's KE7), before it is placed, so the push search sees the crouched capsule in the
+## same frame. Every body is in
 ## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
 ## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) and a phase on another level
 ## (End -> Lobby) forget the poses: drawn behind the interpolation delay, the round's would stand
@@ -117,7 +120,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 				buffer.snap(key as int, tick)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if model == null or buffer == null:
 		return
 	_level = _level_now()
@@ -134,6 +137,8 @@ func _physics_process(_delta: float) -> void:
 		if pose == null:
 			continue
 		var body: RemotePlayerBody = _bodies.get(peer)
+		# A body drawn for the first time takes its head's height at once (the crouch ADR, KE7).
+		var ease_s := delta if body != null else INF
 		if body == null:
 			body = BODY.instantiate() as RemotePlayerBody
 			body.name = "Peer%d" % peer
@@ -146,6 +151,8 @@ func _physics_process(_delta: float) -> void:
 		body.set_downed(model.life_of(peer) == ClientModel.Life.DOWNED)
 		body.set_invulnerable(model.is_invulnerable(peer))
 		body.set_colour(BodyColours.of(model.colour_of(peer)))
+		# Before set_pose places it: the push search of this frame reads the crouched capsule.
+		body.set_crouched(pose.crouched, ease_s)
 		body.set_pose(pose)
 
 

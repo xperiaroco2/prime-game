@@ -21,6 +21,13 @@ extends StaticBody3D
 ## CharacterBody3D) shows a teleport to shape queries only after the physics step, even when set
 ## on the server directly; a static body shows it at once. Nothing collides with it as a wall: the
 ## local player's mask is the world, and its push search reads the living layer.
+##
+## A crouched player (the crouch ADR, KE7; `set_crouched`, from the pose's flag) has the crouched
+## capsule (PlayerRules.crouch_height_m) at once, collision, greybox look, shell and sight point,
+## still on its layer and placed before set_pose's force_update_transform(), so the push search of
+## the same frame finds the crouched capsule; its head and everything hung on it (the mouth its
+## voice plays from, the hand, belt and carry points) ease down by the eye heights' difference at
+## the step's catch-up rate (`tuning`), as the own view does. A downed body lies at standing size.
 
 ## The visor's size and how far it sits in front of the eyes, in metres (greybox looks).
 const VISOR_SIZE := Vector3(0.3, 0.1, 0.12)
@@ -40,6 +47,9 @@ const MOUTH_BELOW_EYE_M := 0.1
 @export var rules: PlayerRules:
 	set = set_rules
 @export var color: Color = LifeLooks.PLAYER_COLOUR
+## The client's feel only: the head eases to a new eye height at the step's catch-up rate
+## (`view_catch_up_seconds`, as the own view does).
+@export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 ## The player it shows; 0 when none (the controller's tests).
 var peer := 0
 
@@ -47,6 +57,12 @@ var _head: Node3D
 var _shell: MeshInstance3D
 var _downed := false
 var _watched := false
+var _crouched := false
+## Whether the capsule, meshes and shell have the crouched height now (crouched, not downed).
+var _fitted_low := false
+## How far the head and the points hung on it are below their standing places now, in metres:
+## easing to the eye heights' difference while crouched, to 0 standing.
+var _lowered := 0.0
 var _hand_point := Node3D.new()
 var _belt_point := Node3D.new()
 var _carry_point := Node3D.new()
@@ -109,6 +125,28 @@ func is_downed() -> bool:
 	return _downed
 
 
+## Crouches or stands the body (the pose's flag, the crouch ADR, KE7): the capsule, the looks and
+## the sight point switch now, before set_pose places the body; the head and the points hung on it
+## ease towards their new height over `delta` seconds (INF: at once, a body drawn for the first
+## time).
+func set_crouched(crouched: bool, delta: float) -> void:
+	_crouched = crouched
+	if rules == null or not is_node_ready():
+		return
+	_show_looks()
+	var step := INF
+	if tuning != null and tuning.view_catch_up_seconds > 0.0:
+		step = rules.step_height_m / tuning.view_catch_up_seconds * delta
+	var target := rules.eye_height_m - rules.crouch_eye_height_m if crouched else 0.0
+	_lowered = move_toward(_lowered, target, step)
+	_place_points()
+
+
+## Whether the body is drawn crouched (set_crouched): the crouched capsule, unless it lies.
+func is_crouched() -> bool:
+	return _crouched
+
+
 ## Shows the invulnerable shell (the avatar's flag): it pulses while shown.
 func set_invulnerable(invulnerable: bool) -> void:
 	_shell.visible = invulnerable and not _watched
@@ -133,9 +171,10 @@ func is_watched() -> bool:
 	return _watched
 
 
-## The point SightHider casts its ray at: the capsule's middle, or the lying capsule's.
+## The point SightHider casts its ray at: the capsule's middle (crouched or not), or the lying
+## capsule's.
 func sight_point() -> Vector3:
-	var up := rules.capsule_radius_m if _downed else rules.capsule_height_m * 0.5
+	var up := rules.capsule_radius_m if _downed else rules.height_of(_crouched) * 0.5
 	return global_position + Vector3.UP * up
 
 
@@ -153,7 +192,8 @@ func set_pose(pose: SnapshotBuffer.Pose) -> void:
 	force_update_transform()
 
 
-## The head: it holds the pitch (tests read it).
+## The head: it holds the pitch (tests read it), at the drawn eye, standing or crouched: the
+## spectate camera and the ears of a dead player watching this one sit here.
 func head() -> Node3D:
 	return _head
 
@@ -162,12 +202,15 @@ func _process(_delta: float) -> void:
 	LifeLooks.pulse(_shell, Time.get_ticks_msec() / 1000.0)
 
 
-## Stands or lays the mesh, the shell and the collision capsule, and shows the head standing only,
-## unless watched.
+## Stands, crouches or lays the mesh, the shell and the collision capsule, and shows the head
+## standing or crouched only, unless watched.
 func _show_looks() -> void:
 	if rules == null:
 		return
-	var pose := LifeLooks.lying(rules) if _downed else LifeLooks.standing(rules)
+	var low := _crouched and not _downed
+	if low != _fitted_low:
+		_fit(low)
+	var pose := LifeLooks.lying(rules) if _downed else LifeLooks.standing(rules, low)
 	_shape.transform = pose
 	_mesh.transform = pose
 	_shell.transform = pose
@@ -190,35 +233,51 @@ func carry_point() -> Node3D:
 	return _carry_point
 
 
-## This player's mouth, MOUTH_BELOW_EYE_M below the standing eyes: its voice plays from here (the
-## M5 ADR §1.5). It stays with the standing pose: nobody hears a downed player (the voice
-## invariant).
+## This player's mouth, MOUTH_BELOW_EYE_M below the eyes, lowered with the head while crouched: its
+## voice plays from here (the M5 ADR §1.5). It stays with the standing pose while downed: nobody
+## hears a downed player (the voice invariant).
 func mouth_point() -> Node3D:
 	return _mouth_point
 
 
 func _add_attach_points() -> void:
 	_hand_point.name = "HandPoint"
-	_hand_point.position = HAND_POINT
 	_belt_point.name = "BeltPoint"
-	_belt_point.position = BELT_POINT
 	_carry_point.name = "CarryPoint"
-	_carry_point.position = CARRY_POINT
 	_mouth_point.name = "MouthPoint"
 	for point: Node3D in [_hand_point, _belt_point, _carry_point, _mouth_point]:
 		add_child(point)
+	_place_points()
+
+
+## The head, the mouth and the item points, `_lowered` below their standing places.
+func _place_points() -> void:
+	var down := Vector3.DOWN * _lowered
+	_hand_point.position = HAND_POINT + down
+	_belt_point.position = BELT_POINT + down
+	_carry_point.position = CARRY_POINT + down
+	if rules == null:
+		return
+	_head.position = Vector3(0.0, rules.eye_height_m, 0.0) + down
+	_mouth_point.position = Vector3(0.0, rules.eye_height_m - MOUTH_BELOW_EYE_M, 0.0) + down
+
+
+## The capsule, the mesh and the shell at the crouched height (`low`) or the standing one; the
+## mesh keeps the body's colour.
+func _fit(low: bool) -> void:
+	_fitted_low = low
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = rules.capsule_radius_m
+	capsule.height = rules.height_of(low)
+	_shape.shape = capsule
+	_mesh.mesh = LifeLooks.capsule(rules, color, 0.0, low)
+	_shell.mesh = LifeLooks.shell(rules, low)
 
 
 func _apply_rules() -> void:
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = rules.capsule_radius_m
-	capsule.height = rules.capsule_height_m
-	_shape.shape = capsule
-	_mesh.mesh = LifeLooks.capsule(rules, color)
-	_shell.mesh = LifeLooks.shell(rules)
+	_fit(_crouched and not _downed)
 	_show_looks()
-	_head.position = Vector3(0.0, rules.eye_height_m, 0.0)
-	_mouth_point.position = Vector3(0.0, rules.eye_height_m - MOUTH_BELOW_EYE_M, 0.0)
+	_place_points()
 	var visor_mesh := BoxMesh.new()
 	visor_mesh.size = VISOR_SIZE
 	var dark := StandardMaterial3D.new()
