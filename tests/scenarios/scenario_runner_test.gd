@@ -232,6 +232,8 @@ func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
 	var leaky := LeakyMatch.new(runner.game)
 	leaky.state.players[1002].life = PlayerState.Life.DOWNED
 	leaky.state.players[1003].life = PlayerState.Life.DEAD
+	# The downed avatar every snapshot shows, its own player's included (KE5).
+	leaky.avatars = {1002: {"downed": true}}
 	leaky.heard_by = {1: PackedInt32Array(), 1002: PackedInt32Array([1])}
 	var invariants := ScenarioInvariants.new(leaky, runner.scenario)
 	assert_array(Array(invariants.check_tick())).is_empty()
