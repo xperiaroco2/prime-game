@@ -241,8 +241,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 
 Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
-`task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
-`pr-rebase` (always since #458) use (§7.1), and `lean-writer`
+`task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task`,
+`pr-rebase` (always since #458) and `quick-task` (the publisher alone) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
 writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, sets no
 `effort:` and no `skills:` preload, and names in its body only `docs/` and `.claude/` paths that exist (#557). No agent
@@ -258,7 +258,7 @@ rules.
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
 | `task-implementer` | Always (#458): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`, and for a workflow script `docs/workflow-scripts.md`, #557) | `opus`, effort from the workflow's role |
-| `task-publisher` | Always (#458): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
+| `task-publisher` | Always (#458): the publisher of `issue-task`, the rebase and fix agents of `pr-rebase`, and `quick-task`'s builder and fixer; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
 
