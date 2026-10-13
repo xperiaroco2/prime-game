@@ -71,6 +71,9 @@ var _peers: ScenarioPeers
 var _seeds: Array[int] = []
 ## Each present player's accepted position at the end of the last tick (the record invariant).
 var _accepted: Dictionary[int, Vector3] = {}
+## keys() for a numbers map of `_keys_for` entries (-1: not built yet).
+var _keys := PackedStringArray()
+var _keys_for := -1
 
 
 ## `peers` is the runner's map from bot number to peer id (the `never` check); the core runner's by
@@ -101,15 +104,21 @@ func seeds() -> Array[int]:
 
 
 ## Every return key a Hello carried: each bot's (ScenarioBot.key_of) and each the host keeps (its
-## numbers map; the chaos hostile's too). No message may hold one (§3.5, the returning-players ADR).
+## numbers map; the chaos hostile's too), and the one no player holds that a hostile's Hello may
+## carry (ScenarioBot.key_of(bots + 1)). No message may hold one (§3.5, the returning-players ADR).
+## The list is rebuilt only when the host's numbers map grew (asked once per event and per tick).
 func keys() -> PackedStringArray:
-	var found := PackedStringArray()
-	for number in range(1, _scenario.bots + 1):
-		found.append(ScenarioBot.key_of(number))
+	var held := _game.state.numbers.size()
+	if held == _keys_for:
+		return _keys
+	_keys = PackedStringArray()
+	for number in range(1, _scenario.bots + 2):
+		_keys.append(ScenarioBot.key_of(number))
 	for key: String in _game.state.numbers:
-		if not found.has(key):
-			found.append(key)
-	return found
+		if not _keys.has(key):
+			_keys.append(key)
+	_keys_for = held
+	return _keys
 
 
 ## The broken invariants of one emitted event, checked right after the step that emitted it.

@@ -159,6 +159,8 @@ func test_the_invariants_fail_an_event_or_a_snapshot_that_holds_a_return_key() -
 	)
 	assert_array(Array(net.failures)).is_empty()
 	var invariants: ScenarioInvariants = net._invariants
+	# The key of a bot that does not exist is listed: a hostile Hello may carry it.
+	assert_bool(invariants.keys().has(ScenarioBot.key_of(net.scenario.bots + 1))).is_true()
 	var key := ScenarioBot.key_of(2)
 	var clean := EmittedEvent.new(
 		0, PlayerJoinedEvent.new(3, "Player3", Vector3.ZERO, 0), PackedInt32Array([1]), false
