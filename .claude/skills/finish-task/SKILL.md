@@ -61,7 +61,7 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    task branch with a lease; a red verify pushes nothing. Its line `base origin/<base>` names the PR's base. If it
    stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human.
    Never push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check
-   the parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. On a checkout without `start`'s record
+   the parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. On a checkout without `start`'s record, run
    `tools\run.cmd publish --base <the PR's base>`.
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
