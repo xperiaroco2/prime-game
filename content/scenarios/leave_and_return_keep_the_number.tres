@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://ds1xjkao842e2"]
 
 [ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mh30d"]
-[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_0k2xg"]
 [ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_wp10r"]
 [ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_rip6h"]
 [ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_5e8u6"]
