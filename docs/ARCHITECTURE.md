@@ -7296,8 +7296,11 @@ Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/ta
 `tests/unit/tasks/delivery_by_meaning_deal_test.gd`, `delivery_by_meaning_check_test.gd` (the on-rest check, DE7),
 `delivery_by_meaning_demands_test.gd`, `delivery_by_meaning_mode_check_test.gd`, `delivery_by_meaning_filter_test.gd`
 (every peer gets the same task events), on `tests/fixtures/tasks/fixture_meaning_modes.gd`;
-`tests/unit/client/net/client_model_test.gd` (DE7's fold), `tests/unit/client/ui/lobby_panel_maps_test.gd` and
-`guide_panel_test.gd` (DE16); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
+`tests/unit/client/net/client_model_test.gd` (DE7's fold), `client_model_wire_roundtrip_test.gd` (the deal's
+StationPlaced, ItemSpawned and PackageDelivered through WireSchema into ClientModel, two items on one drop-off: no bot
+carries them over the wire), `tests/unit/client/ui/lobby_panel_maps_test.gd` and `guide_panel_test.gd` (DE16);
+`tests/unit/content/delivery_content_test.gd` (each Delivery's `maps`: one map of the base mode each, the two apart,
+neither the tutorial's); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
 spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; both tasks dealt and the round won
 on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
 plays it: the scenarios and the leak test play the greybox's Delivery by colours (§9.7).
