@@ -98,7 +98,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 | Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, a pointer to `docs/HUMAN_SESSIONS.md` (talking to the humans, memory, the dictation glossary: a chat with a human reads it, no workflow agent needs it, #836); each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 9,216 bytes loaded, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
-| `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
+| `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md`, `workflow-scripts.md` | ≤ 60 lines each |
 | `docs/HUMAN_SESSIONS.md` | Read by a chat with a human (task session, manager, secretary, meta) before its first reply and again after a compaction, by root's pointer; no workflow agent reads it (#836) | Talking to the humans, launching a workflow, memory, the dictation glossary | none (not loaded at launch) |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
@@ -578,9 +578,8 @@ would have stopped routine work is judged by its target in the guard (§8.2) ins
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
 a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away; `acceptEdits`' file writes and
-protected paths, §8.2.10), and its selftests
-(`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
-there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
+protected paths, §8.2.10), and its selftests (`tools/runner/tests/test_permissions.py`) check the lists with the
+guard: reads of other repositories pass in every mode, writes there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
 stops only for design and other human-reserved decisions and for what reaches beyond them
 ([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
@@ -1233,8 +1232,8 @@ windows ("запусти хост і двох клієнтів") gets the comman
 ### 11.9 `bots [scenario ...]` [applied] (#102; `docs/ARCHITECTURE.md` §4.6, §9.7)
 Plays every bot scenario in
 `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
-over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
-asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot. `--instances N` (N > 1) plays one
+over the loopback on a simulated clock (60 steps per simulated second), and asserts the information-leak test (§5
+there) for every bot, a lurker and a refused bot. `--instances N` (N > 1) plays one
 scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the real clock; `--seconds`
 overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through `run`, so `run`'s
 failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last events) and
@@ -1844,7 +1843,6 @@ waits on him; the engineer's sessions do the content work otherwise.
 | GDScript LSP bridge; Context7 (off; if ever used, pin `/websites/godotengine_en_4_7`) | After M2 |
 | Trial the Superpowers plugin, engineer-only, on the M1 throwaway spike | M1, optional |
 | Auto permission mode | After the M0 guard tests pass |
-| `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 
 **Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
