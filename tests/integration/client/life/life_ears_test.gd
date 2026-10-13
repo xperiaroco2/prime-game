@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## over AvatarViews of a hand-folded ClientModel places the current AudioListener3D at the own eye
 ## while living, at the own body's head where it lies while downed (not at the downed camera up to
 ## 2 m behind and 1.6 m above it), at a spectated living target's eye and at a downed target's
-## head; and it lets go of the ears when the session ends. World sounds measure from there.
+## head; a crouched target is seen and heard from its crouched eye (the crouch ADR, KE7); and it
+## lets go of the ears when the session ends. World sounds measure from there.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -92,6 +93,21 @@ func test_the_dead_hear_from_a_living_targets_eye_then_from_its_body_when_it_goe
 	assert_vector(_life.ears().global_position).is_equal_approx(head, Vector3.ONE * 1e-3)
 
 
+func test_the_dead_see_and_hear_from_a_crouched_targets_crouched_eye() -> void:
+	# The crouch ADR, KE7: the spectate camera and the ears sit at the drawn head, not at the
+	# standing eye 0.6 m above a crouched target.
+	_others_at(Vector3(4, 0, 0), true)
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	_model.bodies[OWN] = Vector3(0, 0, 5)
+	_player.life = ClientModel.Life.DEAD
+	await _drawn()
+	assert_int(_life.target()).is_equal(TARGET)
+	var eye := Vector3(4, _mode.player_rules.crouch_eye_height_m, 0)
+	assert_vector(_life.ears().global_position).is_equal_approx(eye, Vector3.ONE * 1e-3)
+	var camera := _life.spectate_camera().global_position
+	assert_vector(camera).is_equal_approx(eye, Vector3.ONE * 1e-3)
+
+
 func test_the_dead_with_no_target_hear_from_their_own_body_not_the_controller() -> void:
 	# Nobody else: no target. The body lies where it died, away from the controller, which is turned.
 	_model.roster.erase(TARGET)
@@ -152,7 +168,7 @@ func _assert_ears_turned_with_the_camera() -> void:
 		assert_vector(ears[axis]).is_equal_approx(camera[axis], Vector3.ONE * 1e-3)
 
 
-func _others_at(at: Vector3) -> void:
+func _others_at(at: Vector3, crouched := false) -> void:
 	for tick: int in range(1, 4):
 		_now += TICK_USEC
 		var avatars := {
@@ -162,6 +178,7 @@ func _others_at(at: Vector3) -> void:
 				"velocity": Vector3.ZERO,
 				"facing": Vector3.FORWARD,
 				"downed": false,
+				"crouched": crouched,
 				"held_item": -1,
 			}
 		}

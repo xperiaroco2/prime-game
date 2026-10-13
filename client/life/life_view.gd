@@ -14,7 +14,8 @@ extends Node3D
 ## - Dead: spectating. The first target is drawn by SpectateTargets with the client's own
 ##   generator; the left and right mouse buttons cycle; a target that goes down, dies or leaves is
 ##   replaced by a new first target. A living target is watched from its eyes (its interpolated
-##   pose: the body's position, yaw and head pitch, already guarded against a degenerate facing),
+##   pose: the body's position, yaw and head pitch, already guarded against a degenerate facing;
+##   its drawn head's height, lower while it is drawn crouched, the crouch ADR's KE7),
 ##   as the target sees itself: its body and head hidden, its hand item in the spectate camera's
 ##   own FirstPersonHand and the views of its hand and belt items at its body hidden (#168); a
 ##   downed one through the DownedCamera above its body, and with no target the DownedCamera
@@ -388,8 +389,17 @@ func _place_ears() -> void:
 	var watched := _target if target_body != null else 0
 	var target_feet := target_body.global_transform if target_body != null else Transform3D()
 	var eye := player.get_camera().global_position
+	# The target's drawn head, lower while it is drawn crouched (the crouch ADR, KE7).
+	var target_eye_m := target_body.head().position.y if target_body != null else NAN
 	var at := Ears.point(
-		_own_life(), own_feet, eye, watched, _target_life, target_feet, mode.player_rules
+		_own_life(),
+		own_feet,
+		eye,
+		watched,
+		_target_life,
+		target_feet,
+		mode.player_rules,
+		target_eye_m
 	)
 	var camera := get_viewport().get_camera_3d()
 	var turned := camera.global_basis if camera != null else Basis.IDENTITY
@@ -418,7 +428,8 @@ func _spectate() -> void:
 		_target_life = model.life_of(_target)
 	var body := avatars.body_of(_target) if _target != 0 else null
 	if body != null and _target_life == ClientModel.Life.ALIVE:
-		var eye := body.global_position + Vector3.UP * mode.player_rules.eye_height_m
+		# Its drawn head: the eye, lower while it is drawn crouched (the crouch ADR, KE7).
+		var eye := body.head().global_position
 		var look := Vector3(body.head().rotation.x, body.rotation.y, 0.0)
 		_spectate_camera.global_transform = Transform3D(Basis.from_euler(look), eye)
 		_watch(body)
