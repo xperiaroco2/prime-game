@@ -58,7 +58,6 @@ const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const QUIET_BEFORE_AWAY := "before its walk away"
 const QUIET_MOVING := "moving on the host"
 const QUIET_BEHIND := "host position behind its bot"
-const QUIET_NEAR_ZONE := "near a zone"
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
@@ -74,9 +73,6 @@ var chaos_log := ChaosLog.new()
 var checked: Dictionary[int, int] = {}
 ## The hostile's Rejected answers as it decoded them, "seq reason", in order.
 var hostile_rejected := PackedStringArray()
-## The host ticks the zone gained from bot 4's freeze, after its last accepted claim (-1 before
-## the freeze ended): at most ZoneTask.STALE_TICKS (the zone task ADR's freeze row, ZE10).
-var freeze_gained := -1
 ## The hostile claims _hostile_quiet held back in the round while the host had bot 4 alive, by
 ## reason (the QUIET_ constants): the claim coverage check's failure names them.
 var quiet_held: Dictionary[String, int] = {}
@@ -110,12 +106,6 @@ var _host_rtc: BotWebRtc
 var _transports_made := 0
 var _real_start_usec := -1
 var _warm_up: WebRtcWarmUp
-## During bot 4's freeze: the host tick of its last accepted claim, the zone's ticks a frame ago,
-## and what it gained since that claim in frames with no other living player inside.
-var _freeze_claim_tick := -2
-var _freeze_prev := 0
-var _freeze_gain := 0
-var _freezing := false
 
 
 func _init(
@@ -383,7 +373,6 @@ func play_frame(at_tick: int) -> void:
 			malformed.poll()
 			return
 	super(at_tick)
-	_watch_freeze()
 	malformed.poll()
 	if chaos_mode == Mode.CHAOS and failures.is_empty() and _watchers_settled():
 		var claimed := _hostile_client.last_claim_tick() != _claimed_tick
@@ -613,8 +602,6 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 
 func _check_after() -> void:
 	super()
-	if freeze_gained < 0:
-		failures.append("bot 4 never ended its freeze in the zone")
 	var key_bot := peers.peer_of(ChaosScenario.KEY_BOT)
 	var key := ScenarioBot.key_of(ChaosScenario.KEY_BOT)
 	failures.append_array(ChaosOracle.key_problems(game.state, hostile_peer(), key_bot, key))
@@ -935,9 +922,9 @@ func _frozen() -> bool:
 	return bots.size() >= HOSTILE and ChaosScenario.is_freeze(bots[HOSTILE - 1].current_step())
 
 
-## No hostile claim in the round until bot 4 has walked away from its freeze, nor near a zone: a
+## No hostile claim in the round until bot 4 has walked away from its freeze: a
 ## Correction puts it back where it last stood, which its walks (one in flight as a walk starts
-## too) or the zone's count would show every honest bot, unlike the baseline's. Standing still
+## too) would show every honest bot, unlike the baseline's. Standing still
 ## afterwards, downed or dead, it claims as before.
 func _hostile_quiet() -> bool:
 	var reason := _quiet_reason()
@@ -966,34 +953,4 @@ func _quiet_reason() -> String:
 	var behind := Vector2(player.position.x - bot.position.x, player.position.z - bot.position.z)
 	if behind.length() > 0.01:
 		return QUIET_BEHIND
-	return QUIET_NEAR_ZONE if ChaosZones.near(game.state, player.position) else ""
-
-
-## While bot 4 is frozen, the zone's ticks since its last accepted claim; when the freeze ends,
-## the check of the freeze row: at most ZoneTask.STALE_TICKS.
-func _watch_freeze() -> void:
-	if game == null or freeze_gained >= 0:
-		return
-	var ticks := ChaosZones.ticks(game.state)
-	if _frozen():
-		var tick := game.ticked_through()
-		var age := MovementRule.claim_age(game.state, peers.peer_of(HOSTILE), tick)
-		var claimed := tick - age if age >= 0 else -1
-		if claimed != _freeze_claim_tick:
-			_freeze_claim_tick = claimed
-			_freeze_gain = 0
-		elif _freezing and not ChaosZones.other_inside(game.state, peers.peer_of(HOSTILE)):
-			_freeze_gain += ticks - _freeze_prev
-		_freeze_prev = ticks
-		_freezing = true
-		return
-	if not _freezing:
-		return
-	freeze_gained = _freeze_gain
-	if freeze_gained > ZoneTask.STALE_TICKS:
-		failures.append(
-			(
-				"the zone gained %d ticks from bot 4's freeze, at most %d"
-				% [freeze_gained, ZoneTask.STALE_TICKS]
-			)
-		)
+	return ""

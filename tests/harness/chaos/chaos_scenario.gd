@@ -1,31 +1,30 @@
 class_name ChaosScenario
 extends RefCounted
 ## The honest match the chaos peers play in (ARCHITECTURE §9.7's steps, built in code: it is the
-## chaos run's fixture, not content). Four bots of the base mode with the zone task
-## (FixtureBaseModeWithZones: the engineer took it out of the shipped base mode on #842) at its
-## default draw, both task types (#649): one package and one zone.
-## - bot 1, the host's own client, takes a knife, waits until bot 4 has left the zone (the zone's
-##   stop, then the freeze's time), knocks bot 4 down with two hits and waits for the end;
+## chaos run's fixture, not content). Four bots of the base mode on the greybox at its default
+## draw, Delivery alone (the zone task plays on the House alone since #804, GD13 (b)): one package.
+## - bot 1, the host's own client, waits until bot 4 has walked away from its freeze (a fixed
+##   AWAY_WAIT_S from the round's start), takes a knife, knocks bot 4 down with two hits and waits
+##   for the end;
 ## - bot 2 takes the package to its circle, waits there until bot 4 is downed (with `until_dead`,
-##   until it has died) and puts it down;
-## - bot 3 waits until bot 4 has left the zone, then stands in the zone until the end; the crew wins
-##   on the later of the delivery and the zone (every task done); it stays two seconds into End;
-## - bot 4 is the "hostile but valid" chaos peer's own bot: it gets ready, walks into the zone,
+##   until it has died) and puts it down: the crew wins (every task done);
+## - bot 3 waits for the end and stays two seconds into End;
+## - bot 4 is the "hostile but valid" chaos peer's own bot: it gets ready, walks to STAND_AT,
 ##   stands there a second, then **freezes** (the zone task ADR's freeze row, ZE10): for FREEZE_S
 ##   (190 ticks) its client sends no claim while it polls on, and then one claim spends the stored
-##   credit to walk AWAY at once. ChaosRun holds its claims in both runs and checks that the zone
-##   gained at most ZoneTask.STALE_TICKS (10) from the silence. Then it is downed (and with
-##   `until_dead` dead, once the knockdown time runs out), and the match ends before it gets up or
-##   respawns. Its chaos traffic rides on its connection (ChaosHostile), with no hostile claim
-##   while it is frozen or near a zone (a Correction there would change the zone's count, which
-##   the honest bots see, from the baseline's); in the baseline run it sends only this script's
-##   traffic. Its joining Hello carries bot KEY_BOT's return key (ChaosRun._key_of).
+##   credit to walk AWAY at once. ChaosRun holds its claims in both runs, and ChaosHonestClaims
+##   fails a Correction of that claim. Then it is downed (and with `until_dead` dead, once the
+##   knockdown time runs out), and the match ends before it gets up or respawns. Its chaos traffic
+##   rides on its connection (ChaosHostile), with no hostile claim up to its walk away; in the
+##   baseline run it sends only this script's traffic. Its joining Hello carries bot KEY_BOT's
+##   return key (ChaosRun._key_of). What the zone gained from the freeze (at most
+##   ZoneTask.STALE_TICKS) is checked over the real wire by
+##   tests/integration/server/host_session_zone_test.gd since the greybox lost its zones (#804).
 ## `until_dead` adds the knockdown time (10 s) to the round: the long run of the night job has it,
 ## the short one of `verify` not.
 ## Every role is forced (debug builds): bot 1 dissident, the rest crew, or, with `swapped`, bot 3
-## dissident and bot 1 crew: the knife needs no role and counting in a zone reads none, so the
-## match plays the same, and only hidden state (who the dissident is) differs between the two (the
-## chaos rule of §4.1, class 8).
+## dissident and bot 1 crew: the knife needs no role, so the match plays the same, and only
+## hidden state (who the dissident is) differs between the two (the chaos rule of §4.1, class 8).
 
 ## The hostile chaos peer's bot.
 const HOSTILE := 4
@@ -34,7 +33,7 @@ const HOSTILE := 4
 const KEY_BOT := 2
 const BOTS := 4
 const SEED := 488_000_000_001
-const MODE := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
+const MODE := "res://content/modes/base_mode.tres"
 const TIME_LIMIT_S := 90.0
 ## How long bot 3 stays into End after the match ended, so the chaos peers send there too.
 const END_WAIT_S := 2.0
@@ -42,9 +41,10 @@ const END_WAIT_S := 2.0
 const EXPECT_WITHIN_S := 1.0
 ## How long bot 2 waits at the circle for bot 4's knockdown, and then its death.
 const WAIT_AT_CIRCLE_S := 45.0
-## The zone's station kind, and the one zone the mode deals.
-const ZONE := &"zone"
-## How long bot 4 stands counted in the zone before it freezes.
+## Where bot 4 stands before its freeze: where the greybox's zone that the scenario's seed dealt
+## stood until #804, so the claim after the freeze spans the same 39.6 m to AWAY.
+const STAND_AT := Vector3(-9, 0, 7)
+## How long bot 4 stands at STAND_AT before it freezes.
 const SETTLE_S := 1.0
 ## The freeze (the ADR's freeze row): 190 host ticks without a claim, MovementRule.PUSH_TICKS (the
 ## lost-claim tolerance of §7.1) under MovementRule.MAX_TICK_CREDIT. The claim after it covers the
@@ -56,10 +56,15 @@ const SETTLE_S := 1.0
 ## Correction of an honest claim fails the run (ChaosHonestClaims).
 const FREEZE_TICKS := MovementRule.MAX_TICK_CREDIT - MovementRule.PUSH_TICKS
 const FREEZE_S := FREEZE_TICKS * 1.0 / Ticks.RATE
-## Where bot 4's one claim after the freeze takes it: about 30 m or more from the greybox's zones
-## (39.6 m from the one the scenario's seed deals, at (-9, 0, 7)), within the 42.75 m that the
-## freeze's 190 ticks of walking cover, and clear of every marker.
+## Where bot 4's one claim after the freeze takes it: 39.6 m from STAND_AT, within the 42.75 m
+## that the freeze's 190 ticks of walking cover, and clear of every marker.
 const AWAY := Vector3(20, 0, -20)
+## A bound on bot 4's walk from its round spawn (z = 0) to STAND_AT, sprinting (7 m/s): 19.3 m at
+## the most, under 3 s.
+const WALK_IN_S := 6.0
+## How long bot 1 waits from the round's start before it goes for bot 4: bot 4's walk in, its
+## stand, its freeze and a margin, so the knife finds it walked away.
+const AWAY_WAIT_S := WALK_IN_S + SETTLE_S + FREEZE_S + 1.5
 ## The name of bot 4's freeze step (ChaosRun holds its claims while it is the current step).
 const FREEZE := &"freeze"
 ## The name of bot 4's walk away after it (ChaosHostile sends no claim in the round up to its end).
@@ -102,14 +107,12 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 	put_down.towards = circle
 	var stay := StepWait.new()
 	stay.seconds = END_WAIT_S
-	var zone := _target(ScenarioTarget.Kind.STATION)
-	zone.station_kind = ZONE
-	var into_zone := _walk(zone, true)
-	into_zone.stop_m = 0.0
-	# The zone stops counting STALE_TICKS after bot 4's last claim; the freeze ends FREEZE_S after
-	# that claim, so a wait of FREEZE_S from the stop ends after it.
-	var stopped := _wait_for(&"ZoneProgress", {"counting": false})
-	var freeze_left := _wait(FREEZE_S)
+	var stand := _target(ScenarioTarget.Kind.POINT)
+	stand.point = STAND_AT
+	var to_stand := _walk(stand, true)
+	to_stand.stop_m = 0.0
+	# Bot 4 has walked away by then: its walk in, stand and freeze take at most AWAY_WAIT_S.
+	var away_left := _wait(AWAY_WAIT_S)
 	var freeze := _wait(FREEZE_S)
 	freeze.resource_name = FREEZE
 	var away := _target(ScenarioTarget.Kind.POINT)
@@ -121,10 +124,9 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 			[
 				StepReady.new(),
 				round_started,
+				away_left,
 				to_knife,
 				pick_knife,
-				stopped,
-				freeze_left,
 				to_hostile,
 				hit,
 				cooldown,
@@ -143,9 +145,9 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 				_expect(&"KnockedDown", {"peer": HOSTILE}, WAIT_AT_CIRCLE_S),
 			]
 		),
-		_script([StepReady.new(), round_started, stopped, freeze_left, into_zone, ended, stay]),
+		_script([StepReady.new(), round_started, ended, stay]),
 		_script(
-			[StepReady.new(), round_started, into_zone, _wait(SETTLE_S), freeze, walk_away, knocked]
+			[StepReady.new(), round_started, to_stand, _wait(SETTLE_S), freeze, walk_away, knocked]
 		),
 	]
 	if until_dead:
