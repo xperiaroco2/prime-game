@@ -6,7 +6,9 @@
    into an app-data folder of the export's own (tools/out/export/data), which Godot reads through XDG_DATA_HOME or
    APPDATA (common.app_data_var), so the human's editor folder is never touched.
 2. A clean tree of the commit (`git archive`), not the working tree: untracked files never reach a build, and the
-   TwoVoIP extension, which a cloud session's sparse checkout leaves out, is in it. On Linux Godot prints `ERROR:`
+   TwoVoIP extension, which a cloud session's sparse checkout leaves out, is in it. The build's project.godot gets
+   `application/config/version` from `git describe --tags --always` (#899): the tag on a tagged commit, else
+   `<last tag>-<commits since>-g<short sha>`, a short sha with no tag at all; never committed. On Linux Godot prints `ERROR:`
    lines for that extension (it has Windows libraries only); those are expected, any other fails the export.
 3. Both presets exported (`--export-release` / `--export-debug`), the license notices added (CREDITS.md and the shipped
    addons' LICENSE* files under licenses/<addon>/, #419; Godot's and the codecs' texts from docs/credits/licenses/,
@@ -356,11 +358,33 @@ def write_zip(folder: Path, archive: Path, top: str) -> None:
             out.writestr(info, path.read_bytes())
 
 
-def version_of(rev: str, given: str | None) -> str:
-    name = given or git("describe", "--tags", "--always", rev).out.strip() or rev
+def describe(rev: str, repo: Path = ROOT) -> str:
+    """`git describe --tags --always` of `rev` (#899): the tag itself on a tagged commit, else `<last tag>-<commits
+    since it>-g<short sha>`; a repository with no tag at all gives describe's own `--always` short sha."""
+    return run(["git", "describe", "--tags", "--always", rev], timeout=60, cwd=repo).out.strip() or rev
+
+
+def version_of(rev: str, given: str | None, repo: Path = ROOT) -> str:
+    name = given or describe(rev, repo)
     if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
         raise Failure(f"--version {name!r}: use letters, digits, '.', '_' and '-' only")
     return name
+
+
+def set_version(tree: Path, version: str) -> None:
+    """`application/config/version` in the exported `tree`'s project.godot (#899): only the exported build carries it,
+    project.godot in git names none (the main menu hides the version then, #672). A line already there is replaced."""
+    path = tree / "project.godot"
+    text = path.read_text(encoding="utf-8")
+    line = f'config/version="{version}"'
+    if re.search(r"^config/version=.*$", text, re.MULTILINE):
+        text = re.sub(r"^config/version=.*$", lambda _: line, text, count=1, flags=re.MULTILINE)
+    else:
+        section = re.compile(r"^\[application\]\r?\n(?:\r?\n)?", re.MULTILINE)
+        text, count = section.subn(lambda m: m.group(0) + line + "\n", text, count=1)
+        if not count:
+            raise Failure("no [application] section in project.godot to put the version in")
+    path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def prove_hash(rev: str, data: Path, release: Probe) -> None:
@@ -447,6 +471,8 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     data = EXPORT / "data"
     templates = install_templates(data)
     tree = clean_tree(commit, EXPORT / "trees" / "build")
+    set_version(tree, name)
+    ok(f"application/config/version is {name} in the exported build")
     builds = EXPORT / "build"
     if builds.exists():
         shutil.rmtree(builds)

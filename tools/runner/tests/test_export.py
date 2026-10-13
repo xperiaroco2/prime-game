@@ -5,6 +5,7 @@ templates). The release workflow's shape is checked here too, next to ci.yml's i
 import hashlib
 import re
 import shutil
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -347,6 +348,84 @@ class HelpersTest(unittest.TestCase):
         self.assertEqual(export.lfs_pointers(tree), ["levels/crate.glb"])
 
 
+class VersionTest(unittest.TestCase):
+    """The build's version is `git describe --tags --always` (#899), written into the exported project.godot only."""
+
+    def setUp(self) -> None:
+        self.repo = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.repo, True)
+        self.git("init", "-q")
+
+    def git(self, *args: str) -> str:
+        cmd = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"]
+        done = subprocess.run([*cmd, *args], cwd=self.repo, capture_output=True, text=True, check=True)
+        return done.stdout.strip()
+
+    def commit(self, name: str) -> str:
+        (self.repo / name).write_text(name, encoding="utf-8")
+        self.git("add", name)
+        self.git("commit", "-q", "-m", name)
+        return self.git("rev-parse", "HEAD")
+
+    def test_a_build_from_a_tag_shows_the_tag(self) -> None:
+        sha = self.commit("a")
+        self.git("tag", "-a", "-m", "rc", "v0.6.0-rc2")
+        self.assertEqual(export.version_of(sha, None, self.repo), "v0.6.0-rc2")
+
+    def test_an_untagged_build_shows_the_last_tag_the_commits_since_and_the_sha(self) -> None:
+        self.commit("a")
+        self.git("tag", "-a", "-m", "rc", "v0.6.0-rc2")
+        self.commit("b")
+        sha = self.commit("c")
+        self.assertEqual(export.version_of(sha, None, self.repo), f"v0.6.0-rc2-2-g{sha[:7]}")
+
+    def test_a_checkout_with_no_tag_at_all_shows_the_short_sha(self) -> None:
+        sha = self.commit("a")
+        version = export.version_of(sha, None, self.repo)
+        self.assertEqual(version, sha[:7])
+        self.assertRegex(version, r"^[0-9a-f]{7,}$")
+
+    def test_a_given_version_wins_over_describe(self) -> None:
+        sha = self.commit("a")
+        self.assertEqual(export.version_of(sha, "v1.0.0", self.repo), "v1.0.0")
+
+    def test_describe_runs_in_the_repository_it_is_given(self) -> None:
+        sha = self.commit("a")
+        self.git("tag", "v1.2.3")
+        self.assertEqual(export.describe(sha, self.repo), "v1.2.3")
+
+    def tree(self, text: str) -> Path:
+        tree = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tree, True)
+        (tree / "project.godot").write_bytes(text.encode("utf-8"))
+        return tree
+
+    def test_the_version_goes_into_the_application_section_of_the_exported_project(self) -> None:
+        tree = self.tree('config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n\n[audio]\n\ndriver=1\n')
+        export.set_version(tree, "v0.6.0-rc2-12-gabc1234")
+        text = (tree / "project.godot").read_text(encoding="utf-8")
+        self.assertEqual(
+            text,
+            'config_version=5\n\n[application]\n\nconfig/version="v0.6.0-rc2-12-gabc1234"\nconfig/name="PrimeGame"\n\n'
+            "[audio]\n\ndriver=1\n",
+        )
+
+    def test_a_version_line_already_there_is_replaced_not_doubled(self) -> None:
+        tree = self.tree('[application]\n\nconfig/name="PrimeGame"\nconfig/version="old"\n')
+        export.set_version(tree, "v1")
+        text = (tree / "project.godot").read_text(encoding="utf-8")
+        self.assertEqual(text.count("config/version"), 1)
+        self.assertIn('config/version="v1"', text)
+
+    def test_a_project_without_an_application_section_fails(self) -> None:
+        with self.assertRaises(Failure):
+            export.set_version(self.tree("config_version=5\n"), "v1")
+
+    def test_the_projects_in_git_names_no_version(self) -> None:
+        text = (ROOT / "project.godot").read_text(encoding="utf-8")
+        self.assertNotRegex(text, r"(?m)^config/version=")
+
+
 @unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
 class ReleaseWorkflowTest(unittest.TestCase):
     def test_it_runs_on_a_tag_only_and_publishes_only_the_release_zip(self) -> None:
@@ -358,6 +437,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
         uses = [step.get("uses", "") for step in steps]
         self.assertEqual(uses[:2], ["actions/checkout@v7", "./.github/actions/setup-toolchain"])
         self.assertIs(steps[0]["with"]["lfs"], True, "a release ships the real LFS assets")
+        self.assertEqual(steps[0]["with"]["fetch-depth"], 0, "`git describe --tags` needs the history and the tags")
         runs = [step.get("run", "") for step in steps]
         self.assertFalse(any("twovoip" in run for run in runs), "the Windows build needs the TwoVoIP extension")
         exporting = next(i for i, run in enumerate(runs) if "tools/run.sh export" in run)

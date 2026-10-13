@@ -24,9 +24,12 @@ jobs:
     steps:
       # The TwoVoIP extension stays: the Windows build needs its library (CI's verify job removes it on Linux). LFS
       # content too, unlike verify (the pins ADR): a build ships the real assets, and `export` fails on a pointer file.
+      # Full history with the tags (#899): `export` writes `git describe --tags` as the build's version.
       - uses: actions/checkout@v7
         with:
           lfs: true
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: ./.github/actions/setup-toolchain
 
