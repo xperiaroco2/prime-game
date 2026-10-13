@@ -30,8 +30,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
-  `spawn_circle`, `spawn_zone`, and House's four drop-offs `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
-  `spawn_drop_garden`, `spawn_drop_workbench`, provisional, see below). A marker in two such groups is a load error. The host reads them in scene-tree
+  `spawn_circle`, `spawn_zone`; House only, provisional (Delivery by meaning DE10, #826): `spawn_drop_dining_table`,
+  `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one marker each, none on the greybox). A marker in two such groups is a load error. The host reads them in scene-tree
   order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a
   scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on
   those, no station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of
@@ -57,12 +57,6 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   zone task lists the House alone in its `maps` (TaskType.maps, the Generator ADR's GD13 (b), #804), so the
   greybox, a test bench only (#767), has none. House's three (the yard, the garden, the landing) are #651's
   placeholders until the engineer moves them (#681 moved the generator hall's up to the yard).
-- **Drop-off markers** ([Delivery by meaning](../docs/decisions/2026-10-10-delivery-by-meaning.md) DE3, DE10, D1, #826;
-  tags provisional): House's `DiningTable` (dining room), `TerraceTable` (terrace), `GardenDropOff` (garden) and
-  `Workbench` (garage), plain markers under each room's `Stations` node at house-map §6's points on level 0, are in
-  `spawn_drop_dining_table`, `spawn_drop_terrace_table`, `spawn_drop_garden` and `spawn_drop_workbench`: exactly one
-  marker of each tag on a map the type lists, which is House alone (DD9 (c)), so the greybox has none. The `circle`
-  markers stay until D4, and no drop-off marker shares an (x, z) with one. The furniture is dressing (D4), not a station.
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
