@@ -36,7 +36,7 @@ paths:
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
 ## Running
-- One file: `tools\run.cmd test tests/unit/match/vote_test.gd`. Everything: `tools\run.cmd test`, which with no
+- One file: `tools\run.cmd test tests/unit/match/intents_test.gd`. Everything: `tools\run.cmd test`, which with no
   paths runs in shards: K GdUnit4 processes at once, each with its own `user://` (K from the CPU count, at most 4;
   `--shards K` sets it, 1 is one at a time). Named paths run one process unless `--shards K`; `--repeat`: so per run.
 - No paths (`verify --full`, CI): frame-bound suites at `--fixed-fps 60` (#341); paths, `--repeat`, `--real-time`: real time.
