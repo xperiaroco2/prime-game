@@ -217,3 +217,28 @@ func _carry_box(peer: int) -> ItemState:
 	FixtureModes.run_ticks(_game, 1)
 	assert_object(FixtureCookingModes.held(_game, peer)).is_same(box)
 	return box
+
+
+func test_a_patty_taken_off_the_grill_and_put_down_counts_its_vanish_time_from_the_put_down(
+) -> void:
+	_game.mode.find_item_kind(&"raw_a").actions = [FixtureItemModes.put_down_rule(1.0)]
+	_take(P1, &"raw_a")
+	var patty := FixtureCookingModes.held(_game, P1)
+	_use(P1)
+	assert_int(patty.where).is_equal(ItemState.Where.LOCKED)
+	FixtureModes.run_ticks(_game, 5)
+	_use(P1)
+	assert_object(FixtureCookingModes.held(_game, P1)).is_same(patty)
+	assert_int(patty.rest_tick).is_equal(-1)
+	var vanish := Ticks.from_seconds(FixtureCookingModes.VANISH)
+	# Carried for longer than it may lie: the time starts at the put down, not at the take.
+	FixtureModes.run_ticks(_game, vanish + 100)
+	assert_bool(_game.state.items.has(patty.id)).is_true()
+	FixtureItemModes.put_down(_game, P1, Vector3(0, 0, -1))
+	assert_int(patty.where).is_equal(ItemState.Where.GROUND)
+	var laid := patty.rest_tick
+	assert_int(laid).is_equal(_game.ticked_through() + 1)
+	_run_through(laid + vanish - 1)
+	assert_bool(_game.state.items.has(patty.id)).is_true()
+	_run_through(laid + vanish)
+	assert_bool(_game.state.items.has(patty.id)).is_false()

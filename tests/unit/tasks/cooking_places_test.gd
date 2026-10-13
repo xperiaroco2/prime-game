@@ -196,3 +196,51 @@ func _other_raw(order: Cooking.Order) -> ItemKind:
 		if raw != order.raw_patty:
 			return raw
 	return null
+
+
+func test_a_bun_carried_past_its_time_vanishes_exactly_its_time_after_it_is_laid_red() -> void:
+	var order := _order(0)
+	FixtureCookingModes.take(_game, P1, _other_bun(order).id)
+	var bun := FixtureCookingModes.held(_game, P1)
+	var vanish := Ticks.from_seconds(FixtureCookingModes.VANISH)
+	# Carried for longer than it may lie: a held item does not lie.
+	FixtureModes.run_ticks(_game, vanish + 100)
+	assert_bool(_game.state.items.has(bun.id)).is_true()
+	_use(P1, 0)
+	var laid := bun.rest_tick
+	assert_int(laid).is_equal(_game.ticked_through() + 1)
+	FixtureModes.run_ticks(_game, laid + vanish - 1 - _game.ticked_through())
+	assert_bool(_game.state.items.has(bun.id)).is_true()
+	FixtureModes.run_ticks(_game, 1)
+	assert_bool(_game.state.items.has(bun.id)).is_false()
+	assert_int(_game.ticked_through()).is_equal(laid + vanish)
+
+
+func test_an_ingredient_put_down_near_a_place_lies_on_the_floor_unchecked() -> void:
+	var order := _order(0)
+	var bun := order.bun
+	bun.actions = [FixtureItemModes.put_down_rule(1.0)]
+	FixtureCookingModes.take(_game, P1, bun.id)
+	var held := FixtureCookingModes.held(_game, P1)
+	var place := _game.state.stations[_place(0)]
+	FixtureItemModes.stand(_game, P1, place.position + Vector3(0, 0, 1))
+	FixtureItemModes.put_down(_game, P1, Vector3(0, 0, -1))
+	assert_int(held.where).is_equal(ItemState.Where.GROUND)
+	assert_int(order.bun_item).is_equal(-1)
+	assert_bool(place.done).is_false()
+	for peer: int in [P1, P2]:
+		assert_array(FixtureCookingModes.dicts(_game, peer, &"IngredientPlaced")).is_empty()
+	assert_array(FixtureModes.rejections(_game, P1)).is_empty()
+
+
+func test_a_done_place_refuses_unavailable_before_empty_hand_and_wrong_item() -> void:
+	FixtureCookingModes.cook(_game, P1, 0)
+	assert_bool(_order(0).done).is_true()
+	# An empty hand: unavailable, not empty_hand.
+	_use(P2, 0)
+	assert_array(FixtureModes.rejections(_game, P2)).is_equal([&"unavailable"])
+	# A raw patty (a wrong_item at a place that is not done): unavailable too.
+	FixtureModes.run_ticks(_game, 1)
+	FixtureCookingModes.take(_game, P2, _order(0).raw_patty.id)
+	_use(P2, 0)
+	assert_array(FixtureModes.rejections(_game, P2)).is_equal([&"unavailable", &"unavailable"])
