@@ -52,10 +52,10 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
     are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
-- Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
-  start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
-  "not a decision" (#649); House's three (the yard, the garden, the landing) are #651's placeholders until
-  the engineer moves them (#681 moved the generator hall's up to the yard).
+- A map needs `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays on it: the
+  zone task lists the House alone in its `maps` (TaskType.maps, the Generator ADR's GD13 (b), #804), so the
+  greybox, a test bench only (#767), has none. House's three (the yard, the garden, the landing) are #651's
+  placeholders until the engineer moves them (#681 moved the generator hall's up to the yard).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).

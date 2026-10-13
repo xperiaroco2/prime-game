@@ -58,7 +58,7 @@ static var hello_keys: PackedStringArray = [
 ]
 
 var rng := RandomNumberGenerator.new()
-## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
+## Returns true while it must send no claim (ChaosRun._hostile_quiet says when).
 var quiet := Callable()
 ## Intent name -> how many it sent; the malformed shapes and claim shapes sent; for the report.
 var sent: Dictionary[String, int] = {}

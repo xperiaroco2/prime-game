@@ -393,8 +393,7 @@ func test_a_station_target_is_the_n_th_station_of_its_kind_the_bot_was_told_of()
 	assert_int(circles.size()).is_greater_equal(2)
 	var at: Vector3 = bot.stations[circles[1]]
 	assert_float(Vector2(bot.position.x - at.x, bot.position.z - at.z).length()).is_less(0.01)
-	# A kind it was told of no station of (the base mode deals zones too since #649), or an index
-	# past its stations: it cannot know.
+	# A kind it was told of no station of, or an index past its stations: it cannot know.
 	for target: ScenarioTarget in [_station(&"no_such_kind", 1), _station(&"circle", 99)]:
 		var lost := StepWalkTo.new()
 		lost.target = target
@@ -597,12 +596,12 @@ func _scenario(scripts: Array) -> BotScenario:
 
 
 ## The zone fixture's base mode (its own arrays) with FixtureStationType in the zone task's place,
-## its panels on the greybox's four `zone` markers, and the round accepting Interact from the
-## living: a mode whose stations a bot can use (#796).
+## its panels on the greybox's four `respawn` markers (it has no `zone` markers since #804), and
+## the round accepting Interact from the living: a mode whose stations a bot can use (#796).
 func _panel_mode() -> GameMode:
 	var mode := FixtureBaseModeWithZones.new()
 	var panels := FixtureStationModes.station_type()
-	panels.panel.spawn_tag = &"zone"
+	panels.panel.spawn_tag = &"respawn"
 	var types: Array[TaskType] = []
 	for type: TaskType in mode.task_types:
 		types.append(panels if type is ZoneTask else type)

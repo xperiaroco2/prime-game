@@ -345,11 +345,15 @@ ADR](decisions/2026-10-09-m7-zone-task.md) (#302, comment 6085059719) and gave i
 - Only where living players stand matters: a hit that does not knock down, carrying or using stops nothing; a
   knockdown does (ZD9 (a)).
 - Every match deals both Delivery and the zone task (ZD8 (a)): the lobby's `tasks` is 2 (1 to 2); the host may ban
-  one type and lower `tasks` to 1.
+  one type and lower `tasks` to 1. Since 2026-10-11 the base mode deals no zone task, "only from the mode, now"
+  ([the engineer's answer on #842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)):
+  its code, its tests on fixture modes and the House's zones stay, and it may come back by his word.
 - The numbers (ZD7): 10 s in a zone (data, not a lobby setting), radius 1.5 m, height 2.5 m, one zone per subtask
   (the base mode deals 1 zone: a placeholder, "not a decision", #649), yellow; the task's name and the players'
   word "Hold the zone" (Ukrainian UI: «Утримати зону»), described "Stand in the zone until it fills."
-- Where zones stand (ZD10 (a)): placeholders on the greybox (#649); on the House map, three provisional points (#651) until the engineer moves them.
+- Where zones stand (ZD10 (a)): on the House map alone, three provisional points (#651) until the engineer moves
+  them; the task's data lists the House alone in its maps. The greybox's placeholder zones (#649) are gone, with
+  their three bot scenarios (GD13 (b) of the Generator ADR, the engineer's, #804).
 
 ### Cooking (#682)
 The House map's burger chain ([House map](design/house-map.md) §2, decision 6; its stations in §6). The rules below

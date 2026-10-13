@@ -241,11 +241,7 @@ def build_parser() -> argparse.ArgumentParser:
         "with --transport webrtc). --chaos: the chaos bots, a hostile and a malformed peer against the host (no "
         "--seed: a random one, printed; --enet or --transport webrtc: over the network).",
     )
-    p.add_argument(
-        "scenarios",
-        nargs="*",
-        help="scenario file names in content/scenarios/ or tests/fixtures/scenarios/ (default: every one)",
-    )
+    p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
     p.add_argument(
         "--instances", type=int, default=1, help="over the network, one process per bot: one scenario of N bots"
     )

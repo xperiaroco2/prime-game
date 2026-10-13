@@ -292,7 +292,7 @@ adds only its own bound (the Generator's `switches`). #256's other half, a compl
   `ChaosOracle.ACCEPTS` (`not_accepted` everywhere until G5), a `ChaosFrames` malformed shape for the new C→H kind
   (station 0xFFFF, truncated, trailing bytes). G2: the two new H→C kinds in the wrong-direction list. G5, once Round
   accepts `Interact` from the living: the oracle's row follows it. The chaos run plays the greybox, which holds no
-  Generator (GD7) and, once G9 lands, no zone (GD13), so a hostile `Interact` there gets `not_accepted` (downed, or in
+  Generator (GD7) and, since G9 (#804), no zone (GD13), so a hostile `Interact` there gets `not_accepted` (downed, or in
   the wrong phase) or `nothing_to_do` (an unknown id, a delivery circle, or a zone before G9, none with an `Interact`
   rule), each in
   `ChaosHostile._refused` and `ChaosOracle`. A dealt Generator's refusals (`two_handed`, `out_of_reach`, `blocked`,
@@ -411,9 +411,9 @@ Later, not open now:
   the zone task (G9, GD13 (b)), so the greybox, a test bench only (#767), deals Delivery alone. No bot plays a chain
   until the engineer asks, with the map (GD7): what stands in for the scenarios is §7's.
 - GD13 (b) reverses the zone ADR's ZD10 (zones on the greybox) and deletes three bot scenarios on the engineer's word.
-  G9 does both on `release/m7` and moves each check they gave (the zone task's leak plant, `ZoneProgress` on the real
-  wire, the chaos run's freeze in a zone) to a test that needs no bot; until it lands, `release/m7`'s greybox still
-  deals the zone task, and the zone ADR keeps ZD10 as built.
+  G9 did both (#804, on `main`) and moved each check they gave (the zone task's leak plant, `ZoneProgress` on the real
+  wire, the chaos run's freeze in a zone) to a test that needs no bot (`tests/integration/levels/house_zone_test.gd`,
+  `tests/integration/server/host_session_zone_test.gd`); the zone ADR marks ZD10's greybox part reversed.
 - A device scene is not always a station (GE14): a switch device with none is a fixed switch, which only the
   Generator's client view knows. The cooking task (#682), which builds on these parts, shares only the generic ones
   (`Interact(station)`, `StationKind.actions`, the four parts, `TaskType.use_problem` and `use_station`, busy hands, G0's
