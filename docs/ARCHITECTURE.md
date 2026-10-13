@@ -6533,19 +6533,6 @@ Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
 
-#### 9.5.16a Crouch (not a part in v0)
-What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
-pose at the claim's last physics step. The host keeps it on a living player where the crouch plays and judges the
-claim with the crouched numbers in `PlayerRules` (`crouch_height_m` 1.2, `crouch_eye_height_m` 1.0,
-`crouch_speed_mps` 2.0, `crouch_fast_speed_mps` 2.8; provisional, "not a decision").
-Settings: `PlayerRules.crouch_maps`, the maps the crouch plays on (empty: every map). The base mode lists the House
-alone (KE10); the greybox gets no crouch.
-Why not a part: as for sprint.
-Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player where the crouch plays.
-Status: designed in #727; the host's part and the wire built in #790. Tests:
-`tests/unit/movement/movement_rule_crouch_test.gd`, `tests/integration/server/host_session_crouch_test.gd`,
-`tests/unit/content/content_modes_test.gd`.
-
 #### 9.5.17 Tutorial mode (game mode)
 What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68): `gather` → `loading` →
 `lessons` → `raise_stage` → `death_stage`, the last two staged by the host's player with `NextStage` (§2.4, E65).
@@ -6945,6 +6932,19 @@ refusals), `photo_hang_test.gd` (counted and locked, uncounted and taken down, t
 `photo_frame_test.gd`, `tests/unit/items/items_station_test.gd` (the move
 serial), `tests/scenarios/record_invariant_test.gd` (§4.6.4's record invariant); fixtures
 `tests/fixtures/tasks/fixture_photo_modes.gd`.
+
+#### 9.5.23 Crouch (not a part in v0)
+What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
+pose at the claim's last physics step. The host keeps it on a living player where the crouch plays and judges the
+claim with the crouched numbers in `PlayerRules` (`crouch_height_m` 1.2, `crouch_eye_height_m` 1.0,
+`crouch_speed_mps` 2.0, `crouch_fast_speed_mps` 2.8; provisional, "not a decision").
+Settings: `PlayerRules.crouch_maps`, the maps the crouch plays on (empty: every map). The base mode lists the House
+alone (KE10); the greybox gets no crouch.
+Why not a part: as for sprint.
+Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player where the crouch plays.
+Status: designed in #727; the host's part and the wire built in #790. Tests:
+`tests/unit/movement/movement_rule_crouch_test.gd`, `tests/integration/server/host_session_crouch_test.gd`,
+`tests/unit/content/content_modes_test.gd`.
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
