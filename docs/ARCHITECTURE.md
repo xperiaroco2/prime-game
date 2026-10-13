@@ -3970,8 +3970,9 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
     player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
     none (never muffled).
-  - **Quiet** (#792, the crouch ADR's KD1 (b)): where the crouch plays (`WorldSounds.crouch_plays`, KE10), a
-    step, the own or another player's, at or below the mode's `crouch_fast_speed_mps` plays
+  - **Quiet** (#792, the crouch ADR's KD1 (b)): where the crouch plays (`WorldSounds.crouch_plays`, KE10, which
+    `Game` sets with the controller's), a step, the own or another player's, at or below the mode's
+    `crouch_fast_speed_mps` plays
     `FootstepCadence.QUIET_STEP_DB` (−6 dB, added to the muffle's) and is heard within `QUIET_STEP_RANGE_M` (6 m:
     `SoundChooser.step`'s cut and `max_distance` alike); both ease linearly to a walk's step at the walk speed
     (`quiet_of`). Both are placeholders, "not a decision". It is read from the step's speed, averaged over the
@@ -5683,7 +5684,7 @@ reads, do not move.
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
   numbers, `crouch_maps`; #790, built), 727b (the local crouch; #791, built), 727c (others' crouch: pose, voice,
-  the quiet steps).
+  the quiet steps; #792, built).
 - **Built in #790 (727a)**, the host's part and the wire: `PlayerRules`' four crouch numbers and `crouch_maps`
   (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
   `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
@@ -5729,10 +5730,10 @@ reads, do not move.
   the mouth, hand, belt and carry points down by the eye heights' difference at the own view's catch-up rate
   (§4.7.6); a downed body lies at standing size. The spectate camera and the spectator's `Ears` sit at the target
   body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
-  its two placeholders, used by `WorldSounds` where its `crouch_plays` is set (§4.7.40). `Game` sets
-  `WorldSounds.crouch_plays` from the same answer as the controller's once 727b (#791) lands; until then the quiet
-  step is built and tested but off in the game. #522's crouch animation clips are not on main: the bodies stay
-  capsules until they land. A `shot` preview: `client/dev/crouch_preview.tscn`.
+  its two placeholders, used by `WorldSounds` where its `crouch_plays` is set (§4.7.40); `Game` sets
+  `WorldSounds.crouch_plays` from the same answer as the controller's (`_apply_player_flags`). #522's crouch
+  animation clips are not on main: the bodies stay capsules until they land. A `shot` preview:
+  `client/dev/crouch_preview.tscn`.
 - **Tests (727c):** `tests/unit/client/world/snapshot_buffer_test.gd` (the pose's flag),
   `tests/integration/client/world/avatar_views_test.gd` (the push search finds the crouched capsule in the frame it
   crouches; the head, mouth, points and look lowered and eased; a body first drawn crouched at once),
@@ -5741,7 +5742,8 @@ reads, do not move.
   between and above the speeds, a mode without them; the step's speed over the step) and
   `tests/integration/client/world/world_sounds_steps_test.gd` (the quiet step at crouch speed, today's at the walk
   speed whatever the flag, eased between, cut beyond 6 m, the own slow steps quiet too, and today's step where the
-  crouch does not play, on a fixture world).
+  crouch does not play, on a fixture world); `player_network_crouch_test.gd` (each `Game`'s
+  `WorldSounds.crouch_plays` set in the Round on a listed map, clear in the lobby and on an unlisted map).
 
 #### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
