@@ -263,8 +263,9 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
 - **Scale.** Is 80 x 60 m right for 4 and for 10 players? The greybox playtest answers it (decision 1).
 - **Walls and floors.** Every distance here is a straight line that ignores walls and floors (the voice and sound
   ranges included). The greybox shows whether stations that are far apart on the plan are also apart to the ear.
-- **#523.** How does this map relate to the environment team's house in #523 (the M6.2 slice's level)? Is House that
-  level, or a later map?
+- **#523** (answered). How does this map relate to the environment team's house in #523 (the M6.2 slice's level)? Is
+  House that level, or a later map? Players always play the House (the engineer's option (a) on #767, GDD §13);
+  #523 imports the art track's expanded House into `levels/house`.
 - **Rooms in the level data.** The room record (#306) gives each room its id, names and sign; this file's names are
   working names until then.
 - **Ideas from the sketch, not decided.** The sketch described these, but the engineer has not decided them; they stay
