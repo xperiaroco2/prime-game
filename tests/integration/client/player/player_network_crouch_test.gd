@@ -103,6 +103,7 @@ func test_the_key_does_nothing_in_the_lobby() -> void:
 	assert_bool(player.crouch_held).is_true()
 	assert_bool(player.crouch_plays).is_false()
 	assert_bool(_pair.client.items().sounds.crouch_plays).is_false()
+	assert_bool(_pair.host.items().sounds.crouch_plays).is_false()
 	assert_bool(player.is_crouched()).is_false()
 	assert_bool(_pair.host.client().model.is_crouched(_pair.peer_of(_pair.client))).is_false()
 	_hold(KEY_CTRL, false)
@@ -113,6 +114,7 @@ func test_the_key_does_nothing_on_a_map_the_list_leaves_out() -> void:
 	var player := await _in_the_round(false)
 	assert_bool(player.crouch_plays).is_false()
 	assert_bool(_pair.client.items().sounds.crouch_plays).is_false()
+	assert_bool(_pair.host.items().sounds.crouch_plays).is_false()
 	assert_bool(await _pair.walk_to(player, START)).is_true()
 	_face_forward(player)
 	player.crouch_held = true
