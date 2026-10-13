@@ -21,7 +21,7 @@ amount = 1.0
 [sub_resource type="Resource" id="Step_move"]
 script = ExtResource("3_step")
 title_key = &"tutorial.step.move.title"
-keys = Array[StringName]([&"move_forward", &"move_left", &"move_back", &"move_right", &"sprint", &"jump"])
+keys = Array[StringName]([&"move_forward", &"move_left", &"move_back", &"move_right", &"sprint", &"jump", &"crouch"])
 triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_moved")])
 
 [sub_resource type="Resource" id="Lesson_move"]

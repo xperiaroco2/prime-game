@@ -232,17 +232,28 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 		assert_vector(key.custom_minimum_size).is_equal(Vector2(96, 0))
 		assert_str((row.get_node("Label") as Label).text).is_equal("control." + group.to_lower())
 	assert_str((screen.how.get_node("Jump/Key/Text") as Label).text).is_equal("Space")
+	# The crouch key (#902, LD4 (b)): the row lists it after Jump. Ctrl is no wide key. The deck lacks
+	# `control.crouch` (the UI track names it), so its label is the action name until Controls.ACTIONS
+	# has the row: the test follows that table, not a literal.
+	var crouch := screen.how.get_node("Crouch") as HBoxContainer
+	_assert_node(crouch, "Crouch", "HBoxContainer", &"ToyRowEight")
+	assert_int(crouch.get_index()).is_equal(screen.how.get_node("Jump").get_index() + 1)
+	assert_str((crouch.get_node("Key/Text") as Label).text).is_equal("Ctrl")
+	assert_vector((crouch.get_node("Key") as Control).custom_minimum_size).is_equal(Vector2(36, 0))
+	var crouch_label := str(Controls.ACTIONS.get(&"crouch", &"crouch"))
+	assert_str((crouch.get_node("Label") as Label).text).is_equal(crouch_label)
 	(
 		assert_str(screen.how_text())
 		. is_equal(
 			(
-				"%s %s %s %s Walk %s Sprint Space Jump"
+				"%s %s %s %s Walk %s Sprint Space Jump Ctrl %s"
 				% [
 					KeyLabel.of_action(&"move_forward"),
 					KeyLabel.of_action(&"move_left"),
 					KeyLabel.of_action(&"move_back"),
 					KeyLabel.of_action(&"move_right"),
 					KeyLabel.of_action(&"sprint"),
+					crouch_label,
 				]
 			)
 		)

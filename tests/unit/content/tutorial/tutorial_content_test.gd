@@ -26,7 +26,7 @@ func test_the_eight_lessons_detect_the_actions_of_the_design() -> void:
 	# step: title, how, keys, then the parts (D29 (a), D31 (a), D36 (a)).
 	var expected := [
 		(
-			"move | move.title | - | move_forward move_left move_back move_right sprint jump"
+			"move | move.title | - | move_forward move_left move_back move_right sprint jump crouch"
 			+ " | trigger ClientSeen moved 1"
 		),
 		(
