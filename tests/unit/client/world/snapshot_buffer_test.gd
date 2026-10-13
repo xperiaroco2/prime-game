@@ -90,6 +90,29 @@ func test_past_the_newest_snapshot_a_player_holds_with_the_newest_velocity() -> 
 	assert_object(buffer.pose_of(9, 10.5)).is_null()
 
 
+func test_the_crouch_is_the_snapshots_at_or_before_the_drawn_tick_never_blended() -> void:
+	# The crouch ADR, KE7: a flag is never blended, so a body crouches at the snapshot that says so.
+	var buffer := SnapshotBuffer.new()
+	var crouched := _avatar(Vector3(1, 0, 0), Vector3.RIGHT)
+	crouched["crouched"] = true
+	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.RIGHT)}, 500000)
+	buffer.add(11, {PEER: crouched}, 550000)
+	buffer.add(12, {PEER: _avatar(Vector3(2, 0, 0), Vector3.RIGHT)}, 600000)
+	assert_bool(buffer.pose_of(PEER, 10.0).crouched).is_false()
+	assert_bool(buffer.pose_of(PEER, 10.9).crouched).is_false()
+	assert_bool(buffer.pose_of(PEER, 11.0).crouched).is_true()
+	assert_bool(buffer.pose_of(PEER, 11.9).crouched).is_true()
+	assert_bool(buffer.pose_of(PEER, 12.0).crouched).is_false()
+	# Past the newest snapshot the newest's; before the oldest the oldest's; none is standing.
+	assert_bool(buffer.pose_of(PEER, 15.0).crouched).is_false()
+	var early := SnapshotBuffer.new()
+	early.add(20, {PEER: crouched}, 1000000)
+	assert_bool(early.pose_of(PEER, 15.0).crouched).is_true()
+	var old := SnapshotBuffer.new()
+	old.add(20, {PEER: {"position": Vector3.ZERO, "crouched": "yes"}}, 1000000)
+	assert_bool(old.pose_of(PEER, 20.0).crouched).is_false()
+
+
 func test_a_placement_snaps() -> void:
 	var buffer := SnapshotBuffer.new()
 	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.FORWARD)}, 500000)
