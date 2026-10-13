@@ -545,6 +545,37 @@ def throwaway(test: unittest.TestCase) -> Iterator[Path]:
             raise
 
 
+class ThrowawayTest(unittest.TestCase):
+    """throwaway keeps a failed Godot test's logs where CI uploads them (#949), and only a failed one's."""
+
+    def run_throwaway(self, fail: bool) -> tuple[Path, list[str]]:
+        """A throwaway whose Godot wrote logs/import.log, then failed or not: the folder kept and the notes."""
+        with tempfile.TemporaryDirectory() as out, mock.patch.object(common, "LOGS", Path(out) / "logs"):
+            notes: list[str] = []
+            try:
+                with throwaway(self) as tmp:
+                    write(tmp / "logs", "import.log", "handle_crash: Program crashed with signal 11\n")
+                    if fail:
+                        raise AssertionError("the import failed")
+            except AssertionError as exc:
+                notes = exc.__notes__
+            kept = common.LOGS / self._testMethodName
+            found = sorted(path.relative_to(common.LOGS).as_posix() for path in common.LOGS.rglob("*"))
+            text = (kept / "import.log").read_text(encoding="utf-8") if (kept / "import.log").is_file() else ""
+        return kept, [*found, text, *notes]
+
+    def test_a_failure_keeps_its_godot_logs_and_names_them(self) -> None:
+        kept, seen = self.run_throwaway(fail=True)
+        name = self._testMethodName
+        self.assertEqual(
+            seen,
+            [name, f"{name}/import.log", "handle_crash: Program crashed with signal 11\n", f"its Godot logs: {kept}"],
+        )
+
+    def test_a_pass_keeps_nothing(self) -> None:
+        self.assertEqual(self.run_throwaway(fail=False)[1], [""])
+
+
 @starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealPointerTest(unittest.TestCase):
