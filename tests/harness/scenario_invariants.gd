@@ -16,6 +16,9 @@ extends RefCounted
 ##   ShotTaken, #781, Cooking's GrillLoaded and IngredientPlaced, #773, and the car repair's
 ##   FitChanged and PartFitted, #808, and the photo task's PhotoPrinted and PhotoHung, #782).
 ## - No event and no snapshot holds the session seed or a match seed.
+## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
+##   holds its own avatar exactly when its player is knocked down, read from the life state, never
+##   from Snapshots.for_peer (own_avatar_problem).
 ## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
 ##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
 ##   living speakers; a dead peer's speakers are empty.
@@ -216,6 +219,11 @@ func check_tick() -> PackedStringArray:
 			var crouch := crouch_problem(_game, other, avatar)
 			if crouch != "":
 				found.append("peer %d's snapshot %s" % [peer, crouch])
+		# A phase that sends no snapshot (End, Loading) has none to check.
+		var downed := _life_of(peer) == PlayerState.Life.DOWNED
+		var own := own_avatar_problem(peer, avatars, downed) if not snapshot.is_empty() else ""
+		if own != "":
+			found.append("peer %d's snapshot %s" % [peer, own])
 		var speakers := _game.speakers_for(peer)
 		found.append_array(_check_voice(peer, speakers))
 		found.append_array(_check_distance(peer, speakers, radius))
@@ -429,6 +437,18 @@ static func distance_problem(ear: Vector3, mouth: Vector3, radius_m: float) -> S
 	if squared <= radius_m * radius_m:
 		return ""
 	return "from %.3f m, beyond the phase's hearing radius of %.3f m" % [sqrt(squared), radius_m]
+
+
+## Why the avatars of `peer`'s snapshot break the own-avatar invariant (the knockdown rework's KE5,
+## §9, #847), or "" when they do not: they hold the viewer's own avatar exactly when the host's
+## state has the viewer knocked down (`downed`, read from the life state, never from
+## Snapshots.for_peer), so an inverted or a widened exception fails here though view_of agrees.
+static func own_avatar_problem(peer: int, avatars: Dictionary, downed: bool) -> String:
+	if avatars.has(peer) and not downed:
+		return "shows peer %d its own avatar, not knocked down" % peer
+	if downed and not avatars.has(peer):
+		return "lacks the own avatar of knocked-down peer %d" % peer
+	return ""
 
 
 ## The life state of `peer`, LEFT for a peer that is not a player.

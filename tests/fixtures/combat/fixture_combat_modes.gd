@@ -7,7 +7,8 @@ extends RefCounted
 ## `tool`, the eye at 1.6 m, capsules of 0.4 m by 1.8 m) plus the item kind `knife`, whose Use rule
 ## is the knife of §9.5 written out: Cooldown (`hit`, 0.5 s), StaminaCost (25), Strike (30°, 1.5 m,
 ## 50). Round accepts Use from the living (FixtureModes.basic()). The win conditions are
-## FixtureModes.basic()'s counters, which these tests never bump.
+## FixtureModes.basic()'s counters, which these tests never bump. Its maps: MAP, where a knockdown
+## is today's, and MOTION_MAP, where it moves the body (FixtureModes.with_motion_map, KE12).
 
 const ANGLE_DEG := 30.0
 const REACH_M := 1.5
@@ -25,7 +26,7 @@ const RAISE_TICKS := 60
 
 
 static func basic() -> GameMode:
-	var mode := FixtureItemModes.basic()
+	var mode := FixtureModes.with_motion_map(FixtureItemModes.basic())
 	mode.item_kinds.append(FixtureItemModes.item_kind(&"knife", [knife_rule()]))
 	return mode
 

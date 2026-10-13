@@ -80,8 +80,8 @@ func test_back_resends_the_shortfalls_to_everyone() -> void:
 	# The mode needs three from here on: the host reads it when it sends the shortfalls.
 	game.mode.min_players = 3
 	assert_str(game.phase_id()).is_equal("round")
-	var before := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
-	assert_array(before.shortfalls).is_empty()
+	var earlier := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
+	assert_array(earlier.shortfalls).is_empty()
 	FixtureModes.send(game, Intents.PEER_LEFT, P3)
 	game.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(game, 1)
@@ -123,6 +123,51 @@ func test_the_next_match_has_the_next_id() -> void:
 	assert_int(game.view_of(P1).events_named(&"PlayerLoaded").size()).is_equal(3)
 
 
+## The knockdown rework's §4: a body still moving at the round's end moves on in End (its reports
+## are taken), and the way back to the lobby stops it (StopBody) and clears the motion.
+func test_back_stops_a_body_still_moving() -> void:
+	var game := _in_end_with_a_moving_body()
+	var downed := game.state.player(P2)
+	var args := {"epoch": downed.epoch, "position": Vector3(2, 0, 2), "velocity": Vector3(0, 0, 3)}
+	game.apply(MatchCommand.new(Intents.BODY_MOVED, P2, game.ticked_through() + 1, args))
+	assert_vector(downed.position).is_equal(Vector3(2, 0, 2))
+	assert_object(downed.motion).is_not_null()
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_object(game.state.player(P2).motion).is_null()
+	assert_int(_stop_bodies(game, 0)).is_equal(1)
+
+
+func test_a_leave_in_end_stops_a_body_still_moving() -> void:
+	var game := _in_end_with_a_moving_body()
+	var from := game.emitted().size()
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	assert_object(game.state.player(P2).motion).is_null()
+	assert_int(_stop_bodies(game, from)).is_equal(1)
+
+
+## End, with P2 downed and its body in motion (the mode moves bodies on every map).
+func _in_end_with_a_moving_body() -> Match:
+	var mode := FixtureBaseMode.mode()
+	mode.player_rules.motion_maps = PackedStringArray()
+	var game := _in_end(mode)
+	var downed := game.state.player(P2)
+	downed.life = PlayerState.Life.DOWNED
+	downed.epoch += 1
+	downed.motion = BodyMotion.new(downed.epoch, downed.position)
+	return game
+
+
+## How many StopBody events were emitted from the emitted() index `from` on.
+func _stop_bodies(game: Match, from: int) -> int:
+	var count := 0
+	var all := game.emitted()
+	for i in range(from, all.size()):
+		if all[i].event.event_name() == &"StopBody":
+			count += 1
+	return count
+
+
 func _in_end(mode: GameMode) -> Match:
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureBaseMode.layouts())
 	game.keep_history = true
@@ -143,5 +188,5 @@ func _in_end(mode: GameMode) -> Match:
 ## The action says what it emits, since the mode check reads it (#737 added the shortfalls).
 func test_it_declares_what_it_emits() -> void:
 	assert_array(ResetMatch.new().emits()).contains_exactly(
-		[ReadyChangedEvent, SettingsChangedEvent]
+		[StopBodyEvent, ReadyChangedEvent, SettingsChangedEvent]
 	)

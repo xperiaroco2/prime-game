@@ -18,7 +18,10 @@ extends RefCounted
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
-##   of the bot's own role; no decoded snapshot holds a dead player's avatar; the voice invariant
+##   of the bot's own role; no decoded snapshot holds a dead player's avatar; a decoded snapshot
+##   holds the bot's own avatar exactly when record_tick saw its player knocked down at that tick
+##   (ScenarioInvariants.own_avatar_problem: from the life state, never from Snapshots.for_peer,
+##   KE5, #847); the voice invariant
 ##   (§6): no bot decodes a downed or dead speaker's frame, a downed bot decodes only living
 ##   speakers' frames and a dead bot none; every event a bot decodes while dead is either for it
 ##   alone (the subject check) or also reached every living peer present then (view_of's
@@ -245,7 +248,7 @@ func check_bot(
 	_check_dead_events(matched, peer, found)
 	_check_records(decoded, matched, peer, found)
 	_check_teammates(view, matched, peer, found)
-	_check_snapshots(view, decoded, found)
+	_check_snapshots(view, decoded, peer, found)
 	_check_voice(view, decoded, peer, found)
 	_check_seeds(decoded, found)
 	_check_keys(decoded, found)
@@ -525,7 +528,9 @@ func _check_teammates(view: PeerView, matched: int, peer: int, found: PackedStri
 				found.append("decoded Teammates naming peer %d, not %s" % [other, own])
 
 
-func _check_snapshots(view: PeerView, decoded: DecodedView, found: PackedStringArray) -> void:
+func _check_snapshots(
+	view: PeerView, decoded: DecodedView, peer: int, found: PackedStringArray
+) -> void:
 	for at_tick: int in decoded.snapshots:
 		if not view.snapshots.has(at_tick):
 			found.append("a snapshot of tick %d that view_of lacks" % at_tick)
@@ -533,6 +538,10 @@ func _check_snapshots(view: PeerView, decoded: DecodedView, found: PackedStringA
 		var avatars: Dictionary = decoded.snapshots[at_tick]["avatars"]
 		if not WireSamples.same(avatars, view.snapshots[at_tick]["avatars"]):
 			found.append("the snapshot of tick %d differs from view_of's" % at_tick)
+		var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
+		var own := ScenarioInvariants.own_avatar_problem(peer, avatars, downed.has(peer))
+		if own != "":
+			found.append("the snapshot of tick %d %s" % [at_tick, own])
 		var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
 		for other: int in avatars:
 			if dead.has(other):

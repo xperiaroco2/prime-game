@@ -510,7 +510,7 @@ func test_the_command_log_holds_what_the_match_was_given() -> void:
 	assert_int(recorded.start_tick).is_equal(0)
 	assert_int(recorded.ticked_through).is_equal(game.ticked_through())
 	assert_array(recorded.layouts.keys()).contains_exactly_in_any_order(
-		[FixtureModes.LOBBY, FixtureModes.MAP]
+		[FixtureModes.LOBBY, FixtureModes.MAP, FixtureModes.MOTION_MAP]
 	)
 	var kinds: Array[StringName] = []
 	for command: MatchCommand in recorded.commands:

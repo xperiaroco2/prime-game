@@ -1,11 +1,13 @@
 class_name TargetDowned
 extends Condition
 ## Passes when the rule's target player (Channels.target_of: the intent's `target`, or the
-## channel's) is downed (ARCHITECTURE §9.4; M4-4): the raise's first condition, checked at the
-## start and every tick. Rejects with `not_downed`: whether a player is downed is public
-## (KnockedDown, the snapshot's flag).
+## channel's) is downed and its body at rest (ARCHITECTURE §9.4; M4-4): the raise's first
+## condition, checked at the start and every tick. Rejects with `not_downed`: whether a player is
+## downed is public (KnockedDown, the snapshot's flag); with `moving` when the body still moves
+## (the knockdown rework's KD4 (a): PlayerState.motion), as public as the snapshot's velocity.
 
 const NOT_DOWNED := &"not_downed"
+const MOVING := &"moving"
 
 
 ## It reads the rule's target player, not the actor.
@@ -18,9 +20,18 @@ func needs_target() -> bool:
 	return true
 
 
+func rejection_reason_in(ctx: MatchContext) -> StringName:
+	if negate:
+		return rejection_reason()
+	var target := ctx.state.player(Channels.target_of(ctx))
+	if target != null and target.life == PlayerState.Life.DOWNED and target.motion != null:
+		return MOVING
+	return NOT_DOWNED
+
+
 func _test(ctx: MatchContext) -> bool:
 	var target := ctx.state.player(Channels.target_of(ctx))
-	return target != null and target.life == PlayerState.Life.DOWNED
+	return target != null and target.life == PlayerState.Life.DOWNED and target.motion == null
 
 
 func _reason() -> StringName:

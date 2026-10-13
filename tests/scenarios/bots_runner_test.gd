@@ -206,6 +206,34 @@ func test_a_bot_that_decoded_a_dead_avatar_or_voice_or_a_changed_snapshot_is_a_l
 	assert_str(found).contains("it heard dead 1 at tick %d" % at_tick)
 
 
+func test_an_own_avatar_of_a_living_bot_or_none_of_a_knocked_down_one_is_a_leak() -> void:
+	# The own-avatar check (KE5, §9, #847) reads the life state record_tick saw, never for_peer.
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var own := runner.clients[2].view
+	var leaks := runner.leaks
+	assert_array(Array(leaks.check_bot("bot 2", 2, own, false))).is_empty()
+	var at_tick: int = own.snapshots.keys().back()
+	# A planted own avatar of bot 2, living at that tick.
+	var planted := _copy(own)
+	var avatars: Dictionary = (own.snapshots[at_tick]["avatars"] as Dictionary).duplicate()
+	avatars[2] = (avatars[1] as Dictionary).duplicate()
+	planted.snapshots[at_tick] = {"tick": at_tick, "avatars": avatars}
+	var found := _text(leaks.check_bot("bot 2", 2, planted, false))
+	assert_str(found).contains(
+		"the snapshot of tick %d shows peer 2 its own avatar, not knocked down" % at_tick
+	)
+	# Bot 2 knocked down after that tick, its decoded snapshot without its own avatar.
+	runner.game.state.players[2].life = PlayerState.Life.DOWNED
+	leaks.record_tick(at_tick)
+	found = _text(leaks.check_bot("bot 2", 2, own, false))
+	assert_str(found).contains(
+		"the snapshot of tick %d lacks the own avatar of knocked-down peer 2" % at_tick
+	)
+
+
 func test_an_event_that_reaches_the_dead_and_not_every_living_peer_is_a_leak() -> void:
 	var runner := BotsRunner.play(
 		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
@@ -247,6 +275,9 @@ func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_
 	runner.game.state.players[3].life = PlayerState.Life.DEAD
 	leaks.record_tick(at_tick)
 	var downed := _copy(runner.clients[2].view)
+	# Its snapshot of that tick, taken while it lived, would now also fail the own-avatar and the
+	# dead-avatar checks and push the voice lines past MAX_LISTED: this test is about the voice.
+	downed.snapshots.erase(at_tick)
 	downed.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
 	var found := _text(leaks.check_bot("bot 2", 2, downed, false))
 	assert_str(found).not_contains("downed, it heard")

@@ -12,6 +12,10 @@ extends RefCounted
 
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
+## The fixture map on which a knockdown moves the body (PlayerRules.motion_maps, KE12), which
+## with_motion_map() lists after MAP: a match starts on MAP, where a knockdown is today's; a test of
+## the motion picks it (LobbyPhase's map setting) or sets motion_maps itself.
+const MOTION_MAP := "fixture://motion_map"
 const LIVING := AcceptSpec.From.LIVING
 const DOWNED := AcceptSpec.From.DOWNED
 ## The map's respawn markers (RESPAWN_TAG), in level order: far from the round_player markers and
@@ -108,11 +112,18 @@ static func player_rules() -> PlayerRules:
 	rules.crouch_eye_height_m = 1.0
 	rules.crouch_speed_mps = 2.0
 	rules.crouch_fast_speed_mps = 2.8
+	# The rest: placeholders, "not a decision" (KD9 (b)). motion_maps stays empty (every map):
+	# with_motion_map() gives a knockdown mode a map where bodies move and one where they do not.
+	rules.rest_speed_mps = 0.1
+	rules.rest_s = 0.5
+	rules.longest_motion_s = 8.0
 	return rules
 
 
 ## A lobby with `count` lobby_player markers and a map with `count` round_player markers and the
-## RESPAWNS markers (only a mode with a Respawn reads them).
+## RESPAWNS markers (only a mode with a Respawn reads them). MOTION_MAP shares MAP's layout, the
+## same object: the markers a fixture adds to MAP's are on MOTION_MAP too (core/ never reads a
+## layout's path).
 static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 	var lobby := LevelLayout.new(LOBBY)
 	var map := LevelLayout.new(MAP)
@@ -121,7 +132,17 @@ static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 		map.add_marker(&"round_player", Vector3(10 + i, 0, 5))
 	for spot: Vector3 in RESPAWNS:
 		map.add_marker(RESPAWN_TAG, spot)
-	return {LOBBY: lobby, MAP: map}
+	return {LOBBY: lobby, MAP: map, MOTION_MAP: map}
+
+
+## `mode` with MOTION_MAP after its maps and as its one PlayerRules.motion_maps (KE12): a mode
+## whose rules can knock down keeps today's knockdown on its first map (§9: every existing life
+## test plays on a map motion_maps leaves out) and moves bodies on MOTION_MAP. Layouts: layouts().
+static func with_motion_map(mode: GameMode) -> GameMode:
+	if not mode.maps.has(MOTION_MAP):
+		mode.maps.append(MOTION_MAP)
+	mode.player_rules.motion_maps = PackedStringArray([MOTION_MAP])
+	return mode
 
 
 ## A match of `mode` that keeps its history for view_of().

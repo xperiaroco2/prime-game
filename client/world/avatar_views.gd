@@ -1,7 +1,8 @@
 class_name AvatarViews
 extends Node3D
 ## The `Avatars` node under World (ARCHITECTURE §4.7): one RemotePlayerBody per other player of the
-## own ClientModel's newest snapshot, placed each physics frame at SnapshotBuffer's interpolated
+## own ClientModel's newest snapshot (never the own avatar a knocked-down player's snapshot carries,
+## KE5, until 728d draws it), placed each physics frame at SnapshotBuffer's interpolated
 ## pose (E23) at priority -80, after the session (-90) and before the local player (0), so the
 ## player's push search sees this frame's capsules (static bodies placed with
 ## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
@@ -127,6 +128,8 @@ func _physics_process(_delta: float) -> void:
 	_drawn_at = buffer.render_tick(now_usec())
 	for key: Variant in model.avatars:
 		var peer: int = key
+		if peer == model.own_peer:
+			continue  # the own avatar (KE5): 728d draws it, never as a stranger
 		var pose := buffer.pose_of(peer, _drawn_at)
 		if pose == null:
 			continue

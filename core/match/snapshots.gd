@@ -3,8 +3,10 @@ extends RefCounted
 ## One peer's snapshot of one tick, built from visibility rules per entity (ARCHITECTURE §5): the
 ## avatar of every living or downed player reaches every player, the dead included (a spectator's
 ## camera is built from these); a dead player has no avatar, so no snapshot holds one; bodies and
-## items reach everyone; nobody gets their own avatar. The avatar's flag `downed` marks a downed
-## player, and `invulnerable` one whom strikes skip at that tick (after a respawn or a revive,
+## items reach everyone; nobody gets their own avatar, except a knocked-down player (the knockdown
+## rework's KE5 (a)): its own place, where the host's physics may carry it, and nothing hidden. The
+## avatar's flag `downed` marks a downed player, and `invulnerable` one whom strikes skip at that
+## tick (after a respawn or a revive,
 ## vision revision 1: public, so nobody swings at it in vain unawares). The hand and belt items are
 ## public too (`held_item`, `belt_item`: vision revision 1, Two hands). An item in flight shows
 ## `where` FLYING at its launch's origin (§7.1.16; items are not on the wire, E3: clients draw the
@@ -16,9 +18,9 @@ extends RefCounted
 static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
 	var avatars := {}
 	for peer: int in state.present_peers():
-		if peer == viewer:
-			continue
 		var player := state.players[peer]
+		if peer == viewer and player.life != PlayerState.Life.DOWNED:
+			continue
 		if player.life == PlayerState.Life.DEAD:
 			continue
 		avatars[peer] = {

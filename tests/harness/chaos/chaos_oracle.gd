@@ -23,6 +23,8 @@ const EMPTY_HAND := &"empty_hand"
 const NOTHING_TO_SWAP := &"nothing_to_swap"
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
+## TargetDowned of a downed target whose body still moves (the knockdown rework's KE15).
+const MOVING := &"moving"
 const OUT_OF_REACH := &"out_of_reach"
 ## The base mode's InReach of PickUp (§9.4: 2 m from the actor's last accepted feet to the item's
 ## rest position), checked after ItemOnGround and before InSight.
@@ -174,9 +176,15 @@ static func _rule(
 			if state != null and target_peer != peer:
 				target = state.player(target_peer)
 			# TargetDowned comes first (§9.5): a target that is not downed answers not_downed,
-			# whatever its role; a downed one the chaos peers never name.
+			# whatever its role; a downed one still moving answers moving (KE15, never on the greybox,
+			# KE12); one at rest the chaos peers never name.
 			var standing := target != null and target.life != PlayerState.Life.DOWNED
-			answer_now = NOT_DOWNED if standing else &"?"
+			if standing:
+				answer_now = NOT_DOWNED
+			elif target != null and target.motion != null:
+				answer_now = MOVING
+			else:
+				answer_now = &"?"
 		Intents.INTERACT:
 			answer_now = _interact(args, state)
 	# "?": an input the chaos peers never send in that state; the check reports it.

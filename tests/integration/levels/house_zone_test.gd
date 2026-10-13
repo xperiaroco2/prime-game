@@ -111,6 +111,9 @@ func test_a_knockdown_pauses_the_zone_until_the_raise() -> void:
 	_hold([downed], 3 * Ticks.RATE)
 	assert_int(FixtureZoneModes.ticks_of(_game, 0)).is_equal(paused)
 	assert_bool(FixtureZoneModes.state_of(_game).counting[0]).is_false()
+	# The knocked-down body moves on the House (PlayerRules.motion_maps) until the host's physics
+	# reports it at rest; this core-only match has none, so the reports are sent as it would.
+	_settle(downed)
 	# The raise, from outside the zone: the zone counts again from the member's first claim after.
 	_send(Intents.RAISE, raiser, {"target": downed})
 	for i in 10 * Ticks.RATE:
@@ -226,6 +229,17 @@ func _claim(peer: int) -> void:
 		"on_floor": true,
 	}
 	_send(Intents.MOVE_CLAIM, peer, args)
+
+
+## The host's body of `peer` reports itself at rest where it lies (BodyMoved, slower than the rest
+## speed for the rest time): the motion of its knockdown ends.
+func _settle(peer: int) -> void:
+	var rules := _game.mode.player_rules
+	var downed := _game.state.player(peer)
+	var args := {"epoch": downed.epoch, "position": downed.position, "velocity": Vector3.ZERO}
+	for i in maxi(1, Ticks.from_seconds(rules.rest_s)):
+		_game.apply(MatchCommand.new(Intents.BODY_MOVED, peer, _game.ticked_through() + 1, args))
+	assert_object(downed.motion).is_null()
 
 
 ## `ticks` ticks, in each of which every one of `peers` claims where it stands.

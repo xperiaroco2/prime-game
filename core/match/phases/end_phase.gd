@@ -52,5 +52,7 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 		return
 	if not ctx.state.is_present(peer):
 		return
+	# A body still moving stops: a leave leaves no body (the knockdown rework's §4).
+	LifeRules.stop_motion(ctx, ctx.state.players[peer])
 	ctx.state.players[peer].life = PlayerState.Life.LEFT
 	ctx.emit(PlayerLeftEvent.new(peer))

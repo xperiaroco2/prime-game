@@ -147,11 +147,13 @@ func _shown(game: Match, viewer: int, peer: int) -> bool:
 
 
 ## A round of FixtureModes.basic() with a second map, ELSEWHERE, and `crouch_maps`; the match is
-## on FixtureModes.MAP, the lobby's first pick.
+## on FixtureModes.MAP, the lobby's first pick. Its motion_maps is crouch_maps.
 func _round_with_crouch_maps(crouch_maps: PackedStringArray) -> Match:
 	var mode := FixtureModes.basic()
 	mode.maps = PackedStringArray([FixtureModes.MAP, ELSEWHERE])
 	mode.player_rules.crouch_maps = crouch_maps
+	# A body moves only where the crouch plays (KD11, the mode check): never knocked down here.
+	mode.player_rules.motion_maps = crouch_maps
 	assert_array(Array(mode.player_rules.check(mode))).is_empty()
 	var layouts := FixtureModes.layouts()
 	var elsewhere := LevelLayout.new(ELSEWHERE)

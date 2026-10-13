@@ -61,6 +61,9 @@ var sprinting := false
 ## horizontally: settle_ahead() settles the ticks no claim covers yet with them (§7.1).
 var sprint_held := false
 var moving := false
+## The knocked-down body's motion while the host's physics moves it (the knockdown rework's KE3),
+## or null: at rest, and for every player not knocked down on a map PlayerRules.motion_maps lists.
+var motion: BodyMotion = null
 
 
 func _init(peer_id: int, player_name: String) -> void:

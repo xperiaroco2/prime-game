@@ -14,8 +14,9 @@ extends RuleEffect
 ## downed for good (the tutorial's `raise_stage` wants exactly that).
 ##
 ## Emits: RaiseStopped (everyone), for a channel involving the player (none in a row: Match stops
-## every channel first); KnockedDown (everyone); Correction (the downed: its new epoch). With
-## `then_die`: Died (everyone), the dropped items' ItemPlaced (death, everyone); raises player_died,
+## every channel first); KnockedDown (everyone); Correction (the downed: its new epoch); on a map
+## PlayerRules.motion_maps lists, LaunchBody (server, no launch). With `then_die`: StopBody
+## (server), Died (everyone), the dropped items' ItemPlaced (death, everyone); raises player_died,
 ## then item_rested per item. No demands.
 
 ## The host's peer id (§4: the host is always peer 1).
@@ -53,9 +54,11 @@ func picked(state: MatchState) -> int:
 
 
 func emits() -> Array[Script]:
-	var found: Array[Script] = [RaiseStoppedEvent, KnockedDownEvent, CorrectionEvent]
+	var found: Array[Script] = [
+		RaiseStoppedEvent, KnockedDownEvent, CorrectionEvent, LaunchBodyEvent
+	]
 	if then_die:
-		found.append_array([DiedEvent, ItemPlacedEvent])
+		found.append_array([StopBodyEvent, DiedEvent, ItemPlacedEvent])
 	return found
 
 

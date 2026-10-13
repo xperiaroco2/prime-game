@@ -22,20 +22,26 @@ const FLOOR_RAY_M := 1000.0
 var footprint_radius := 0.0
 ## Every level world's read errors, in the order the levels were first added.
 var errors := PackedStringArray()
+## The knocked-down bodies the host simulates (KE13), in the current level's world: use_level()
+## hands it the level's World3D, and a change to another level frees every body.
+var bodies: HostBodies
 
 var _levels: Dictionary[String, LevelWorld] = {}
 var _current: LevelWorld = null
 
 
-func _init(capsule_radius: float = 0.0) -> void:
+func _init(capsule_radius: float = 0.0, crouch_height: float = 0.0) -> void:
 	footprint_radius = capsule_radius
+	bodies = HostBodies.new(capsule_radius, crouch_height)
 
 
 ## The worlds of every level of `mode` (its lobby and its maps: MarkerReader.level_paths_of), with
-## the mode's capsule radius. Check `errors` before hosting: a level with errors is refused.
+## the mode's capsule radius, and bodies of its crouching capsule (capsule_radius_m by
+## crouch_height_m, KE13). Check `errors` before hosting: a level with errors is refused.
 static func for_mode(mode: GameMode) -> HostWorldQuery:
 	var radius := mode.player_rules.capsule_radius_m if mode.player_rules != null else 0.0
-	var query := HostWorldQuery.new(radius)
+	var height := mode.player_rules.crouch_height_m if mode.player_rules != null else 0.0
+	var query := HostWorldQuery.new(radius, height)
 	for path: String in MarkerReader.level_paths_of(mode):
 		query.add_level(LevelWorld.build(path))
 	return query
@@ -60,11 +66,13 @@ func level_path() -> String:
 
 
 ## Switches to the level of `path` (E9). An empty path (a phase with no level) leaves no level; a
-## path with no world is logged, and then there is no level either.
+## path with no world is logged, and then there is no level either. The bodies move to the level's
+## world: another level (or none) frees every body (KE13), the same level keeps them.
 func use_level(path: String) -> void:
 	_current = _levels.get(path) as LevelWorld
 	if _current == null and not path.is_empty():
 		push_error("host world: no collision world for the level %s" % path)
+	bodies.use_world(_current.world if _current != null else null)
 
 
 ## Whether the segment from `from` to `to` hits nothing (§4.5).

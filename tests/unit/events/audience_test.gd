@@ -65,6 +65,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		RefuseJoinsEvent.new(),
 		AllowJoinsEvent.new(),
 		DisconnectPeerEvent.new(P1),
+		LaunchBodyEvent.new(P1, 1, Vector3.ZERO, Vector3.ZERO),
+		StopBodyEvent.new(P1),
 		DisconnectingEvent.new(P1, DisconnectingEvent.LOAD_DEADLINE),
 		SelfStatusEvent.new(P1, 0, 0, false),
 		ItemSpawnedEvent.new(1, &"package", Vector3.ZERO),

@@ -78,7 +78,7 @@ func test_every_intent_has_a_row_and_force_role_a_debug_row() -> void:
 			assert_bool(row.kind < WireSchema.FIRST_DEBUG).is_true()
 	var forced := schema.row_named(Intents.FORCE_ROLE)
 	assert_int(forced.kind).is_between(WireSchema.FIRST_DEBUG, WireSchema.FIRST_EVENT - 1)
-	for command: StringName in [Intents.PEER_CONNECTED, Intents.PEER_LEFT]:
+	for command: StringName in [Intents.PEER_CONNECTED, Intents.PEER_LEFT, Intents.BODY_MOVED]:
 		assert_object(schema.row_named(command)).is_null()
 
 
@@ -86,10 +86,12 @@ func test_every_intent_has_a_row_and_force_role_a_debug_row() -> void:
 ## absent, so each row's fields, flags and guarded parts must be the declared names and types.
 func test_every_intent_row_carries_the_fields_intents_declares_with_their_types() -> void:
 	var expected: Array[StringName] = Intents.ALL.duplicate()
-	expected.append_array([Intents.FORCE_ROLE, Intents.FORCE_CLOCK])
+	expected.append_array([Intents.FORCE_ROLE, Intents.FORCE_CLOCK, Intents.BODY_MOVED])
 	assert_array(Intents.FIELDS.keys()).contains_exactly_in_any_order(expected)
 	var schema := WireSchema.game(true)
 	for intent: StringName in Intents.FIELDS:
+		if intent == Intents.BODY_MOVED:
+			continue  # server/ originates it, never decodable (KE14): no row
 		var row := schema.row_named(intent)
 		assert_object(row).override_failure_message(str(intent)).is_not_null()
 		if row == null:

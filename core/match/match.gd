@@ -484,6 +484,8 @@ func _dispatch(command: MatchCommand) -> void:
 	ctx.command = command
 	if command.kind == Intents.PEER_CONNECTED:
 		_phase.on_peer_connected(ctx, command.peer)
+	elif command.kind == Intents.BODY_MOVED:
+		LifeRules.body_moved(ctx, command)
 	elif command.kind == Intents.PEER_LEFT:
 		_phase.on_peer_left(ctx, command.peer)
 	elif command.kind == Intents.FORCE_ROLE:
