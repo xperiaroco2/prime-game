@@ -138,6 +138,11 @@ func test_a_join_after_a_leave_has_its_deadline_and_nothing_between() -> void:
 	assert_array(Array(scenario.problems())).is_equal(
 		["bot 2: a Join is its first step or directly follows its own Leave"]
 	)
+	# A Join as the second step, after a step that is no Leave, is misplaced as well.
+	scenario.scripts[1].steps = [StepReady.new(), _join(1.0, 0.0)]
+	assert_array(Array(scenario.problems())).is_equal(
+		["bot 2: a Join is its first step or directly follows its own Leave"]
+	)
 	scenario.scripts[1].steps = [StepLeave.new(), _join(5.0, 5.0)]
 	assert_array(Array(scenario.problems())).is_equal(
 		["bot 2: a Join after its Leave needs deadline_s above at_s (5.0 s)"]
