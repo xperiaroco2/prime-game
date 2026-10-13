@@ -3,12 +3,15 @@ extends GdUnitTestSuite
 ## or who let go; RE10), checked apart from the declarations: each event's to_dict() keys and its
 ## wire row's fields (an optional field's parts included) are held to a list written here, so a
 ## `peer` added to either fails this test even if its audience still says everyone. R3 (#807)
-## adds LiftChanged and PartNeeded; R4 (#808) adds its own.
+## adds LiftChanged and PartNeeded; R4 (#808) adds PartFitted. FitChanged names the fitter on
+## purpose (the ADR's §3: every client draws the fitter at work; RD15 (a)), so its test holds it
+## to that one player field.
 
 ## Event -> the keys of its to_dict() and the fields of its wire row, in order.
 const KEYS := {
 	&"LiftChanged": ["station", "up", "tick"],
 	&"PartNeeded": ["station", "kind"],
+	&"PartFitted": ["station", "item"],
 }
 
 
@@ -37,5 +40,25 @@ func test_each_car_repair_event_s_wire_row_carries_the_same_fields_and_no_peer()
 		assert_array(names).is_equal(KEYS[row_name])
 
 
+func test_fit_changed_names_the_fitter_and_no_other_player() -> void:
+	var event := FitChangedEvent.new(1, 3, 40)
+	assert_array(event.to_dict().keys()).is_equal(["station", "fitter", "tick"])
+	assert_int(event.audience().kind).is_equal(Audience.Kind.EVERYONE)
+	var row := WireSchema.game(false).row_named(&"FitChanged")
+	var peers: Array = []
+	for field: WireField in row.fields:
+		var inner: Array[WireField] = [field]
+		if field.type == WireField.Type.OPTIONAL:
+			inner = field.parts
+		for part: WireField in inner:
+			if part.type == WireField.Type.PEER:
+				peers.append(part.name)
+	assert_array(peers).is_equal(["fitter"])
+
+
 func _samples() -> Array[MatchEvent]:
-	return [LiftChangedEvent.new(2, true, 40), PartNeededEvent.new(5, &"spark_plug")]
+	return [
+		LiftChangedEvent.new(2, true, 40),
+		PartNeededEvent.new(5, &"spark_plug"),
+		PartFittedEvent.new(1, 7),
+	]

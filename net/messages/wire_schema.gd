@@ -39,7 +39,8 @@ extends RefCounted
 ## 25 since #638 added Hello's return `key` (an id decoded as a String; the returning-players ADR,
 ## Decision 4);
 ## 26 since #773 added Cooking's GrillLoaded (kind 79) and IngredientPlaced (kind 80).
-const VERSION := 26
+## 27 since #808 added the car repair's FitChanged (kind 81) and PartFitted (kind 82).
+const VERSION := 27
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -516,6 +517,17 @@ static func _events() -> Array[WireRow]:
 			[_station("station"), _item("item"), _of("fried", _tick()), _of("burnt", _tick())]
 		),
 		_down(80, &"IngredientPlaced", 5, [_item("item"), _station("station"), _bool("right")]),
+		_down(
+			81,
+			&"FitChanged",
+			11,
+			[
+				_station("station"),
+				WireField.when("has_fitter", [_peer("fitter")], {"fitter": 0}),
+				_of("tick", _tick()),
+			]
+		),
+		_down(82, &"PartFitted", 4, [_station("station"), _item("item")]),
 	]
 
 

@@ -13,7 +13,8 @@ extends RefCounted
 ##   PackageDelivered, TaskState, TaskProgress, ZoneProgress, ItemVanished, ItemChanged, the
 ##   Generator's SwitchChanged and ButtonPressed, #797, Cooking's OrderPosted and HerbsDealt, #772,
 ##   the car repair's LiftChanged and PartNeeded, #807, the photo task's FilmLoaded and
-##   ShotTaken, #781, and Cooking's GrillLoaded and IngredientPlaced, #773).
+##   ShotTaken, #781, Cooking's GrillLoaded and IngredientPlaced, #773, and the car repair's
+##   FitChanged and PartFitted, #808).
 ## - No event and no snapshot holds the session seed or a match seed.
 ## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
 ##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
@@ -55,6 +56,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"ShotTaken",
 	&"GrillLoaded",
 	&"IngredientPlaced",
+	&"FitChanged",
+	&"PartFitted",
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.

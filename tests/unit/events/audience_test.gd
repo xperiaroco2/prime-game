@@ -84,6 +84,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		ShotTakenEvent.new(1, 2, 0),
 		GrillLoadedEvent.new(1, 2, 200, 300),
 		IngredientPlacedEvent.new(2, 1, true),
+		FitChangedEvent.new(1, 2, 40),
+		PartFittedEvent.new(1, 3),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),

@@ -684,3 +684,36 @@ func test_the_lift_folds_up_and_its_tick_and_the_picture_its_needed_part() -> vo
 	_fold(LiftChangedEvent.new(9, true, 60))
 	_fold(PartNeededEvent.new(9, &"spark_plug"))
 	assert_bool(_model.stations.has(9)).is_false()
+
+
+func test_the_car_folds_its_fitter_and_a_fitted_part_leaves_the_hand() -> void:
+	# The car repair (#808): FitChanged on the car's station, PartFitted locks the part there.
+	_to_round()
+	var car_at := Vector3(0, 0, 30)
+	_fold(StationPlacedEvent.new(1, &"car", Color.WHITE, car_at))
+	_fold(ItemSpawnedEvent.new(4, &"spark_plug", Vector3(0, 0, 40)))
+	_fold(ItemPickedUpEvent.new(OWN, 4))
+	var car := _model.stations[1]
+	assert_int(car.fitter).is_equal(0)
+	assert_int(car.fit_tick).is_equal(-1)
+	assert_int(car.fitted).is_equal(0)
+	_fold(FitChangedEvent.new(1, OWN, 40))
+	assert_int(car.fitter).is_equal(OWN)
+	assert_int(car.fit_tick).is_equal(40)
+	_fold(FitChangedEvent.new(1, 0, 45))
+	assert_int(car.fitter).is_equal(0)
+	assert_int(car.fit_tick).is_equal(45)
+	_fold(FitChangedEvent.new(1, OWN, 50))
+	assert_int(_model.hand_item(OWN)).is_equal(4)
+	_fold(PartFittedEvent.new(1, 4))
+	assert_int(car.fitter).is_equal(0)
+	assert_int(car.fitted).is_equal(1)
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	var part: ClientModel.Item = _model.items[4]
+	assert_bool(part.fitted).is_true()
+	assert_int(part.holder).is_equal(ClientModel.NO_HOLDER)
+	assert_vector(part.position).is_equal(car_at)
+	# A station the model does not know changes nothing and is not added.
+	_fold(FitChangedEvent.new(9, OWN, 60))
+	_fold(PartFittedEvent.new(9, 4))
+	assert_bool(_model.stations.has(9)).is_false()
