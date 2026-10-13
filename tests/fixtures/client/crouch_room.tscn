@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://bjds5icvrfugd"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab"]
+size = Vector3(3, 0.2, 4)
+
+[node name="CrouchRoom" type="Node3D" unique_id=2076169726]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1772988453]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=1975389935]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Slab" type="StaticBody3D" parent="." unique_id=123509233]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.5, 1)
+
+[node name="Shape" type="CollisionShape3D" parent="Slab" unique_id=464999636]
+shape = SubResource("BoxShape3D_slab")
+
+[node name="LobbyPlayer1" type="Marker3D" parent="." unique_id=176954980 groups=["spawn_lobby_player"]]
+
+[node name="LobbyPlayer2" type="Marker3D" parent="." unique_id=198505371 groups=["spawn_lobby_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2)
+
+[node name="LobbyPlayer3" type="Marker3D" parent="." unique_id=837199730 groups=["spawn_lobby_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
+
+[node name="LobbyPlayer4" type="Marker3D" parent="." unique_id=2082048015 groups=["spawn_lobby_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -2)
+
+[node name="RoundPlayer1" type="Marker3D" parent="." unique_id=1968929218 groups=["spawn_round_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0, 12)
+
+[node name="RoundPlayer2" type="Marker3D" parent="." unique_id=431074525 groups=["spawn_round_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, 12)
+
+[node name="RoundPlayer3" type="Marker3D" parent="." unique_id=2085465134 groups=["spawn_round_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 12)
+
+[node name="RoundPlayer4" type="Marker3D" parent="." unique_id=1916225734 groups=["spawn_round_player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 12)
+
+[node name="Knife1" type="Marker3D" parent="." unique_id=296157133 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 10)
+
+[node name="Knife2" type="Marker3D" parent="." unique_id=1242094334 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 10)
+
+[node name="Knife3" type="Marker3D" parent="." unique_id=1288012983 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 10)
+
+[node name="Circle1" type="Marker3D" parent="." unique_id=1335522173 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 14)
+
+[node name="Circle2" type="Marker3D" parent="." unique_id=1086169367 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 14)
+
+[node name="Circle3" type="Marker3D" parent="." unique_id=1478372972 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 14)
+
+[node name="Respawn1" type="Marker3D" parent="." unique_id=1733983734 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 12)
+
+[node name="Respawn2" type="Marker3D" parent="." unique_id=1689273394 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 12)

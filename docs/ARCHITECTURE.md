@@ -2312,8 +2312,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.6 Movement on the network
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
-  camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
-  and `count_jump` at a jump, and `set_facing` when it turns outside the step (the level look of a respawn or a
+  camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input, stands on the floor and,
+  since #791, has the crouched capsule, §7.1.17) and `count_jump` at a jump, and `set_facing` when it turns outside the step (the level look of a respawn or a
   placement, #191, #240);
   `ClientSession` sends one claim per 20 Hz client tick (§4.6.1). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
@@ -2322,7 +2322,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (a bot falling straight down claims (0, -1, 0)): `MovementRule` stores a unit facing, keeps the last one when a
   claim's has no direction and clamps the pitch to ±89° (built in M4-2, §7.1), and every camera, head or basis the client builds from a
   remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
-- **Numbers:** the controller's speeds, jump height, capsule, eye and step height and stamina come from
+- **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and the crouch's two
+  heights and two speeds (and `crouch_maps`, read through `GameFlow.crouch_plays`, #791) come from
   the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
   speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
@@ -2349,6 +2350,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   gravity, no sprint and no jump (`PlayerController._hold` every physics step), and claims where it lay with its
   look; it keeps the standing capsule for collision, and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
   which no push search looks at: the downed collide with no player.
+- **The crouch** (#791, §7, §7.1.17): the controller claims its crouch as the pose of the step it sends (the claim's
+  `crouched` flag), and only where `GameFlow.crouch_plays` says it plays, the same test the host's `MovementRule`
+  keeps the flag by, so an honest crouched walk or crouched sprint is never corrected: 0 `Correction`s over the
+  loopback, also with packets held back and with jitter (`player_network_crouch_test.gd`). Its remote pose (727c) is
+  not built.
 
 #### 4.7.7 Built in M4-7 (#143), movement on the network
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
@@ -3169,7 +3175,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
   act on their `project.godot` key but have no Settings row yet, with their phases: `throw` (G, #645, alive), until the
-  copy deck names it (`control.throw`, #851). `bind()` refuses a binding that would put an action of such a phase on
+  copy deck names it (`control.throw`, #851), and `crouch` (Ctrl, #791, alive), until it names `control.crouch`. `bind()` refuses a binding that would put an action of such a phase on
   that key (`unlisted_on()`; Use on G would swing and throw on one press), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
@@ -5092,6 +5098,21 @@ The local player's controller (#46, `client/player/`):
   life fold; any life change drops a pending jump. A knocked-down joiner holding the move keys over the loopback
   stays where the host has it with 0 `Correction`s, also on a clock that stands still and then jumps
   (`player_network_test.gd`, `player_controller_downed_test.gd`).
+- The crouch (#791, §7.1.17, the crouch ADR's KE5, KE6, KD4 (a), KD5 (b), KD6 (b)): while `crouch_held` (the held
+  `crouch` action on physical Ctrl, read inexactly so Ctrl+W still walks), living and where `crouch_plays`, the body
+  takes `crouch_height_m` at once: its own `CapsuleShape3D`'s height switches and the shape moves to half of it, so
+  the feet stay, and the contact search's capsule follows; the head eases to `eye_height_of(crouched)` at the step
+  view's rate. Without Ctrl it stands only where `test_move` from the feet straight up by the height difference
+  hits nothing (`_room_to_stand`), checked each crouched step, so letting go under a low ceiling keeps the crouch
+  until the body is out. Crouched, Shift's sprint state (`PredictedStamina.can_sprint`, paid as a sprint) moves at
+  `crouch_fast_speed_mps`, else `crouch_speed_mps`. Space while crouched stands up and jumps in the same step where
+  the standing capsule fits, does not crouch again before it lands and crouches again on landing while Ctrl is held;
+  where it does not fit, nothing happens. Every teleport and life change into the living takes the crouched capsule
+  first and stands only where the test from the new place finds room (the ADR's step 7); `crouch_plays` false, or a
+  life out of the living, stands the body at once. Each step's pose goes to `set_motion`'s `crouched`. `Game` sets
+  `crouch_plays` from `GameFlow.crouch_plays` (a phase on the match's map that the own mode's `crouch_maps` holds,
+  as the host's `Match.crouch_plays`), so the key does nothing in the lobby and on an unlisted map, and
+  `release_keys()` lets go of Ctrl with the other keys under the Esc menu.
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
   only; the dead are on no layer; a living player finds the
@@ -5591,8 +5612,9 @@ there would not follow from the commands.
   (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
   thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
-#### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790)
-Status: the host's part and the wire are built (#790); the client's (727b, 727c) is not.
+#### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790, the local crouch in #791)
+Status: the host's part and the wire are built (#790), and the local player's crouch (727b, #791); others' crouch
+(727c) is not.
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
@@ -5630,7 +5652,8 @@ reads, do not move.
   drawn over any player (KD2, removed by #756). The steps of a slow walk are quieter and slower (KD1), read from the
   speed as every step is, never the flag: at or below `crouch_fast_speed_mps` 6 dB quieter and heard within 6 m
   (placeholders), eased to today's at the walk speed, only where the crouch plays; the cadence's held stride makes
-  them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8).
+  them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8); since #791 it acts on Ctrl but has no
+  Settings row (and so no rebinding) until the copy deck names `control.crouch` (`Controls.UNLISTED`, as `throw`, #851).
 - **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
   height alone asks for the crouch (KD3 (a), the engineer's, which also answers the car repair ADR's RD1). A crouched
   player may hold the lift (KD8), so the car repair ADR's "no view of who is under the car" test (its RE15, in R8)
@@ -5638,7 +5661,8 @@ reads, do not move.
   ends), and the level's walls block that whole band; whichever of R8 and 727a lands second widens it. Prevents: a
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
-  numbers, `crouch_maps`; #790, built), 727b (the local crouch), 727c (others' crouch: pose, voice, the quiet steps).
+  numbers, `crouch_maps`; #790, built), 727b (the local crouch; #791, built), 727c (others' crouch: pose, voice,
+  the quiet steps).
 - **Built in #790 (727a)**, the host's part and the wire: `PlayerRules`' four crouch numbers and `crouch_maps`
   (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
   `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
@@ -5646,7 +5670,7 @@ reads, do not move.
   placement, knockdown and respawn and on entering a phase where it does not play; the snapshot avatar's `crouched`;
   `Items.eye_of`, `Strike`, `FlightTicks` and `ThrowItem`'s largest radius reading the crouched eye and capsule; the
   photo task's subject head and `ShotTaken`'s record row (§9.5.22); the protocol bump to 29 (§4.3.5);
-  `ClientSession.set_motion`'s `crouched` (727b passes the controller's) and `ClientModel.is_crouched`; the base mode's
+  `ClientSession.set_motion`'s `crouched` (the controller's since #791) and `ClientModel.is_crouched`; the base mode's
   numbers and the House alone (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem`, run on every
   tick's snapshots by `check_tick`. The House is not played by bots (§9.7), and the greybox carries no new mechanic
   (the engineer's answer (a) on #790): the wire is tested through the host session harness on a fixture mode instead,
@@ -5660,6 +5684,23 @@ reads, do not move.
   crouches on the House alone) and `tests/integration/server/host_session_crouch_test.gd` (over the real wire: a
   crouched avatar shown, a downed claim's bit, an unlisted map's and the lobby's ignored, a raw client's crouched
   claim alike; each client's decode equals its `view_of`).
+- **Built in #791 (727b)**, the local player's crouch (§7's controller, §4.7.6): the `crouch` action on physical
+  Ctrl in `project.godot`, in `Controls.UNLISTED` (alive) until the deck names `control.crouch`, so `bind()` puts no
+  living action on Ctrl; `PlayerController`'s `crouch_held`, `crouch_plays`, `is_crouched()` and `release_keys()`,
+  the capsule switched with the feet kept, the eased eye, the `test_move` stand-up test, the crouched speeds, the
+  jump from the crouch, the crouched capsule first after every teleport and life change, and `set_motion`'s
+  `crouched`; `GameFlow.crouch_plays`, which `Game` sets on the controller with the other player flags. The test
+  level is `tests/fixtures/client/crouch_room.tscn` (a slab under 1.4 m), never the greybox (#767, the engineer's
+  answer (a) on #790).
+- **Tests (#791):** `tests/integration/client/player/player_controller_crouch_test.gd` (blocked standing and
+  passing crouched, letting go underneath, a teleport and a life change underneath, Shift's speed and stamina and
+  the slow walk without it, the crouched jump and none under the slab, landing crouched again, where it does not
+  play, never downed or dead, each body its own capsule),
+  `player_network_crouch_test.gd` (over the loopback, `NetPair.with_crouch_room`: 0 `Correction`s, also with
+  packets held back and with jitter, the host relaying the pose; Ctrl with W and Shift through
+  `Input.parse_input_event`; the Esc menu releasing Ctrl; nothing in the lobby or on a map the list leaves out),
+  `tests/unit/client/app/game_flow_test.gd` (`crouch_plays`) and `controls_test.gd` (the crouch on Ctrl, no living
+  action on it).
 
 #### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's

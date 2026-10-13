@@ -265,7 +265,7 @@ func last_claim_tick() -> int:
 ## What the next MoveClaim says, from the mover (the player controller or a bot's), once per
 ## physics step: the last call's position, velocity, facing and floor, and the sprint state and
 ## movement input if any call since the last claim had them (#155). `crouched`: the pose at the step
-## (the crouch ADR, KE1; 727b passes the controller's), the last call's as the floor is.
+## (the crouch ADR, KE1; the controller's since #791), the last call's as the floor is.
 func set_motion(
 	position: Vector3,
 	velocity: Vector3,

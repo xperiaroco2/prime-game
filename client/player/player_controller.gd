@@ -12,6 +12,18 @@ extends CharacterBody3D
 ## A dead player has no body: no layer, no mesh, and the game stops its physics step. The origin is
 ## at the feet.
 ##
+## The crouch (the crouch ADR, #791): while `crouch_held` (Ctrl), living, where `crouch_plays`
+## (Game says so from the mode's crouch_maps, KE10; never in the lobby), the body takes the
+## crouched capsule at once, its own CapsuleShape3D's height switched with the feet kept, and the
+## view eases to the crouched eye (KE5). It stands only where the stand-up test (`test_move`
+## straight up by the height difference, KE6) finds room, so letting go under a low ceiling keeps
+## the crouch until the body is out (KD4 (a)). Crouched, Shift is the sprint state at
+## crouch_fast_speed_mps, paid as a sprint, else the crouch walk (KD5 (b)); Space stands it up and
+## jumps in the same step where the standing capsule fits, and it does not crouch again before it
+## lands, else does nothing (KD6 (b)). A teleport or a life change into the living takes the
+## crouched capsule first and stands only where the test finds room (the ADR's step 7). Each step's
+## crouch goes to `set_motion` (KE1).
+##
 ## On the network (M4-7) every physics step ends with what it claims: `attach()`ed to a
 ## ClientSession, it calls `set_motion` with its position, velocity, the camera's 3D look vector as
 ## the facing (E22, at most MAX_PITCH up or down), the sprint state, whether it gave movement input
@@ -60,6 +72,12 @@ var move_input: Vector2 = Vector2.ZERO
 var sprint_held: bool = false
 ## Set when jump is pressed; the next physics step consumes it, jumping or not.
 var jump_requested: bool = false
+## The crouch key is held (KE8: hold, not toggle).
+var crouch_held: bool = false
+## Whether the crouch plays in the level the game has loaded (the crouch ADR, KE10): Game sets it;
+## elsewhere the crouch key does nothing, and a change to false stands the body up at once.
+var crouch_plays := false:
+	set = set_crouch_plays
 ## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
 ## captures or frees it; the keys still move the player. Game sets it every frame.
 var mouse_free := false
@@ -91,6 +109,14 @@ var _contacts := PhysicsShapeQueryParameters3D.new()
 ## What the last step did, for the claim: gave movement input, jumped.
 var _moving := false
 var _jumped := false
+## The body has the crouched capsule (KE5).
+var _crouched := false
+## A jump from the crouch stood the body up: it does not crouch again before it lands (KD6 (b)).
+var _jump_stood := false
+## The body's own capsule, whose height switches with the crouch, and the contact search's (KE5):
+## each body keeps its own, so a crouch never shrinks another player.
+var _capsule: CapsuleShape3D
+var _reach: CapsuleShape3D
 ## The own hand item in the first-person view (M4-8), under the camera.
 var _hand_view := FirstPersonHand.new()
 
@@ -117,7 +143,7 @@ func _physics_process(delta: float) -> void:
 		_read_device_input()
 	_head.position.y = move_toward(
 		_head.position.y,
-		rules.eye_height_m,
+		rules.eye_height_of(_crouched),
 		rules.step_height_m / tuning.view_catch_up_seconds * delta
 	)
 	if is_downed():
@@ -152,6 +178,28 @@ func set_rules(value: PlayerRules) -> void:
 	rules = value
 	if rules != null and is_node_ready():
 		_apply_rules()
+
+
+## Sets whether the crouch plays here (KE10). Where it stops playing the body stands at once, as a
+## life change out of the living does: the level is changing under it.
+func set_crouch_plays(value: bool) -> void:
+	crouch_plays = value
+	if not value and _crouched:
+		_set_crouched(false)
+
+
+## Lets go of every key it holds, as Game does when nothing reads the keys (the Esc menu, #169):
+## the movement keys, sprint, the crouch (KE8) and a pending jump.
+func release_keys() -> void:
+	move_input = Vector2.ZERO
+	sprint_held = false
+	crouch_held = false
+	jump_requested = false
+
+
+## Whether the body has the crouched capsule (for the HUD and tests).
+func is_crouched() -> bool:
+	return _crouched
 
 
 ## Claims to `client` from the next physics step on, settles its stamina by the claims and follows
@@ -202,7 +250,8 @@ func look_level() -> void:
 ## living push each other apart in `_push_apart`, not through collisions); the downed are on the
 ## downed layer, which no push looks at (Q6), and keep the standing capsule of the living (they
 ## hold still, KE4), with the lying mesh shown. The dead are on no layer and show nothing. Any
-## change stops the body.
+## change stops the body; into the living it takes the crouched capsule first and stands where it
+## finds room (the crouch ADR's step 7), out of it the standing one.
 func set_life(value: ClientModel.Life) -> void:
 	life = value
 	collision_mask = PhysicsLayers.WORLD
@@ -221,6 +270,9 @@ func set_life(value: ClientModel.Life) -> void:
 	_stepping = false
 	# A jump asked for while dead (no step ran to consume it) must not fire at the respawn.
 	jump_requested = false
+	_jump_stood = false
+	if is_node_ready():
+		_crouch_where_placed(global_transform)
 
 
 ## Whether the player is downed: it holds still and looks.
@@ -234,14 +286,18 @@ func is_living() -> bool:
 
 
 ## Puts the body at `to` at rest, as a respawn or the host's correction does: no velocity, no
-## step in progress, and the new place is the floor a step's height is measured from.
+## step in progress, and the new place is the floor a step's height is measured from. The crouch:
+## the crouched capsule first, standing only where the stand-up test from `to` finds room (the
+## crouch ADR's step 7), so a player placed under a low ceiling is not stood up inside it.
 func teleport(to: Transform3D) -> void:
 	global_transform = to
 	velocity = Vector3.ZERO
 	_stepping = false
+	_jump_stood = false
 	_floor_y = to.origin.y
+	_crouch_where_placed(to)
 	if rules != null:
-		_head.position.y = rules.eye_height_m
+		_head.position.y = rules.eye_height_of(_crouched)
 
 
 ## Whether the player is in the sprint state (for the HUD and tests).
@@ -262,17 +318,15 @@ func _apply_rules() -> void:
 	if stamina == null:
 		stamina = PredictedStamina.new(rules)
 		_follow_claims()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = rules.capsule_radius_m
-	capsule.height = rules.capsule_height_m
-	_shape.shape = capsule
-	_shape.position = Vector3(0.0, rules.capsule_height_m * 0.5, 0.0)
-	_head.position = Vector3(0.0, rules.eye_height_m, 0.0)
+	_capsule = CapsuleShape3D.new()
+	_capsule.radius = rules.capsule_radius_m
+	_shape.shape = _capsule
 	floor_snap_length = rules.step_height_m
-	var reach := CapsuleShape3D.new()
-	reach.radius = rules.capsule_radius_m + CONTACT_MARGIN
-	reach.height = rules.capsule_height_m + CONTACT_MARGIN * 2.0
-	_contacts.shape = reach
+	_reach = CapsuleShape3D.new()
+	_reach.radius = rules.capsule_radius_m + CONTACT_MARGIN
+	_contacts.shape = _reach
+	_set_crouched(_crouched)
+	_head.position = Vector3(0.0, rules.eye_height_of(_crouched), 0.0)
 	_contacts.collision_mask = PhysicsLayers.LIVING
 	_contacts.exclude = [get_rid()]
 	_lying.mesh = LifeLooks.capsule(rules, LifeLooks.PLAYER_COLOUR)
@@ -305,12 +359,15 @@ func _hold(delta: float) -> void:
 func _read_device_input() -> void:
 	move_input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
 	sprint_held = Input.is_action_pressed("sprint")
+	# Inexact (the default): a held Ctrl blocks no other key, and Ctrl+W still walks (KE8).
+	crouch_held = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("jump"):
 		jump_requested = true
 
 
 func _walk(delta: float) -> void:
 	var grounded := is_on_floor() or _stepping
+	_follow_crouch()
 	_sprinting = sprint_held and stamina.can_sprint(_sprinting, is_downed())
 	var speed := _speed()
 	var steering := _horizontal_wish()
@@ -320,7 +377,7 @@ func _walk(delta: float) -> void:
 	velocity.z = wish.z
 	var jumped := false
 	var gravity := get_gravity().length()
-	if jump_requested and grounded and stamina.can_jump(is_downed()):
+	if jump_requested and grounded and stamina.can_jump(is_downed()) and _stand_to_jump():
 		velocity.y = jump_velocity(rules.jump_height_m, gravity, delta)
 		jumped = true
 		_stepping = false
@@ -341,6 +398,9 @@ func _walk(delta: float) -> void:
 		_cross_step(moved)
 	if is_on_floor():
 		_floor_y = _floor_contact_y()
+		# Landed from a jump from the crouch: the next step crouches again while Ctrl is held.
+		if not jumped:
+			_jump_stood = false
 	# Only the player's own movement costs stamina: a push moves a player that gives no input for
 	# free, even while it holds sprint (the engineer's decision of 2026-09-30, #46).
 	_moving = not steering.is_zero_approx()
@@ -356,7 +416,13 @@ func _claim() -> void:
 	if _jumped:
 		session.count_jump()
 	session.set_motion(
-		global_position, velocity, look_vector(), _sprinting, _moving, is_on_floor() or _stepping
+		global_position,
+		velocity,
+		look_vector(),
+		_sprinting,
+		_moving,
+		is_on_floor() or _stepping,
+		_crouched
 	)
 
 
@@ -410,9 +476,79 @@ func _follow_claims() -> void:
 		predicted.follow_claims()
 
 
-## Metres per second on the ground this step: the living walk or sprint.
+## Metres per second on the ground this step: the living walk or sprint; crouched, the crouch walk,
+## or in the sprint state crouch_fast_speed_mps, paid as a sprint (KD5 (b)).
 func _speed() -> float:
+	if _crouched:
+		return rules.crouch_fast_speed_mps if _sprinting else rules.crouch_speed_mps
 	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
+
+
+## Whether the body wants the crouch now (the crouch ADR's step 1): the key held, living, and the
+## crouch plays here (KE10).
+func _wants_crouch() -> bool:
+	return crouch_held and crouch_plays and is_living()
+
+
+## The crouch ADR's steps 2 and 3, at the start of a living step: wanting, the body takes the
+## crouched capsule at once, on the floor or in the air (only the head moves), but not in a jump
+## from the crouch before it lands (KD6 (b)); not wanting, it stands only where the stand-up test
+## finds room (KD4 (a)), so letting go under a low ceiling keeps the crouch until it is out.
+func _follow_crouch() -> void:
+	var wants := _wants_crouch()
+	if wants and not _crouched and not _jump_stood:
+		_set_crouched(true)
+	elif not wants and _crouched and _room_to_stand(global_transform):
+		_set_crouched(false)
+
+
+## Space while crouched (KD6 (b), the ADR's step 5): where the standing capsule fits, the body
+## stands up to jump in this step and does not crouch again before it lands; where it does not,
+## false: no jump, and the body stays crouched. True at once for a standing body.
+func _stand_to_jump() -> bool:
+	if not _crouched:
+		return true
+	if not _room_to_stand(global_transform):
+		return false
+	_set_crouched(false)
+	_jump_stood = true
+	return true
+
+
+## The ADR's step 7, for a body placed anew at `at` (a teleport, a life change): living where the
+## crouch plays, it takes the crouched capsule first and, unless it wants the crouch, stands only
+## where the stand-up test from `at` finds room; otherwise the standing capsule.
+func _crouch_where_placed(at: Transform3D) -> void:
+	if _capsule == null:
+		return
+	if not (crouch_plays and is_living()):
+		_set_crouched(false)
+		return
+	_set_crouched(true)
+	if not _wants_crouch() and _room_to_stand(at):
+		_set_crouched(false)
+
+
+## Whether the standing capsule fits with the feet at `from` (KE6): the crouched capsule, swept
+## straight up by the height difference, meets nothing on the body's collision mask. The floor it
+## rests on is no hit (the sweep moves away from it, recovery_as_collision off), and `from` is
+## given, so it holds right after a teleport, before the new transform reaches the physics server
+## (§4.7.6, the Jolt lesson). Call it only with the crouched capsule on.
+func _room_to_stand(from: Transform3D) -> bool:
+	return not test_move(from, Vector3.UP * (rules.capsule_height_m - rules.crouch_height_m))
+
+
+## Puts the body in the crouched or the standing capsule at once (KE5): its own CapsuleShape3D's
+## height switches and the CollisionShape3D moves to half of it, so the feet stay; the contact
+## search's capsule follows. The head eases to the new eye in _physics_process.
+func _set_crouched(value: bool) -> void:
+	_crouched = value
+	if _capsule == null:
+		return
+	var height := rules.height_of(value)
+	_capsule.height = height
+	_shape.position = Vector3(0.0, height * 0.5, 0.0)
+	_reach.height = height + CONTACT_MARGIN * 2.0
 
 
 ## The horizontal velocity for `wish` among the other living players this body touches. Walking
@@ -457,7 +593,8 @@ func _step_up(motion: Vector3) -> bool:
 	global_position.y += lift
 	_step_top = top
 	# Sprinting up stairs lifts again before the view has caught up: it lags one step at most.
-	_head.position.y = maxf(_head.position.y - lift, rules.eye_height_m - rules.step_height_m)
+	var eye := rules.eye_height_of(_crouched)
+	_head.position.y = maxf(_head.position.y - lift, eye - rules.step_height_m)
 	return true
 
 
