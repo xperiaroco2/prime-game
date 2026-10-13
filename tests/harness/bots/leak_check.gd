@@ -66,7 +66,8 @@ const FOR_ONE: Array[StringName] = [
 ## a scenario plays Cooking, CE22), the car repair's LiftChanged and PartNeeded (#807; read
 ## once bots play the House, its RD13), the photo task's FilmLoaded and ShotTaken (#781),
 ## Cooking's GrillLoaded and IngredientPlaced (#773: folded once a scenario plays Cooking, CE22),
-## and the car repair's FitChanged and PartFitted (#808; read once bots play the House).
+## the car repair's FitChanged and PartFitted (#808; read once bots play the House) and the photo
+## task's PhotoPrinted and PhotoHung (#782; read once bots play the House, PE18).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -88,6 +89,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"IngredientPlaced",
 	&"FitChanged",
 	&"PartFitted",
+	&"PhotoPrinted",
+	&"PhotoHung",
 ]
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
