@@ -163,6 +163,22 @@ func test_an_arc_over_a_head_flies_on_and_one_coming_down_on_it_stops() -> void:
 	assert_float(falling.position.y).is_equal(0.0)
 
 
+func test_an_item_over_a_crouched_head_flies_on_where_a_standing_head_stops_it() -> void:
+	# The crouched capsule's contact (the crouch ADR, KD7 (a)): at x = 7.5 the arc comes down
+	# between the crouched top (1.2 m) and the standing one (1.8 m).
+	var standing := _from_platform()
+	FixtureItemModes.stand(standing, P2, Vector3(7.5, 0, 0))
+	var stopped := FixtureFlightModes.flying(standing)
+	FixtureModes.run_ticks(standing, 30)
+	assert_float(stopped.position.x).is_less(7.5)
+	var crouched := _from_platform()
+	FixtureItemModes.stand(crouched, P2, Vector3(7.5, 0, 0))
+	crouched.state.player(P2).crouched = true
+	var over := FixtureFlightModes.flying(crouched)
+	FixtureModes.run_ticks(crouched, 30)
+	assert_float(over.position.x).is_greater(9.0)
+
+
 func test_the_thrower_is_flown_through_wherever_it_stands() -> void:
 	var game := FixtureFlightModes.thrown(Vector3.RIGHT, Vector3.ZERO, FixtureFlightWorld.new())
 	var item := FixtureFlightModes.flying(game)

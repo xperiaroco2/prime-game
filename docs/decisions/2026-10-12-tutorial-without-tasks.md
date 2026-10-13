@@ -42,8 +42,8 @@ What constrains the rework:
   basics cards reuse the tutorial's step keys, so those keys stay whatever the tutorial drops.
 - **Lesson 3 needs a one-handed item** (D29): the knife; the package takes both hands.
 - **Mechanics outside today's tutorial:** the throw (built, #643 to #646, the `throw` key); the crouch (designed,
-  #790 and #791; the base mode's `PlayerRules.crouch_maps` lists the House alone, while the tutorial mode's stays
-  empty, which KE10 makes every map, so the crouch plays in the room whether taught or not); the knife's strike
+  #790 and #791; the base mode's `PlayerRules.crouch_maps` lists the House alone, while the tutorial mode's lists its own
+  room explicitly (the engineer's answer (c), #790), so the crouch plays in the room whether taught or not); the knife's strike
   (`Use`) and giving up (`GiveUp`), both refused in the tutorial by D27 and D28 (a); a station's `Interact` (#796),
   which belongs to a task type.
 - **Shared files:** `levels/tutorial/rooms/tutorial_room.tscn` is also #715's (the room's map record);

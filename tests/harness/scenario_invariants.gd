@@ -27,6 +27,9 @@ extends RefCounted
 ## - Nothing reaches only the dead: every event a dead peer receives is either for it alone (an
 ##   event for one peer, FOR_ONE or a one-peer declaration, naming it) or also reaches every living
 ##   peer present then.
+## - The crouch invariant (the crouch ADR, KE1, KE10, #790): per tick, no snapshot shows an avatar
+##   crouched unless its player is alive, the phase is on the match's map (PhaseSpec.level MAP) and
+##   the mode's PlayerRules.crouch_maps lists that map or is empty (crouch_problem).
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -64,7 +67,14 @@ const TASK_EVENTS: Array[StringName] = [
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
 const AVATAR_FIELDS: Array[String] = [
-	"position", "velocity", "facing", "downed", "invulnerable", "held_item", "belt_item"
+	"position",
+	"velocity",
+	"facing",
+	"downed",
+	"invulnerable",
+	"crouched",
+	"held_item",
+	"belt_item",
 ]
 
 ## The peer whose command the runner applies now, or 0 outside a command (a tick, the start).
@@ -203,6 +213,9 @@ func check_tick() -> PackedStringArray:
 			for field: Variant in avatar:
 				if not AVATAR_FIELDS.has(str(field)):
 					found.append("peer %d's snapshot shows %s of peer %d" % [peer, field, other])
+			var crouch := crouch_problem(_game, other, avatar)
+			if crouch != "":
+				found.append("peer %d's snapshot %s" % [peer, crouch])
 		var speakers := _game.speakers_for(peer)
 		found.append_array(_check_voice(peer, speakers))
 		found.append_array(_check_distance(peer, speakers, radius))
@@ -374,6 +387,27 @@ func _check_distance(peer: int, speakers: PackedInt32Array, radius: float) -> Pa
 		if not problem.is_empty():
 			found.append("peer %d hears %d %s" % [peer, speaker, problem])
 	return found
+
+
+## Why the snapshot avatar `avatar` of `peer` breaks the crouch invariant (the crouch ADR, KE1,
+## KE10), or "" when it does not: it shows `crouched` though the player is not alive, the phase is
+## not on the match's map (PhaseSpec.level MAP: never the lobby, whose state.map is already the
+## next pick), or the mode's PlayerRules.crouch_maps is not empty and does not list state.map.
+## Read from the mode's data, written apart from Match.crouch_plays and MovementRule, so a rule
+## that keeps a crouch where it does not play fails here though view_of agrees with it.
+static func crouch_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	if avatar.get("crouched") != true:
+		return ""
+	var player := game.state.player(peer)
+	if player == null or player.life != PlayerState.Life.ALIVE:
+		return "shows peer %d crouched, not alive" % peer
+	var spec := game.mode.find_phase(game.phase_id())
+	if spec == null or spec.level != PhaseSpec.Level.MAP:
+		return "shows peer %d crouched in %s, a phase off the match's map" % [peer, game.phase_id()]
+	var rules := game.mode.player_rules
+	if rules == null or not (rules.crouch_maps.is_empty() or rules.crouch_maps.has(game.state.map)):
+		return "shows peer %d crouched on %s, a map without the crouch" % [peer, game.state.map]
+	return ""
 
 
 ## The hearing radius of `game`'s current phase: VoiceRule.radius_of the voice rule the mode's data

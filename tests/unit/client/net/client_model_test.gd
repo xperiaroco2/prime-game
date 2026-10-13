@@ -577,6 +577,19 @@ func test_the_invulnerable_flag_comes_from_the_newest_snapshot() -> void:
 	assert_bool(_model.is_invulnerable(1)).is_false()
 
 
+func test_the_crouched_flag_comes_from_the_newest_snapshot() -> void:
+	_to_round()
+	var low := {"position": Vector3.ONE, "downed": false, "crouched": true}
+	var standing := {"position": Vector3.ZERO, "downed": false, "crouched": false}
+	_model.fold_snapshot({"tick": 42, "avatars": {1: low, 9: standing}})
+	assert_bool(_model.is_crouched(1)).is_true()
+	assert_bool(_model.is_crouched(9)).is_false()
+	# No avatar (the own player, the dead, a stranger): standing as far as it knows.
+	assert_bool(_model.is_crouched(OWN)).is_false()
+	_model.fold_snapshot({"tick": 43, "avatars": {1: standing}})
+	assert_bool(_model.is_crouched(1)).is_false()
+
+
 func test_a_new_match_makes_everyone_living_again() -> void:
 	_to_round()
 	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))

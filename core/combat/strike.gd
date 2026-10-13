@@ -10,9 +10,11 @@ extends RuleEffect
 ## - its capsule (the mode's PlayerRules radius and height, standing on its last accepted
 ##   position) has a point in the sector, measured horizontally: its circle of `capsule_radius_m`
 ##   around its position touches the sector;
-## - its capsule overlaps the attacker's vertically (neither stands a full height above the other);
-## - the line from the attacker's eye (Items.eye_of) to the middle of its capsule is clear
-##   (WorldQuery.line_of_sight).
+## - its capsule overlaps the attacker's vertically: with `dy` its feet less the attacker's,
+##   -h(target) <= dy <= h(attacker), each `h` its own capsule's height, crouch_height_m while
+##   crouched (the crouch ADR, KE2, KD7 (a));
+## - the line from the attacker's eye (Items.eye_of, crouched or not) to the middle of its own
+##   capsule, crouched or not, is clear (WorldQuery.line_of_sight).
 ## Each target then takes `damage` through the life rule (LifeRules.damage), in peer-id order; at 0
 ## health it is knocked down there (KnockedDown, Correction; nothing drops). A target no longer
 ## alive when its turn comes (what an earlier target's damage set off downed or killed it) is
@@ -73,14 +75,15 @@ func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array
 		var target := ctx.state.players[peer]
 		if peer == attacker.peer or not target.is_alive() or target.is_invulnerable(ctx.tick):
 			continue
-		if absf(target.position.y - attacker.position.y) > rules.capsule_height_m:
+		var dy := target.position.y - attacker.position.y
+		if dy < -rules.height_of(target.crouched) or dy > rules.height_of(attacker.crouched):
 			continue
 		var centre := Vector2(target.position.x, target.position.z)
 		if _distance_to_sector(centre, apex, ahead, half) > rules.capsule_radius_m:
 			continue
 		if eye == Vector3.INF:
 			eye = Items.eye_of(ctx, attacker)
-		var middle := target.position + Vector3.UP * (rules.capsule_height_m / 2.0)
+		var middle := target.position + Vector3.UP * (rules.height_of(target.crouched) / 2.0)
 		if not ctx.world.line_of_sight(eye, middle):
 			continue
 		found.append(peer)

@@ -97,13 +97,15 @@ static func unit_facing(claimed: Vector3, last: Vector3) -> Vector3:
 
 
 ## The largest item radius a throw may have with `rules`' capsule: the sphere at the eye must stay
-## inside it, sideways (the capsule's radius) and above (the height less the eye height), less
+## inside it, sideways (the capsule's radius) and above (the height less the eye height, the
+## smaller of the standing and the crouched pair, the crouch ADR's KE2), less
 ## WorldQuery.THROW_RADIUS_MARGIN_M (the throwing ADR, TE2).
 static func largest_radius(rules: PlayerRules) -> float:
-	return (
-		minf(rules.capsule_radius_m, rules.capsule_height_m - rules.eye_height_m)
-		- WorldQuery.THROW_RADIUS_MARGIN_M
+	var above := minf(
+		rules.capsule_height_m - rules.eye_height_m,
+		rules.crouch_height_m - rules.crouch_eye_height_m
 	)
+	return minf(rules.capsule_radius_m, above) - WorldQuery.THROW_RADIUS_MARGIN_M
 
 
 ## The condition classes a rule holding this effect must hold, not negated (ModeCheck): HoldsItem,

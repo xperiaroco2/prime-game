@@ -289,7 +289,7 @@ func test_the_decoder_rejects_broken_payloads() -> void:
 	ready_payload[4] = 2
 	_assert_rejected(2, ready_payload, "not a bool")
 	var claim := _schema.encode(WireMessage.new(&"MoveClaim", Samples._claim()))
-	claim[44] = 0x08
+	claim[44] = 0x10
 	_assert_rejected(5, claim, "unknown flag bits")
 	var joined := _schema.encode(
 		WireMessage.new(

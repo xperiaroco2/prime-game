@@ -282,6 +282,18 @@ func test_a_respawn_of_a_player_who_is_not_dead_is_a_rule_error() -> void:
 	assert_str("\n".join(game.diagnostics)).contains("Respawn: player 2 is not dead")
 
 
+func test_the_respawned_stand_up() -> void:
+	# The crouch ADR, KE2: false at every placement. Set by hand on the dead, whom no claim moves,
+	# so only the respawn can be seen clearing it.
+	var game := _duel()
+	_kill(game)
+	var dead := game.state.player(P2)
+	dead.crouched = true
+	_run_out(game)
+	assert_int(dead.life).is_equal(PlayerState.Life.ALIVE)
+	assert_bool(dead.crouched).is_false()
+
+
 func _duel(seed_value: int = 7) -> Match:
 	var game := FixtureCombatModes.in_round(
 		FixtureCombatModes.respawning(), [P1, P2, P3], null, seed_value

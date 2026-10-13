@@ -676,7 +676,7 @@ func _shoot(ctx: MatchContext, task_state: State, station: StationState, item: I
 		if station.contains(player.position):
 			continue
 		if player.life == PlayerState.Life.ALIVE:
-			var head := player.position + eye
+			var head := player.position + _head_of(ctx, player)
 			if frame.contains(head) and ctx.world.line_of_sight(lens, head):
 				shot.subjects.append(peer)
 		if (
@@ -691,6 +691,7 @@ func _shoot(ctx: MatchContext, task_state: State, station: StationState, item: I
 						"position": player.position,
 						"facing": player.facing,
 						"downed": player.life == PlayerState.Life.DOWNED,
+						"crouched": player.crouched,
 						"held_item": player.held_item,
 						"belt_item": player.belt_item,
 					}
@@ -713,3 +714,12 @@ func _eye_height(ctx: MatchContext) -> float:
 		ctx.error("PhotoTask: the mode has no PlayerRules; the lens stands at the marker")
 		return 0.0
 	return ctx.state.player_rules.eye_height_m
+
+
+## How far above its feet a candidate's head is (the crouch ADR, KE2): the eye height, or the
+## crouched eye height while it is crouched, so a player crouched behind a wall lower than the
+## standing eye is not in the photo while the picture draws it crouched.
+func _head_of(ctx: MatchContext, player: PlayerState) -> Vector3:
+	if ctx.state.player_rules == null:
+		return Vector3.ZERO
+	return Vector3.UP * ctx.state.player_rules.eye_height_of(player.crouched)

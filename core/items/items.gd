@@ -370,7 +370,8 @@ static func free_markers(ctx: MatchContext, tag: StringName) -> PackedVector3Arr
 
 ## `player`'s eye for the item rules (InSight, PutDownInFront) and the knife's hit (Strike): the
 ## floor it stands on at its last accepted position (WorldQuery.stand_floor_below, the capsule's
-## footprint, E10) raised by the mode's PlayerRules.eye_height_m. A jump does not raise it, so a
+## footprint, E10) raised by the mode's PlayerRules.eye_height_m, or crouch_eye_height_m while it is
+## crouched (the crouch ADR, KE2). A jump does not raise it, so a
 ## player cannot see or put an item over a wall from the top of a jump. With no floor below, the
 ## eye is raised from the position itself.
 static func eye_of(ctx: MatchContext, player: PlayerState) -> Vector3:
@@ -378,7 +379,7 @@ static func eye_of(ctx: MatchContext, player: PlayerState) -> Vector3:
 	var ground := ctx.world.stand_floor_below(lifted(base))
 	if ground != WorldQuery.NO_FLOOR:
 		base.y = ground.y
-	return base + Vector3.UP * ctx.state.player_rules.eye_height_m
+	return base + Vector3.UP * ctx.state.player_rules.eye_height_of(player.crouched)
 
 
 ## `point` lifted by SURFACE_CLEARANCE_M, off the surface it lies on.

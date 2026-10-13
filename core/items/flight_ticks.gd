@@ -7,7 +7,8 @@ extends TickSystem
 ##
 ## - the world: WorldQuery.sweep with the flight's radius, which answers the segment's end when
 ##   nothing is in the way, so any other answer is a contact there;
-## - a living player other than the thrower (TD3 (b)): the PlayerRules capsule standing at that
+## - a living player other than the thrower (TD3 (b)): the PlayerRules capsule (crouched while it
+##   is, the crouch ADR's KD7 (a)) standing at that
 ##   player's last accepted position, widened by the flight's radius, tested here in core/, with no
 ##   lag compensation, as hits read it (§7.1.10). An invulnerable player stops it too (a stop is
 ##   not damage); the downed, the dead and the gone are flown over (TD12 (a)). On the part of the
@@ -130,7 +131,12 @@ static func _first_player_contact(
 		if peer == flight.thrower or not player.is_alive():
 			continue
 		var t := contact_fraction(
-			from, to, player.position, rules.capsule_radius_m, rules.capsule_height_m, flight.radius
+			from,
+			to,
+			player.position,
+			rules.capsule_radius_m,
+			rules.height_of(player.crouched),
+			flight.radius
 		)
 		if t >= 0.0 and (best < 0.0 or t < best):
 			best = t

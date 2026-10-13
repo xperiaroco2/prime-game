@@ -122,6 +122,7 @@ static func knock_down(ctx: MatchContext, peer: int) -> void:
 	downed.position = lies_at
 	downed.velocity = Vector3.ZERO
 	downed.sprinting = false
+	downed.crouched = false
 	downed.epoch += 1
 	ctx.emit(KnockedDownEvent.new(peer, lies_at))
 	ctx.emit(CorrectionEvent.new(peer, downed.epoch, downed.position, downed.velocity))
@@ -253,6 +254,7 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	# The ledger starts again at the respawn: nothing before it is settled as this life's.
 	back.stamina_settled_tick = ctx.tick
 	back.sprinting = false
+	back.crouched = false
 	back.sprint_held = false
 	back.moving = false
 	back.position = at

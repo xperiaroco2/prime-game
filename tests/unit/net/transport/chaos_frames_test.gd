@@ -97,6 +97,26 @@ func test_a_hostile_claim_carries_an_honest_walkers_masks_at_the_v7_layout() -> 
 	assert_int(payload[ChaosFrames.CLAIM_FLAGS_AT]).is_equal(0b110)
 
 
+func test_the_flag_bits_shape_sets_one_bit_past_the_claims_four_flags() -> void:
+	# sprint, moving, on_floor and crouched (#790) are bits 0 to 3: each draw keeps an honest
+	# walker's (moving, on_floor) and sets one of bits 4 to 7, and every one of them is drawn.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 790
+	var seen := 0
+	for _i in 64:
+		var packet := ChaosFrames.malformed(
+			ChaosFrames.Shape.FLAG_BITS, rng, _schema, _client.own_id()
+		)
+		var flags: int = packet.bytes[NetFrame.HEADER_BYTES + ChaosFrames.CLAIM_FLAGS_AT]
+		assert_int(flags & 0x0F).is_equal(0b0110)
+		assert_int([0x10, 0x20, 0x40, 0x80].count(flags & 0xF0)).is_equal(1)
+		# The schema still refuses the bit drawn: a malformed flag stays malformed.
+		var payload := packet.bytes.slice(NetFrame.HEADER_BYTES)
+		assert_object(_schema.decode(_schema.kind_of(&"MoveClaim"), payload)).is_null()
+		seen |= flags & 0xF0
+	assert_int(seen).is_equal(0xF0)
+
+
 func test_everything_a_chaos_transport_sends_is_in_its_outbox_in_order() -> void:
 	var set_ready := ChaosFrames.message(_schema, &"SetReady", {"ready": true}, 5)
 	var payload := set_ready.bytes.slice(NetFrame.HEADER_BYTES)

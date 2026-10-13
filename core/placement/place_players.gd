@@ -41,6 +41,7 @@ func run(ctx: MatchContext) -> void:
 	for i in peers.size():
 		var player := ctx.state.players[peers[i]]
 		player.position = spots[order[i]]
+		player.crouched = false
 		player.velocity = Vector3.ZERO
 		player.epoch += 1
 		placed[player.peer] = player.position

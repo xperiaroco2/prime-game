@@ -138,6 +138,9 @@ var _claimed_position := Vector3.ZERO
 ## The next claim is the first after the Welcome or a placement: the host counts it as one tick.
 var _fresh := true
 var _on_floor := true
+## The crouch at the last physics step set_motion reported (the crouch ADR, KE1): a pose, so no
+## latch.
+var _crouched := false
 ## The map being loaded and the match it is for; empty when nothing loads.
 var _loading := ""
 var _loading_match := -1
@@ -261,14 +264,16 @@ func last_claim_tick() -> int:
 
 ## What the next MoveClaim says, from the mover (the player controller or a bot's), once per
 ## physics step: the last call's position, velocity, facing and floor, and the sprint state and
-## movement input if any call since the last claim had them (#155).
+## movement input if any call since the last claim had them (#155). `crouched`: the pose at the step
+## (the crouch ADR, KE1; 727b passes the controller's), the last call's as the floor is.
 func set_motion(
 	position: Vector3,
 	velocity: Vector3,
 	facing: Vector3,
 	sprint: bool,
 	moving: bool,
-	on_floor: bool
+	on_floor: bool,
+	crouched := false
 ) -> void:
 	_position = position
 	_velocity = velocity
@@ -276,6 +281,7 @@ func set_motion(
 	_sprint = _sprint or sprint
 	_moving = _moving or moving
 	_on_floor = on_floor
+	_crouched = crouched
 
 
 ## What the next MoveClaim says as the facing, when the mover turned outside its physics step
@@ -474,6 +480,7 @@ func _claim(now_usec: int) -> void:
 		"sprint": _sprint,
 		"moving": _moving,
 		"on_floor": _on_floor,
+		"crouched": _crouched,
 		"jumps": _jumps,
 		"sprint_ticks": sprint_ticks,
 		"moved_ticks": moved_ticks,

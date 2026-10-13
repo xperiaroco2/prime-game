@@ -12,7 +12,8 @@ extends RefCounted
 ## floor_below()'s answer when there is no floor below the point.
 const NO_FLOOR := Vector3.INF
 ## How far inside the player's capsule a thrown item's sphere at the eye must stay: its radius is
-## at most min(PlayerRules.capsule_radius_m, capsule_height_m - eye_height_m) less this, so an
+## at most min(PlayerRules.capsule_radius_m, capsule_height_m - eye_height_m,
+## crouch_height_m - crouch_eye_height_m) less this, so an
 ## honest capsule pressed against a wall leaves the sphere clear of it and sweep() does not answer
 ## its start (TE2). A technical constant, fixed by the integration tests of HostWorldQuery.sweep
 ## against Jolt's contact margin, not a game number.

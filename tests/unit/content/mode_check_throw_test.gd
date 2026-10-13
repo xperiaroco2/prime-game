@@ -97,11 +97,22 @@ func test_the_radius_fits_the_capsule_above_the_eye() -> void:
 
 
 func test_the_radius_fits_the_capsule_sideways() -> void:
-	# The eye at 1 m in a capsule of radius 0.3 m: its radius is the smaller room, 0.29 m.
+	# The eye at 1 m in a capsule of radius 0.3 m, the crouched eye 0.4 m below its top (#790):
+	# its radius is the smaller room, 0.29 m.
 	var mode := FixtureThrowModes.basic()
 	mode.player_rules.eye_height_m = 1.0
+	mode.player_rules.crouch_eye_height_m = 0.8
 	mode.player_rules.capsule_radius_m = 0.3
 	assert_float(ThrowItem.largest_radius(mode.player_rules)).is_equal_approx(0.29, 1e-9)
+	_expect_radius(mode)
+
+
+func test_the_radius_fits_the_crouched_capsule_above_its_eye() -> void:
+	# The crouch ADR, KE2: the smaller room above the eye of the two pairs, here the crouched
+	# one: 1.2 m less an eye at 1.1 m, 0.1 m, so 0.09 m.
+	var mode := FixtureThrowModes.basic()
+	mode.player_rules.crouch_eye_height_m = 1.1
+	assert_float(ThrowItem.largest_radius(mode.player_rules)).is_equal_approx(0.09, 1e-9)
 	_expect_radius(mode)
 
 

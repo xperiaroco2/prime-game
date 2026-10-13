@@ -41,7 +41,11 @@ func test_the_base_mode_s_player_rules_but_a_10_s_respawn() -> void:
 	var base := (load(BASE_MODE) as GameMode).player_rules
 	for property: Dictionary in base.get_property_list():
 		var number: String = property["name"]
+		var kind: int = property["type"]
+		# Only the numbers: crouch_maps, a list of maps, is checked below (#790).
 		if (property["usage"] as int & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0:
+			continue
+		if kind not in [TYPE_FLOAT, TYPE_INT]:
 			continue
 		var want: float = 10.0 if number == "respawn_s" else base.get(number)
 		(
@@ -49,6 +53,10 @@ func test_the_base_mode_s_player_rules_but_a_10_s_respawn() -> void:
 			. override_failure_message("PlayerRules_tutorial.%s" % number)
 			. is_equal_approx(want, 1e-6)
 		)
+	# The tutorial lists its own map explicitly, not an empty list that reads as every map (#790,
+	# the engineer's answer (c)); the base mode's House is not the tutorial's map.
+	assert_array(Array(rules.crouch_maps)).is_equal([ROOM])
+	assert_array(Array(rules.crouch_maps)).is_equal(Array(_mode().maps))
 
 
 func test_the_deal_s_settings_are_fixed() -> void:
