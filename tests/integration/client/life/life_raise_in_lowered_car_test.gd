@@ -11,10 +11,11 @@ extends GdUnitTestSuite
 ## What it measured (#849): the raiser's hint offers the body inside the car (the raise ray passes
 ## through `movers`); the crouched capsule placed inside the stand-in is pushed down, not out (about
 ## 0.56 m into the floor on its own screen, no Correction while it stands still), and walking out
-## across the long side gets 3 Corrections. ADR §2 makes more than one a stop: KD15 went back to
-## the engineer with (b) and (c) (PR of #849). So the suite asserts what holds either way (the
-## placement, the crouch, the way out, the floor once out) and only records the Corrections and the
-## push; his answer sets the bound it is to assert.
+## across the long side gets 3 Corrections. ADR §2 makes more than one a stop: the question goes
+## back to the engineer with (b) and (c), in #849 and its PR. So the suite asserts what holds either
+## way (the placement, the way out, the floor once out) and only records the Corrections and the
+## push; the answer sets the bound it is to assert. Its crouch assert checks the hold the suite
+## keeps through the revive (so the controller does not stand up inside the stand-in), not KE6's.
 ##
 ## Neither the car (R5) nor the `movers` layer (R7) is built yet, so the suite builds a stand-in:
 ## a box on layer 4 in both Games' worlds (each machine has its own copy, as R7 drives it), and it

@@ -104,6 +104,8 @@ func test_every_place_has_a_floor_to_launch_from() -> void:
 func test_a_knife_launch_in_each_direction_from_each_place_rests_where_a_body_may() -> void:
 	var places := _places()
 	assert_int(places.size()).is_equal(PLACES.size())
+	if places.size() != PLACES.size():
+		return
 	for k in DIRECTIONS:
 		var angle := TAU * k / DIRECTIONS
 		var towards := Vector3(sin(angle), 0.0, cos(angle))

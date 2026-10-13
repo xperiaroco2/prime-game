@@ -5794,7 +5794,8 @@ with no level rule that closes tables; and a player raised from a body launched 
 so the host's body rests inside it) is pushed out by its own client, the car's accepted quirk (its ADR's RE8 and
 RD6 (a)), with nothing new in code. That push starts with the feet inside the footprint box, deeper than the 0.4 m
 from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once. It
-measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7), so KD15 is back with the engineer.
+measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7), the stop the ADR's §2 names; the
+issue of 728e (#849) holds the open question.
 - **Still** (built in 728a, #846: §7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
   takes its facing only (a spectator watching a knocked-down target looks through it) and ignores the rest, with no
   movement check and no `Correction` (KE4). §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's
@@ -5866,7 +5867,7 @@ measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7),
   KD11, never at an exact point, KE1 (b); on the greybox a knife knockdown starts no host body and is today's, step
   for step) and `tests/integration/client/life/life_raise_in_lowered_car_test.gd` (KD15 (a)'s push with a stand-in
   for the lowered car on layer 4: it measured the capsule pushed down into the floor on its own screen, not out, and
-  3 `Correction`s on the way out, so KD15 went back to the engineer, the ADR's §2).
+  3 `Correction`s on the way out, the stop the ADR's §2 names; #849 holds the open question).
 
 ## 8. Debug tooling
 
