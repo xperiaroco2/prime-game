@@ -2,7 +2,8 @@ class_name ItemView
 extends Node3D
 ## One item as the client draws it (ARCHITECTURE §4.7, M4-8; the M4 ADR's D7 (a)): a greybox look
 ## chosen by the item kind's id, with a labelled box for a kind the client has no look for, so a
-## new item kind still shows up. Placeholders until the art pass: the sizes and colours here are
+## new item kind still shows up (Delivery by meaning's kinds until the art, DE11 and #830: a box
+## labelled with the kind's name). Placeholders until the art pass: the sizes and colours here are
 ## looks, never game numbers. The origin is the item's resting point, the bottom of its look.
 ##
 ## ItemViews places it and shows or hides its look (`show_look`); LifeView then hides the looks of
@@ -11,7 +12,7 @@ extends Node3D
 ## M4-9), which reads `sight_point()`. A label over an unknown kind is drawn in the world and
 ## hidden by the level like the item (no `no_depth_test`, the M4 ADR's §3 item 5).
 
-## The look's sizes in metres, by kind id; any other kind gets UNKNOWN_SIZE and its id as a label.
+## The look's sizes in metres, by kind id; any other kind gets UNKNOWN_SIZE and its name as a label.
 const SIZES: Dictionary[StringName, Vector3] = {
 	&"knife": Vector3(0.05, 0.04, 0.32),
 	&"package": Vector3(0.45, 0.45, 0.45),
@@ -28,13 +29,18 @@ var kind: StringName
 var _look: Node3D
 
 
-## A view of item `id` of `kind`; `colour` is a package's circle colour (white for other items).
-static func make(id: int, item_kind: StringName, colour: Color) -> ItemView:
+## A view of item `id` of `kind`; `colour` is a package's circle colour (white for other items),
+## which only the `package` look takes: a labelled box is never tinted by it (DE11 of the
+## delivery-by-meaning ADR). The label is the kind's name through ContentNames: its deck key's
+## text, else `game_mode`'s display name for it, else its id.
+static func make(
+	id: int, item_kind: StringName, colour: Color, game_mode: GameMode = null
+) -> ItemView:
 	var view := ItemView.new()
 	view.name = "Item%d" % id
 	view.item_id = id
 	view.kind = item_kind
-	view._build(colour)
+	view._build(colour, ContentNames.text(ContentNames.item(item_kind, game_mode)))
 	return view
 
 
@@ -68,7 +74,7 @@ func look() -> Node3D:
 	return _look
 
 
-func _build(colour: Color) -> void:
+func _build(colour: Color, label_text: String) -> void:
 	_look = Node3D.new()
 	_look.name = "Look"
 	add_child(_look)
@@ -93,7 +99,7 @@ func _build(colour: Color) -> void:
 	if not SIZES.has(kind):
 		var label := Label3D.new()
 		label.name = "Label"
-		label.text = String(kind)
+		label.text = label_text
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.position = Vector3.UP * (size.y + LABEL_ABOVE)
 		_look.add_child(label)

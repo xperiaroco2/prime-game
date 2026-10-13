@@ -2,7 +2,8 @@ extends Node3D
 ## A preview of M4-8's views for `tools\run.cmd shot` (the M4 ADR's §6): items on the ground (a
 ## knife, a package, a kind with no look of its own), two other players carrying (a package in
 ## front with both hands and a knife on the belt; a knife in the hand), three circles (one done),
-## and the destination marker of the own package's circle, seen through a wall. With
+## none of them marked through the wall, and Delivery by meaning's looks (DE11, #830): two
+## drop-offs (one done) and its kinds as labelled boxes, never tinted. With
 ## `first_person`, the own player's view with the package in both hands. Fed by a fake ClientModel;
 ## dev only, nothing here reaches the game.
 
@@ -112,6 +113,48 @@ func _fold_items(model: ClientModel) -> void:
 	model.fold(&"ItemPickedUp", {"peer": 3, "item": 16})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": 17})
 	model.fold(&"PackageDelivered", {"item": 18, "station": 3})
+	_fold_by_meaning(model)
+
+
+## Two drop-offs of the base mode's Delivery by meaning, white on the wire (DE5 (b)), the
+## workbench's done, and its four kinds: three on the ground, the oil delivered.
+func _fold_by_meaning(model: ClientModel) -> void:
+	var drop_offs := {
+		4: [&"drop_dining_table", Vector3(-4.5, 0, -6.5)],
+		5: [&"drop_workbench", Vector3(4.5, 0, -6.5)],
+	}
+	for station: int in drop_offs:
+		var drop_off: Array = drop_offs[station]
+		model.fold(
+			&"StationPlaced",
+			{
+				"station": station,
+				"kind": drop_off[0],
+				"colour": Color.WHITE,
+				"position": drop_off[1]
+			}
+		)
+	var spawns := [
+		[21, &"wine", Vector3(-1.8, 0, 2.0), 4],
+		[22, &"oil", Vector3(4.5, 0, -6.5), 5],
+		[23, &"gnome", Vector3(0.0, 0, -4.0), 4],
+		[24, &"parasol", Vector3(1.8, 0, 2.0), 4],
+	]
+	for spawn: Array in spawns:
+		(
+			model
+			. fold(
+				&"ItemSpawned",
+				{
+					"item": spawn[0],
+					"kind": spawn[1],
+					"position": spawn[2],
+					"station": spawn[3],
+					"colour": Color.WHITE,
+				}
+			)
+		)
+	model.fold(&"PackageDelivered", {"item": 22, "station": 5})
 
 
 ## A floor, a wall in front of the blue circle, light and a sky.
