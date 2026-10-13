@@ -87,10 +87,11 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
   whose agent publishes, rebases or fixes only after that agent), post the handover (§6); the successor relaunches
   them fresh.
 - **Changed instructions are no handover** (#930): after a merge into `main` since your start that changed your repo's
-  root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/`, or this file, read its diff (`git diff` of those paths from
-  `main` at your start; game and meta: the command `wave` prints) and go on. Claude Code reloads agent files and rules
-  from disk ([its docs](https://code.claude.com/docs/en/sub-agents)) once the main checkout is pulled; your workflow
-  agents keep your session's root `CLAUDE.md`, so the next launches get what they need of its change in their notes.
+  root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/`, or this file, read its diff (`git fetch origin main`, then
+  `git diff` of those paths from `main` at your start; game and meta: the command `wave` prints; this file lives only
+  in prime-game: UI and art run it with `git -C D:\prime-game`) and go on. Claude Code reloads agent files from disk
+  ([its docs](https://code.claude.com/docs/en/sub-agents)) and rules when a file they match is read, once the main
+  checkout is pulled; your workflow agents keep your session's root `CLAUDE.md`, so the next launches get what they need of its change in their notes.
 - **At a stop for the engineer** (no run in flight, work left, he is present): hand over once the context is over
   **250k**; otherwise arm nothing. Half the threshold, as 150k was of 300k before #511.
 - **Earlier, by judgment**, at a natural break (no run in flight, or a stop for him): when your cost math says a
