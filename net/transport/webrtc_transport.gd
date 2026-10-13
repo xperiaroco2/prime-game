@@ -734,9 +734,14 @@ func _fail_join(reason: StringName) -> void:
 
 ## Writes to a connection's channel, only while it is open (the M6 ADR §2.6); LATEST gets
 ## LaneOrder's header and RELIABLE is counted for it. Counts the upload (E56).
+## A channel the other side closed is a peer on its way out (CHANNEL_GRACE_MS: a leaving client
+## closes its channels just before its connection): ERR_DOES_NOT_EXIST, as for a peer gone (#639).
 func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var channel := conn.channels[lane]
-	if channel.get_ready_state() != WebRTCDataChannel.STATE_OPEN:
+	var state := channel.get_ready_state()
+	if state == WebRTCDataChannel.STATE_CLOSING or state == WebRTCDataChannel.STATE_CLOSED:
+		return ERR_DOES_NOT_EXIST
+	if state != WebRTCDataChannel.STATE_OPEN:
 		return ERR_CONNECTION_ERROR
 	# An empty message never reached the peer's get_packet() in the chaos runs (observed, not
 	# in the docs), but one put on RELIABLE would be counted for LaneOrder all the same, and every

@@ -478,6 +478,25 @@ func test_a_channel_closed_under_a_live_connection_is_a_counted_leave() -> void:
 	assert_int(host.rejects.total()).is_equal(1)
 
 
+## A leaving client closes its channels just before its connection ends: inside the grace a send on
+## a channel it closed is to a peer on its way out, ERR_DOES_NOT_EXIST like a peer gone, never a
+## failed send the host reports as an engine error (#639: 3 of 4 bots-webrtc runs of a leave did).
+func test_a_send_on_a_channel_the_client_closed_is_to_a_peer_on_its_way_out() -> void:
+	var joiner := await _admitted_fake()
+	var host := _transports[0]
+	joiner.channels[NetKindTable.Lane.LATEST].close()
+	var sent: Array[Error] = [OK]
+	var refused := func() -> bool:
+		sent[0] = host.send(2, STATE, "late".to_utf8_buffer())
+		return sent[0] != OK
+	assert_bool(await _until(refused)).is_true()
+	assert_bool(_has("host left 2")).is_false()
+	assert_int(sent[0]).is_equal(ERR_DOES_NOT_EXIST)
+	# What it says is still a leave after the grace, and a reliable send meanwhile still goes out.
+	assert_int(host.send(2, TALK, "bye".to_utf8_buffer())).is_equal(OK)
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+
+
 ## What a peer sent just before its connection ended is read before the leave, as ENet delivers
 ## it: the host reads the closed connection and the packet in the same poll.
 func test_a_peers_last_message_comes_before_its_leave() -> void:

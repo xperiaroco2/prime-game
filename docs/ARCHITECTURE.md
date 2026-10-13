@@ -534,7 +534,9 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of ย
     the fault shim's late RELIABLE packets too), and a channel not open under a live connection: on a client at once (it is how
     `disconnect_peer` ends it); on the host after `CHANNEL_GRACE_MS` (1 s) with the connection still up, counted as
     `CHANNEL_CLOSED` (a client's own close resets its channels just before its connection ends, and under load the
-    host read the first a poll before the second: 1 run in 10). `DISCONNECTED` is transient. A join not admitted
+    host read the first a poll before the second: 1 run in 10). Inside that grace a send on a channel the client
+    closed returns `ERR_DOES_NOT_EXIST`, as for a peer gone, so the host logs no error for it (#639: a leave in
+    `bots-webrtc` did in 3 runs of 4). `DISCONNECTED` is transient. A join not admitted
     `JOIN_TIMEOUT_MS` (15 s) after `join()` gives up with `host_unreachable` (no offer came, or the channels never
     opened); the host closes a half-made connection after as long. A join whose socket to the service has not opened
     by `Signaller.CONNECT_TIMEOUT_MS` (5 s, ยง4.8) gives up before that with `service_unreachable` (#431, #461): on
