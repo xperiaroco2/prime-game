@@ -128,13 +128,13 @@ func test_shift_while_crouched_is_the_fast_crouch_at_the_sprints_cost() -> void:
 	player.sprint_held = true
 	player.move_input = Vector2(0.0, 1.0)
 	await _world.frames(2)
-	var before := player.stamina.get_stamina()
+	var stamina_before := player.stamina.get_stamina()
 	var speed: float = await _world.measure_speed(player, 4, 30)
 	assert_bool(player.is_crouched()).is_true()
 	assert_bool(player.is_sprinting()).is_true()
 	assert_float(speed).is_equal_approx(_rules.crouch_fast_speed_mps, SPEED_TOLERANCE)
 	# 34 physics steps of the sprint's cost, give or take a 20 Hz tick.
-	var spent := before - player.stamina.get_stamina()
+	var spent := stamina_before - player.stamina.get_stamina()
 	var expected := _rules.sprint_cost_per_s * 34.0 / Engine.physics_ticks_per_second
 	var tick := _rules.sprint_cost_per_s / float(Ticks.RATE)
 	assert_float(spent).is_between(expected - tick - 0.01, expected + tick + 0.01)
