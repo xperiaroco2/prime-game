@@ -116,6 +116,22 @@ func test_the_loopback_bots_leave_the_lobby_and_return_with_their_number() -> vo
 	assert_str("\n".join(net.failures)).contains("bot 2 (connection 1) (peer %d)" % had[0])
 
 
+## An earlier connection is checked on the peer id the transport gave it, not the one its own
+## Welcome names: a stream misrouted to it carries another peer's id there.
+func test_an_earlier_connection_is_checked_on_its_transport_peer_not_its_welcomes() -> void:
+	var net := BotsRunner.play(_scenario(_lobby_scripts()))
+	assert_array(Array(net.failures)).is_empty()
+	var had := net.peers.peers_of(2)
+	var earlier: Array = net.earlier_clients[2]
+	assert_int(net.earlier_peer(net.bots[1], 0)).is_equal(had[0])
+	var view := (earlier[0] as BotClient).view
+	view.peer = net.peers.peer_of(3)
+	view.events.append(WireMessage.new(&"PhaseChanged", {"phase": "round"}))
+	net.failures.clear()
+	net._check_after()
+	assert_str("\n".join(net.failures)).contains("bot 2 (connection 1) (peer %d)" % had[0])
+
+
 func test_the_loopback_bot_that_left_the_round_tries_again_until_the_lobby() -> void:
 	var net := BotsRunner.play(_round_return_scenario())
 	assert_array(Array(net.failures)).is_empty()
@@ -184,10 +200,28 @@ func test_a_refused_try_that_decoded_more_than_its_rejected_fails_the_run() -> v
 	assert_array(Array(core.failures)).is_empty()
 	var bot := core.bots[1]
 	bot.events.clear()
-	bot.events.append(WireMessage.new(&"Rejected", {"reason": "joins_closed"}))
+	bot.sent_seq = 7
+	var own := WireMessage.new(&"Rejected", {"seq": 7, "reason": "joins_closed"})
+	bot.events.append(own)
 	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.WAITING)
 	assert_array(Array(core.failures)).is_empty()
-	bot.events.append(WireMessage.new(&"Rejected", {"reason": "joins_closed"}))
+	# A second Rejected, or one answering another peer's intent, is not the try's own.
+	bot.sent_seq = 7
+	bot.events.clear()
+	bot.events.append(own)
+	bot.events.append(WireMessage.new(&"Rejected", {"seq": 7, "reason": "joins_closed"}))
+	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.FAILED)
+	assert_str("\n".join(core.failures)).contains("not the one of its own Hello")
+	core.failures.clear()
+	bot.sent_seq = 7
+	bot.events.clear()
+	bot.events.append(WireMessage.new(&"Rejected", {"seq": 3, "reason": "joins_closed"}))
+	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.FAILED)
+	assert_str("\n".join(core.failures)).contains("(seq 3, its Hello's 7, 1 decoded)")
+	core.failures.clear()
+	bot.sent_seq = 7
+	bot.events.clear()
+	bot.events.append(own)
 	bot.events.append(WireMessage.new(&"PhaseChanged", {"phase": "round"}))
 	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.FAILED)
 	assert_str("\n".join(core.failures)).contains("its refused Join decoded PhaseChanged")
