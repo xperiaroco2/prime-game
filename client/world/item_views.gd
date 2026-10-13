@@ -157,7 +157,11 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		# Downed, the own player too: the downed camera looks at the own body from outside.
 		var lying: Node3D = player if own else body
 		if lying != null and lying.is_inside_tree():
-			view.global_transform = Transform3D(Basis.IDENTITY, lying.global_position)
+			var at := lying.global_position
+			if own and avatars != null:
+				# The own body moves with the host's (KE5), the controller holds still.
+				at = avatars.point_of(item.holder, at)
+			view.global_transform = Transform3D(Basis.IDENTITY, at)
 			view.show_look(true)
 			return
 	if own or body == null:

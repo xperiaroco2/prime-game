@@ -6,7 +6,8 @@ extends AudioListener3D
 ## heard on the left:
 ## - living: the own eye (the first-person camera);
 ## - downed: the own body's head where it lies (vision revision 1: the downed hear the living
-##   "from where they lie"), never the downed camera up to 2 m behind and 1.6 m above, whose ray
+##   "from where they lie"), over the own avatar's interpolated point while its body moves (the
+##   knockdown ADR's KE5, KE8), never the downed camera up to 2 m behind and 1.6 m above, whose ray
 ##   would pass over the crate the body lies against;
 ## - dead, spectating a living target: the target's eye (its drawn head, lower while it is drawn
 ##   crouched, the crouch ADR's KE7); a downed target: its body's head; no
@@ -18,7 +19,8 @@ extends AudioListener3D
 
 
 ## Where the ears are. `own_life` is the own life fold; `own_feet` the own body (the controller's
-## transform while living or downed, the body's place while dead); `own_eye` the first-person
+## transform while living, turned with it and at the own avatar's point while downed, the body's
+## place while dead); `own_eye` the first-person
 ## camera's position; `target` 0 or the spectated peer, `target_life` its life fold and
 ## `target_feet` its RemotePlayerBody's transform; `rules` the client's own PlayerRules;
 ## `target_eye_m` how high above its feet the living target's drawn head is (crouched or not, the
@@ -46,9 +48,10 @@ static func point(
 	return lying_head(target_feet, rules)
 
 
-## The eyes of a player lying at `feet` (the downed pose, LifeLooks.lying, turned with the body):
-## where the standing eye height lies once the capsule lies on its side.
+## The eyes of a player lying at `feet`, turned with it (KE8: the ears stay at the body's lying
+## head height above the point, whatever pose its ragdoll is in): where the standing eye height
+## lies once the capsule lies on its side along the body's -Z, its lowest point on the floor, the
+## capsule's radius up and the eyes' height over the middle behind it.
 static func lying_head(feet: Transform3D, rules: PlayerRules) -> Vector3:
-	var standing := LifeLooks.standing(rules)
-	var in_mesh := standing.affine_inverse() * Vector3(0.0, rules.eye_height_m, 0.0)
-	return feet * (LifeLooks.lying(rules) * in_mesh)
+	var behind := rules.eye_height_m - rules.capsule_height_m * 0.5
+	return feet * Vector3(0.0, rules.capsule_radius_m, behind)

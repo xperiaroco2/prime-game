@@ -172,11 +172,12 @@ static func photo_blip(id: StringName) -> AudioStreamWAV:
 	return stream
 
 
-## Where `peer` is as this client draws it: the local player, or another player's body; null when
-## the client draws no such player.
+## Where `peer` is as this client draws it: the local player (knocked down, its avatar's point,
+## KE5), or another player's body; null when the client draws no such player.
 func position_of(peer: int) -> Variant:
 	if model != null and peer == model.own_peer and player != null and player.is_inside_tree():
-		return player.global_position
+		var feet := player.global_position
+		return avatars.point_of(peer, feet) if avatars != null else feet
 	var body := avatars.body_of(peer) if avatars != null else null
 	if body == null or not body.is_inside_tree():
 		return null
