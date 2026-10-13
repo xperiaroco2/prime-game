@@ -117,6 +117,40 @@ func test_the_pregame_screen_follows_the_phase_class_not_the_id() -> void:
 	assert_int(GameFlow.screen(GameFlow.Session.WELCOMED, model)).is_equal(S.PREGAME)
 
 
+func test_the_crouch_plays_on_a_listed_map_and_never_in_the_lobby() -> void:
+	# The crouch ADR's KE10, read as Match.crouch_plays: the base mode lists the House alone.
+	var mode := load(MODE) as GameMode
+	var house := "res://levels/house/house.tscn"
+	var greybox := "res://levels/greybox/greybox.tscn"
+	var model := ClientModel.new(mode)
+	var welcome := WelcomeEvent.new(2, Vector3.ZERO, 1)
+	welcome.phase = &"lobby"
+	welcome.map = house
+	model.fold(&"Welcome", welcome.to_dict())
+	var welcomed := GameFlow.Session.WELCOMED
+	# In the lobby the model's map is the next match's pick: no crouch, the House picked or not.
+	for phase: StringName in [&"lobby", &"countdown"]:
+		model.fold(&"PhaseChanged", {"phase": phase, "end_tick": -1})
+		assert_bool(GameFlow.crouch_plays(welcomed, model, mode)).is_false()
+	for phase: StringName in [&"loading", &"pregame", &"round", &"end"]:
+		model.fold(&"PhaseChanged", {"phase": phase, "end_tick": -1})
+		var plays := GameFlow.crouch_plays(welcomed, model, mode)
+		assert_bool(plays).override_failure_message(str(phase)).is_true()
+	# A map the list leaves out: no crouch in its round.
+	model.map = greybox
+	assert_bool(GameFlow.crouch_plays(welcomed, model, mode)).is_false()
+	# An empty list is every map; no session, no mode, no PlayerRules: none.
+	var every := mode.duplicate() as GameMode
+	every.player_rules = FixtureModes.player_rules()
+	assert_bool(every.player_rules.crouch_maps.is_empty()).is_true()
+	assert_bool(GameFlow.crouch_plays(welcomed, model, every)).is_true()
+	assert_bool(GameFlow.crouch_plays(GameFlow.Session.NONE, null, every)).is_false()
+	assert_bool(GameFlow.crouch_plays(GameFlow.Session.CONNECTING, model, every)).is_false()
+	assert_bool(GameFlow.crouch_plays(welcomed, model, null)).is_false()
+	every.player_rules = null
+	assert_bool(GameFlow.crouch_plays(welcomed, model, every)).is_false()
+
+
 func test_seconds_left_round_up_and_never_go_below_zero() -> void:
 	assert_int(GameFlow.seconds_left(-1, 10)).is_equal(-1)
 	assert_int(GameFlow.seconds_left(100, -1)).is_equal(-1)
