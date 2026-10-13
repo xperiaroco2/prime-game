@@ -4,10 +4,10 @@
 [ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_o7vmi"]
 [ext_resource type="Script" uid="uid://bjd04xjrdrw4j" path="res://core/tasks/delivery_route.gd" id="2_route"]
 [ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="3_station"]
-[ext_resource type="Resource" path="res://content/items/wine.tres" id="4_wine"]
-[ext_resource type="Resource" path="res://content/items/oil.tres" id="5_oil"]
-[ext_resource type="Resource" path="res://content/items/gnome.tres" id="6_gnome"]
-[ext_resource type="Resource" path="res://content/items/parasol.tres" id="7_parasol"]
+[ext_resource type="Resource" uid="uid://0086pdgtlyoo" path="res://content/items/wine.tres" id="4_wine"]
+[ext_resource type="Resource" uid="uid://k3li074rvv8p" path="res://content/items/oil.tres" id="5_oil"]
+[ext_resource type="Resource" uid="uid://beqj22bnihvqd" path="res://content/items/gnome.tres" id="6_gnome"]
+[ext_resource type="Resource" uid="uid://kapnebg1wj21" path="res://content/items/parasol.tres" id="7_parasol"]
 
 [sub_resource type="Resource" id="StationKind_dining_table"]
 script = ExtResource("3_station")
@@ -15,7 +15,7 @@ id = &"drop_dining_table"
 spawn_tag = &"drop_dining_table"
 radius_m = 1.0
 height_m = 2.0
-palette = null
+palette = PackedColorArray()
 
 [sub_resource type="Resource" id="DeliveryRoute_wine"]
 script = ExtResource("2_route")
@@ -28,7 +28,7 @@ id = &"drop_workbench"
 spawn_tag = &"drop_workbench"
 radius_m = 1.0
 height_m = 2.0
-palette = null
+palette = PackedColorArray()
 
 [sub_resource type="Resource" id="DeliveryRoute_oil"]
 script = ExtResource("2_route")
@@ -41,7 +41,7 @@ id = &"drop_garden"
 spawn_tag = &"drop_garden"
 radius_m = 1.0
 height_m = 2.0
-palette = null
+palette = PackedColorArray()
 
 [sub_resource type="Resource" id="DeliveryRoute_gnome"]
 script = ExtResource("2_route")
@@ -54,7 +54,7 @@ id = &"drop_terrace_table"
 spawn_tag = &"drop_terrace_table"
 radius_m = 1.0
 height_m = 2.0
-palette = null
+palette = PackedColorArray()
 
 [sub_resource type="Resource" id="DeliveryRoute_parasol"]
 script = ExtResource("2_route")
