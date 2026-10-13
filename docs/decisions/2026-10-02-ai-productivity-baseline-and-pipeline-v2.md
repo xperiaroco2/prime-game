@@ -27,6 +27,11 @@
   newest verify passed at the same head, tree and runner, with a clean tree then and now, under 2 hours ago; any
   other case, a rebase that moves the tree included, verifies as before (the engineer's answer on #471). Root
   CLAUDE.md's definition of done says so, and the publishers run no standalone verify before `publish`.
+- **Amended 2026-10-11 (#302, #905):** item 6's audit lens no longer runs as a Desktop scheduled task: a scheduled
+  session starts in acceptEdits, and on its first night it waited on a permission card until the morning. The task is
+  disabled; the meta manager runs the lens as a workflow from its own session before each night (the engineer's
+  choice (a), [#302 comment 6107272934](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6107272934);
+  AGENT_WORKFLOW §15).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
