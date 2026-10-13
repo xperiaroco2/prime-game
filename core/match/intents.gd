@@ -68,9 +68,16 @@ const PLAYER_ACTIONS: Array[StringName] = [
 	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW, INTERACT
 ]
 
-## Commands server/ originates from what the transport reports; not intents, never rejected.
+## Commands server/ originates from what the transport and the host's physics report; not intents,
+## never rejected. No message type carries PeerConnected, PeerLeft or BodyMoved: no peer sends one.
 const PEER_CONNECTED := &"PeerConnected"
 const PEER_LEFT := &"PeerLeft"
+## A report of the host's body of `peer` while it moves (the knockdown rework's KE14), {"epoch",
+## "position", "velocity"}: the epoch its LaunchBody named, the capsule's lowest point and its
+## velocity. server/ puts one per moving body at the head of each step-4 batch (§4.5.3), so it is
+## stamped with the tick it runs; taken in every phase (LifeRules.body_moved), and kept in the
+## command log, so a replay rests every body where the match did with no physics.
+const BODY_MOVED := &"BodyMoved"
 ## Forces a role on `peer` for the deals that follow, {"role": id}; an empty id clears it. server/
 ## originates it in debug builds only (§8, §9.4 DealRoles): from peer 1's debug-kind message only
 ## (the host's own client: a dev console command, the bots runner's bot 1; §4.3, E17), never from
@@ -124,4 +131,5 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	INTERACT: {"station": TYPE_INT, "item": TYPE_INT},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
+	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},
 }

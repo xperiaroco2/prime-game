@@ -6,6 +6,8 @@ extends TickSystem
 ## - a downed player whose knockdown time is over dies (LifeRules.die);
 ## - a dead player whose respawn time is over respawns through `respawn` (a Respawn, run with the
 ##   dead player as its actor). Without one the dead stay dead until they leave or the match ends.
+## Before its deadline, each player's body motion counts a tick (LifeRules.count_motion, the
+## knockdown rework's KE3, KE15): one that has lasted the longest motion rests (StopBody).
 ## A downed player being raised has no deadline: the raise (RaiseDowned, M4-4) keeps what was left
 ## of its knockdown in PlayerState.knockdown_left and sets it again when it stops.
 ##
@@ -13,8 +15,10 @@ extends TickSystem
 ## mode's Round); without it the downed would stay downed until they leave, and the mode check
 ## refuses such a phase (§9.1).
 ##
-## Emits: a death's Died (everyone), then the dropped item's ItemPlaced (everyone) and the facts
-## player_died and item_rested; a respawn's events (Respawn.emits()). Demands: the respawn's.
+## Emits: a motion's end StopBody (server: the longest motion, LifeRules.count_motion); a death's
+## StopBody when its body moved, Died (everyone), then the dropped item's ItemPlaced (everyone)
+## and the facts player_died and item_rested; a respawn's events (Respawn.emits()). Demands: the
+## respawn's.
 
 ## The respawn of the dead (`respawn` markers in the base mode), or null: the dead stay dead.
 @export var respawn: Respawn
@@ -23,6 +27,7 @@ extends TickSystem
 func run(ctx: MatchContext) -> void:
 	for peer: int in ctx.state.peers():
 		var player := ctx.state.players[peer]
+		LifeRules.count_motion(ctx, peer)
 		if player.life_deadline < 0 or ctx.tick < player.life_deadline:
 			continue
 		if player.life == PlayerState.Life.DOWNED:
@@ -39,7 +44,7 @@ func run(ctx: MatchContext) -> void:
 
 
 func emits() -> Array[Script]:
-	var found: Array[Script] = [DiedEvent, ItemPlacedEvent]
+	var found: Array[Script] = [DiedEvent, ItemPlacedEvent, StopBodyEvent]
 	if respawn != null:
 		found.append_array(respawn.emits())
 	return found

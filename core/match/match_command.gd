@@ -1,10 +1,11 @@
 class_name MatchCommand
 extends RefCounted
 ## One input to Match (ARCHITECTURE §3.3, §4.1): an intent from a peer, or a command server/
-## originates (PeerConnected, PeerLeft), stamped with the host tick on which it applies. The
-## sender is the peer id the transport reports, never a field of the message.
+## originates (PeerConnected, PeerLeft, BodyMoved), stamped with the host tick on which it
+## applies. The sender is the peer id the transport reports, never a field of the message.
 
-## An intent name (Intents.ALL) or a server command (Intents.PEER_CONNECTED, PEER_LEFT).
+## An intent name (Intents.ALL) or a command server/ originates (Intents.PEER_CONNECTED,
+## PEER_LEFT, BODY_MOVED: the host body's report, whose `peer` is the body's player).
 var kind: StringName
 var peer: int
 var tick: int

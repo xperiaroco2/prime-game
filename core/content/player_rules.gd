@@ -55,6 +55,18 @@ extends ContentPart
 ## TaskType.maps: it plays only in a phase on the match's map (PhaseSpec.level MAP) that this
 ## lists, never in the lobby (MatchContext.crouch_plays). Each path must be one of the mode's maps.
 @export var crouch_maps: PackedStringArray = PackedStringArray()
+## The paths of the mode's maps on which a knockdown starts a motion: the host's physics moves the
+## body (the knockdown rework's §4, KE12 (a)), empty for every map, the shape of TaskType.maps and
+## crouch_maps. On a map it leaves out a knockdown takes no launch and starts no host body. Each
+## path must be one of the mode's maps, and the crouch must play on each map it covers (KD11: a
+## body rests only where a crouching player fits, and a raised player gets up crouched).
+@export var motion_maps: PackedStringArray = PackedStringArray()
+## The rest (KE15): a motion ends once the reports stay slower than `rest_speed_mps` for `rest_s`
+## (counted in reports), or once it has lasted `longest_motion_s` (counted in ticks). Placeholders,
+## "not a decision" (KD9 (b)), as are their bounds.
+@export var rest_speed_mps := 0.0
+@export var rest_s := 0.0
+@export var longest_motion_s := 0.0
 
 
 ## The capsule's height of a player standing, or crouched where `crouched`.
@@ -71,6 +83,11 @@ func eye_height_of(crouched: bool) -> float:
 ## nothing of the phase: MatchContext.crouch_plays asks this only in a phase on the match's map.
 func crouch_plays_on(path: String) -> bool:
 	return crouch_maps.is_empty() or crouch_maps.has(path)
+
+
+## Whether a knockdown on the map at `path` starts a motion (KE12): the list is empty or holds it.
+func motion_plays_on(path: String) -> bool:
+	return motion_maps.is_empty() or motion_maps.has(path)
 
 
 func check(mode: GameMode) -> PackedStringArray:
@@ -103,9 +120,19 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds(
 				"crouch_fast_speed_mps", crouch_fast_speed_mps, crouch_speed_mps, walk_speed_mps
 			),
+			out_of_bounds("rest_speed_mps", rest_speed_mps, 0.01, 2),
+			out_of_bounds("rest_s", rest_s, 0.05, 5),
+			out_of_bounds("longest_motion_s", longest_motion_s, maxf(1.0, rest_s), 60),
 		]
 	)
 	for map: String in crouch_maps:
 		if mode == null or not mode.maps.has(map):
 			found.append("crouch_maps lists %s, which is not one of the mode's maps" % map)
+	for map: String in motion_maps:
+		if mode == null or not mode.maps.has(map):
+			found.append("motion_maps lists %s, which is not one of the mode's maps" % map)
+	if mode != null:
+		for map: String in mode.maps:
+			if motion_plays_on(map) and not crouch_plays_on(map):
+				found.append("a body moves on %s, where the crouch does not play (KD11)" % map)
 	return found

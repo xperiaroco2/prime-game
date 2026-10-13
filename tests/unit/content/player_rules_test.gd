@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## PlayerRules (ARCHITECTURE §9.5): neutral class defaults that fail the mode check, so a mode
 ## writes every number in its data; the bounds, the knockdown time's and the respawn numbers'
-## included. A downed player has no speed of its own (the knockdown rework's KE4).
+## included. A downed player has no speed of its own (the knockdown rework's KE4); the rest's
+## numbers and motion_maps (KE12, KE15, #847).
 
 
 func test_the_neutral_defaults_fail_the_check_so_a_mode_writes_its_numbers() -> void:
@@ -91,3 +92,56 @@ func test_the_crouched_pick_of_the_height_and_the_eye_and_where_it_plays() -> vo
 	rules.crouch_maps = PackedStringArray(["fixture://a"])
 	assert_bool(rules.crouch_plays_on("fixture://a")).is_true()
 	assert_bool(rules.crouch_plays_on("fixture://b")).is_false()
+
+
+func test_the_rest_numbers_are_bounded() -> void:
+	# The knockdown rework's KE15, KD9 (b): placeholders, "not a decision", as are the bounds.
+	var found := "\n".join(PlayerRules.new().check(null))
+	assert_str(found).contains("rest_speed_mps is 0, outside 0.01 to 2")
+	assert_str(found).contains("rest_s is 0, outside 0.05 to 5")
+	assert_str(found).contains("longest_motion_s is 0, outside 1 to 60")
+	var rules := FixtureModes.player_rules()
+	rules.rest_speed_mps = 2.5
+	rules.rest_s = 5.5
+	rules.longest_motion_s = 5.0
+	found = "\n".join(rules.check(null))
+	assert_str(found).contains("rest_speed_mps is 2.5, outside 0.01 to 2")
+	assert_str(found).contains("rest_s is 5.5, outside 0.05 to 5")
+	# The longest motion is at least the rest time.
+	assert_str(found).contains("longest_motion_s is 5, outside 5.5 to 60")
+	rules.rest_speed_mps = 2.0
+	rules.rest_s = 5.0
+	rules.longest_motion_s = 60.5
+	assert_str("\n".join(rules.check(null))).contains("longest_motion_s is 60.5, outside 5 to 60")
+	rules.longest_motion_s = 5.0
+	assert_array(Array(rules.check(null))).is_empty()
+
+
+func test_motion_maps_lists_only_the_modes_maps_and_where_the_crouch_plays() -> void:
+	# KE12 (a), KD11: an empty list moves bodies on every map; a listed path that is not one of the
+	# mode's maps is refused, and so is a map where a body moves but the crouch does not play.
+	var mode := FixtureModes.with_motion_map(FixtureModes.basic())
+	var rules := mode.player_rules
+	assert_array(Array(rules.check(mode))).is_empty()
+	assert_bool(rules.motion_plays_on(FixtureModes.MOTION_MAP)).is_true()
+	assert_bool(rules.motion_plays_on(FixtureModes.MAP)).is_false()
+	rules.motion_maps = PackedStringArray()
+	assert_bool(rules.motion_plays_on(FixtureModes.MAP)).is_true()
+	assert_bool(rules.motion_plays_on("fixture://elsewhere")).is_true()
+	assert_array(Array(rules.check(mode))).is_empty()
+	rules.motion_maps = PackedStringArray([FixtureModes.MOTION_MAP, "fixture://elsewhere"])
+	assert_array(Array(rules.check(mode))).is_equal(
+		["motion_maps lists fixture://elsewhere, which is not one of the mode's maps"]
+	)
+	rules.motion_maps = PackedStringArray([FixtureModes.MOTION_MAP])
+	rules.crouch_maps = PackedStringArray([FixtureModes.MAP])
+	assert_array(Array(rules.check(mode))).is_equal(
+		["a body moves on fixture://motion_map, where the crouch does not play (KD11)"]
+	)
+	# An empty motion_maps covers every map, so each must have the crouch.
+	rules.motion_maps = PackedStringArray()
+	assert_array(Array(rules.check(mode))).is_equal(
+		["a body moves on fixture://motion_map, where the crouch does not play (KD11)"]
+	)
+	rules.crouch_maps = PackedStringArray([FixtureModes.MAP, FixtureModes.MOTION_MAP])
+	assert_array(Array(rules.check(mode))).is_empty()

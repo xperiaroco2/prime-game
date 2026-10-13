@@ -24,7 +24,16 @@ extends RefCounted
 ##   Its stamina is settled up to the knockdown first, as the living player it was: the ticks
 ##   since its last claim pay for its sprint, not regenerate as a downed player's would.
 ##   Nothing drops: a downed player keeps its hand and belt items. No fact: no win condition reads
-##   a knockdown.
+##   a knockdown. On a map PlayerRules.motion_maps lists (the knockdown rework's §4, KE12) the body
+##   moves instead: it stays at the last accepted position with the launch (damage's, from a
+##   Strike: KE9) as its velocity, which KnockedDown and the Correction name, keeps a BodyMotion
+##   (PlayerState.motion, KE3) with that floor as its fallback rest, and LaunchBody (server) starts
+##   the host's body. A launch on any other map is dropped.
+## - body_moved(), count_motion() and rest(): server/'s reports (BodyMoved, KE14) set a moving
+##   body's point and velocity; the motion ends at the standing floor under its capsule once the
+##   reports stay slow for the rest time, or once it has lasted the longest motion (LifeTicks),
+##   else at the fallback with an error (KE15); StopBody. A death, a leave, a revive and
+##   ResetMatch end it too (stop_motion), each with StopBody.
 ## - revive(): a downed player whose raise completed stands up where it lay, living, with the
 ##   raise's health (at most PlayerRules.health), its stamina as it was (settled first, as the
 ##   downed player it was: it regenerated), no deadline, a new epoch (a placement for the movement
@@ -86,7 +95,7 @@ class KillQueue:
 ## at 0 health knock_down(). A player who is not alive takes none: that is a rule error, logged.
 ## An invulnerable player takes none and gets no Damaged, with no error: invulnerability blocks
 ## every damage source, not only the strikes that Strike.targets already skips.
-static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
+static func damage(ctx: MatchContext, peer: int, amount: int, launch := Vector3.ZERO) -> void:
 	var victim := ctx.state.player(peer)
 	if victim == null or not victim.is_alive():
 		ctx.error("damage: player %d is not alive" % peer)
@@ -101,11 +110,14 @@ static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
 	# goes on through hits (the lift's hold, RD10 (c)).
 	Channels.interrupt_hit(ctx, peer)
 	if victim.health == 0:
-		knock_down(ctx, peer)
+		# Only the blow that knocks the player down launches it (KD1 (a)): a hit that does not
+		# pushes nothing, since the living move client-side (invariant 7).
+		knock_down(ctx, peer, launch)
 
 
-## `peer`, living, is downed where it stands: KnockedDown, then its Correction.
-static func knock_down(ctx: MatchContext, peer: int) -> void:
+## `peer`, living, is downed where it stands: KnockedDown, then its Correction; on a map
+## PlayerRules.motion_maps lists, a motion with `launch` as its velocity and LaunchBody.
+static func knock_down(ctx: MatchContext, peer: int, launch := Vector3.ZERO) -> void:
 	var downed := ctx.state.player(peer)
 	if downed == null or not downed.is_alive():
 		ctx.error("knock_down: player %d is not alive" % peer)
@@ -117,15 +129,106 @@ static func knock_down(ctx: MatchContext, peer: int) -> void:
 	Channels.interrupt_involving(ctx, peer)
 	var lies_at := _floor_at(ctx, downed, "knock_down")
 	StaminaLedger.settle_ahead(downed, rules, ctx.tick)
+	var moves := rules.motion_plays_on(ctx.state.map)
 	downed.life = PlayerState.Life.DOWNED
 	downed.life_deadline = ctx.tick + Ticks.from_seconds(rules.knockdown_s)
-	downed.position = lies_at
-	downed.velocity = Vector3.ZERO
 	downed.sprinting = false
 	downed.crouched = false
 	downed.epoch += 1
-	ctx.emit(KnockedDownEvent.new(peer, lies_at))
+	if moves:
+		# The body starts at the last accepted position with the launch (§4, step 2): the
+		# knockdown tick's snapshot starts each ragdoll the way the host's body starts.
+		downed.velocity = launch if launch.is_finite() else Vector3.ZERO
+		downed.motion = BodyMotion.new(downed.epoch, lies_at)
+	else:
+		downed.position = lies_at
+		downed.velocity = Vector3.ZERO
+	ctx.emit(KnockedDownEvent.new(peer, downed.position))
 	ctx.emit(CorrectionEvent.new(peer, downed.epoch, downed.position, downed.velocity))
+	if moves:
+		ctx.emit(LaunchBodyEvent.new(peer, downed.epoch, downed.position, downed.velocity))
+
+
+## A report of the host's body (BodyMoved, KE14), which server/ originates: taken only for a body in
+## motion whose epoch it names (any other is dropped with no error: a report racing a stop or a
+## give-up). A finite report sets the point and the velocity, and ends the motion at its rest
+## (KE15) once the reports have stayed slower than PlayerRules.rest_speed_mps for rest_s, counted
+## in reports; one that is not finite ends it at the fallback, with an error.
+static func body_moved(ctx: MatchContext, command: MatchCommand) -> void:
+	var moved := ctx.state.player(command.peer)
+	var rules := ctx.state.player_rules
+	if moved == null or moved.motion == null or rules == null:
+		return
+	if moved.life != PlayerState.Life.DOWNED:
+		ctx.error("BodyMoved: player %d moves but is not downed" % command.peer)
+		stop_motion(ctx, moved)
+		return
+	if command.get_int("epoch", -1) != moved.motion.epoch:
+		return
+	var lowest := command.get_vector3("position", Vector3.INF)
+	var velocity := command.get_vector3("velocity", Vector3.INF)
+	if not lowest.is_finite() or not velocity.is_finite():
+		ctx.error(
+			(
+				"BodyMoved: player %d reported %s moving at %s: it rests at %s"
+				% [command.peer, lowest, velocity, moved.motion.fallback]
+			)
+		)
+		_rest_at(ctx, moved, moved.motion.fallback)
+		return
+	moved.position = lowest
+	moved.velocity = velocity
+	if velocity.length() >= rules.rest_speed_mps:
+		moved.motion.slow_reports = 0
+		return
+	moved.motion.slow_reports += 1
+	if moved.motion.slow_reports >= maxi(1, Ticks.from_seconds(rules.rest_s)):
+		rest(ctx, moved)
+
+
+## One tick of `peer`'s motion (LifeTicks, every tick, reports or not): once it has lasted
+## PlayerRules.longest_motion_s it ends as at rest (§4, step 7).
+static func count_motion(ctx: MatchContext, peer: int) -> void:
+	var moving := ctx.state.player(peer)
+	var rules := ctx.state.player_rules
+	if moving == null or moving.motion == null or rules == null:
+		return
+	moving.motion.ticks += 1
+	if moving.motion.ticks >= maxi(1, Ticks.from_seconds(rules.longest_motion_s)):
+		rest(ctx, moving)
+
+
+## `player`'s motion ends at its rest (KE15): the standing floor under its capsule at its point
+## (WorldQuery.stand_floor_below from a capsule's radius up, lifted as Items.lifted lifts a point),
+## else the fallback with an error (no floor: a level with a hole, §4, step 6); StopBody.
+static func rest(ctx: MatchContext, player: PlayerState) -> void:
+	var rules := ctx.state.player_rules
+	var radius := rules.capsule_radius_m if rules != null else 0.0
+	var found := ctx.world.stand_floor_below(Items.lifted(player.position + Vector3.UP * radius))
+	if found == WorldQuery.NO_FLOOR:
+		ctx.error(
+			(
+				"rest: no floor under the body of player %d at %s: it rests at %s"
+				% [player.peer, player.position, player.motion.fallback]
+			)
+		)
+		found = player.motion.fallback
+	_rest_at(ctx, player, found)
+
+
+## Ends `player`'s motion where it is, if it has one: StopBody lets server/ free the host's body.
+## Its point and velocity stay as they are; the caller sets them.
+static func stop_motion(ctx: MatchContext, player: PlayerState) -> void:
+	if player == null or player.motion == null:
+		return
+	player.motion = null
+	ctx.emit(StopBodyEvent.new(player.peer))
+
+
+## Ends every motion (ResetMatch), in peer-id order, each with its StopBody.
+static func stop_every_motion(ctx: MatchContext) -> void:
+	for peer: int in ctx.state.peers():
+		stop_motion(ctx, ctx.state.players[peer])
 
 
 ## `peer`, downed, dies: its body, Died, player_died, then both slots drop at the body.
@@ -208,6 +311,8 @@ static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 	if rules == null:
 		ctx.error("revive: the mode has no PlayerRules")
 		return
+	# TargetDowned refuses a moving body (KD4 (a)): a motion here is a bug, ended where it is.
+	stop_motion(ctx, revived)
 	# The ticks since its last claim regenerated as a downed player's (it spends none).
 	StaminaLedger.settle_ahead(revived, rules, ctx.tick)
 	revived.life = PlayerState.Life.ALIVE
@@ -285,6 +390,8 @@ static func leave(ctx: MatchContext, peer: int) -> void:
 	if leaver == null or not leaver.is_present():
 		return
 	Channels.interrupt_involving(ctx, peer)
+	# A leave ends the motion and leaves no body (§4).
+	stop_motion(ctx, leaver)
 	leaver.life = PlayerState.Life.LEFT
 	leaver.life_deadline = -1
 	leaver.knockdown_left = -1
@@ -301,6 +408,9 @@ static func leave(ctx: MatchContext, peer: int) -> void:
 static func _to_dead(ctx: MatchContext, dead: PlayerState, what: String) -> void:
 	var peer := dead.peer
 	Channels.interrupt_involving(ctx, peer)
+	# A death during the motion ends it where it is (KD8 (a)): the body on the floor below its
+	# point, and its items with it.
+	stop_motion(ctx, dead)
 	var body := _floor_at(ctx, dead, what)
 	ctx.state.bodies[peer] = body
 	dead.life = PlayerState.Life.DEAD
@@ -316,6 +426,12 @@ static func _to_dead(ctx: MatchContext, dead: PlayerState, what: String) -> void
 	ctx.raise_fact(fact)
 	# The items rest at the body itself, not at a second floor query from the same point.
 	Items.place_carried(ctx, peer, body, Items.DEATH)
+
+
+static func _rest_at(ctx: MatchContext, player: PlayerState, at: Vector3) -> void:
+	player.position = at
+	player.velocity = Vector3.ZERO
+	stop_motion(ctx, player)
 
 
 static func _killable(player: PlayerState) -> bool:

@@ -27,7 +27,8 @@ extends RuleEffect
 ##
 ## Emits: Swung (everyone, with the zone's horizontal direction as a unit vector, or zero when
 ## the facing has none), even with no target, before any damage; per target Damaged and
-## SelfStatus (the victim); a knockdown KnockedDown (everyone) and Correction (the downed). The
+## SelfStatus (the victim); a knockdown KnockedDown (everyone) and Correction (the downed), and on a
+## map PlayerRules.motion_maps lists LaunchBody (server) with launch_of's velocity (KE9). The
 ## attacker learns nothing of a hit but a knockdown, which everyone learns (an accepted exception).
 
 ## Degrees, 1 to 360. The neutral default is refused by the mode check: the data sets it.
@@ -36,6 +37,12 @@ extends RuleEffect
 @export var reach_m := 0.0
 ## Whole points, 1 to 1000. Neutral default: the data sets it.
 @export var damage := 0
+## The launch of a blow that knocks its target down (the knockdown rework's KD2, KE9): metres per
+## second away from the attacker, horizontally, and upwards. 0 launches nothing (the default); a
+## knockdown on a map PlayerRules.motion_maps leaves out drops it. Bounds 0 to 20 and 0 to 10,
+## placeholders, "not a decision" (KD9 (b)).
+@export var launch_mps := 0.0
+@export var launch_up_mps := 0.0
 
 
 func run(ctx: MatchContext) -> void:
@@ -59,7 +66,19 @@ func run(ctx: MatchContext) -> void:
 		# kill queue, the car repair ADR's RE17): damage() would log a rule error for it.
 		if not ctx.state.players[peer].is_alive():
 			continue
-		LifeRules.damage(ctx, peer, Ticks.thousandths(damage))
+		var launch := launch_of(attacker, ctx.state.players[peer], ahead)
+		LifeRules.damage(ctx, peer, Ticks.thousandths(damage), launch)
+
+
+## The launch `target` takes if this blow knocks it down (KE9): `launch_mps` horizontally from the
+## attacker's feet towards the target's (both last accepted positions); where they coincide along
+## `ahead` (the zone's horizontal direction), and with no `ahead` none; plus `launch_up_mps` up.
+func launch_of(attacker: PlayerState, target: PlayerState, ahead: Vector2) -> Vector3:
+	var away := Vector2(
+		target.position.x - attacker.position.x, target.position.z - attacker.position.z
+	)
+	var flat := ahead if away.is_zero_approx() else away.normalized()
+	return Vector3(flat.x * launch_mps, launch_up_mps, flat.y * launch_mps)
 
 
 ## The living players other than `attacker`, not invulnerable at this tick, in this weapon's zone
@@ -103,7 +122,14 @@ static func horizontal(facing: Vector3) -> Vector2:
 
 
 func emits() -> Array[Script]:
-	return [SwungEvent, DamagedEvent, SelfStatusEvent, KnockedDownEvent, CorrectionEvent]
+	return [
+		SwungEvent,
+		DamagedEvent,
+		SelfStatusEvent,
+		KnockedDownEvent,
+		CorrectionEvent,
+		LaunchBodyEvent
+	]
 
 
 func check(_mode: GameMode) -> PackedStringArray:
@@ -114,6 +140,8 @@ func check(_mode: GameMode) -> PackedStringArray:
 			out_of_bounds("Strike angle_deg", angle_deg, 1, 360),
 			out_of_bounds("Strike reach_m", reach_m, 0.1, 10),
 			out_of_bounds("Strike damage", damage, 1, 1000),
+			out_of_bounds("Strike launch_mps", launch_mps, 0, 20),
+			out_of_bounds("Strike launch_up_mps", launch_up_mps, 0, 10),
 		]
 	)
 	return found

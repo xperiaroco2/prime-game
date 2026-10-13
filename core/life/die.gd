@@ -6,7 +6,8 @@ extends RuleEffect
 ## Died, player_died and the drop at the body, as when a knockdown runs out. A living actor is a
 ## rule error, logged, and nothing happens.
 ##
-## Emits: RaiseStopped (everyone), when it was being raised; Died (everyone); the dropped item's
+## Emits: RaiseStopped (everyone), when it was being raised; StopBody (server), when its body was
+## in motion (KD8: it dies where it is); Died (everyone); the dropped item's
 ## ItemPlaced (death, everyone). Raises player_died, then item_rested.
 
 
@@ -15,4 +16,4 @@ func run(ctx: MatchContext) -> void:
 
 
 func emits() -> Array[Script]:
-	return [RaiseStoppedEvent, DiedEvent, ItemPlacedEvent]
+	return [RaiseStoppedEvent, StopBodyEvent, DiedEvent, ItemPlacedEvent]

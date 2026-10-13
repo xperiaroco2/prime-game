@@ -143,5 +143,5 @@ func _in_end(mode: GameMode) -> Match:
 ## The action says what it emits, since the mode check reads it (#737 added the shortfalls).
 func test_it_declares_what_it_emits() -> void:
 	assert_array(ResetMatch.new().emits()).contains_exactly(
-		[ReadyChangedEvent, SettingsChangedEvent]
+		[StopBodyEvent, ReadyChangedEvent, SettingsChangedEvent]
 	)

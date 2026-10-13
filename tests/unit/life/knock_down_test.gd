@@ -137,11 +137,22 @@ func test_the_downed_stay_downed_without_life_ticks_and_die_on_time_with_them() 
 func test_it_lists_what_it_can_emit() -> void:
 	var downs := FixtureStageModes.knock_down(1)
 	assert_array(downs.emits()).contains_exactly(
-		[RaiseStoppedEvent, KnockedDownEvent, CorrectionEvent]
+		[RaiseStoppedEvent, KnockedDownEvent, CorrectionEvent, LaunchBodyEvent]
 	)
 	var kills := FixtureStageModes.knock_down(0, true)
-	assert_array(kills.emits()).contains_exactly(
-		[RaiseStoppedEvent, KnockedDownEvent, CorrectionEvent, DiedEvent, ItemPlacedEvent]
+	(
+		assert_array(kills.emits())
+		. contains_exactly(
+			[
+				RaiseStoppedEvent,
+				KnockedDownEvent,
+				CorrectionEvent,
+				LaunchBodyEvent,
+				StopBodyEvent,
+				DiedEvent,
+				ItemPlacedEvent,
+			]
+		)
 	)
 
 
