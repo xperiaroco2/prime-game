@@ -1933,7 +1933,6 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   the issues it opened, and what the skeptic refuted or could not decide (those are not issues). Its issues:
   `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
 
-**The engineer's one-time setup 👤:**
-1. After the merge, start the first nightly run by hand and check it:
-   `cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`
-   (`-f ref=release/m5` added: that ref alone).
+**The engineer's one-time setup 👤:** after the merge, start the first nightly run by hand and check it:
+`cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`
+(`-f ref=release/m5` added: that ref alone).
