@@ -330,6 +330,11 @@ The issues follow from the ADR's split.
 Open questions: none. The engineer answered every one on 2026-10-10 (the ADR's §6).
 
 ### Zone task (#36)
+**Out of the base mode** (2026-10-11, #837; the engineer's answer on
+[#842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)): the base mode deals Delivery alone,
+its `tasks` 1 (1 to 1), so the ZD8 line below is history. The code, its tests (on fixture modes) and the House's
+zones stay; the task may come back with a name and a how-to card, by his word.
+
 A second task type from #36: stand in a zone for N seconds. Tasks are shared and only living players do subtasks
 (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4), so the downed never count, and the dead
 have no avatar (there are no ghosts). The engineer took every recommendation of [the zone task
