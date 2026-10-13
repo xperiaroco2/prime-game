@@ -57,8 +57,14 @@ func test_the_zones_setting_and_both_types_in_every_match() -> void:
 	assert_bool(zones.is_number()).is_true()
 	# One zone (the engineer's "1 zone"; the palette's one colour allows no more), "not a decision".
 	assert_array([zones.default_value, zones.min_value, zones.max_value]).is_equal([1, 1, 1])
+	# `tasks` reaches the most types any one map plays (TaskType.maps): the House's two (its
+	# Delivery by meaning and the zone task); the greybox plays its Delivery by colours alone (#828).
 	var tasks := mode.find_setting(&"tasks")
-	assert_array([tasks.default_value, tasks.max_value]).is_equal([2, mode.task_types.size()])
+	var most := 0
+	for path: String in mode.maps:
+		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
+	assert_array([tasks.default_value, tasks.max_value]).is_equal([2, most])
+	assert_int(most).is_equal(2)
 	assert_bool(mode.task_types.has(Spacing.zone_task(mode))).is_true()
 
 
@@ -89,13 +95,31 @@ func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
 func test_zone_markers_keep_ze9_s_spacing_on_every_map_the_zone_task_plays() -> void:
 	var mode := _mode()
 	var zone := Spacing.zone_task(mode)
-	var circle := Spacing.circle(mode)
+	var others := Spacing.others(mode)
 	var layouts := _layouts(mode)
 	assert_bool(zone.maps.is_empty()).is_false()
 	for path: String in zone.maps:
 		var map := layouts[path]
 		assert_int(map.count(zone.zone.spawn_tag)).override_failure_message(path).is_greater(0)
-		assert_array(Array(Spacing.faults(path, map, zone.zone, circle))).is_empty()
+		assert_array(Array(Spacing.faults(path, map, zone.zone, others))).is_empty()
+
+
+func test_the_spacing_measures_the_drop_offs_too() -> void:
+	# ZE9 through TaskType.station_kinds() (DE12 of the delivery-by-meaning ADR, #828): a zone
+	# keeps its distance from the greybox's circles and the House's drop-offs alike.
+	var mode := _mode()
+	var others := Spacing.others(mode)
+	var ids: Array[StringName] = []
+	for kind: StationKind in others:
+		ids.append(kind.id)
+	assert_array(ids).contains_exactly_in_any_order(
+		[&"drop_dining_table", &"drop_workbench", &"drop_garden", &"drop_terrace_table", &"circle"]
+	)
+	var zone := Spacing.zone_task(mode).zone
+	var map := LevelLayout.new()
+	map.add_marker(zone.spawn_tag, Vector3.ZERO)
+	map.add_marker(&"drop_garden", Vector3(1, 0, 0))
+	assert_array(Array(Spacing.faults("a map", map, zone, others))).has_size(1)
 
 
 func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:
@@ -110,7 +134,7 @@ func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:
 	var map := LevelLayout.new()
 	map.add_marker(zone.spawn_tag, Vector3(0, 0, 2))
 	map.add_marker(&"round_player", Vector3.ZERO)
-	var faults := Spacing.faults("a map", map, zone, Spacing.circle(mode))
+	var faults := Spacing.faults("a map", map, zone, Spacing.others(mode))
 	assert_array(Array(faults)).has_size(1)
 
 
@@ -135,7 +159,7 @@ func test_the_flat_fake_would_hide_a_spawn_point_beside_an_upstairs_zone() -> vo
 	# the storey's own floor (a flat world at y = 3.2, as the host's would answer), it is a fault.
 	var mode := _mode()
 	var zone := Spacing.zone_task(mode).zone
-	var circle := Spacing.circle(mode)
+	var others := Spacing.others(mode)
 	var tags := MarkerReader.floor_tags_of(mode)
 	var storey: Node3D = auto_free(Node3D.new())
 	_add_marker(storey, zone.spawn_tag, Vector3(0, 3.7, 2))
@@ -143,8 +167,8 @@ func test_the_flat_fake_would_hide_a_spawn_point_beside_an_upstairs_zone() -> vo
 	var flat := MarkerReader.read(storey, "upstairs", FlatWorldQuery.new(), tags)
 	var host := MarkerReader.read(storey, "upstairs", FlatWorldQuery.new(3.2), tags)
 	assert_array(Array(flat.errors + host.errors)).is_empty()
-	assert_array(Array(Spacing.faults("flat", flat.layout, zone, circle))).is_empty()
-	assert_array(Array(Spacing.faults("host", host.layout, zone, circle))).has_size(1)
+	assert_array(Array(Spacing.faults("flat", flat.layout, zone, others))).is_empty()
+	assert_array(Array(Spacing.faults("host", host.layout, zone, others))).has_size(1)
 
 
 func _mode() -> GameMode:
