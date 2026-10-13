@@ -127,6 +127,7 @@ var _voice_panel_shown := false
 var _talk_blocked := false
 var _ending := false
 var _last_stop_check_ms := 0
+var _quitting := false
 var _screen := GameFlow.Screen.MENU
 
 @onready var ui: GameUi = $Ui
@@ -392,10 +393,11 @@ func open_direct() -> void:
 	ui.menu.open_direct()
 
 
-## Ends any session, then the process.
+## Ends any session, then the process once every sound has stopped (SoundStopper, #891).
 func quit() -> void:
-	leave()
-	get_tree().quit()
+	if not _quitting:
+		_quitting = true
+		await SoundStopper.quit(get_tree(), leave)
 
 
 ## Esc: the Esc menu over the current screen, the mouse freed; the player stands still under it.
