@@ -346,6 +346,13 @@ func _try_again(bot: ScenarioBot, reason: String, at_tick: int, connection_refus
 		var failed := _fail_step(bot, "its Join after its Leave ended (%s)" % reason)
 		bot.gone = true
 		return failed
+	# A refused try is a connected peer that is no player: it decodes at most its own Rejected (§5).
+	for event: WireMessage in bot.events:
+		if event.name != &"Rejected":
+			bot.gone = true
+			return _fail_step(
+				bot, "its refused Join decoded %s, a peer that is not a player" % event.name
+			)
 	var was_connected := bot.connected
 	bot.refused(reason, at_tick + Ticks.from_seconds(RETRY_S))
 	_drop_try(bot, was_connected)

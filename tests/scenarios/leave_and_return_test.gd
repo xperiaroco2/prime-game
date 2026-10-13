@@ -153,6 +153,27 @@ func test_a_decoded_return_key_is_a_leak() -> void:
 	assert_str(found).contains("the snapshot of tick %d holds a return key" % at_tick)
 
 
+func test_a_refused_try_that_decoded_more_than_its_rejected_fails_the_run() -> void:
+	var core := ScenarioRunner.play(_round_return_scenario())
+	assert_array(Array(core.failures)).is_empty()
+	var bot := core.bots[1]
+	bot.events.clear()
+	bot.events.append(WireMessage.new(&"Rejected", {"reason": "joins_closed"}))
+	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.WAITING)
+	assert_array(Array(core.failures)).is_empty()
+	bot.events.append(WireMessage.new(&"Rejected", {"reason": "joins_closed"}))
+	bot.events.append(WireMessage.new(&"PhaseChanged", {"phase": "round"}))
+	assert_int(core._try_again(bot, "joins_closed", 0, false)).is_equal(ScenarioPlay.Result.FAILED)
+	assert_str("\n".join(core.failures)).contains("its refused Join decoded PhaseChanged")
+	var net := BotsRunner.play(_round_return_scenario())
+	assert_array(Array(net.failures)).is_empty()
+	# A snapshot decoded by a refused try is named too, whatever its events.
+	var view := (net.clients[2] as BotClient).view
+	view.snapshots[1] = {"avatars": {}}
+	net._drop_try(net.bots[1], true)
+	assert_str("\n".join(net.failures)).contains("its refused Join decoded")
+
+
 ## Bot 2 leaves in the round: the host refuses connections until bot 1's ReturnToLobby, and its
 ## Join tries again every 0.5 s until then (P12 (t2)).
 func _round_return_scenario() -> BotScenario:

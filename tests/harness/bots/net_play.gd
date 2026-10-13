@@ -213,8 +213,22 @@ func _begin_return(bot: ScenarioBot) -> void:
 	bot.begin_return(0)
 
 
-## A refused try never joined: its client holds no view of the game.
+## A refused try never joined: its client holds no view of the game, and it decoded no snapshot and
+## no voice (its events were checked by ScenarioPlay._try_again).
 func _drop_try(bot: ScenarioBot, _was_connected: bool) -> void:
+	var client: BotClient = clients.get(bot.number)
+	if client != null:
+		var view := client.view
+		if not view.snapshots.is_empty() or not view.voice.is_empty() or view.voice_batches > 0:
+			failures.append(
+				(
+					(
+						"bot %d: its refused Join decoded %d snapshots, voice of %d speaker-ticks"
+						+ " and %d VoiceBatches, a peer that is not a player"
+					)
+					% [bot.number, view.snapshots.size(), view.voice.size(), view.voice_batches]
+				)
+			)
 	_forget_connection(bot.number)
 	bot.peer = 0
 
