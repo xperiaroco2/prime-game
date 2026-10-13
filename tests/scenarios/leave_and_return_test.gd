@@ -126,6 +126,33 @@ func test_the_loopback_bot_that_left_the_round_tries_again_until_the_lobby() -> 
 	assert_int(net.earlier_clients[2].size()).is_equal(1)
 
 
+func test_a_decoded_return_key_is_a_leak() -> void:
+	var net := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(net.failures)).is_empty()
+	var keys := net._invariants.keys()
+	assert_array(Array(keys)).contains([ScenarioBot.key_of(1), ScenarioBot.key_of(2)])
+	var key := ScenarioBot.key_of(1)
+	assert_bool(ScenarioInvariants.holds_text({"a": [{"name": "x%sy" % key}]}, keys)).is_true()
+	assert_bool(ScenarioInvariants.holds_text({key: 1}, keys)).is_true()
+	assert_bool(ScenarioInvariants.holds_text(PackedStringArray([key]), keys)).is_true()
+	assert_bool(ScenarioInvariants.holds_text({"a": ["Player1", 7]}, keys)).is_false()
+	var own := net.clients[2].view
+	var peer := net.peers.peer_of(2)
+	assert_array(Array(net.leaks.check_bot("bot 2", peer, own, false))).is_empty()
+	var fields := own.events[0].fields.duplicate()
+	fields["planted"] = key
+	own.events[0] = WireMessage.new(own.events[0].name, fields)
+	var at_tick: int = own.snapshots.keys().back()
+	var snapshot: Dictionary = own.snapshots[at_tick].duplicate()
+	snapshot["planted"] = {"name": key}
+	own.snapshots[at_tick] = snapshot
+	var found := "\n".join(net.leaks.check_bot("bot 2", peer, own, false))
+	assert_str(found).contains("decoded Welcome holding a return key")
+	assert_str(found).contains("the snapshot of tick %d holds a return key" % at_tick)
+
+
 ## Bot 2 leaves in the round: the host refuses connections until bot 1's ReturnToLobby, and its
 ## Join tries again every 0.5 s until then (P12 (t2)).
 func _round_return_scenario() -> BotScenario:

@@ -240,6 +240,7 @@ func _check_after() -> void:
 		if line.begins_with("error:"):
 			failures.append("match %s" % line)
 	leaks.set_seeds(_invariants.seeds())
+	leaks.set_keys(_invariants.keys())
 	var views: Dictionary[String, DecodedView] = {}
 	for bot: ScenarioBot in bots:
 		# A bot that left and joined again: each earlier connection is its own view, a prefix.

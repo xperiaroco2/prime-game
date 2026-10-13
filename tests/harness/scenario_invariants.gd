@@ -100,6 +100,18 @@ func seeds() -> Array[int]:
 	return _seeds.duplicate()
 
 
+## Every return key a Hello carried: each bot's (ScenarioBot.key_of) and each the host keeps (its
+## numbers map; the chaos hostile's too). No message may hold one (§3.5, the returning-players ADR).
+func keys() -> PackedStringArray:
+	var found := PackedStringArray()
+	for number in range(1, _scenario.bots + 1):
+		found.append(ScenarioBot.key_of(number))
+	for key: String in _game.state.numbers:
+		if not found.has(key):
+			found.append(key)
+	return found
+
+
 ## The broken invariants of one emitted event, checked right after the step that emitted it.
 func check_event(emitted: EmittedEvent) -> PackedStringArray:
 	var found := PackedStringArray()
@@ -135,6 +147,8 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 	for seed_value: int in _seeds:
 		if holds_int(event.to_dict(), seed_value):
 			found.append("%s holds a seed" % name)
+	if holds_text(event.to_dict(), keys()):
+		found.append("%s holds a return key" % name)
 	found.append_array(_check_dead_recipients(emitted))
 	if event is DamagedEvent:
 		for peer: int in emitted.recipients:
@@ -168,6 +182,8 @@ func check_tick() -> PackedStringArray:
 		for seed_value: int in _seeds:
 			if holds_int(snapshot, seed_value):
 				found.append("peer %d's snapshot holds a seed" % peer)
+		if holds_text(snapshot, keys()):
+			found.append("peer %d's snapshot holds a return key" % peer)
 		for other: int in avatars:
 			var avatar: Dictionary = avatars[other]
 			for field: Variant in avatar:
@@ -384,6 +400,26 @@ func _learn_role(peer: int, about: int, role: StringName, found: PackedStringArr
 	var own_role := _game.mode.find_role(own)
 	if own_role == null or not own_role.knows_teammates or truth != own:
 		found.append("peer %d (%s) learned the role of peer %d (%s)" % [peer, own, about, truth])
+
+
+## Whether `value` holds any of `texts` in a String or StringName, at any depth (a key or a
+## value).
+static func holds_text(value: Variant, texts: PackedStringArray) -> bool:
+	if value is String or value is StringName:
+		var text := str(value)
+		for wanted: String in texts:
+			if text.contains(wanted):
+				return true
+	elif value is Dictionary:
+		var fields: Dictionary = value
+		for key: Variant in fields:
+			if holds_text(key, texts) or holds_text(fields[key], texts):
+				return true
+	elif value is Array or value is PackedStringArray:
+		for element: Variant in value:
+			if holds_text(element, texts):
+				return true
+	return false
 
 
 ## Whether `value` holds the whole number `number`, at any depth.

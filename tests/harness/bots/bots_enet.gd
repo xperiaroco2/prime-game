@@ -498,6 +498,7 @@ func _compare() -> void:
 		if line.begins_with("error:"):
 			failures.append("match %s" % line)
 	_leaks.set_seeds(_invariants.seeds())
+	_leaks.set_keys(_invariants.keys())
 	var views: Dictionary[String, DecodedView] = {}
 	# The host's own bot, stepped in this frame after the session: exactly what it decoded so far.
 	var own: BotClient = clients[1]
