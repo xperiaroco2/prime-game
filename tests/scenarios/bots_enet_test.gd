@@ -221,3 +221,98 @@ func test_a_runner_that_never_joins_again_fails_a_lost_join_at_once() -> void:
 		"lost for good (connect_failed)"
 	)
 	assert_bool(bot.gone).is_true()
+
+
+func test_a_view_file_keeps_each_earlier_connection_and_an_old_file_has_none() -> void:
+	var first := _view(70, [&"Welcome", &"PlayerJoined"])
+	var last := _view(80, [&"Welcome"])
+	var earlier: Array[Dictionary] = [{"peer": 70, "view": first, "order": {}}]
+	assert_bool(ViewFile.write(OUT, 2, 80, last, PackedStringArray(), {}, earlier)).is_true()
+	var written := ViewFile.read(OUT, 2)
+	assert_int(written["peer"]).is_equal(80)
+	assert_int((written["view"] as DecodedView).events.size()).is_equal(1)
+	var lives: Array = written["earlier"]
+	assert_int(lives.size()).is_equal(1)
+	assert_int(lives[0]["peer"]).is_equal(70)
+	var back: DecodedView = lives[0]["view"]
+	assert_int(back.peer).is_equal(70)
+	(
+		assert_array(back.events.map(func(e: WireMessage) -> StringName: return e.name))
+		. is_equal([&"Welcome", &"PlayerJoined"])
+	)
+	assert_dict(back.snapshots).is_equal(first.snapshots)
+	# A file written before `earlier` existed reads with none.
+	var raw := FileAccess.open(ViewFile.path_of(OUT, 2), FileAccess.READ)
+	var data: Dictionary = raw.get_var(false)
+	raw.close()
+	data.erase("earlier")
+	var old := FileAccess.open(ViewFile.path_of(OUT, 2), FileAccess.WRITE)
+	old.store_var(data)
+	old.close()
+	var read_old := ViewFile.read(OUT, 2)
+	DirAccess.remove_absolute(ViewFile.path_of(OUT, 2))
+	assert_int(read_old["peer"]).is_equal(80)
+	assert_array(read_old["earlier"]).is_empty()
+
+
+func test_the_host_reads_only_whole_lines_of_a_peer_file_and_a_returning_bot_adds_a_line() -> void:
+	var runner := BotsEnet.new(_scenario([[], []]), 1, NO_PORT, OUT)
+	DirAccess.make_dir_recursive_absolute(OUT)
+	var path := OUT.path_join("peer-2")
+	# The second id is half written: only the first is known.
+	_write_text(path, "70\n80")
+	runner._read_peer_files()
+	assert_int(runner.peers.peer_of(2)).is_equal(70)
+	assert_array(runner.peers.peers_of(2)).is_equal([70])
+	# Its newline arrived: 80 is the current peer, 70 the earlier one.
+	_write_text(path, "70\n80\n")
+	runner._read_peer_files()
+	assert_int(runner.peers.peer_of(2)).is_equal(80)
+	assert_array(runner.peers.peers_of(2)).is_equal([70, 80])
+	# Read again, nothing changes.
+	runner._read_peer_files()
+	assert_array(runner.peers.peers_of(2)).is_equal([70, 80])
+	DirAccess.remove_absolute(path)
+	DirAccess.remove_absolute(OUT.path_join(BotsEnet.PEERS_FILE))
+
+
+func test_a_remote_bot_learns_the_new_peer_of_a_bot_that_returned() -> void:
+	var runner := RemoteBot.new(_scenario([[], []]))
+	DirAccess.make_dir_recursive_absolute(OUT)
+	var path := OUT.path_join(BotsEnet.PEERS_FILE)
+	_write_text(path, "1 11\n3 30")
+	runner._read_peers(runner.peers)
+	assert_int(runner.peers.peer_of(3)).is_equal(30)
+	_write_text(path, "1 11\n3 30\n3 31")
+	runner._read_peers(runner.peers)
+	DirAccess.remove_absolute(path)
+	assert_int(runner.peers.peer_of(3)).is_equal(31)
+	assert_array(runner.peers.peers_of(3)).is_equal([30, 31])
+
+
+func test_a_returned_bot_writes_its_view_at_the_end_of_its_script_another_waits_for_the_end(
+) -> void:
+	var scenario := _scenario([[], []])
+	scenario.expected_ends = [&"dissidents"]
+	var runner := RemoteBot.new(scenario)
+	var bot := runner.add_bot()
+	# Its script is over and the match has not ended (no MatchEnded decoded): it waits.
+	assert_bool(runner._view_due(bot)).override_failure_message("did not wait").is_false()
+	# It left and joined again: its last connection may have joined after the end, so it writes now.
+	bot.lives.append({"peer": 70, "events": []})
+	assert_bool(runner._view_due(bot)).override_failure_message("a returned bot waits").is_true()
+
+
+func _write_text(path: String, text: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+
+
+func _view(peer: int, names: Array[StringName]) -> DecodedView:
+	var view := DecodedView.new()
+	view.peer = peer
+	for event_name: StringName in names:
+		view.events.append(WireMessage.new(event_name, {}))
+	view.snapshots[3] = {"avatars": {}}
+	return view
