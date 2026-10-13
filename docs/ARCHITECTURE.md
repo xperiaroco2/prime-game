@@ -6959,7 +6959,8 @@ first, takes the film out, prints it and hangs the photo, and a third stands bey
 decoded equals its `Match.view_of`, and `LeakCheck.check_bot` (its `record_tick` fed by the session's observer) runs
 §4.6.4's record invariant over each decoded `ShotTaken`. Planted, each failed, reverted: `ShotTaken`'s wire row without
 the rows' `facing` (the host refuses to start: "record: an undeclared field facing"), the decoded rows losing `facing`,
-and the record builder's distance test dropped (a row 100 m off, caught by the decoded-side record invariant). As in
+and the record builder's distance bound raised to 1000 m (a row 100 m off, caught by the decoded-side record
+invariant). As in
 cooking's C9, a server path that broadcasts what the filter should route stays unseen there (every photo event goes to
 every player, and Round refuses joins) until bots play the photo task. And the box's flood guard and the film cap
 against one peer's burst of takes (§4.6.5.3).
