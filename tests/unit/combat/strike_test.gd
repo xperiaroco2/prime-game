@@ -299,6 +299,65 @@ func test_a_target_no_longer_alive_when_its_turn_comes_is_skipped_with_no_rule_e
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_crouched_target_behind_cover_its_standing_middle_clears_is_missed() -> void:
+	# The crouch ADR, KD7 (a): the sight line goes to the middle of the crouched capsule, 0.6 m
+	# up; from the standing eye (1.6 m) it meets a 1.15 m wall 0.5 m ahead at 1.1 m, while the
+	# line to a standing middle (0.9 m) passes over it at 1.25 m.
+	var wall := AABB(Vector3(-2, 0, 0.5), Vector3(4, 1.15, 0.1))
+	var game := _armed([P1, P2], null, FlatWorldQuery.new().add_wall(wall))
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	game.state.player(P2).crouched = true
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HEALTH)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	game.state.player(P2).crouched = false
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+
+
+func test_a_crouched_attacker_swings_from_its_crouched_eye() -> void:
+	# Items.eye_of crouched (1.0 m): the line to a standing middle (0.9 m) stays under the top of
+	# the same 1.15 m wall, which the standing eye's line clears.
+	var wall := AABB(Vector3(-2, 0, 0.5), Vector3(4, 1.15, 0.1))
+	var game := _armed([P1, P2], null, FlatWorldQuery.new().add_wall(wall))
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	game.state.player(P1).crouched = true
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HEALTH)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	game.state.player(P1).crouched = false
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+
+
+func test_the_vertical_overlap_takes_each_players_own_height() -> void:
+	# -h(target) <= dy <= h(attacker), dy the target's feet less the attacker's (KE2): a crouched
+	# attacker reaches 1.2 m up, a crouched target 1.2 m down. Heights exact in binary as above.
+	var mode := FixtureCombatModes.basic()
+	mode.player_rules.capsule_height_m = 2.0
+	mode.player_rules.crouch_height_m = 1.25
+	var game := _armed([P1, P2], mode)
+	game.state.player(P1).crouched = true
+	FixtureItemModes.stand(game, P2, Vector3(0, 1.25, 1))
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureItemModes.stand(game, P2, Vector3(0, 1.5, 1))
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	# Below: the attacker standing 1.25 m above a crouched target still overlaps it, 1.5 m does not.
+	game = _armed([P1, P2], mode)
+	FixtureItemModes.stand(game, P1, Vector3(0, 1.25, 0))
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	game.state.player(P2).crouched = true
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureItemModes.stand(game, P1, Vector3(0, 1.5, 0))
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+
+
 ## A round of `peers` (of `mode`, the knife mode when null, in `world`) with P1 at the origin
 ## holding a knife.
 func _armed(peers: Array[int], mode: GameMode = null, world: WorldQuery = null) -> Match:

@@ -44,6 +44,7 @@ func _row(game: Match, peer: int) -> Dictionary:
 		"position": player.position,
 		"facing": player.facing,
 		"downed": player.life == PlayerState.Life.DOWNED,
+		"crouched": player.crouched,
 		"held_item": player.held_item,
 		"belt_item": player.belt_item,
 	}
@@ -99,6 +100,25 @@ func test_a_wall_between_the_lens_and_the_head_hides_it() -> void:
 	var game := _shot(FixturePhotoModes.IN_FRAME, wall)
 	assert_array(Array(_subjects(game))).is_empty()
 	assert_array(_rows(game)).is_equal([_row(game, P2)])
+
+
+func test_a_crouched_head_hidden_by_cover_a_standing_head_clears_does_not_count() -> void:
+	# The crouch ADR, KE2: a crouched subject's head is its feet plus crouch_eye_height_m (1 m).
+	# A 1.3 m wall just before it hides that head from the lens (1.6 m up) but not a standing one;
+	# its record row says crouched either way, so the picture draws it crouched.
+	var wall := FlatWorldQuery.new().add_wall(AABB(Vector3(-1, 0, 24.5), Vector3(2, 1.3, 0.5)))
+	var standing := _shot(FixturePhotoModes.IN_FRAME, wall)
+	assert_array(Array(_subjects(standing))).is_equal([P2])
+	var game := FixturePhotoModes.in_round(FixturePhotoModes.basic(), PEERS, {}, wall)
+	FixturePhotoModes.take(game, P1, FixturePhotoModes.dealt_film(game))
+	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
+	FixtureItemModes.stand(game, P2, FixturePhotoModes.IN_FRAME)
+	FixtureItemModes.stand(game, P3, FAR)
+	game.state.player(P2).crouched = true
+	FixturePhotoModes.use(game, P1, FixturePhotoModes.camera_of(game))
+	assert_array(Array(_subjects(game))).is_empty()
+	assert_array(_rows(game)).is_equal([_row(game, P2)])
+	assert_bool(_rows(game)[0]["crouched"]).is_true()
 
 
 func test_a_knocked_down_player_never_counts_but_has_a_downed_row() -> void:

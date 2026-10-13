@@ -142,6 +142,7 @@ func test_the_shot_never_says_whether_a_person_counted() -> void:
 		"position": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"downed": false,
+		"crouched": false,
 		"held_item": -1,
 		"belt_item": -1,
 	}
