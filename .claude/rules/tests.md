@@ -10,7 +10,7 @@ paths:
   `tests/unit/match/intents_test.gd`). `tests/integration/`: `server/` and `net/` together, and scene or physics
   suites that need real engine steps, mirroring the source path (`client/player/player_controller.gd` →
   `tests/integration/client/player/player_controller_test.gd`). Bot matches run with `tools\run.cmd bots`
-  (`tests/harness/bots/`, scenarios in `content/scenarios/`), also a `verify` step.
+  (`tests/harness/bots/`, scenarios in `content/scenarios/`), a step of `verify --full` (CI).
 - A suite that outgrows gdlint's 40 public methods splits by topic (`player_controller_downed_test.gd`); builders it
   shares go in a plain script next to it, preloaded by each suite (`player_test_world.gd`).
 - A suite is `<name>_test.gd` (GdUnit4's snake_case convention) and `extends GdUnitTestSuite`. Test functions start
@@ -39,7 +39,7 @@ paths:
 - One file: `tools\run.cmd test tests/unit/match/vote_test.gd`. Everything: `tools\run.cmd test`, which with no
   paths runs in shards: K GdUnit4 processes at once, each with its own `user://` (K from the CPU count, at most 4;
   `--shards K` sets it, 1 is one at a time). Named paths run one process unless `--shards K`; `--repeat`: so per run.
-- No paths (`verify`, CI): frame-bound suites at `--fixed-fps 60` (#341); paths, `--repeat`, `--real-time`: real time.
+- No paths (`verify --full`, CI): frame-bound suites at `--fixed-fps 60` (#341); paths, `--repeat`, `--real-time`: real time.
 - The runner trusts only GdUnit4's exit code and `results.xml` (never the console summary). Zero tests is a failure.
   Reports: `tools/out/gdunit/`; log: `tools/out/logs/test.log`.
 - Flaky hunt: `tools\run.cmd test --repeat N [paths]` runs them N times in a row; per-run reports in
@@ -47,8 +47,8 @@ paths:
 - Perf matches live in `tests/harness/perf/` and run with `tools\run.cmd perf` (host tick time and bytes per peer
   with 10 bots, compared with the last run; not a `verify` step; `docs/ARCHITECTURE.md` §9.7).
 - Chaos bots live in `tests/harness/chaos/` and run with `tools\run.cmd bots --chaos [--seed N]` (a hostile player
-  and a malformed peer against the host; a failure prints the seed that replays it; the `verify` steps `chaos` and
-  `chaos-webrtc` (`--transport webrtc`); `docs/ARCHITECTURE.md` §4.6 "Chaos bots").
+  and a malformed peer against the host; a failure prints the seed that replays it; the `verify --full` steps
+  `chaos` and `chaos-webrtc` (`--transport webrtc`); `docs/ARCHITECTURE.md` §4.6 "Chaos bots").
 - Agent `test-runner` runs them and returns only failures.
 - A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
   `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with its `.gd.uid` (`rm -r tests/scratch/...`, no
