@@ -2568,8 +2568,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   SightHider's group with the host's point as its sight point; `point_of(peer, fallback)` is that point, which the
   own camera, ears, held items, world sounds and the map's own place read (`LifeView.own_point()`, the controller
   until the first snapshot with the own avatar). Nothing reads a ragdoll's pose (the render checklist's item 1).
-  `DownedCamera.place_over` casts down and up from the point plus the radius and `clamp_eye` keeps the pivot no
-  higher than the eye height above the floor below (none found: no clamp) nor than `CEILING_MARGIN_M` under the
+  `DownedCamera.place_over` takes `LifeView.downed_eye_of`'s eye height (#958: the crouched eye where the standing
+  capsule finds no room), casts down and up from the point plus the radius and `clamp_eye` keeps the pivot no
+  higher than that eye height above the floor below (none found: no clamp) nor than `CEILING_MARGIN_M` under the
   ceiling, for the own camera and a spectator's over a knocked-down target. The raise hint's ray maps a hit ragdoll to
   its peer and measures the reach to `held_point()`. At a death `BodyViews` takes the ragdoll (`release_ragdoll`, the
   same step), greys it, puts it on no layer (no ray stops at a body) and draws `LifeLooks.cross` over the body's
