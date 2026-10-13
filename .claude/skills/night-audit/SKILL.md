@@ -110,11 +110,14 @@ to a missing file; a "Built in" or "Tests" line naming a test that does not exis
 
 **decisions.** An engineer's answer of the last 7 days that changes a documented flow, rule or number while an ADR,
 a doc, a skill or a `CLAUDE.md` on `main` still says the old thing (MANAGERS.md §10). List the answers (`<date>`:
-7 days ago; past about 40 issues the search times out, so split the week by `updated:` ranges):
+7 days ago). The list cuts silently at `--limit` and at each issue's first 100 comments: on `issues: 100` or a
+timeout, split the week by `updated:<from>..<to>` ranges; on each `refetch #<n>`, run the same comment filter on
+`gh issue view <n> --json comments`, which returns them all:
 ```bash
-gh issue list --state all --search "\"The engineer's answer\" in:comments updated:>=<date>" --limit 40 \
-  --json comments --jq '.[].comments[] | select(.createdAt >= "<date>")
-  | select(.body | split("\n")[0] | test("engineer.s answer"; "i")) | .url + " " + (.body[0:300] | gsub("\n"; " "))'
+gh issue list --state all --search "\"The engineer's answer\" in:comments updated:>=<date>" --limit 100 \
+  --json number,comments --jq '"issues: \(length)", (.[] | select(.comments | length >= 100) | "refetch #\(.number)"),
+  (.[].comments[] | select(.createdAt >= "<date>") | select(.body | split("\n")[0] | test("engineer.s answer"; "i"))
+  | .url + " " + (.body[0:300] | gsub("\n"; " ")))'
 ```
 Skip a choice inside one task (an option, an approval, a scene); read the others whole. Each: grep `docs/`,
 `.claude/` and the `CLAUDE.md` files for the old rule's words; still there, and no open issue or PR carries the change
