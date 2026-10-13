@@ -9,7 +9,8 @@ const WORLD := 1 << 0
 ## Living players' capsules: the local player and the kinematic capsules of the others. No body
 ## collides with this layer; a living player's push search looks for the others on it.
 const LIVING := 1 << 1
-## Downed and dead players' capsules (ARCHITECTURE §4.7, M4-9): nothing collides with them and no
-## push search looks at them; they collide with the level only. The crosshair's search for a
-## downed player to raise reads this layer.
+## Downed players: the controllers and the ragdolls (RagdollView, ARCHITECTURE §4.7.9); a dead
+## body's ragdoll is on no layer. Nothing collides with them and no push search looks at them; they
+## collide with the level only. The crosshair's search for a downed player to raise reads this
+## layer.
 const DOWNED := 1 << 2

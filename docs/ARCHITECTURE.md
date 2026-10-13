@@ -2500,14 +2500,14 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.9 Built in M4-9 (#145), the life states in 3D
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
-  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), with its lying
-  mesh (`Lying`); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
+  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), showing nothing
+  (its body is the own avatar's ragdoll); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
   its step), so a dead player never stands back up and walks before its `Respawned`. `held` (the
   raise's hold, from `ClientModel.raiser_of(own) != 0`) went with #728: every downed controller holds still.
-  Any life change clears a pending jump. `RemotePlayerBody` lies down while its player is downed (its head hidden,
-  the capsule shape kept standing), wears a pulsing white shell while its avatar has the `invulnerable` flag, hides
+  Any life change clears a pending jump. `RemotePlayerBody` hides its meshes and turns its shape off while its player
+  is downed (its ragdoll stands in), wears a pulsing white shell while its avatar has the `invulnerable` flag, hides
   its meshes while watched from its eyes (`set_watched`), and knows its `peer`. `LifeLooks` holds D8's greybox
-  looks (the lying capsule, the body's grey capsule and dark cross, the shell).
+  looks (the capsule, a body's dark cross, the shell).
 - `client/world/`: `BodyViews` (`Bodies` under `World`, -70) draws a body per `ClientModel.bodies` entry, the own
   one included. `SnapshotBuffer` keeps a unit facing for a huge but finite relayed one (scaled by its largest
   component before normalising; `unit_or()`), which `look_angles` shares.
@@ -2552,7 +2552,30 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   joiner walks at the downed host's body from three sides and presses E at the first raise hint, on an even and an
   uneven clock; the host starts every raise; seen failing `out_of_reach` with no margin) and
   `tests/unit/client/life/life_view_reach_test.gd`. `client/dev/life_preview.tscn` is the
-  `shot` of the downed pose, a body, the invulnerable look and the panel.
+  `shot` of a ragdoll at rest, a body, the invulnerable look and the panel.
+- **Ragdolls (728d, #848; the knockdown ADR's KE7, KE8, KD7).** `client/player/RagdollView`: on today's capsule
+  avatar one `RigidBody3D` capsule of the client's `PlayerRules` on the `downed` layer with the world mask only,
+  top-level, never asleep; `start()` stands it on the snapshot's point with its velocity and tips it (towards the
+  velocity, else backwards: an upright capsule pulled through its centre stays standing); each step a spring and a
+  damper pull its centre to the lying centre over the host's interpolated point (the point plus the radius, never
+  into the floor), across the floor only as much as it lies, and a centre farther than `SNAP_M` moves there at once.
+  Its constants (`SNAP_M`, `SPRING_K`, `SPRING_D`, `TIP_RAD_PER_S`, `FRICTION`) are placeholders, "not a decision".
+  `AvatarViews` draws every knocked-down avatar, the own one included (KE5), as a ragdoll beside the bodies, in
+  SightHider's group with the host's point as its sight point; `point_of(peer, fallback)` is that point, which the
+  own camera, ears, held items, world sounds and the map's own place read (`LifeView.own_point()`, the controller
+  until the first snapshot with the own avatar). Nothing reads a ragdoll's pose (the render checklist's item 1).
+  `DownedCamera.place_over` casts down and up from the point plus the radius and `clamp_eye` keeps the pivot no
+  higher than the eye height above the floor below (none found: no clamp) nor than `CEILING_MARGIN_M` under the
+  ceiling, for the own camera and a spectator's over a knocked-down target. The raise hint's ray maps a hit ragdoll to
+  its peer and measures the reach to `held_point()`. At a death `BodyViews` takes the ragdoll (`release_ragdoll`, the
+  same step), greys it, puts it on no layer (no ray stops at a body) and draws `LifeLooks.cross` over the body's
+  point; a body this client never saw knocked down gets a fresh ragdoll lying at rest along -Z. A revive drops the
+  ragdoll and the controller stands at the host's point. #522's character takes this over on its skeleton.
+  Tests: `tests/integration/client/player/ragdoll_view_test.gd`, `tests/integration/client/world/avatar_views_test.gd`,
+  `body_views_test.gd`, `tests/unit/client/life/downed_camera_clamp_test.gd`, `life_raise_ragdoll_network_test.gd`
+  and `life_ragdoll_network_test.gd` (over the loopback on `NetPair.MOTION_LEVEL`, whose low slab the host and the
+  client share: a launched joiner's camera and ears follow its avatar with both clamps in mid-flight, the root within
+  the snap distance every frame, a spectator's floor clamp, the ragdoll kept at a death, a revive at the point).
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
 
@@ -4330,15 +4353,14 @@ circle `StationKind`'s palette in `content/tasks/delivery.tres`, in its order, w
 the engineer's choice on PR #745 until the UI track's player-colour list (asked on #150) replaces them; one const
 array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics frame through
 `RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh per frame; a
-colour set before the body is ready waits for its rules); the lying pose is the same mesh, so a downed body keeps its
-colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
-when the life changes, `LifeLooks.PLAYER_COLOUR` offline. A dead body stays `LifeLooks.BODY_COLOUR`, grey. No picker
+colour set before the body is ready waits for its rules). Each ragdoll, the own one included, wears its player's colour (`RagdollView.set_colour`, 728d); a dead
+body's is `LifeLooks.BODY_COLOUR`, grey. No picker
 yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
 (`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
 colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
 `tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
-material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
+material, the ragdolls' colours).
 
 #### 4.7.51 Built in M7-Z4 (#650), the zones, their fill and the done look
 The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
@@ -4948,8 +4970,8 @@ latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flu
 `PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
 flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
 `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
-with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
-through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
+with the current camera: the own eye (living), the own body's head where it lies (downed: the lying head over the own
+avatar's point, near the floor, KE8; never the downed camera), a spectated living target's eye, a downed
 target's head, the own body without a target. Godot measures a 3D player's distance from the current
 `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
 docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
@@ -5747,7 +5769,7 @@ reads, do not move.
   crouch does not play, on a fixture world); `player_network_crouch_test.gd` (each `Game`'s
   `WorldSounds.crouch_plays` set in the Round on a listed map, clear in the lobby and on an unlisted map).
 
-#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll not built)
+#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll in 728d, #848)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
 knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
 and its body falls as a ragdoll that a hit can send flying. He answered every question of the
@@ -5820,13 +5842,15 @@ from its edge RD6 (a) accepts, so 728e's test records it and stops if the host c
 - **Built in 728b (#847).** `core/`: `BodyMotion` (`core/life/body_motion.gd`), `LifeRules.knock_down`, `body_moved`,
   `count_motion`, `rest`, `stop_motion`; `LaunchBody`, `StopBody`; `Intents.BODY_MOVED`; `Strike`'s launch; `TargetDowned`'s
   `moving`; `PlayerRules.motion_maps` and the rest's numbers; `Snapshots.for_peer`'s own avatar (protocol 30).
-  `server/`: `HostBodies` in `HostWorldQuery`, `HostSession`'s reports and directives. Every launch ships at 0 until
-  728d draws the motion: the client's `AvatarViews` and the bots' fold skip the own avatar meanwhile. Tests:
+  `server/`: `HostBodies` in `HostWorldQuery`, `HostSession`'s reports and directives. Every launch ships at 0 (the
+  House's numbers are 728e's); the bots' fold skips the own avatar (the client's `AvatarViews` did until 728d). Tests:
   `tests/unit/life/body_motion_test.gd` (scripted reports), `tests/unit/combat/strike_launch_test.gd`,
   `tests/unit/content/player_rules_test.gd`, `tests/unit/net/messages/snapshot_own_avatar_test.gd`,
   `tests/scenarios/body_motion_invariants_test.gd` (the invariants through a motion, the own-avatar check's plants) and
   `tests/integration/server/host_bodies_test.gd` (the probe; the ledge, ramp, stairs, wall, hole, low table, low
   ceiling, nosing and railing of `tests/fixtures/levels/body_rest_course.tscn`).
+- **Built in 728d (#848).** The ragdolls, the own camera and ears from the own avatar, KE8's clamps and the dead body
+  (KD7): §4.7.9's "Ragdolls". The client's `AvatarViews` draws the own avatar since.
 
 ## 8. Debug tooling
 
