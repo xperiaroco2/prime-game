@@ -68,9 +68,9 @@ export const meta = {
 // by default but checkpoint (on since #920). With none of them every agent's prompt, label, phase, schema and options
 // stay as they were (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args
 // is unchanged, but for the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's
-// RULES lines, #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
-// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
+// RULES lines, #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's
+// digest of the implementer's report, the implementer's summary cap, and the publisher's plan summary and inline
+// finish-task steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
 // pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the read-only agents' hooks-path and wait lines, and
 // Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
 // 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`; #920's checkpoint
@@ -129,8 +129,7 @@ export const meta = {
 //                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
 //                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
 //   checkpoint    on by default (#559; #920, the engineer's answer 6A on #302 after #759's measurement), false turns it
-//                 off: an implementer past 150,000
-//                 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
+//                 off: an implementer past 150,000 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
 //                 its own transcript's last API call; HANDOFF NOW at 150,000) every ~15 tool calls and after each
 //                 verify, and hands over after 60 tool calls in any case; it commits, writes
 //                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
