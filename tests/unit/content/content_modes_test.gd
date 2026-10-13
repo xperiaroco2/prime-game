@@ -64,10 +64,14 @@ func test_the_greybox_fits_ten_players_at_the_default_settings_and_the_most_pack
 	var mode := _base_mode()
 	var map := _layouts_for(mode)[mode.maps[0]]
 	var settings := mode.default_settings()
-	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	var demands := LayoutCheck.demands_of(
+		mode, PhaseSpec.Level.MAP, settings, mode.max_players, {}, mode.maps[0]
+	)
 	assert_array(Array(demands.shortfalls(map))).is_empty()
 	settings[&"packages"] = mode.find_setting(&"packages").max_value
-	demands = LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	demands = LayoutCheck.demands_of(
+		mode, PhaseSpec.Level.MAP, settings, mode.max_players, {}, mode.maps[0]
+	)
 	assert_array(Array(demands.shortfalls(map))).is_empty()
 	assert_int(map.count(&"knife")).is_greater_equal(settings[&"knives"])
 	# The Round's Respawn (M4-3) asks for one `respawn` marker; the greybox has 4 to 6.
@@ -87,7 +91,9 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 		for at: Vector3 in map.positions(tag):
 			stripped.add_marker(tag, at)
 	var settings := mode.default_settings()
-	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	var demands := LayoutCheck.demands_of(
+		mode, PhaseSpec.Level.MAP, settings, mode.max_players, {}, mode.maps[0]
+	)
 	assert_array(HostText.to_dicts(demands.shortfalls(stripped))).contains_exactly(
 		[
 			{

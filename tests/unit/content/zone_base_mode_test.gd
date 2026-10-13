@@ -14,7 +14,8 @@ const LONE := 1
 
 func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 	# The fixture's data from the lobby into the round, 4 players at the default settings
-	# (1 dissident; 2 tasks: Delivery's 6 packages and Hold the zone's 1 zone; 2 knives).
+	# (1 dissident; 2 tasks: the House's Delivery by meaning's 6 items on its 4 drop-offs (#828)
+	# and Hold the zone's 1 zone; 2 knives).
 	var mode := FixtureBaseModeWithZones.mode()
 	var world := _house_world(mode)
 	var layouts := _house_layouts(mode, world)
@@ -51,10 +52,11 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 		var teammates := game.view_of(peer).events_named(&"Teammates").size()
 		assert_int(teammates).is_equal(1 if role == &"dissident" else 0)
 	assert_int(dissidents.size()).is_equal(1)
-	# Both task types drawn by DealTasks (#649, ZD8 (a)): Delivery's 6 circles and 6 packages,
-	# then Hold the zone's 1 zone on a `zone` marker; then 2 knives.
+	# Both task types the House plays drawn by DealTasks (#649, ZD8 (a)): Delivery by meaning's
+	# 4 drop-offs and 6 items (every route at least once, #828), then Hold the zone's 1 zone on a
+	# `zone` marker; then 2 knives.
 	assert_int(game.state.tasks.size()).is_equal(2)
-	assert_int(game.state.stations.size()).is_equal(7)
+	assert_int(game.state.stations.size()).is_equal(5)
 	var zone := FixtureZoneModes.zone_of(game, 0)
 	assert_bool(Array(map.positions(&"zone")).has(zone.position)).is_true()
 	var kinds: Dictionary[StringName, int] = {}
@@ -65,15 +67,21 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 		assert_bool(Array(map.positions(item.kind.spawn_tag)).has(item.position)).is_true()
 		assert_bool(taken.has(item.position)).is_false()
 		taken[item.position] = id
-	assert_dict(kinds).is_equal({&"package": 6, &"knife": 2})
+	assert_int(kinds.get(&"knife", 0)).is_equal(2)
+	var routed := 0
+	for kind: StringName in [&"wine", &"oil", &"gnome", &"parasol"]:
+		assert_int(kinds.get(kind, 0)).override_failure_message(kind).is_greater_equal(1)
+		routed += kinds.get(kind, 0)
+	assert_int(routed).is_equal(6)
+	assert_int(kinds.size()).is_equal(5)
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(7)
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(5)
 		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 7}
 		)
-		# No package spawned inside its own circle: markers lie 10 m apart.
+		# No item spawned inside its own drop-off.
 		assert_array(view.events_named(&"PackageDelivered")).is_empty()
 	# Placement last: every player on a distinct round_player marker.
 	var spots: Array[Vector3] = []
@@ -93,7 +101,8 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 			continue
 		var step := String(event_name)
 		if emitted.event is ItemSpawnedEvent:
-			step += "(%s)" % (emitted.event as ItemSpawnedEvent).kind
+			var kind := (emitted.event as ItemSpawnedEvent).kind
+			step += "(%s)" % ("knife" if kind == &"knife" else "routed")
 		if order.is_empty() or order.back() != step:
 			order.append(step)
 	(
@@ -102,7 +111,7 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 			[
 				"RoleAssigned",
 				"StationPlaced",
-				"ItemSpawned(package)",
+				"ItemSpawned(routed)",
 				"StationPlaced",
 				"TaskProgress",
 				"ItemSpawned(knife)",
@@ -114,9 +123,9 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 
 func test_a_whole_match_with_the_zone_to_the_end_and_back_to_the_lobby_twice() -> void:
 	# The fixture's data, 4 players at the default settings: the crew holds the zone and
-	# delivers the 6 packages and wins; the host returns to the lobby, shortens the round to 1
-	# minute, and the second match runs out of time with every package where it spawned and the
-	# zone empty: the dissidents win.
+	# delivers the 6 items, each to its drop-off (#828), and wins; the host returns to the
+	# lobby, shortens the round to 1 minute, and the second match runs out of time with every
+	# item where it spawned and the zone empty: the dissidents win.
 	var mode := FixtureBaseModeWithZones.mode()
 	var peers: Array[int] = [1, 2, 3, 4]
 	var game := _house_round(mode, peers)
@@ -130,11 +139,10 @@ func test_a_whole_match_with_the_zone_to_the_end_and_back_to_the_lobby_twice() -
 	FixtureZoneModes.hold(game, [crew[0]], FixtureZoneModes.zone_task_of(mode).needed_ticks())
 	assert_bool(zone.done).is_true()
 	assert_str(game.phase_id()).is_equal("round")
-	var task := FixtureDeliveryModes.task_of(game)
 	for index in 6:
-		var package := FixtureDeliveryModes.package_of(game, task, index)
-		var circle := FixtureDeliveryModes.circle_of(game, task, index)
-		FixtureDeliveryModes.carry_to(game, crew[index % crew.size()], package, circle.position)
+		var item := FixtureMeaningModes.item_of(game, index)
+		var drop_off := FixtureMeaningModes.station_of(game, index)
+		FixtureDeliveryModes.carry_to(game, crew[index % crew.size()], item, drop_off.position)
 	assert_str(game.phase_id()).is_equal("end")
 	assert_str(game.state.winner).is_equal("crew")
 	# The round's play time, in whole seconds (#548).
@@ -180,11 +188,12 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 	var game := _lone_in_pregame(mode)
 	FixtureModes.run_ticks(game, 3 * Ticks.RATE + 1)
 	assert_str(game.phase_id()).is_equal("round")
-	# Delivery dealt its shared task: 6 packages for 6 circles (the default `packages`); the zone
-	# task its one zone (the default `zones`, #649); and the 2 knives lie on the map.
+	# The House's Delivery by meaning dealt its shared task: 6 items (the default `packages`) on
+	# its 4 drop-offs (#828); the zone task its one zone (the default `zones`, #649); and the 2
+	# knives lie on the map.
 	assert_int(game.state.tasks.size()).is_equal(2)
-	assert_int(game.state.stations.size()).is_equal(7)
-	assert_int(FixtureDealModes.items_of(game, &"package").size()).is_equal(6)
+	assert_int(game.state.stations.size()).is_equal(5)
+	assert_int(FixtureMeaningModes.state_of(game).items.size()).is_equal(6)
 	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(2)
 	# A minute of the round alone: the crew is present, no package is delivered and the clock
 	# runs, so no win condition fires.
@@ -193,12 +202,12 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 	assert_str(game.state.winner).is_empty()
 	assert_array(game.view_of(LONE).events_named(&"MatchEnded")).is_empty()
 	assert_int(game.state.clock_ticks_left).is_equal(9 * 60 * Ticks.RATE)
-	# The engineer delivers every package alone: one task of two is done, the round goes on.
-	var task := _task_of_type(game, &"delivery")
+	# The engineer delivers every item alone: one task of two is done, the round goes on.
+	assert_object(_task_of_type(game, &"delivery")).is_same(FixtureMeaningModes.task_of(game))
 	for index in 6:
-		var package := FixtureDeliveryModes.package_of(game, task, index)
-		var circle := FixtureDeliveryModes.circle_of(game, task, index)
-		FixtureDeliveryModes.carry_to(game, LONE, package, circle.position)
+		var item := FixtureMeaningModes.item_of(game, index)
+		var drop_off := FixtureMeaningModes.station_of(game, index)
+		FixtureDeliveryModes.carry_to(game, LONE, item, drop_off.position)
 	assert_str(game.phase_id()).is_equal("round")
 	# Then holds the zone alone for its time: the crew wins.
 	var zone := FixtureZoneModes.zone_of(game, 0)
@@ -226,7 +235,8 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	var ids: Array[StringName] = []
 	for type: TaskType in mode.task_types:
 		ids.append(type.id)
-	assert_array(ids).is_equal([&"delivery", &"hold_the_zone"])
+	# The House's Delivery by meaning and the greybox's by colours (#828), then the zone task.
+	assert_array(ids).is_equal([&"delivery", &"colour_delivery", &"hold_the_zone"])
 	var tasks := mode.find_setting(&"tasks")
 	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([2, 1, 2])
 	var zones := mode.find_setting(&"zones")

@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## player-colour list); an index outside them draws index 0's. RemotePlayerBody keeps a colour set
 ## before it is ready.
 
-const DELIVERY := "res://content/tasks/delivery.tres"
+const DELIVERY := "res://content/tasks/colour_delivery.tres"
 const BODY := preload("res://client/player/remote_player_body.tscn")
 ## A hex string holds a channel to 1/255: half of that, and a little float slack, either way.
 const CHANNEL_SLACK := 0.5 / 255.0 + 0.0001

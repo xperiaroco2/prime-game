@@ -37,6 +37,15 @@ func test_every_shipped_role_item_and_task_has_a_deck_key() -> void:
 func test_every_exception_is_in_the_deck() -> void:
 	for id: StringName in ContentNames.ROLE_EXCEPTIONS:
 		_assert_keyed(ContentNames.ROLE_EXCEPTIONS[id], String(id))
+	for id: StringName in ContentNames.TASK_EXCEPTIONS:
+		_assert_keyed(ContentNames.TASK_EXCEPTIONS[id], String(id))
+
+
+## The greybox's Delivery by colours (#828, DE15 (i)) reads as the deck's Delivery, as the House's
+## by meaning does: each map's players see one "Delivery".
+func test_the_greyboxs_delivery_by_colours_is_the_decks_delivery() -> void:
+	assert_str(ContentNames.task(&"colour_delivery", null)).is_equal("task.delivery")
+	assert_str(ContentNames.task(&"colour_delivery", GameMode.new())).is_equal("task.delivery")
 
 
 ## Content that adds a type the deck already names needs no edit in ContentNames: the key is found

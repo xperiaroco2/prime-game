@@ -56,9 +56,10 @@ func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_deli
 	if respawn != null:
 		assert_str(String(respawn.tag)).is_equal("respawn")
 		assert_str(String(respawn.rng_purpose)).is_equal("respawn")
-	# Delivery alone: the zone task (#649) left the base mode on #842; zone_base_mode_test.gd
-	# checks the fixture mode that still deals it.
-	assert_int(mode.task_types.size()).is_equal(1)
+	# The two Deliveries, one per map (#828, DE15 (i)): the House's by meaning and the greybox's
+	# by colours, checked here; the zone task (#649) left the base mode on #842, and
+	# zone_base_mode_test.gd checks the fixture mode that still deals it.
+	assert_int(mode.task_types.size()).is_equal(2)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 
