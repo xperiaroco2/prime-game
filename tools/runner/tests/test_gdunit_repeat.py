@@ -323,7 +323,7 @@ class ShardedRepeatTest(unittest.TestCase):
     def test_a_shard_that_timed_out_is_named_in_the_runs_note(self) -> None:
         rc, _, _, _ = self.run_repeat([(False, self.GREEN), (True, "timeout")])
         self.assertEqual(rc, 1)
-        self.assertEqual(self.summary["runs"][1]["note"], f"2 processes, shard 2 timed out after {gdunit.TIMEOUT}s")
+        self.assertEqual(self.summary["runs"][1]["note"], f"2 processes, shard 2 timed out")
         self.assertEqual(self.summary["runs"][1]["tests"], 0)
 
     def test_a_failed_shard_says_why_in_the_runs_note(self) -> None:

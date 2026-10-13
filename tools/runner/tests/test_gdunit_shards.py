@@ -101,7 +101,7 @@ class Fixture(unittest.TestCase):
         selected = [args[i + 1] for i, arg in enumerate(args) if arg == "-a"]
         index = int(log.removeprefix("test-shard")) if log.startswith("test-shard") else 0
         how = self.behaviour.get(index, {})
-        self.calls.append({"log": log, "selected": selected, "env": env, "args": args})
+        self.calls.append({"log": log, "selected": selected, "env": env, "args": args, "timeout": timeout})
         if env and not how.get("shared_user_dir"):
             (Path(next(iter(env.values()))) / "Godot" / "app_userdata").mkdir(parents=True)
         files: list[str] = []
@@ -193,6 +193,26 @@ class ShardRunTest(Fixture):
         suites = [[s for s in call["selected"] if SUITES.get(s)] for call in calls]
         self.assertEqual(suites[0], [heavy])
         self.assertIn("balanced by tools/out/logs/gdunit-times.json", text)
+
+    def test_a_long_shard_gets_a_longer_timeout_up_to_the_cap(self) -> None:
+        # #970: CI's real-time shard took about 530 s of a flat 600 s, so a slow runner killed it with no hang.
+        self.assertEqual([gdunit.shard_timeout(s) for s in (0.0, 400.0, 530.0, 2000.0)],
+                         [gdunit.TIMEOUT, gdunit.TIMEOUT, 795.0, gdunit.SHARD_TIMEOUT_CAP])  # fmt: skip
+        heavy = "res://tests/integration/c_test.gd"
+        (self.root / "tools" / "out" / "logs").mkdir(parents=True)
+        times = {"suites": {**dict.fromkeys(SUITES, 1.0), heavy: 530.0}}
+        (self.root / "tools" / "out" / "logs" / "gdunit-times.json").write_text(json.dumps(times), encoding="utf-8")
+        rc, text = self.run_test(shards=2)
+        self.assertEqual(rc, 0, text)
+        calls = sorted(self.calls, key=lambda call: call["log"])
+        self.assertEqual([call["timeout"] for call in calls], [795.0, gdunit.TIMEOUT])
+        self.assertIn("shard 1: 1 suites, about 530s by those times, timeout 795s", text)
+        # The green run recorded its own times: the next run plans by the heavy suite's 530 s again.
+        (self.root / "tools" / "out" / "logs" / "gdunit-times.json").write_text(json.dumps(times), encoding="utf-8")
+        self.behaviour[1] = {"rc": -1, "crash": True, "timed_out": True}
+        rc, text = self.run_test(shards=2)
+        self.assertEqual(rc, 1, text)
+        self.assertIn("shard 1: timed out after 795s", text)
 
     def test_a_real_time_run_plans_a_suite_known_only_at_fixed_fps_by_the_speed_up(self) -> None:
         c, d = "res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd"

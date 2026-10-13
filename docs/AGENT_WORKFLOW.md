@@ -1875,8 +1875,9 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times
   CI saves, to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
   `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variable and runs one process
-  per run, as before, so the job's options check (`test --repeat`) did not change. A shard still has the 600 s
-  limit: when the suite outgrows two shards, raise the job's count.
+  per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
+  1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when the suite outgrows two
+  shards, raise the job's count.
   Each run's report goes to `tools/out/gdunit-runs/run-<i>/` (the shards' merged `results.xml`) and its log to
   `tools/out/logs/test-run<i>.log` (sharded: also `test-run<i>-shard<j>.log`);
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
