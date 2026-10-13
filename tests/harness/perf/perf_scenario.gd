@@ -1,19 +1,18 @@
 class_name PerfScenario
 extends RefCounted
 ## The match a perf run plays (ARCHITECTURE §9.7, #187), built in code so that `bots` and the
-## scenario suites never run it and content/ gains no file: the base mode with the zone task
-## (FixtureBaseModeWithZones, as the shipped base mode dealt it before #842) on its first map, a
-## fixed seed (the deal draws the roles from it), every bot joins at the start, readies, and once
-## the round starts walks back and forth between a point near the middle and one further out on
-## its own spoke, so the bots cross and every snapshot moves; then it waits for the end. The round
-## lasts the run's seconds (`clock_s`, ForceClock, a debug command) and ends by time up, which the
-## base mode's win conditions give to the dissidents: nobody delivers a package or swings a knife.
-## It deals the default draw, both task types since #649 (ZD8 (a)): with 10 bots each of the
-## greybox's four zone markers (z = 7) lies on one of spokes 1 to 4 (within 0.7 m), so whichever
-## zone is dealt, one spoke crosses it and the run measures ZoneProgress too; a zone done on the
-## way wins nothing while every package rests where it spawned.
+## scenario suites never run it and content/ gains no file: the base mode on its first test bench,
+## the greybox (#767), a fixed seed (the deal draws the roles from it), every bot joins at the
+## start, readies, and once the round starts walks back and forth between a point near the middle
+## and one further out on its own spoke, so the bots cross and every snapshot moves; then it waits
+## for the end. The round lasts the run's seconds (`clock_s`, ForceClock, a debug command) and ends
+## by time up, which the base mode's win conditions give to the dissidents: nobody delivers a
+## package or swings a knife. It deals the default draw, Delivery alone: the zone task plays on the
+## House alone (TaskType.maps, the Generator ADR's GD13 (b), #804), so the run measures no
+## ZoneProgress since (the zone task over the wire:
+## tests/integration/server/host_session_zone_test.gd).
 
-const MODE := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
+const MODE := "res://content/modes/base_mode.tres"
 ## A fixed seed: the same deal, spawns and walks every run.
 const SEED := 187_000_000_001
 ## Where each bot's spoke starts and ends, metres from the middle.
