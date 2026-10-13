@@ -85,7 +85,7 @@ var _joins: Dictionary[int, JoinRetry] = {}
 ## Makes `bot`'s client on `transport` (not joined yet, or the host's own client).
 func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	_join_retry(bot.number).start(_join_clock_usec())
-	var client := BotClient.new(transport, scenario.mode, schema)
+	var client := BotClient.new(transport, scenario.mode, schema, "", _key_of(bot))
 	client.keep_history = true
 	client.load_levels = false
 	client.hold_load_ack = func() -> bool: return bot.current_step() is StepLoadAck
@@ -107,6 +107,12 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 		func(_position: Vector3, _velocity: Vector3) -> void: stamina.forget_unclaimed_jumps()
 	)
 	return client
+
+
+## The return key `bot`'s Hello carries: fixed from its number (ScenarioBot.key_of), over every
+## transport. The chaos run gives its hostile peer an honest bot's.
+func _key_of(bot: ScenarioBot) -> String:
+	return ScenarioBot.key_of(bot.number)
 
 
 ## Steps every bot's client at now_usec. With claims_after_moves the claims wait for

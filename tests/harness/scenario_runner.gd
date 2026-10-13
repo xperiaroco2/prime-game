@@ -134,11 +134,14 @@ func _connect(bot: ScenarioBot) -> String:
 	_queue(
 		Intents.HELLO,
 		bot.peer,
-		# The bot's own copy of the content is the host's: one process, one content/.
+		# The bot's own copy of the content is the host's: one process, one content/. Like a wire
+		# bot it asks for no name, so the host names it Player<its number> (§3.5), and its key is
+		# fixed from its bot number (ScenarioBot.key_of), so it keeps its number when it returns.
 		{
-			"name": "bot%d" % bot.number,
+			"name": "",
 			"version": JoinRules.PROTOCOL_VERSION,
 			"content": game.content_hash,
+			"key": ScenarioBot.key_of(bot.number),
 		},
 		bot.sent_seq
 	)

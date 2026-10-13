@@ -105,6 +105,13 @@ func finished() -> bool:
 	return gone or current_step() == null
 
 
+## The return key bot `number` sends in every Hello (ARCHITECTURE §3.5, §9.7): fixed from its
+## number, in every runner and over every transport, so a bot that left and joins again is known by
+## it (P12 (a) of the returning-players ADR). Not a secret: a test key.
+static func key_of(bot_number: int) -> String:
+	return ReturnKey.of("bot%d" % bot_number, "bots")
+
+
 ## Whether its script joins it later (a Join step) instead of at the start.
 func joins_late() -> bool:
 	for step: ScenarioStep in steps:
