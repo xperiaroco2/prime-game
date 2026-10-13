@@ -17,6 +17,7 @@ budget; root `CLAUDE.md` applies in full.
   `.claude/workflows/` read `docs/workflow-scripts.md`.
 - Long jobs: the Bash tool's `run_in_background` with `tools/run.sh wait <log>` (or Monitor) as the prompt says;
   TaskStop only for a job you started.
+- Never poll with a foreground `sleep N` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>` or a background command.
 - Code like docs (#468): a file over 400 lines by `cd <your worktree> && tools/run.sh section <file>` (its symbols)
   or `grep -n` first, then only the range you need. Read again only after an edit, a rebase, a checkout, a failed
   Edit or a compaction. Independent reads go in one message, as parallel calls.

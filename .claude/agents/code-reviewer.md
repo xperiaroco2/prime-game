@@ -26,5 +26,6 @@ You review the diff of the current branch against `origin/main` (or `main` if th
   two largest parents); and the ground rules, AGENT_WORKFLOW §1.
 - Priorities: architecture boundaries (pure `core/`, host authority, per-peer filtering), correctness, typed GDScript,
   tests that actually test the change, Godot 3 idioms.
+- Never poll with a foreground `sleep N` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>` or a background command. Never read or change `core.hooksPath` with `git config` (the guard denies it).
 - Output: findings ranked by severity, each with `file:line`, the problem, and a concrete fix. No praise, no summary
   of the diff. If there are no findings, say so in one line.
