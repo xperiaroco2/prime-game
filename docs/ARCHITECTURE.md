@@ -2031,8 +2031,9 @@ are real time), with the ENet variant's invariants plus the order check, both wa
 watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
 packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
 `LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
-so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
-about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
+so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s, then since #639
+`leave_and_return_keep_the_number --instances 4`, about 40 s; `bots-enet` plays the same two) and `chaos-webrtc`
+(seed 188001, about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
 `tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC, and a join lost for good whose reason reaches the
 view file), `tests/unit/net/transport/fault_shim_test.gd`,
 `tools/runner/tests/test_bots.py` and `test_verify.py`.
@@ -7054,7 +7055,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   return to the lobby with no intent, #212),
   `leave_and_return_keep_the_number` (#639, provisional: three bots join, bot 3 a `Join` 3 s in so that the numbers
   follow bot order over a network too; bot 2 leaves the lobby once it saw that join, bot 4 joins as Player4, bot 2
-  returns as Player2; in the round bot 3 leaves and, after `ReturnToLobby`, returns as Player3),
+  returns as Player2; in the round bot 3 leaves and, after `ReturnToLobby`, returns as Player3; the `bots-enet` and
+  `bots-webrtc` steps play it with 4 instances after `dissident_kills_the_crew`),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
