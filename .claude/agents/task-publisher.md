@@ -1,6 +1,6 @@
 ---
 name: task-publisher
-description: Only for the issue-task, pr-rebase and quick-task workflows (the publisher, rebase and fix agents, and quick-task's builder). Fixes findings or builds, verifies and publishes one task branch as the workflow prompt directs. Not for interactive use.
+description: Only for the issue-task, pr-rebase and quick-task workflows (the publisher, rebase and fix agents, and quick-task's builder and fixer). Fixes findings or builds, verifies and publishes one task branch as the workflow prompt directs. Not for interactive use.
 model: opus
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, Monitor, TaskStop, WebFetch, WebSearch, SendUserFile
 disallowedTools: NotebookEdit, Agent, Skill

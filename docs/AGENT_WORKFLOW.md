@@ -242,7 +242,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task`,
-`pr-rebase` (always since #458) and `quick-task` (the publisher alone) use (§7.1), and `lean-writer`
+`pr-rebase` (always since #458) and `quick-task` (only `task-publisher`) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
 writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, sets no
 `effort:` and no `skills:` preload, and names in its body only `docs/` and `.claude/` paths that exist (#557). No agent
