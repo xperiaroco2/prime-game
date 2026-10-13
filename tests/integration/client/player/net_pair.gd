@@ -17,6 +17,9 @@ extends Node
 
 const GAME := preload("res://client/app/game.tscn")
 const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
+## The steps room again, the one map where a body moves (PlayerRules.motion_maps): the match starts
+## in STEPS_ROOM, which keeps today's knockdown, so no life test of the players moves a body.
+const MOTION_LEVEL := "res://tests/fixtures/client/steps_room_motion.tscn"
 const PORT := 7400
 ## One physics frame at 60 Hz, in microseconds.
 const FRAME_USEC := 16667
@@ -54,7 +57,10 @@ func _init() -> void:
 	process_physics_priority = -1000
 	mode = FixtureBaseMode.mode()
 	mode.lobby_level = STEPS_ROOM
-	mode.maps = PackedStringArray([STEPS_ROOM])
+	# The match starts in the steps room, where a knockdown is today's; bodies move only on the
+	# second map, which no test of the players plays (KE12).
+	mode.maps = PackedStringArray([STEPS_ROOM, MOTION_LEVEL])
+	mode.player_rules.motion_maps = PackedStringArray([MOTION_LEVEL])
 
 
 ## Hosts, joins, and waits until both players stand in the lobby; false when they never did.

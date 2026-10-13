@@ -1,0 +1,5 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://tests/fixtures/client/steps_room.tscn" id="1_room"]
+
+[node name="StepsRoomMotion" unique_id=1 instance=ExtResource("1_room")]
