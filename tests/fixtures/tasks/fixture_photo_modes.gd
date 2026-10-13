@@ -155,6 +155,30 @@ static func layouts(spot_at: Vector3 = SPOT_AT) -> Dictionary[String, LevelLayou
 	return found
 
 
+## FixtureBaseMode's lobby (JoinRules, FitCheck) with the photo task dealt on the map's `all_loaded`
+## row, playing on the fixture map only.
+static func lobby_mode(photos: int = 2) -> GameMode:
+	var mode := FixtureBaseMode.mode()
+	_add_photo(mode, photos)
+	type_of(mode).maps = PackedStringArray([FixtureBaseMode.MAP])
+	mode.find_transition(&"loading", LoadingPhase.ALL_LOADED).actions.insert(
+		0, FixtureDealModes.deal_tasks()
+	)
+	return mode
+
+
+## FixtureBaseMode's layouts with the photo markers on its map, the photo spot at `spot_at`.
+static func lobby_layouts(spot_at: Vector3 = SPOT_AT) -> Dictionary[String, LevelLayout]:
+	var found := FixtureBaseMode.layouts()
+	var photo_layout := layouts(spot_at)[FixtureModes.MAP]
+	for tag: StringName in photo_layout.tags():
+		if tag == &"round_player" or tag == &"respawn":
+			continue
+		for at: Vector3 in photo_layout.positions(tag):
+			found[FixtureBaseMode.MAP].add_marker(tag, at)
+	return found
+
+
 ## A match of `mode` in `world` (flat, no walls, by default) on layouts(), keeping its history, with
 ## `peers` joined, `settings` over the defaults, `forced` roles, and all ready: in the round.
 static func in_round(
