@@ -6,8 +6,8 @@ paths:
 # Tests (GdUnit4 6.2.1)
 
 ## Layout and names
-- `tests/unit/`: pure logic, mostly `core/`, mirroring its path (`core/match/vote.gd` →
-  `tests/unit/match/vote_test.gd`). `tests/integration/`: `server/` and `net/` together, and scene or physics
+- `tests/unit/`: pure logic, mostly `core/`, mirroring its path (`core/match/intents.gd` →
+  `tests/unit/match/intents_test.gd`). `tests/integration/`: `server/` and `net/` together, and scene or physics
   suites that need real engine steps, mirroring the source path (`client/player/player_controller.gd` →
   `tests/integration/client/player/player_controller_test.gd`). Bot matches run with `tools\run.cmd bots`
   (`tests/harness/bots/`, scenarios in `content/scenarios/`), also a `verify` step.
