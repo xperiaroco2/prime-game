@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer (#518; the designer is optional and may contribute through PRs to the engineer). Agents never fill in or change design content here without the engineer's word. |
-| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided except §1's pillars, §3's base mode, §13's first map and what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14; examples inside a question are prompts for the designer, not proposals. |
+| **Status** | Decided rules beside open questions (2026-10-13, #925). Decided: §1's pillars, §3's base mode, what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14, and each rule whose section cites the engineer's word (§3's knockdown and crouch, §8's task types, §13's House, §15's tutorial). The rest are open questions; examples inside a question are prompts for the designer, not proposals. (Was, at M0: "Skeleton (M0): sections and open questions only.") |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |
 
