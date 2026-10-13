@@ -19,3 +19,4 @@ seconds = 10.0
 id = &"hold_the_zone"
 display_name = "Hold the zone"
 description = "Stand in the zone until it fills."
+maps = PackedStringArray("res://levels/house/house.tscn")

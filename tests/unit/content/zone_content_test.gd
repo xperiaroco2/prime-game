@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The zone task in `content/` (ARCHITECTURE §9.5.18; the zone task ADR, ZD7, ZD8 (a),
 ## ZE9; #649): Hold the zone with the engineer's provisional numbers and names (#302 comment
-## 6085251071), its `zones` setting, the greybox's fit at the most zones and packages, and ZE9's
-## spacing on every map of the base mode (`fixture_zone_spacing.gd`, which the House map's
+## 6085251071), its `zones` setting, the House's fit at the most zones and packages (the zone
+## task plays on the House alone, GD13 (b), #804; the greybox asks for no zone), and ZE9's
+## spacing on every map the zone task plays on (`fixture_zone_spacing.gd`, which the House map's
 ## marker test shares, #651). Every map is read as the host reads it, in its own collision world,
 ## as `tests/integration/levels/house_markers_test.gd` reads House (#681): the scenarios' flat
 ## fake puts House's storeys on one floor, which hides a spawn point beside an upstairs zone. The
@@ -13,6 +14,8 @@ extends GdUnitTestSuite
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const BASE_MODE := FixtureBaseModeWithZones.PATH
+const GREYBOX := "res://levels/greybox/greybox.tscn"
+const HOUSE := "res://levels/house/house.tscn"
 
 
 func test_hold_the_zone_has_the_engineer_s_provisional_values() -> void:
@@ -59,30 +62,40 @@ func test_the_zones_setting_and_both_types_in_every_match() -> void:
 	assert_bool(mode.task_types.has(Spacing.zone_task(mode))).is_true()
 
 
-func test_the_greybox_fits_ten_players_at_the_most_zones_and_packages() -> void:
+func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
+	# The zone task plays on the House alone (TaskType.maps, the Generator ADR's GD13 (b), #804):
+	# the House fits the most zones, and the greybox, a test bench (#767), is asked for none.
 	var mode := _mode()
 	var zone := Spacing.zone_task(mode)
-	var map := _layouts(mode)[mode.maps[0]]
+	assert_array(Array(zone.maps)).is_equal([HOUSE])
+	var layouts := _layouts(mode)
 	var settings := mode.default_settings()
 	settings[&"zones"] = mode.find_setting(&"zones").max_value
 	settings[&"packages"] = mode.find_setting(&"packages").max_value
-	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
-	assert_array(Array(demands.shortfalls(map))).is_empty()
-	assert_int(demands.markers.get(&"zone", 0)).is_equal(settings[&"zones"])
-	assert_int(demands.colours.get(&"zone", 0)).is_equal(settings[&"zones"])
-	assert_int(zone.zone.palette.size()).is_greater_equal(settings[&"zones"])
-	assert_int(map.count(&"zone")).is_greater_equal(settings[&"zones"])
-
-
-func test_zone_markers_keep_ze9_s_spacing_on_every_map() -> void:
-	var mode := _mode()
-	var zone := Spacing.zone_task(mode).zone
-	var circle := Spacing.circle(mode)
-	var layouts := _layouts(mode)
 	for path: String in mode.maps:
 		var map := layouts[path]
-		assert_int(map.count(zone.spawn_tag)).override_failure_message(path).is_greater(0)
-		assert_array(Array(Spacing.faults(path, map, zone, circle))).is_empty()
+		var demands := LayoutCheck.demands_of(
+			mode, PhaseSpec.Level.MAP, settings, mode.max_players, {}, path
+		)
+		assert_array(Array(demands.shortfalls(map))).override_failure_message(path).is_empty()
+		var wanted: int = settings[&"zones"] if path == HOUSE else 0
+		assert_int(demands.markers.get(&"zone", 0)).override_failure_message(path).is_equal(wanted)
+		assert_int(demands.colours.get(&"zone", 0)).override_failure_message(path).is_equal(wanted)
+		assert_int(map.count(&"zone")).override_failure_message(path).is_greater_equal(wanted)
+	assert_int(zone.zone.palette.size()).is_greater_equal(settings[&"zones"])
+	assert_int(layouts[GREYBOX].count(&"zone")).is_equal(0)
+
+
+func test_zone_markers_keep_ze9_s_spacing_on_every_map_the_zone_task_plays() -> void:
+	var mode := _mode()
+	var zone := Spacing.zone_task(mode)
+	var circle := Spacing.circle(mode)
+	var layouts := _layouts(mode)
+	assert_bool(zone.maps.is_empty()).is_false()
+	for path: String in zone.maps:
+		var map := layouts[path]
+		assert_int(map.count(zone.zone.spawn_tag)).override_failure_message(path).is_greater(0)
+		assert_array(Array(Spacing.faults(path, map, zone.zone, circle))).is_empty()
 
 
 func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:

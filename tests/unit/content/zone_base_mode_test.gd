@@ -2,7 +2,9 @@ extends "res://tests/unit/content/content_modes_test.gd"
 ## The base mode with the zone task (#649's base mode, ZD8 (a)), on the fixture
 ## FixtureBaseModeWithZones: the engineer took the zone task out of the shipped base mode on #842
 ## ("only from the mode, now"), so the checks content_modes_test and lone_player_test made of the
-## base mode dealing both task types run here, with the same assertions: entering the round deals
+## base mode dealing both task types run here, with the same assertions, on the House in the
+## host's world, the one map the zone task plays on (TaskType.maps, GD13 (b), #804; the
+## greybox until then): entering the round deals
 ## Delivery and the zone, in the row's order; a whole match where the crew holds the zone and
 ## delivers every package, then one that runs out of time; and a lone engineer who must do both.
 ## Extends content_modes_test for its helpers; GdUnit4 runs only this script's own tests.
@@ -14,11 +16,12 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 	# The fixture's data from the lobby into the round, 4 players at the default settings
 	# (1 dissident; 2 tasks: Delivery's 6 packages and Hold the zone's 1 zone; 2 knives).
 	var mode := FixtureBaseModeWithZones.mode()
-	var layouts := _layouts_for(mode)
-	# On the flat fake world the test bench plays, the greybox (#767).
-	var map := layouts[GREYBOX]
-	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
-	game.state.map = GREYBOX
+	var world := _house_world(mode)
+	var layouts := _house_layouts(mode, world)
+	# The zone task plays on the House alone (GD13 (b), #804), in the host's world.
+	var map := layouts[HOUSE]
+	var game := Match.new(mode, 7, world, layouts)
+	game.state.map = HOUSE
 	game.keep_history = true
 	game.start(0)
 	var peers: Array[int] = [1, 2, 3, 4]
@@ -116,14 +119,14 @@ func test_a_whole_match_with_the_zone_to_the_end_and_back_to_the_lobby_twice() -
 	# zone empty: the dissidents win.
 	var mode := FixtureBaseModeWithZones.mode()
 	var peers: Array[int] = [1, 2, 3, 4]
-	var game := _base_round(mode, peers)
+	var game := _house_round(mode, peers)
 	# The pregame's end tick: the step that entered the round.
 	var start := game.ticked_through()
 	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
 	var crew := FixtureDealModes.players_of(game, &"crew")
 	assert_int(crew.size()).is_equal(3)
 	var zone := FixtureZoneModes.zone_of(game, 0)
-	FixtureZoneModes.walk(game, crew[0], zone.position)
+	FixtureItemModes.stand(game, crew[0], zone.position)
 	FixtureZoneModes.hold(game, [crew[0]], FixtureZoneModes.zone_task_of(mode).needed_ticks())
 	assert_bool(zone.done).is_true()
 	assert_str(game.phase_id()).is_equal("round")
@@ -249,11 +252,7 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 ## A match of `mode` that the lone player joins, ready and loaded: in the pregame, the deal done
 ## (lone_player_test's, at its seed 7 and 1 dissident set).
 func _lone_in_pregame(mode: GameMode) -> Match:
-	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
-	# On the flat fake world the test bench plays, the greybox (#767).
-	game.state.map = GREYBOX
-	game.keep_history = true
-	game.start(0)
+	var game := _house_match(mode)
 	FixtureBaseMode.join(game, LONE)
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, LONE, {"settings": {"dissidents": 1}})
 	assert_array(FixtureModes.rejections(game, LONE)).is_empty()
@@ -273,3 +272,37 @@ func _task_of_type(game: Match, type_id: StringName) -> MatchTask:
 		if game.state.tasks[id].type.id == type_id:
 			return game.state.tasks[id]
 	return null
+
+
+## The House as the host reads it (HostWorldQuery.for_mode, as HostSession builds it): the zone
+## task plays on the House alone (TaskType.maps, the Generator ADR's GD13 (b), #804), and the
+## scenarios' flat fake would read its storeys as one floor (#681).
+func _house_world(mode: GameMode) -> HostWorldQuery:
+	var world := HostWorldQuery.for_mode(mode)
+	assert_array(Array(world.errors)).is_empty()
+	return world
+
+
+func _house_layouts(mode: GameMode, world: HostWorldQuery) -> Dictionary[String, LevelLayout]:
+	var levels := MarkerReader.read_levels(mode, world)
+	assert_array(Array(levels.errors)).is_empty()
+	return levels.layouts
+
+
+## A match of `mode` on the House in the host's world, keeping its history, started.
+func _house_match(mode: GameMode) -> Match:
+	var world := _house_world(mode)
+	var game := Match.new(mode, 7, world, _house_layouts(mode, world))
+	game.state.map = HOUSE
+	game.keep_history = true
+	game.start(0)
+	return game
+
+
+## content_modes_test's _base_round on the House: `peers` join, ready and load into the round.
+func _house_round(mode: GameMode, peers: Array[int]) -> Match:
+	var game := _house_match(mode)
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	_ready_and_load(game, peers)
+	return game
