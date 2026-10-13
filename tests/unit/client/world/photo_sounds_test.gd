@@ -117,6 +117,13 @@ func test_the_photo_blips_are_short_distinct_placeholders() -> void:
 		assert_float(blip.get_length()).is_equal_approx(WorldSounds.PHOTO_BLIP_SECONDS[id], 0.001)
 		assert_int(blip.data.size()).is_greater(1000)
 		assert_bool(_peak(blip) > 0.05).is_true()
+	# Each id its own sound, not one fallback for all.
+	var shutter := WorldSounds.photo_blip(SoundChooser.SHUTTER).data
+	var print_blip := WorldSounds.photo_blip(SoundChooser.PRINT).data
+	var hang := WorldSounds.photo_blip(SoundChooser.HANG).data
+	assert_bool(shutter == print_blip).is_false()
+	assert_bool(shutter == hang).is_false()
+	assert_bool(print_blip == hang).is_false()
 	# The same seed each time: deterministic bytes.
 	assert_that(WorldSounds.photo_blip(SoundChooser.PRINT).data).is_equal(
 		WorldSounds.photo_blip(SoundChooser.PRINT).data
@@ -126,6 +133,7 @@ func test_the_photo_blips_are_short_distinct_placeholders() -> void:
 
 func _peak(blip: AudioStreamWAV) -> float:
 	var peak := 0
+	@warning_ignore("integer_division")
 	for i: int in blip.data.size() / 2:
 		peak = maxi(peak, absi(blip.data.decode_s16(i * 2)))
 	return float(peak) / 32767.0
