@@ -131,12 +131,13 @@ func test_the_targets_own_meshes_are_drawn_by_no_camera_the_spectator_uses() -> 
 	assert_bool(life.spectate_hand().is_visible_in_tree()).is_true()
 	for item_id: int in [HAND_ITEM, BELT_ITEM]:
 		assert_bool(views.view_of(item_id).is_look_shown()).is_false()
-	# The target goes down: watched from above its body, which is drawn again, its items with it.
+	# The target goes down: watched from above its body, its ragdoll (KE7), drawn, its items with it.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE
 	assert_bool(await _until(above)).is_true()
 	await _pair.frames(1)
-	assert_bool(_drawn_by(watched, life.downed_camera().camera())).is_true()
+	var ragdoll := _pair.client.avatars().ragdoll_of(target)
+	assert_bool(_drawn_by(ragdoll, life.downed_camera().camera())).is_true()
 	assert_str(String(life.spectate_hand().shown_kind())).is_empty()
 	for item_id: int in [HAND_ITEM, BELT_ITEM]:
 		assert_bool(views.view_of(item_id).is_look_shown()).is_true()
@@ -219,7 +220,7 @@ func _eye_of(peer: int) -> Transform3D:
 
 ## Whether any mesh of `body` would be drawn by `camera`: a visible mesh on a render layer of the
 ## camera's cull mask.
-func _drawn_by(body: RemotePlayerBody, camera: Camera3D) -> bool:
+func _drawn_by(body: Node3D, camera: Camera3D) -> bool:
 	for node: Node in body.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh.is_visible_in_tree() and (mesh.layers & camera.cull_mask) != 0:

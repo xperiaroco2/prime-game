@@ -206,7 +206,10 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	assert_bool(await _until(above)).is_true()
 	assert_int(life.target()).is_equal(host_peer)
 	assert_bool(life.downed_camera().camera().current).is_true()
-	assert_bool((watched.get_node("Mesh") as MeshInstance3D).visible).is_true()
+	# Its body is its ragdoll now (KE7), drawn; the standing capsule stays hidden.
+	var ragdoll := _pair.client.avatars().ragdoll_of(host_peer)
+	assert_bool((ragdoll.get_node("Mesh") as MeshInstance3D).is_visible_in_tree()).is_true()
+	assert_bool((watched.get_node("Mesh") as MeshInstance3D).visible).is_false()
 	# The respawn: living at a marker, first person, the music off, the body gone, invulnerable
 	# on the host's screen; the respawn's Correction a placement, never a correction.
 	var living := func() -> bool: return session.model.is_alive(joiner)
