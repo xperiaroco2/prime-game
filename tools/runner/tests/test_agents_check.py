@@ -484,6 +484,11 @@ class LaunchTest(unittest.TestCase):
         self.assertEqual(problems[0], ".claude/workflows/pr-rebase.js: missing")
         self.assertEqual(len(problems), 2, problems)
 
+    def test_a_missing_quick_task_script_fails(self) -> None:
+        (self.work / ".claude" / "workflows" / "quick-task.js").unlink()
+        problems, _ = agents_check.launch_problems(self.work, fetch=False)
+        self.assertEqual(problems[0], ".claude/workflows/quick-task.js: missing")
+
     def test_scripts_or_agent_files_behind_origin_main_fail_after_a_fetch(self) -> None:
         self.other_pushes(".claude/workflows/issue-task.js")
         # Without a fetch this checkout cannot know; launch_problems fetches first.
