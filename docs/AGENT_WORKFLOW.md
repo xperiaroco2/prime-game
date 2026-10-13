@@ -461,13 +461,13 @@ Rules for every workflow run:
     gate does not read. It never pushes `main` and never merges a gate exception.
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
-  its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"). How many task workflows run at once, each track's budget and its spend
+  its PRs into `main` like every track, each merged by its manager through the gate (Git flow above, "Into `main`"). How many task workflows run at once, each track's budget and its spend
   reports: N3 (b) of the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), whose rules
   the orchestrate-stage skill's `budget.md` holds. Shared files (N5 (c)): `.claude/workflows/` and the
   orchestrate-stage skill change only through the tooling track, between the other managers' waves; `tools/runner/`
   and this file may be changed by any track between waves, after `merge-check`, which pairs PRs across bases when both
   change a shared file (`tools/`, `.claude/`, `.github/`, this file); a flagged pair: the PR that merges first
-  goes through the gate, the other rebases on `main` (orchestrate-stage `stage-setup.md` item 8, `merges.md`). After a
+  goes through the gate, the other rebases on its base (`main`; a release branch a kickoff names: after `merge --sync-main`; orchestrate-stage `stage-setup.md` item 8, `merges.md`). After a
   change to a shared file reaches `main`, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
   weekly limit), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges

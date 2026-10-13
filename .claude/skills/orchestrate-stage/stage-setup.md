@@ -29,4 +29,4 @@ skill itself).
    change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` also
    pairs your PRs with every open PR into another base when both change a shared file (`tools/`, `.claude/`,
    `.github/`, `docs/AGENT_WORKFLOW.md`; its table "across bases", #207). A flagged pair: name it on that track's
-   plan issue; the PR that merges first goes through the gate (§5), the other is rebased on `main` before it merges.
+   plan issue; the PR that merges first goes through the gate (§5), the other is rebased on its base before it merges (`main`; a release branch a kickoff names: after `merge --sync-main`).
