@@ -30,6 +30,134 @@ func test_each_bot_sends_one_key_fixed_from_its_number() -> void:
 	assert_str(net.clients[2].return_key).is_equal(ScenarioBot.key_of(2))
 
 
+func test_a_bot_that_left_the_lobby_returns_on_a_new_peer_with_its_number() -> void:
+	var runner := ScenarioRunner.play(_scenario(_lobby_scripts()))
+	assert_array(Array(runner.failures)).is_empty()
+	var state := runner.game.state
+	var had := runner.peers.peers_of(2)
+	assert_int(had.size()).is_equal(2)
+	var old := had[0]
+	var now := had[1]
+	# A peer id no bot had before in the session.
+	for bot: int in [1, 3, 4]:
+		assert_array(Array(runner.peers.peers_of(bot))).not_contains([now])
+	assert_int(runner.peers.bot_of(old)).is_equal(2)
+	assert_int(state.players[now].number).is_equal(2)
+	assert_str(state.players[now].name).is_equal("Player2")
+	assert_int(state.players[runner.peers.peer_of(4)].number).is_equal(4)
+	assert_str(state.players[runner.peers.peer_of(4)].name).is_equal("Player4")
+	assert_int(state.numbers[ScenarioBot.key_of(2)]).is_equal(2)
+	assert_int(state.numbers[ScenarioBot.key_of(4)]).is_equal(4)
+	# Bot 2 left, bot 4 joined while it was away, then bot 2 returned (bot 1's view, in order).
+	var order := []
+	for event: MatchEvent in runner.game.view_of(1).events:
+		var fields := event.to_dict()
+		if event.event_name() == &"PlayerLeft" or event.event_name() == &"PlayerJoined":
+			order.append([event.event_name(), fields["peer"]])
+	var left_at := order.find([&"PlayerLeft", old])
+	assert_int(left_at).is_greater_equal(0)
+	assert_int(order.find([&"PlayerJoined", runner.peers.peer_of(4)])).is_greater(left_at)
+	assert_int(order.find([&"PlayerJoined", now])).is_greater(
+		order.find([&"PlayerJoined", runner.peers.peer_of(4)])
+	)
+	# Each connection was checked as its own view; the earlier one is kept.
+	var bot_2 := runner.bots[1]
+	assert_int(bot_2.lives.size()).is_equal(1)
+	assert_int(bot_2.lives[0]["peer"]).is_equal(old)
+	assert_str(bot_2.events[0].name).is_equal(&"Welcome")
+
+
+func test_a_returning_join_tries_again_until_the_lobby_takes_it() -> void:
+	# Bot 2 leaves in the round: the host refuses connections until bot 1's ReturnToLobby, and its
+	# Join tries again every 0.5 s until then (P12 (t2)).
+	var scripts := [
+		[StepReady.new(), _round(), _phase("end"), StepReturnToLobby.new(), _wait_for_joined(2)],
+		[
+			StepReady.new(),
+			_round(),
+			StepLeave.new(),
+			_join(0.0, 50.0),
+			_expect_joined(2, "Player2")
+		],
+	]
+	var scenario := _scenario(scripts)
+	scenario.clock_s = 5
+	scenario.forced_roles = {1: &"dissident"}
+	scenario.expected_ends = [&"dissidents"]
+	scenario.time_limit_s = 60.0
+	var runner := ScenarioRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var bot_2 := runner.bots[1]
+	assert_str(bot_2.last_refusal).contains("refuses new connections")
+	assert_int(bot_2.retry_tick).is_greater(Ticks.from_seconds(5))
+	assert_int(runner.game.state.players[runner.peers.peer_of(2)].number).is_equal(2)
+
+
+func test_a_returning_join_refused_past_its_deadline_fails_naming_the_refusal() -> void:
+	var scripts := [
+		[StepReady.new(), _round(), _phase("end")],
+		[StepReady.new(), _round(), StepLeave.new(), _join(0.0, 10.0)],
+	]
+	var scenario := _scenario(scripts)
+	scenario.clock_s = 30
+	scenario.forced_roles = {1: &"dissident"}
+	scenario.expected_ends = [&"dissidents"]
+	scenario.time_limit_s = 60.0
+	var runner := ScenarioRunner.play(scenario)
+	var text := "\n".join(runner.failures)
+	assert_str(text).contains("bot 2")
+	assert_str(text).contains("did not join by its deadline (10.0 s)")
+	assert_str(text).contains("last refused: the host refuses new connections")
+
+
+## Three bots join; bot 2 leaves; bot 4 joins; bot 2 returns: the lobby part of the content
+## scenario, with the same waits.
+static func _lobby_scripts() -> Array:
+	return [
+		[_wait_for_joined(4), _expect_left(2), _wait_for_joined(2)],
+		[StepLeave.new(), _join(4.0, 30.0), _expect_joined(2, "Player2")],
+		[_wait_for_joined(4), _expect_left(2), _wait_for_joined(2)],
+		[_join(2.0, 0.0), _expect_joined(4, "Player4")],
+	]
+
+
+static func _join(at_s: float, deadline_s: float) -> StepJoin:
+	var step := StepJoin.new()
+	step.at_s = at_s
+	step.deadline_s = deadline_s
+	return step
+
+
+static func _wait_for_joined(bot: int) -> StepWaitFor:
+	var step := StepWaitFor.new()
+	step.event = &"PlayerJoined"
+	step.fields = {"peer": bot}
+	return step
+
+
+static func _expect_left(bot: int) -> StepExpect:
+	var step := StepExpect.new()
+	step.event = &"PlayerLeft"
+	step.fields = {"peer": bot}
+	step.within_s = 10.0
+	return step
+
+
+static func _expect_joined(bot: int, player_name: String) -> StepExpect:
+	var step := StepExpect.new()
+	step.event = &"PlayerJoined"
+	step.fields = {"peer": bot, "name": player_name}
+	step.within_s = 5.0
+	return step
+
+
+static func _phase(phase: String) -> StepWaitFor:
+	var step := StepWaitFor.new()
+	step.event = &"PhaseChanged"
+	step.fields = {"phase": phase}
+	return step
+
+
 func _scenario(scripts: Array) -> BotScenario:
 	var scenario := BotScenario.new()
 	scenario.mode = load(BASE_MODE) as GameMode

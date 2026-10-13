@@ -89,7 +89,7 @@ func _run_tick(at_tick: int) -> void:
 	if at_tick == 0:
 		_join_at_start()
 	for bot: ScenarioBot in bots:
-		if not bot.gone and failures.is_empty():
+		if bot.acts() and failures.is_empty():
 			_act(bot, at_tick)
 	for command: MatchCommand in _commands:
 		_invariants.sender = command.peer
@@ -180,6 +180,25 @@ func _leave(bot: ScenarioBot) -> void:
 	_queue(Intents.PEER_LEFT, bot.peer)
 
 
+## A returning bot connects on a peer id no bot had in the session (ScenarioPeers.fresh_peer).
+func _begin_return(bot: ScenarioBot) -> void:
+	bot.begin_return(0)
+	_take_fresh_peer(bot)
+
+
+## A refused try the host had seen (its Hello Rejected, then DisconnectPeer) leaves its peer id
+## behind: the next try takes a fresh one. One refused at the connection used none.
+func _drop_try(bot: ScenarioBot, was_connected: bool) -> void:
+	if was_connected:
+		_take_fresh_peer(bot)
+
+
+func _take_fresh_peer(bot: ScenarioBot) -> void:
+	var fresh := peers.fresh_peer()
+	bot.peer = fresh
+	peers.set_peer(bot.number, fresh)
+
+
 ## An honest MoveClaim of the bot to `to`, which it then takes as its position, with its jump
 ## count in the epoch: one host tick of travel per tick, client ticks rising by one.
 func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool) -> void:
@@ -258,19 +277,28 @@ func _check_after() -> void:
 		if line.begins_with("error:"):
 			failures.append("match %s" % line)
 	for bot: ScenarioBot in bots:
-		var view := game.view_of(bot.peer).events
-		var received := bot.events
-		var equal := view.size() == received.size()
-		for i in mini(view.size(), received.size()):
-			if not equal:
-				break
-			equal = (
-				received[i].name == view[i].event_name() and received[i].fields == view[i].to_dict()
-			)
+		# Each connection of a bot that joined again is its own view.
+		var connections: Array[Dictionary] = bot.lives.duplicate()
+		connections.append({"peer": bot.peer, "events": bot.events})
+		for connection: Dictionary in connections:
+			_check_view(bot.number, connection["peer"] as int, connection["events"] as Array)
+
+
+## Whether bot `number`'s connection on `peer` received exactly view_of(peer)'s events.
+func _check_view(number: int, peer: int, received: Array) -> void:
+	if peer == 0:
+		return
+	var view := game.view_of(peer).events
+	var equal := view.size() == received.size()
+	for i in mini(view.size(), received.size()):
 		if not equal:
-			failures.append(
-				(
-					"bot %d received %d events, but view_of(%d) holds %d"
-					% [bot.number, received.size(), bot.peer, view.size()]
-				)
+			break
+		var got := received[i] as WireMessage
+		equal = got.name == view[i].event_name() and got.fields == view[i].to_dict()
+	if not equal:
+		failures.append(
+			(
+				"bot %d received %d events, but view_of(%d) holds %d"
+				% [number, received.size(), peer, view.size()]
 			)
+		)

@@ -25,6 +25,12 @@ const MAX_STEPS_PER_TICK := 32
 ## The fields that name a player: a scenario writes them as a bot's number, mapped through
 ## ScenarioPeers (`peer`; RaiseStarted's and RaiseStopped's `raiser` and `target`, M4-4).
 const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
+## What a Join after the bot's own Leave tries again after, every RETRY_S seconds until its
+## deadline_s (P12 (t2) of the returning-players ADR): a refused connection (ENet's and the
+## loopback's connect_failed, the core runner's refusal) and joins_closed (the WebRTC signalling's,
+## or a Rejected Hello's). Anything else fails it at once.
+const RETRIED: Array[StringName] = [ClientSession.CONNECT_FAILED, RejectReasons.JOINS_CLOSED]
+const RETRY_S := 0.5
 
 var scenario: BotScenario
 var bots: Array[ScenarioBot] = []
@@ -116,6 +122,9 @@ static func same(got: Variant, want: Variant) -> bool:
 ## Runs the bot's steps from its current one until a step waits or sends.
 func _act(bot: ScenarioBot, at_tick: int) -> void:
 	tick_now = at_tick
+	if bot.returns():
+		# The tick after its Leave: all that reached its old connection was received by it.
+		_begin_return(bot)
 	_before_steps(bot)
 	for i in MAX_STEPS_PER_TICK:
 		var step := bot.current_step()
@@ -129,6 +138,9 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 		if result != Result.DONE:
 			break
 		bot.finish_step()
+		if bot.gone:
+			# Its Leave: a Join that follows starts a new connection, on the next tick.
+			break
 	if not bot.gone and not bot.dead and not bot.current_step() is StepWalkTo:
 		_stand(bot)
 
@@ -141,6 +153,11 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 ## leftover wait; a script that needs order among leftovers needs a cursor per step here.
 func _disconnected(bot: ScenarioBot, at_tick: int) -> void:
 	tick_now = at_tick
+	if bot.returning():
+		# Its returning Join was refused after it connected (a Rejected Hello): tried again, or not.
+		var rejected := String(bot.rejection_of(bot.sent_seq))
+		_try_again(bot, rejected if not rejected.is_empty() else "disconnected", at_tick, false)
+		return
 	while failures.is_empty():
 		var step := bot.current_step()
 		if step == null:
@@ -201,6 +218,7 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = Result.DONE
 	elif step is StepLeave:
 		bot.gone = true
+		bot.left = true
 		_leave(bot)
 		result = Result.DONE
 	elif step is StepTalk:
@@ -281,6 +299,8 @@ func _next_stage(bot: ScenarioBot, step: StepNextStage) -> Result:
 
 
 func _join(bot: ScenarioBot, step: StepJoin, at_tick: int) -> Result:
+	if not bot.lives.is_empty():
+		return _rejoin(bot, step, at_tick)
 	if not bot.connected:
 		if at_tick < Ticks.from_seconds(step.at_s):
 			return Result.WAITING
@@ -289,6 +309,47 @@ func _join(bot: ScenarioBot, step: StepJoin, at_tick: int) -> Result:
 			return _fail_step(bot, refused)
 		return Result.WAITING
 	return _intent_result(bot, step, bot.joined)
+
+
+## A Join after the bot's own Leave (P12 (a), (t2)): from `at_s` it connects on a new connection;
+## a refused connection or a joins_closed tries again RETRY_S later (_try_again), until
+## `deadline_s`, past which it fails naming the last refusal. Done at its Welcome.
+func _rejoin(bot: ScenarioBot, step: StepJoin, at_tick: int) -> Result:
+	if bot.joined:
+		return _intent_result(bot, step, true)
+	if at_tick > Ticks.from_seconds(step.deadline_s):
+		var last := bot.last_refusal if not bot.last_refusal.is_empty() else "never"
+		return _fail_step(
+			bot,
+			(
+				"its Join after its Leave did not join by its deadline (%s s); last refused: %s"
+				% [step.deadline_s, last]
+			)
+		)
+	var result := Result.WAITING
+	if bot.connected:
+		# A joins_closed Rejected: the host drops the connection next, and _disconnected tries again.
+		if not RETRIED.has(bot.rejection_of(bot.sent_seq)):
+			result = _intent_result(bot, step, false)
+	elif at_tick >= Ticks.from_seconds(step.at_s) and at_tick >= bot.retry_tick:
+		var refused := _connect(bot)
+		if not refused.is_empty():
+			result = _try_again(bot, refused, at_tick, true)
+	return result
+
+
+## The returning Join's try ended before its Welcome, for `reason`: a refused connection
+## (`connection_refused`) or a reason in RETRIED tries again from RETRY_S later, on a new connection
+## (_drop_try); any other reason fails the step.
+func _try_again(bot: ScenarioBot, reason: String, at_tick: int, connection_refused: bool) -> Result:
+	if not connection_refused and not RETRIED.has(StringName(reason)):
+		var failed := _fail_step(bot, "its Join after its Leave ended (%s)" % reason)
+		bot.gone = true
+		return failed
+	var was_connected := bot.connected
+	bot.refused(reason, at_tick + Ticks.from_seconds(RETRY_S))
+	_drop_try(bot, was_connected)
+	return Result.WAITING
 
 
 func _load_ack(bot: ScenarioBot, step: StepLoadAck) -> Result:
@@ -601,6 +662,17 @@ func _before_steps(_bot: ScenarioBot) -> void:
 ## Sends `kind` with `args` from the bot as the current step's intent: sets bot.sent_seq.
 func _send(_bot: ScenarioBot, _kind: StringName, _args: Dictionary) -> void:
 	assert(false, "a runner sends intents")
+
+
+## A returning bot starts its next connection (ScenarioBot.begin_return), the tick after its Leave.
+func _begin_return(bot: ScenarioBot) -> void:
+	bot.begin_return(0)
+
+
+## A returning Join's try was refused (ScenarioBot.refused): the runner drops what it made for it;
+## `was_connected` when the host had seen the connection.
+func _drop_try(_bot: ScenarioBot, _was_connected: bool) -> void:
+	pass
 
 
 ## Connects the bot (a Join step's time has come): its Hello follows. Returns why the host refused
