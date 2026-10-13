@@ -659,7 +659,7 @@ func _hud_local(tick: float) -> HudText.Local:
 	local.mic = _sender.live()
 	if _player != null and not _player_dead():
 		local.placed = true
-		local.position = _player.global_position
+		local.position = _life.own_point()
 		var look := _player.look_vector()
 		local.heading = atan2(look.x, -look.z)
 	return local
