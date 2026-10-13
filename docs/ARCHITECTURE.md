@@ -6629,7 +6629,8 @@ as the ADR's 200 and 100 ticks); the RNG purposes
   burnt patty, CD8 (b); its rule's `HandNotTwoHanded` refuses `two_handed` first): right (the order's, its slot
   empty) it is locked there; wrong it lies at the place (`on_station`) for `PickUp`; `IngredientPlaced` first either
   way (CE13); the third right one makes the place done (`unavailable` after) and the subtask done. The grill's and
-  the beds' rules have no `HandNotTwoHanded` (a take beside a box, CD3 (b)). No use reads a role.
+  the beds' rules have no `HandNotTwoHanded` (a take beside a box, CD3 (b)); a bed's rule holds a `Cooldown`
+  (CE17's flood guard, `too_soon`), which `Cooking.check` demands. No use reads a role.
 - Tick (`TaskTicks`, Round): the grill's patty turns fried at its fried tick and burnt at its burnt tick
   (`Items.change_kind`, `ItemChanged`, CE4, CE10); a burnt one stays until taken off; nothing changes after the round.
 
