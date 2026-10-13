@@ -428,3 +428,9 @@ func test_the_oracle_names_a_hostile_that_took_the_number_of_the_key_it_borrowed
 	found = ChaosOracle.key_problems(state, 9, 2, key)
 	assert_array(found).has_size(1)
 	assert_str(found[0]).contains("the honest bot holds number 5, its key binds 2")
+	# A hostile that is no player at the end has nothing to check: that is named, not passed.
+	state.players[2].number = 2
+	state.players.erase(9)
+	found = ChaosOracle.key_problems(state, 9, 2, key)
+	assert_array(found).has_size(1)
+	assert_str(found[0]).contains("the hostile peer is no player at the end")

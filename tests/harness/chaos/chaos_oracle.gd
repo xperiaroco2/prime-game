@@ -122,6 +122,7 @@ static func key_problems(
 		found.append("the honest bot holds number %d, its key binds %d" % [honest.number, bound])
 	var hostile := state.player(hostile_peer) if hostile_peer != 0 else null
 	if hostile == null:
+		found.append("the hostile peer is no player at the end, so its number was not checked")
 		return found
 	if hostile.number <= bound:
 		found.append(
