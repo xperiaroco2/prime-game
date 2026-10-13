@@ -34,6 +34,7 @@ var rng_purpose: StringName = &"fixture_tasks"
 func _init(type_id: StringName = &"fixture_dealt", token_kind: ItemKind = null, count := 1) -> void:
 	id = type_id
 	description = "Move the tokens."
+	subtasks_setting = FixtureModes.SUBTASKS_SETTING
 	token = token_kind
 	tokens = count
 

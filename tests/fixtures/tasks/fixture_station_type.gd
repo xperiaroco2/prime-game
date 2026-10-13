@@ -31,6 +31,7 @@ var _asked := 0
 func _init() -> void:
 	id = &"fixture_station"
 	description = "Press the panels."
+	subtasks_setting = FixtureModes.SUBTASKS_SETTING
 
 
 func deal(ctx: MatchContext) -> void:

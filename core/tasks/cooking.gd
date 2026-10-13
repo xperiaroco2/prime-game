@@ -101,8 +101,6 @@ class State:
 ## The box kinds (CE7 (a)), each two-handed, on markers of its own spawn tag, each with
 ## `target_actions` giving one bun or raw patty kind (GiveItem).
 @export var boxes: Array[ItemKind] = []
-## Cooking's own subtasks setting: its burgers.
-@export var subtasks_setting: StringName
 ## How long a patty on the grill takes to turn fried from going on, and then to turn burnt from
 ## turning fried (ADR row 14: 10 s and 5 s, 200 and 100 ticks; §2.4: burnt at now plus 300): each
 ## 0.05 to 600. The neutral defaults are out of bounds on purpose: the data sets them.
@@ -446,16 +444,15 @@ func emits() -> Array[Script]:
 ## in UseStation; their spawn tags distinct across the mode is ModeCheck's, ZE3); the lists; every
 ## kind distinct, listed in the mode, one-handed but the boxes, which are two-handed and placed on
 ## tags of their own; each box giving one bun or raw patty kind, and each of those given by a box;
-## at most MAX_HERBS herbs; the seconds within bounds; the subtasks setting from
-## at least 0 (ModeCheck checks it names a declared whole-number setting); non-empty RNG purposes;
-## the cap on every given kind (CE3) and `vanish_seconds` on every ingredient (CD6 (c)).
+## at most MAX_HERBS herbs; the seconds within bounds; non-empty RNG purposes; the cap on every
+## given kind (CE3) and `vanish_seconds` on every ingredient (CD6 (c)). The subtasks setting, from
+## at least 0, is TaskType.check's (G0).
 func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
 	_check_station_kinds(found)
 	_check_lists(found)
 	if mode != null:
 		_check_listed(mode, found)
-		_check_setting(mode, found)
 		_check_caps(mode, found)
 	_check_boxes(found)
 	if herbs.size() > MAX_HERBS:
@@ -467,8 +464,6 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds("Cooking %s burn_seconds" % id, burn_seconds, MIN_SECONDS, MAX_SECONDS),
 		]
 	)
-	if subtasks_setting.is_empty():
-		found.append("Cooking %s has no subtasks_setting" % id)
 	if boxes_rng.is_empty() or orders_rng.is_empty() or code_rng.is_empty() or beds_rng.is_empty():
 		found.append("Cooking %s has an empty RNG purpose" % id)
 	for kind: ItemKind in ingredients():
@@ -558,14 +553,6 @@ func _check_listed(mode: GameMode, found: PackedStringArray) -> void:
 			found.append(
 				"Cooking %s names item kind %s, which the mode does not declare" % [id, kind.id]
 			)
-
-
-func _check_setting(mode: GameMode, found: PackedStringArray) -> void:
-	if subtasks_setting.is_empty():
-		return
-	var spec := mode.find_setting(subtasks_setting)
-	if spec != null and spec.is_number() and spec.min_value < 0:
-		found.append("Cooking %s: setting %s goes below 0" % [id, subtasks_setting])
 
 
 ## Every given kind capped at least twice the mode's most players (a hand and a belt each) plus

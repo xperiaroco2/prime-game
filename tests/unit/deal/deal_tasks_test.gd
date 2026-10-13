@@ -24,6 +24,7 @@ class Demanding:
 		var made := Demanding.new()
 		made.id = type_id
 		made.description = "A demanding task."
+		made.subtasks_setting = FixtureModes.SUBTASKS_SETTING
 		made.items = item_count
 		made.stations = station_count
 		made.station = kind

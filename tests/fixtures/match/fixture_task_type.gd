@@ -9,6 +9,7 @@ var reports: Array[StringName] = []
 func _init() -> void:
 	id = &"fixture_task"
 	description = "A fixture task."
+	subtasks_setting = FixtureModes.SUBTASKS_SETTING
 
 
 func on_fact(ctx: MatchContext) -> void:

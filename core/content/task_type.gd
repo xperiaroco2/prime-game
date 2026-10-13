@@ -9,7 +9,8 @@ extends ContentPart
 ## living player does any subtask. A match deals at most one task of each type: DealTasks draws
 ## the types and calls deal() once per drawn type, in the mode's order; Match calls on_fact() for
 ## every fact, after the mode's reactions and in the mode's order; TaskTicks (2f) calls tick()
-## when has_tick(). Each type reads its own subtasks setting (Delivery: `packages`).
+## when has_tick(). Each type reads its own subtasks setting, `subtasks_setting` (Delivery:
+## `packages`), which every type has (#256's shared part, the Generator ADR's G0, #795).
 
 @export var id: StringName
 @export var display_name: String
@@ -22,6 +23,13 @@ extends ContentPart
 ## demands (the fit check, LayoutCheck) ask a map only for the markers of its own types. The mode
 ## check refuses a path that is not one of the mode's maps.
 @export var maps: PackedStringArray = PackedStringArray()
+## The type's own subtasks setting (#256's shared part, the Generator ADR's §6.1, #795): the id of
+## a whole-number SettingSpec of the mode, one lobby control, that deal() reads for the number of
+## subtasks of its one task (Delivery's packages, the zone task's zones, the Generator's active
+## switches, ...). Every type has one: check() refuses it empty and refuses a setting that goes
+## below 0 (ModeCheck checks it names a declared whole-number setting, as every `*_setting`); a
+## type adds only its own bound (the Generator's `switches`).
+@export var subtasks_setting: StringName
 
 
 ## A fresh state for one task of this type.
@@ -109,6 +117,7 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append("a task type has no id")
 	if description.strip_edges().is_empty():
 		found.append("task type %s has no description" % id)
+	_check_subtasks_setting(mode, found)
 	for map: String in maps:
 		if mode != null and not mode.maps.has(map):
 			found.append(
@@ -213,3 +222,18 @@ func kills() -> bool:
 ## None by default.
 func hold_emits() -> Array[Script]:
 	return []
+
+
+## The shared check of `subtasks_setting` (G0, #795): present, and from at least 0 when the mode
+## declares it as a number (ModeCheck reports a setting it does not declare, or a set of ids). The
+## errors name the type's class (Delivery, ZoneTask, ...), as each type's own checks do.
+func _check_subtasks_setting(mode: GameMode, found: PackedStringArray) -> void:
+	var script := get_script() as Script
+	var label := script.get_global_name() if script != null else &""
+	var kind := String(label) if not label.is_empty() else "task type"
+	if subtasks_setting.is_empty():
+		found.append("%s %s has no subtasks_setting" % [kind, id])
+		return
+	var spec := mode.find_setting(subtasks_setting) if mode != null else null
+	if spec != null and spec.is_number() and spec.min_value < 0:
+		found.append("%s %s: setting %s goes below 0" % [kind, id, subtasks_setting])
