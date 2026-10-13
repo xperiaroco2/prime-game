@@ -1681,7 +1681,7 @@ Compares what each bot b decoded with `view_of(b)`:
   not trust the declarations, plus any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
   from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
   bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
-  that match's dissidents only; no bot decodes a dead player's avatar; a bot decodes its own avatar exactly when the host's state had it knocked down at that tick (the own-avatar check, KE5, #847, from the life state `record_tick` saw, never from `Snapshots.for_peer`); no bot decodes or a downed or dead speaker's voice frame, a
+  that match's dissidents only; no bot decodes a dead player's avatar; a bot decodes its own avatar exactly when the host's state had it knocked down at that tick (the own-avatar check, KE5, #847, from the life state `record_tick` saw, never from `Snapshots.for_peer`); no bot decodes a downed or dead speaker's voice frame, a
   downed bot hears only the living and a dead bot nobody; no bot decodes a frame of a speaker farther away than the
   hearing radius of the phase at the frame's tick (`VoiceRule.radius_of` the mode's rule for it), between the two
   last accepted positions after that tick, which `LeakCheck.record_tick` records per tick with the radius, in 3D,
