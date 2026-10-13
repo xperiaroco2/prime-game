@@ -39,6 +39,9 @@ var clients: Dictionary[int, BotClient] = {}
 ## Bot number -> the clients of its earlier connections that reached a Welcome, oldest first: a bot
 ## that left and joined again (ScenarioBot.lives), each checked as its own view.
 var earlier_clients: Dictionary[int, Array] = {}
+## The peer id the transport gave each of `earlier_clients`' connections (the bot's `peer` when it
+## left), in the same order: the anchor a Welcome's own id is checked against.
+var earlier_peers: Dictionary[int, Array] = {}
 ## The clock of the runner, in microseconds.
 var now_usec := 0
 ## Count MatchEnded sides from what the bots decoded (over ENet a bot's own process has no
@@ -209,6 +212,9 @@ func _begin_return(bot: ScenarioBot) -> void:
 		var earlier: Array = earlier_clients.get(bot.number, [])
 		earlier.append(client)
 		earlier_clients[bot.number] = earlier
+		var transport_peers: Array = earlier_peers.get(bot.number, [])
+		transport_peers.append(bot.peer)
+		earlier_peers[bot.number] = transport_peers
 	_forget_connection(bot.number)
 	bot.begin_return(0)
 
@@ -240,8 +246,15 @@ func earlier_views(bot: ScenarioBot) -> Array[Dictionary]:
 	var lives: Array = earlier_clients.get(bot.number, [])
 	for i in lives.size():
 		var client: BotClient = lives[i]
-		found.append({"peer": client.view.peer, "view": client.view, "order": order_of(client)})
+		found.append({"peer": earlier_peer(bot, i), "view": client.view, "order": order_of(client)})
 	return found
+
+
+## The peer id the transport gave `bot`'s earlier connection `index` (earlier_clients), not the one
+## its Welcome names: a misrouted stream carries the other peer's own id.
+func earlier_peer(bot: ScenarioBot, index: int) -> int:
+	var transport_peers: Array = earlier_peers.get(bot.number, [])
+	return transport_peers[index]
 
 
 ## The OrderLog lists of `client`'s messages from the host over WebRTC (BotWebRtc), else empty.

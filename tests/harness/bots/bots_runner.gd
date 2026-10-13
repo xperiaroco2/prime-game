@@ -247,7 +247,7 @@ func _check_after() -> void:
 		var lives: Array = earlier_clients.get(bot.number, [])
 		for i in lives.size():
 			var earlier: BotClient = lives[i]
-			var life_peer: int = earlier.view.peer
+			var life_peer := earlier_peer(bot, i)
 			_check_client(
 				"bot %d (connection %d)" % [bot.number, i + 1], life_peer, earlier, true, views
 			)
