@@ -106,6 +106,36 @@ static func accepts(intent: StringName, peer: int, phase: StringName, player: Pl
 	)
 
 
+## What the hostile's borrowed return key broke (#639; the returning-players ADR: a key a present
+## player holds stays with that player): its Hello carried the key of the honest bot at
+## `honest_peer`, sent once that bot had joined, so the hostile joined after it as a new number
+## and bound none, and the honest bot keeps the number its `honest_key` binds. Empty when nothing.
+static func key_problems(
+	state: MatchState, hostile_peer: int, honest_peer: int, honest_key: String
+) -> PackedStringArray:
+	var found := PackedStringArray()
+	var bound: int = state.numbers.get(honest_key, 0)
+	if bound == 0:
+		found.append("the honest bot's return key binds no number")
+	var honest := state.player(honest_peer) if honest_peer != 0 else null
+	if honest != null and honest.number != bound:
+		found.append("the honest bot holds number %d, its key binds %d" % [honest.number, bound])
+	var hostile := state.player(hostile_peer) if hostile_peer != 0 else null
+	if hostile == null:
+		return found
+	if hostile.number <= bound:
+		found.append(
+			(
+				"the hostile peer holds number %d with the honest bot's key (bound to %d)"
+				% [hostile.number, bound]
+			)
+		)
+	for key: String in state.numbers:
+		if state.numbers[key] == hostile.number:
+			found.append("the hostile peer's number %d is bound to a key" % hostile.number)
+	return found
+
+
 ## The answer of an intent the allowlist took, for what a chaos peer sends (§4.1).
 static func _rule(
 	intent: StringName,

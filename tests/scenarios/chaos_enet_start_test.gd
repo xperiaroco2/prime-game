@@ -28,10 +28,13 @@ class UnhostedChaos:
 		transport.join("loopback", NO_PORT)
 		return transport
 
-	func _chaos_joining() -> Dictionary:
-		var loopback := ChaosLoopback.new(schema.kind_table(), LoopbackHub.new())
-		loopback.join("loopback", NO_PORT)
-		return {"transport": loopback, "take": loopback.take_outbox, "send_raw": loopback.send_raw}
+	func _chaos_joining() -> ChaosJoining:
+		var kinds := schema.kind_table()
+		var joining := ChaosJoining.make(
+			kinds, NO_PORT, LoopbackHub.new(), false, false, Callable()
+		)
+		joining.join()
+		return joining
 
 	func _join_clock_usec() -> int:
 		return clock_usec
@@ -46,9 +49,7 @@ class UnhostedChaos:
 		for bot: ScenarioBot in bots.slice(1):
 			_connect(bot)
 		var joined := _chaos_joining()
-		malformed = ChaosMalformed.new(
-			joined["transport"] as NetTransport, joined["send_raw"] as Callable, schema, 2
-		)
+		malformed = ChaosMalformed.new(joined.transport, joined.send_raw, schema, 2)
 
 
 func test_over_enet_the_bots_play_once_every_bot_is_in_bot_1s_lobby() -> void:

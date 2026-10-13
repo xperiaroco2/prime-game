@@ -47,6 +47,15 @@ const HACKED_NAME := "Hacked"
 ## The client phases in which the host is surely not in the lobby: a changed profile is refused. Not
 ## the round: a frame sent in its last moments could meet the host back in the lobby after End.
 const NO_LOBBY_PHASES: Array[StringName] = [&"loading", &"pregame"]
+## The keys its extra Hellos carry in turn (#639), none drawn from rng (its stream stays the
+## seeds'): a malformed one, the honest bot's its join carried, another player's, and one no
+## player holds. Each stays not_accepted, whatever it carries.
+static var hello_keys: PackedStringArray = [
+	"nokey",
+	ScenarioBot.key_of(ChaosScenario.KEY_BOT),
+	ScenarioBot.key_of(1),
+	ScenarioBot.key_of(ChaosScenario.BOTS + 1),
+]
 
 var rng := RandomNumberGenerator.new()
 ## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
@@ -67,6 +76,7 @@ var _next_seq := ChaosFrames.CHAOS_SEQ
 var _voice_counter := VOICE_COUNTER
 var _claims := 0
 var _intent_burst_done := false
+var _hellos := 0
 var _voice_burst_done := false
 var _pregame_voice_done := false
 
@@ -190,7 +200,13 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
-			args = {"version": WireSchema.VERSION, "content": 0, "name": "", "key": "nokey"}
+			args = {
+				"version": WireSchema.VERSION,
+				"content": 0,
+				"name": "",
+				"key": hello_keys[_hellos % hello_keys.size()]
+			}
+			_hellos += 1
 		Intents.SET_PROFILE:
 			args = _profile_args(phase)
 	return args
