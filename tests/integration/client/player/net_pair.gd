@@ -20,6 +20,7 @@ const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
 ## The steps room again, the one map where a body moves (PlayerRules.motion_maps): the match starts
 ## in STEPS_ROOM, which keeps today's knockdown, so no life test of the players moves a body.
 const MOTION_LEVEL := "res://tests/fixtures/client/steps_room_motion.tscn"
+const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
 const PORT := 7400
 ## One physics frame at 60 Hz, in microseconds.
 const FRAME_USEC := 16667
@@ -168,6 +169,20 @@ func with_life(respawn_s: float) -> void:
 				FixtureCombatModes.give_up_rule(),
 			]
 		)
+	)
+
+
+## Plays the fixture `crouch_room.tscn` (#791: a slab 1.4 m above the floor, over x -9.5 to -6.5
+## and z -1 to 3; round markers along z = 12 from x = -16) as the lobby and the match's map, before
+## start(). `listed`: the mode's crouch_maps lists it (the crouch plays in its round); otherwise it
+## lists steps_room alone, a map of the mode the match does not play (KE10). The motion map stays
+## the third and last, where the crouch plays too (KD11): the match plays the first, which keeps
+## today's knockdown.
+func with_crouch_room(listed: bool) -> void:
+	mode.lobby_level = CROUCH_ROOM
+	mode.maps = PackedStringArray([CROUCH_ROOM, STEPS_ROOM, MOTION_LEVEL])
+	mode.player_rules.crouch_maps = PackedStringArray(
+		[CROUCH_ROOM if listed else STEPS_ROOM, MOTION_LEVEL]
 	)
 
 
