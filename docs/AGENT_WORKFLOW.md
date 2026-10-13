@@ -1376,13 +1376,14 @@ one line each (the key in `metrics.json` in brackets):
 - review findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline);
 - the plan phase per run with a planner (#469, `plans`);
 - the code reviewer's A/B (#535, `ab_review`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md), whose stop
-  rule it advises on);
+  rule it advises on; ended 2026-10-13);
 - implementer context and checkpoint handoffs (#559, `handoffs`);
 - the tool output per implementer (#572, `impl_outputs`) and the launch prompt size per role (#470, `prompt_sizes`);
 - the Sonnet implementer trial (#560, `sonnet_trial`; [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md),
-  with its revert rule's advice);
+  with its revert rule's advice; ended 2026-10-13);
 - the Sonnet publisher trial and `pr-rebase` by model (#835, `publisher_trial`; the
-  [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendment of 2026-10-11);
+  [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendments of 2026-10-11
+  and 2026-10-13: the publisher's half ended, `pr-rebase`'s goes on);
 - agents by role and agent type, and how many ran general (#557, `agent_types`);
 - cache re-writes after a `wait` or a CI wait (#555, §11.17, `bounded_waits`) and the tool-call start-up per class of
   call (#568, §8.2, `tool_latency`);
