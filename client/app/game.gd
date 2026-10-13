@@ -119,11 +119,8 @@ var _items := ItemWorld.new()
 var _voices := VoiceViews.new()
 var _sender := VoiceSender.new()
 var _voice_control: VoiceControl
-## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
-## is read again when one opens.
-var _voice_panel_shown := false
-## The keys were typing and the talk key is not yet let go (#488): the microphone stays shut.
-var _talk_blocked := false
+## The per-frame voice wiring: the talk key and the Voice panel on screen (GameTalk).
+var _talk := GameTalk.new()
 var _ending := false
 var _last_stop_check_ms := 0
 var _quitting := false
@@ -533,7 +530,7 @@ func _process(delta: float) -> void:
 		var tick := _avatars.host_tick()
 		ui.refresh_round(_client.model, mode, tick, _hud_local(tick))
 	OverlayFeed.refresh(_overlay, _client, _host, _avatars, _sender, _voices)
-	_refresh_voice()
+	_talk.refresh(self)
 	_apply_player_flags(now)
 	tutorial.process(self, delta)
 
@@ -910,36 +907,6 @@ func _ready_controls() -> void:
 func _setup_voice() -> void:
 	_voices.setup(_client, mode, _avatars, voice_codec)
 	_sender.setup(_client, mode)
-
-
-## Each frame: the talk key counts, under the Esc menu too (#488 rule 4), but never while the
-## keys are typing, nor after it, until the talk key has been let go once (a V that ended a typing
-## or bound a key is still held, and must not key the microphone); an open Voice panel (the Esc
-## menu's tab, or the main menu's page with no session, #301) shows the settings and the
-## microphone's level (the device list read again as it opens); the lobby's hint and mic (#495).
-func _refresh_voice() -> void:
-	_sender.reads_device_input = device_input
-	var typing := _typing()
-	if typing:
-		_talk_blocked = true
-	elif not Input.is_action_pressed(VoiceSender.TALK_ACTION):
-		_talk_blocked = false
-	_sender.listening = not typing and not _talk_blocked
-	var panel := shown_voice_panel()
-	if panel != null and not _voice_panel_shown:
-		_voice_control.refresh_devices()
-	_voice_panel_shown = panel != null
-	if panel != null:
-		panel.show_facts(_voice_control.facts())
-	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
-	ui.lobby_hud.show_mic(_sender.live())
-
-
-## A text field has the focus (the Lobby tab's name, #214) or Settings > Controls captures a key:
-## the keys are letters or a binding then, and V must not key the microphone.
-func _typing() -> bool:
-	var focus := get_viewport().gui_get_focus_owner()
-	return focus is LineEdit or focus is TextEdit or GameSettings.capturing(self)
 
 
 ## Settings' Sound and voice on screen now: the Esc menu's, the main menu's, or null.
