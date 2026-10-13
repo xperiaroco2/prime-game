@@ -522,15 +522,8 @@ func _check_parts(mode: GameMode, found: PackedStringArray) -> void:
 		if not _has_cooldown(bin):
 			found.append("CarRepair %s: bin %s has no Interact rule with a Cooldown" % [id, bin.id])
 		if _has_busy_hands(bin):
-			(
-				found
-				. append(
-					(
-						"CarRepair %s: bin %s's take holds HandNotTwoHanded: a bin refuses no busy hands"
-						% [id, bin.id]
-					)
-				)
-			)
+			var busy := "CarRepair %s: bin %s's take holds HandNotTwoHanded: a bin refuses no busy hands"
+			found.append(busy % [id, bin.id])
 
 
 ## The fewest items a part kind must be capped at (RE14, CE3), or -1 when the mode does not say.
