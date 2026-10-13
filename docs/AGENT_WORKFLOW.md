@@ -579,10 +579,10 @@ would have stopped routine work is judged by its target in the guard (§8.2) ins
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
 a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away; `acceptEdits`' file writes and
 protected paths, §8.2.10), and its selftests (`tools/runner/tests/test_permissions.py`) check the lists with the
-guard: reads of other repositories pass in every mode, writes there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
-task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
-stops only for design and other human-reserved decisions and for what reaches beyond them
-([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
+guard: reads of other repositories pass in every mode, writes there ask, and every `Bash(...)` rule has its
+`PowerShell(...)` twin. **Inside its own worktree and task branch an agent has full freedom**: every git operation
+and every delete there runs without a prompt, and it stops only for design and other human-reserved decisions and
+for what reaches beyond them ([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
 - Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
   prompt (`acceptEdits`, both humans' default mode and a route-C successor's only one: there the guard allows routine
   shell work in an unattended session, §8.2.10).
