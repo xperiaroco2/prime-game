@@ -42,7 +42,7 @@
   once (§2, §10).
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing here is built" above is history. On main: 728a (#846); the rest of §8 is open.
+  "nothing here is built" above is history. On main: 728a (#846); the rest is open (§10).
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the decided rules; his answers to KD1 to KD9, KE1 and KE5, and the House only, in PR
   #754's comment 6097876326; KD10 (A) and KE1 (b) in its comment 6100602989; KD11 in its comment 6108669765; KD12
