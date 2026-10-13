@@ -14,7 +14,7 @@ const FREE_M := 1.0
 
 ## One line for each pair of markers on `layout` closer than ZE9 allows; empty when it keeps it.
 static func faults(
-	path: String, layout: LevelLayout, zone: StationKind, others: Array[StationKind]
+	path: String, layout: LevelLayout, zone: StationKind, other_kinds: Array[StationKind]
 ) -> PackedStringArray:
 	var found := PackedStringArray()
 	var zones := layout.positions(zone.spawn_tag)
@@ -24,7 +24,7 @@ static func faults(
 		for tag: StringName in [&"round_player", &"respawn"]:
 			for at: Vector3 in layout.positions(tag):
 				_check(found, path, zones[i], at, zone.radius_m + FREE_M, zone.height_m)
-		for other: StationKind in others:
+		for other: StationKind in other_kinds:
 			var height := maxf(zone.height_m, other.height_m)
 			for at: Vector3 in layout.positions(other.spawn_tag):
 				_check(found, path, zones[i], at, zone.radius_m + other.radius_m, height)
