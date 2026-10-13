@@ -418,9 +418,12 @@ class CheckTest(unittest.TestCase):
         self.assertNotIn("Failure", said)
         self.assertIn("retrying once (log: tools/out/logs/import-attempt-1.log)", said)
 
-    def test_an_import_that_passes_at_once_keeps_no_attempt_log(self) -> None:
+    def test_an_import_that_passes_at_once_keeps_no_attempt_log_and_clears_none(self) -> None:
+        # Only a failed attempt touches the attempt logs: an import that passes leaves the folder CI uploads alone.
         made, kept, said = self.run_failing_import([(0, False, "imported\n")])
-        self.assertEqual((made, kept, said), (["imported\n"], {"import.log": "imported\n"}, ""))
+        self.assertEqual(
+            (made, kept, said), (["imported\n"], {"import.log": "imported\n", "import-attempt-2.log": "an earlier run's\n"}, "")
+        )
 
     def test_a_timeout_is_not_retried_and_quotes_its_last_lines(self) -> None:
         out = "".join(f"step {i}\n" for i in range(40))

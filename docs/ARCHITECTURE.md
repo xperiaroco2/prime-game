@@ -2925,7 +2925,7 @@ before the import, each command's order of finding Godot, importing and starting
 
 A failed import (#949): `check.run_import` runs an import that exits non-zero once more (a timeout, `IMPORT_TIMEOUT`
 300 s, is not run again). Each failed attempt's log is kept as `tools/out/logs/<label>-attempt-<n>.log` (the next
-attempt overwrites `<label>.log`; an earlier run's attempt logs go first), a signal exit is named (`-11 (SIGSEGV)`),
+attempt overwrites `<label>.log`; a first failure clears older ones), a signal exit is named (`-11 (SIGSEGV)`),
 and the Failure names those logs and quotes the last 25 lines of the last attempt's output, so a CI log alone tells
 a hang from a crash; CI keeps `tools/out/logs` as each part's artifact. `RealPointerTest`, whose logs live in its
 temporary folder, copies them to `tools/out/logs/<test method>/` when it fails. Its import of every stand-in crashed

@@ -211,8 +211,6 @@ def run_import(label: str = "import") -> list[str]:
     the last lines of the last one (import_failure, #949).
     """
     started = time.time()
-    for stale in sorted(common.LOGS.glob(f"{label}-attempt-*.log")):
-        stale.unlink(missing_ok=True)  # an earlier run's: the attempt logs a Failure names are this run's only
     kept: list[str] = []
     with lfs.aside(lfs.ci_pointers()):  # in CI, no LFS pointer file reaches the import (#515)
         for attempt in (1, 2):
@@ -251,9 +249,15 @@ def log_name(path: Path) -> str:
 def keep_attempt_log(label: str, attempt: int) -> str:
     """Copy a failed import attempt's log (`<label>.log`, which the next attempt overwrites) to
     `<label>-attempt-<n>.log` and name it (#949): a hang and a crash leave different output, and CI keeps
-    tools/out/logs as an artifact. With no log written (a faked Godot), the name of the one it would have been."""
+    tools/out/logs as an artifact. With no log written (a faked Godot), the name of the one it would have been.
+
+    The first failed attempt first clears an earlier run's attempt logs, so those a Failure names are this run's
+    only; an import that passes at once touches none (the review of #949)."""
     log = common.LOGS / f"{label}.log"
     copy = common.LOGS / f"{label}-attempt-{attempt}.log"
+    if attempt == 1:
+        for stale in sorted(common.LOGS.glob(f"{label}-attempt-*.log")):
+            stale.unlink(missing_ok=True)
     if log.is_file():
         copy.write_bytes(log.read_bytes())
         return log_name(copy)
