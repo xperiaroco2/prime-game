@@ -49,8 +49,7 @@ date with main, fresh reviews with no open blocker or major and the gate's excep
 release/m<k> I name: merges.md "A release branch">.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.
-Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
-base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
+Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
 each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment's notes end with the ready
