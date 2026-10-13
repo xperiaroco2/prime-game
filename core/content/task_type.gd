@@ -163,6 +163,16 @@ func use_emits() -> Array[Script]:
 	return []
 
 
+## The tier of `item` under its kind's cap (C1's GiveItem; the photo ADR's PE10, #782): at the cap
+## the loose item of the lowest tier vanishes first, an item's tier the highest answer of every
+## dealt task type, then CE3's order (the earliest rest tick, then the lowest id). A type ranks
+## only what everyone already knows (which item lies in its station, which one has shots), never a
+## hidden fact: ItemVanished tells everyone which one went. A query that changes nothing. 0 by
+## default.
+func cap_tier(_state: MatchState, _item: ItemState) -> int:
+	return 0
+
+
 ## A HoldStation `channel` on `station`, a placed station of this type's kind, started (it is
 ## running: Channels.of_actor finds it; the car repair ADR's RE1 to RE3, #805). The type writes its
 ## own task state and emits only the events hold_emits() lists. `task` as in use_problem(). Nothing
