@@ -136,6 +136,7 @@ dismisses the question and explains, read back again. An answer that changes a p
 its worktree, in a subshell (§9), then
 `publish` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
+An answer that changes a documented flow, rule or number also gets a docs task: MANAGERS.md §10.
 
 ## 6. Reporting and keeping slots busy
 - After each wave, a comment on the plan issue: merged PRs (each `merge` `wave:` line), decisions recorded (with
