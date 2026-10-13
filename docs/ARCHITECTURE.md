@@ -1486,7 +1486,8 @@ runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it con
 (`LoopbackHub` hands out the ids). Over ENet each instance writes its peer ids to `tools/out/bots/<scenario>/peer-<i>`
 on `connected`, one id per line, one line per connection (a bot that left and returned has a line for each); bot 1
 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
-the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer
+ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
 after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
 listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
 like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
