@@ -738,10 +738,9 @@ func _fail_join(reason: StringName) -> void:
 ## closes its channels just before its connection): ERR_DOES_NOT_EXIST, as for a peer gone (#639).
 func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var channel := conn.channels[lane]
-	var state := channel.get_ready_state()
-	if state == WebRTCDataChannel.STATE_CLOSING or state == WebRTCDataChannel.STATE_CLOSED:
+	if _is_going(channel):
 		return ERR_DOES_NOT_EXIST
-	if state != WebRTCDataChannel.STATE_OPEN:
+	if channel.get_ready_state() != WebRTCDataChannel.STATE_OPEN:
 		return ERR_CONNECTION_ERROR
 	# An empty message never reached the peer's get_packet() in the chaos runs (observed, not
 	# in the docs), but one put on RELIABLE would be counted for LaneOrder all the same, and every
@@ -756,13 +755,20 @@ func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 			return ERR_DOES_NOT_EXIST
 	var err := channel.put_packet(packet)
 	if err != OK:
-		return err
+		# libdatachannel's threads can close the channel between the check and the send.
+		return ERR_DOES_NOT_EXIST if _is_going(channel) else err
 	if lane == NetKindTable.Lane.RELIABLE:
 		_order.count_reliable_sent(conn.peer_id)
 	conn.last_sent_ms = Time.get_ticks_msec()
 	_upload_bytes += packet.size() + PACKET_OVERHEAD_BYTES
 	_upload_frames += 1
 	return OK
+
+
+## Whether `channel` is closing or closed.
+static func _is_going(channel: WebRTCDataChannel) -> bool:
+	var state := channel.get_ready_state()
+	return state == WebRTCDataChannel.STATE_CLOSING or state == WebRTCDataChannel.STATE_CLOSED
 
 
 ## Open, admitted where it matters, and not being closed by the host.
