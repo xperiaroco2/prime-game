@@ -1989,7 +1989,7 @@ The chaos run's freeze in a zone left with the greybox's zones (#804, GD13 (b)):
 `TaskProgress` as its `Match.view_of`; a client frozen in the zone 2 s gains at most `ZoneTask.STALE_TICKS` after its
 last accepted claim and stops counting, and counts again once thawed. Seen failing with "stale claims count" planted
 (both `_anyone_inside` guards, the claim's age and `credit_gain`, out: 40 ticks gained); with the age guard alone out
-it passes, as `credit_gain` also stops a frozen client.
+it passes, as `credit_gain` also stops a frozen client. The gain is counted from the end of the host tick of that claim, and both tests replay the match from its command log (`Match.replay`) to the same events, recipients and ticks.
 Kind 1's `key` (`Hello`, the return key of the [returning-players ADR](decisions/2026-10-09-returning-players-keep-their-number.md); #639):
 the hostile's joining `Hello` carries an honest bot's key (`ChaosScenario.KEY_BOT`, bot 2's `ScenarioBot.key_of`),
 sent once the host holds that bot's `PlayerJoined` (`ChaosJoining` makes each chaos transport without joining; the

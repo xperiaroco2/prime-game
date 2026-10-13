@@ -50,6 +50,7 @@ func test_a_zone_filled_by_a_walker_reaches_every_client_as_its_view() -> void:
 		assert_array(client.view.events_named(&"TaskProgress")).is_not_empty()
 		assert_array(_h.mismatches(client)).is_empty()
 	assert_array(Array(game.diagnostics)).is_empty()
+	_assert_replays(game)
 
 
 func test_a_client_frozen_in_a_zone_gains_it_at_most_the_stale_ticks() -> void:
@@ -58,21 +59,30 @@ func test_a_client_frozen_in_a_zone_gains_it_at_most_the_stale_ticks() -> void:
 	var task_state := FixtureZoneModes.state_of(game)
 	var peer := _h.peer_of(walker)
 	_walk_into_zone(walker)
-	_h.pump_seconds(0.5)
+	# The zone's tick count at the end of each host tick, from before the freeze: the gain is
+	# counted from the tick of the last accepted claim itself, not from the pump that first sees it.
+	var ticks_at: Dictionary[int, int] = {}
+	for _i in ceili(0.5 * Harness.SECOND / Harness.FRAME_USEC):
+		_h.pump()
+		ticks_at[game.ticked_through()] = task_state.ticks[0]
 	assert_bool(task_state.counting[0]).is_true()
 	# The freeze: the walker's process stops (no claim, no poll); the host and the other client
 	# run on. The zone's gain is counted from the host tick of the last accepted claim.
 	_h.frozen.append(walker)
 	var claimed := -1
-	var at_claim := 0
 	for _i in ceili(FREEZE_S * Harness.SECOND / Harness.FRAME_USEC):
 		_h.pump()
 		var now_tick := game.ticked_through()
-		var last_claim := now_tick - MovementRule.claim_age(game.state, peer, now_tick)
-		if last_claim != claimed:
-			claimed = last_claim
-			at_claim = task_state.ticks[0]
-	var gained := task_state.ticks[0] - at_claim
+		ticks_at[now_tick] = task_state.ticks[0]
+		claimed = now_tick - MovementRule.claim_age(game.state, peer, now_tick)
+	(
+		assert_bool(ticks_at.has(claimed))
+		. override_failure_message(
+			"the last claim's tick %d was not at the end of a pump" % claimed
+		)
+		. is_true()
+	)
+	var gained := task_state.ticks[0] - ticks_at[claimed]
 	(
 		assert_int(gained)
 		. override_failure_message(
@@ -86,6 +96,7 @@ func test_a_client_frozen_in_a_zone_gains_it_at_most_the_stale_ticks() -> void:
 	assert_bool(task_state.counting[0]).is_false()
 	assert_bool(task_state.done[0]).is_false()
 	# The thaw: the walker polls and claims again where it stood, and the zone counts again.
+	var corrected := walker.view.events_named(&"Correction").size()
 	_h.frozen.clear()
 	_h.pump_seconds(1.0)
 	assert_bool(task_state.counting[0]).is_true()
@@ -93,8 +104,48 @@ func test_a_client_frozen_in_a_zone_gains_it_at_most_the_stale_ticks() -> void:
 		var progress := client.view.events_named(&"ZoneProgress")
 		assert_bool(_stopped_seen(progress)).is_true()
 		assert_array(_h.mismatches(client)).is_empty()
-	assert_array(walker.view.events_named(&"Correction").slice(1)).is_empty()
+	# The host corrects nothing after the thaw: the claim made where the walker stood is accepted.
+	assert_int(walker.view.events_named(&"Correction").size()).is_equal(corrected)
 	assert_array(Array(game.diagnostics)).is_empty()
+	_assert_replays(game)
+
+
+## The match replayed from its command log (the wire's commands alone drive this match) gives the
+## same events, in order, to the same peers on the same ticks (ARCHITECTURE §3.3): the zone's
+## tick-dependent counting, its 5-tick ZoneProgress window and STALE_TICKS stay deterministic.
+func _assert_replays(game: Match) -> void:
+	var replayed := Match.replay(game.command_log, game.mode)
+	assert_array(Array(replayed.refusals)).is_empty()
+	var errors: Array[String] = []
+	for line: String in replayed.diagnostics:
+		if line.begins_with("error:"):
+			errors.append(line)
+	assert_array(errors).is_empty()
+	var recorded := game.emitted()
+	var again := replayed.emitted()
+	assert_int(again.size()).is_equal(recorded.size())
+	for i in mini(recorded.size(), again.size()):
+		var same := (
+			again[i].event.describe() == recorded[i].event.describe()
+			and again[i].recipients == recorded[i].recipients
+			and again[i].tick == recorded[i].tick
+		)
+		if not same:
+			fail(
+				(
+					"event %d differs in the replay: %s to %s on %d, recorded %s to %s on %d"
+					% [
+						i,
+						again[i].event.describe(),
+						again[i].recipients,
+						again[i].tick,
+						recorded[i].event.describe(),
+						recorded[i].recipients,
+						recorded[i].tick
+					]
+				)
+			)
+			return
 
 
 ## The harness on _mode(`seconds`) and _layouts() with a second client, both in the round, the
