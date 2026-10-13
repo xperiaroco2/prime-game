@@ -1971,7 +1971,7 @@ The chaos run plays the greybox, which holds no Cooking, and a take it applied w
 `tests/integration/server/host_session_cooking_test.gd` one peer's burst of `Interact(item)` naming a box gets at most
 one applied take per 5 ticks and `too_soon` for the rest (CE17), and never more than the kind's `max_items` exist
 (CE3); seen failing with the boxes' `Cooldown` planted out and with the cap raised to 1000.
-The car repair's bursts are held there too (#813, the car repair ADR's §7, RD13: the greybox never deals it): in
+The car repair's bursts are held outside the chaos run too (#813, the car repair ADR's §7, RD13: the greybox never deals it): in
 `tests/integration/server/host_session_car_repair_test.gd` one peer's burst of `Interact` naming a bin gets at most one
 applied take per 5 ticks and `too_soon` for the rest, and never more than the part's `max_items` exist; a burst of
 `Interact` at the lift panel (one hold, `busy` for the rest) and one of `StopRaise` (one stop, `not_channeling` for the
