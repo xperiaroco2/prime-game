@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,10 @@ IMPORT_UID_PATTERNS = re.compile(
     r"UID duplicate detected|Duplicate UID detected|Missing \.uid file|invalid UID|Unrecognized UID"
 )
 IMPORT_TIMEOUT = 300
+# How many of its last output lines a failed import's Failure quotes (#949): Godot's crash handler prints a backtrace
+# of about 15 lines on a POSIX signal, and a hang's last lines name the step it stopped at.
+IMPORT_TAIL = 25
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")  # as launch.ANSI_RE: the import's progress lines are coloured
 CHECK_TIMEOUT = 180
 # Exit codes of a finished Godot process that still count as "ran normally".
 NORMAL_EXIT = (0, 1)
@@ -200,20 +205,72 @@ def run_import(label: str = "import") -> list[str]:
     the import ended: a stamp in the future would report every real change before that time as `current`. In CI the
     import never sees an LFS pointer file (lfs.aside, #515): an import of one fails and rewrites its .import file, so
     Godot imports a stand-in of its type in its place, or, for a type without one, nothing.
+
+    An import that exits non-zero runs once more; a timeout does not. Each failed attempt's log is kept as
+    `<label>-attempt-<n>.log` (the next attempt overwrites `<label>.log`), and the Failure names those logs and quotes
+    the last lines of the last one (import_failure, #949).
     """
     started = time.time()
+    for stale in sorted(common.LOGS.glob(f"{label}-attempt-*.log")):
+        stale.unlink(missing_ok=True)  # an earlier run's: the attempt logs a Failure names are this run's only
+    kept: list[str] = []
     with lfs.aside(lfs.ci_pointers()):  # in CI, no LFS pointer file reaches the import (#515)
         for attempt in (1, 2):
             res = godot(["--headless", "--import"], timeout=IMPORT_TIMEOUT, log=label)
-            if res.timed_out:
-                raise Failure(f"godot --import timed out after {IMPORT_TIMEOUT}s (log: tools/out/logs/{label}.log)")
-            if res.rc == 0:
+            if not res.timed_out and res.rc == 0:
                 break
+            kept.append(keep_attempt_log(label, attempt))
+            if res.timed_out:
+                raise Failure(import_failure(f"timed out after {IMPORT_TIMEOUT}s", kept, res))
             if attempt == 2:
-                raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
-            warn(f"godot --import exited {res.rc}; retrying once")
+                raise Failure(import_failure(f"exited {exit_name(res.rc)} twice", kept, res))
+            warn(f"godot --import exited {exit_name(res.rc)}; retrying once (log: {kept[-1]})")
     record_import(started)
     return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
+
+
+def exit_name(rc: int) -> str:
+    """An exit code as the import's messages give it: a negative one is the POSIX signal that ended the process
+    (subprocess reports a SIGSEGV as -11), so it gets the signal's name."""
+    if rc < 0:
+        try:
+            return f"{rc} ({signal.Signals(-rc).name})"
+        except ValueError:
+            pass
+    return str(rc)
+
+
+def log_name(path: Path) -> str:
+    """A log's path as a message gives it: relative to the project (tools/out/logs/...) when it is in it."""
+    try:
+        return path.relative_to(common.ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def keep_attempt_log(label: str, attempt: int) -> str:
+    """Copy a failed import attempt's log (`<label>.log`, which the next attempt overwrites) to
+    `<label>-attempt-<n>.log` and name it (#949): a hang and a crash leave different output, and CI keeps
+    tools/out/logs as an artifact. With no log written (a faked Godot), the name of the one it would have been."""
+    log = common.LOGS / f"{label}.log"
+    copy = common.LOGS / f"{label}-attempt-{attempt}.log"
+    if log.is_file():
+        copy.write_bytes(log.read_bytes())
+        return log_name(copy)
+    return log_name(log)
+
+
+def import_failure(what: str, logs: list[str], res: Result) -> str:
+    """The Failure of an import that `what` (timed out, crashed twice): its kept logs and the last IMPORT_TAIL lines
+    of its last attempt's output, so a CI log alone tells a hang (the step it stopped at) from a crash (the engine's
+    backtrace) (#949)."""
+    lines = [ANSI_ESCAPE.sub("", line).rstrip() for line in res.lines]
+    tail = [line for line in lines if line.strip()][-IMPORT_TAIL:]
+    head = f"godot --import {what} (log{'s' if len(logs) > 1 else ''}: {', '.join(logs)})"
+    if not tail:
+        return f"{head}; it printed nothing"
+    said = "its last line" if len(tail) == 1 else f"its last {len(tail)} lines"
+    return f"{head}; {said}:\n" + "\n".join(f"    {line}" for line in tail)
 
 
 def record_import(started: float) -> None:

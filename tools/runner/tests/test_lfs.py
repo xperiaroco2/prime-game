@@ -365,6 +365,87 @@ class CheckTest(unittest.TestCase):
                 self.assertEqual(len(calls), 1)
                 self.assertEqual(lfs.pointers(root), [])
 
+    def run_failing_import(self, results: list[tuple[int, bool, str]]) -> tuple[list[str], dict[str, str], str]:
+        """run_import over a faked Godot whose attempts end as `results` (rc, timed out, output), each writing its
+        output to the import log as Godot's run does: the outputs of the attempts made, the logs left and what it
+        printed (a Failure's message too)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            logs = root / "tools/out/logs"
+            write(logs, "import-attempt-2.log", "an earlier run's\n")
+            made: list[str] = []
+
+            def fake_godot(*_args: object, **kwargs: object) -> Result:
+                rc, timed_out, out = results[len(made)]
+                made.append(out)
+                (logs / f"{kwargs['log']}.log").write_text(out, encoding="utf-8")
+                return Result(rc, out, timed_out, 1.0)
+
+            printed = io.StringIO()
+            with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "LOGS", logs), \
+                    mock.patch.multiple(common, IS_CI=False, IS_CLOUD=False), \
+                    mock.patch.object(check, "godot", fake_godot), mock.patch.object(check, "record_import"), \
+                    mock.patch("sys.stdout", printed):  # fmt: skip
+                try:
+                    check.run_import()
+                except Failure as exc:
+                    printed.write(f"Failure: {exc}\n")
+            kept = {path.name: path.read_text(encoding="utf-8") for path in logs.iterdir()}
+        return made, kept, printed.getvalue()
+
+    def test_a_crash_twice_keeps_each_attempt_log_and_quotes_the_last(self) -> None:
+        # #949: CI's import crashed twice (-11, a SIGSEGV), and its log held the second attempt's output alone.
+        crash = "\x1b[90m\x1b[1ma\x1b[0m\n\nhandle_crash: Program crashed with signal 11\n"  # Godot colours some lines
+        made, kept, said = self.run_failing_import([(-11, False, "first\n"), (-11, False, crash)])
+        self.assertEqual(len(made), 2)
+        self.assertEqual(kept, {"import.log": crash, "import-attempt-1.log": "first\n", "import-attempt-2.log": crash})
+        self.assertIn("godot --import exited -11 (SIGSEGV); retrying once (log: tools/out/logs/import-attempt-1.log)", said)
+        self.assertIn(
+            "Failure: godot --import exited -11 (SIGSEGV) twice (logs: tools/out/logs/import-attempt-1.log,"
+            " tools/out/logs/import-attempt-2.log); its last 2 lines:\n    a\n    handle_crash: Program crashed with"
+            " signal 11\n",
+            said,
+        )
+
+    def test_a_crash_then_an_import_keeps_the_crash_log_and_passes(self) -> None:
+        made, kept, said = self.run_failing_import([(-11, False, "crashed\n"), (0, False, "imported\n")])
+        self.assertEqual(made, ["crashed\n", "imported\n"])
+        # The earlier run's attempt log is gone: the ones left are this run's.
+        self.assertEqual(kept, {"import.log": "imported\n", "import-attempt-1.log": "crashed\n"})
+        self.assertNotIn("Failure", said)
+        self.assertIn("retrying once (log: tools/out/logs/import-attempt-1.log)", said)
+
+    def test_an_import_that_passes_at_once_keeps_no_attempt_log(self) -> None:
+        made, kept, said = self.run_failing_import([(0, False, "imported\n")])
+        self.assertEqual((made, kept, said), (["imported\n"], {"import.log": "imported\n"}, ""))
+
+    def test_a_timeout_is_not_retried_and_quotes_its_last_lines(self) -> None:
+        out = "".join(f"step {i}\n" for i in range(40))
+        made, kept, said = self.run_failing_import([(-9, True, out), (0, False, "")])
+        self.assertEqual(len(made), 1)
+        self.assertEqual(kept, {"import.log": out, "import-attempt-1.log": out})
+        first = 40 - check.IMPORT_TAIL
+        quoted = "".join(f"    step {i}\n" for i in range(first, 40))
+        self.assertEqual(
+            said,
+            f"Failure: godot --import timed out after {check.IMPORT_TIMEOUT}s (log: tools/out/logs/import-attempt-1.log);"
+            f" its last {check.IMPORT_TAIL} lines:\n{quoted}",
+        )
+
+    def test_an_import_that_printed_nothing_says_so(self) -> None:
+        said = self.run_failing_import([(1, False, ""), (2, False, "")])[2]
+        self.assertIn("godot --import exited 1; retrying once", said)
+        self.assertIn("exited 2 twice (logs: tools/out/logs/import-attempt-1.log, tools/out/logs/import-attempt-2.log);"
+                      " it printed nothing", said)  # fmt: skip
+
+    def test_exit_names_and_log_names(self) -> None:
+        self.assertEqual(check.exit_name(-11), "-11 (SIGSEGV)")
+        self.assertEqual(check.exit_name(0xC0000005), "3221225477")
+        self.assertEqual(check.exit_name(-999), "-999")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(common, "ROOT", Path(tmp) / "repo"):
+            self.assertEqual(check.log_name(Path(tmp) / "repo/tools/out/logs/a.log"), "tools/out/logs/a.log")
+            self.assertEqual(check.log_name(Path(tmp) / "logs/a.log"), (Path(tmp) / "logs/a.log").as_posix())
+
     def test_lfs_content_fails_on_a_pointer_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = repo(Path(tmp))
