@@ -150,7 +150,7 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 		if not ScenarioPlay.event_matches(event, never.event, never.fields, _peers):
 			continue
 		for peer: int in emitted.recipients:
-			if never.bot == 0 or _peers.peer_of(never.bot) == peer:
+			if never.bot == 0 or _peers.peers_of(never.bot).has(peer):
 				found.append("peer %d received %s, which the scenario says never" % [peer, name])
 	if event is ShotTakenEvent:
 		found.append_array(_check_record(event as ShotTakenEvent))

@@ -44,8 +44,9 @@ func _init(bot_scenario: BotScenario, bot_peers: ScenarioPeers) -> void:
 
 ## Whether an event named `name` with payload `fields`, received by `receiver`, is `want_name`
 ## and matches `want` (a subset): a field that names a player (PLAYER_FIELDS) holds a bot's
-## number, mapped through `bot_peers`; strings and StringNames compare as text; vectors and floats
-## approximately.
+## number, mapped through `bot_peers` to any peer that bot had (a bot that joined again is on a
+## new one, and an event of its earlier connection names the old one); strings and StringNames
+## compare as text; vectors and floats approximately.
 static func matches_fields(
 	event: WireMessage,
 	receiver: ScenarioBot,
@@ -58,12 +59,13 @@ static func matches_fields(
 	for key: Variant in want:
 		var field := str(key)
 		var wanted: Variant = want[key]
-		if PLAYER_FIELDS.has(field) and wanted is int:
-			wanted = bot_peers.peer_of(wanted as int)
 		var got: Variant = (
 			receiver.field_of(event, field) if receiver != null else event.fields.get(field)
 		)
-		if not same(got, wanted):
+		if PLAYER_FIELDS.has(field) and wanted is int:
+			if not names_bot(got, wanted as int, bot_peers):
+				return false
+		elif not same(got, wanted):
 			return false
 	return true
 
@@ -79,12 +81,22 @@ static func event_matches(
 	for key: Variant in want:
 		var field := str(key)
 		var wanted: Variant = want[key]
-		if PLAYER_FIELDS.has(field) and wanted is int:
-			wanted = bot_peers.peer_of(wanted as int)
 		var got: Variant = payload[field] if payload.has(field) else event.get(field)
-		if not same(got, wanted):
+		if PLAYER_FIELDS.has(field) and wanted is int:
+			if not names_bot(got, wanted as int, bot_peers):
+				return false
+		elif not same(got, wanted):
 			return false
 	return true
+
+
+## Whether a player field holding `got` names bot `bot`: one of the peers it had (peers_of), or 0
+## while its peer is not known, as for a field that holds no player.
+static func names_bot(got: Variant, bot: int, bot_peers: ScenarioPeers) -> bool:
+	var had := bot_peers.peers_of(bot)
+	if had.is_empty():
+		return same(got, 0)
+	return got is int and had.has(got as int)
 
 
 static func same(got: Variant, want: Variant) -> bool:
