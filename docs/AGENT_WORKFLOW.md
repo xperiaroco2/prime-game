@@ -1913,10 +1913,10 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 - **Not a scheduled task:** the Desktop scheduled task `night-audit` (2026-10-10) is disabled, not deleted: a
   scheduled session starts in acceptEdits and stalled on its first permission card all night (the engineer's choice
   (a), [#302 comment 6107272934](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6107272934)).
-- **Bounds of the audit** (in the skill): one lens, at most 3 agents (the auditor, one skeptic of type
-  `night-skeptic` and a filer), about 100 tool calls, about $10 list a night; read-only on the repo (issue bodies in its
-  worktree's `tests/scratch/`), at most 5 issues a night, never closes or edits issues. Lenses beyond docs drift
-  are the first thing to drop: set every weekday in the skill to `docs-drift`.
+- **Bounds of the audit** (in the skill): one lens, as a workflow 3 agents (the auditor, one skeptic of type
+  `night-skeptic` and a filer; by hand 2, no filer), about 100 tool calls, about $10 list a night; read-only on the
+  repo (issue bodies in its worktree's `tests/scratch/`), at most 5 issues a night, never closes or edits issues.
+  Lenses beyond docs drift are the first thing to drop: set every weekday in the skill to `docs-drift`.
 
 **Reading the reports.**
 - A comment on the "Night jobs" issue from the nightly workflow: open its run link. The summary page shows "GdUnit4,

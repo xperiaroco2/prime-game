@@ -39,8 +39,8 @@ Unattended: nobody answers at night, so never ask in chat and never wait for a r
 weekday below). Work in English. Root `CLAUDE.md` applies in full.
 
 ## Bounds (state them in the summary)
-- **One lens** a run. **At most 2 agents**: you (the auditor) and one skeptic subagent. **About 100 tool calls**
-  together: you about 70, the skeptic about 30. About $10 list a night.
+- **One lens** a run. **At most 2 agents**: you (the auditor) and one skeptic subagent (as a workflow 3, below).
+  **About 100 tool calls** together: you about 70, the skeptic about 30. About $10 list a night.
 - **Read-only on the repo:** never Edit or Write a tracked file, never commit, push, open a PR, run `publish` or
   `start`, and never close, reopen or edit an issue. The only writes: `gh issue create` (confirmed findings, at most
   5 a night) and `gh issue comment` on the "Night jobs" issue. Issue bodies go in the gitignored `tests/scratch/`
