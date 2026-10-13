@@ -1922,9 +1922,9 @@ The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no 
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
 and 25 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
 `ButtonPressed`), 75 and 76 (#807: `LiftChanged`, `PartNeeded`), 77 and 78 (#781: `FilmLoaded`, `ShotTaken`), 79 and 80 (#773: `GrillLoaded`, `IngredientPlaced`), 81 and 82 (#808: `FitChanged`, `PartFitted`) sent the wrong way, one drawn
-per packet, and unassigned kinds (0, 19, 20, 23, 26, 31,
+per packet, and unassigned kinds (0, 19, 20, 23, 26, 31, 83, 84,
 95, 97, 111,
-113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74, 75 became 77 when #807 took 75 and 76, 77 became 79 when #781 took 77 and 78, 79 became 81 when #773 took 79 and 80, and 81 and 82 left the list when #808 took them). Kind 15, `NextStage` (#599): the hostile
+113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74, 75 became 77 when #807 took 75 and 76, 77 became 79 when #781 took 77 and 78, 79 became 81 when #773 took 79 and 80, 81 became 83 when #808 took 81 and 82). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
 that every intent is in a phase of `ACCEPTS` or in that list;
@@ -6747,8 +6747,9 @@ players plus the subtasks maximum plus 1, CE3), `subtasks_setting` (a whole-numb
   fits its part, then dies; a drop first (a lower holder, or `StopRaise` in the command step) stops the fit
   unfitted (`FitChanged` with 0), and the fitter dies at the step's end (RE17).
   A hit that stops the fit sends `FitChanged(car, 0)` to everyone in the tick of the attacker's public `Swung`, so
-  it confirms the hit landed (the fitter was not invulnerable): like `RaiseStopped`, an exception to "no hit
-  confirmation" (the engineer's answer 7 on PR #133); RD10 (c) chose that a hit stops the fit.
+  it confirms the hit landed (the fitter was not invulnerable). This follows from RD10 (c) (a hit stops the fit) and
+  RD15 (a) (`FitChanged` is public); the engineer's answer 7 on PR #133 covered `RaiseStopped` only, so the exception
+  to "no hit confirmation" awaits his acknowledgement (PR #917).
 - The bins (the ADR's §2.5, RE13): cooking's item source (#770: a `Cooldown`, then `GiveItem` of its part;
   `Items.give` makes room, the kind's `max_items` caps it, vanishing the part that lay longest) with no busy-hands
   condition: RD17's belt rule gives a package carrier its part onto the belt.

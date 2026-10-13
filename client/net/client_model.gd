@@ -43,8 +43,8 @@ class Item:
 	var colour := Color.WHITE
 	var delivered := false
 	## A car repair part fitted to the car (PartFitted, #808): locked at the car's use spot, held by
-	## nobody and never taken again; a view draws no item locked at a car (the car repair ADR's
-	## RE12).
+	## nobody and never taken again. `rests()` ignores `fitted` for now, so a view still draws it at
+	## the car: the car repair client issue (R7) hides it (the car repair ADR's RE12).
 	var fitted := false
 	## In flight (§7.1.16): from its ItemThrown until its ItemPlaced (cause `thrown`) or
 	## PackageDelivered. The launch exactly as the event carries it, so a client draws the arc
