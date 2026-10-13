@@ -222,8 +222,8 @@ func test_two_rejected_streams_that_differ_are_reported() -> void:
 
 ## #674: bot 4's claim after the freeze covers the silence, a tick more when the freeze starts
 ## between two client ticks, and the claims a network lost just before it; past the credit the host
-## corrects it and bot 4 stands corrected in the zone all round, which held back every hostile claim
-## over WebRTC (a 200-tick freeze, 201 covered).
+## corrects it and bot 4 stands corrected at ChaosScenario.STAND_AT all round, which held back
+## every hostile claim over WebRTC (a 200-tick freeze, 201 covered).
 func test_the_claim_after_the_freeze_fits_its_credit_with_lost_claims() -> void:
 	var silent := Ticks.from_seconds(ChaosScenario.FREEZE_S)
 	assert_int(silent).is_equal(ChaosScenario.FREEZE_TICKS)
