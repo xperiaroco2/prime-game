@@ -38,6 +38,17 @@ from .common import (
 from .perf import FIXED_FPS
 
 TIMEOUT = 600
+# A shard's watchdog grows with its expected seconds (#970): CI's 4 vCPUs give 2 shards, one of them the fixed-fps
+# suites, so every real-time suite runs in the other, about 530 s of a flat 600 s; a runner some 10 % slow killed it
+# mid-suite with no hang. It still fails a hang: at most SHARD_TIMEOUT_CAP, under CI's 20-minute job.
+SHARD_TIMEOUT_MARGIN = 1.5
+SHARD_TIMEOUT_CAP = 900
+
+
+def shard_timeout(expected_seconds: float) -> float:
+    """A shard's timeout: TIMEOUT, or SHARD_TIMEOUT_MARGIN x its expected seconds when longer, at most the cap."""
+    return min(SHARD_TIMEOUT_CAP, max(TIMEOUT, expected_seconds * SHARD_TIMEOUT_MARGIN))
+
 REPORT_DIR = OUT / "gdunit"
 # GdUnitCmdTool exit codes (GdUnit4 6.2.1, GdUnitTestSessionRunner.gd).
 EXIT_MEANING = {
@@ -714,6 +725,10 @@ class ShardRun:
     error: str = ""
 
     @property
+    def timeout(self) -> float:
+        return shard_timeout(self.expected_seconds)
+
+    @property
     def clock(self) -> str:
         """How the shard's lines end: its engine args, or nothing for a real-time shard."""
         return f" at {' '.join(self.engine_args)}" if self.engine_args else ""
@@ -777,7 +792,8 @@ def run_shards(
         say(f"test: {count} GdUnit4 processes at once ({why}), {len(suites)} suites balanced by {source}")
     for shard in runs:
         n = sum(s in suites for s in shard.scripts)
-        say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times{shard.clock}")
+        say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times{shard.clock}, "
+            f"timeout {shard.timeout:.0f}s")  # fmt: skip
     shutil.rmtree(SHARD_USER, ignore_errors=True)
     _run_parallel(runs, at_once=not in_turn)
     return _judge_shards(runs, suites)
@@ -800,7 +816,7 @@ def _run_parallel(runs: list[ShardRun], at_once: bool = True) -> None:
         try:
             shard.result = godot(
                 _command(shard.scripts, "res://" + shard.report_dir.relative_to(ROOT).as_posix(), shard.engine_args),
-                timeout=TIMEOUT,
+                timeout=shard.timeout,
                 log=shard.log,
                 env={var: str(shard.user_root)} if var and shard.own_user else None,
                 on_start=started,
@@ -848,7 +864,7 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
         say(f"        {label}: {res.seconds:.1f}s (expected about {shard.expected_seconds:.0f}s), exit {res.rc}"
             f"{shard.clock}")  # fmt: skip
         if res.timed_out:
-            bad(f"{label}: timed out after {TIMEOUT}s (log: {log})")
+            bad(f"{label}: timed out after {shard.timeout:.0f}s (log: {log})")
             failed = True
         else:
             failed = _judge(res.rc, res.out, found, log, label, res.restarted) or failed
@@ -1004,7 +1020,7 @@ def _sharded_run(index: int, items: list[str], count: int, why: str, fixed_fps: 
     slow = [str(p["shard"]) for p in processes if p.get("timed_out")]
     note = f"{len(processes)} processes"
     if slow:
-        note += f", shard {', '.join(slow)} timed out after {TIMEOUT}s"
+        note += f", shard {', '.join(slow)} timed out"
     for process in processes:
         rc = process.get("rc")
         if process.get("timed_out") or rc == 0:
