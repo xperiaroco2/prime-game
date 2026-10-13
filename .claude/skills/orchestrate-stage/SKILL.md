@@ -175,10 +175,10 @@ A workflow that threw, a crash, a PC restart, a plan limit, or a new session wit
 - **The turn-end check**, at each turn end, wake and launch: `tools\run.cmd wave --since <session start>
   --no-merge-check --out <scratchpad>\manager\turn-end.md` (about 10 s; never the default `--out`). Its last line:
   `handover due: <why>` or `handover not due` with clauses. Due: the context over 500k or the session over 12 hours old,
-  even mid-wave (while the human is away: once your runs end, MANAGERS.md §5); or, once your runs end, a merge into
-  `main` since your start that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`
-  (agents get your cached copy); until then it says "launch nothing new": obey it. "Behind origin/main": this turn's
-  For-you carries `cd D:\prime-game; git pull --ff-only`; hand over once it is pulled.
+  even mid-wave (while the human is away: once your runs end, MANAGERS.md §5). Above it, an `Instructions:` line when
+  a merge since your start changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`: read
+  the diff it prints once per new merge and go on, never a handover (#930); a root `CLAUDE.md` change goes into the
+  next launches' notes. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
