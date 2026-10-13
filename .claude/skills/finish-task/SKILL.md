@@ -40,7 +40,7 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    message:
    - any code (`.gd`, `.py`, scripts, workflows) → agent `code-reviewer`; a docs-only or content-data-only diff →
      the bundled `/code-review` at medium, or none;
-   - `core/`, `server/`, `net/`, `voice/`, `client/` (what it renders, but `client/ui/`) or `tests/harness/` (the
+   - `core/`, `server/`, `net/`, `voice/`, `client/` (what it renders, not `client/ui/`) or `tests/harness/` (the
      information-leak test) changed → also `netcode-security-reviewer`;
    - `.gd`, `.tscn` or `.tres` changed → also `godot-api-checker`.
    Fix each finding in a new commit and run the tests it touches and `check` (no standalone `verify`: step 5's
