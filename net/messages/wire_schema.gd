@@ -41,8 +41,10 @@ extends RefCounted
 ## 26 since #773 added Cooking's GrillLoaded (kind 79) and IngredientPlaced (kind 80).
 ## 27 since #808 added the car repair's FitChanged (kind 81) and PartFitted (kind 82).
 ## 28 since #782 added the photo task's PhotoPrinted (kind 83) and PhotoHung (kind 84) and the
-## Rejected reasons `nothing_to_print` and `no_photo` (the photo ADR §2.6, §2.7, PE16).
-const VERSION := 28
+## Rejected reasons `nothing_to_print` and `no_photo` (the photo ADR §2.6, §2.7, PE16);
+## 29 since #790 added the `crouched` flag to MoveClaim's and MoveClaimReliable's flags (8), the
+## snapshot avatar's (4) and ShotTaken's record row's (2) (the crouch ADR, KE1, KE2).
+const VERSION := 29
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -291,7 +293,7 @@ static func _claim_fields() -> Array[WireField]:
 		_vec3("position"),
 		_vec3("velocity"),
 		_vec3("facing"),
-		WireField.bits(PackedStringArray(["sprint", "moving", "on_floor"])),
+		WireField.bits(PackedStringArray(["sprint", "moving", "on_floor", "crouched"])),
 		_u16("jumps"),
 		_u32("sprint_ticks"),
 		_u32("moved_ticks"),
@@ -547,7 +549,7 @@ static func _shot_taken() -> WireRow:
 				_peer("peer"),
 				_vec3("position"),
 				_vec3("facing"),
-				WireField.bits(PackedStringArray(["downed"])),
+				WireField.bits(PackedStringArray(["downed", "crouched"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
 			]
@@ -577,7 +579,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("position"),
 				_vec3("velocity"),
 				_vec3("facing"),
-				WireField.bits(PackedStringArray(["downed", "invulnerable"])),
+				WireField.bits(PackedStringArray(["downed", "invulnerable", "crouched"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
 			]
