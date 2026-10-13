@@ -141,7 +141,7 @@ STOP_CONTEXT = HANDOVER_CONTEXT // 2
 MANAGER_RULES = "docs/MANAGERS.md"
 # The instructions (#930): root CLAUDE.md (a manager's workflow agents get its session's copy, not the file: seen in
 # #930's own run; core/CLAUDE.md and the like load from disk in the agent's folder), the managers' rules, the rules and
-# the agent types (Claude Code reloads both from disk). A merge that changes them is read as a diff, not a handover.
+# the agent types (Claude Code reloads agent files from disk; a rule loads when a file its paths match is read). A merge that changes them is read as a diff, not a handover.
 INSTRUCTION_FILES = ("CLAUDE.md", MANAGER_RULES)
 INSTRUCTION_DIRS = (".claude/rules/", ".claude/agents/")
 FILES_FIELDS = "number,baseRefName,mergedAt,files"
@@ -1370,7 +1370,12 @@ def successor_text(track: str | None) -> str:
 
 
 def handover_verdict(w: Wave) -> str:
-    """One line: 'handover due: <why>' or 'handover not due' with its clauses (orchestrate-stage §7, #467).
+    return handover_state(w)[0]
+
+
+def handover_state(w: Wave) -> tuple[str, bool]:
+    """The verdict line and whether it is due. The line: 'handover due: <why>' or 'handover not due' with its clauses
+    (orchestrate-stage §7, #467).
     Due, even with runs in flight: the last call's context over HANDOVER_CONTEXT or the session over HANDOVER_HOURS
     old. Not due, no run in flight and the context over STOP_CONTEXT: a stop for the human hands over instead of
     arming a keep-alive. Each due line ends with successor_text. A stale run (is_stale) is named but not in flight.
@@ -1405,18 +1410,19 @@ def handover_verdict(w: Wave) -> str:
                  "pulls it before the successor starts")  # fmt: skip
     if due:  # last, after every clause that must hold before the successor starts (stale runs, a pull)
         line += "; then " + successor_text(s.track)
-    return line.rstrip(".") + "."
+    return line.rstrip(".") + ".", due
 
 
 def diff_command(start: float) -> str:
     """The `git diff` of the instruction paths from origin/main as it was at start (its first-parent commit then) to
-    origin/main now; the same text runs in Git Bash and PowerShell."""
+    origin/main now; the same text runs in Git Bash and PowerShell. It fetches first: the merges in the line come from
+    gh and can be newer than the local origin/main."""
     paths = " ".join((*INSTRUCTION_FILES, *(d.rstrip("/") for d in INSTRUCTION_DIRS)))
     base = f"$(git rev-list -1 --first-parent --before={metrics.iso(start)} origin/main)"
-    return f'git diff "{base}..origin/main" -- {paths}'
+    return f'git fetch -q origin main; git diff "{base}..origin/main" -- {paths}'
 
 
-def instructions_line(w: Wave) -> str | None:
+def instructions_line(w: Wave, due: bool = False) -> str | None:
     """The line above the verdict, None when it has nothing (#930): the merges into main since the session start
     that changed the instructions and the diff that reads them (the manager reads it once per new merge and goes on,
     no handover); a root CLAUDE.md change reaches the workflow agents only through the next launches' notes (they get
@@ -1439,7 +1445,7 @@ def instructions_line(w: Wave) -> str | None:
                      "session start)")  # fmt: skip
     if isinstance(w.behind, str):
         parts.append(f"the main checkout's files unavailable: {cell(w.behind)}")
-    elif w.behind:
+    elif w.behind and not due:  # a due verdict says it itself
         parts.append(f"the main checkout's files are behind origin/main ({', '.join(w.behind)}), and the agents load "
                      "the agent files and rules from it: the human pulls it")  # fmt: skip
     return "Instructions: " + "; ".join(parts) + "." if parts else None
@@ -1456,8 +1462,9 @@ def footer_section(w: Wave) -> list[str]:
           f"{metrics.fmt_usd(mean_usd(last))} ({len(s.calls)} calls)."]  # fmt: skip
     if s.skipped:
         md += ["", "Skipped: " + ", ".join(f"{k} {v}" for k, v in s.skipped.items()) + "."]
-    instructions = instructions_line(w)
-    return [*md, "", *([instructions, ""] if instructions else []), handover_verdict(w), ""]
+    verdict, due = handover_state(w)
+    instructions = instructions_line(w, due)
+    return [*md, "", *([instructions, ""] if instructions else []), verdict, ""]
 
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
@@ -1668,8 +1675,9 @@ def main(
     while part_path(target, k).exists():
         warn(f"{part_path(target, k)} is from an earlier run of wave, not part of this body")
         k += 1
-    instructions = instructions_line(w)
+    verdict, due = handover_state(w)
+    instructions = instructions_line(w, due)
     if instructions:
         say(instructions)
-    say(handover_verdict(w))  # the last line: the turn-end check reads it (orchestrate-stage §7)
+    say(verdict)  # the last line: the turn-end check reads it (orchestrate-stage §7)
     return 0

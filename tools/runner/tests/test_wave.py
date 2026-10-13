@@ -23,8 +23,8 @@ T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
 NOW = T0.timestamp() + 4 * 3600  # 12:00
 SID = "5ef6e325-aaaa-bbbb-cccc-000000000001"
 # The instructions line's diff since the session start at T0 (#930).
-DIFF = ('git diff "$(git rev-list -1 --first-parent --before=2026-10-03T08:00:00Z origin/main)..origin/main" -- '
-        "CLAUDE.md docs/MANAGERS.md .claude/rules .claude/agents")
+DIFF = ("git fetch -q origin main; git diff \"$(git rev-list -1 --first-parent --before=2026-10-03T08:00:00Z "
+        "origin/main)..origin/main\" -- CLAUDE.md docs/MANAGERS.md .claude/rules .claude/agents")
 SINCE = "2026-10-03T08:00:00Z"
 # The verdict's last step at a handover (#511: the paste by default, route C a fallback), for a session whose kickoff
 # has no Track: line and for meta.
@@ -1290,9 +1290,12 @@ class WaveTest(unittest.TestCase):
         git("update-ref", "refs/remotes/origin/main", git("rev-parse", "HEAD"))
         self.assertEqual(wave.diff_command(T0.timestamp()), DIFF)
         bash = shutil.which("bash")
+        if bash is not None and "system32" in bash.lower().replace("\\", "/"):
+            bash = None  # the WSL launcher, not Git Bash
         if bash is None:
             self.skipTest("no bash on PATH")
-        res = subprocess.run([bash, "-c", DIFF.replace("git diff", "git diff --name-only", 1)], cwd=repo,
+        diff = DIFF.split("; ", 1)[1].replace("git diff", "git diff --name-only", 1)
+        res = subprocess.run([bash, "-c", diff], cwd=repo,
                              capture_output=True, text=True, encoding="utf-8", timeout=120)  # fmt: skip
         self.assertEqual((res.returncode, res.stdout.split()), (0, ["CLAUDE.md"]), res.stderr)
 
@@ -1368,6 +1371,7 @@ class WaveTest(unittest.TestCase):
         self.context(1, 600_000)  # #484 review: the successor's start comes after the pull it waits for
         src = FakeSources(behind=["CLAUDE.md"])
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
+        self.assertNotIn("Instructions:", out, "the due verdict says the checkout is behind; once")
         self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.60M is over 500k; post the "
                          "handover; the main checkout's instruction files are behind origin/main (CLAUDE.md): the "
                          f"human pulls it before the successor starts; then {START}.")  # fmt: skip
