@@ -1477,14 +1477,14 @@ A scenario's forced roles go as the core runner sends them, one `ForceRole` per 
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
 the wire tells bot 1 which peer is bot i: a name is no id (a wire bot's `Hello` asks for none, so the host names it
-`Player<n>`, §3.5; the core runner's bots ask for `bot<i>`, which the host keeps), and over ENet the clients choose
-their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
+`Player<n>`, §3.5; the core runner's bots ask for no name either, so every bot is `Player<n>`), and over ENet the
+clients choose their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
 `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
 runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
-(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
-on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
-and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
-is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer ids to `tools/out/bots/<scenario>/peer-<i>`
+on `connected`, one id per line, one line per connection (a bot that left and returned has a line for each); bot 1
+waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
+the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
 after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
 listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
 like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
