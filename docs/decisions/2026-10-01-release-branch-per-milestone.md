@@ -95,7 +95,9 @@ The engineer decided "Everything into main" on 2026-10-11
   ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md): CI green on an up-to-date head, fresh reviews without an
   open blocker or major finding, the content area and ADRs only with "Approved by the engineer". The manager merges
   and closes the issues as that ADR says.
-- **A milestone ends with its playtest and the closing of its issues**, not with a merge of a release branch into `main`.
+- **A milestone ends with its playtest and the closing of what is still open of it** (task issues close with their PRs'
+  `Closes`; the plan and milestone issues close after the playtest), not with a merge of a release branch into `main`.
+  This replaces item 2 of the trust ADR ("Release branches stay") for M7 on.
 - **Why.** Two bases (design and content into `main`, engine code into `release/m7`) caused cross-base conflicts;
   `release/m7` fell 908 commits behind `main` with 19 conflicting files (#837); finished work waited days for the
   playtest; the gate already gives the protection the release branch was for.

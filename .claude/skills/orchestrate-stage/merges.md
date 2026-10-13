@@ -60,8 +60,9 @@ and `merge-check` from the main checkout.
   blocker and major, so no fix agent ran): add its `refuted`, each with its reason, to the PR body (`gh pr view <pr>
   --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
   agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
-- **The stage's end** has no merge: when every task is merged, the engineer's playtest; then close the stage's issues
-  (a comment linking the PRs and merge commits) and report, with every open "Needs the engineer" item.
+- **The stage's end** has no merge: when every task is merged, the engineer's playtest; then close what is still open of the
+  stage (task issues close with their PRs' `Closes`, so mostly the plan and milestone issues; a comment linking the
+  PRs and merge commits) and report, with every open "Needs the engineer" item.
 - **A release branch** exists only when a kickoff names one for a stage (the M3-M6 flow, in the ADR above). Then
   `release/m<k>` is created from `main` after the yes (stage-setup step 5), and everything above reads `--base
   release/m<k>` for its task PRs (`start`, the workflow `base`, `publish`, `merge`, `merge-check`, `gh pr edit`,
