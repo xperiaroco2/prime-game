@@ -35,13 +35,6 @@ static func capsule(
 	return mesh
 
 
-## Where a capsule mesh lies, from the feet: on its side along the body's forward axis (-Z), its
-## lowest point on the floor.
-static func lying(rules: PlayerRules) -> Transform3D:
-	var along_z := Basis(Vector3.RIGHT, PI * 0.5)
-	return Transform3D(along_z, Vector3(0.0, rules.capsule_radius_m, 0.0))
-
-
 ## Where a capsule mesh stands, from the feet; the crouched capsule where `crouched`.
 static func standing(rules: PlayerRules, crouched := false) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, Vector3(0.0, rules.height_of(crouched) * 0.5, 0.0))

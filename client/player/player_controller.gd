@@ -8,7 +8,8 @@ extends CharacterBody3D
 ## (knocked-down) player holds still where the host has it and only looks (KE4, the knockdown ADR
 ## of 2026-10-10): it moves nothing, never sprints or jumps, and claims its look only; its stamina
 ## regenerates as usual. It is on the downed layer, pushes nobody and is pushed by nobody, and
-## shows its lying mesh (its collision capsule stays standing, as the host's floor checks have it).
+## shows nothing: the own body is the own avatar's ragdoll (AvatarViews, KE5 and KE7); its collision
+## capsule stays standing, as the host's floor checks have it.
 ## A dead player has no body: no layer, no mesh, and the game stops its physics step. The origin is
 ## at the feet.
 ##
@@ -123,8 +124,6 @@ var _hand_view := FirstPersonHand.new()
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
 @onready var _shape: CollisionShape3D = $CollisionShape3D
-## The lying mesh, shown only while downed (the downed camera sees it from above).
-@onready var _lying: MeshInstance3D = $Lying
 
 
 func _ready() -> void:
@@ -249,7 +248,7 @@ func look_level() -> void:
 ## Switches the body to `value`'s: the living and the downed collide with the level only (the
 ## living push each other apart in `_push_apart`, not through collisions); the downed are on the
 ## downed layer, which no push looks at (Q6), and keep the standing capsule of the living (they
-## hold still, KE4), with the lying mesh shown. The dead are on no layer and show nothing. Any
+## hold still, KE4), showing nothing (the own ragdoll is AvatarViews'). The dead: no layer. Any
 ## change stops the body; into the living it takes the crouched capsule first and stands where it
 ## finds room (the crouch ADR's step 7), out of it the standing one.
 func set_life(value: ClientModel.Life) -> void:
@@ -262,9 +261,6 @@ func set_life(value: ClientModel.Life) -> void:
 			collision_layer = PhysicsLayers.DOWNED
 		_:
 			collision_layer = 0
-	if _lying != null:
-		_lying.visible = life == ClientModel.Life.DOWNED
-		_paint_lying()
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
@@ -329,19 +325,6 @@ func _apply_rules() -> void:
 	_head.position = Vector3(0.0, rules.eye_height_of(_crouched), 0.0)
 	_contacts.collision_mask = PhysicsLayers.LIVING
 	_contacts.exclude = [get_rid()]
-	_lying.mesh = LifeLooks.capsule(rules, LifeLooks.PLAYER_COLOUR)
-	_lying.transform = LifeLooks.lying(rules)
-	_paint_lying()
-
-
-## Paints the lying capsule the own body colour (#551), the one the others see it in; offline (no
-## session) it keeps LifeLooks.PLAYER_COLOUR. Only the lobby changes a colour, where nobody lies.
-func _paint_lying() -> void:
-	var mesh := _lying.mesh as CapsuleMesh
-	if mesh == null or session == null:
-		return
-	var own := session.model.colour_of(session.model.own_peer)
-	(mesh.material as StandardMaterial3D).albedo_color = BodyColours.of(own)
 
 
 ## One downed step: no movement and no gravity (it lies on the floor where the host has it, KE4),
