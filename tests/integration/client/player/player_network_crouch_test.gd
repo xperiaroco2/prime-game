@@ -19,6 +19,9 @@ const JITTER_FRAMES := 8
 const SPEED_TOLERANCE := 0.1
 
 var _pair: NetPair
+## The modifier keys held now: real key events carry them, and the actions must match inexactly.
+var _ctrl_down := false
+var _shift_down := false
 
 
 func before_test() -> void:
@@ -182,6 +185,12 @@ func _hold(key: Key, pressed: bool) -> void:
 	event.keycode = key
 	event.physical_keycode = key
 	event.pressed = pressed
+	if key == KEY_CTRL:
+		_ctrl_down = pressed
+	elif key == KEY_SHIFT:
+		_shift_down = pressed
+	event.ctrl_pressed = _ctrl_down
+	event.shift_pressed = _shift_down
 	Input.parse_input_event(event)
 	Input.flush_buffered_events()
 
