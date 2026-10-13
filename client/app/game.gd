@@ -70,8 +70,7 @@ var failure: StringName = &""
 ## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
 ## and drive the player's wish fields themselves (headless runs have no input).
 var device_input := true
-## The mouse pointer the game captures and frees: Input's unless a test sets one (headless keeps no
-## mouse mode).
+## The mouse pointer the game captures and frees: Input's, or a test's (headless keeps no mode).
 var pointer := MousePointer.new()
 ## The window Alt+Enter turns fullscreen and back: the real one unless a test sets one (headless
 ## keeps no window mode).
@@ -618,8 +617,9 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 	# (the designer's answer on #253): the controller only stops looking and recapturing. So
 	# does the tutorial's invite (#492), under which no key counts.
 	_player.mouse_free = ui.frees_mouse()
-	# Elsewhere, the lobby included, the crouch key does nothing (the crouch ADR, KE10).
+	# Elsewhere, the lobby included, no crouch key and no quiet step (the crouch ADR, KE10; #792).
 	_player.crouch_plays = GameFlow.crouch_plays(_session_state(), _welcomed_model(), mode)
+	_items.sounds.crouch_plays = _player.crouch_plays
 	_life.reads_device_input = device_input
 	_life.listening = listening and now == GameFlow.Screen.ROUND
 	_items.interactions.reads_device_input = device_input
