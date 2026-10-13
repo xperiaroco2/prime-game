@@ -29,16 +29,16 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks; the notes name the scenarios | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no clean-run publisher and rejects the role); `pr-rebase`'s `publish: "sonnet"` (its rebase and fix agents) on every launch, #835's trial (budget.md; only `sonnet` passes its whitelist); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469). Ended 2026-10-13 (budget.md): `implement: "sonnet"`, `publish_findings`, `code` | 0 |
-| `ab_review: true` | never: #535's A/B ended 2026-10-13 (budget.md) | - |
+| `ab_review: true` | never: #535's A/B ended 2026-10-13 (budget.md) | a control reviewer and a judge (so do not pass it) |
 | `checkpoint: true` | #559, `issue-task` only, opt-in: an implementer past 150k context hands over to a fresh one (a note in `a<n>/handoff-<k>.md`, then `implement:#<n>#2` and `#3`), at most twice. It triggers mechanically (#597): the implementer runs `tools/run.sh ctx` (its own transcript's context; HANDOFF NOW at 150k, and past 200k even with only the final verify left) every ~15 tool calls and after each verify, and hands over after 60 tool calls in any case. Not the script's default until the engineer says yes after `metrics`' implementer context table measured 10 tasks with it (#759): until then pass `checkpoint: true` on every `issue-task` launch and resume (design tasks too; a resume takes its launch's args). The up to 2 extra implementers count toward the approved agents per workflow: where they would exceed it (the kickoffs approve up to 7, with `plan_review` 5 + 2 + 2), say so in the launch's estimate. After each wave check each result's `handoffs` key and `metrics`' handoff table. The result shows `checkpoint: true` and `handoffs` (0 too) when on, and neither when a launch or resume ran without it; `wave` treats a handoff as a run still going | 0; up to 2 more implementers (250 each) |
 
-- **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`,
-  `plan` or `pr-rebase`'s `publish`, never `review` or `netcode` (`review` also
-  covers `code`, `plan_review`, `netcode`, `skeptic`, `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset:
-  every `plan_review` launch sets `models.plan: "sonnet"` (#469). `publish_clean` falls back to `publish` and applies
-  only to the full publisher of a run with no blocker or major left open (a refuted one is closed), never a design
-  task; leave `efforts.publish_clean` unset, so only the model varies. `pr-rebase`'s `publish`
-  covers its rebase and fix agents. Other models never as a habit or for yourself.
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or
+  `pr-rebase`'s `publish`, never `review` or `netcode` (`review` also covers `code`, `plan_review`, `netcode`,
+  `skeptic`, `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset: every
+  `plan_review` launch sets `models.plan: "sonnet"` (#469). `publish_clean` falls back to `publish` and applies only
+  to the full publisher of a run with no blocker or major left open (a refuted one is closed), never a design task;
+  leave `efforts.publish_clean` unset, so only the model varies. `pr-rebase`'s `publish` covers its rebase and fix
+  agents. Other models never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
