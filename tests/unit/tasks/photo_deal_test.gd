@@ -140,6 +140,53 @@ func test_a_second_camera_marker_is_the_demands_to_report_not_a_layout_problem()
 	assert_array(type.layout_problems(layout)).is_empty()
 
 
+func test_a_photo_spot_near_the_camera_holds_the_lobby_back_with_photo_spot_near() -> void:
+	# The spot 0.6 m from the camera's marker, inside the 2 m the two radii leave.
+	var near := FixturePhotoModes.CAMERA_AT + Vector3(0.6, 0, 0)
+	var game := _joined_and_ready(FixturePhotoModes.lobby_layouts(near))
+	assert_str(String(game.phase_id())).is_equal("lobby")
+	assert_array(_shortfalls(game)).is_equal(
+		[
+			{
+				"id": HostText.PHOTO_SPOT_NEAR,
+				"ids": PackedStringArray(["photo_spot", "camera"]),
+				"numbers": {&"need": 200, &"have": 60}
+			}
+		]
+	)
+	# The spot beyond the radii fits: all_ready fires.
+	var fits := _joined_and_ready(FixturePhotoModes.lobby_layouts())
+	assert_array(_shortfalls(fits)).is_empty()
+	assert_str(String(fits.phase_id())).is_not_equal("lobby")
+
+
+func test_a_second_film_marker_keeps_the_lobby_match_from_starting() -> void:
+	# The film is an exact demand (PE11): LayoutCheck refuses the map at Match.new, so the lobby
+	# never opens and FitCheck never sees the extra marker; nor does it add a photo spot problem.
+	var layouts := FixturePhotoModes.lobby_layouts()
+	layouts[FixtureBaseMode.MAP].add_marker(&"film", Vector3(-20, 0, 20))
+	var game := Match.new(FixturePhotoModes.lobby_mode(), 7, FlatWorldQuery.new(), layouts)
+	assert_str(str(game.refusals)).contains(
+		"fixture://map has 2 film marker(s), and the row loading, all_loaded needs exactly 1"
+	)
+	assert_str(str(game.refusals)).not_contains("photo_spot")
+
+
+func _joined_and_ready(layouts: Dictionary[String, LevelLayout]) -> Match:
+	var game := Match.new(FixturePhotoModes.lobby_mode(), 7, FlatWorldQuery.new(), layouts)
+	game.keep_history = true
+	game.start(0)
+	FixtureBaseMode.join(game, PEERS[0])
+	FixtureBaseMode.ready(game, PEERS[0])
+	return game
+
+
+## The shortfalls of the last SettingsChanged the first peer received (the fit check's, #548).
+func _shortfalls(game: Match) -> Array:
+	var changed := game.view_of(PEERS[0]).events_named(&"SettingsChanged")
+	return changed[changed.size() - 1].to_dict()["shortfalls"]
+
+
 ## The fixture's map layout with the photo spot at `spot_at`.
 func _map_of(spot_at: Vector3) -> LevelLayout:
 	return FixturePhotoModes.layouts(spot_at)[MAP]
