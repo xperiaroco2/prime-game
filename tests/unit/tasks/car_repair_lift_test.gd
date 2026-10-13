@@ -243,8 +243,12 @@ func test_the_car_takes_a_use_only_while_fully_up() -> void:
 	FixtureCarRepairModes.use(game, P2, task_state.car, 2)
 	FixtureModes.run_ticks(game, 1)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable", &"unavailable"])
+	# The part needed now into the hand while the car finishes rising: since R4 (#808) the up car
+	# refuses an empty hand `empty_hand`.
+	var bin := task_state.bins[FixtureCarRepairModes.PARTS.find(task_state.next_part())]
+	FixtureCarRepairModes.use(game, P2, bin, 3)
 	FixtureModes.run_ticks(game, 1)
-	FixtureCarRepairModes.use(game, P2, task_state.car, 3)
+	FixtureCarRepairModes.use(game, P2, task_state.car, 4)
 	# A timed hold stops at its first re-check with no claim since its placement (ZE10).
 	FixtureMoves.claim(game, P2, game.state.players[P2].position)
 	FixtureModes.run_ticks(game, 1)
