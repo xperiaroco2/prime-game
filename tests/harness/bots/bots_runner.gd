@@ -242,21 +242,17 @@ func _check_after() -> void:
 	leaks.set_seeds(_invariants.seeds())
 	var views: Dictionary[String, DecodedView] = {}
 	for bot: ScenarioBot in bots:
-		var client: BotClient = clients.get(bot.number)
-		if client == null:
-			continue
-		var label := "bot %d" % bot.number
-		failures.append_array(leaks.check_bot(label, bot.peer, client.view, bot.gone))
-		failures.append_array(
-			LeakCheck.check_counters(
-				label, bot.peer, client.transport(), client.bad_payloads, one_process
+		# A bot that left and joined again: each earlier connection is its own view, a prefix.
+		var lives: Array = earlier_clients.get(bot.number, [])
+		for i in lives.size():
+			var earlier: BotClient = lives[i]
+			var life_peer: int = bot.lives[i]["peer"]
+			_check_client(
+				"bot %d (connection %d)" % [bot.number, i + 1], life_peer, earlier, true, views
 			)
-		)
-		if bot.peer == 0:
-			continue
-		if one_process:
-			failures.append_array(leaks.check_voice_streams(label, bot.peer, client.view))
-		views[label] = client.view
+		var client: BotClient = clients.get(bot.number)
+		if client != null:
+			_check_client("bot %d" % bot.number, bot.peer, client, bot.gone, views)
 	failures.append_array(leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(leaks.check_watcher(watcher))
@@ -266,6 +262,25 @@ func _check_after() -> void:
 			)
 		)
 	failures.append_array(host_problems())
+
+
+## The leak checks of one client of a bot, on `peer`; `prefix` when its view may be a prefix.
+func _check_client(
+	label: String,
+	peer: int,
+	client: BotClient,
+	prefix: bool,
+	views: Dictionary[String, DecodedView]
+) -> void:
+	failures.append_array(leaks.check_bot(label, peer, client.view, prefix))
+	failures.append_array(
+		LeakCheck.check_counters(label, peer, client.transport(), client.bad_payloads, one_process)
+	)
+	if peer == 0:
+		return
+	if one_process:
+		failures.append_array(leaks.check_voice_streams(label, peer, client.view))
+	views[label] = client.view
 
 
 ## Honest bots trip no host budget and send nothing the host's transport rejects.
@@ -284,6 +299,8 @@ func _write_files() -> void:
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
 		if client != null:
-			ViewFile.write(out_dir, bot.number, bot.peer, client.view, failures)
+			ViewFile.write(
+				out_dir, bot.number, bot.peer, client.view, failures, {}, earlier_views(bot)
+			)
 	if not failures.is_empty() and game != null:
 		replay_path = ReplayFiles.write(game.command_log, out_dir)

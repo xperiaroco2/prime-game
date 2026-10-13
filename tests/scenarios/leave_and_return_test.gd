@@ -68,24 +68,7 @@ func test_a_bot_that_left_the_lobby_returns_on_a_new_peer_with_its_number() -> v
 
 
 func test_a_returning_join_tries_again_until_the_lobby_takes_it() -> void:
-	# Bot 2 leaves in the round: the host refuses connections until bot 1's ReturnToLobby, and its
-	# Join tries again every 0.5 s until then (P12 (t2)).
-	var scripts := [
-		[StepReady.new(), _round(), _phase("end"), StepReturnToLobby.new(), _wait_for_joined(2)],
-		[
-			StepReady.new(),
-			_round(),
-			StepLeave.new(),
-			_join(0.0, 50.0),
-			_expect_joined(2, "Player2")
-		],
-	]
-	var scenario := _scenario(scripts)
-	scenario.clock_s = 5
-	scenario.forced_roles = {1: &"dissident"}
-	scenario.expected_ends = [&"dissidents"]
-	scenario.time_limit_s = 60.0
-	var runner := ScenarioRunner.play(scenario)
+	var runner := ScenarioRunner.play(_round_return_scenario())
 	assert_array(Array(runner.failures)).is_empty()
 	var bot_2 := runner.bots[1]
 	assert_str(bot_2.last_refusal).contains("refuses new connections")
@@ -108,6 +91,60 @@ func test_a_returning_join_refused_past_its_deadline_fails_naming_the_refusal() 
 	assert_str(text).contains("bot 2")
 	assert_str(text).contains("did not join by its deadline (10.0 s)")
 	assert_str(text).contains("last refused: the host refuses new connections")
+
+
+func test_the_loopback_bots_leave_the_lobby_and_return_with_their_number() -> void:
+	var net := BotsRunner.play(_scenario(_lobby_scripts()))
+	assert_array(Array(net.failures)).is_empty()
+	var had := net.peers.peers_of(2)
+	assert_int(had.size()).is_equal(2)
+	var state := net.game.state
+	assert_int(state.players[had[1]].number).is_equal(2)
+	assert_str(state.players[had[1]].name).is_equal("Player2")
+	assert_str(state.players[net.peers.peer_of(4)].name).is_equal("Player4")
+	assert_bool(state.players.has(had[0])).is_false()
+	# The earlier connection's client is kept and was checked as its own view.
+	var earlier: Array = net.earlier_clients[2]
+	assert_int(earlier.size()).is_equal(1)
+	assert_int((earlier[0] as BotClient).view.peer).is_equal(had[0])
+	assert_str(net.clients[2].return_key).is_equal(ScenarioBot.key_of(2))
+	# A leak planted in the earlier connection's view is named with it.
+	var view := (earlier[0] as BotClient).view
+	view.events.append(WireMessage.new(&"PhaseChanged", {"phase": "round"}))
+	net.failures.clear()
+	net._check_after()
+	assert_str("\n".join(net.failures)).contains("bot 2 (connection 1) (peer %d)" % had[0])
+
+
+func test_the_loopback_bot_that_left_the_round_tries_again_until_the_lobby() -> void:
+	var net := BotsRunner.play(_round_return_scenario())
+	assert_array(Array(net.failures)).is_empty()
+	var bot_2 := net.bots[1]
+	assert_str(bot_2.last_refusal).is_not_empty()
+	assert_int(net.peers.peers_of(2).size()).is_greater_equal(2)
+	assert_int(net.game.state.players[net.peers.peer_of(2)].number).is_equal(2)
+	assert_int(net.earlier_clients[2].size()).is_equal(1)
+
+
+## Bot 2 leaves in the round: the host refuses connections until bot 1's ReturnToLobby, and its
+## Join tries again every 0.5 s until then (P12 (t2)).
+func _round_return_scenario() -> BotScenario:
+	var scripts := [
+		[StepReady.new(), _round(), _phase("end"), StepReturnToLobby.new(), _wait_for_joined(2)],
+		[
+			StepReady.new(),
+			_round(),
+			StepLeave.new(),
+			_join(0.0, 50.0),
+			_expect_joined(2, "Player2")
+		],
+	]
+	var scenario := _scenario(scripts)
+	scenario.clock_s = 5
+	scenario.forced_roles = {1: &"dissident"}
+	scenario.expected_ends = [&"dissidents"]
+	scenario.time_limit_s = 60.0
+	return scenario
 
 
 ## Three bots join; bot 2 leaves; bot 4 joins; bot 2 returns: the lobby part of the content

@@ -36,6 +36,9 @@ extends ScenarioPlay
 var schema := WireSchema.game(true)
 ## Bot number -> its client.
 var clients: Dictionary[int, BotClient] = {}
+## Bot number -> the clients of its earlier connections that reached a Welcome, oldest first: a bot
+## that left and joined again (ScenarioBot.lives), each checked as its own view.
+var earlier_clients: Dictionary[int, Array] = {}
 ## The clock of the runner, in microseconds.
 var now_usec := 0
 ## Count MatchEnded sides from what the bots decoded (over ENet a bot's own process has no
@@ -146,10 +149,10 @@ func play_frame(at_tick: int) -> void:
 	if not _watchers_settled():
 		return
 	for bot: ScenarioBot in bots:
-		if bot.gone or not failures.is_empty():
+		if not bot.acts() or not failures.is_empty():
 			continue
 		var client: BotClient = clients.get(bot.number)
-		if client != null and client.is_ended():
+		if client != null and client.is_ended() and not bot.returns():
 			_lost(bot, client, at_tick)
 			continue
 		_act(bot, at_tick)
@@ -169,6 +172,9 @@ func _on_claim_sent(
 ## Join step first reads the Rejected that refused it. A bot that joins at the start and never
 ## joined fails at once, whatever ended its join (_lost_join), unless _join_again joins it again.
 func _lost(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
+	if bot.returning():
+		_lost_try(bot, client, at_tick)
+		return
 	if not bot.joined and not bot.joins_late():
 		if _joins_again(bot):
 			return
@@ -186,7 +192,69 @@ func _lost(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
 	_disconnected(bot, at_tick)
 
 
+## A returning Join's try ended before its Welcome: refused at connecting (connect_failed) or by a
+## Rejected Hello (joins_closed), it tries again (ScenarioPlay._try_again); any other end fails it.
+func _lost_try(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
+	tick_now = at_tick
+	var rejected := String(bot.rejection_of(bot.sent_seq))
+	var reason := rejected if not rejected.is_empty() else String(client.end_reason)
+	_try_again(bot, reason, at_tick, false)
+
+
+## The tick after its Leave: the client it left on keeps its view (earlier_clients), and its next
+## connection starts with nothing a connection learns.
+func _begin_return(bot: ScenarioBot) -> void:
+	var client: BotClient = clients.get(bot.number)
+	if client != null:
+		var earlier: Array = earlier_clients.get(bot.number, [])
+		earlier.append(client)
+		earlier_clients[bot.number] = earlier
+	_forget_connection(bot.number)
+	bot.begin_return(0)
+
+
+## A refused try never joined: its client holds no view of the game.
+func _drop_try(bot: ScenarioBot, _was_connected: bool) -> void:
+	_forget_connection(bot.number)
+	bot.peer = 0
+
+
+## Each earlier connection of `bot` that reached a Welcome, oldest first: {peer, view, order} (its
+## view file's `earlier`, ViewFile.write).
+func earlier_views(bot: ScenarioBot) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	var lives: Array = earlier_clients.get(bot.number, [])
+	for i in lives.size():
+		var client: BotClient = lives[i]
+		found.append({"peer": bot.lives[i]["peer"], "view": client.view, "order": order_of(client)})
+	return found
+
+
+## The OrderLog lists of `client`'s messages from the host over WebRTC (BotWebRtc), else empty.
+static func order_of(client: BotClient) -> Dictionary:
+	if client.transport() is BotWebRtc:
+		return (client.transport() as BotWebRtc).order.to_data(NetTransport.HOST_ID)
+	return {}
+
+
+func _forget_connection(number: int) -> void:
+	clients.erase(number)
+	for per_bot: Dictionary in [
+		_moved_tick,
+		_voice_frame,
+		_voice_count,
+		_facing_of,
+		_snapshot_seen,
+		_fresh_claim,
+		_travel_now,
+		_lobby_was_full,
+	]:
+		per_bot.erase(number)
+
+
 func _on_connected(own_id: int, bot: ScenarioBot) -> void:
+	if not bot.lives.is_empty() and peers.bot_of(own_id) != 0:
+		_fail_step(bot, "its return got peer id %d, used before in the session" % own_id)
 	bot.peer = own_id
 	peers.set_peer(bot.number, own_id)
 	_peer_known(bot)
@@ -328,7 +396,7 @@ func _lobby_wait(bot: ScenarioBot) -> String:
 ## the line of a join lost for good.
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
-	if client == null or bot.joined or bot.gone or bot.joins_late():
+	if client == null or bot.joined or bot.gone or bot.joins_late() or not bot.lives.is_empty():
 		return
 	var reason := client.end_reason
 	if not _join_retry(bot.number).join_again(reason, client.transport(), _join_clock_usec()):
@@ -357,7 +425,14 @@ func _joins_again(bot: ScenarioBot) -> bool:
 ## or ClientSession's), and the reasons its earlier joins ended.
 func _lost_join(bot: ScenarioBot) -> String:
 	var client: BotClient = clients.get(bot.number)
-	if client == null or not client.is_ended() or bot.joined or bot.gone or bot.joins_late():
+	if (
+		client == null
+		or not client.is_ended()
+		or bot.joined
+		or bot.gone
+		or bot.joins_late()
+		or not bot.lives.is_empty()
+	):
 		return ""
 	if _joins_again(bot):
 		return ""
