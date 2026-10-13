@@ -11,6 +11,9 @@
   5% (Q5).
   Amended 2026-10-07 (#534): every workflow launch is estimated before it starts, and a launch over about 5% of the
   week stops after its first phase for a check of its spend (Q2).
+  Amended 2026-10-13 (#930): changed instructions no longer force a handover; the manager reads their diff and goes
+  on (answer A, [#302 comment
+  6146986010](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6146986010)).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on

@@ -10,11 +10,11 @@ no "ultracode", 500k, one set of rules), on top of
 plus judgment) and [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287) (mid-wave).
 
 **Read this file whole at your session's start**, from the main checkout (`D:\prime-game\docs\MANAGERS.md`; missing
-or unreadable: the copy on GitHub, https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md), and again
-after a change to it reaches `main` (§5). Where your repo's own files differ from it on the handover, its thresholds,
-the "For you:" block, the kickoff, the effort or a launch's estimate (§9), this file wins. How each track carries a
-rule out (its tools, its plan issue, its workflows) stays in its own repo: for game and meta, the `orchestrate-stage`
-skill and its `handover.md`.
+or unreadable: the copy on GitHub, https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md); after a
+change to it reaches `main`, read its diff (§5). Where your repo's own files differ from it on the handover, its
+thresholds, the "For you:" block, the kickoff, the effort or a launch's estimate (§9), this file wins. How each track
+carries a rule out (its tools, its plan issue, its workflows) stays in its own repo: for game and meta, the
+`orchestrate-stage` skill and its `handover.md`.
 
 **How you talk to the engineer** (dictation, plain explanations, a command for a human in the chat, memory, the
 dictation glossary, launching a workflow): `D:\prime-game\docs\HUMAN_SESSIONS.md`, read at your start with this file
@@ -83,11 +83,14 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`
-  after a week), the session over **12 hours** old, or **changed instructions**: a merge into `main` since your start
-  that changed your repo's root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/`, or this file (your agents and you
-  run on the copy you read). A threshold forces a handover even mid-wave: stop your runs (one whose agent publishes,
-  rebases or fixes only after that agent), post the handover (§6); the successor relaunches them fresh. Changed
-  instructions with runs in flight: launch nothing new and hand over once they end.
+  after a week) or the session over **12 hours** old. A threshold forces a handover even mid-wave: stop your runs (one
+  whose agent publishes, rebases or fixes only after that agent), post the handover (§6); the successor relaunches
+  them fresh.
+- **Changed instructions are no handover** (#930): after a merge into `main` since your start that changed your repo's
+  root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/`, or this file, read its diff (`git diff` of those paths from
+  `main` at your start; game and meta: the command `wave` prints) and go on. Claude Code reloads agent files and rules
+  from disk ([its docs](https://code.claude.com/docs/en/sub-agents)) once the main checkout is pulled; your workflow
+  agents keep your session's root `CLAUDE.md`, so the next launches get what they need of its change in their notes.
 - **At a stop for the engineer** (no run in flight, work left, he is present): hand over once the context is over
   **250k**; otherwise arm nothing. Half the threshold, as 150k was of 300k before #511.
 - **Earlier, by judgment**, at a natural break (no run in flight, or a stop for him): when your cost math says a
@@ -146,9 +149,9 @@ the last line differs per repo:
 ## Manager rules (one set for every prime-game track)
 A manager session of this repo follows `D:\prime-game\docs\MANAGERS.md` (prime-game's main checkout beside this one;
 missing or unreadable: https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md). Read it whole at the
-session's start, before anything else, and again after a change to it reaches prime-game's `main`. It holds the mode
-and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-alive, when to hand over and the handover
-comment with the ready kickoff the engineer pastes, and every launch's estimate with the check after a large
+session's start, before anything else; after a change to it reaches prime-game's `main`, read its diff. It holds the
+mode and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-alive, when to hand over and the
+handover comment with the ready kickoff the engineer pastes, and every launch's estimate with the check after a large
 launch's first phase (§9); where this file differs on those, it wins.
 Track: <track>. <UI: Plan issue: xperiaroco2/prime-game#150; the context: `node tools/manager/context.js`. | Art: Plan
 issue: the current stage's `plan:` issue in this repo; the context: the app's context usage.>

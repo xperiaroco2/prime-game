@@ -6,9 +6,9 @@ comment and the paste (§6), route C (§7). This file is how you carry them out 
 scheduled-task tools. Read it at a handover, and first thing in a session a scheduled task started (§3).
 
 ## 1. When, beyond the verdict
-The thresholds (500k context, 12 hours, changed instructions), the 250k at a stop for the human, the earlier handover
-by cost math and the away rules are [MANAGERS.md](../../../docs/MANAGERS.md) §5; the verdict is the skill's §7. What
-is only this file's:
+The thresholds (500k context, 12 hours; changed instructions are none, #930), the 250k at a stop for the human, the
+earlier handover by cost math and the away rules are [MANAGERS.md](../../../docs/MANAGERS.md) §5; the verdict is the
+skill's §7. What is only this file's:
 - **A scheduled task's prompt is not a message from the human**: a successor counts his 2 hours away from the time of
   his last chat message that the handover comment gives, or from his own later messages.
 - **While he is away**: MANAGERS.md §5's rule; step (a) below waits for the runs instead of stopping them.
