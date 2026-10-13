@@ -193,8 +193,8 @@ The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md),
 [6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718) and
 [6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677), where he approved the
 design): on the House it no longer goes by colours. The engine parts are in
-[the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md). Nothing of it is built yet, and nothing
-will be until the engineer says so.
+[the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md). On main: D2a and D3a (#827, #829); D1 to
+D5 are open.
 
 **Intent.** Carrying things around the house to where they belong. Storage holds different items, and each kind has
 its own place that fits what it is. Players tell the items and their places apart by meaning, not by colour.
@@ -362,7 +362,7 @@ are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answe
 [comments 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400),
 [6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and
 [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)); the engine parts are in
-[the cooking ADR](decisions/2026-10-10-cooking-task.md). Nothing is built yet.
+[the cooking ADR](decisions/2026-10-10-cooking-task.md). Its core is on main (C1 to C4, C9 to C11); C5 to C8 are open.
 
 **Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
 kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
@@ -453,7 +453,7 @@ that makes a new ingredient on every take, making room in the hands as the rules
 left lying; a patty whose kind changes on the grill; items held by the grill and the plates; a task type
 that plays only on the maps its data lists (the Generator's part; Cooking: the House); station scenes in `levels/stations/` in place
 of the House's markers; the client's boards, beds, plates with their outlines, grill and sounds. The issues follow
-from the ADR's split, for the M7 backlog: for now the track only designs.
+from the ADR's split.
 
 Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
 in the playtest.
@@ -536,7 +536,7 @@ use of a fixed station, with busy hands, reach and sight as each station kind's 
 station at all; two public events (a switch, the button) and the zone task's progress event for the charge; a task
 type that plays only on the maps its data lists (the Generator: the House); station scenes in `levels/stations/` in
 place of the House's markers; the client's panel, sounds, the always-on switches' look and the charge's bar on the task
-screen. The issues follow from the ADR's split, for the M7 backlog: for now the track only designs.
+screen. The issues follow from the ADR's split: G1 to G3 and G8 are on main, the rest open.
 
 Open questions: none; the engineer answered the ADR's GD1 to GD13 on 2026-10-10 and approved this design with the
 last two (ADR §9). The numbers above are tuned in the playtest.
@@ -624,8 +624,8 @@ hold and the fit as holds of E on a station (the raise's channel, extended to st
 the drop as an instant kill of every player under the car, decided by the host; the parts as items from the shelf (the
 cooking design's item source, #682); the Generator's `Interact(station)` (#679); station scenes in
 `levels/stations/` in place of the House's markers; the client's car, picture, fitter and sounds. The crouch (#727, its
-own ADR) and the knockdown rework (#728) are designs of their own. The issues follow from the ADR's split, as M7
-backlog: nothing is built until the engineer says so.
+own ADR) and the knockdown rework (#728) are designs of their own. The issues follow from the ADR's split: R1 to R4
+and R9 are on main, the rest open.
 
 Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
 in the playtest.
