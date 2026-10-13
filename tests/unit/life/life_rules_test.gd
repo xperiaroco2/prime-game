@@ -318,8 +318,10 @@ func test_the_downed_are_public_and_the_dead_have_no_avatar_but_keep_their_snaps
 			var avatars: Dictionary = view.snapshots[at_tick]["avatars"]
 			for other: int in [P1, P2, P3, P4]:
 				var dead: bool = other == P2 and at_tick >= dead_from
-				# Everyone sees every other living or downed player; nobody sees a dead one.
-				var expected := other != viewer and not dead
+				var downed: bool = other == P2 and at_tick >= downed_from and not dead
+				# Everyone sees every other living or downed player, a downed one itself too
+				# (KE5); nobody sees a dead one.
+				var expected := (other != viewer or downed) and not dead
 				(
 					assert_bool(avatars.has(other))
 					. override_failure_message(

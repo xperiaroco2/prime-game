@@ -245,9 +245,12 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 	return ""
 
 
-## Takes the avatars of a snapshot: where it sees the other players.
+## Takes the avatars of a snapshot: where it sees the other players. The own avatar, which a
+## knocked-down player's snapshot carries (KE5), is skipped: the bot knows where it is.
 func see(avatars: Dictionary) -> void:
 	for other: int in avatars:
+		if other == peer:
+			continue
 		var avatar: Dictionary = avatars[other]
 		seen[other] = avatar["position"]
 

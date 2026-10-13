@@ -166,7 +166,8 @@ var winner: StringName = &""
 var ended_by: StringName = &""
 var round_seconds := -1
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed, crouched,
-## invulnerable, held_item, belt_item}).
+## invulnerable, held_item, belt_item}): the other players', and the own player's only while it is
+## knocked down (KE5; AvatarViews skips it until 728d draws it).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.
@@ -220,7 +221,8 @@ func raised_by(raiser: int) -> int:
 
 
 ## The item `peer` holds in its hand as the events tell it (ItemPickedUp, Swapped, ItemPlaced), or
-## -1. The own player's slots come only from these: its avatar is never sent to it.
+## -1. The own player's slots come only from these: its avatar reaches it only while it is
+## knocked down (KE5).
 func hand_item(peer: int) -> int:
 	return _carried(peer, false)
 
@@ -231,14 +233,14 @@ func belt_item(peer: int) -> int:
 
 
 ## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
-## it after a respawn or a revive. The own player's never arrives (its avatar is not sent).
+## it after a respawn or a revive. The own player's arrives only while it is knocked down (KE5).
 func is_invulnerable(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("invulnerable", false)
 
 
 ## Whether the newest snapshot shows `peer` crouched (the avatar's flag, the crouch ADR, KE1): only
-## a living player where the crouch plays. The own player's never arrives (its avatar is not sent).
+## a living player where the crouch plays. The own player's arrives only while knocked down (KE5).
 func is_crouched(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("crouched", false)

@@ -54,7 +54,8 @@ const CM := 100.0
 ## How far beyond range_m from the lens a player still goes into the record (ADR §3.3: generous, the
 ## renderer clips the rest).
 const RECORD_MARGIN_M := 2.0
-## The record's most rows: the snapshot's most avatars (ADR §3.3; WireSchema.MAX_AVATARS).
+## The record's most rows: the most avatars but the photographer's own (ADR §3.3;
+## WireSchema.MAX_OTHER_AVATARS).
 const MAX_RECORD := 15
 ## Shot ids wrap here: ShotTaken's `shot` is a u16.
 const SHOT_IDS := 0x10000

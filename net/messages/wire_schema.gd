@@ -44,7 +44,9 @@ extends RefCounted
 ## Rejected reasons `nothing_to_print` and `no_photo` (the photo ADR §2.6, §2.7, PE16);
 ## 29 since #790 added the `crouched` flag to MoveClaim's and MoveClaimReliable's flags (8), the
 ## snapshot avatar's (4) and ShotTaken's record row's (2) (the crouch ADR, KE1, KE2).
-const VERSION := 29
+## 30 since #847 lets a knocked-down viewer's snapshot carry its own avatar (MAX_AVATARS, 16) and
+## the Rejected reason `moving` (the knockdown rework's KE5, KE12).
+const VERSION := 30
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -65,8 +67,11 @@ const LAST_VOICE := 127
 
 ## The wire's maxima (§4.3): they bound the decoder, not the payload; WireBudget checks the content.
 const MAX_PLAYERS := 16
-## A snapshot never holds the viewer's own avatar.
-const MAX_AVATARS := MAX_PLAYERS - 1
+## A snapshot holds the viewer's own avatar only while it is knocked down (the knockdown rework's
+## KE5 (a)): every player's, at most. 16 take 725 bytes of the unreliable cap.
+const MAX_AVATARS := MAX_PLAYERS
+## The avatars of every player but one: the photo camera's shot of a living photographer.
+const MAX_OTHER_AVATARS := MAX_PLAYERS - 1
 ## Settings, spawn tags and station kinds per map.
 const MAX_ENTRIES := 32
 const MAX_TASK_TYPES := 16
@@ -538,7 +543,8 @@ static func _events() -> Array[WireRow]:
 
 
 ## The photo camera's shot (the photo ADR §3.3): the record is the snapshot's avatar row without
-## its velocity and invulnerability, with its peer, at most MAX_AVATARS rows (15 * 33 bytes). Its
+## its velocity and invulnerability, with its peer, at most MAX_OTHER_AVATARS rows (15 * 33
+## bytes): a downed player takes no shot, so its own avatar is never in it. Its
 ## rows grow with the mode's players, so WireBudget holds its worst case (the photo ADR §3.3).
 static func _shot_taken() -> WireRow:
 	var shot_row := (
@@ -563,7 +569,7 @@ static func _shot_taken() -> WireRow:
 			_station("station"),
 			_item("film"),
 			_u16("shot"),
-			WireField.list("record", shot_row, MAX_AVATARS),
+			WireField.list("record", shot_row, MAX_OTHER_AVATARS),
 		]
 	)
 	shot.content_sized = true

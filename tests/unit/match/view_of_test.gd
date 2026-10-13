@@ -103,8 +103,9 @@ func test_snapshots_follow_the_visibility_rules() -> void:
 	assert_array(living.keys()).is_equal([P2, P3])
 	assert_bool(living[P2]["downed"]).is_false()
 	assert_bool(living[P3]["downed"]).is_true()
+	# A knocked-down viewer gets its own avatar too (the knockdown rework's KE5, #847).
 	var downed: Dictionary = game.view_of(P3).snapshots[at]["avatars"]
-	assert_array(downed.keys()).is_equal([P1, P2])
+	assert_array(downed.keys()).is_equal([P1, P2, P3])
 	var dead: Dictionary = game.view_of(P4).snapshots[at]["avatars"]
 	assert_array(dead.keys()).is_equal([P1, P2, P3])
 	assert_dict(game.snapshot_for(P2)["avatars"]).contains_keys([P1, P3])
