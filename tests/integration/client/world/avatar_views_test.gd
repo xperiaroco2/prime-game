@@ -316,7 +316,6 @@ func test_a_replaced_model_no_longer_reads_this_views_host_tick() -> void:
 	assert_bool(other.host_tick_now.is_valid()).is_false()
 
 
-## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func test_the_push_search_finds_the_crouched_capsule_in_the_frame_it_crouches() -> void:
 	# The crouch ADR, KE7: the capsule switches before the body is placed, so the local player's
 	# push search (priority 0, after AvatarViews' -80) never meets a standing capsule 0.6 m taller
@@ -403,6 +402,34 @@ func test_a_body_first_drawn_crouched_has_its_head_down_at_once() -> void:
 	assert_float(body.head().position.y).is_equal_approx(_views.rules.crouch_eye_height_m, 1e-5)
 
 
+func test_a_mode_without_a_step_height_lowers_the_head_at_once_with_no_nan() -> void:
+	# 0 * INF is NaN: a first draw of a mode with step_height_m 0 would blank every point.
+	_views.rules.step_height_m = 0.0
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, false, true)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_float(body.head().position.y).is_equal_approx(_views.rules.crouch_eye_height_m, 1e-5)
+	assert_bool(is_nan(body.mouth_point().position.y)).is_false()
+	for tick: int in range(2, 6):
+		_snapshot(tick, Vector3.ZERO, Vector3.FORWARD)
+	await _frames(10)
+	assert_float(body.head().position.y).is_equal_approx(_views.rules.eye_height_m, 1e-5)
+
+
+func test_an_unchanged_crouch_flag_rewrites_no_looks() -> void:
+	# AvatarViews calls set_crouched every frame for every body: the shape's transform goes to the
+	# physics server only when the flag turns.
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	var shape := body.get_node("CollisionShape3D") as CollisionShape3D
+	var marker := Transform3D(Basis.IDENTITY, Vector3(0.0, 7.0, 0.0))
+	shape.transform = marker
+	await _frames(3)
+	assert_bool(shape.transform == marker).is_true()
+
+
+## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func _drawn() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame

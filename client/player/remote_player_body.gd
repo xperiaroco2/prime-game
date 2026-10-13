@@ -130,12 +130,23 @@ func is_downed() -> bool:
 ## ease towards their new height over `delta` seconds (INF: at once, a body drawn for the first
 ## time).
 func set_crouched(crouched: bool, delta: float) -> void:
+	var changed := crouched != _crouched
 	_crouched = crouched
 	if rules == null or not is_node_ready():
 		return
-	_show_looks()
+	# Called every physics frame for every body: the looks (shape, mesh and shell transforms) are
+	# written only when the flag turns, as set_downed does.
+	if changed:
+		_show_looks()
+	# At once (INF) when no rate is known: a first draw (delta INF), a mode without a step height
+	# (0 * INF would be NaN) or a tuning without a catch-up time.
 	var step := INF
-	if tuning != null and tuning.view_catch_up_seconds > 0.0:
+	if (
+		tuning != null
+		and tuning.view_catch_up_seconds > 0.0
+		and rules.step_height_m > 0.0
+		and not is_inf(delta)
+	):
 		step = rules.step_height_m / tuning.view_catch_up_seconds * delta
 	var target := rules.eye_height_m - rules.crouch_eye_height_m if crouched else 0.0
 	_lowered = move_toward(_lowered, target, step)
