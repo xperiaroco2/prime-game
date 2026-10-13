@@ -289,11 +289,11 @@ func _listed(tag: StringName, per_route: PackedInt32Array, order: PackedInt32Arr
 ## markers; the lobby's fit check (§9.4) keeps a match from getting here without them.
 func _fits(ctx: MatchContext, per_route: PackedInt32Array, order: PackedInt32Array) -> bool:
 	if ctx.layout == null:
-		ctx.error("DeliveryByMeaning: no layout for the level being entered")
+		ctx.error("DeliveryByMeaning %s: no layout for the level being entered" % id)
 		return false
 	for kind: StationKind in _used_drop_offs(per_route):
 		if ctx.layout.count(kind.spawn_tag) < 1:
-			ctx.error("DeliveryByMeaning: the map has no %s marker" % kind.spawn_tag)
+			ctx.error("DeliveryByMeaning %s: the map has no %s marker" % [id, kind.spawn_tag])
 			return false
 	for tag: StringName in item_spawn_tags():
 		var need := _listed(tag, per_route, order).size()
@@ -301,8 +301,8 @@ func _fits(ctx: MatchContext, per_route: PackedInt32Array, order: PackedInt32Arr
 		if have < need:
 			ctx.error(
 				(
-					"DeliveryByMeaning: %d items need as many free %s markers; the map has %d"
-					% [need, tag, have]
+					"DeliveryByMeaning %s: %d items need as many free %s markers; the map has %d"
+					% [id, need, tag, have]
 				)
 			)
 			return false
