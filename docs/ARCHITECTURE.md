@@ -1724,13 +1724,13 @@ now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps no
 **#647 (M7-Z1)** added `ZoneProgress` to both `TASK_EVENTS` lists; its plant (declared to the zone's first player
 inside only) waited for a scenario that plays zones (M7-Z3, the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
 §7). **#649 (M7-Z3)** planted it (`ZoneProgressEvent.audience()` as `Audience.only` of the first living player
-`ZoneTask` counted in the zone): `bots crew_works_every_zone zone_paused_by_a_knockdown dissident_works_a_zone_alone`
-and the core runner's `scenarios_test.gd` failed on `ScenarioInvariants` alone (`invariant at tick 118: ZoneProgress
-reached [2], not every present player [1, 2, 3]`; every MVP scenario, which bans the zone task, passed); with
-`ZoneProgress` out of `ScenarioInvariants.TASK_EVENTS` and `crew_works_every_zone`'s dissident waiting for
-`TaskProgress` instead (so every script ends and the leak test runs), `LeakCheck` failed on its own (`bot 1 and bot 2
-decoded different task events in match 0`, besides `decoded ZoneProgress, an event for one peer with no int
-peer`). Reverted.
+`ZoneTask` counted in the zone) on the greybox's three zone scenarios, which failed on `ScenarioInvariants` alone
+(and, with `ZoneProgress` out of its `TASK_EVENTS`, on `LeakCheck`); reverted. **#804 (Generator G9)** took the
+greybox's zones and those scenarios away (GD13 (b) of the [Generator ADR](decisions/2026-10-10-generator-task.md):
+the House is not played by bots, §9.7) and planted the same leak once on their successor with no bot,
+`tests/integration/levels/house_zone_test.gd` (the House in the host's real world, `ScenarioInvariants` per call and
+per tick, §9.7): its three tests failed on `ScenarioInvariants` (`ZoneProgress reached [1003], not every present
+player [1, 1002, 1003]`); reverted.
 **#779 (cooking C10)** added `ItemVanished` to both lists; no scenario plays a vanishing item kind yet (the base mode has none), so its plant waits for the first that does.
 **#771 (cooking C2)** added `ItemChanged` to both lists; its plant waits for the scenarios that play Cooking (CE22). `ScenarioBot._learn` folds a pick-up straight onto the belt (`belted` the item itself: the two-handed item stays `held`), pinned by `scenario_runner_test.gd`'s `test_a_take_straight_onto_the_belt_keeps_the_hand_item_held`, seen failing without the fold.
 **#797 (Generator G2)** added `SwitchChanged` and `ButtonPressed` to both `TASK_EVENTS` lists; no bot plays the
@@ -1791,8 +1791,9 @@ the earlier connection's view of a bot that returned fails naming "bot 2 (connec
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
 `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
-default draw of one package and one zone since #649, on `FixtureBaseModeWithZones` since #842; bot 4 walks into the zone and freezes, bot 1 then knocks it
-down, bot 2 delivers and bot 3 holds the zone) carries two chaos peers that are never peer 1: a
+shipped base mode's default draw, one package, since #804 (from #649 to #804 also one zone on the greybox); bot 4
+walks to `ChaosScenario.STAND_AT`, where that zone stood, and freezes, bot 1 then knocks it down, bot 2 delivers and
+bot 3 waits for the end) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -1825,7 +1826,7 @@ sections named:
    nothing (§7.1, E15); to a knocked-down sender none for any claim, its walking ones included (#728 KE4: the host
    takes only its look); the position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
    a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
-   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 190 ticks while
+   ADR's freeze row, ZE10): bot 4 stands at `STAND_AT` a second (in the zone until #804), then its client sends no claim for 190 ticks while
    it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
    then one claim spends the stored credit to walk about 39 m away. The freeze is `ChaosScenario.FREEZE_TICKS`,
    `MovementRule.MAX_TICK_CREDIT` less `PUSH_TICKS`: that claim also covers a tick when the freeze starts between
@@ -1837,11 +1838,12 @@ sections named:
    (`ChaosHonestClaims`): a `Correction` of one fails the run, naming the seed (`chaos seed 7: the host corrected
    an honest claim of bot 4 ... (and N more)`: one line, the first correction and the count of the rest), and so
    does a run in which the movement rule accepted none (the summary line counts those); a placement's `Correction`
-   comes with another call. `ChaosRun` checks on the host's state that the
-   zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
-   player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
+   comes with another call. Until #804 `ChaosRun` also checked on the host's state that the zone gained at most
+   `ZoneTask.STALE_TICKS` (10) after bot 4's last accepted claim (planted "stale claims count", it failed); the
+   greybox's zones gone, that check lives in `tests/integration/server/host_session_zone_test.gd` (§4.6.5.3), and
+   the chaos run's zone code (`ChaosZones`, its quiet rule near a zone, the freeze check) went with them.
    The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
-   velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
+   velocity has not caught up with its bot's: a `Correction` or a `LATEST` claim superseding its
    walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
    Over every transport (#674), `ChaosRun` fails a run in which no hostile claim went out while its client knew it
    alive in the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 12 to 24 over seeds
@@ -1907,7 +1909,9 @@ claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--tra
 the honest-claim check (#693, 2026-10-10) `--seed 188001 --runs 10`, `--seed 1 --runs 10`, `--long --seed 5 --runs
 2`, `--enet --seed 7` and `--transport webrtc` seeds 188001, 7, 1, 2 and 3 passed (222 to 478 honest claims of bot 4
 each accepted without a `Correction`); a plant holding bot 4's claims 2 s past its freeze (its walk away past the
-credit) failed on that check alone (`chaos seed 188001: the host corrected an honest claim of bot 4`; reverted). The
+credit) failed on that check alone (`chaos seed 188001: the host corrected an honest claim of bot 4`; reverted). With
+no zone (#804, 2026-10-13: the shipped base mode, bot 4 frozen at `STAND_AT`, bot 1 waiting a fixed
+`AWAY_WAIT_S` from the round's start) `--seed 188001` and `--seed 188002 --long --transport webrtc` passed. The
 night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
@@ -1979,6 +1983,13 @@ applied take per 5 ticks and `too_soon` for the rest, and never more than the pa
 rest) each stop at the reliable-intents bucket (§4.5.6: at most `PeerBudget.INTENTS` reach the match, the rest counted
 `over_budget`, nobody disconnected); seen failing with the bins' cooldown at 0.01 s, the cap raised to 1000 and
 `PeerBudget.take_intent` never refusing.
+The chaos run's freeze in a zone left with the greybox's zones (#804, GD13 (b)): in
+`tests/integration/server/host_session_zone_test.gd` (`FixtureZoneModes.zone_task` on the harness's layouts plus one
+`zone` marker) a client walks into the zone and fills it, every client decoding `ZoneProgress`, `TaskState` and
+`TaskProgress` as its `Match.view_of`; a client frozen in the zone 2 s gains at most `ZoneTask.STALE_TICKS` after its
+last accepted claim and stops counting, and counts again once thawed. Seen failing with "stale claims count" planted
+(both `_anyone_inside` guards, the claim's age and `credit_gain`, out: 40 ticks gained); with the age guard alone out
+it passes, as `credit_gain` also stops a frozen client.
 Kind 1's `key` (`Hello`, the return key of the [returning-players ADR](decisions/2026-10-09-returning-players-keep-their-number.md); #639):
 the hostile's joining `Hello` carries an honest bot's key (`ChaosScenario.KEY_BOT`, bot 2's `ScenarioBot.key_of`),
 sent once the host holds that bot's `PlayerJoined` (`ChaosJoining` makes each chaos transport without joining; the
@@ -6292,7 +6303,7 @@ shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
 mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
-from the shipped one when it loads, for the zone task's tests, scenarios, chaos and perf runs. Tests: the mode check of 2a,
+from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
@@ -6579,14 +6590,14 @@ second task type, beside Delivery (§9.5.4). Dealt by the base mode from #649 un
 (only from the mode; it may come back with a name and a how-to card), and by `FixtureBaseModeWithZones` (§9.5.1): `content/tasks/hold_the_zone.tres`, id
 `hold_the_zone`, "Hold the zone" (the players' word; the Ukrainian UI's «Утримати зону» once the client is
 translated), described "Stand in the zone until it fills."
-Maps (`TaskType.maps`, #803, every task type's): none listed in its data, so every map of a mode that deals it.
+Maps (`TaskType.maps`, #803, every task type's): the House alone since #804 (GD13 (b) of the Generator ADR), so a mode deals it on no other map.
 Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
 the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
 must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302
 comment 6085251071), in its data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
 height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
-per subtask; the fixture mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
-placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
+per subtask; the fixture mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 were
+placeholders, "not a decision" (§9.6), until #804 removed them. House has three (#651, M7-Z5, placeholders on the engineer's delegation until
 he moves them, #302 comment 6085904317): the yard (48, 0, 37), the garden (52, 0, 20) and the landing (30, 3.2, 41).
 None in the attic, whose sloped roof leaves no clear spot, and none in the basement, where the scenarios' flat fake
 finds no floor (§9.7; #681 moved the generator hall's (44, −3.2, 37) up to the yard).
@@ -6620,11 +6631,15 @@ event that depended on a role would reveal it (§9.2, ZD3).
 Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
 (M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
 `MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
-provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.51).
-Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
-every map of the base mode, each read in the host's collision world since #681, and the flat fake shown hiding a spawn
-point beside an upstairs zone), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
-`dissident_works_a_zone_alone` (§9.7), `tests/unit/tasks/zone_deal_test.gd`
+provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.51);
+the House alone in its `maps`, the greybox's zones and those scenarios gone, in #804 (Generator G9).
+Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the House's fit at the most zones, the
+greybox asking none, ZE9's spacing on every map the zone task plays, each read in the host's collision world since
+#681, and the flat fake shown hiding a spawn point beside an upstairs zone), `tests/unit/content/zone_base_mode_test.gd`
+(on the House in the host's world since #804), `tests/integration/levels/house_zone_test.gd` (with no bot, the
+House in the host's world, `ScenarioInvariants` per call and per tick: the crew works every zone, a dissident works
+one alone, a knockdown pauses one; §9.7), `tests/integration/server/host_session_zone_test.gd` (`ZoneProgress` on the
+real wire, a freeze in a zone; §4.6.5.3), `tests/unit/tasks/zone_deal_test.gd`
 (the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
 and a slow claimer's, the clock's
 last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
@@ -7167,9 +7182,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
     harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
-    (`PerfScenario`, on `FixtureBaseModeWithZones` since #842) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
-    zone markers lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one spoke crosses it and the
-    run meters `ZoneProgress` too.
+    (`PerfScenario`) keeps the default draw of the shipped base mode, Delivery alone, since #804 (from #649 it also
+    dealt a zone on the greybox, on `FixtureBaseModeWithZones` from #842, and metered `ZoneProgress`; the greybox's
+    zones went with GD13 (b)).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -7215,18 +7230,19 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
-  M7-Z3 (#649; the zone task ADR's §7): three scenarios play the zone, each expecting `crew`; since #842 they live in
-  `tests/fixtures/scenarios/` on `FixtureBaseModeWithZones` (the base mode no longer deals the zone task, so the
-  scenarios above no longer ban it), and `bots` and `scenarios_test` play that folder too:
-  `crew_works_every_zone` (the default draw with one package: a crew bot delivers it, another walks to `station(zone,
-  1)` and holds it until its `ZoneProgress` at 200 ticks, and the crew wins on the second subtask),
-  `zone_paused_by_a_knockdown` (Delivery banned: the crew bot holds the zone from 1.2 m short of its centre, on its
-  approach side; the dissident strikes it from 1 m further out, outside the zone and inside the knife's reach, and
-  knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
-  the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
-  it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
-  inside the raise's 2 m reach; the zone counts again from its first claim after the `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
-  a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
+  The zone task has no bot scenario since #804 (GD13 (b) of the [Generator
+  ADR](decisions/2026-10-10-generator-task.md): the zone task plays on the House alone, which bots do not play). The
+  three that played the greybox's zones from #649 (M7-Z3; `crew_works_every_zone`, `zone_paused_by_a_knockdown`,
+  `dissident_works_a_zone_alone`; in `tests/fixtures/scenarios/` from #842) are deleted, and their checks live in
+  `tests/integration/levels/house_zone_test.gd`, with no bot: the House in the host's real world
+  (`HostWorldQuery.for_mode`, `MarkerReader.read_levels`), `ScenarioInvariants` checking every event of every call and
+  every tick, players placed at their spots and claiming from there. The crew works every zone (the zone and the
+  package; the crew wins), a dissident alone fills the zone (ZD3; the crew wins), and a dissident's knife knocks down
+  the crew player holding the zone from outside it: everyone hears `ZoneProgress` stop, it does not count while the
+  player is down though the dissident stands by, and after the raise from outside the zone it counts again and fills.
+  Seen failing with `ZoneProgress` declared to the crew alone, to the zone's first player alone (the leak plant,
+  §4.6.4.1), and with a downed player counted (`_anyone_inside` reading `DEAD` for not alive); each reverted.
+  `ZoneProgress` over the wire and a freeze in a zone: `host_session_zone_test.gd` (§4.6.5.3).
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
@@ -7282,7 +7298,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations: designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), GE1 to GE4) and built in #796 (`Interact(station)`) and items on the ground by #770 (C1: `Interact`'s `item`, `ItemKind.target_actions`, `GiveItem`, `StationKind.display`); bodies with their own mechanic |
-| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the greybox's zones (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them |
+| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them; the greybox's zones went with GD13 (b) of the Generator ADR (#804): the zone task plays on the House alone |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
