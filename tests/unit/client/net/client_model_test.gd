@@ -148,6 +148,28 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	assert_int(_model.round_seconds).is_equal(-1)
 
 
+func test_a_drop_off_is_done_only_when_every_item_routed_to_it_is_delivered() -> void:
+	# DE7 of the delivery-by-meaning ADR: two bottles routed to one table; the table dims after
+	# the second, never on StationPlaced or ItemSpawned, and an item routed elsewhere is not counted.
+	_to_round()
+	_fold(StationPlacedEvent.new(0, &"drop_a", Color.WHITE, Vector3(9, 0, 9)))
+	_fold(StationPlacedEvent.new(1, &"drop_b", Color.WHITE, Vector3(-9, 0, 9)))
+	assert_bool(_model.stations[0].done).is_false()
+	_fold(ItemSpawnedEvent.new(0, &"wine", Vector3(1, 0, 1), 0, Color.WHITE))
+	_fold(ItemSpawnedEvent.new(1, &"wine", Vector3(2, 0, 1), 0, Color.WHITE))
+	_fold(ItemSpawnedEvent.new(2, &"oil", Vector3(3, 0, 1), 1, Color.WHITE))
+	assert_bool(_model.stations[0].done).is_false()
+	assert_bool(_model.stations[1].done).is_false()
+	_fold(PackageDeliveredEvent.new(0, 0))
+	assert_bool(_model.items[0].delivered).is_true()
+	assert_bool(_model.stations[0].done).is_false()
+	_fold(PackageDeliveredEvent.new(2, 1))
+	assert_bool(_model.stations[1].done).is_true()
+	assert_bool(_model.stations[0].done).is_false()
+	_fold(PackageDeliveredEvent.new(1, 0))
+	assert_bool(_model.stations[0].done).is_true()
+
+
 func test_a_zones_progress_follows_its_zone_progress_and_done_comes_only_from_it() -> void:
 	_to_round()
 	_fold(StationPlacedEvent.new(3, &"zone", Color.YELLOW, Vector3(0, 0, 20)))
