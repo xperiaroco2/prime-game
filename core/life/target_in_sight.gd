@@ -1,7 +1,7 @@
 class_name TargetInSight
 extends Condition
 ## Passes when the line from the actor's eye (Items.eye_of: the floor it stands on, raised by
-## PlayerRules.eye_height_m) to just above the rule's target player's feet (Items.lifted: where a
+## PlayerRules.eye_height_of) to just above the rule's target player's feet (Items.lifted: where a
 ## downed player lies) is clear of walls (WorldQuery.line_of_sight; ARCHITECTURE §7.1, §9.4; M4-4),
 ## as InSight is for an item. Checked at the start and every tick: losing sight stops a raise like
 ## moving out of reach (the engineer's answer 4 on PR #133). Rejects with `blocked`: the sender sees
