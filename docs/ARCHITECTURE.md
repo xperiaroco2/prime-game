@@ -11,7 +11,7 @@
 | Folder | Contains | May use | Owner |
 |---|---|---|---|
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
-| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1) | `core/`, the `net/` abstraction | engineer |
+| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1), simulates the knocked-down bodies on the maps `PlayerRules.motion_maps` lists (`HostBodies`, §7.1.18) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
@@ -200,7 +200,7 @@ countdown changes no scene and places nobody.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
   of its content (every resource it loads, sub-resources included), every command with its tick and order (the ones
-  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, and in debug builds `ForceRole`, §9.4
+  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `BodyMoved` with a body's report (§7.1.18), and in debug builds `ForceRole`, §9.4
   `DealRoles`), the levels' `LevelLayout`s (§9.1), and every `WorldQuery` answer (a throw's flight adds only answers,
   no command of `server/`'s: §7.1.16, proposed). A replay reads the answers from the log instead of asking the
   level, and refuses to run when the mode's hash differs (after an edit in `content/`, say the knife's damage, it
@@ -715,7 +715,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
 | `ReturnToLobby()` | the host only; End | none: End reports `back` at once, before its end tick; since #212 no screen sends it (the tests and the bots' `ReturnToLobby` step do) |
-| `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
+| `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`) and its body is at rest (`moving` while the host's physics moves it, KE15, #847); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender runs a channel (`not_channeling`: a late one after it completed or stopped): a raise, or a hold at a station (`HoldStation`, #805); applied, that channel stops (releasing E ends a hold too, the car repair ADR's RE5) |
 | `NextStage()` | the host (peer 1) only, `AcceptSpec` HOST; only a scripted mode's phase that lists it (the tutorial's `lessons` and `raise_stage`, `docs/design/tutorial.md` §2.4, E65). The base mode lists it in no phase: `not_accepted` (#599) | nothing more: the phase's rule reports `next` (§9.4 `ReportOutcome`) and its one `next` row runs. A session control like `ReturnToLobby` (not in `Intents.PLAYER_ACTIONS`), so the client does not resend it; as every applied intent it stops the sender's own channel first |
 | `SetProfile(name, colour)` | a player; Lobby only (#551; the base mode's accept row, the tutorial lists it nowhere): elsewhere `not_accepted` | `name` text and `colour` an int (`bad_args`); `colour` one of the 10 (`out_of_bounds`); the name cleaned and made unique against the other players (§3.5; nothing usable left keeps the current name), a colour another player has replaced by the first free one; both as they are: `unchanged`. Applied: `ProfileChanged` to everyone; the ready flag stays. A session control, not in `Intents.PLAYER_ACTIONS` |
@@ -726,7 +726,9 @@ which read a field the intent does not declare as absent; `Match` records each s
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
-the hello deadline. Debug commands (§8) are outside this table and exist in debug builds only: `ForceRole` (§9.4
+the hello deadline. Nor are the host's body reports: `server/` originates `BodyMoved(peer, epoch, position,
+velocity)` from `HostBodies` (§7.1.18, KE14), never decodable from the network, and `core/` takes it in every phase.
+Debug commands (§8) are outside this table and exist in debug builds only: `ForceRole` (§9.4
 `DealRoles`, 2j) is a command that `server/` originates, and on the wire (M3) it is a debug-only kind that only the
 host's own client may send (§4.3, E17).
 
@@ -753,7 +755,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
 | `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order, or given mid-round by `GiveItem`, then not in spawn-point order (#770) |
 | `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29), or the item itself when it went straight onto the belt beside a two-handed hand item (the cooking ADR, CE20, CE21, #771) | everyone | `PickUp`; or `Items.give` (#771): a new item from a source, or an item locked on a station taken back (a box's, a bed's or the grill's take, the cooking ADR §2), the taker making room by §2's table (a hand item it puts down at its feet comes first as `ItemPlaced` `put_down`) |
-| `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is never sent to it) |
+| `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is sent to it only while it is knocked down, KE5) |
 | `ItemThrown` | item, peer (the thrower), origin, velocity, gravity, launch tick: exactly the flight's vectors, so a client computes the host's arc bit for bit (`ItemFlight.point`, §7.1.16) | everyone: the item was in a hand everyone sees, and the velocity shows only the facing the snapshot already shows (a role-owned `Throw` rule would put the role into it: ModeCheck warns, §9.2) | a `Throw` (#643), before the flight's first tick |
 | `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's), thrown (a flight's rest, §7.1.16) | everyone | an item comes to rest |
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
@@ -779,7 +781,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
-| `KnockedDown` | peer, where it lies (the floor below its last accepted position) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
+| `KnockedDown` | peer, where it lies (the floor below its last accepted position; on a map `PlayerRules.motion_maps` lists, the last accepted position itself, where its body starts to move, §7.1.18) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. From then on its own snapshot holds its own avatar until it stands or dies (KE5, §5). It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
 | `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2) or it gives up (`GiveUp`, M4-4), or a living or downed player is killed at once (`LifeRules.kill`, #806: no `KnockedDown` before it); no event names a killer or a cause. The body stays until its player respawns or leaves |
 | `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses (it holds still as every knocked-down player does, §7.1.7) |
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
@@ -791,6 +793,8 @@ wire schemas of the events and the snapshot are §4.3.
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
+`LaunchBody(peer, epoch, origin, velocity)` and `StopBody(peer)` (the host's body of a knocked-down player on a map
+`PlayerRules.motion_maps` lists starts and is freed, §7.1.18; a replay ignores both; #847),
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
@@ -836,7 +840,7 @@ Little-endian; sizes in bytes.
 | `sized_opus` | 2 + n | a u16 length, then that many opaque bytes (a `VoiceBatch` frame's, M5-4b) | 0, or over the field's maximum (500) |
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
-snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
+snapshot's avatars at most 16: the viewer's own only while it is knocked down, KE5); a map of settings, spawn tags or station kinds at most 32; a
 set of task types at most 16 ids; shortfalls at most 32, and a host text's subject ids at most 2 and its arguments at
 most 4 (#548). The sizes below are the MVP's with 10 players, then the cap.
 These maxima bound the decoder, not the payload: at the maxima some kinds exceed their caps (`SettingsChanged`'s
@@ -970,7 +974,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player where the crouch plays, §7.1.17; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player where the crouch plays, §7.1.17; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -1113,7 +1117,7 @@ The rules of the table:
   - Decoded shapes that `to_dict()` does not set: `ChangeSettings.settings` is an untyped Dictionary of `StringName`
     ids to an `int` or a `PackedStringArray`; a snapshot's `avatars` are untyped, as `Snapshots.for_peer` builds them.
   - At the declared maxima `ChangeSettings`, `Welcome` and `SettingsChanged` exceed their caps; `LoadMatch` (1445
-    bytes) does not, and the snapshot's 15 avatars take 680 bytes of its 1024 (45 bytes each with its key, the belt
+    bytes) does not, and the snapshot's 16 avatars take 725 bytes of its 1024 (45 bytes each with its key, the belt
     item included: M4-5 rechecked it).
   - `wire_core_test.gd` compares the table with `Intents.FIELDS` (names and decoded Variant types, `ForceRole`
     included) and applies decoded `ForceRole`, `Hello` and `ChangeSettings` to a `Match`. A decoded `ForceRole`'s
@@ -1151,8 +1155,8 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 | 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then) and `ticked_through() + 1` < t, they are applied first, stamped with `ticked_through() + 1`, and that tick runs (when `ticked_through() + 1` = t they join step 4's batch, stamped the same). Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
 | 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a debug command (§4.3, E17), queued as the command it names when p is 1, else counted as malformed; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
-| 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
-| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included, and is dropped while p's leave is pending (it answers the connection that left, not one that took its id) | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
+| 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. The host's body reports head the batch: one `BodyMoved` per body in motion, in peer-id order (`HostBodies.reports`, KE14), stamped t like the rest; step 1's catch-up ticks get none (the bodies moved through the freeze, and their next report tells where). Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
+| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `LaunchBody` and `StopBody` start and free a host body (`HostBodies.launch`, `stop`, §7.1.18); `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included, and is dropped while p's leave is pending (it answers the connection that left, not one that took its id) | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
 | 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
 | 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked only in a step that ran 4, so a `Hello` that waited out a host freeze, or was read in a step with no tick due, is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
 
@@ -1334,6 +1338,14 @@ round).
   `MarkerReader.read_levels` calls `use_level(path)` before reading each level. Tests: `tests/integration/server/`
   (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
   through a `Match`, and 2j's flat levels).
+- **The bodies (KE13, #847).** The level's world also holds the host's knocked-down bodies: `HostWorldQuery.bodies`
+  (`server/host_bodies.gd`, a capsule of `capsule_radius_m` by `crouch_height_m` per body, `BODY_MODE_RIGID_LINEAR`,
+  on the `downed` layer with the world mask, CCD) is handed the current level's `World3D` by `use_level`; a change to
+  another level (or to none) frees every body, as the host's end does. A `World3D.new()` space steps its rigid bodies
+  as the physics frames run (the probe in `tests/integration/server/host_bodies_test.gd`), so the bodies need no
+  scene tree. With no world to move it (no level, or a host on a fake world with no physics: the bots' and the core
+  runner's `FlatWorldQuery`), a launched body is held still where it starts and reported at rest, so it rests after
+  the rest time. Tests: that suite, on `tests/fixtures/levels/body_rest_course.tscn` (§7.1.18).
 
 #### 4.5.10 The command log and replays (E13)
 The host keeps the log in memory (§3.3). A debug-build host writes the session's
@@ -1453,7 +1465,7 @@ Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record,
 `Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
 undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
 `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
-snapshot's avatar flag (the own player's never arrives);
+snapshot's avatar flag (the own player's arrives only while it is knocked down, KE5);
 `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
 names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
 `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
@@ -1466,7 +1478,7 @@ the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravi
 `ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying) is what
 `ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
 it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
-`belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
+`belt_item(peer)` read them for every player, the own one included, whose avatar arrives only while it is knocked down (KE5). `TaskState`
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
 `ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
 (the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
@@ -1483,7 +1495,7 @@ splits the steps from the stand-in and has `ScenarioBot` learn from (name, field
 `ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
 §4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
 the flat levels (2j), claims every client tick, counts its jumps
-and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2), as one of a knocked-down bot does (it holds still, #728 KE4). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2), as one of a knocked-down bot does (it holds still, #728 KE4). Its fold of a snapshot (`ScenarioBot.see`) skips its own avatar, which a knocked-down bot's snapshot carries (KE5, #847): it knows where it is. It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
 A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
@@ -1669,7 +1681,7 @@ Compares what each bot b decoded with `view_of(b)`:
   not trust the declarations, plus any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
   from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
   bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
-  that match's dissidents only; no bot decodes a dead player's avatar, or a downed or dead speaker's voice frame, a
+  that match's dissidents only; no bot decodes a dead player's avatar; a bot decodes its own avatar exactly when the host's state had it knocked down at that tick (the own-avatar check, KE5, #847, from the life state `record_tick` saw, never from `Snapshots.for_peer`); no bot decodes or a downed or dead speaker's voice frame, a
   downed bot hears only the living and a dead bot nobody; no bot decodes a frame of a speaker farther away than the
   hearing radius of the phase at the frame's tick (`VoiceRule.radius_of` the mode's rule for it), between the two
   last accepted positions after that tick, which `LeakCheck.record_tick` records per tick with the radius, in 3D,
@@ -1787,6 +1799,12 @@ key`), and with that check switched off on `LeakCheck` for each bot (`decoded Pl
 then passed with the plant reverted. `leave_and_return_test.gd` keeps a decoded key as a unit case, and a plant in
 the earlier connection's view of a bot that returned fails naming "bot 2 (connection 1)".
 
+The own-avatar check (KE5, 728b, #847), in `LeakCheck` and `ScenarioInvariants` (`own_avatar_problem`, from the life
+state): seen failing on a planted own avatar of a living bot and on a missing own avatar of a knocked-down one
+(`bots_runner_test.gd`'s `test_an_own_avatar_of_a_living_bot_or_none_of_a_knocked_down_one_is_a_leak`, and
+`tests/scenarios/body_motion_invariants_test.gd`); and run through a body in motion on every
+tick (that suite: no scenario moves a body, KE12).
+
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
@@ -1813,7 +1831,7 @@ sections named:
    action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
    `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
    state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
-   `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
+   `not_downed`, `moving` (a downed target still in motion, #847), `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
    claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
    §9.4), and no reply to a `LoadAck` of another match;
 5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
@@ -2435,7 +2453,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
 - **Hands:** the own hand item is drawn in the first-person view and the belt item on the HUD. Every item is drawn
   from `ClientModel`'s fold of the item events: on the ground where it lies, or at its holder's hand or belt. The own
-  slots come from events only, since the own avatar never arrives. No screen reads out the own invulnerability
+  slots come from events only (the own avatar arrives only while it is knocked down, KE5). No screen reads out the own invulnerability
   (the engineer's answer 2 on PR #167: a later buffs UI may show it); others wear the shell (D8).
 - **Interactions:** the camera's ray picks the candidate, the first item or downed player along it in the client's
   own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
@@ -4635,8 +4653,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable` and `crouched`,
   the last only for a living player where the crouch plays, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
-  snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
-  fields; they travel in `SelfStatus`. #728's design (§7.1.18, not built) adds one exception: the own avatar while
+  snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
+  fields; they travel in `SelfStatus`. #728's design (§7.1.18, built in 728b, #847) adds one exception: the own avatar while
   knocked down, on every map (the greybox included, where the body stays at rest), decided from the life state alone,
   not from whether the host moves the body (KE5). The photo task's `ShotTaken` (#781, §9.5.22) is another: its record
   holds a row for each living or downed player near the camera at the shot, the recipient's own pose included; it
@@ -4662,8 +4680,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   `PartFitted`, which names no player, #808; the photo task's `PhotoPrinted` and `PhotoHung`, which name no player, and whose print and hang read no role, #782); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
-- **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
-  nothing: the downed are public, `Respawned` is as public as the body it removes and the avatar that appears again,
+- **Widening** follows from evaluating audiences at emission. A death, a respawn and a revive widen
+  nothing, and a knockdown widens only its own player's snapshot, by its avatar (KE5, #847): the downed are public, `Respawned` is as public as the body it removes and the avatar that appears again,
   a raise and a revive are as public as the two avatars (M4-4), a dead player
   gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
   no event that a living peer present then does not get (the leak test checks it, §4.6.4; M4-2 tests the snapshots in
@@ -4688,7 +4706,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
-  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; the voice invariant (§6.3): no
+  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; a snapshot holds its viewer's own avatar exactly when the host's state has the viewer knocked down, read from the life state, never from `Snapshots.for_peer` (KE5, #847: `ScenarioInvariants` per tick, `LeakCheck` per decoded snapshot); the voice invariant (§6.3): no
   peer gets a downed or dead speaker's voice frame, a downed peer gets only the living's and a dead peer none;
   the distance invariant (M5-1, #215, E45): no peer gets a frame of a speaker farther away than the phase's hearing
   radius (`VoiceRule.radius_of`, the client's cutoff, E41) at the frame's tick, between the last accepted positions,
@@ -5643,7 +5661,7 @@ reads, do not move.
   crouched avatar shown, a downed claim's bit, an unlisted map's and the lobby's ignored, a raw client's crouched
   claim alike; each client's decode equals its `view_of`).
 
-#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846, the rest not built)
+#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
 knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
 and its body falls as a ragdoll that a hit can send flying. He answered every question of the
@@ -5712,7 +5730,17 @@ from its edge RD6 (a) accepts, so 728e's test records it and stops if the host c
   once (KD7), crouched until the standing capsule fits (KD11; the crouch's controller, §7.1.17, KE6).
 - **Numbers.** The launch speeds, the rest speed and time and the longest motion are placeholders the agents set,
   marked "not a decision" (KD9 (b)), each with bounds in its data; the gravity, mass, friction and bounce are the
-  physics engine's.
+  physics engine's. The base mode's: 0.1 m/s for 0.5 s, 8 s at the longest; the knife launches nothing (728e).
+- **Built in 728b (#847).** `core/`: `BodyMotion` (`core/life/body_motion.gd`), `LifeRules.knock_down`, `body_moved`,
+  `count_motion`, `rest`, `stop_motion`; `LaunchBody`, `StopBody`; `Intents.BODY_MOVED`; `Strike`'s launch; `TargetDowned`'s
+  `moving`; `PlayerRules.motion_maps` and the rest's numbers; `Snapshots.for_peer`'s own avatar (protocol 30).
+  `server/`: `HostBodies` in `HostWorldQuery`, `HostSession`'s reports and directives. Every launch ships at 0 until
+  728d draws the motion: the client's `AvatarViews` and the bots' fold skip the own avatar meanwhile. Tests:
+  `tests/unit/life/body_motion_test.gd` (scripted reports), `tests/unit/combat/strike_launch_test.gd`,
+  `tests/unit/content/player_rules_test.gd`, `tests/unit/net/messages/snapshot_own_avatar_test.gd`,
+  `tests/scenarios/body_motion_invariants_test.gd` (the invariants through a motion, the own-avatar check's plants) and
+  `tests/integration/server/host_bodies_test.gd` (the probe; the ledge, ramp, stairs, wall, hole, low table, low
+  ceiling, nosing and railing of `tests/fixtures/levels/body_rest_course.tscn`).
 
 ## 8. Debug tooling
 
@@ -6129,7 +6157,7 @@ names the facts that do.
 | `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/clock_ended.gd`) |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | actions only: reads the actor | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | actions only: reads the actor | 2d (#60) |
-| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | an action (and its channel) only (reads no actor; needs a target player): the mode check refuses it in a reaction or a win condition, since no fact carries a target player (#379) | M4-4 (#140, `core/life/target_downed.gd`) |
+| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public; `moving` for a downed target whose body is in motion (`PlayerState.motion`, KD4 (a), #847), as public as the snapshot's velocity | an action (and its channel) only (reads no actor; needs a target player): the mode check refuses it in a reaction or a win condition, since no fact carries a target player (#379) | M4-4 (#140, `core/life/target_downed.gd`) |
 | `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | actions only: reads the actor | M4-4 (#140) |
 | `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | actions only: reads the actor | M4-4 (#140) |
 | `ChannelFree` | the actor runs no channel, no channel targets the rule's target (`Channels.target_of`) and no channel runs on the rule's station (`Channels.station_of`), apart from the channel being checked again: one channel per actor, one per target (one raiser at a time) and one per station (one holder of the lift, one fitter at the car: the car repair ADR's RE2, RE9) | none | `busy`: every channel of the MVP is public (a raise: `RaiseStarted`; a hold: its task type's public events) | actions only: reads the actor | M4-4 (#140, `core/channel/`); per station #805 |
@@ -6146,7 +6174,7 @@ names the facts that do.
 | `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `ThrowItem` | the hand item leaves the actor's eye (`Items.eye_of`) into a flight (§7.1.16): the claimed facing normalized, else the last accepted claim's, times `speed_mps`, without the actor's velocity; the fallback rest below its feet is asked once (`Items.fallback_rest`). Only in an intent's rule, after `HoldsItem` and `OverFloor` (ModeCheck requires both); over no floor anyway it logs an error and throws nothing. A phase that accepts such an intent lists `FlightTicks` | `speed_mps` (1 to 40), `gravity_mps2` (1 to 40), `radius_m` (0.02 to 0.5 and at most `ThrowItem.largest_radius` of the mode's `PlayerRules`), `longest_flight_s` (0.5 to 30); each defaults to 0, so the data sets it; the bounds are placeholders, "not a decision" | `ItemThrown` (everyone); the flight's rest: `ItemPlaced` (thrown) through `FlightTicks` | 37c (#643, `core/items/throw_item.gd`) |
-| `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
+| `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2), and on a map `PlayerRules.motion_maps` lists launched (KE9): `launch_mps` away from the attacker horizontally, foot to foot (along the zone's direction where they coincide), plus `launch_up_mps` up; a knockdown on another map drops the launch | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50); `launch_mps` (0 to 20) and `launch_up_mps` (0 to 10), 0 launching nothing, the default (bounds placeholders, "not a decision", KD9 (b); the knife sets none until 728e) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed), and on a listed map `LaunchBody` (server, #847); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) (it holds still, as every knocked-down player does, §7.1.7). Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health`, a placement (#728 KE6) | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `Correction` and `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
@@ -6210,7 +6238,7 @@ sizes `SettingsChanged`'s shortfalls by each type's `most_layout_problems()`.
 
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|---|
-| `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3). A mode with a task type that can kill (`TaskType.kills()`, the car's drop) lists it with a `respawn` in every phase that accepts `Interact`, or the mode check refuses the phase (`KillCheck`, #806, the car repair ADR's RE6): a dead player always comes back | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
+| `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). Before the deadline it counts each body in motion (`LifeRules.count_motion`, every tick, reports or not): once a motion has lasted `PlayerRules.longest_motion_s` it ends as at rest, on the standing floor under its capsule, or with no floor at the fallback (the floor below where it was knocked down) with an error; either way `StopBody` (#847, KE15). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3). A mode with a task type that can kill (`TaskType.kills()`, the car's drop) lists it with a `respawn` in every phase that accepts `Interact`, or the mode check refuses the phase (`KillCheck`, #806, the car repair ADR's RE6): a dead player always comes back | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a motion's end: `StopBody` (server); a death's `StopBody` if it moved, `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`), unless its effect is endless (`ChannelEffect.is_endless`, #805: it never completes). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight; a phase that accepts an intent whose rule throws (a `ThrowItem`) lists it, or the mode check refuses the phase (#643) | none | `ItemPlaced`, and what the rules on `item_rested` emit | 37b (#642, `core/items/flight_ticks.gd`) |
 | `VanishTicks` | tick system | each item of a kind with `vanish_seconds` that lies on the ground and has lain that long since `Items.lay` set its `rest_tick` vanishes through `Items.vanish`, in ascending item id (never the item table's order, which a reused id breaks): an item lying since tick r of a kind of s seconds goes in the first tick t of a listing phase with t - r at least `Ticks.from_seconds(s)`. A pick-up and a put-down start it over; an item in a hand, on a belt, in flight or locked never vanishes. A phase that does not list it removes nothing, and a later one that does removes at once what lay long enough meanwhile; a vanishing item on the ground with no rest tick is a rule error, logged once, and its clock starts at that tick. A mode with a vanishing item kind lists it in some phase, or the mode check refuses it | none | `ItemVanished` (everyone) | C10 (#779, `core/items/vanish_ticks.gd`; `tests/unit/items/vanish_ticks_test.gd`, `vanish_replay_test.gd`, id reuse in `tests/unit/match/match_state_item_ids_test.gd`; no player in `ItemVanished`'s keys or wire row: `tests/unit/events/cooking_events_name_no_player_test.gd`, the list C2 to C4 extend) |
@@ -6272,7 +6300,11 @@ Settings:
   (`crouch_height_m`, twice the radius to the height), crouched eye 1.0 m (`crouch_eye_height_m`, below the crouched
   height), crouch walk 2.0 m/s (`crouch_speed_mps`, 0.1 to the walk) and with Shift 2.8 m/s (`crouch_fast_speed_mps`,
   the crouch walk to the walk), playing on the House alone (`crouch_maps`, each one of the mode's maps; empty is
-  every map). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
+  every map). A knockdown moves the body on the House alone (`motion_maps`, KE12 (a), #847: each one of the mode's
+  maps, empty is every map, and the mode check refuses a map where a body moves but the crouch does not play, KD11),
+  and the motion rests once the host's reports stay under 0.1 m/s (`rest_speed_mps`, 0.01 to 2) for 0.5 s (`rest_s`,
+  0.05 to 5, counted in reports), or after 8 s at the longest (`longest_motion_s`, the rest time to 60): placeholders,
+  "not a decision" (KD9 (b)), as are their bounds. Health and stamina are whole points here, thousandths inside `core/` (§3.3).
   `PlayerRules`' class defaults are 0,
   so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
   check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1.6) is not in `PlayerRules`: `push_speed_factor`,
@@ -6507,7 +6539,7 @@ Settings (provisional, "not a decision"; the numbers are the raise rule's own, E
 - Round accepts `Raise` and `StopRaise` from the living, `GiveUp` from the downed (`not_accepted` otherwise).
 Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Died` and the drop at the body.
 Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
-the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `busy`, `out_of_reach`, `blocked`,
+the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `moving` (the body still in motion, #847), `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
 Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
 `tests/unit/life/absent_target_test.gd` (`TargetInReach` and `TargetInSight` refuse a target that is not there);
