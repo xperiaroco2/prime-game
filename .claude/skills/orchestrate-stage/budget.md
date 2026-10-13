@@ -28,9 +28,10 @@ From the reset of 2026-10-13 10:00 UTC, the engineer's answer 1A to the weekly r
   he says otherwise. The buffer lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
-- What a budget buys is planned at row 8's all-in cost per task, re-measured at each reset (2026-10-13: game 0.60% a
-  run, meta 0.30% a run, art 0.77% an issue; UI not measured, 1.18% a run before). A day's share (game 4.9%, UI 0.9%,
-  art 2.9%, meta 1.7%) is a guide; the weekly budget is the limit.
+- What a budget buys is planned at row 8's all-in cost, re-measured at each reset (2026-10-13: game 0.60% a run, meta
+  0.30% a run, art 0.77% an issue; UI not measured, 1.18% a run before). A run is not a task: relaunches make a game
+  PR cost 0.89%, so plan game tasks at that. A day's share (game 4.9%, UI 0.9%, art 2.9%, meta 1.7%) is a guide; the
+  weekly budget is the limit.
 - From the next reset on, the meta track posts with its weekly report the past week's spend per track against its
   budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones. A workflow that
   gathers it passes the lean types (AGENT_WORKFLOW §5, #466): its gatherers `{agentType: 'lean-reader'}` on Sonnet,
