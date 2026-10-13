@@ -6,7 +6,8 @@
   planner, a manager habit like N5, the engineer's option (a)); amended 2026-10-07 (#535: the A/B of a Sonnet code
   reviewer); amended 2026-10-08 (#560: the Sonnet implementer trial); amended 2026-10-10 (#560: the Sonnet implementer
   kept, a standing manager habit); amended 2026-10-11 (#835: the Sonnet publisher of runs with findings and
-  Sonnet `pr-rebase`, a trial)
+  Sonnet `pr-rebase`, a trial); amended 2026-10-13 (#919: the code reviewer's A/B, the Sonnet implementer habit and
+  the Sonnet publisher of runs with findings ended; Sonnet `pr-rebase` continues)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -111,6 +112,14 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     keep becomes a standing habit only by a further amendment, after the engineer's yes on the verdict. Sonnet is in
     the shared list, so it needs no allowance under amendment A; no script, default or agent file names the model,
     and the workflow tests still assert it.
+  - **2026-10-13** (#919, the answers 3A to 5A to the weekly report). Approved by the engineer:
+    https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919. The manager no longer passes
+    `models.code` with `ab_review` (the [A/B ADR](2026-10-07-code-reviewer-model-ab.md)'s outcome: drop),
+    `models.implement: "sonnet"` (the [trial ADR](2026-10-08-sonnet-implementer-trial.md)'s outcome: its revert rule
+    was certain) or `models.publish_findings` (#835's advice "stop": 2.40 findings not fixed a task against the Opus
+    baseline's 0.83, over 5 Sonnet tasks). `pr-rebase`'s `models.publish: "sonnet"` continues under the rules of
+    2026-10-11 (advice "continue" at 8 of its 10 runs). The scripts keep the roles and no default names a model, so
+    nothing else changes.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.
