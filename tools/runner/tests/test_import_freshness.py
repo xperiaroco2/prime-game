@@ -55,6 +55,11 @@ class FreshnessTest(unittest.TestCase):
         self.root = project(Path(tmp.name))
         for path in (self.root / "project.godot", self.root / "alpha.gd"):
             age(path, 60)
+        # run_import writes and clears attempt logs in common.LOGS: never the repo's, which a concurrent real check
+        # and CI's artifact use (the review of #949).
+        logs = mock.patch.object(common, "LOGS", Path(tmp.name) / "logs")
+        logs.start()
+        self.addCleanup(logs.stop)
 
     def test_no_import_yet(self) -> None:
         self.assertIn("no .godot/ yet", check.freshness(self.root).why)
@@ -171,6 +176,9 @@ class EnsureImportTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.parent = Path(tmp.name)
+        logs = mock.patch.object(common, "LOGS", self.parent / "logs")  # as in FreshnessTest
+        logs.start()
+        self.addCleanup(logs.stop)
 
     def ensure(self, root: Path, run_import: mock.MagicMock) -> str:
         with mock.patch.object(common, "ROOT", root), mock.patch.object(check, "run_import", run_import), \

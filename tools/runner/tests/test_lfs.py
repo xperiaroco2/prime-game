@@ -344,7 +344,7 @@ class CheckTest(unittest.TestCase):
 
             for ci in (True, False):
                 with mock.patch.object(common, "ROOT", root), mock.patch.multiple(common, IS_CI=ci, IS_CLOUD=False), \
-                        mock.patch.object(check, "godot", fake_godot), \
+                        mock.patch.object(common, "LOGS", root / "logs"), mock.patch.object(check, "godot", fake_godot), \
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     check.run_import()
                 self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
@@ -361,6 +361,7 @@ class CheckTest(unittest.TestCase):
                 write(root, "art/a.png", POINTER)
                 calls: list[object] = []
                 with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "IS_CI", True), \
+                        mock.patch.object(common, "LOGS", root / "logs"), \
                         mock.patch.object(check, "godot", lambda *a, **k: calls.append(a) or Result(0, "", False, 1.0)), \
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     self.assertEqual(check.run_import(), [])
