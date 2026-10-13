@@ -285,6 +285,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.belt_item = -1
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false
+	someone.crouched = false
 	someone.sprint_held = false
 	someone.moving = false
 	someone.stamina_settled_tick = -1

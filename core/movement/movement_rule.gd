@@ -172,6 +172,8 @@ class Claim:
 	## The client's jump count in the epoch (E2).
 	var jumps := 0
 	var on_floor := false
+	## The crouch at the claim's last physics step (KE1): a pose, so no latch and no mask.
+	var crouched := false
 
 
 ## What the checks found, for accepting the claim.
@@ -332,6 +334,8 @@ static func _accept(
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.on_floor = claim.on_floor
+	# The pose only where the crouch plays (KE10); elsewhere the bit is ignored, as a downed one is.
+	player.crouched = claim.crouched and ctx.crouch_plays()
 	player.sprint_held = claim.sprint
 	player.moving = checked.moved_itself
 
@@ -637,6 +641,7 @@ static func _read(command: MatchCommand) -> Claim:
 	claim.moved_ticks = moved_ticks as int if moved_ticks != null else _mask_of(claim.moving)
 	claim.jumps = jumps
 	claim.on_floor = command.get_bool("on_floor")
+	claim.crouched = command.get_bool("crouched")
 	return claim
 
 

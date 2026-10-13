@@ -27,6 +27,7 @@ static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary
 			"facing": player.facing,
 			"downed": player.life == PlayerState.Life.DOWNED,
 			"invulnerable": player.is_invulnerable(at_tick),
+			"crouched": player.crouched,
 			"held_item": player.held_item,
 			"belt_item": player.belt_item,
 		}

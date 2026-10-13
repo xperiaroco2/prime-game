@@ -237,6 +237,16 @@ func phase_id() -> StringName:
 	return _phase_spec.id if _phase_spec != null else &""
 
 
+## Whether the crouch plays now (the crouch ADR, KE10): in a phase on the match's map
+## (PhaseSpec.level MAP) that PlayerRules.crouch_maps lists, or every map when it is empty. Never in
+## a lobby phase, where state.map already holds the next match's pick (LobbyPhase), nor in a phase
+## with no level, nor in a mode without PlayerRules.
+func crouch_plays() -> bool:
+	if _phase_spec == null or _phase_spec.level != PhaseSpec.Level.MAP:
+		return false
+	return state.player_rules != null and state.player_rules.crouch_plays_on(state.map)
+
+
 ## The current phase object (for tests and server/'s inspection; parts get a MatchContext).
 func current_phase() -> Phase:
 	return _phase
@@ -450,6 +460,11 @@ func _enter_phase(id: StringName) -> void:
 	_phase_spec = mode.find_phase(id)
 	_phase = _phase_spec.create_phase()
 	_phase.entered_tick = _now
+	if not crouch_plays():
+		# A crouch kept from the phase before does not outlive it where the crouch does not play
+		# (KE10): no snapshot of this phase relays one.
+		for peer: int in state.players:
+			state.players[peer].crouched = false
 	var end := _phase.end_tick()
 	if end < 0 and _phase_spec.clock_runs and state.clock_ticks_left > 0:
 		end = _next_clock_tick() + state.clock_ticks_left - 1
