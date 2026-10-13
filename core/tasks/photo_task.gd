@@ -1,17 +1,15 @@
 class_name PhotoTask
 extends TaskType
-## The photo task (#687; ARCHITECTURE §9.5; the photo ADR, its part P2 #781): one shared task whose
-## subtasks are the photos with a person hung on the board, N the subtasks setting. Nobody owns
-## it: any living player of any role loads the camera, takes a shot, takes a film from the box,
-## prints and hangs (Interact, through the station kinds' rules; PD1). P2 builds the deal, the
-## load and the shot; the film box, the printer and the board refuse every use `unavailable` until
-## P3 (#782) gives them theirs.
+## The photo task (#687; ARCHITECTURE §9.5; the photo ADR, its parts P2 #781 and P3 #782): one
+## shared task whose subtasks are the photos with a person hung on the board, N the subtasks
+## setting. Nobody owns it: any living player of any role loads the camera, takes a shot, takes a
+## film from the box, prints and hangs (Interact, through the station kinds' rules; PD1).
 ##
 ## The deal (DealTasks calls deal() when the draw picks it; ADR §2.1): with N = 0 nothing at all
 ## (the task has no subtasks and is done, #79). Else a station on the one marker of each of the five
 ## kinds, in the order camera, photo spot, film box, printer, board (station ids in that order),
 ## StationPlaced for each in id order, then one fresh film on the `film` marker: ItemSpawned, then
-## item_rested with the spawn cause (PE11). No RNG: nothing is drawn.
+## item_rested with the spawn cause (PE11). The `photo` marker is the printer's tray. No RNG.
 ##
 ## The camera (ADR §2.2, §2.3; PE17): it holds a film while the film it was loaded with still lies
 ## where the load laid it, the same item (the ItemState itself, so a vanished film's recycled id
@@ -23,17 +21,33 @@ extends TaskType
 ## frame (ADR §3.2: ALIVE players with their feet outside the camera's cylinder, so never the
 ## shooter, whose head lies in the PhotoFrame with a clear line from the lens; has_person never
 ## sent, PE5) and the record (ADR §3.3), then ShotTaken to everyone. A film with no shot is fresh;
-## shots stay on their film whoever carries it, until ResetMatch (ADR §2.8).
+## shots stay on their film whoever carries it, until it is printed (ADR §2.8).
 ##
-## Refusals (use_problem, after HandNotTwoHanded, AtStation and StationInSight): `unavailable` once
-## the task is done (PD12) and at every station but the camera (P2); at a loaded camera
-## `no_frames_left` when its film has frames_per_film shots; at an empty one `no_film` when the
-## actor carries no film, `film_exposed` when every film it carries has a shot (PD16 (a)). None
-## reads a role; each names only what the actor carries or the camera's public state.
+## The box (ADR §2.5, PE7): a new film, given to the actor by GiveItem.give_new (the film kind's
+## cap, ItemSpawned, Items.give, ItemPickedUp), also once the task is done (PD12). The printer
+## (§2.6, PD3, PD16 (a), PE8): the actor's film with a shot (the hand's, else the belt's) prints
+## every shot it has, in shot order, each a photo on the tray (the photo kind's cap, ItemSpawned,
+## PhotoPrinted, item_rested `spawn`), then the film vanishes (Items.vanish, ItemVanished). The
+## board (§2.7, PD6, PE9): the actor's photo (the hand's, else the belt's) with a person in its shot
+## is locked there for good (Items.lock_at), PhotoHung counted, then the next subtask is done
+## (Tasks.subtask_done: TaskState, TaskProgress); one without lies there (Items.lay_on_station),
+## PhotoHung not counted, for PickUp to take down. The cap (PE10, cap_tier): a fresh film outside
+## the camera vanishes before one with shots, the camera's film last; every photo alike. A vanish
+## in a command of this type drops the vanished item's entries in that command (_prune).
 ##
-## Emits: StationPlaced and ItemSpawned (everyone) in the deal; FilmLoaded and ShotTaken
-## (everyone) on a use (use_emits). Raises item_rested (spawn) in the deal and (on_station) at a
-## load. No event names a player (PD13).
+## Refusals (use_problem, after the rule's HandNotTwoHanded, AtStation and StationInSight): the box
+## only `unavailable` when the film kind is at its cap with none loose (GiveItem.cap_problem); the
+## others `unavailable` once the task is done (PD12); at a loaded camera `no_frames_left` when its
+## film has frames_per_film shots; at an empty one `no_film` when the actor carries no film,
+## `film_exposed` when every film it carries has a shot (PD16 (a)); at the printer
+## `nothing_to_print` when no film the actor carries has a shot; at the board `no_photo` when it
+## carries no photo. None reads a role; each names only what the actor carries or public state.
+##
+## Emits: StationPlaced and ItemSpawned (everyone) in the deal; on a use (use_emits) FilmLoaded,
+## ShotTaken, PhotoPrinted, PhotoHung, ItemSpawned, ItemVanished, Items.give's ItemPlaced and
+## ItemPickedUp, TaskState and TaskProgress (everyone). Raises item_rested (spawn) in the deal and
+## at a print, (on_station) at a load and an uncounted hang, and subtask_done at a counted hang.
+## No event names a player (PD13).
 
 ## The centimetres of a metre, for the whole-number arguments of HostText.PHOTO_SPOT_NEAR.
 const CM := 100.0
@@ -74,9 +88,17 @@ class Film:
 	var shots := PackedInt32Array()
 
 
-## The photo task's state (§9.1): the station ids, the photos to hang, the camera's film, the
-## shots and the films that have them, and the counted photos (P3 fills it). Only PhotoTask reads
-## and writes it; nothing of it is sent but through its events.
+## A printed photo: the item itself (identity, as Film) and the shot it shows.
+class Print:
+	extends RefCounted
+
+	var item: ItemState
+	var shot := 0
+
+
+## The photo task's state (§9.1): the station ids, the tray, the photos to hang, the camera's film,
+## the shots, the films that have them, the printed photos and the counted shots. Only PhotoTask
+## reads and writes it; nothing of it is sent but through its events.
 class State:
 	extends TaskState
 
@@ -85,6 +107,8 @@ class State:
 	var film_box := -1
 	var printer := -1
 	var board := -1
+	## The printer's tray: the `photo` marker of the level dealt on (PE8).
+	var tray := Vector3.ZERO
 	## The subtasks: the setting at the deal.
 	var photos := 0
 	## The film the camera was loaded with, and its move serial after the load (PE17).
@@ -94,7 +118,9 @@ class State:
 	var shots: Dictionary[int, Shot] = {}
 	## Film item id -> its entry.
 	var films: Dictionary[int, Film] = {}
-	## The shots whose photos were hung counted (P3).
+	## Photo item id -> its entry.
+	var prints: Dictionary[int, Print] = {}
+	## The shots whose photos were hung counted, in hang order.
 	var counted := PackedInt32Array()
 
 	func done_count() -> int:
@@ -109,6 +135,11 @@ class State:
 	## The entry of `item` if it is that very film and has a shot, else null (fresh).
 	func film_of(item: ItemState) -> Film:
 		var entry: Film = films.get(item.id)
+		return entry if entry != null and entry.item == item else null
+
+	## The entry of `item` if it is that very photo, printed by this task, else null.
+	func print_of(item: ItemState) -> Print:
+		var entry: Print = prints.get(item.id)
 		return entry if entry != null and entry.item == item else null
 
 
@@ -159,6 +190,7 @@ func deal(ctx: MatchContext) -> void:
 	task_state.film_box = placed[2].id
 	task_state.printer = placed[3].id
 	task_state.board = placed[4].id
+	task_state.tray = ctx.layout.positions(photo.spawn_tag)[0]
 	for station: StationState in placed:
 		ctx.emit(
 			StationPlacedEvent.new(station.id, station.kind.id, station.colour, station.position)
@@ -178,19 +210,18 @@ func use_problem(ctx: MatchContext, task: MatchTask, station: StationState) -> S
 	if task == null:
 		return StationUsable.UNAVAILABLE
 	var task_state := task.state as State
-	if task_state.is_done() or station.id != task_state.camera:
+	if station.id == task_state.film_box:
+		return GiveItem.cap_problem(ctx.state, film)
+	if task_state.is_done():
 		return StationUsable.UNAVAILABLE
-	var loaded := _loaded(ctx, task_state)
-	if loaded != null:
-		var entry := task_state.film_of(loaded)
-		var shots := entry.shots.size() if entry != null else 0
-		return StationUsable.NO_FRAMES_LEFT if shots >= frames_per_film else &""
-	var carried := _carried_films(ctx)
-	if carried.is_empty():
-		return StationUsable.NO_FILM
-	if _fresh(task_state, carried) == null:
-		return StationUsable.FILM_EXPOSED
-	return &""
+	var problem := StationUsable.UNAVAILABLE
+	if station.id == task_state.camera:
+		problem = _camera_problem(ctx, task_state)
+	elif station.id == task_state.printer:
+		problem = &"" if _exposed(ctx, task_state) != null else StationUsable.NOTHING_TO_PRINT
+	elif station.id == task_state.board:
+		problem = &"" if _carried_photo(ctx) != null else StationUsable.NO_PHOTO
+	return problem
 
 
 func use_reasons() -> Array[StringName]:
@@ -199,6 +230,8 @@ func use_reasons() -> Array[StringName]:
 		StationUsable.NO_FILM,
 		StationUsable.NO_FRAMES_LEFT,
 		StationUsable.FILM_EXPOSED,
+		StationUsable.NOTHING_TO_PRINT,
+		StationUsable.NO_PHOTO,
 	]
 
 
@@ -206,25 +239,48 @@ func use_station(ctx: MatchContext, task: MatchTask, station: StationState) -> v
 	if task == null:
 		return  # StationUsable refused it.
 	var task_state := task.state as State
-	if station.id != task_state.camera:
-		ctx.error("PhotoTask: station %d takes no use yet" % station.id)
-		return
-	var loaded := _loaded(ctx, task_state)
-	if loaded != null:
-		_shoot(ctx, task_state, station, loaded)
-		return
-	var fresh := _fresh(task_state, _carried_films(ctx))
-	if fresh == null:
-		ctx.error("PhotoTask: player %d carries no fresh film to load" % ctx.actor)
-		return
-	Items.lay_on_station(ctx, fresh, station.position)
-	task_state.loaded = fresh
-	task_state.loaded_moves = fresh.moves
-	ctx.emit(FilmLoadedEvent.new(station.id, fresh.id))
+	if station.id == task_state.film_box:
+		GiveItem.give_new(ctx, film, station.position)
+		_prune(ctx.state, task_state)
+	elif station.id == task_state.camera:
+		_use_camera(ctx, task_state, station)
+	elif station.id == task_state.printer:
+		_print(ctx, task_state)
+	elif station.id == task_state.board:
+		_hang(ctx, task, station)
+	else:
+		ctx.error("PhotoTask: station %d takes no use" % station.id)
 
 
 func use_emits() -> Array[Script]:
-	return [FilmLoadedEvent, ShotTakenEvent]
+	return [
+		FilmLoadedEvent,
+		ShotTakenEvent,
+		PhotoPrintedEvent,
+		PhotoHungEvent,
+		ItemSpawnedEvent,
+		ItemVanishedEvent,
+		ItemPlacedEvent,
+		ItemPickedUpEvent,
+		TaskStateEvent,
+		TaskProgressEvent,
+	]
+
+
+## PE10's tiers for the film kind's cap: 2 the film in the camera, 1 a film with shots elsewhere, 0
+## a fresh one; every photo 0, since a tier by its shot's person would tell everyone through
+## ItemVanished which photos hold one (PE5). Which film has shots and which lies in the camera are
+## public already (FilmLoaded, ShotTaken, film_exposed).
+func cap_tier(state: MatchState, item: ItemState) -> int:
+	if film == null or item.kind != film:
+		return 0
+	var task := Stations.task_of(state, self)
+	if task == null:
+		return 0
+	var task_state := task.state as State
+	if _loaded_in(state, task_state) == item:
+		return 2
+	return 1 if task_state.film_of(item) != null else 0
 
 
 ## Exactly one marker of each station kind's tag, one `photo` marker (the printer's tray) and one
@@ -241,7 +297,17 @@ func add_demands(_settings: Dictionary[StringName, int], _players: int, into: De
 
 
 func emits() -> Array[Script]:
-	return [StationPlacedEvent, ItemSpawnedEvent, FilmLoadedEvent, ShotTakenEvent]
+	return [
+		StationPlacedEvent,
+		ItemSpawnedEvent,
+		FilmLoadedEvent,
+		ShotTakenEvent,
+		PhotoPrintedEvent,
+		PhotoHungEvent,
+		ItemVanishedEvent,
+		TaskStateEvent,
+		TaskProgressEvent,
+	]
 
 
 ## The level fit check (PE12, FitCheck and LayoutCheck through TaskType.layout_problems): a photo
@@ -406,13 +472,13 @@ static func _pays_cooldown(kind: StationKind) -> bool:
 	return false
 
 
-## Whether the level being entered has a marker of each station kind and of the film's tag; the
-## fit check keeps a match from getting here without them.
+## Whether the level being entered has a marker of each station kind and of the film's and the
+## photo's tags; the fit check keeps a match from getting here without them.
 func _fits(ctx: MatchContext) -> bool:
 	if ctx.layout == null:
 		ctx.error("PhotoTask: no layout for the level being entered")
 		return false
-	var tags: Array[StringName] = [film.spawn_tag]
+	var tags: Array[StringName] = [film.spawn_tag, photo.spawn_tag]
 	for kind: StationKind in _kinds():
 		tags.append(kind.spawn_tag)
 	for tag: StringName in tags:
@@ -422,26 +488,114 @@ func _fits(ctx: MatchContext) -> bool:
 	return true
 
 
+## The camera's refusal (ADR §2.2, §2.3): at a loaded camera `no_frames_left` once its film has
+## every frame shot; at an empty one `no_film` or `film_exposed` by what the actor carries.
+func _camera_problem(ctx: MatchContext, task_state: State) -> StringName:
+	var loaded := _loaded_in(ctx.state, task_state)
+	if loaded != null:
+		var entry := task_state.film_of(loaded)
+		var shots := entry.shots.size() if entry != null else 0
+		return StationUsable.NO_FRAMES_LEFT if shots >= frames_per_film else &""
+	var carried := _carried(ctx, film)
+	if carried.is_empty():
+		return StationUsable.NO_FILM
+	if _fresh(task_state, carried) == null:
+		return StationUsable.FILM_EXPOSED
+	return &""
+
+
+## The camera's use: a shot when it holds a film, else the load of the actor's fresh film.
+func _use_camera(ctx: MatchContext, task_state: State, station: StationState) -> void:
+	var loaded := _loaded_in(ctx.state, task_state)
+	if loaded != null:
+		_shoot(ctx, task_state, station, loaded)
+		return
+	var fresh := _fresh(task_state, _carried(ctx, film))
+	if fresh == null:
+		ctx.error("PhotoTask: player %d carries no fresh film to load" % ctx.actor)
+		return
+	Items.lay_on_station(ctx, fresh, station.position)
+	task_state.loaded = fresh
+	task_state.loaded_moves = fresh.moves
+	ctx.emit(FilmLoadedEvent.new(station.id, fresh.id))
+
+
+## The print (ADR §2.6, PD3, PD16 (a), PE8, PE11): each shot of the actor's exposed film, in shot
+## order, a photo on the tray (the photo kind's cap first: GiveItem.make_room), ItemSpawned,
+## PhotoPrinted, item_rested `spawn`; then the film vanishes and its entry goes. Should the cap
+## find no loose photo (the check's floor keeps that from happening) the film keeps the shots
+## not printed, with the error logged.
+func _print(ctx: MatchContext, task_state: State) -> void:
+	var item := _exposed(ctx, task_state)
+	if item == null:
+		ctx.error("PhotoTask: player %d carries no film with a shot to print" % ctx.actor)
+		return
+	var entry := task_state.film_of(item)
+	var printed := 0
+	for shot: int in entry.shots:
+		if not GiveItem.make_room(ctx, photo):
+			ctx.error("PhotoTask: the photo kind is at its cap with none loose")
+			break
+		var made := Items.spawn(ctx, photo, task_state.tray)
+		if made == null:
+			break  # Every item id in use (Items.spawn logged it).
+		var binding := Print.new()
+		binding.item = made
+		binding.shot = shot
+		task_state.prints[made.id] = binding
+		ctx.emit(ItemSpawnedEvent.new(made.id, photo.id, made.position))
+		ctx.emit(PhotoPrintedEvent.new(made.id, shot))
+		Items.raise_rested(ctx, made, Items.SPAWN)
+		printed += 1
+	if printed < entry.shots.size():
+		entry.shots = entry.shots.slice(printed)
+	else:
+		Items.vanish(ctx, item)
+	_prune(ctx.state, task_state)
+
+
+## The hang (ADR §2.7, PD6, PE9, PE11): the actor's photo, the hand's, else the belt's. Its shot
+## has a person: PhotoHung counted, locked on the board for good, then the next subtask done.
+## Else PhotoHung not counted, and it lies on the board for PickUp to take down.
+func _hang(ctx: MatchContext, task: MatchTask, station: StationState) -> void:
+	var task_state := task.state as State
+	var item := _carried_photo(ctx)
+	if item == null:
+		ctx.error("PhotoTask: player %d carries no photo to hang" % ctx.actor)
+		return
+	var entry := task_state.print_of(item)
+	var shot: Shot = task_state.shots.get(entry.shot) if entry != null else null
+	var counted := shot != null and shot.has_person
+	ctx.emit(PhotoHungEvent.new(item.id, station.id, counted))
+	if not counted:
+		Items.lay_on_station(ctx, item, station.position)
+		return
+	Items.lock_at(ctx, item, station.position)
+	var index := task_state.counted.size()
+	task_state.counted.append(shot.id)
+	Tasks.subtask_done(ctx, task, {"subtask": index, "item": item.id, "shot": shot.id})
+
+
 ## The camera's film (PE17): the item it was loaded with, while that very ItemState is still in the
 ## match, lying, with the move serial the load left; else null (the camera is empty).
-func _loaded(ctx: MatchContext, task_state: State) -> ItemState:
+func _loaded_in(state: MatchState, task_state: State) -> ItemState:
 	var item := task_state.loaded
 	if item == null:
 		return null
-	if ctx.state.items.get(item.id) != item:
+	if state.items.get(item.id) != item:
 		return null
 	if item.where != ItemState.Where.GROUND or item.moves != task_state.loaded_moves:
 		return null
 	return item
 
 
-## The films the actor carries: the hand's, then the belt's.
-func _carried_films(ctx: MatchContext) -> Array[ItemState]:
+## The items of `kind` the actor carries: the hand's, then the belt's.
+func _carried(ctx: MatchContext, kind: ItemKind) -> Array[ItemState]:
 	var found: Array[ItemState] = []
 	for item: ItemState in [
 		Items.held_by(ctx.state, ctx.actor), Items.belted_by(ctx.state, ctx.actor)
 	]:
-		if item != null and item.kind == film:
+		if item != null and item.kind == kind:
 			found.append(item)
 	return found
 
@@ -452,6 +606,44 @@ func _fresh(task_state: State, carried: Array[ItemState]) -> ItemState:
 		if task_state.film_of(item) == null:
 			return item
 	return null
+
+
+## The actor's first film with a shot, the hand's, else the belt's (PE11), or null.
+func _exposed(ctx: MatchContext, task_state: State) -> ItemState:
+	for item: ItemState in _carried(ctx, film):
+		if task_state.film_of(item) != null:
+			return item
+	return null
+
+
+## The actor's photo, the hand's, else the belt's (PE11), or null.
+func _carried_photo(ctx: MatchContext) -> ItemState:
+	var carried := _carried(ctx, photo)
+	return carried[0] if not carried.is_empty() else null
+
+
+## Drops the entries of items no longer in the match (a vanish at a cap or a print, in the
+## vanishing command; ARCHITECTURE §9.5): a film's, a photo's, the shots none of the rest shows,
+## and the camera's film. The identity checks already keep a recycled id from reading them.
+func _prune(state: MatchState, task_state: State) -> void:
+	for id: int in task_state.films.keys():
+		if state.items.get(id) != task_state.films[id].item:
+			task_state.films.erase(id)
+	for id: int in task_state.prints.keys():
+		if state.items.get(id) != task_state.prints[id].item:
+			task_state.prints.erase(id)
+	var shown: Dictionary[int, bool] = {}
+	for entry: Film in task_state.films.values():
+		for shot: int in entry.shots:
+			shown[shot] = true
+	for entry: Print in task_state.prints.values():
+		shown[entry.shot] = true
+	for shot: int in task_state.shots.keys():
+		if not shown.has(shot):
+			task_state.shots.erase(shot)
+	var loaded := task_state.loaded
+	if loaded != null and state.items.get(loaded.id) != loaded:
+		task_state.loaded = null
 
 
 ## The shot (ADR §2.3, §3.2, §3.3): who counts, the record, the film's next shot, then ShotTaken.

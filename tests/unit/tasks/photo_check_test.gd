@@ -101,7 +101,23 @@ func test_the_item_caps_at_the_floor_pass_and_one_below_is_refused() -> void:
 
 
 func test_use_emits_names_the_events_a_use_sends() -> void:
-	assert_array(_names(PhotoTask.new().use_emits())).is_equal([&"FilmLoaded", &"ShotTaken"])
+	(
+		assert_array(_names(PhotoTask.new().use_emits()))
+		. is_equal(
+			[
+				&"FilmLoaded",
+				&"ShotTaken",
+				&"PhotoPrinted",
+				&"PhotoHung",
+				&"ItemSpawned",
+				&"ItemVanished",
+				&"ItemPlaced",
+				&"ItemPickedUp",
+				&"TaskState",
+				&"TaskProgress",
+			]
+		)
+	)
 
 
 func test_both_leak_lists_name_every_event_the_photo_task_emits() -> void:

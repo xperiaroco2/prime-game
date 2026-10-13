@@ -34,11 +34,25 @@ const NO_FRAMES_LEFT := &"no_frames_left"
 ## The camera holds no film, and every film the actor carries is exposed (the photo ADR §3.2):
 ## reveals only the actor's own carried items.
 const FILM_EXPOSED := &"film_exposed"
+## No film the actor carries has a shot to print (the photo ADR §2.6, #782): reveals only the
+## actor's own carried items.
+const NOTHING_TO_PRINT := &"nothing_to_print"
+## The actor carries no photo to hang (the photo ADR §2.7, #782): reveals only the actor's own
+## carried items.
+const NO_PHOTO := &"no_photo"
 ## Every reason use_problem may return, and a type may list in use_reasons(). A new one updates
 ## ARCHITECTURE §9.4.1's row (what it reveals) and station_usable_test.gd, and the protocol
 ## version (a client of the old one never gets it).
 const REASONS: Array[StringName] = [
-	UNAVAILABLE, WRONG_ITEM, EMPTY_HAND, TWO_HANDED, NO_FILM, NO_FRAMES_LEFT, FILM_EXPOSED
+	UNAVAILABLE,
+	WRONG_ITEM,
+	EMPTY_HAND,
+	TWO_HANDED,
+	NO_FILM,
+	NO_FRAMES_LEFT,
+	FILM_EXPOSED,
+	NOTHING_TO_PRINT,
+	NO_PHOTO,
 ]
 
 

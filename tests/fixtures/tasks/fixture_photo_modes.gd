@@ -10,7 +10,8 @@ extends RefCounted
 ## `banned_task_types` and `photos` (0 to MOST_PHOTOS), the task type PhotoTask (FRAMES frames,
 ## FOV_DEG, ASPECT, RANGE_M) whose kinds `camera`, `film_box`, `printer` and `board` (radius 1 m,
 ## height 2 m) each have the Interact rule HandNotTwoHanded, AtStation, StationInSight,
-## StationUsable; UseStation (the box's with a Cooldown first), `photo_spot` a display kind with no
+## StationUsable; UseStation (the box's without HandNotTwoHanded, a take being a take, and with a
+## Cooldown last: CD3 (b), PE7), `photo_spot` a display kind with no
 ## rule; the deal (DealTasks) before PlacePlayers on `lobby, all_ready -> round`, Round accepting
 ## Interact from the living.
 ##
@@ -27,7 +28,7 @@ const FOV_DEG := 60.0
 const ASPECT := 1.5
 const RANGE_M := 10.0
 const MOST_PHOTOS := 3
-const BOX_COOLDOWN_S := 1.0
+const BOX_COOLDOWN_S := 0.25
 const CAMERA_AT := Vector3(0, 0, 20)
 const SPOT_AT := Vector3(0, 0, 30)
 const BOX_AT := Vector3(-6, 0, 20)
@@ -115,14 +116,15 @@ static func kind(kind_id: StringName) -> StationKind:
 	return made
 
 
-## The film box's rule: the use rule paying a Cooldown (PE14).
+## The film box's rule (PE7, PE14): AtStation, StationInSight, StationUsable, a Cooldown;
+## UseStation.
+## No HandNotTwoHanded: nothing in the hands refuses a take (CD3 (b)).
 static func box_rule() -> Rule:
 	return (
 		FixtureModes
 		. rule(
 			Intents.INTERACT,
 			[
-				HandNotTwoHanded.new(),
 				AtStation.new(),
 				StationInSight.new(),
 				StationUsable.new(),
@@ -268,3 +270,28 @@ static func in_round_with_killer(peers: Array[int], killers: Array[FixtureKillTi
 	killers.append(killer)
 	mode.find_phase(&"round").tick_systems.append(killer)
 	return in_round(mode, peers)
+
+
+## `peer` loads `film_item` (taking it first unless it carries it), takes `shots` shots of whoever
+## stands in the frame then, and takes the film out: it ends exposed in `peer`'s hand.
+static func expose(game: Match, peer: int, film_item: ItemState, shots: int) -> void:
+	if (
+		Items.held_by(game.state, peer) != film_item
+		and Items.belted_by(game.state, peer) != film_item
+	):
+		take(game, peer, film_item)
+	var camera := camera_of(game)
+	use(game, peer, camera)
+	for i in shots:
+		use(game, peer, camera)
+	take(game, peer, film_item)
+
+
+## The photos printed so far (PhotoPrinted's items, in order), as the match holds them.
+static func printed(game: Match) -> Array[ItemState]:
+	var found: Array[ItemState] = []
+	for event: MatchEvent in game.view_of(game.state.present_peers()[0]).events_named(
+		&"PhotoPrinted"
+	):
+		found.append(game.state.items.get((event as PhotoPrintedEvent).item) as ItemState)
+	return found

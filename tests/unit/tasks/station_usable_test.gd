@@ -23,6 +23,8 @@ func test_the_reasons_are_the_ones_architecture_describes() -> void:
 				&"no_film",
 				&"no_frames_left",
 				&"film_exposed",
+				&"nothing_to_print",
+				&"no_photo",
 			]
 		)
 	)
