@@ -4593,8 +4593,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   in the physics step (base clips cross-faded, a time scale, the carry layer filtered to `Torso` and every bone below
   it, a one-shot), with no root motion (the clips are in place; the body's code moves the body, the collision capsule
   is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
-  the hand, belt and carry points where the placeholder had them at the rest pose (placeholders until a `shot`). A
-  tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+  the hand, belt and carry points where the placeholder had them at the idle clip's first frame, never the rest pose
+  (the art's arms-out bind pose, which the clips lower; placeholders until a `shot`). A tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
 - The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
@@ -4620,8 +4620,9 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   the host's velocity. The spring is the capsule's on the pelvis (the data's parentless body): to the point plus the
   pelvis' smallest half extent, the vertical term whole, across the floor faded by how much the pelvis lies (its axis
   up the body, measured at the idle pose), the same velocity change on every bone so it moves the body, not its
-  joints; past `SNAP_M` every bone moves by one offset. The bones take the capsule's low `FRICTION`, not the data's,
-  so the floor does not hold a body off the point. `lie_at_rest` lays the rig on its back along the yaw's
+  joints; past `SNAP_M` from where the pelvis belongs (the lying centre raised by the standing pelvis height as much
+  as it stands, so a standing pose is never snapped into the floor) every bone moves by one offset. The bones take
+  the capsule's low `FRICTION`, not the data's, so the floor does not hold a body off the point. `lie_at_rest` lays the rig on its back along the yaw's
   axis with its pelvis on the lying centre; `make_dead` greys the tint and puts every bone on no layer; the handover
   to `BodyViews` keeps it simulating, and `BodyViews.character` (set by `Game` with `AvatarViews.character`) dresses
   a fresh body. The living rig has no physical bones. The export ships the data (`include_filter="*.ragdoll.json"`
