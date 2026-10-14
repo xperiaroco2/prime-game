@@ -177,6 +177,40 @@ class AsideTest(unittest.TestCase):
             self.assertEqual(committed.stat().st_mtime_ns, old)  # the import stays current (check.freshness)
             self.assertFalse((root / "art/b.wav.import").exists())
 
+    def test_a_glb_stand_in_holds_the_nodes_the_scenes_override(self) -> None:
+        scene = (
+            '[gd_scene format=3]\n\n'
+            '[ext_resource type="PackedScene" path="res://levels/kit/pack/fence.tscn" id="1"]\n'
+            '[ext_resource type="PackedScene" path="res://assets/environment/pack/gate.glb" id="2"]\n\n'
+            '[node name="Room" type="Node3D"]\n\n'
+            '[node name="fence_1" parent="." unique_id=5 instance=ExtResource("1")]\n\n'
+            '[node name="fence" parent="fence_1" index="0"]\n'
+            'surface_material_override/0 = null\nsurface_material_override/1 = null\n\n'
+            '[node name="gate_1" parent="." instance=ExtResource("2")]\n\n'
+            '[node name="gate" parent="gate_1"]\ninstance_shader_parameters/plan_at = Vector4(0, 0, 0, 0)\n\n'
+            '[node name="leaf" type="StaticBody3D" parent="gate_1"]\ncollision_layer = 0\n'
+        )
+        wrapper = (
+            '[gd_scene format=3]\n\n'
+            '[ext_resource type="PackedScene" path="res://assets/environment/pack/fence.glb" id="1"]\n'
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for rel, text in (("levels/rooms/room.tscn", scene), ("levels/kit/pack/fence.tscn", wrapper)):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                (root / rel).write_text(text, encoding="utf-8", newline="")
+            outline = lfs.glb_outline(root)
+        self.assertEqual(
+            outline, {"assets/environment/pack/fence.glb": {"fence": 2}, "assets/environment/pack/gate.glb": {"gate": 1}}
+        )
+        data = lfs.stand_in("assets/environment/pack/fence.glb", outline)
+        assert data is not None
+        self.assertTrue(data.startswith(b"glTF"))
+        self.assertEqual(len(data) % 4, 0)
+        self.assertIn(b'"name":"fence"', data)
+        self.assertEqual(data.count(b'"POSITION":0'), 2)
+        self.assertEqual(lfs.stand_in("assets/environment/pack/other.glb", outline), lfs.STAND_INS[".glb"])
+
     def test_every_stand_in_is_its_format(self) -> None:
         signatures = {
             ".png": b"\x89PNG\r\n\x1a\n",
