@@ -883,7 +883,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
-| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`, 8 `crouched`, #790: the pose at the claim's last physics step, kept only where the crouch plays, §7.1.17; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
+| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`, 8 `crouched`, #790: the pose at the claim's last physics step, kept for a living claim in any phase, §7.1.17; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
 | 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
@@ -974,7 +974,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player where the crouch plays, §7.1.17; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -2323,7 +2323,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   claim's has no direction and clamps the pitch to ±89° (built in M4-2, §7.1), and every camera, head or basis the client builds from a
   remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
 - **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and the crouch's two
-  heights and two speeds (and `crouch_maps`, read through `GameFlow.crouch_plays`, #791) come from
+  heights and two speeds (#791; the crouch plays everywhere, #991) come from
   the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
   speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
@@ -2351,8 +2351,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   look; it keeps the standing capsule for collision, and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
   which no push search looks at: the downed collide with no player.
 - **The crouch** (#791, §7, §7.1.17): the controller claims its crouch as the pose of the step it sends (the claim's
-  `crouched` flag), and only where `GameFlow.crouch_plays` says it plays, the same test the host's `MovementRule`
-  keeps the flag by, so an honest crouched walk or crouched sprint is never corrected: 0 `Correction`s over the
+  `crouched` flag), wherever the player moves (the lobby included, #991), as the host's `MovementRule` keeps the
+  flag of a living claim in every phase that takes one, so an honest crouched walk or crouched sprint is never corrected: 0 `Correction`s over the
   loopback, also with packets held back and with jitter (`player_network_crouch_test.gd`). Its remote pose: the next
   bullet (727c).
 - **Remote players crouched** (#792, the crouch ADR's KE7; §7.1.17): the pose's `crouched` is the flag of the
@@ -4028,14 +4028,13 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
     player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
     none (never muffled).
-  - **Quiet** (#792, the crouch ADR's KD1 (b)): where the crouch plays (`WorldSounds.crouch_plays`, KE10, which
-    `Game` sets with the controller's), a step, the own or another player's, at or below the mode's
-    `crouch_fast_speed_mps` plays
+  - **Quiet** (#792, the crouch ADR's KD1 (b) as #991 changed it): anywhere (the crouch plays everywhere), a step,
+    the own or another player's, at or below the mode's `crouch_speed_mps` plays
     `FootstepCadence.QUIET_STEP_DB` (−6 dB, added to the muffle's) and is heard within `QUIET_STEP_RANGE_M` (6 m:
-    `SoundChooser.step`'s cut and `max_distance` alike); both ease linearly to a walk's step at the walk speed
-    (`quiet_of`). Both are placeholders, "not a decision". It is read from the step's speed, averaged over the
-    step (`step_speed_mps`, so one jittery frame of a pose never sets it), never the crouch flag. Elsewhere every
-    step is today's.
+    `SoundChooser.step`'s cut and `max_distance` alike); both ease linearly to a walk's step at the fast crouch's
+    `crouch_fast_speed_mps` (`quiet_of`; the ease is a placeholder), so Shift while crouched sounds like a walk.
+    Both numbers are placeholders, "not a decision". It is read from the step's speed, averaged over the step
+    (`step_speed_mps`, so one jittery frame of a pose never sets it), never the crouch flag.
   - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
     hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
     untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
@@ -4065,10 +4064,10 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
   downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
   engineer's, in a two-client `host`/`join` session (the PR). The quiet step (#792):
-  `footstep_cadence_test.gd` (`quiet_of` at, below, between and above the speeds; a mode without them; the step's
-  speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at crouch speed, today's at the walk speed
-  whatever the flag, eased between, cut beyond 6 m, the own slow steps too, and today's where the crouch does not
-  play).
+  `footstep_cadence_test.gd` (`quiet_of` at, below, between and above the speeds; a mode without them; equal
+  crouch speeds a hard edge; the step's speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at
+  crouch speed, a walk's at the fast crouch's (#991) and at the walk speed whatever the flag, eased between, cut
+  beyond 6 m, the own slow steps too).
 #### 4.7.43 Built in #601 (M6.2), the solo tutorial session in the game
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
@@ -4733,7 +4732,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
   living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable` and `crouched`,
-  the last only for a living player where the crouch plays, §7.1.17, #790; hand and belt items) reaches every player of
+  the last only for a living player, in any phase since #991, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`. #728's design (§7.1.18, built in 728b, #847) adds one exception: the own avatar while
@@ -5178,7 +5177,7 @@ The local player's controller (#46, `client/player/`):
   stays where the host has it with 0 `Correction`s, also on a clock that stands still and then jumps
   (`player_network_test.gd`, `player_controller_downed_test.gd`).
 - The crouch (#791, §7.1.17, the crouch ADR's KE5, KE6, KD4 (a), KD5 (b), KD6 (b)): while `crouch_held` (the held
-  `crouch` action on physical Ctrl, read inexactly so Ctrl+W still walks), living and where `crouch_plays`, the body
+  `crouch` action on physical Ctrl, read inexactly so Ctrl+W still walks), living, anywhere (#991), the body
   takes `crouch_height_m` at once: its own `CapsuleShape3D`'s height switches and the shape moves to half of it, so
   the feet stay, and the contact search's capsule follows; the head eases to `eye_height_of(crouched)` at the step
   view's rate. Without Ctrl it stands only where `test_move` from the feet straight up by the height difference
@@ -5187,11 +5186,10 @@ The local player's controller (#46, `client/player/`):
   `crouch_fast_speed_mps`, else `crouch_speed_mps`. Space while crouched stands up and jumps in the same step where
   the standing capsule fits, does not crouch again before it lands and crouches again on landing while Ctrl is held;
   where it does not fit, nothing happens. Every teleport and life change into the living takes the crouched capsule
-  first and stands only where the test from the new place finds room (the ADR's step 7); `crouch_plays` false, or a
-  life out of the living, stands the body at once. Each step's pose goes to `set_motion`'s `crouched`. `Game` sets
-  `crouch_plays` from `GameFlow.crouch_plays` (a phase on the match's map that the own mode's `crouch_maps` holds,
-  as the host's `Match.crouch_plays`), so the key does nothing in the lobby and on an unlisted map, and
-  `release_keys()` lets go of Ctrl with the other keys under the Esc menu.
+  first and stands only where the test from the new place finds room (the ADR's step 7); a
+  life out of the living stands the body at once. Each step's pose goes to `set_motion`'s `crouched`. The key
+  works in the lobby and on every map (the crouch ADR's amendment, #991: no per-map gate since `crouch_plays` and
+  `crouch_maps` went), and `release_keys()` lets go of Ctrl with the other keys under the Esc menu.
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
   only; the dead are on no layer; a living player finds the
@@ -5698,19 +5696,19 @@ The engineer decided a crouch for every player (#727: hold Ctrl; Shift while cro
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
 reads, do not move.
-- **Where.** On the House only (his answer; no new mechanic on the flat greybox). `PlayerRules.crouch_maps` lists the
-  mode's maps the crouch plays on (empty: every map), the shape of `TaskType.maps`; the base mode lists the House
-  alone. The crouch plays only in a phase on the match's map (`PhaseSpec.level` `MAP`) that the list holds, so never
-  in the lobby. Elsewhere the host keeps no crouch from a claim: the bit is ignored, as a downed claim's is, and the
-  claim is judged as a standing player's (KE10). Prevents: a crouch on the greybox, where every scenario, the chaos
-  run and the perf run play.
+- **Where.** Everywhere: the lobby, the tutorial, the House and the greybox (the engineer, 2026-10-14, #989, #991:
+  movement basics are never blocked anywhere, and no per-map option; the crouch ADR's amendment reverses KE10 (a),
+  which had kept it to the House by `PlayerRules.crouch_maps`). `MovementRule` keeps a living claim's bit in every
+  phase that accepts a `MoveClaim` (`PhaseSpec.accepts`), the lobby included, and a crouch lasts across a phase
+  change like any pose (a placement, a knockdown and a respawn stand the player up). Bots never crouch, so the
+  scenarios, the chaos run and the perf run on the greybox are unchanged.
 - **The claim.** `MoveClaim`'s and `MoveClaimReliable`'s flags gain `crouched` (8), the pose at the claim's last
   physics step, and the avatar's flags gain `crouched` (4), relayed in the snapshot: one protocol bump, no byte more
   (KE1); the photo task's `ShotTaken` record, once built, carries the same bit, and its subject's head takes the
   crouched eye (KE2). Prevents: a separate crouch intent on another lane, whose pose disagrees with the position for
   a round trip. `crouched` joins the public avatar fields (§5, both leak-test allowlists), and a scenario invariant
-  reads the mode's data, not the rule, to fail a crouch relayed for a player not living or where the crouch does not
-  play (the ADR's "Who sees what").
+  reads the player's state, not the rule, to fail a crouch relayed for a player not living (the ADR's "Who sees
+  what"; its phase and map clauses went with #991).
 - **The host** keeps `PlayerState.crouched` from the last accepted claim, false at every placement and knockdown, and
   ignores a downed claim's bit (KE2). It reads it for the eye (`Items.eye_of` takes `crouch_eye_height_m`, so every
   sight line of a crouched player starts there: a crouched player does all a standing one does, from that eye, KD8)
@@ -5729,8 +5727,9 @@ reads, do not move.
   while crouched stands up, then jumps, and does nothing where the standing capsule does not fit (KD6). Remote bodies
   take the pose from the snapshot, their capsule, head, mouth and sight point lowered with it (KE7); no name plate is
   drawn over any player (KD2, removed by #756). The steps of a slow walk are quieter and slower (KD1), read from the
-  speed as every step is, never the flag: at or below `crouch_fast_speed_mps` 6 dB quieter and heard within 6 m
-  (placeholders), eased to today's at the walk speed, only where the crouch plays; the cadence's held stride makes
+  speed as every step is, never the flag: at or below `crouch_speed_mps` 6 dB quieter and heard within 6 m
+  (placeholders), eased to a walk's at `crouch_fast_speed_mps` (#991: the fast crouch sounds like a walk; the ease a
+  placeholder), anywhere; the cadence's held stride makes
   them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8); since #791 it acts on Ctrl but has no
   Settings row (and so no rebinding) until the copy deck names `control.crouch` (`Controls.UNLISTED`, as `throw`, #851).
 - **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
@@ -5740,9 +5739,11 @@ reads, do not move.
   ends), and the level's walls block that whole band; whichever of R8 and 727a lands second widens it. Prevents: a
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
-  numbers, `crouch_maps`; #790, built), 727b (the local crouch; #791, built), 727c (others' crouch: pose, voice,
-  the quiet steps; #792, built).
-- **Built in #790 (727a)**, the host's part and the wire: `PlayerRules`' four crouch numbers and `crouch_maps`
+  numbers, `crouch_maps` (removed by #991); #790, built), 727b (the local crouch; #791, built), 727c (others'
+  crouch: pose, voice, the quiet steps; #792, built); #991 (the crouch everywhere, the quiet edge moved; built).
+- **Built in #790 (727a)** (#991 removed `crouch_maps`, `crouch_plays_on`, both `crouch_plays()`, the phase-entry
+  clearing and the invariant's phase and map clauses below), the host's part and the wire: `PlayerRules`' four
+  crouch numbers and `crouch_maps`
   (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
   `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
   `MovementRule` from an accepted living claim only where the crouch plays, never from a downed one, false at each
@@ -5763,7 +5764,8 @@ reads, do not move.
   crouches on the House alone) and `tests/integration/server/host_session_crouch_test.gd` (over the real wire: a
   crouched avatar shown, a downed claim's bit, an unlisted map's and the lobby's ignored, a raw client's crouched
   claim alike; each client's decode equals its `view_of`).
-- **Built in #791 (727b)**, the local player's crouch (§7's controller, §4.7.6): the `crouch` action on physical
+- **Built in #791 (727b)** (#991 removed `PlayerController.crouch_plays` and `GameFlow.crouch_plays`), the local
+  player's crouch (§7's controller, §4.7.6): the `crouch` action on physical
   Ctrl in `project.godot`, in `Controls.UNLISTED` (alive) until the deck names `control.crouch`, so `bind()` puts no
   living action on Ctrl; `PlayerController`'s `crouch_held`, `crouch_plays`, `is_crouched()` and `release_keys()`,
   the capsule switched with the feet kept, the eased eye, the `test_move` stand-up test, the crouched speeds, the
@@ -5780,7 +5782,8 @@ reads, do not move.
   `Input.parse_input_event`; the Esc menu releasing Ctrl; nothing in the lobby or on a map the list leaves out),
   `tests/unit/client/app/game_flow_test.gd` (`crouch_plays`) and `controls_test.gd` (the crouch on Ctrl, no living
   action on it).
-- **Built in #792 (727c)**, others' crouch and the quiet steps (KE7, KD1 (b)): `SnapshotBuffer.Pose.crouched`, the
+- **Built in #792 (727c)** (#991 removed `WorldSounds.crouch_plays` and moved the quiet edge to `crouch_speed_mps`),
+  others' crouch and the quiet steps (KE7, KD1 (b)): `SnapshotBuffer.Pose.crouched`, the
   flag of the snapshot at or before the drawn tick (never blended); `AvatarViews` calls
   `RemotePlayerBody.set_crouched` before `set_pose` (at once for a body drawn for the first time), which switches
   the capsule, the greybox look (`LifeLooks.capsule`, `shell`) and the sight point at once and eases the head with
@@ -5801,6 +5804,19 @@ reads, do not move.
   speed whatever the flag, eased between, cut beyond 6 m, the own slow steps quiet too, and today's step where the
   crouch does not play, on a fixture world); `player_network_crouch_test.gd` (each `Game`'s
   `WorldSounds.crouch_plays` set in the Round on a listed map, clear in the lobby and on an unlisted map).
+- **Built in #991** (the crouch ADR's amendment of 2026-10-14, the engineer's change on #989): the crouch plays
+  everywhere. Removed: `PlayerRules.crouch_maps` and `crouch_plays_on` with their mode check and the KD11 loop
+  (§7.1.18's `motion_maps` stays), `Match.crouch_plays`, `MatchContext.crouch_plays` and `_enter_phase`'s clearing,
+  `GameFlow.crouch_plays`, `PlayerController.crouch_plays` and `WorldSounds.crouch_plays`, the `crouch_maps` lines
+  of the base and tutorial modes. `MovementRule` keeps a living claim's bit in every phase that takes a claim;
+  `ScenarioInvariants.crouch_problem` keeps its "not alive" clause alone. The quiet step: `FootstepCadence.quiet_of
+  (speed, quiet_mps, loud_mps)` from `crouch_speed_mps` (quiet) to `crouch_fast_speed_mps` (a walk's), a hard edge
+  when the two are equal. Tests whose expectations the engineer changed: `movement_rule_crouch_test.gd` (kept and
+  shown in the lobby, kept across a phase change), `host_session_crouch_test.gd` (kept on the second map, in the
+  lobby and from a raw client there), `crouch_invariant_test.gd` (a lobby crouch passes),
+  `player_network_crouch_test.gd` (Ctrl crouches in the lobby), `player_rules_test.gd` (no per-map option),
+  `footstep_cadence_test.gd` and `world_sounds_steps_test.gd` (the fast crouch a walk's, the slow steps below
+  `crouch_speed_mps`).
 
 #### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll in 728d, #848)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
@@ -5858,7 +5874,8 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   by host-side integration tests that assert where a body may rest, not by `core/`'s determinism.
 - **The House only** (the engineer's answer; KE12). Bodies move only on the maps `PlayerRules.motion_maps` lists, the
   shape of `TaskType.maps` (the Generator ADR's GE15): the base mode lists the House alone, and the mode check
-  refuses a map where a body moves but the crouch does not play (`crouch_maps`, §7.1.17). On the flat greybox a
+  refuses a path that is not one of the mode's maps (its KD11 crouch clause went with `crouch_maps` in #991:
+  the crouch plays everywhere, §7.1.17). On the flat greybox a
   knockdown takes no launch and starts no host body, whatever the knife's numbers, so it is today's knockdown, still,
   mute and drawn as a ragdoll; the scenarios, the chaos run and the perf run, which play the greybox, see no motion,
   and the House's motion is checked by integration tests (bots do not play the House, §9.7). Prevents: the knife's
@@ -6467,9 +6484,9 @@ Settings:
   the height); step 0.3 m (0 to 1); the crouch (§7.1.17, the crouch ADR's KE2, #790): crouched height 1.2 m
   (`crouch_height_m`, twice the radius to the height), crouched eye 1.0 m (`crouch_eye_height_m`, below the crouched
   height), crouch walk 2.0 m/s (`crouch_speed_mps`, 0.1 to the walk) and with Shift 2.8 m/s (`crouch_fast_speed_mps`,
-  the crouch walk to the walk), playing on the House alone (`crouch_maps`, each one of the mode's maps; empty is
-  every map). A knockdown moves the body on the House alone (`motion_maps`, KE12 (a), #847: each one of the mode's
-  maps, empty is every map, and the mode check refuses a map where a body moves but the crouch does not play, KD11),
+  the crouch walk to the walk), playing everywhere (no per-map list since #991, the engineer's change on #989).
+  A knockdown moves the body on the House alone (`motion_maps`, KE12 (a), #847: each one of the mode's
+  maps, empty is every map),
   and the motion rests once the host's reports stay under 0.1 m/s (`rest_speed_mps`, 0.01 to 2) for 0.5 s (`rest_s`,
   0.05 to 5, counted in reports), or after 8 s at the longest (`longest_motion_s`, the rest time to 60): placeholders,
   "not a decision" (KD9 (b)), as are their bounds. Health and stamina are whole points here, thousandths inside `core/` (§3.3).
@@ -6760,8 +6777,8 @@ What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68)
 Settings:
 - Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
   (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
-  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait) and `crouch_maps` listing its own map
-  (the crouch plays on the tutorial's map; the engineer's answer (c), #790), which lesson 1's key row names (825c, #902; the mode file is unchanged). No `lobby_level` (E72), no
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait); its `crouch_maps`, which listed its own map
+  (the engineer's answer (c) on #790), went with #991: the crouch plays everywhere, and lesson 1's key row names it (825c, #902; the mode file is unchanged). No `lobby_level` (E72), no
   win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
   bound equal to its value): `packages` 1, `knives` 1 (no `tasks` or `banned_task_types` since #900).
 - Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. No task type (#900). Actions: PickUp,
@@ -7190,13 +7207,13 @@ behind a wall (planted unmuffled, failed, reverted), none beyond 12 m, the sessi
 
 #### 9.5.23 Crouch (not a part in v0)
 What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
-pose at the claim's last physics step. The host keeps it on a living player where the crouch plays and judges the
+pose at the claim's last physics step. The host keeps it on a living player in any phase (#991) and judges the
 claim with the crouched numbers in `PlayerRules` (`crouch_height_m` 1.2, `crouch_eye_height_m` 1.0,
 `crouch_speed_mps` 2.0, `crouch_fast_speed_mps` 2.8; provisional, "not a decision").
-Settings: `PlayerRules.crouch_maps`, the maps the crouch plays on (empty: every map). The base mode lists the House
-alone (KE10) and the tutorial mode its own room (#790, the engineer's answer (c)); the greybox gets no crouch.
+Settings: none of its own since #991 (the engineer's change on #989: no per-map option, the crouch plays everywhere;
+`PlayerRules.crouch_maps`, KE10, is gone).
 Why not a part: as for sprint.
-Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player where the crouch plays.
+Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player.
 Status: designed in #727; the host's part and the wire built in #790. Tests:
 `tests/unit/movement/movement_rule_crouch_test.gd`, `tests/integration/server/host_session_crouch_test.gd`,
 `tests/unit/content/content_modes_test.gd`.
@@ -7543,7 +7560,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
-| The crouch (#727, §7.1.17): footsteps, the name plate, things only a crouch passes (the raised car), standing up under a low ceiling, what Shift costs, a jump while crouched, a smaller target, what a crouched player may do, where it plays (KD1 to KD8 and KE10 of the [crouch ADR](decisions/2026-10-10-crouch.md)) | Settled by the engineer on 2026-10-10 (PR #752, comments 6097878317 and 6098097098): KD1 (b), the steps quieter and slower; KD2, no name plates over any player (#756); KD5 and KD6 (b); the rest (a); the numbers placeholders marked "not a decision"; the crouch on the House only (KE10). Then the issues 727a to 727c (M7 backlog), none built until he says so. Open: KD6's landing (crouched again on landing while Ctrl is held, recommended, or only at a fresh press) |
+| The crouch (#727, §7.1.17): footsteps, the name plate, things only a crouch passes (the raised car), standing up under a low ceiling, what Shift costs, a jump while crouched, a smaller target, what a crouched player may do, where it plays (KD1 to KD8 and KE10 of the [crouch ADR](decisions/2026-10-10-crouch.md)) | Settled by the engineer on 2026-10-10 (PR #752, comments 6097878317 and 6098097098): KD1 (b), the steps quieter and slower; KD2, no name plates over any player (#756); KD5 and KD6 (b); the rest (a); the numbers placeholders marked "not a decision"; the crouch on the House only (KE10), changed by him on 2026-10-14 (#989, #991, the ADR's amendment): the crouch plays everywhere and the quiet step covers only the crouch walk's speed (KD1 (b)). Then the issues 727a to 727c (M7 backlog), none built until he says so. Open: KD6's landing (crouched again on landing while Ctrl is held, recommended, or only at a fresh press) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (5 m/s since #646: the highest speed at which no throw rests on House's roof, less 0.5 m/s, #302 comment 6096074314), the item's radius (0.15 m) and the longest flight (3 s) are provisional, for the first playtest | the engineer, at the playtest; 37a to 37f (#641 to #646) are built |
 | The knockdown reworked (§7.1.18): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers, where the body's motion runs, the own avatar in a knocked-down player's snapshot, the slide while no House floor slopes, where a body may come to rest, a body launched out of everyone's reach, whether the host's body may turn, whether a table closes the space under it, a body raised in the lowered car (KD1 to KD15, KE1 and KE5 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md)) | Settled by the engineer on 2026-10-10 and 2026-10-11 (PR #754, comments 6097876326, 6100602989, 6108669765, 6109457234 and 6110171062): every recommendation but KD14's (he chose (a) over the recommended (b)), KD9's numbers placeholders marked "not a decision", and the launch on the House only (KE12); KD10 (A): the body is a real rigid body in the host's physics (`server/`), which rolls or slides it off any slope, roof or stairs by itself, with no slide rule, so KE1 is (b): `core/` keeps where the body is from the host's logged reports; KD11: the body's collider is a crouching player's, so it rests only where a crouching player fits, and a raised player gets up crouched there; KD12 (a): the levels keep every surface a launch can reach within a raise's reach of a spot a player can walk to, tables and the roof included (#646's reach convention applied to bodies, checked on the House by tests, no rule in `core/`); KD13 (a): the host's capsule never turns, so it slides and falls but never rolls (only each screen's ragdoll rolls) and slides off only a slope steeper than its friction angle. Then the issues 728a, 728b, 728d, 728e and 728f (M7 backlog; 728f the levels' convention for bodies and the House's check), none built until he says so. KD14 (a): the confirmed read-back stands, tables keep the space under them, and a body may rest under a table a crouching player fits under as long as a raise can reach it, with no level rule that closes tables; KD15 (a): a body launched into the lowered car, which only the clients collide with, and raised there is pushed out by the raised player's own client, the car's accepted quirk (RE8, RD6 (a)), with nothing new in code |

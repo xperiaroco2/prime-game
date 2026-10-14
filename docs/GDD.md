@@ -134,9 +134,12 @@ knocked-down player cannot crouch: since 728a (#846) it cannot move at all, it o
 
 His answers to the crouch design (PR #752, comments 6097878317 and 6098097098; the options and the reasons are in the
 [crouch ADR](decisions/2026-10-10-crouch.md)):
-- The crouch plays on the House only. The flat greybox has no crouch. (The lobby, a level of its own, has none
-  either: the design's reading of "the House only" (KE10), not a separate answer.)
-- A crouching player's steps are quieter and slower (KD1).
+- ~~The crouch plays on the House only. The flat greybox has no crouch. (The lobby, a level of its own, has none
+  either: the design's reading of "the House only" (KE10), not a separate answer.)~~ Changed by the engineer on
+  2026-10-14 (#989, #991): the crouch plays everywhere, the lobby, the tutorial, the House and the greybox:
+  movement basics are never blocked anywhere.
+- A crouching player's steps are quieter and slower (KD1). Since 2026-10-14 (#989, #991) only the crouch walk's
+  steps are quiet; the fast crouch (Shift while crouched) sounds like a walk.
 - No name plates over any player, standing or crouching (KD2); their removal is #756.
 - The raised car's height alone asks for the crouch, and no rule checks it (KD3; car repair's RD1 too).
 - Letting go of Ctrl under a low ceiling keeps the player crouched; it stands by itself once there is room (KD4).
