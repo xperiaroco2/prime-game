@@ -66,3 +66,19 @@ func _layout() -> LevelLayout:
 	var levels := MarkerReader.read_levels(load(MODE) as GameMode, FlatWorldQuery.new())
 	assert_array(Array(levels.errors)).is_empty()
 	return levels.layouts[MAP]
+
+
+func test_the_room_has_its_record_and_the_map_screen_names_it() -> void:
+	# #715 (#306): id `tutorial`, the deck's `room.tutorial` in English and Ukrainian, the outline
+	# from size_m.
+	var map: Node3D = auto_free((load(MAP) as PackedScene).instantiate())
+	var rooms := MapData.rooms_of(map)
+	assert_int(rooms.size()).is_equal(1)
+	assert_str(String(rooms[0].id)).is_equal("tutorial")
+	assert_str(rooms[0].name_key).is_equal("room.tutorial")
+	assert_object(rooms[0].rect).is_equal(Rect2(0, 0, 12, 10))
+	for locale: String in ["en", "uk"]:
+		var translation := load("res://client/i18n/strings.%s.translation" % locale) as Translation
+		var text := String(translation.get_message("room.tutorial"))
+		assert_str(text).is_not_empty()
+		assert_str(text).is_not_equal("room.tutorial")
