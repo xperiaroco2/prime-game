@@ -58,7 +58,10 @@ HANDOVER_TITLE = "Handover to a fresh manager session"
 HANDOVER_POST = re.compile(rf"(?m)^#{{1,6}}[ \t]*{HANDOVER_TITLE}[ \t]*$|--title[ =][\"']{HANDOVER_TITLE}[\"']")
 CLOSE_SESSION = re.compile(r"(?i)\bclose this session\b|\bзакрий(?:те)? цю сесію")
 PASTE = re.compile(r"(?i)\bpaste\b|\bвстав")
-NOT_PROMPTS = ("<task-notification>", "[Request interrupted")
+# What a record with no `origin` can start with and still be no human prompt: a notification, an interrupt, the
+# continuation summary after a compaction, the relay of an artifact comment.
+NOT_PROMPTS = ("<task-notification>", "[Request interrupted", "This session is being continued",
+               "[Artifact comment sent to Claude]")  # fmt: skip
 # Tools whose input is file content: a skill or doc that holds the handover title is no post of it.
 FILE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
@@ -161,7 +164,7 @@ def is_prompt(d: dict, content: object) -> bool:
     origin = d.get("origin")
     if isinstance(origin, dict) and origin.get("kind"):
         return origin.get("kind") == "human"
-    if d.get("isMeta") or (isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
+    if d.get("isMeta") or d.get("isCompactSummary") or (isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
                                                              for b in content)):  # fmt: skip
         return False
     words = metrics.text_of(content).lstrip()

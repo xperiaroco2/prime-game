@@ -390,6 +390,23 @@ class StallTest(unittest.TestCase):
                 self.assertIsNone(wave_stall.read_activity(self.p.write()).handed_over)
                 self.assertIsNotNone(self.stall(60))
 
+    def test_a_compaction_summary_or_a_comment_relay_is_no_prompt(self) -> None:
+        # Records with no `origin` (an older Claude Code): neither takes the handover back.
+        summary = "This session is being continued from a previous conversation that ran out of context."
+        relay = "[Artifact comment sent to Claude] On the page: looks fine"
+        for words, extra in ((summary, {}), (summary, {"isCompactSummary": True}), (relay, {})):
+            with self.subTest(words=words[:20], extra=extra):
+                self.p.lines = self.p.lines[:1]
+                self.handed_over()
+                self.p.add(dict(prompt(5, words, origin=None), **extra), tw.enqueue(10, timer_note("btimer")))
+                self.assertEqual(wave_stall.read_activity(self.p.write()).handed_over, minutes(0))
+                self.assertIsNone(self.stall(60))
+        # A record flagged as the summary is none even when its text is different.
+        self.p.lines = self.p.lines[:1]
+        self.handed_over()
+        self.p.add(dict(prompt(5, "Summary: the art track", origin=None), isCompactSummary=True))
+        self.assertEqual(wave_stall.read_activity(self.p.write()).handed_over, minutes(0))
+
     def test_the_command_line(self) -> None:
         args = cli.build_parser().parse_args(["wave", "--stalled"])
         self.assertEqual((args.stalled, args.minutes, args.since, args.args), (True, None, None, None))
