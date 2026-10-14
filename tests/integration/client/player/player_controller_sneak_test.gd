@@ -171,6 +171,12 @@ func test_crouched_under_a_slab_with_alt_held_stays_crouched_and_does_not_sneak(
 func test_the_alt_key_reaches_the_controller_through_the_input_map() -> void:
 	var player := await _player()
 	player.reads_device_input = true
+	# The right Alt does not sneak (the engineer's answer 2A on PR #1007).
+	_key(KEY_ALT, true, KEY_LOCATION_RIGHT)
+	await _world.frames(3)
+	assert_bool(player.sneak_held).is_false()
+	assert_bool(player.is_sneaking()).is_false()
+	_key(KEY_ALT, false, KEY_LOCATION_RIGHT)
 	_key(KEY_ALT, true)
 	await _world.frames(3)
 	assert_bool(player.sneak_held).is_true()
@@ -188,10 +194,14 @@ func test_the_alt_key_reaches_the_controller_through_the_input_map() -> void:
 	player.reads_device_input = false
 
 
-func _key(key: Key, pressed: bool) -> void:
+## The sneak's action is on the left Alt only (its event has KEY_LOCATION_LEFT), which Godot 4.7.2
+## matches only to a left Alt event: a key here is the left one unless `location` says otherwise,
+## as a keyboard reports it (the crouch's unlocated Ctrl takes either).
+func _key(key: Key, pressed: bool, location := KEY_LOCATION_LEFT) -> void:
 	var event := InputEventKey.new()
 	event.physical_keycode = key
 	event.keycode = key
 	event.pressed = pressed
+	event.location = location
 	Input.parse_input_event(event)
 	Input.flush_buffered_events()

@@ -138,13 +138,29 @@ func test_the_sneak_is_unlisted_on_alt_where_it_acts() -> void:
 	# every action of those phases, and a downed-only action may take it.
 	assert_bool(Controls.ACTIONS.has(&"sneak")).is_false()
 	assert_int(_key(Controls.default_event(&"sneak"))).is_equal(KEY_ALT)
+	# The left Alt only (the engineer's answer 2A on PR #1007): project.godot's event is located,
+	# so a right Alt press does not reach `sneak` (Godot 4.7.2's InputEventKey.action_match).
+	var setting := ProjectSettings.get_setting("input/sneak") as Dictionary
+	var alt := (setting["events"] as Array)[0] as InputEventKey
+	assert_int(alt.physical_keycode).is_equal(KEY_ALT)
+	assert_int(alt.location).is_equal(KEY_LOCATION_LEFT)
+	assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak")).is_true()
+	var right := _press_at(KEY_ALT, KEY_LOCATION_RIGHT)
+	assert_bool(InputMap.event_is_action(right, &"sneak")).is_false()
+	# A binding is a physical key on either side (normalised()), so an action bound to Alt would
+	# act on the left one too: a left or a right Alt press is kept from the sneak's phases alike.
 	var controls := Controls.new()
+	var left := _press_at(KEY_ALT, KEY_LOCATION_LEFT)
+	assert_array(Controls.unlisted_on(&"use", left)).contains_exactly([&"sneak"])
+	assert_array(Controls.unlisted_on(&"use", right)).contains_exactly([&"sneak"])
 	assert_array(Controls.unlisted_on(&"use", _press(KEY_ALT))).contains_exactly([&"sneak"])
+	assert_bool(controls.bind(&"use", left)).is_false()
+	assert_bool(controls.bind(&"use", right)).is_false()
 	assert_bool(controls.bind(&"use", _press(KEY_ALT))).is_false()
-	assert_bool(controls.bind(&"jump", _press(KEY_ALT))).is_false()
-	assert_bool(controls.bind(&"ready", _press(KEY_ALT))).is_false()
+	assert_bool(controls.bind(&"jump", left)).is_false()
+	assert_bool(controls.bind(&"ready", left)).is_false()
 	assert_bool(controls.is_default(&"use")).is_true()
-	assert_bool(controls.bind(&"give_up", _press(KEY_ALT))).is_true()
+	assert_bool(controls.bind(&"give_up", left)).is_true()
 	assert_int(_key(controls.event_of(&"give_up"))).is_equal(KEY_ALT)
 	assert_bool(controls.bind(&"sneak", _press(KEY_B))).is_false()
 
@@ -394,6 +410,12 @@ func _press(key: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.physical_keycode = key
 	event.pressed = true
+	return event
+
+
+func _press_at(key: Key, location: KeyLocation) -> InputEventKey:
+	var event := _press(key)
+	event.location = location
 	return event
 
 
