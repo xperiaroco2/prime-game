@@ -23,7 +23,8 @@ Rules:
   script stops there), unless that implementer handed over (a non-empty `handoff` from implement:#N or #N#2: the
   checkpoint arg's continuation, implement:#N#2 or #3, follows, #559) or a later implementer is still working;
   pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with no blocker or major finding
-  left to fix (each refuted by a skeptic); another workflow: every started agent answered.
+  left to fix (each refuted by a skeptic); another workflow (quick-task too, its own kind in metrics.read_run since
+  #1012, so its quick agent's result does not end it while its reviewers work): every started agent answered.
   Any other run is running: its agent now is each unanswered `started` (label and phase), and the minutes since the
   newest write to its journal or agent transcripts tell a live run from a stale one (a session that died never sends
   the notification).

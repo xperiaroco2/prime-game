@@ -19,8 +19,10 @@ Rules (the ADR's "How the baseline was computed"):
   lines and its hand-run subagents count inside the same window;
 - a tool call lasts from the assistant line that made it to the user line that carries its result;
 - a `verify` run is a "verify summary" block printed in a tool result, deduplicated per agent, with each step's seconds;
-- a run is finished when its journal ends with a result and every started agent has one; it is an `issue-task` run
-  when it has an implementer, `pr-rebase` when it has a rebaser, a resumed `issue-task` when it has only a publisher.
+- a run is finished when its journal ends with a result and every started agent has one; it is a `quick-task` run
+  when its workflow (the session's saved script's name, WORKFLOW_NAME's comment) is quick-task, or, with no saved
+  script, an agent worked in its Quick phase (#1012); else an `issue-task` run when it has an implementer, `pr-rebase`
+  when it has a rebaser, a resumed `issue-task` when it has only a publisher.
 Units: final context is the tokens of an agent's last API call, summed over agents (what the managers reported as
 "subagent tokens"); fresh tokens are input, cache writes and output without cache reads; API list $ weighs every kind
 of token and model at its API list price (PRICES): a weight, not money spent.
@@ -124,6 +126,12 @@ key, skeptics not run while blockers or majors stand, no diff reviewer, a PR of 
 the list, a branch without CI runs, a run list cut before the PR, `gh` skipped or failed. Medians and sums count only
 the known values and say how many are known; PR-level signals count once per PR.
 
+Quick-task runs (#1012), finished ones, apart from the issue-task tables: a row each (quick_of: wall time, its Quick
+and Review phases, $, the fresh reviewers' blockers and majors and those left open, a fix agent or not, PR, CI, and
+from `gh` its CI rounds, red rounds and merged), their medians (wall, $, CI rounds, how many ran a fix agent), the
+quality scorecard's per-session "quick-task" row (quality_summary over them), and clauses on the compact summary's
+lines; they are not "Other runs".
+
 Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, "How it was measured"), so its
 issues A to D are measured against the same baseline. Over the agents total_week counts (the counted runs' workflow
 agents by role, "other workflow agents" for an unknown label; the managers' own lines; their hand-run subagents):
@@ -152,7 +160,7 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
   `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
   its share of lines read again); `instructions.arch_reads` in the JSON record always;
-- per issue that 2 or more counted issue-task or pr-rebase runs worked on (#833; a pr-rebase under the issue of its
+- per issue that 2 or more counted issue-task, quick-task or pr-rebase runs worked on (#833; a pr-rebase under the issue of its
   PR): the runs, the $ after the first, the unfinished runs, the handoff continuations and the runs that started
   within RELAUNCH_BACK_TO_BACK after the previous one's end;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
@@ -459,6 +467,11 @@ BACKGROUND_ID = re.compile(r"running in background with ID: (\w+)")
 WORKFLOW_LAUNCH = re.compile(
     r"^Workflow launched in background\. Task ID: (\w+)[\s\S]*?Transcript dir: [^\n]*?[\\/](wf_[\w-]+)"
 )
+# #1012: a run's workflow is its script's meta.name: the session's workflows/scripts/<name>-<run id>.js names it, else
+# the first `name:` of the script saved in workflows/<run id>.json. quick-task.js's agents work in its QUICK_PHASE
+# (the quick agent, labelled publish:#N) and Review (its reviewers and fix agent, fix:#N).
+WORKFLOW_NAME = re.compile(r"\bname:\s*['\"]([^'\"]+)['\"]")
+QUICK_TASK, QUICK_PHASE = "quick-task", "Quick"
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
 # #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
@@ -532,7 +545,7 @@ GH_LIST_LIMIT = 1000
 # The signals of a run, and those of its PR (counted once per PR when several runs end on it).
 RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
-GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
+GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_rounds", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
                   "green_first", "followups", "late_followups", "fixups")  # fmt: skip
 
 # Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
@@ -1709,6 +1722,22 @@ def collect(dirs: list[Path], sessions: dict[str, str | None], since: float | No
     return out
 
 
+def workflow_name(folder: Path) -> str | None:
+    """#1012: the workflow of the run in `folder` (<session>/subagents/workflows/wf_*), as WORKFLOW_NAME's comment
+    says; None when neither file is there (an older run, a fixture)."""
+    home = folder.parent.parent.parent / "workflows"
+    tail = f"-{folder.name}.js"
+    scripts = sorted((home / "scripts").glob(f"*{tail}")) if (home / "scripts").is_dir() else []
+    if scripts:
+        return scripts[0].name[: -len(tail)]
+    try:
+        script = json.loads((home / f"{folder.name}.json").read_text(encoding="utf-8")).get("script")
+    except (OSError, ValueError, AttributeError):
+        return None
+    found = WORKFLOW_NAME.search(script) if isinstance(script, str) else None
+    return found.group(1) if found else None
+
+
 def read_run(folder: Path, files: dict[str, Path], cache: dict[str, dict], label: str) -> dict:
     entries = read_json_lines(folder / "journal.jsonl")
     started = [e for e in entries if e.get("type") == "started" and "key" in e]
@@ -1749,8 +1778,13 @@ def read_run(folder: Path, files: dict[str, Path], cache: dict[str, dict], label
     finished = bool(entries) and entries[-1].get("type") == "result" and set(last_attempt) <= set(results)
     nums = re.findall(r"#(\d+)", " ".join(x["label"] for x in run_agents))
     roles = {x["role"] for x in run_agents}
+    workflow = workflow_name(folder)
+    # #1012: quick-task's agents have no implementer and its quick agent a publisher's label, so it is told by its
+    # workflow's name, else (no script file found) by its Quick phase; the other kinds are read from the roles.
+    quick = workflow == QUICK_TASK if workflow else any(x["phase"] == QUICK_PHASE for x in run_agents)
     kind = (
-        "issue-task" if "implementer" in roles
+        QUICK_TASK if quick
+        else "issue-task" if "implementer" in roles
         else "pr-rebase" if "pr-rebase" in roles
         else "issue-task (resumed)" if "publisher" in roles
         else "other"
@@ -1758,6 +1792,7 @@ def read_run(folder: Path, files: dict[str, Path], cache: dict[str, dict], label
     return {
         "session": label,
         "wf": folder.name,
+        "workflow": workflow,
         "kind": kind,
         "issue": int(Counter(nums).most_common(1)[0][0]) if nums else None,
         "finished": finished,
@@ -2085,6 +2120,7 @@ def build(
     counted = [r for r in data["runs"] if r["counted"]]
     finished = [r for r in counted if r["kind"] == "issue-task" and r["finished"]]
     tasks = [per_task(r) for r in finished]
+    quick = quick_record([r for r in counted if r["kind"] == QUICK_TASK and r["finished"]], github)  # #1012
     labels = list(dict.fromkeys(s["label"] for s in data["sessions"]))  # a label may name several sessions
     window = f"{iso(since) or 'the first transcript'} to {iso(until)}"
     md = [
@@ -2095,6 +2131,7 @@ def build(
         "",
     ]
     md += task_section(tasks)
+    md += quick_section(quick)
     tiers = tier_rows(tasks)
     md += tier_section(tiers)
     updates = update_rows(tasks)
@@ -2122,7 +2159,7 @@ def build(
     by_row = verify_rows(counted, data["sessions"], history)
     md += verify_section(by_row)
     md += review_section(counted)
-    quality = quality_record(finished, labels, github)
+    quality = quality_record(finished, labels, github, quick)
     md += quality_section(quality)
     md += trial_section(trial := trial_record(finished, tasks, quality["tasks"], github))
     md += publisher_trial_section(pub_trial := publisher_trial_record(finished, quality["tasks"], counted))
@@ -2147,7 +2184,7 @@ def build(
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
                             instructions=instructions, idle=idle["totals"], types=types, context=context,
-                            batching=batching)  # fmt: skip
+                            batching=batching, quick=quick)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -2155,6 +2192,7 @@ def build(
         "week": week,
         "stages": stages,
         "tasks": tasks,
+        "quick_tasks": quick,
         "tiers": tiers,
         "update_runs": updates,
         "runs": [
@@ -2201,6 +2239,70 @@ def task_section(tasks: list[dict]) -> list[str]:
             "API list $", "tool calls", "verify runs/red", "min in verify", "verify+publish calls",
             "min in those calls", "min on CI", *SEVERITIES, "PR", "CI"]
     return ["## Per finished issue-task run (minutes)", "", table(head, rows), ""]
+
+
+def quick_of(r: dict, github: dict | None) -> dict:
+    """#1012: a finished quick-task run's row: its time and API list $ as per_task reads them, and the signals that
+    quality_of and quality_github read (no skeptic, no publisher fix round, never a design task), with quick-task.js's
+    own: a fix agent (fix:#N, launched on a blocker or major) or not, the blockers and majors left open (the fix
+    agent's `open`, else all of them) and CI green (the fix agent's when it answered, else the quick agent's)."""
+    p = per_task(r)
+    q = quality_of(r)
+    fixes = [x for x in r["agents"] if x["role"] == "pr-rebase fix"]
+    fix = next((x["result"] for x in reversed(fixes) if x["result"] is not None), None) or {}
+    left = fix.get("open")
+    opened = int(left) if isinstance(left, (int, float)) and not isinstance(left, bool) else q["serious"]
+    green = fix.get("ci_green") if isinstance(fix.get("ci_green"), bool) else p["ci_green"]
+    return q | {
+        "wall": p["wall"], "span": p["span"], "ctx": p["ctx"], "calls": p["calls"], "agents": p["agents"],
+        "ci_green": green if isinstance(green, bool) else None, "fix_agent": bool(fixes), "checked": None,
+        "refuted": None, "open": opened, "clean": None if opened is None else opened == 0, "design": False,
+        "fixed": count_of(fix.get("fixed")), "fix_rounds": None, "publish_runs": None,
+    } | quality_github(q, github)  # fmt: skip
+
+
+def quick_record(runs: list[dict], github: dict | None) -> dict:
+    """#1012: the finished quick-task runs: a row each (quick_of), their medians (wall, API list $, CI rounds: the head
+    SHAs of a PR with a CI round, from gh) and how many ran a fix agent, and their quality summary (quality_summary, the
+    scorecard's "quick-task" row)."""
+    rows = [quick_of(r, github) for r in runs]
+    set_repos(rows)
+    return {
+        "tasks": rows,
+        "medians": {"runs": len(rows), "wall": med([q["wall"] for q in rows]), "usd": med([q["usd"] for q in rows]),
+                    "ci_rounds": stat([q["ci_rounds"] for q in rows]),
+                    "fix_agents": sum(q["fix_agent"] for q in rows)},
+        "all": quality_summary(QUICK_TASK, rows),
+    }  # fmt: skip
+
+
+def quick_medians(quick: dict) -> str:
+    m = quick["medians"]
+    return (f"{m['runs']} runs, medians {mins(m['wall'])} min, {fmt_usd(m['usd'])}, CI rounds {fmt_q(m['ci_rounds'])}; "
+            f"a fix agent in {m['fix_agents']}")  # fmt: skip
+
+
+def quick_section(quick: dict) -> list[str]:
+    """#1012: a row per finished quick-task run and their medians; nothing when the window has none."""
+    if not quick["tasks"]:
+        return []
+    rows = [
+        [q["session"], f"#{q['issue']}", mins(q["wall"]), mins(q["span"].get(QUICK_PHASE, 0)),
+         mins(q["span"].get("Review", 0)), fmt_tok(q["ctx"]), fmt_usd(q["usd"]), q["calls"], q["agents"],
+         fmt_v(q["serious"]), fmt_v(q["open"]), fmt_v(q["fix_agent"]), q["pr"] or "?",
+         {True: "green", False: "red"}.get(q["ci_green"], "?"), fmt_v(q["ci_rounds"]), fmt_v(q["ci_red_rounds"]),
+         fmt_v(q["merged"])]
+        for q in quick["tasks"]
+    ]  # fmt: skip
+    head = ["session", "issue", "wall", "quick", "review", "final context", "API list $", "tool calls", "agents",
+            "blockers+majors", "open", "fix agent", "PR", "CI", "CI rounds", "CI red rounds", "merged"]  # fmt: skip
+    return [
+        "## Per finished quick-task run (#1012, minutes)", "", table(head, rows), "",
+        f"quick-task: {quick_medians(quick)}. Blockers+majors are the fresh reviewers' (\"?\": no reviewer, the diff "
+        "touched no reviewed path); open: the fix agent's `open`, else all of them; CI: the fix agent's when it ran, "
+        "else the quick agent's; CI rounds (head SHAs with a CI round), red rounds and merged from gh (\"?\" without "
+        "it). Their summary is the quality scorecard's quick-task row.", "",
+    ]  # fmt: skip
 
 
 def tier_rows(tasks: list[dict]) -> list[dict]:
@@ -2445,7 +2547,7 @@ def output_rows(counted: list[dict]) -> list[dict]:
     """#982: per agent role, run tier and effort over every counted run, finished or not, the agents' output tokens and
     output API list $ (the part of an agent's $ its effort moves most): agents, output tokens and $ per agent (median),
     output $ in total and its share of their whole $. The tier is an issue-task run's review tier (run_tier: light,
-    full or NO_TIER), another run's kind (pr-rebase, other). Sorted by output $, the largest first."""
+    full or NO_TIER), another run's kind (pr-rebase, quick-task, other). Sorted by output $, the largest first."""
     groups: dict[tuple[str, str, str], dict] = {}
     for r in counted:
         tier = run_tier(r) if r["kind"].startswith("issue-task") else r["kind"]
@@ -3824,7 +3926,7 @@ def other_section(counted: list[dict]) -> list[str]:
          mins(r["end"] - r["start"]) if r["start"] else "",
          fmt_tok(sum(total(x["data"]["tokens"]) for x in r["agents"] if x["data"])), fmt_usd(run_usd(r))]
         for r in counted
-        if r["kind"] != "issue-task" or not r["finished"]
+        if r["kind"] not in ("issue-task", QUICK_TASK) or not r["finished"]
     ]
     return ["## Other runs (pr-rebase, resumed, unfinished, others)", "",
             table(["session", "run", "kind", "issue", "finished", "wall min", "tokens", "API list $"], rows), ""]
@@ -3851,9 +3953,9 @@ def pr_issues(runs: list[dict]) -> dict[int, int]:
 
 
 def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[dict]:
-    """#833: each issue that 2 or more counted runs worked on, the most $ first: issue-task runs (resumed too) and
-    pr-rebase runs; an "other" run (a wave, a probe) is left out, its issue is only the most common #N in its labels,
-    which may name several issues. A pr-rebase run is labelled with its PR's number: it is put under the issue whose
+    """#833: each issue that 2 or more counted runs worked on, the most $ first: issue-task runs (resumed too),
+    quick-task runs (#1012, each under its kind) and pr-rebase runs; an "other" run (a wave, a probe) is left out, its
+    issue is only the most common #N in its labels, which may name several issues. A pr-rebase run is labelled with its PR's number: it is put under the issue whose
     publisher (in `known`, every run read, else `counted`) returned that PR, else under "PR #N" (`pr` set, `issue`
     None). Per row: its runs, the $ of all of them and of those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
     continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds after the
@@ -3922,7 +4024,7 @@ def relaunch_section(rows: list[dict]) -> list[str]:
     return [
         "## Issues launched 2 or more times (#833)",
         "",
-        "Per issue: its issue-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, else under "
+        "Per issue: its issue-task, quick-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, else under "
         "\"PR #N\"; wave and other runs left out), the $ of the runs after the first, the runs that did not finish, "
         "the implementer continuations after a checkpoint handoff, and the runs that started within "
         f"{RELAUNCH_BACK_TO_BACK // 60} minutes after the previous one's end (an update that could have gone into "
@@ -4461,6 +4563,7 @@ def ci_rounds(runs: list[dict], branch: object, opened: float | None, end: float
     red = [t for t, o, _rerun in outcomes if o == "red"]
     _t, first, rerun = outcomes[0]
     return found | {
+        "ci_rounds": len(outcomes),  # #1012: quick-task's medians
         "ci_red_rounds": len(red),
         "ci_red_after_run": None if end is None else sum(t is not None and t >= end for t in red),
         "ci_last": outcomes[-1][1],
@@ -4583,15 +4686,20 @@ def github_status(github: dict | None) -> dict:
     return {k: v for k, v in github.items() if k in ("error", "skipped")}
 
 
-def quality_record(runs: list[dict], labels: list[str], github: dict | None) -> dict:
-    """The scorecard of the finished issue-task runs: per run, per session, over all, per role setting."""
-    rows = [q | quality_github(q, github) for q in map(quality_of, runs)]
-    # A PR's repository: its URL's, else (a result with pr_number only) the one most PR URLs name, so both result
-    # shapes of one PR are one PR.
+def set_repos(rows: list[dict]) -> None:
+    """A PR's repository: its URL's, else (a result with pr_number only) the one most PR URLs name, so both result
+    shapes of one PR are one PR."""
     repos = Counter(r for q in rows if (r := url_repo(q["pr_url"])))
     home = repos.most_common(1)[0][0] if repos else ""
     for q in rows:
         q["repo"] = None if q["pr"] is None else url_repo(q["pr_url"]) or home
+
+
+def quality_record(runs: list[dict], labels: list[str], github: dict | None, quick: dict | None = None) -> dict:
+    """The scorecard of the finished issue-task runs: per run, per session, over all, per role setting; and (#1012) the
+    finished quick-task runs' summary (quick_record's), apart from them, None when the window has none."""
+    rows = [q | quality_github(q, github) for q in map(quality_of, runs)]
+    set_repos(rows)
     quality = {
         "tasks": rows,
         "sessions": [quality_summary(label, sel) for label in labels if (sel := [q for q in rows
@@ -4599,6 +4707,7 @@ def quality_record(runs: list[dict], labels: list[str], github: dict | None) -> 
         "all": quality_summary("all", rows),
         "settings": quality_settings(runs, rows),
         "github": github_status(github),
+        "quick": quick["all"] if quick and quick["tasks"] else None,
     }  # fmt: skip
     quality["compact"] = quality_compact(quality)
     return quality
@@ -4652,12 +4761,14 @@ def quality_section(quality: dict) -> list[str]:
          *(fmt_q(s[k]) for k in ("serious", "refuted", "open", "not_fixed", "fix_rounds", "ci_red_rounds")),
          fmt_green(s), fmt_nums(s["followups"]), fmt_nums(s["fixups"]), fmt_usd(s["usd"]),
          fmt_usd(s["usd_per_green_first"]) if s["usd_per_green_first"] is not None else "?"]
-        for s in [*quality["sessions"], *([quality["all"]] if len(quality["sessions"]) > 1 else [])]
+        for s in [*quality["sessions"], *([quality["all"]] if len(quality["sessions"]) > 1 else []),
+                  *([quality["quick"]] if quality.get("quick") else [])]
     ]  # fmt: skip
     head = ["session", "tasks", "PRs", "blockers+majors", "refuted", "open", "not fixed", "publisher fix rounds",
             "CI red rounds", "green on the first CI round", "Found-by follow-ups", "fix-up PRs", "API list $",
             "$ per PR green on its first CI round"]  # fmt: skip
-    md += ["Per session (a wave when run with --since <wave start>; medians, PR signals once per PR):", "",
+    md += ["Per session (a wave when run with --since <wave start>; medians, PR signals once per PR; the quick-task "
+           "row: the finished quick-task runs of every session, #1012, not in the rows above):", "",
            table(head, sessions), ""]  # fmt: skip
     settings = [
         [s["role"], s["model"], s["effort"], s["agents"], s["runs"], fmt_usd(s["usd"]),
@@ -4720,6 +4831,18 @@ def quality_compact(quality: dict) -> str:
             f"Found-by follow-ups {counted('followups')}, fix-up PRs {counted('fixups')}; {cost}")
 
 
+def quick_compact(quick: dict) -> str:
+    """#1012: the compact summary's quick-task clause: the medians, and the PRs and findings of its quality summary."""
+    a = quick["all"]
+    serious = f"{a['sums']['serious']} ({a['sums']['open']} open)" if a["serious"]["known"] else "?"
+    return (f"quick-task (#1012): {quick_medians(quick)}; {a['prs']} PRs "
+            f"({a['merged'] if a['merged_known'] else '?'} merged); blockers+majors {serious}")
+
+
+def quick_runs_compact(quick: dict) -> str:
+    return ", ".join(f"#{q['issue']} {mins(q['wall'])} min {fmt_usd(q['usd'])}" for q in quick["tasks"])
+
+
 def update_compact(rows: list[dict]) -> str:
     """#875: one line for the compact summary: runs and median API list $ per path, the baseline, the advice."""
     lo, hi = UPDATE_BASELINE
@@ -4731,12 +4854,18 @@ def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
     idle: dict | None = None, types: dict | None = None, context: dict | None = None, batching: dict | None = None,
+    quick: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
-    (#314), the instructions' and docs' line (#337), the % of the week, verify."""
-    other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
-    lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
-             f"({sum(not r['finished'] for r in counted)} unfinished)"]
+    (#314), the instructions' and docs' line (#337), the % of the week, verify. The finished quick-task runs (#1012,
+    quick_record's) keep the line count: their count on the first line, their runs at the end of the per-task line,
+    their medians and quality after the quality line's (a line of their own when no issue-task run finished), their
+    $ on the total line."""
+    quick_rows = quick["tasks"] if quick else []
+    other = [r for r in counted if r["kind"] not in ("issue-task", QUICK_TASK) or not r["finished"]]
+    lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, "
+             + (f"{len(quick_rows)} finished quick-task runs, " if quick_rows else "")
+             + f"{len(other)} other runs ({sum(not r['finished'] for r in counted)} unfinished)"]
     if types is not None:  # on the first line: the summary keeps its line count (#557, as #558's idle total)
         lines[0] += f"; general-type writers {types['writers']['general']} of {types['writers']['all']} (#557)"
     if context is not None:  # the first line too (#584)
@@ -4746,6 +4875,8 @@ def compact_lines(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
         # #875: the update runs' clause ends this line; the summary keeps its line count
         lines[-1] += " | " + update_compact(update_rows(tasks))
+        if quick_rows:
+            lines[-1] += " | quick-task: " + quick_runs_compact(quick)
         wall, cost = med([p["wall"] for p in tasks]), med([p["usd"] for p in tasks])
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
         impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
@@ -4762,16 +4893,20 @@ def compact_lines(
             lines[-1] += (f"; tool output per implementer median {fmt_k(med([o[0] for o in outputs]))} tokens, "
                           f"runner commands {fmt_k(med([o[1] for o in outputs]))} (#572)")  # fmt: skip
         if quality:
-            lines.append(quality["compact"])
+            lines.append(quality["compact"] + (" | " + quick_compact(quick) if quick_rows else ""))
+    if quick_rows and not (tasks and quality):
+        lines.append(f"{quick_compact(quick)}; per run (wall min, API list $): {quick_runs_compact(quick)}")
     diet = instruction_compact(instructions) if instructions else None
     if diet:
         lines.append(diet)
     task_usd = sum(p["usd"] for p in tasks)
+    quick_usd = sum(q["usd"] for q in quick_rows)
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
-    spent = task_usd + other_usd + man_usd
-    line = (f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
-            f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    spent = task_usd + quick_usd + other_usd + man_usd
+    quick_part = f"quick tasks {fmt_usd(quick_usd)} + " if quick_rows else ""
+    line = (f"total API list $: tasks {fmt_usd(task_usd)} + {quick_part}other runs {fmt_usd(other_usd)} + managers "
+            f"and their hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
     if idle is not None:  # the re-write table's total, on this line: the summary keeps its line count (#558)
         line += (f"; API calls after 5+ min idle (its table): {idle['rewrites']}, {idle['most']} of them re-wrote most "
                  f"of the context, {fmt_usd(idle['usd'])} ({idle['share']:.0%} of the agents' cache-write $)")
