@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 17 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 18 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -14,10 +14,10 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: `throw`,
-##   G, #645, whose name the copy deck lacks, #851) keeps its key for the phases it acts in: a
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+##   `throw` and `crouch` left it for a row, #851, #951) keeps its key for the phases it acts in: a
 ##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
-##   press never does both (Use on G would swing and throw).
+##   press never does both.
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
 ##   default.
 ## - Never sent to anyone.
@@ -34,8 +34,8 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: `throw` (G) while living, until it is a Settings row (`control.throw`, #851).
-const UNLISTED: Dictionary[StringName, int] = {&"throw": Phase.ALIVE}
+## those phases: none now (`throw`, G, became a Settings row in #851, as `crouch` did in #951).
+const UNLISTED: Dictionary[StringName, int] = {}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -58,6 +58,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"use": &"control.use",
 	&"put_down": &"control.put_down",
 	&"swap": &"control.swap",
+	&"throw": &"control.throw",
 	&"map": &"control.map",
 	&"give_up": &"control.give_up",
 	&"ready": &"control.ready",
@@ -83,6 +84,7 @@ const PHASES: Dictionary[StringName, int] = {
 	&"use": Phase.ALIVE,
 	&"put_down": Phase.ALIVE,
 	&"swap": Phase.ALIVE,
+	&"throw": Phase.ALIVE,
 	&"map": Phase.ALIVE | Phase.DOWNED | Phase.DEAD,
 	&"give_up": Phase.DOWNED,
 	&"ready": Phase.LOBBY,
