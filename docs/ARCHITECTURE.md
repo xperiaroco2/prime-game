@@ -3076,20 +3076,21 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   boxes' content margins (not the corner radii); the layout widths in `client/ui/` code (the menu's fields,
   `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `Hud.SWATCH_SIZE`, the debug
   overlay's inset, the dev test room's overlay box). Godot's default theme, which drew the controls no variation
-  styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), is scaled by
-  `gui/theme/default_theme_scale` = 1.6667. Since #576 the generated theme covers the fields, dropdowns, sliders and
-  scroll bars, but the scale stays 1.6667 until the rest (CheckBox's box, SpinBox's arrows, the bare Buttons'
-  padding) has a look or the engineer accepts the gaps (§4.7.30).
+  styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), was scaled by
+  `gui/theme/default_theme_scale` = 1.6667 until the generated theme covered them: the fields, dropdowns, sliders
+  and scroll bars since #576, CheckBox, SpinBox's arrows and the bare Buttons since #1020 (§4.7.30), so the setting
+  is unset again (Godot's 1).
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
-  start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
-  `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
+  start window; the default theme's scale, 1 since #1020, read back from `ThemeDB`), seen failing on the old
+  `project.godot`. The `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size
+  (PR of #287).
 
 #### 4.7.25 Built in #288 (M6.2), the generated theme
 - The flow: a tag `ui-<semver>` of xperiaroco2/prime-game-ui → `tools\run.cmd ui-sync <tag>` (AGENT_WORKFLOW
   §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
   → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
   `uid://c8behqt7jtcn8` kept with `ResourceSaver.set_uid`, a headless save writes none) and `game_theme_large.tres`.
-  Both are generated, never edited by hand. Pinned at `ui-0.4.0`.
+  Both are generated, never edited by hand. Pinned at `ui-0.8.0` (since #1020; `ui-0.4.0` before).
 - `tools/theme/mapping.json` is the engine knowledge, data: pack states to Godot StyleBox names
   (`hover-pressed` → `hover_pressed`), the 19 fields to `StyleBoxFlat` properties, per-state `font-color` to the
   `font_*_color` items, `items` (kebab-case to the Godot item), `label` to `font_size`, `press.*`, `size.*` and
@@ -3106,7 +3107,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   `<Variation>_<item>`, so a regenerated file differs only where a value did. `build_theme.gd` also stops when the
   pack differs from its lock or the project's UI base is not the pack's `reference` (1920x1080, #287), which the
   tests also hold.
-- What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
+- What it writes: the pack's live type variations (118 at `ui-0.4.0`, 122 at `ui-0.8.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
   engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); the pack's textures as icons and, once its file is
   in the project (since #684), the font (§4.7.34). Each theme also carries
@@ -3339,52 +3340,69 @@ swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby
 lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a teammate with the mark and no name,
 a head over a wall and a player beyond 10 m without one).
 
-#### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls
+#### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls; #1020, ui-0.7.0's looks
 - The screens build bare `LineEdit` (the menu's code and address), `SpinBox` (the port, the lobby's numbers),
   `OptionButton` (the Voice tab's microphone and mode), `HSlider` (its threshold and volumes) and `ScrollContainer`
   (the Esc menu's pages), with no type variation, so Godot's default theme drew them. `tools/theme/mapping.json`
   `base_types` now styles those classes under their own name: `from` copies every item of a live, parentless pack
   variation of that very class, the same objects (a StyleBox stays one sub-resource `<Variation>_<item>`): LineEdit
   ← ToyField, OptionButton ← ToyDropdown, PopupMenu (its list) ← ToyDropdownList, HSlider ← ToySlider, VScrollBar
-  ← ToyScrollBar, ScrollContainer ← ToyScroll. A row's literal items, and the theme's `default_font_size` (27, which
-  a control takes when no type of its chain has a `font_size`: bare Label, Button, CheckBox, ProgressBar), are
-  #287's greybox values for what the pack has no look for (Godot's default × 5/3; not a design decision): Label
-  `line_spacing` 5, CheckBox `h_separation` 7, VBoxContainer, HBoxContainer and VSeparator `separation` 7. The dev
-  test room's overlay, the one Control outside `GameUi`, takes `GameUi.THEME`.
+  ← ToyScrollBar, ScrollContainer ← ToyScroll; since #1020 (the UI track's base-type sources of `ui-0.7.0`, the
+  engineer's option a on prime-game-ui#52, its steps in prime-game-ui#59) also Button ← ToyButtonPlain (the white
+  secondary face, flat), CheckBox ← ToyCheckBox (its boxes the pack's 28 px icons) and SpinBox ← ToySpinBox (yellow
+  arrows, the pack's 18 px chevrons). A row's literal items are #287's greybox values for what the pack has no look
+  for (Godot's default × 5/3; not a design decision): Label `line_spacing` 5, VBoxContainer, HBoxContainer and
+  VSeparator `separation` 7. The theme's `default_font_size`, which a control takes when no type of its chain has a
+  `font_size` (bare Label, ProgressBar), is the pack's `font.size.theme-default` at the theme's text size since
+  #1020: 27, 34 in large text (mapping `default_font_size.token`; before, a literal 27 in both). The dev test room's
+  overlay, the one Control outside `GameUi`, takes `GameUi.THEME`.
 - How Godot 4.7.2 looks a theme item up (seen in probes, the plan review of #576): for each theme owner up the tree,
   every type of the control's chain (its variation's chain, then its class and parents), and only then Godot's
   default theme; so a row on a class also restyles its subclasses (a Button row would beat Godot's own CheckBox
   look). `check_pack` refuses a row on no engine Control or Window class, an unknown member, a `from` that is not a
   live parentless variation of that class, and any item that would replace one the default theme sets on an
   engine subclass (read from its item lists: `Theme.has_font_size` is true for every type of a theme with a default
-  font size) unless a row of that subclass gives it too. The chain comes from the theme that names the control's
-  variation: SpinBox's field is a SpinBoxLineEdit with the engine's variation SpinBoxInnerLineEdit, which the default
-  theme does not name, so it found the theme's default font size before the LineEdit row; the mapping's
-  `engine_variations` names it a thin variation of LineEdit.
+  font size) unless a row of that subclass gives it too (CheckBox's and OptionButton's under the Button row) or the
+  subclass is in the mapping's `unbuilt` (#1020: CheckButton, ColorPickerButton and MenuButton, which no screen
+  builds and which take the ToyButtonPlain look; `base_controls_test.gd` holds that `client/ui/` builds none, so a
+  screen that starts to needs a row first). The chain comes from the theme that names the control's variation:
+  SpinBox's field is a SpinBoxLineEdit with the engine's variation SpinBoxInnerLineEdit, which the default theme does
+  not name, so it found the theme's default font size before the LineEdit row; the mapping's `engine_variations`
+  names it a thin variation of ToySpinField since #1020 (ToyField with 12 px above and below instead of 10, so each
+  arrow, half the field's height less the 2 px between them, is at least 24 px high), itself a variation of
+  LineEdit, whose row backs it; `check_pack` refuses an engine variation of anything but a base type or a live pack
+  variation of a base type's class.
 - Left on Godot's default theme (listed in `base_controls_test.gd`; the screen issues #489-#498 and the UI track
-  decide): the bare Buttons' StyleBoxes (the lobby's Copy and Ready, the Controls tab's keys), CheckBox's icons and
-  StyleBoxes, SpinBox's arrows, the voice meter's ProgressBar boxes, the bare PanelContainers' panel (no margins),
-  the Esc menu's VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks
-  (ink fill on a lavender track): on the Esc menu's dark panel their filled part and grabber barely show until the
-  screen moves to a light panel. Large text grows the bare fields and dropdowns (their Toy sizes) but not the
-  default size, which the pack has no large value for.
-- So `gui/theme/default_theme_scale` stays 1.6667 (§4.7.24). At 1 (the first build of #576, shots in its PR) those
-  gaps shrank to about 60% in a 1152x648 window: the host's unchecked "Delivery" ban box on the dark Esc Lobby tab
-  could no longer be seen, SpinBox's arrows became 6 px chevrons, the check icons 8 px, the key buttons' padding
-  7 → 4, the VSeparator fainter, and the HUD's hint sat about 6 px lower (`Hud` centres it before it is in the tree,
-  so its first height is the default theme's line). The base types are searched before the default theme, so they
-  hold under either scale; setting it to 1 waits for looks for those gaps or the engineer's word.
-- Tests: `tests/unit/client/ui/base_controls_test.gd` (live controls under both themes: a bare LineEdit and a
-  SpinBox's field take ToyField's StyleBoxes, size and colour, an OptionButton and its list ToyDropdown's and
-  ToyDropdownList's, an HSlider and a ScrollContainer's bar ToySlider's and ToyScrollBar's; bare text and spacing keep
-  the greybox sizes and a variation still wins; a CheckBox and a Button keep Godot's own boxes; large text, pinned;
-  every engine control class `client/ui/` builds is a base type or named with its gap, a planted TextEdit named;
-  seen failing on the old theme and, for the field's size, without `engine_variations`);
-  `tests/unit/tools/theme_builder_test.gd` (each planted bad row named, a Button row shadowing CheckBox too, and a
-  subclass row covering it; the base types share the variations' objects in both themes; a base type's literal item
-  in the class reference, a planted typo named); `base_resolution_test.gd` (the scale, 1.6667). The `shot`s of every
-  preview in `client/dev/` before and after: only the Esc menu's tabs and the main menu's fields change (PR of
-  #576).
+  decide): the voice meter's ProgressBar boxes, the bare PanelContainers' panel (no margins), the Esc menu's
+  VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks (ink fill on a lavender
+  track): on the Esc menu's dark panel their filled part and grabber barely show until the screen moves to a light
+  panel. Not bound (prime-game-ui#59): CheckBox's radio icons (no screen puts one in a ButtonGroup), its
+  `check_v_offset` and `checkbox_*_color`, SpinBox's separators (the default theme's are empty).
+- `gui/theme/default_theme_scale` (§4.7.24) stayed 1.6667 after #576: at 1 (its first build, shots in its PR) the
+  gaps of then shrank to about 60% in a 1152x648 window (the host's unchecked "Delivery" ban box on the dark Esc
+  Lobby tab could no longer be seen, SpinBox's arrows became 6 px chevrons, the check icons 8 px, the key buttons'
+  padding 7 → 4). With CheckBox, SpinBox and Button styled (#1020) it is back to 1 (unset); the gaps above draw at
+  Godot's own size, and a Toy Button variation with an icon takes Godot's `h_separation` 4 between icon and text
+  (7 before; only ToyMenuItem's pack look gives one): the Lobby tab's Ready check sits 3 px nearer its word. The
+  `shot`s of 22 previews at 1152x648 before and after #1020 differ in nothing else a person sees (a few pixels of
+  the debug overlay's panel corners; the spinner's and the end screen's animation).
+- Tests: `tests/unit/client/ui/base_controls_test.gd` (live controls under both themes: a bare LineEdit takes
+  ToyField's StyleBoxes, size and colour and a SpinBox's field ToySpinField's, a SpinBox ToySpinBox's arrow boxes,
+  icons and items with each arrow at least 24 px high (the line from the committed Comfortaa metrics, as CI imports
+  a stand-in font), an OptionButton and its list ToyDropdown's and ToyDropdownList's, an HSlider and a
+  ScrollContainer's bar ToySlider's and ToyScrollBar's, a Button, a CheckBox and an OptionButton each their own Toy
+  look and a Toy variation still winning; bare text takes the default size and spacing the greybox one; large text
+  grows the fields and the default size (34); every engine control class `client/ui/` builds is a base type or
+  named with its gap, a planted TextEdit named, and none of `unbuilt`; seen failing on the old theme and, for the
+  field's size, without `engine_variations`); `tests/unit/tools/theme_builder_test.gd` (each planted bad row named,
+  a Button row shadowing CheckBox too, and a subclass row covering it; the `unbuilt` list skipping exactly the three
+  subclasses the check names without it, a bad entry named; the default size a pack token at each text size, a
+  missing token and a large 0 named; the base types share the variations' objects in both themes; a base type's
+  literal item in the class reference, a planted typo named; the CheckBox and SpinBox icons at their sizes);
+  `base_resolution_test.gd` (the scale, 1); `theme_showcase_test.gd` (the showcase shows ToyButtonPlain, ToySpinBox
+  with ToySpinField and ToyCheckBox). The `shot`s of every preview in `client/dev/` before and after: only the Esc
+  menu's tabs and the main menu's fields change (PR of #576); of the Settings and Lobby tabs at 1152x648, default
+  and large text, before and after #1020 (its PR).
 
 #### 4.7.31 Built in #498 (M6.2), the post game screen
 `EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
@@ -3541,7 +3559,9 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
 
 #### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
-  icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`) in `assets/ui/toy_pack/`, a folder Godot
+  icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`; at `ui-0.8.0` (#1020) 23 icons with the CheckBox
+  and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the same file as
+  the font hook's `assets/ui/comfortaa/comfortaa.ttf`, which the theme still loads) in `assets/ui/toy_pack/`, a folder Godot
   imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
   LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
   handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
@@ -3549,7 +3569,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   from the pack's `LICENCES.json` (own work).
 - **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
   `grabber_highlight`) loaded from `mapping.textures.folder`, and refuses a texture that is not imported: ToySlider's
-  grabbers, ToyDropdown's arrow, ToyDropdownList's radio icons, and through the base types (§4.7.30) the bare HSlider,
+  grabbers, ToyDropdown's arrow, ToyDropdownList's radio icons, ToyCheckBox's boxes and ToySpinBox's chevrons
+  (#1020), and through the base types (§4.7.30) the bare HSlider, CheckBox, SpinBox,
   OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
   Godot would make it from the path saved to and the stale test saves elsewhere.
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
