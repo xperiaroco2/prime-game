@@ -3219,7 +3219,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
 #### 4.7.28 Built in #211 (M6.2), give-up on F and the controls the player rebinds
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
-- `client/app/Controls`: the 16 rebindable actions of Settings › Controls in #488's order with their `control.*` deck
+- `client/app/Controls`: the 17 rebindable actions of Settings › Controls (#488's 16 and `crouch` after `jump`, #951) in order with their `control.*` deck
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
@@ -3230,7 +3230,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
   act on their `project.godot` key but have no Settings row yet, with their phases: `throw` (G, #645, alive), until the
-  copy deck names it (`control.throw`, #851), and `crouch` (Ctrl, #791, alive), until it names `control.crouch`. `bind()` refuses a binding that would put an action of such a phase on
+  copy deck names it (`control.throw`, #851; `crouch`, Ctrl, #791, alive, left it for a row in #951). `bind()` refuses a binding that would put an action of such a phase on
   that key (`unlisted_on()`; Use on G would swing and throw on one press), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default

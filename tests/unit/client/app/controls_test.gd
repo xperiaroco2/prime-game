@@ -37,9 +37,10 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_sixteen_actions_of_settings_controls_each_with_its_phases() -> void:
-	# #488's rule 5: 16 rows; rule 6: the implementer defines the phase of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(16)
+func test_there_are_the_seventeen_actions_of_settings_controls_each_with_its_phases() -> void:
+	# #488's rule 5: 16 rows and the crouch's (#951), 17; rule 6: the implementer defines the phase
+	# of each action.
+	assert_int(Controls.ACTIONS.size()).is_equal(17)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -50,7 +51,7 @@ func test_there_are_the_sixteen_actions_of_settings_controls_each_with_its_phase
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_sixteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_seventeen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -59,6 +60,7 @@ func test_the_sixteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 		[&"move_right", &"control.right", KEY_D],
 		[&"sprint", &"control.sprint", KEY_SHIFT],
 		[&"jump", &"control.jump", KEY_SPACE],
+		[&"crouch", &"control.crouch", KEY_CTRL],
 		[&"interact", &"control.interact", KEY_E],
 		[&"use", &"control.use", MOUSE_BUTTON_LEFT],
 		[&"put_down", &"control.put_down", KEY_Q],
@@ -98,9 +100,7 @@ func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
 	# #842's review: throw (G, #645) is no Settings row yet (#851), so a living action bound to G
 	# would swing and throw on one press. Such a binding is refused, as a fixed key is; an action
 	# that never acts while living may take G.
-	assert_dict(Controls.UNLISTED).is_equal(
-		{&"throw": Controls.Phase.ALIVE, &"crouch": Controls.Phase.ALIVE}
-	)
+	assert_dict(Controls.UNLISTED).is_equal({&"throw": Controls.Phase.ALIVE})
 	assert_bool(Controls.ACTIONS.has(&"throw")).is_false()
 	assert_int(_key(Controls.default_event(&"throw"))).is_equal(KEY_G)
 	var controls := Controls.new()
@@ -117,29 +117,36 @@ func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
 	assert_bool(controls.bind(&"use", _press(KEY_H))).is_true()
 
 
-func test_the_crouch_is_on_ctrl_and_no_living_action_takes_it() -> void:
+func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actions() -> void:
 	# The crouch ADR's KE8 (#791): `crouch` on the physical Ctrl, either one (no location), acting
-	# while living. Its deck key `control.crouch` is not in the copy deck yet, so it is no Settings
-	# row: UNLISTED, as throw is (#851), and Ctrl is refused to every living action.
-	assert_bool(Controls.ACTIONS.has(&"crouch")).is_false()
+	# while living. A Settings row since #951 (deck key `control.crouch`), as every living action.
+	assert_str(String(Controls.ACTIONS[&"crouch"])).is_equal("control.crouch")
+	assert_int(Controls.PHASES[&"crouch"]).is_equal(Controls.Phase.ALIVE)
+	assert_bool(Controls.UNLISTED.has(&"crouch")).is_false()
+	assert_str(Controls.name_of(&"crouch")).is_equal("Crouch")
+	TranslationServer.set_locale("uk")
+	assert_str(Controls.name_of(&"crouch")).is_equal("Присісти")
 	var ctrl := Controls.default_event(&"crouch") as InputEventKey
 	assert_int(_key(ctrl)).is_equal(KEY_CTRL)
 	assert_int(ctrl.location).is_equal(KEY_LOCATION_UNSPECIFIED)
 	assert_bool(ctrl.ctrl_pressed or ctrl.shift_pressed or ctrl.alt_pressed).is_false()
 	# No default binding clashes with it: no other action is on Ctrl.
-	for action: StringName in Controls.ACTIONS:
-		assert_array(Controls.unlisted_on(action, Controls.default_event(action))).is_empty()
 	var controls := Controls.new()
-	for action: StringName in [&"use", &"sprint", &"jump", &"interact", &"voice_talk"]:
-		(
-			assert_bool(controls.bind(action, _press(KEY_CTRL)))
-			. override_failure_message(str(action))
-			. is_false()
-		)
-	assert_array(Controls.unlisted_on(&"jump", _press(KEY_CTRL))).contains_exactly([&"crouch"])
-	# Ready acts only in the lobby, where the crouch never plays: Ctrl is its to take.
-	assert_bool(controls.bind(&"ready", _press(KEY_CTRL))).is_true()
-	# KeyLabel names it from the binding (headless: the key's own name).
+	assert_bool(controls.is_default(&"crouch")).is_true()
+	assert_array(controls.clashes_of(&"crouch")).is_empty()
+	# Rebound, it takes the new key and the others keep theirs.
+	assert_bool(controls.bind(&"crouch", _press(KEY_C))).is_true()
+	assert_int(_key(controls.event_of(&"crouch"))).is_equal(KEY_C)
+	assert_bool(controls.is_default(&"crouch")).is_false()
+	assert_array(controls.clashes_of(&"crouch")).is_empty()
+	# A living action on its key clashes (both act while living); Ready acts only in the lobby.
+	assert_bool(controls.bind(&"jump", _press(KEY_C))).is_true()
+	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump"])
+	assert_bool(controls.bind(&"ready", _press(KEY_C))).is_true()
+	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump"])
+	# Reset puts it back on Ctrl; KeyLabel names it from the binding (headless: the key's name).
+	controls.reset()
+	assert_int(_key(controls.event_of(&"crouch"))).is_equal(KEY_CTRL)
 	assert_str(KeyLabel.of_action(&"crouch")).is_equal(OS.get_keycode_string(KEY_CTRL))
 
 
@@ -183,7 +190,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 16 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 17 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()
