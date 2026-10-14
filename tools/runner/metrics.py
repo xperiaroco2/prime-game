@@ -403,7 +403,8 @@ SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
 # The most failing tests and failure lines the verify section lists (#273); the JSON record keeps every run's.
 RED_ROWS = 20
-# `gh run list --limit`: enough for the project's history so far (149 runs before 2026-10-02 11:00 UTC).
+# The CI run list's limit (the scorecard's REST pages, `ci_data`'s `gh run list --limit`): enough for the project's
+# history so far (149 runs before 2026-10-02 11:00 UTC).
 CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
 CI_WORKFLOW = "ci.yml"
