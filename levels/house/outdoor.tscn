@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bnbbibwtgf4wn"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_outdoor/outdoor.glb" id="1"]
 [ext_resource type="PackedScene" path="res://assets/environment/house_outdoor/backdrop.glb" id="2"]
