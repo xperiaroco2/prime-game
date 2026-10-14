@@ -2,12 +2,13 @@ class_name RemotePlayerBody
 extends StaticBody3D
 ## Another player as the local client sees it: a capsule on the living layer while that player is
 ## living, else on the downed layer, which no push searches (a downed player pushes nobody and
-## nobody pushes it, §7.1; `set_living`). A downed player's mesh lies on its side (`set_downed`, the
-## M4 ADR's D8; its collision capsule lies with it, so the crosshair's search for a downed player
-## to raise finds it on the downed layer only where it lies; the own controller's capsule stays
-## standing for the host's floor checks); an invulnerable one wears a pulsing white shell
-## (`set_invulnerable`, the avatar's flag). It has the size of the client's own copy of the
-## mode's PlayerRules (`rules`), with a head that turns and nods. Only its owner's data moves it:
+## nobody pushes it, §7.1; `set_living`). While its player is knocked down its capsule, head and
+## collision are off (`set_downed`): AvatarViews draws the body as a RagdollView (KE7, §4.7.9),
+## which the crosshair's search for a downed player to raise finds; this body keeps the attach
+## points, the mouth and the sight point at the host's point. An invulnerable one wears a pulsing
+## white shell (`set_invulnerable`, the avatar's flag). It has the size of the client's own copy
+## of the mode's PlayerRules (`rules`), with a head that turns and nods. Only its owner's data
+## moves it:
 ## AvatarViews places it each physics frame at SnapshotBuffer's interpolated pose (ARCHITECTURE
 ## §4.7), the yaw on the body and the pitch on the head, both already guarded against a degenerate
 ## facing. The local player never collides with it like a wall and never moves it: it pushes into
@@ -94,7 +95,7 @@ func set_rules(value: PlayerRules) -> void:
 		_apply_rules()
 
 
-## Paints the capsule `value` (the player's body colour, BodyColours, #551), standing or lying. Only
+## Paints the capsule `value` (the player's body colour, BodyColours, #551). Only
 ## a change touches the mesh: AvatarViews calls it every physics frame. Before the body is ready,
 ## or before its rules, the colour waits for _apply_rules.
 func set_colour(value: Color) -> void:
@@ -112,7 +113,8 @@ func set_living(living: bool) -> void:
 	collision_layer = PhysicsLayers.LIVING if living else PhysicsLayers.DOWNED
 
 
-## Lays the mesh down (the downed pose) or stands it up, and hides the head while it lies.
+## Hides the capsule and the head and turns the collision capsule off while the player is knocked
+## down (its RagdollView is its body then), or shows them again.
 func set_downed(downed: bool) -> void:
 	if downed == _downed:
 		return
@@ -120,7 +122,7 @@ func set_downed(downed: bool) -> void:
 	_show_looks()
 
 
-## Whether the mesh lies (the downed pose).
+## Whether the player is knocked down (set_downed).
 func is_downed() -> bool:
 	return _downed
 
@@ -148,7 +150,7 @@ func set_crouched(crouched: bool, delta: float) -> void:
 		and not is_inf(delta)
 	):
 		step = rules.step_height_m / tuning.view_catch_up_seconds * delta
-	# A downed body lies at standing size (its crouch flag can trail the life by the interpolation
+	# A downed body keeps its standing size (its crouch flag can trail the life by the interpolation
 	# delay): its points stay with the standing pose.
 	var target := (
 		rules.eye_height_m - rules.crouch_eye_height_m if crouched and not _downed else 0.0
@@ -186,8 +188,8 @@ func is_watched() -> bool:
 	return _watched
 
 
-## The point SightHider casts its ray at: the capsule's middle (crouched or not), or the lying
-## capsule's.
+## The point SightHider casts its ray at: the capsule's middle (crouched or not), or while knocked
+## down the lying centre over the host's point, as its RagdollView's.
 func sight_point() -> Vector3:
 	var up := rules.capsule_radius_m if _downed else rules.height_of(_crouched) * 0.5
 	return global_position + Vector3.UP * up
@@ -217,19 +219,20 @@ func _process(_delta: float) -> void:
 	LifeLooks.pulse(_shell, Time.get_ticks_msec() / 1000.0)
 
 
-## Stands, crouches or lays the mesh, the shell and the collision capsule, and shows the head
-## standing or crouched only, unless watched.
+## Stands or crouches the mesh, the shell and the collision capsule; shows the mesh and the head
+## unless knocked down or watched, and the collision unless knocked down.
 func _show_looks() -> void:
 	if rules == null:
 		return
 	var low := _crouched and not _downed
 	if low != _fitted_low:
 		_fit(low)
-	var pose := LifeLooks.lying(rules) if _downed else LifeLooks.standing(rules, low)
+	var pose := LifeLooks.standing(rules, low)
 	_shape.transform = pose
+	_shape.disabled = _downed
 	_mesh.transform = pose
 	_shell.transform = pose
-	_mesh.visible = not _watched
+	_mesh.visible = not _downed and not _watched
 	_head.visible = not _downed and not _watched
 
 

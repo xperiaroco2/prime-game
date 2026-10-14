@@ -4,11 +4,14 @@ extends GdUnitTestSuite
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
 ## PlayersPlaced snaps; a LoadMatch and a phase on another level (End -> Lobby, #241) forget the
 ## poses; the estimated host tick never runs backwards; a player the model knows as downed is on
-## the downed layer, where no push searches (§7.1); a body the model drops leaves the physics
-## space in that frame, before the local player's push search (#242), and clear() takes every
-## body out of the tree the same way.
+## the downed layer, where no push searches (§7.1), and is drawn as a RagdollView (KE7, §4.7.9),
+## the own player too, as its ragdoll only; a revive takes the ragdoll out of the physics space in
+## that frame, a death parks it for BodyViews; a body the model drops leaves the physics space in
+## that frame, before the local player's push search (#242), and clear() takes every body out of
+## the tree the same way.
 
 const PEER := 2
+const OWN := 3
 const TICK_USEC := 50000
 const FRAME_USEC := 16667
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
@@ -97,25 +100,116 @@ func test_a_downed_player_is_on_the_downed_layer_and_living_again_on_the_living_
 	await _drawn()
 	assert_int(body.collision_layer).is_equal(PhysicsLayers.DOWNED)
 	assert_bool(body.is_living()).is_false()
-	# The downed pose (D8): the mesh lies on its side, its top at the capsule's width, no head.
+	# Knocked down (KE7): the body hides its capsule and head and turns its collision off; a
+	# ragdoll on the downed layer, with the world mask only, is its body, held to its point.
 	assert_bool(body.is_downed()).is_true()
 	assert_bool(body.head().visible).is_false()
 	var mesh := body.get_node("Mesh") as MeshInstance3D
-	assert_float(mesh.get_aabb().size.y).is_greater(1.0)
-	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_less(0.81)
-	# Its collision capsule lies with the mesh: a ray over the lying body, where the standing
-	# capsule was, finds nothing to raise there.
-	await _drawn()
-	assert_int(_ray_hits_at(1.5)).is_equal(0)
-	assert_int(_ray_hits_at(0.3)).is_equal(1)
-	# A new match forgets the knockdown: the body is on the living layer again, standing.
+	var shape := body.get_node("CollisionShape3D") as CollisionShape3D
+	assert_bool(mesh.visible).is_false()
+	assert_bool(shape.disabled).is_true()
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_object(ragdoll).is_not_null()
+	assert_int(_views.ragdoll_count()).is_equal(1)
+	assert_int(ragdoll.peer).is_equal(PEER)
+	assert_int(ragdoll.collision_layer).is_equal(PhysicsLayers.DOWNED)
+	assert_int(ragdoll.collision_mask).is_equal(PhysicsLayers.WORLD)
+	assert_bool(ragdoll.is_in_group(SightHider.GROUP)).is_true()
+	assert_vector(ragdoll.held_point()).is_equal(body.global_position)
+	assert_vector(_views.point_of(PEER, Vector3.ONE)).is_equal(body.global_position)
+	# A new match forgets the knockdown: the body is on the living layer again, standing, and the
+	# ragdoll is out of the physics space in that frame.
 	_model.lives.erase(PEER)
 	await _drawn()
 	assert_bool(body.is_living()).is_true()
 	assert_bool(body.is_downed()).is_false()
 	assert_bool(body.head().visible).is_true()
+	assert_bool(mesh.visible).is_true()
+	assert_bool(shape.disabled).is_false()
 	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_greater(1.7)
+	assert_object(_views.ragdoll_of(PEER)).is_null()
+	assert_bool(is_instance_valid(ragdoll) and ragdoll.is_inside_tree()).is_false()
+	assert_vector(_views.point_of(PEER, Vector3.ONE)).is_equal(Vector3.ONE)
+	await _drawn()
 	assert_int(_ray_hits_at(1.5)).is_equal(1)
+
+
+## KE5, KE7: the own player's avatar, which its snapshot carries while it is knocked down, is drawn
+## as its ragdoll only, never as a stranger's body; living, it has none.
+func test_the_own_knocked_down_avatar_is_drawn_as_its_ragdoll_only() -> void:
+	_model.own_peer = OWN
+	_model.fold(&"PlayerJoined", {"peer": OWN, "name": "Iryna", "spot": Vector3.ZERO, "colour": 2})
+	_model.fold(&"KnockedDown", {"peer": OWN, "position": Vector3(1, 0, 1)})
+	_arrive_own(1, Vector3(1, 0, 1))
+	await _drawn()
+	assert_object(_views.body_of(OWN)).is_null()
+	var ragdoll := _views.ragdoll_of(OWN)
+	assert_object(ragdoll).is_not_null()
+	assert_object(ragdoll.colour()).is_equal(BodyColours.of(2))
+	assert_vector(_views.point_of(OWN, Vector3.ZERO)).is_equal(Vector3(1, 0, 1))
+	_model.fold(&"Revived", {"peer": OWN, "raiser": PEER})
+	await _drawn()
+	assert_object(_views.ragdoll_of(OWN)).is_null()
+	assert_bool(is_instance_valid(ragdoll) and ragdoll.is_inside_tree()).is_false()
+	assert_object(_views.body_of(OWN)).is_null()
+
+
+## KE14, the client ADR's host trust: a ragdoll takes its velocity only from a snapshot that shows
+## its player knocked down, the host body's. When the reliable KnockedDown overtakes that snapshot,
+## the newest one still carries the living player's claimed velocity: the ragdoll starts with none.
+## A velocity past SnapshotBuffer.SNAP_SPEED_MPS is cut to it, a huge one stays finite.
+func test_a_ragdoll_takes_no_claimed_velocity_only_a_downed_snapshots() -> void:
+	var claimed := Vector3(20.0, 0.0, 0.0)
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, false, false, claimed)
+	await _drawn()
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_vector(ragdoll.held_velocity()).is_equal(Vector3.ZERO)
+	assert_bool(ragdoll.linear_velocity.is_finite()).is_true()
+	assert_float(ragdoll.linear_velocity.length()).is_less(SnapshotBuffer.SNAP_SPEED_MPS)
+	assert_bool(ragdoll.global_position.is_finite()).is_true()
+	_snapshot(2, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(2.0, 1.0, 0.0), true)
+	await _drawn()
+	assert_vector(ragdoll.held_velocity()).is_equal(Vector3(2.0, 1.0, 0.0))
+	_snapshot(3, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(0.0, 0.0, 90.0), true)
+	await _drawn()
+	assert_vector(ragdoll.held_velocity()).is_equal_approx(
+		Vector3(0.0, 0.0, SnapshotBuffer.SNAP_SPEED_MPS), Vector3.ONE * 0.001
+	)
+	_snapshot(4, Vector3.ZERO, Vector3.FORWARD, false, false, Vector3(0.0, 0.0, 3.0e38), true)
+	await _drawn()
+	assert_bool(ragdoll.held_velocity().is_finite()).is_true()
+	assert_float(ragdoll.held_velocity().length()).is_less_equal(SnapshotBuffer.SNAP_SPEED_MPS)
+	assert_bool(ragdoll.global_position.is_finite()).is_true()
+
+
+## KD7 (a): at a death the ragdoll is parked for BodyViews in that physics frame; one nobody takes
+## goes at the next.
+func test_a_death_parks_the_ragdoll_for_the_body_views_and_drops_it_untaken() -> void:
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	var ragdoll := _views.ragdoll_of(PEER)
+	_model.fold(&"Died", {"peer": PEER, "position": Vector3(0.5, 0, 0)})
+	# One step of AvatarViews: BodyViews (-70) would take it in this one.
+	await get_tree().physics_frame
+	assert_object(_views.ragdoll_of(PEER)).is_null()
+	assert_object(_views.release_ragdoll(PEER)).is_same(ragdoll)
+	assert_bool(ragdoll.is_inside_tree()).is_false()
+	assert_object(_views.release_ragdoll(PEER)).is_null()
+	ragdoll.free()
+	# Another death nobody takes: the parked ragdoll goes at the next step.
+	_model.fold(&"Respawned", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	var second := _views.ragdoll_of(PEER)
+	_model.fold(&"Died", {"peer": PEER, "position": Vector3.ZERO})
+	await get_tree().physics_frame
+	assert_bool(second.is_inside_tree()).is_true()
+	await get_tree().physics_frame
+	assert_bool(is_instance_valid(second) and second.is_inside_tree()).is_false()
 
 
 func test_the_invulnerable_flag_shows_the_shell_and_every_body_hides_out_of_sight() -> void:
@@ -149,6 +243,12 @@ func test_a_body_wears_its_players_colour_and_follows_a_profile_change() -> void
 	assert_bool(_views.body_of(PEER).is_downed()).is_true()
 	assert_object(mesh.mesh).is_same(capsule)
 	assert_object(material.albedo_color).is_equal(BodyColours.of(7))
+	# The ragdoll wears it too, and follows a change.
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_object(ragdoll.colour()).is_equal(BodyColours.of(7))
+	_model.fold(&"ProfileChanged", {"peer": PEER, "name": "Olena", "colour": 2})
+	await _drawn()
+	assert_object(ragdoll.colour()).is_equal(BodyColours.of(2))
 
 
 func test_the_host_tick_never_runs_backwards() -> void:
@@ -468,13 +568,19 @@ func _mesh_top(mesh: MeshInstance3D) -> float:
 
 
 func _snapshot(
-	tick: int, at: Vector3, facing: Vector3, invulnerable := false, crouched := false
+	tick: int,
+	at: Vector3,
+	facing: Vector3,
+	invulnerable := false,
+	crouched := false,
+	velocity := Vector3.ZERO,
+	downed := false,
 ) -> void:
 	var avatar := {
 		"position": at,
-		"velocity": Vector3.ZERO,
+		"velocity": velocity,
 		"facing": facing,
-		"downed": false,
+		"downed": downed,
 		"crouched": crouched,
 		"invulnerable": invulnerable,
 		"held_item": -1,
@@ -488,6 +594,15 @@ func _arrive(tick: int, at: Vector3, avatar := {}) -> void:
 	if avatar.is_empty():
 		avatar = {"position": at, "velocity": Vector3.ZERO, "facing": Vector3.FORWARD}
 	var fields := {"tick": tick, "avatars": {PEER: avatar}}
+	_model.fold_snapshot(fields)
+	_views.buffer.add(tick, fields["avatars"] as Dictionary, _now)
+
+
+## The own snapshot of `tick` with the own avatar at `at` (KE5: knocked down) arrives now.
+func _arrive_own(tick: int, at: Vector3) -> void:
+	_now += TICK_USEC
+	var avatar := {"position": at, "velocity": Vector3.ZERO, "facing": Vector3.FORWARD}
+	var fields := {"tick": tick, "avatars": {OWN: avatar}}
 	_model.fold_snapshot(fields)
 	_views.buffer.add(tick, fields["avatars"] as Dictionary, _now)
 

@@ -17,8 +17,9 @@ extends Node
 
 const GAME := preload("res://client/app/game.tscn")
 const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
-## The steps room again, the one map where a body moves (PlayerRules.motion_maps): the match starts
-## in STEPS_ROOM, which keeps today's knockdown, so no life test of the players moves a body.
+## The steps room again, the one map where a body moves (PlayerRules.motion_maps), with a low slab
+## to fly under (the fixture's Slab): the match starts in STEPS_ROOM, which keeps today's knockdown,
+## so a test moves a body only by setting mode.maps to this map alone before start().
 const MOTION_LEVEL := "res://tests/fixtures/client/steps_room_motion.tscn"
 const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
 const PORT := 7400
@@ -211,8 +212,9 @@ func with_knives(count: int) -> void:
 ## Knocks `game`'s player down on the host as a strike to 0 health would (LifeRules.knock_down,
 ## M4-2): KnockedDown to everyone and its Correction go out with the host's next tick. The fixture
 ## level has no weapon, so this reaches into the host's Match, which only a test may do: Game and
-## HostNode keep it private (E18). The floor of steps_room's round spots is at y = 0.
-func knock_down(game: Game) -> void:
+## HostNode keep it private (E18). The floor of steps_room's round spots is at y = 0. On
+## MOTION_LEVEL the host's body flies off with `launch` (LaunchBody, the knockdown rework's KE3).
+func knock_down(game: Game, launch := Vector3.ZERO) -> void:
 	var node := host.get_node("HostNode") as HostNode
 	var session := node.get("_session") as HostSession
 	var played := session.game
@@ -223,7 +225,7 @@ func knock_down(game: Game) -> void:
 	ctx.world = FlatWorldQuery.new()
 	ctx.tick = played.ticked_through()
 	played.state.player(peer).health = 0
-	LifeRules.knock_down(ctx, peer)
+	LifeRules.knock_down(ctx, peer, launch)
 
 
 ## The crew wins at the host's next tick: FixtureBaseMode's win condition, peer 0's counter

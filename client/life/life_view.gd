@@ -296,7 +296,9 @@ func raise_target() -> int:
 
 
 ## raise_target()'s cast: the first thing along the camera's ray, so a wall in front hides a
-## downed player behind it.
+## downed player behind it. A hit ragdoll names its peer (§4.7.9, the knockdown ADR's §7), and the
+## reach is measured to that peer's interpolated point, the ragdoll's held one, never to the part
+## the ray hit.
 func _cast_raise_target() -> int:
 	if player == null or not player.is_inside_tree() or _reach_m <= 0.0:
 		return 0
@@ -306,14 +308,14 @@ func _cast_raise_target() -> int:
 	var mask := PhysicsLayers.WORLD | PhysicsLayers.DOWNED
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [player.get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	var body := hit.get("collider") as RemotePlayerBody
-	if body == null or body.peer == 0:
+	var ragdoll := hit.get("collider") as RagdollView
+	if ragdoll == null or ragdoll.peer == 0:
 		return 0
-	if model.life_of(body.peer) != ClientModel.Life.DOWNED:
+	if model.life_of(ragdoll.peer) != ClientModel.Life.DOWNED:
 		return 0
-	if player.global_position.distance_to(body.global_position) > _reach_m:
+	if player.global_position.distance_to(ragdoll.held_point()) > _reach_m:
 		return 0
-	return body.peer
+	return ragdoll.peer
 
 
 ## Next (`step` 1) or previous (-1) spectate target, while dead.
@@ -367,7 +369,7 @@ func _physics_process(_delta: float) -> void:
 		ClientModel.Life.DOWNED:
 			var angles := SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO)
 			_last_look = angles
-			_show_downed(player.global_position, angles.x, angles.y)
+			_show_downed(own_point(), angles.x, angles.y)
 		ClientModel.Life.DEAD, ClientModel.Life.LEFT:
 			_spectate()
 		_:
@@ -383,6 +385,7 @@ func _place_ears() -> void:
 	if not player.is_inside_tree():
 		return
 	var own_feet := player.global_transform
+	own_feet.origin = own_point()
 	if _is_dead() and model.bodies.has(model.own_peer):
 		own_feet = Transform3D(Basis.IDENTITY, model.bodies[model.own_peer])
 	var target_body := avatars.body_of(_target) if _is_dead() and _target != 0 else null
@@ -446,10 +449,24 @@ func _spectate() -> void:
 		_view = View.SPECTATE_ABOVE
 
 
-## The DownedCamera over the feet at `feet` with that look; SightHider casts from its pivot.
+## Where the own body is: while knocked down, the own avatar's interpolated point (KE5, the own
+## ragdoll's held point, AvatarViews.point_of()), since the controller holds still where the
+## knockdown found it; else, and before the first snapshot that carries the own avatar, the
+## controller's feet. The map screen's own place reads it too.
+func own_point() -> Vector3:
+	var feet := player.global_position
+	if avatars == null or _own_life() != ClientModel.Life.DOWNED:
+		return feet
+	return avatars.point_of(model.own_peer, feet)
+
+
+## The DownedCamera over the host's point `feet` with that look, at downed_eye_of()'s eye height
+## (#958), clamped by the floor below and the ceiling above (KE8); SightHider casts from its pivot.
 func _show_downed(feet: Vector3, yaw: float, pitch: float) -> void:
+	var rules := mode.player_rules
 	var space := get_world_3d().direct_space_state if is_inside_tree() else null
-	_downed_camera.place(downed_eye_of(space, feet, mode.player_rules), yaw, pitch)
+	var eye_m := downed_eye_of(space, feet, rules).y - feet.y
+	_downed_camera.place_over(feet, eye_m, rules.capsule_radius_m, yaw, pitch)
 	_show(View.DOWNED)
 	_hider.watch_from(_downed_camera.pivot())
 

@@ -75,6 +75,31 @@ func test_the_downed_hear_from_their_body_not_from_the_downed_camera() -> void:
 	assert_float(ears.distance_to(camera)).is_greater(0.5)
 
 
+## KE5, KE8: once the snapshot carries the own avatar, the downed hear from its head and watch from
+## above it, where the host's body is, not from the controller held where the knockdown found it.
+func test_the_downed_hear_and_watch_from_their_own_avatars_point_not_the_controller() -> void:
+	_model.lives[OWN] = ClientModel.Life.DOWNED
+	_player.life = ClientModel.Life.DOWNED
+	var point := Vector3(3, 0, -1)
+	for tick: int in range(1, 4):
+		_now += TICK_USEC
+		var avatars := {
+			OWN: {"position": point, "velocity": Vector3.ZERO, "facing": Vector3.FORWARD}
+		}
+		_model.fold_snapshot({"tick": tick, "avatars": avatars})
+		_avatars.buffer.add(tick, avatars, _now)
+	_now += TICK_USEC * 10
+	await _drawn()
+	assert_object(_avatars.ragdoll_of(OWN)).is_not_null()
+	assert_vector(_life.own_point()).is_equal(point)
+	var feet := Transform3D(_player.global_basis, point)
+	var head := Ears.lying_head(feet, _mode.player_rules)
+	assert_vector(_life.ears().global_position).is_equal_approx(head, Vector3.ONE * 1e-3)
+	var pivot := _life.downed_camera().pivot()
+	assert_float(Vector2(pivot.x, pivot.z).distance_to(Vector2(point.x, point.z))).is_less(1e-3)
+	assert_float(_player.global_position.distance_to(point)).is_greater(3.0)
+
+
 func test_the_dead_hear_from_a_living_targets_eye_then_from_its_body_when_it_goes_down() -> void:
 	_others_at(Vector3(4, 0, 0))
 	_model.lives[OWN] = ClientModel.Life.DEAD

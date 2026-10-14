@@ -145,6 +145,21 @@ func test_the_own_downed_players_items_lie_at_its_body_not_in_the_hand_view() ->
 	assert_bool(view.global_position.is_equal_approx(_player.global_position)).is_true()
 
 
+## KE5: knocked down, the own body moves with the host's while the controller holds still where
+## the knockdown found it: the own items lie at the own avatar's point, not at the controller.
+func test_the_own_downed_players_items_follow_its_avatars_point_not_the_controller() -> void:
+	_spawn(1, &"knife", Vector3.ZERO)
+	_model.fold(&"ItemPickedUp", {"peer": 1, "item": 1})
+	_model.fold(&"KnockedDown", {"peer": 1, "position": _player.global_position})
+	var moved := _player.global_position + Vector3(2, 0, -1)
+	_own_at(moved)
+	await _drawn()
+	assert_vector(_avatars.point_of(1, Vector3.INF)).is_equal(moved)
+	var view := _items.view_of(1)
+	assert_bool(view.is_look_shown()).is_true()
+	assert_vector(view.global_position).is_equal_approx(moved, Vector3.ONE * 0.001)
+
+
 func test_an_item_put_out_of_the_bodys_sight_is_hidden_in_that_physics_frame() -> void:
 	# The downed camera's sight hiding (SightHider, M4-9) must see the view where it is now: placed
 	# after it cast, the item would be drawn for a frame where the body's eye cannot see it.
@@ -297,6 +312,23 @@ func _other_at(at: Vector3) -> void:
 			"held_item": -1,
 		}
 		var fields := {"tick": tick, "avatars": {OTHER: avatar}}
+		_model.fold_snapshot(fields)
+		_avatars.buffer.add(tick, fields["avatars"] as Dictionary, _now)
+	_now += TICK_USEC * 10
+
+
+## The own avatar at `at` in three snapshots (KE5: a knocked-down player's own snapshot has it).
+func _own_at(at: Vector3) -> void:
+	for tick: int in range(1, 4):
+		_now += TICK_USEC
+		var avatar := {
+			"position": at,
+			"velocity": Vector3.ZERO,
+			"facing": Vector3.FORWARD,
+			"downed": true,
+			"held_item": 1,
+		}
+		var fields := {"tick": tick, "avatars": {_model.own_peer: avatar}}
 		_model.fold_snapshot(fields)
 		_avatars.buffer.add(tick, fields["avatars"] as Dictionary, _now)
 	_now += TICK_USEC * 10

@@ -34,10 +34,9 @@ func test_the_downed_hear_from_their_head_where_they_lie() -> void:
 func test_the_head_lies_where_the_lying_capsule_puts_the_eyes_and_turns_with_the_body() -> void:
 	var feet := Transform3D(Basis(Vector3.UP, PI * 0.5), OWN_FEET)
 	var head := Ears.lying_head(feet, _rules)
-	# The standing eye, carried through the standing and lying mesh poses (LifeLooks).
-	var in_mesh := Vector3(0, _rules.eye_height_m - _rules.capsule_height_m * 0.5, 0)
-	var want := feet * (LifeLooks.lying(_rules) * in_mesh)
-	assert_vector(head).is_equal_approx(want, Vector3.ONE * 1e-5)
+	# The fixture's capsule (radius 0.4, height 1.8, eyes at 1.6) lying along the body's -Z: the
+	# eyes 0.4 m up and 1.6 - 0.9 m behind the middle; a quarter turn puts behind along +X.
+	assert_vector(head).is_equal_approx(Vector3(2.7, 0.4, 3.0), Vector3.ONE * 1e-5)
 	assert_float(head.distance_to(OWN_FEET)).is_greater(0.1)
 	var unturned := Ears.lying_head(_feet(OWN_FEET), _rules)
 	assert_float(head.distance_to(unturned)).is_greater(0.1)

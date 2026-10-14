@@ -1,8 +1,9 @@
 extends Node3D
 ## A preview of the ten body colours for `tools\run.cmd shot` (#551): ten players in a row, peer
 ## n + 1 in colour n (BodyColours, the delivery circles' colours), drawn by a real AvatarViews
-## from fake snapshots and the roster's colours; the last two lie downed, so the lying capsule
-## shows its colour too. Dev only: nothing here reaches the game.
+## from fake snapshots and the roster's colours; the last two are knocked down, so their ragdolls
+## (RagdollView, #848) show the colour too, at rest on a floor with a collider. Dev only: nothing
+## here reaches the game.
 
 const MODE := "res://content/modes/base_mode.tres"
 const TICK_USEC := 50000
@@ -73,6 +74,15 @@ func _add_floor() -> void:
 	plane.material = material
 	floor_mesh.mesh = plane
 	add_child(floor_mesh)
+	var ground := StaticBody3D.new()
+	ground.collision_layer = PhysicsLayers.WORLD
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(40.0, 1.0, 40.0)
+	shape.shape = box
+	shape.position = Vector3(0.0, -0.5, 0.0)
+	ground.add_child(shape)
+	add_child(ground)
 
 
 func _add_light() -> void:

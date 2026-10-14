@@ -1,11 +1,12 @@
 class_name LifeLooks
 extends RefCounted
 ## The greybox looks of the life states (the M4 ADR's D8 (a), placeholders "distinct at a glance in
-## a `shot`"): a downed player is their capsule lying on its side in their colour; a body the same
-## in grey with a dark cross; invulnerability a translucent white shell that pulses; a crouched
-## player the shorter crouched capsule (the crouch ADR, KE7, until #522's clips). Shared by the
-## own PlayerController, RemotePlayerBody and the body views (client/world/body_views.gd), sized
-## from the client's own copy of the mode's PlayerRules.
+## a `shot`"): a knocked-down player is their capsule as a ragdoll in their colour (RagdollView, the
+## knockdown ADR's KE7); a body the same ragdoll greyed with a dark cross over it (KD7 (a));
+## invulnerability a translucent white shell that pulses; a crouched player the shorter crouched
+## capsule (the crouch ADR, KE7, until #522's clips). Shared by RagdollView, the own
+## PlayerController, RemotePlayerBody and the body views (client/world/body_views.gd), sized from
+## the client's own copy of the mode's PlayerRules.
 
 ## A player's colour where no roster gives one (offline: the dev room, the controller's tests);
 ## on a session a body wears its player's colour (BodyColours, #551).
@@ -34,26 +35,16 @@ static func capsule(
 	return mesh
 
 
-## Where a capsule mesh lies, from the feet: on its side along the body's forward axis (-Z), its
-## lowest point on the floor.
-static func lying(rules: PlayerRules) -> Transform3D:
-	var along_z := Basis(Vector3.RIGHT, PI * 0.5)
-	return Transform3D(along_z, Vector3(0.0, rules.capsule_radius_m, 0.0))
-
-
 ## Where a capsule mesh stands, from the feet; the crouched capsule where `crouched`.
 static func standing(rules: PlayerRules, crouched := false) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, Vector3(0.0, rules.height_of(crouched) * 0.5, 0.0))
 
 
-## A body (Died): the grey lying capsule with a dark cross on top, as one node, from the feet.
-static func body(rules: PlayerRules) -> Node3D:
+## A body's cross (Died, KD7 (a)): two dark bars over the point of the body, at the height of a
+## lying capsule's top, as one node; the body itself is its greyed ragdoll (RagdollView).
+static func cross(rules: PlayerRules) -> Node3D:
 	var root := Node3D.new()
-	var lying_mesh := MeshInstance3D.new()
-	lying_mesh.name = "Capsule"
-	lying_mesh.mesh = capsule(rules, BODY_COLOUR)
-	lying_mesh.transform = lying(rules)
-	root.add_child(lying_mesh)
+	root.name = "Cross"
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = CROSS_COLOUR
 	var top := rules.capsule_radius_m * 2.0 + CROSS_BAR.y * 0.5
@@ -62,7 +53,7 @@ static func body(rules: PlayerRules) -> Node3D:
 		bar.size = CROSS_BAR
 		bar.material = dark
 		var instance := MeshInstance3D.new()
-		instance.name = "Cross%d" % root.get_child_count()
+		instance.name = "Bar%d" % root.get_child_count()
 		instance.mesh = bar
 		instance.transform = Transform3D(Basis(Vector3.UP, turn), Vector3(0.0, top, 0.0))
 		root.add_child(instance)

@@ -90,59 +90,19 @@ func test_turning_back_into_the_living_limits_it_by_stamina_again() -> void:
 	assert_bool(player.is_sprinting()).is_false()
 
 
-func test_only_the_downed_show_the_lying_mesh_and_the_dead_have_no_body() -> void:
+func test_the_controller_draws_no_body_while_downed_and_the_dead_have_none() -> void:
+	# The knocked-down own body is the own avatar's ragdoll (AvatarViews, KE5 and KE7; its colour is
+	# avatar_views_test's), never a mesh of the controller held where the knockdown found it.
 	var player := _world.add_player(Vector3.ZERO)
-	var lying := player.get_node("Lying") as MeshInstance3D
-	assert_bool(lying.visible).is_false()
 	player.life = ClientModel.Life.DOWNED
-	assert_bool(lying.visible).is_true()
-	# On its side along the body: as long as the capsule, no higher than its width.
-	var box := lying.global_transform * lying.get_aabb()
-	assert_float(box.size.z).is_equal_approx(_rules.capsule_height_m, 0.01)
-	assert_float(box.end.y).is_equal_approx(_rules.capsule_radius_m * 2.0, 0.01)
+	assert_int(player.collision_layer).is_equal(PhysicsLayers.DOWNED)
+	assert_array(_shown_meshes(player)).is_empty()
+	player.set_rules(player.rules)
+	assert_array(_shown_meshes(player)).is_empty()
 	player.life = ClientModel.Life.DEAD
-	assert_bool(lying.visible).is_false()
+	assert_array(_shown_meshes(player)).is_empty()
 	assert_int(player.collision_layer).is_equal(0)
 	assert_bool(player.is_living() or player.is_downed()).is_false()
-
-
-func test_the_own_lying_mesh_wears_the_own_body_colour() -> void:
-	# #551: offline the greybox colour; on a session the own colour from the roster, as the others
-	# see the lying body.
-	var player := _world.add_player(Vector3.ZERO)
-	var lying := player.get_node("Lying") as MeshInstance3D
-	var material := (lying.mesh as CapsuleMesh).material as StandardMaterial3D
-	player.life = ClientModel.Life.DOWNED
-	assert_object(material.albedo_color).is_equal(LifeLooks.PLAYER_COLOUR)
-	player.life = ClientModel.Life.ALIVE
-	var schema := WireSchema.game(OS.is_debug_build())
-	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
-	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
-	session.model.own_peer = 2
-	session.model.fold(
-		&"PlayerJoined", {"peer": 2, "name": "Me", "spot": Vector3.ZERO, "colour": 6}
-	)
-	player.attach(session)
-	player.life = ClientModel.Life.DOWNED
-	assert_object(material.albedo_color).is_equal(BodyColours.of(6))
-
-
-func test_new_rules_keep_the_lying_mesh_in_the_own_body_colour() -> void:
-	# #551 review: _apply_rules builds a new lying mesh, which must not fall back to the greybox.
-	var player := _world.add_player(Vector3.ZERO)
-	var schema := WireSchema.game(OS.is_debug_build())
-	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
-	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
-	session.model.own_peer = 2
-	session.model.fold(
-		&"PlayerJoined", {"peer": 2, "name": "Me", "spot": Vector3.ZERO, "colour": 4}
-	)
-	player.attach(session)
-	player.life = ClientModel.Life.DOWNED
-	player.set_rules(player.rules)
-	var lying := player.get_node("Lying") as MeshInstance3D
-	var material := (lying.mesh as CapsuleMesh).material as StandardMaterial3D
-	assert_object(material.albedo_color).is_equal(BodyColours.of(4))
 
 
 func test_the_dead_never_move_however_they_are_driven() -> void:
@@ -212,3 +172,10 @@ func test_a_revived_player_walks_on_from_where_it_lay() -> void:
 ## The head's pitch of `player`'s first-person view, in radians (up is positive).
 func _pitch(player: PlayerController) -> float:
 	return player.get_camera().get_parent_node_3d().rotation.x
+
+
+## The meshes under `player` drawn now.
+func _shown_meshes(player: PlayerController) -> Array[Node]:
+	return player.find_children("*", "MeshInstance3D", true, false).filter(
+		func(mesh: Node) -> bool: return (mesh as MeshInstance3D).is_visible_in_tree()
+	)
