@@ -90,9 +90,9 @@ func test_space_shift_tab_and_esc_keycaps_are_wide_and_a_rebind_decides() -> voi
 	var tab := InputEventKey.new()
 	tab.physical_keycode = KEY_TAB
 	controls.bind(&"interact", tab)
-	var alt := InputEventKey.new()
-	alt.physical_keycode = KEY_ALT
-	controls.bind(&"sprint", alt)
+	var narrow := InputEventKey.new()
+	narrow.physical_keycode = KEY_Z
+	controls.bind(&"sprint", narrow)
 	controls.apply()
 	assert_bool(KeyLabel.is_wide_action(&"jump")).is_false()
 	assert_bool(KeyLabel.is_wide_action(&"interact")).is_true()
