@@ -4660,6 +4660,33 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   `tests/integration/client/life/life_raise_ragdoll_network_test.gd` (a hit bone names its peer: seen failing on the
   old collider cast).
 
+#### 4.7.54 Built in #801 (Generator G6), the Generator's stations, switches and panel
+The client side of the Generator (the [Generator ADR](decisions/2026-10-10-generator-task.md)'s GD4, GE11, GE14),
+from the own `ClientModel`'s StationPlaced, SwitchChanged, ButtonPressed and ZoneProgress folds only; the wire is
+unchanged.
+- **What E offers.** `StationUse` (pure) offers a placed station whose kind has an Interact rule, whose hand rule
+  (HandNotTwoHanded) holds, and whose task type this client draws: today only a Generator's generator and switch,
+  neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Other kinds with
+  an Interact rule (photo, cooking, car repair) are offered once their client issues add them.
+- **The target.** `TargetChoice.choose_target` weighs the item against the offered stations: a station counts where
+  the camera's ray hits its device (`StationViews.station_of_body` names the scene's `Collision`) or enters its use
+  spot's sphere (`STATION_AIM_RADIUS_M` 0.4 m, its middle 0.4 m above the floor point; looks, "not a decision"),
+  while the feet stand in its cylinder less the hint's margin (the host's AtStation); the nearest along the ray
+  wins, an item on a tie. `ItemInteractions` then casts the host's StationInSight (camera to the lifted floor point,
+  world layer) and E sends `Interact(station, item -1)`. The HUD names the station by `ContentNames.station`
+  (`station.<id>` once the UI deck has it, else the kind id), never a switch's state.
+- **The scenes.** `CircleViews` draws only Delivery's circles (and the fallback cylinder of a kind no type holds).
+  `StationViews` (in `ItemWorld`; `Game` hands it the level) binds each placed generator or switch to the level's
+  scene of its kind whose `UseSpot` is nearest (within 0.5 m) and drives the level-piece ADR's named parts: a
+  switch's `Active/On` or `Active/Off`; a scene no station binds while the Generator is dealt shows `Fixed`; the
+  generator's `Bars/Bar1..` lit from the fixed switches' count plus the switches on, `Glow` once all are lit, and
+  `Button` moved in 0.02 m for 0.15 s at each press (a press before the bind replays nothing). The driven parts move
+  once per scene under a `StationSight` wrapper in `SightHider.GROUP` (sight point 1 m above the use spot), so a
+  downed eye behind a wall sees none; `Fixed` stays outside it. All are the level's depth-tested meshes.
+- **Tests.** `tests/unit/client/world/station_use_test.gd`, `target_choice_station_test.gd`,
+  `tests/integration/client/world/item_interactions_station_test.gd`, `circle_views_generator_test.gd`,
+  `station_views_test.gd` (the real `levels/stations/` scenes), `tests/unit/client/ui/content_names_test.gd`.
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
