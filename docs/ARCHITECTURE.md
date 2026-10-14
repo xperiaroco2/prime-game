@@ -4683,9 +4683,21 @@ unchanged.
   `Button` moved in 0.02 m for 0.15 s at each press (a press before the bind replays nothing). The driven parts move
   once per scene under a `StationSight` wrapper in `SightHider.GROUP` (sight point 1 m above the use spot), so a
   downed eye behind a wall sees none; `Fixed` stays outside it. All are the level's depth-tested meshes.
+- **The sounds.** `SoundChooser` plays SwitchChanged's click at the switch's station and ButtonPressed's at the
+  generator's (aimed `PANEL_AIM_M` above), cut at the hearing range and muffled like every world sound, on
+  `WorldSounds.station_blip()` placeholders. `StationHums` (in `ItemWorld`) keeps one looping hum
+  (`WorldSounds.hum_blip()`) at each generator station that counts and is not full, while `GameFlow.in_round`; a zone
+  held never hums (`StationUse.is_generator`); a muffle ray every 0.1 s. The hum stops with the charge or the round.
+- **The map bar.** `MapScreen`'s Generator row shows a `ProgressBar` `Charge` (theme variation `MapBar`, a thin
+  `ToyBarProgress` in the mapping's legacy section, as `LifeBar`) in place of the counter: `max_value` the
+  ZoneProgress's `needed`, `value` `ZoneViews.ticks_at` at the host tick while `GameFlow.in_round`, else the last
+  event's ticks (the model's `end_tick` is the clock's, not the round's end); full, and struck, once the station or
+  the task is done. It reads only its generator station's events.
 - **Tests.** `tests/unit/client/world/station_use_test.gd`, `target_choice_station_test.gd`,
-  `tests/integration/client/world/item_interactions_station_test.gd`, `circle_views_generator_test.gd`,
-  `station_views_test.gd` (the real `levels/stations/` scenes), `tests/unit/client/ui/content_names_test.gd`.
+  `generator_sounds_test.gd`, `tests/integration/client/world/item_interactions_station_test.gd`,
+  `circle_views_generator_test.gd`, `station_views_test.gd` (the real `levels/stations/` scenes),
+  `station_hums_test.gd`, `tests/unit/client/ui/content_names_test.gd`, `map_screen_generator_test.gd`,
+  `tests/unit/client/app/game_flow_test.gd` (`in_round`).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -7078,7 +7090,8 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
 Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
-#799), its data in #800 (G5): the base mode deals it on the House alone.
+#799), its client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.53 (#801, G6),
+its data in #800 (G5): the base mode deals it on the House alone.
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
 `switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to
