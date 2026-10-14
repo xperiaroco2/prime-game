@@ -7226,8 +7226,8 @@ keeps it on a living player in any phase only when the claim does not also crouc
 downed claim, and clears it at every placement, knockdown and respawn. Each listener's `WorldSounds` plays no step
 of a sneaking pose whose measured step speed is at or below `crouch_speed_mps` plus
 `FootstepCadence.SNEAK_SPEED_MARGIN_MPS` (0.2, "not a decision"), so a claimed sneak at a walk is heard.
-Settings: none of its own (the crouch walk's speed; the action `sneak` on Alt, `Controls.UNLISTED` until the deck
-has `control.sneak`, #150).
+Settings: none of its own (the crouch walk's speed; the action `sneak` on the left Alt only, `Controls.UNLISTED`
+until the deck has `control.sneak`, #150).
 Why not a part: as for sprint.
 Visible to: the avatar's `sneaking` flag is public in the snapshot, only for a living, uncrouched player; never the
 own avatar's (a living viewer never gets its own).
