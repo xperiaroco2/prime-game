@@ -219,6 +219,18 @@ class WriteAndCheckTest(unittest.TestCase):
         self.assertIn("levels/kit/pack/gate.ground_col.tres: missing", found)
         self.assertIn("levels/kit/pack/gate.old_col.tres: left over", found)
 
+    def test_a_glb_that_lost_its_colliders_loses_its_wrapper_and_the_scene_points_back(self) -> None:
+        colliders.write(self.root)
+        (self.root / "assets/environment/pack/gate.glb").write_bytes(PLAIN)
+        found = "\n".join(colliders.problems(self.root))
+        self.assertIn("levels/kit/pack/gate.tscn: left over, res://assets/environment/pack/gate.glb has no hint", found)
+        colliders.write(self.root)
+        self.assertEqual(list((self.root / "levels/kit/pack").iterdir()), [])
+        self.assertIn('path="res://assets/environment/pack/gate.glb"', self.scene.read_text(encoding="utf-8"))
+        imported = (self.root / "assets/environment/pack/gate.glb.import").read_text(encoding="utf-8")
+        self.assertNotIn("skip_import", imported)
+        self.assertEqual(colliders.problems(self.root), [])
+
     def test_without_lfs_content_check_still_guards_the_scenes(self) -> None:
         colliders.write(self.root)
         pointer = b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n"

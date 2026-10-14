@@ -19,6 +19,10 @@ built from them would have no floors, walls or stairs. This step moves each hint
 runs problems(): no scene under levels/ instances a wrapped GLB directly, and each GLB with content has exactly the
 files `colliders` would write. An override in a scene that reached into a GLB's collider (a door leaf's layer, a
 ground's surface tag) now names the wrapper's body: no step rewrites those.
+
+`colliders` owns every Skip Import entry (`nodes`) in the .import of an art GLB: it sets exactly the hint colliders'
+and drops any other, so a node skipped by hand in Advanced Import Settings does not last. A wrapper whose GLB lost
+its hint colliders is deleted with its shapes, and the scenes instance the GLB again.
 """
 
 from __future__ import annotations
@@ -50,6 +54,7 @@ UID_CHARS = "abcdefghijklmnopqrstuvwxy012345678"
 COMPONENTS = {5120: "b", 5121: "B", 5122: "h", 5123: "H", 5125: "I", 5126: "f"}
 WIDTHS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
 EXT_RE = re.compile(r'^\[ext_resource\b[^\]]*\bpath="(res://[^"]+\.glb)"[^\]]*\]$', re.MULTILINE)
+WRAPPER_RE = re.compile(r'^\[ext_resource\b[^\]]*\bpath="(res://levels/kit/[^"]+\.tscn)"[^\]]*\]$', re.MULTILINE)
 UID_ATTR = re.compile(r' uid="uid://[a-z0-9]+"')
 # The _subresources value: up to the next key line (a Godot dictionary spans lines), a section or the end.
 SUBRESOURCES = re.compile(r"^_subresources=(.*?)\n(?=[A-Za-z_][\w/]*=|\[|\Z)", re.MULTILINE | re.DOTALL)
@@ -433,8 +438,9 @@ def _scenes(root: Path) -> list[Path]:
     return [path for path in sorted((root / LEVELS).rglob("*.tscn")) if kit not in path.parents]
 
 
-def retarget(text: str, wrappers: dict[str, str]) -> str:
-    """A scene's text with each ext_resource of a wrapped GLB pointing at its wrapper (a uid attribute dropped)."""
+def retarget(text: str, wrappers: dict[str, str], pattern: re.Pattern[str] = EXT_RE) -> str:
+    """A scene's text with each ext_resource of a wrapped GLB pointing at its wrapper (a uid attribute dropped);
+    `pattern` finds the ext_resources (group 1 is the path)."""
 
     def swap(match: re.Match[str]) -> str:
         target = wrappers.get(match.group(1))
@@ -442,7 +448,7 @@ def retarget(text: str, wrappers: dict[str, str]) -> str:
             return match.group(0)
         return UID_ATTR.sub("", match.group(0)).replace(f'path="{match.group(1)}"', f'path="{target}"')
 
-    return EXT_RE.sub(swap, text)
+    return pattern.sub(swap, text)
 
 
 def _stale_shapes(root: Path, files: dict[str, str], stems: set[tuple[str, str]]) -> list[str]:
@@ -478,11 +484,38 @@ def problems(root: Path = ROOT) -> list[str]:
             found.append(f"{rel}: stale, not what its GLB gives ({fix})")
     stems = {(rel.split("/")[2], Path(rel).stem) for rel in planned.files if rel.endswith(".tscn")}
     found.extend(f"{rel}: left over ({fix})" for rel in _stale_shapes(root, planned.files, stems))
-    for glb, wrapper in sorted(wrappers.items()):
-        source = root / glb[len("res://") :]
-        if glb not in planned.wrappers and source.exists() and not lfs.is_pointer(source):
-            found.append(f"{wrapper[len('res://') :]}: left over, {glb} has no hint collider ({fix})")
+    for glb, wrapper in sorted(_left_over(root, planned).items()):
+        found.append(f"{wrapper[len('res://') :]}: left over, {glb} has no hint collider ({fix})")
     return found
+
+
+def _left_over(root: Path, planned: Plan) -> dict[str, str]:
+    """GLB -> wrapper for each wrapper whose GLB has content but no hint collider any more."""
+    return {
+        glb: wrapper
+        for glb, wrapper in known_wrappers(root).items()
+        if glb not in planned.wrappers
+        and (root / glb[len("res://") :]).exists()
+        and not lfs.is_pointer(root / glb[len("res://") :])
+    }
+
+
+def _drop_left_over(root: Path, planned: Plan) -> None:
+    """Point the scenes back at the GLB of each left-over wrapper, then delete the wrapper and its shapes."""
+    gone = _left_over(root, planned)
+    if not gone:
+        return
+    back = {wrapper: glb for glb, wrapper in gone.items()}
+    for scene in _scenes(root):
+        text = scene.read_text(encoding="utf-8")
+        new = retarget(text, back, WRAPPER_RE)
+        if new != text:
+            scene.write_bytes(new.encode("utf-8"))
+    for wrapper in gone.values():
+        path = root / wrapper[len("res://") :]
+        for shape in path.parent.glob(f"{path.stem}.*.tres"):
+            shape.unlink()
+        path.unlink()
 
 
 def write(root: Path = ROOT) -> Plan:
@@ -498,6 +531,7 @@ def write(root: Path = ROOT) -> Plan:
     stems = {(rel.split("/")[2], Path(rel).stem) for rel in planned.files if rel.endswith(".tscn")}
     for rel in _stale_shapes(root, planned.files, stems):
         (root / rel).unlink()
+    _drop_left_over(root, planned)
     wrappers = known_wrappers(root)
     for scene in _scenes(root):
         text = scene.read_text(encoding="utf-8")
