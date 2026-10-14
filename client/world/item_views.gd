@@ -127,7 +127,7 @@ func _physics_process(delta: float) -> void:
 			_built_for.erase(id)
 			view = null
 		if view == null:
-			view = ItemView.make(id, item.kind, item.colour)
+			view = ItemView.make(id, item.kind, item.colour, mode)
 			view.add_to_group(SightHider.GROUP)
 			_views[id] = view
 			_built_for[id] = item

@@ -6,6 +6,12 @@ extends Node3D
 ## A station kind the mode does not name gets a cylinder of the fallback size. A zone (a ZoneTask's
 ## station kind) is ZoneViews', not drawn here.
 ##
+## A drop-off of Delivery by meaning (DE11 of the delivery-by-meaning ADR, #830), told from a circle
+## by which of the client's own Delivery types lists its kind (`is_drop_off`): an open tube of its
+## kind's radius and height, with no caps, in one neutral colour, never StationPlaced's (white for
+## a drop-off, DE5 (b)), dimmed once done: neither a circle's coloured cylinder nor a zone's disc
+## and ring.
+##
 ## Nothing here draws through walls (the M4 ADR's §3 item 5): no marker over a circle, since a
 ## carried item says where it goes by what it is (Delivery by meaning, DD4 (a), D3a).
 
@@ -15,6 +21,8 @@ const DONE_ALPHA := 0.1
 const DONE_DIM := 0.4
 const FALLBACK_RADIUS := 1.0
 const FALLBACK_HEIGHT := 0.2
+## A drop-off's one neutral colour: never a circle palette's or StationPlaced's.
+const DROP_OFF_COLOUR := Color(0.8, 0.8, 0.8)
 
 var model: ClientModel
 ## The client's own copy of the mode: the station kinds' sizes.
@@ -24,7 +32,7 @@ var _views: Dictionary[int, MeshInstance3D] = {}
 var _done: Dictionary[int, bool] = {}
 
 
-## The cylinder of station `id`, or null.
+## The look of station `id` (a circle's cylinder or a drop-off's tube), or null.
 func view_of(id: int) -> MeshInstance3D:
 	return _views.get(id)
 
@@ -48,6 +56,20 @@ static func station_kind(game_mode: GameMode, kind_id: StringName) -> StationKin
 			if kind.id == kind_id:
 				return kind
 	return null
+
+
+## Whether `kind_id` is a drop-off of Delivery by meaning (DE11): one of the client's own
+## DeliveryByMeaning types lists it among its station kinds. Any other station kind (today's
+## Delivery's `circle`) is a circle.
+static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
+	if game_mode == null:
+		return false
+	for type: TaskType in game_mode.task_types:
+		if type is DeliveryByMeaning:
+			for kind: StationKind in type.station_kinds():
+				if kind.id == kind_id:
+					return true
+	return false
 
 
 func _process(_delta: float) -> void:
@@ -78,8 +100,13 @@ func _make(id: int, station: ClientModel.Station) -> MeshInstance3D:
 	mesh.top_radius = kind.radius_m if kind != null else FALLBACK_RADIUS
 	mesh.bottom_radius = mesh.top_radius
 	mesh.height = kind.height_m if kind != null else FALLBACK_HEIGHT
+	var drop_off := is_drop_off(mode, station.kind)
+	if drop_off:
+		# An open tube: no cap hides the floor or the table inside, unlike a circle's cylinder.
+		mesh.cap_top = false
+		mesh.cap_bottom = false
 	var view := MeshInstance3D.new()
-	view.name = "Circle%d" % id
+	view.name = ("DropOff%d" if drop_off else "Circle%d") % id
 	view.mesh = mesh
 	view.position = station.position + Vector3.UP * mesh.height * 0.5
 	_paint(view, station)
@@ -91,6 +118,10 @@ func _paint(view: MeshInstance3D, station: ClientModel.Station) -> void:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var colour := station.colour
+	if is_drop_off(mode, station.kind):
+		# Never StationPlaced's colour (white for a drop-off, DE5 (b)); both faces of the tube.
+		colour = DROP_OFF_COLOUR
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if station.done:
 		colour = colour.darkened(DONE_DIM)
 	colour.a = DONE_ALPHA if station.done else ALPHA

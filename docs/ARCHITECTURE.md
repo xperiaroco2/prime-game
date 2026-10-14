@@ -2608,10 +2608,20 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
   toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
   player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
-  frame. `CircleViews` finds a station kind's size in the task types'
-  `StationKind` properties (Delivery's `circle`) and draws the circles in their colours; nothing of the client draws through walls since the destination
-  marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by what it is.
-  It leaves out a zone, which `ZoneViews` (§4.7.51) draws.
+  frame. `CircleViews` finds a station kind's size in the task types' `station_kinds()` (Delivery's `circle`, Delivery
+  by meaning's drop-offs) and draws the circles in their colours; nothing of the client draws through walls since the
+  destination marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by
+  what it is. It leaves out a zone, which `ZoneViews` (§4.7.51) draws.
+  Delivery by meaning's looks (DE11 of its ADR, #830; greybox placeholders until the art): `CircleViews.is_drop_off`
+  tells a drop-off from a circle by which of the client's own Delivery types lists its kind (a `DeliveryByMeaning`'s
+  `station_kinds()`), never by a colour or a name; a drop-off is an open tube (no caps) of its kind's radius and
+  height in one neutral colour (`DROP_OFF_COLOUR`), never `StationPlaced`'s (white for a drop-off, DE5 (b)), both
+  faces drawn, depth-tested, dimmed as a circle once done (DE7's fold), so it looks like neither a circle's coloured
+  cylinder nor a zone's disc and ring. Its kinds (wine, oil, gnome, parasol) have no look of their own yet: each is
+  `ItemView`'s labelled box, never tinted by `ItemSpawned`'s colour (only the `package` look takes it), labelled with
+  the kind's name through `ContentNames` (the deck key's text, else the mode's display name; `ItemViews` passes its
+  mode, the first-person hand none, so there the deck key or the id). Today's circles and packages are unchanged. The
+  HUD needs nothing: the M6.2 HUD (#489) shows no destination for any item.
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
   the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
