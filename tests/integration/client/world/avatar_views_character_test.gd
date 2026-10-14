@@ -173,6 +173,17 @@ func test_a_put_down_of_an_item_nobody_was_drawn_holding_plays_none() -> void:
 	assert_bool(_rig().is_shot_active()).is_false()
 
 
+func test_a_one_shot_whose_holder_is_down_when_it_comes_is_dropped() -> void:
+	await _stand(Vector3.ZERO)
+	_spawn(PACKAGE, &"package")
+	_pick_up(PEER, PACKAGE)
+	await _frame()
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _past_delay()
+	assert_bool(_views.body_of(PEER).is_downed()).is_true()
+	assert_bool(_rig().is_shot_active()).is_false()
+
+
 func test_the_own_player_s_pick_up_queues_nothing() -> void:
 	await _stand(Vector3.ZERO)
 	_model.own_peer = OWN
