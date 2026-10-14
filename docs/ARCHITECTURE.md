@@ -3398,7 +3398,7 @@ a head over a wall and a player beyond 10 m without one).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
 without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
-client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657),
+client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657, started as a new playback each End: not `playing`, which the 0.12 s file loses on the headless driver's mixing thread under load, #948),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
 `--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
 `end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
