@@ -3841,20 +3841,20 @@ omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
 
-[node name="Doors" type="Node3D" parent="."]
+[node name="Doors" type="Node3D" parent="." unique_id=1769954619]
 
-[node name="Stations" type="Node3D" parent="."]
+[node name="Stations" type="Node3D" parent="." unique_id=175415292]
 
-[node name="HidingSpots" type="Marker3D" parent="Stations"]
+[node name="HidingSpots" type="Marker3D" parent="Stations" unique_id=575121168]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 15)
 
-[node name="Lookout" type="Marker3D" parent="Stations"]
+[node name="Lookout" type="Marker3D" parent="Stations" unique_id=1891189764]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 3.092, 17.9)
 
-[node name="Loot" type="Marker3D" parent="Stations"]
+[node name="Loot" type="Marker3D" parent="Stations" unique_id=1150873598]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23, 3.057, 2)
 
-[node name="Markers" type="Node3D" parent="."]
+[node name="Markers" type="Node3D" parent="." unique_id=244386076]
 
-[node name="Knife3" type="Marker3D" parent="Markers" groups=["spawn_knife"]]
+[node name="Knife3" type="Marker3D" parent="Markers" unique_id=1029043790 groups=["spawn_knife"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 13)
