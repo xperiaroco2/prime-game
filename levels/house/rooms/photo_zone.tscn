@@ -39,6 +39,8 @@ material = ExtResource("1_greybox")
 size = Vector3(10, 0.2, 10)
 
 [node name="PhotoZone" type="Node3D" unique_id=450689993]
+metadata/room_id = &"photo_zone"
+metadata/name_key = "room.photo_zone"
 metadata/size_m = Vector2i(10, 10)
 
 [node name="Body" type="StaticBody3D" parent="." unique_id=451755482]
