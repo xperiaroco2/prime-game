@@ -134,6 +134,34 @@ func test_the_sockets_sit_on_their_bones_at_the_old_points() -> void:
 		assert_vector((rest * socket.transform).origin).is_equal_approx(point, Vector3.ONE * 0.0001)
 
 
+## Fitted at the pose the clips play (the idle clip's first frame), never the rest pose: on an
+## arms-out bind pose the hand socket still sits at the old point while Idle plays, not swung up
+## with the rest pose's arm.
+func test_on_an_arms_out_rest_the_sockets_sit_at_the_old_points_while_idle_plays() -> void:
+	var scene := Fixture.scene(AvatarClips.all_clips(), Fixture.BONES, true)
+	var rig := CharacterRig.make(CharacterSet.from_scene(scene, Fixture.ragdoll()))
+	add_child(rig)
+	auto_free(rig)
+	rig.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	rig.set_physics_process(false)
+	_run(rig, 0.3)
+	var wrist := rig.skeleton.find_bone(&"Wrist.R")
+	var rest := rig.skeleton.get_bone_global_rest(wrist).origin
+	var pose := rig.skeleton.get_bone_global_pose(wrist).origin
+	assert_float(rest.distance_to(pose)).is_greater(0.3)
+	var to_rig := rig.model.transform * rig.skeleton.get_parent_node_3d().transform
+	to_rig = to_rig * rig.skeleton.transform
+	for socket_name: StringName in CharacterRig.SOCKETS:
+		var entry: Array = CharacterRig.SOCKETS[socket_name]
+		var socket := rig.socket(socket_name)
+		var bone := rig.skeleton.find_bone(entry[0] as StringName)
+		var at := (to_rig * rig.skeleton.get_bone_global_pose(bone) * socket.transform).origin
+		var point: Vector3 = entry[1]
+		assert_vector(at).override_failure_message(String(socket_name)).is_equal_approx(
+			point, Vector3.ONE * 0.001
+		)
+
+
 func test_the_tint_is_per_avatar_and_multiplies_the_albedo() -> void:
 	var a := _rig()
 	var b := _rig()

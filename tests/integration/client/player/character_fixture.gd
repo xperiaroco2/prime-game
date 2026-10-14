@@ -45,9 +45,13 @@ static func base_angle(clip: StringName) -> float:
 	return 0.1 * (AvatarClips.base_clips().find(clip) + 1)
 
 
-## A character scene with `clips` (default: all AvatarClips plays) and `bones` (default: BONES).
+## A character scene with `clips` (default: all AvatarClips plays) and `bones` (default: BONES);
+## `arms_out`: its rest pose holds UpperArm.R out sideways (the art's bind pose), which every base
+## clip turns back down, so the rest pose and the pose the clips play differ.
 static func scene(
-	clips: Array[StringName] = AvatarClips.all_clips(), bones: Array[StringName] = BONES
+	clips: Array[StringName] = AvatarClips.all_clips(),
+	bones: Array[StringName] = BONES,
+	arms_out := false
 ) -> PackedScene:
 	var root := Node3D.new()
 	root.name = "Fixture"
@@ -64,7 +68,10 @@ static func scene(
 		var parent := skeleton.find_bone(BONES[PARENTS[i]]) if PARENTS[i] >= 0 else -1
 		if parent >= 0:
 			skeleton.set_bone_parent(at, parent)
-		skeleton.set_bone_rest(at, Transform3D(Basis.IDENTITY, OFFSETS[i]))
+		var turn := Basis.IDENTITY
+		if arms_out and BONES[i] == &"UpperArm.R":
+			turn = Basis(Vector3.BACK, -PI * 0.5)
+		skeleton.set_bone_rest(at, Transform3D(turn, OFFSETS[i]))
 	skeleton.reset_bone_poses()
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Body"

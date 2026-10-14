@@ -20,7 +20,7 @@ const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
 ## The bone the carry layer starts at (the art: "Torso and every bone below it").
 const CARRY_ROOT := &"Torso"
-## The sockets: name -> [bone, the point in the rig's frame at the rest pose]. The points are the
+## The sockets: name -> [bone, the point in the rig's frame at the idle pose]. The points are the
 ## placeholder capsule's (RemotePlayerBody.HAND_POINT, BELT_POINT, CARRY_POINT), so an item sits
 ## where it did until a shot places it better: placeholders, "not a decision".
 const SOCKETS := {
@@ -183,6 +183,9 @@ func _build_tree() -> void:
 	tree.set("parameters/base/transition_request", String(AvatarClips.IDLE))
 
 
+## Each socket is fitted at the pose the clips play (the idle clip's first frame), not the rest:
+## the art's rest is an arms-out bind pose, against which the hand's point would swing up with the
+## arm as soon as a clip lowers it.
 func _add_sockets() -> void:
 	var to_skeleton := _frame_of(skeleton)
 	for socket_name: StringName in SOCKETS:
@@ -194,17 +197,45 @@ func _add_sockets() -> void:
 		skeleton.add_child(attach)
 		var at := Node3D.new()
 		at.name = "%sSocket" % socket_name
-		at.transform = socket_offset(
-			to_skeleton * skeleton.get_bone_global_rest(bone), entry[1] as Vector3
-		)
+		at.transform = socket_offset(to_skeleton * _idle_pose(bone), entry[1] as Vector3)
 		attach.add_child(at)
 		_sockets[socket_name] = at
 
 
-## The socket's transform in its bone's frame, for a bone at `bone_rest` in the rig's frame and a
+## The socket's transform in its bone's frame, for a bone at `bone_pose` in the rig's frame and a
 ## socket at `point` (no turn against the rig) there.
-static func socket_offset(bone_rest: Transform3D, point: Vector3) -> Transform3D:
-	return bone_rest.affine_inverse() * Transform3D(Basis.IDENTITY, point)
+static func socket_offset(bone_pose: Transform3D, point: Vector3) -> Transform3D:
+	return bone_pose.affine_inverse() * Transform3D(Basis.IDENTITY, point)
+
+
+## `bone`'s pose in the skeleton's frame at the idle clip's first frame, sampled from its tracks (a
+## bone or a part the clip leaves alone keeps its rest), so no tree has to run first.
+func _idle_pose(bone: int) -> Transform3D:
+	var idle := player.get_animation(AvatarClips.IDLE)
+	var prefix := String(model.get_path_to(skeleton)) + ":"
+	var out := Transform3D.IDENTITY
+	var at := bone
+	while at >= 0:
+		out = _idle_local(idle, NodePath(prefix + skeleton.get_bone_name(at)), at) * out
+		at = skeleton.get_bone_parent(at)
+	return out
+
+
+func _idle_local(idle: Animation, path: NodePath, bone: int) -> Transform3D:
+	var rest := skeleton.get_bone_rest(bone)
+	var origin := rest.origin
+	var turn := rest.basis.get_rotation_quaternion()
+	var size := rest.basis.get_scale()
+	var track := idle.find_track(path, Animation.TYPE_POSITION_3D)
+	if track >= 0:
+		origin = idle.position_track_interpolate(track, 0.0)
+	track = idle.find_track(path, Animation.TYPE_ROTATION_3D)
+	if track >= 0:
+		turn = idle.rotation_track_interpolate(track, 0.0)
+	track = idle.find_track(path, Animation.TYPE_SCALE_3D)
+	if track >= 0:
+		size = idle.scale_track_interpolate(track, 0.0)
+	return Transform3D(Basis(turn) * Basis.from_scale(size), origin)
 
 
 ## `node`'s transform in the rig's frame, from the local transforms (no tree needed).
