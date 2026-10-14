@@ -3496,8 +3496,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   room repeating an id is left out. Every House room carries its record on its own scene's root (`levels/house/rooms/`,
   the id its file name, the key the deck's `room.<id>`, ui-0.6.0); the tutorial room's is #715's. Only
   `MapData.rooms_of()` reads that shape (`MapData.Room`: `id`, `rect`, `name_key`), and the screen names a room by
-  its `name_key`, else its id. A marker is placed as the host's `MarkerReader` places it (`LevelWorld.transform_in_scene`:
-  the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
+  its `name_key`, else its id. A marker is placed as the host's `MarkerReader` places it
+  (`LevelWorld.transform_in_scene`: the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
   refuses it); `MapData.SPAWN_GROUP_PREFIX` copies the reader's prefix and a test ties the two. A task
   type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
   (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox, a test bench only
@@ -3514,8 +3514,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   rooms, the greybox's rooms have an area,
   the board's fit), `tests/unit/levels/house_room_records_test.gd` (#306: every House room has a record, its id
   unique and its scene's file name, its name key with English and Ukrainian text, read by `MapData` as it stands;
-  seen failing with a pasted id, a missing key and an unknown key), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
-  it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
+  seen failing with a pasted id, a missing key and an unknown key), `hud_test.gd` (open only in the round, the
+  signals, the downed crosshair, the Esc menu closes it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
   on Tab; seen failing on the old input map), `controls_test.gd`, `key_label_test.gd`, `controls_panel_test.gd`,
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
   captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the

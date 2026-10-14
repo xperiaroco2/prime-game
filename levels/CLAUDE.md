@@ -17,8 +17,9 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
   - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
     plan x = X, plan y = Z, no rotation;
-  - a room declares `metadata/size_m = Vector2i(w, d)`, its room record (#306: `room_id`, unique, on House its file name;
-    `name_key`, the deck key `room.<id>`), its doors as `Marker3D` children of `Doors`, its stations as instanced station scenes; a test checks the map against the design doc's room table.
+  - a room declares `metadata/size_m = Vector2i(w, d)`, its room record (#306: `room_id`, unique, on House its file
+    name; `name_key`, the deck key `room.<id>`), its door openings as `Marker3D` children of `Doors`, its stations
+    as instanced station scenes; a test checks the map against the design doc's room table.
 - Greybox with box meshes (CSG where a shape needs it) and `levels/kit/`'s role materials (walls, a floor per zone,
   stairs, door frames) plus a `Label3D` `Name` on each room's root with its design-doc name, until the art kit
   lands (#658); the kit's GLBs then replace
