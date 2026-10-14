@@ -129,13 +129,16 @@ jobs:
 
       # The newest per-suite GdUnit4 seconds (CI's or an earlier night's), by which the shards of each run are
       # balanced (tools/runner/gdunit.py, #182); the job saves its own at the end for the next night. A new key every
-      # run, the ref's slug in it so two refs never reserve one key.
+      # run, the ref's slug in it so two refs never reserve one key. An earlier night's first: it runs every suite, so
+      # its file is fresh for all of them, where a CI half's file (#980) keeps only its own half's times fresh.
       - name: Restore the GdUnit4 suite times
         uses: actions/cache@v6
         with:
           path: tools/out/logs/gdunit-times.json
           key: gdunit-times-nightly-${{ matrix.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: gdunit-times-
+          restore-keys: |
+            gdunit-times-nightly-
+            gdunit-times-
 
       # Every run is kept (tools/out/gdunit-runs/run-<i>/) and compared per suite and per test (summary.json, .md).
       # In real time, frame-bound suites too: verify runs those at fixed fps, where a frame never runs several

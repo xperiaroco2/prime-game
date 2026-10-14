@@ -1880,8 +1880,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   Each run takes as many processes as `test` would (§11.19: `--shards K`, else one for named paths, else
   `PRIME_TEST_SHARDS`, else half the CPUs; `<paths> --fixed-fps --shards K` runs every shard at fixed fps),
   because one real-time process outgrew the runner's `TIMEOUT` of 600 s per process when the suite grew past about 300 suites (#817: nightly run 38120577422, all three runs of
-  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times
-  CI saves, to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
+  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times of an earlier night (else
+  CI's halves save, #980), to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
   `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variable and runs one process
   per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
   1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when the suite outgrows two

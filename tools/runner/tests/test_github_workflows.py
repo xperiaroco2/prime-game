@@ -322,7 +322,11 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(len(cache), 1)
         settings = steps[cache[0]]["with"]
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
-        self.assertEqual(settings["restore-keys"], "gdunit-times-", "CI's times are restored too")
+        self.assertEqual(
+            settings["restore-keys"],
+            "gdunit-times-nightly-\ngdunit-times-\n",
+            "an earlier night's times first (every suite fresh), CI's as the seed (#980)",
+        )
         self.assertIn("${{ github.run_id }}", settings["key"])
         self.assertIn("${{ matrix.slug }}", settings["key"], "two refs of a night never reserve one key")
         self.assertLess(cache[0], run)
