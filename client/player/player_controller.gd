@@ -58,6 +58,13 @@ const SURFACE_PROBE_ABOVE := 0.05
 const WALKABLE_SLACK := 0.01
 ## How far beyond touching another living player's capsule the contact search reaches (metres).
 const CONTACT_MARGIN := 0.02
+## How far from a placement inside `movers` the search for clear floor reaches (KD15 (b2), the
+## engineer's answer on #976): a placeholder for the stand-in lowered car's footprint (2.0 by
+## 4.6 m), not a decision; past it the placement stays as the solver leaves it.
+const MOVER_EXIT_REACH_M := 3.0
+## How high above the feet a capsule is tested for overlap, so the floor it rests on (the world's
+## or a mover's top) is no hit.
+const CLEAR_LIFT_M := 0.02
 
 @export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 ## The movement numbers: the client's own copy of the mode's PlayerRules (the class comment).
@@ -118,6 +125,15 @@ var _jump_stood := false
 ## each body keeps its own, so a crouch never shrinks another player.
 var _capsule: CapsuleShape3D
 var _reach: CapsuleShape3D
+## Placed anew (a teleport, a life change): the next living step first looks for `movers` around
+## the crouched capsule (KD15 (b2)), once the mask it collides with is the one it steps with.
+var _placed := false
+## The `movers` the body was placed inside and walks out of, ignoring them until it is clear
+## (collision exceptions), and the clear floor it walks to; empty when it walks as usual.
+var _exit_from: Array[PhysicsBody3D] = []
+var _exit_to := Vector3.ZERO
+## The overlap search of the placement's crouched capsule.
+var _overlaps := PhysicsShapeQueryParameters3D.new()
 ## The own hand item in the first-person view (M4-8), under the camera.
 var _hand_view := FirstPersonHand.new()
 
@@ -267,6 +283,8 @@ func set_life(value: ClientModel.Life) -> void:
 	# A jump asked for while dead (no step ran to consume it) must not fire at the respawn.
 	jump_requested = false
 	_jump_stood = false
+	_end_exit()
+	_placed = true
 	if is_node_ready():
 		_crouch_where_placed(global_transform)
 
@@ -291,6 +309,8 @@ func teleport(to: Transform3D) -> void:
 	_stepping = false
 	_jump_stood = false
 	_floor_y = to.origin.y
+	_end_exit()
+	_placed = true
 	_crouch_where_placed(to)
 	if rules != null:
 		_head.position.y = rules.eye_height_of(_crouched)
@@ -349,17 +369,31 @@ func _read_device_input() -> void:
 
 
 func _walk(delta: float) -> void:
+	if _placed:
+		_placed = false
+		_find_exit()
+	# Walking out of `movers` (KD15 (b2)): the capsule it was placed with, at walk speed towards the
+	# clear floor, whatever the keys say; no sprint, no jump, no standing up inside them.
+	var exiting := not _exit_from.is_empty()
 	var grounded := is_on_floor() or _stepping
-	_follow_crouch()
-	_sprinting = sprint_held and stamina.can_sprint(_sprinting, is_downed())
+	if not exiting:
+		_follow_crouch()
+	_sprinting = not exiting and sprint_held and stamina.can_sprint(_sprinting, is_downed())
 	var speed := _speed()
 	var steering := _horizontal_wish()
+	if exiting:
+		var to := _exit_to - global_position
+		to.y = 0.0
+		steering = to.normalized()
+		speed = minf(rules.walk_speed_mps, to.length() / delta)
 	var wish := steering * speed
 	wish = _push_apart(wish, delta)
 	velocity.x = wish.x
 	velocity.z = wish.z
 	var jumped := false
 	var gravity := get_gravity().length()
+	if exiting:
+		jump_requested = false
 	if jump_requested and grounded and stamina.can_jump(is_downed()) and _stand_to_jump():
 		velocity.y = jump_velocity(rules.jump_height_m, gravity, delta)
 		jumped = true
@@ -377,6 +411,8 @@ func _walk(delta: float) -> void:
 	floor_snap_length = 0.0 if _stepping else rules.step_height_m
 	move_and_slide()
 	var moved := Vector2(global_position.x - start.x, global_position.z - start.z).length()
+	if exiting and (moved <= MOVE_EPSILON or _clear_of_exit()):
+		_end_exit()
 	if _stepping:
 		_cross_step(moved)
 	if is_on_floor():
@@ -534,6 +570,90 @@ func _set_crouched(value: bool) -> void:
 	_reach.height = height + CONTACT_MARGIN * 2.0
 
 
+## KD15 (b2) (the engineer's answer on #976), at the first living step after a placement: where the
+## body's capsule overlaps `movers` (PhysicsLayers.MOVERS, whether or not its mask has the layer
+## yet: the lowered car, which the host's world never holds, so the host's revive may place a
+## player inside it), it finds the nearest clear floor within MOVER_EXIT_REACH_M and walks there
+## over its first claims at walk speed, ignoring those movers (collision exceptions) until clear,
+## rather than let the solver push it into the floor. The host checks those claims as any claims
+## (core/movement/movement_rule.gd's bound, unchanged); no clear floor: as before. A placement
+## anywhere else (a raise in the open) finds no mover and walks step for step as before.
+func _find_exit() -> void:
+	var inside := _bodies_at(global_position, PhysicsLayers.MOVERS)
+	if inside.is_empty():
+		return
+	var to := _clear_floor_near(global_position)
+	if not to.is_finite():
+		return
+	for body: PhysicsBody3D in inside:
+		add_collision_exception_with(body)
+	_exit_from = inside
+	_exit_to = to
+
+
+## The nearest place around `feet` where the body's capsule overlaps nothing solid and stands
+## on a floor within step height: rings a capsule radius apart, out to MOVER_EXIT_REACH_M, each
+## tried at most a capsule radius apart along it; NAN where none is.
+func _clear_floor_near(feet: Vector3) -> Vector3:
+	var step := rules.capsule_radius_m
+	for ring: int in range(1, floori(MOVER_EXIT_REACH_M / step) + 1):
+		var count := ceili(TAU * ring)
+		for i: int in count:
+			var angle := TAU * i / count
+			var at := feet + Vector3(sin(angle), 0.0, cos(angle)) * step * ring
+			if _bodies_at(at, _solid()).is_empty() and _floor_under(at):
+				return at
+	return Vector3(NAN, NAN, NAN)
+
+
+## The bodies on `mask` the body's capsule overlaps with its feet CLEAR_LIFT_M above `feet`.
+func _bodies_at(feet: Vector3, mask: int) -> Array[PhysicsBody3D]:
+	_overlaps.shape = _capsule
+	_overlaps.collision_mask = mask
+	_overlaps.exclude = [get_rid()]
+	var centre := feet + _shape.position + Vector3.UP * CLEAR_LIFT_M
+	_overlaps.transform = Transform3D(_shape.basis, centre)
+	var found: Array[PhysicsBody3D] = []
+	for hit: Dictionary in get_world_3d().direct_space_state.intersect_shape(_overlaps):
+		var body := hit["collider"] as PhysicsBody3D
+		if body != null and not found.has(body):
+			found.append(body)
+	return found
+
+
+## Whether a solid floor lies within step height above or below `at`.
+func _floor_under(at: Vector3) -> bool:
+	var ray := PhysicsRayQueryParameters3D.create(
+		at + Vector3.UP * rules.step_height_m,
+		at + Vector3.DOWN * rules.step_height_m,
+		_solid(),
+		[get_rid()]
+	)
+	return not get_world_3d().direct_space_state.intersect_ray(ray).is_empty()
+
+
+## Whether the capsule no longer overlaps any of the movers it walks out of.
+func _clear_of_exit() -> bool:
+	var layers := 0
+	for body: Variant in _exit_from:
+		if is_instance_valid(body):
+			layers |= (body as PhysicsBody3D).collision_layer
+	if layers == 0:
+		return true
+	for body: PhysicsBody3D in _bodies_at(global_position, layers):
+		if _exit_from.has(body):
+			return false
+	return true
+
+
+## Collides with the movers it walked out of again.
+func _end_exit() -> void:
+	for body: Variant in _exit_from:
+		if is_instance_valid(body):
+			remove_collision_exception_with(body as PhysicsBody3D)
+	_exit_from.clear()
+
+
 ## The horizontal velocity for `wish` among the other living players this body touches. Walking
 ## into one pushes: the part of `wish` into them slows to `tuning.push_speed_factor`, stops once
 ## this body is `tuning.push_max_overlap` deep in them, and drifts to the right, so a straight
@@ -673,3 +793,8 @@ func _horizontal_wish() -> Vector3:
 	var wish := right * move_input.x + forward * move_input.y
 	wish.y = 0.0
 	return wish.limit_length(1.0)
+
+
+## What the body collides with, and the movers whether or not its mask has them yet (R7).
+func _solid() -> int:
+	return collision_mask | PhysicsLayers.MOVERS

@@ -2462,7 +2462,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
   the markers carry no facing); the spectate camera and the lift music stop. After `Revived` and its `Correction` (a
   placement where it lay, #728 KE6) the controller stands up there, in first person, keeping its look (only the own
-  respawn levels it, #191).
+  respawn levels it, #191). Placed with its capsule inside `movers` (`PhysicsLayers.MOVERS`: the lowered car,
+  which the host's world never holds, so a revive may place a player inside it), its first living step finds the
+  nearest clear floor within `MOVER_EXIT_REACH_M` (3 m, a placeholder) and walks its capsule there at walk speed
+  over its first claims, whatever the keys say, ignoring those movers (collision exceptions) until clear: KD15 (b2)
+  ([#976, comment 6162445237](https://github.com/xperiaroco2/prime-game/issues/976#issuecomment-6162445237)), a client rule; the host checks the claims as any claims. A placement
+  anywhere else finds no mover and plays step for step as before.
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
@@ -5808,7 +5813,9 @@ so the host's body rests inside it) is pushed out by its own client, the car's a
 RD6 (a)), with nothing new in code. That push starts with the feet inside the footprint box, deeper than the 0.4 m
 from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once. It
 measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7), the stop the ADR's §2 names; the
-issue of 728e (#849) holds the open question.
+engineer then chose **KD15 (b2)** ([#976, comment 6162445237](https://github.com/xperiaroco2/prime-game/issues/976#issuecomment-6162445237)): the raised player's own client walks
+its capsule out of the car at walk speed over its first claims, ignoring the car until clear (§4.7's revive), with
+no `core/` change; the stand-in test now measures no sink and no `Correction`.
 - **Still** (built in 728a, #846: §7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
   takes its facing only (a spectator watching a knocked-down target looks through it) and ignores the rest, with no
   movement check and no `Correction` (KE4). §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's
@@ -5878,9 +5885,10 @@ issue of 728e (#849) holds the open question.
   host's world: launches in 8 directions from the yard, the terrace, the balcony and the top of the outside stairs,
   each read from the level's floors, rest on a floor within the longest motion where a crouched capsule is clear,
   KD11, never at an exact point, KE1 (b); on the greybox a knife knockdown starts no host body and is today's, step
-  for step) and `tests/integration/client/life/life_raise_in_lowered_car_test.gd` (KD15 (a)'s push with a stand-in
-  for the lowered car on layer 4: it measured the capsule pushed down into the floor on its own screen, not out, and
-  3 `Correction`s on the way out, the stop the ADR's §2 names; #849 holds the open question).
+  for step) and `tests/integration/client/life/life_raise_in_lowered_car_test.gd` (KD15 with a stand-in
+  for the lowered car on layer 4: under (a) it measured the capsule pushed down into the floor on its own screen,
+  not out, and 3 `Correction`s on the way out; under (b2), #976, it asserts no sink, the capsule out of the
+  footprint and at most one `Correction`, measured 0).
 - **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
   `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece is listed there or in
