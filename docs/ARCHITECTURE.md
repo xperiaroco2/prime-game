@@ -2975,7 +2975,7 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
 `LifeScreen` (#497), the `LobbyHud` (#495: `lobby.status`, `lobby.ready`, and `lobby.roster`, a line per row "<name
-as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of 8", and
+as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of N", and
 `tutorial.how`, its how line as drawn), the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
@@ -4229,7 +4229,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   `tests/integration/client/app/game_tutorial_lessons_test.gd` (the nine lessons on the real session, no task dealt
   and the package put down where the player stands, the stages from the runner's own `NextStage`, lesson 8's quiet
   time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
-  runner); the `tutorial` playcheck scenario plays to lesson 4's map.
+  runner); the `tutorial` playcheck scenario plays through lesson 4's throw to lesson 5's map.
 
 #### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
 The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`

@@ -6,7 +6,8 @@
 # 1's row of keycaps (step-keys); a diagonal walk across the room (a second of walking, the
 # lesson's placeholder, ends it well before a wall) brings lesson 2's sentence with its keycap
 # (step). The package picked up and put down (lesson 2), then the knife picked up and swapped to the
-# belt (lesson 3), brings lesson 4, the map: M opens it, with no task in its list (#900). Then the
+# belt (lesson 3), brings lesson 4, the throw: the package taken in the hand and thrown (#901); then
+# lesson 5, the map: M opens it, with no task in its list (#900). Then the
 # tutorial's Esc menu. The invite shows only on a first launch, which no playcheck window is
 # (E70): its shots are client/dev/tutorial_*_preview.tscn's.
 tutorial
@@ -19,12 +20,12 @@ wait phase lessons
 wait screen round
 wait players 3
 frames 30
-wait text tutorial.step is Step 1 of 8
+wait text tutorial.step is Step 1 of 9
 wait text tutorial.how has Walk
 shot tutorial_room
 hold move_forward
 hold move_right
-wait text tutorial.step is Step 2 of 8
+wait text tutorial.step is Step 2 of 9
 release move_forward
 release move_right
 wait text tutorial.how has Aim at the package
@@ -42,7 +43,7 @@ wait text hud.hand is Package
 wait text tutorial.how has Press
 press put_down
 wait shown hud.hand off
-wait text tutorial.step is Step 3 of 8
+wait text tutorial.step is Step 3 of 9
 # Lesson 3: the knife (the package goes on no belt), then the swap key moves it to the belt.
 aim item knife
 hold move_forward
@@ -53,17 +54,29 @@ press interact
 wait text hud.hand is Knife
 press swap
 wait text hud.belt is Knife
-wait text tutorial.step is Step 4 of 8
+wait text tutorial.step is Step 4 of 9
+# Lesson 4 (#901): the hand is empty after the swap and a belt item is never thrown, so the package
+# is taken in the hand again and thrown.
+aim item package
+hold move_forward
+wait text hud.aim is Package timeout=30
+release move_forward
+aim off
+press interact
+wait text hud.hand is Package
+press throw
+wait shown hud.hand off
+wait text tutorial.step is Step 5 of 9
 frames 30
 shot tutorial_map_step
-# Lesson 4: M opens the map, its tasks list empty.
+# Lesson 5: M opens the map, its tasks list empty.
 press map
 wait pointer free
 frames 30
 shot tutorial_map
 press map
 wait pointer captured
-wait text tutorial.step is Step 5 of 8
+wait text tutorial.step is Step 6 of 9
 press ui_cancel
 wait esc open
 shot tutorial_esc

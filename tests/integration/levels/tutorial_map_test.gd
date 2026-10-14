@@ -75,6 +75,11 @@ func test_no_throw_at_the_mode_s_numbers_leaves_the_room() -> void:
 	var throws := _room_throws(_world(false), _throw_of(load(MODE) as GameMode).speed_mps)
 	assert_int(throws.spots).is_greater(30)
 	assert_array(throws.left).override_failure_message(str(throws.left)).is_empty()
+	# The known rests on a wall's top stay at 9 per table spot (an item there is out of reach).
+	var on_wall: int = throws.on_wall
+	var table_spots: int = throws.table_spots
+	var msg := "%d throws rest on a wall's top" % on_wall
+	assert_int(on_wall).override_failure_message(msg).is_less_equal(9 * table_spots)
 
 
 func test_a_throw_over_a_wall_onto_ground_outside_leaves_the_room() -> void:
@@ -88,7 +93,7 @@ func test_a_throw_over_a_wall_onto_ground_outside_leaves_the_room() -> void:
 ## spot, flown as FlightTicks flies it (house_throws.gd's rest_of): the first contact or the
 ## longest flight stops it, then the floor below the stop lifted, or the fallback below the
 ## thrower's feet. `left`: each rest with no floor or outside the room's 12 x 10 m; `on_wall`:
-## how many rest on a wall's top.
+## how many rest on a wall's top; `table_spots`: the spots above the floor.
 func _room_throws(world: HostWorldQuery, speed: float) -> Dictionary:
 	var mode := load(MODE) as GameMode
 	var rules := mode.player_rules
@@ -97,8 +102,11 @@ func _room_throws(world: HostWorldQuery, speed: float) -> Dictionary:
 	var max_ticks := maxi(1, Ticks.from_seconds(throw.longest_flight_s))
 	var left: Array[String] = []
 	var on_wall := 0
+	var table_spots := 0
 	var spots := _room_spots(world, rules.jump_height_m)
 	for feet: Vector3 in spots:
+		if feet.y > 0.1:
+			table_spots += 1
 		var eye := feet + Vector3.UP * rules.eye_height_m
 		var fallback := world.floor_below(Items.lifted(feet))
 		for yaw_deg in range(0, 360, 10):
@@ -121,7 +129,7 @@ func _room_throws(world: HostWorldQuery, speed: float) -> Dictionary:
 					left.append("from %s at %d/%d to %s" % [feet, yaw_deg, pitch_deg, rest])
 				elif rest.y > 3.0 - 0.05:
 					on_wall += 1
-	return {"spots": spots.size(), "left": left, "on_wall": on_wall}
+	return {"spots": spots.size(), "left": left, "on_wall": on_wall, "table_spots": table_spots}
 
 
 ## The tutorial map's host world; `ground_outside`: with a 40 x 40 m floor under the room.

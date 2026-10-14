@@ -80,7 +80,7 @@ func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() ->
 	assert_str(String(model.phase)).is_equal("lessons")
 	# 4 (#901): the hand is empty after the swap and a belt item is never thrown, so the package is
 	# taken in the hand again, then thrown into the room.
-	assert_int(model.hand_item(own)).is_not_equal(knife)
+	assert_int(model.hand_item(own)).is_equal(-1)
 	assert_bool(await _walk(game, model.items[package].position, NEAR_M)).is_true()
 	game.client().send_intent(Intents.PICK_UP, {"item": package})
 	assert_bool(await _until(func() -> bool: return model.hand_item(own) == package)).is_true()

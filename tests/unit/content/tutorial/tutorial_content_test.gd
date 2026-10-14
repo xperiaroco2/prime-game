@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
-## The eight lessons in content/tutorial/tutorial.tres (provisional; docs/design/tutorial.md §1, §3,
-## §9.3 and the engineer's D29 to D36 and LD1 to LD10 answers; #602, #900): they load with no
+## The nine lessons in content/tutorial/tutorial.tres (provisional; docs/design/tutorial.md §1, §3,
+## §9.3 and the engineer's D29 to D36 and LD1 to LD10 answers; #602, #900, #901): they load with no
 ## problem, follow §9.3's order with the action each one detects, name only deck keys of
-## client/i18n/strings.csv and InputMap actions, ask for a stage only as lessons 5 and 6 start,
+## client/i18n/strings.csv and InputMap actions, ask for a stage only as lessons 6 and 7 start,
 ## and hold no step nothing can complete. Loads `content/` on purpose, as the mode check does
 ## (§9.6).
 
