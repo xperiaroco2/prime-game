@@ -104,14 +104,14 @@ func set_rules(value: PlayerRules) -> void:
 		_apply_rules()
 
 
-## Gives the body `character`'s animated character (#522, §4.7.53) in place of the greybox capsule
+## Gives the body `with_set`'s animated character (#522, §4.7.53) in place of the greybox capsule
 ## and visor, once; null keeps the capsule. The collision capsule, the head, the mouth and the sight
 ## point stay as they are; the hand, belt and carry points become the rig's sockets, which follow
 ## its bones. Call it once the body is in the tree.
-func set_character(character: CharacterSet) -> void:
-	if character == null or _rig != null:
+func set_character(with_set: CharacterSet) -> void:
+	if with_set == null or _rig != null:
 		return
-	_rig = CharacterRig.make(character)
+	_rig = CharacterRig.make(with_set)
 	add_child(_rig)
 	_rig.set_tint(color)
 	_show_looks()

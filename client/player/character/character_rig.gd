@@ -100,11 +100,11 @@ func socket(socket_name: StringName) -> Node3D:
 	return _sockets.get(socket_name) as Node3D
 
 
-## Tints every surface by `tint` (white: the art's own look).
-func set_tint(tint: Color) -> void:
-	_tint = tint
+## Tints every surface by `colour` (white: the art's own look).
+func set_tint(colour: Color) -> void:
+	_tint = colour
 	for i: int in _materials.size():
-		_materials[i].albedo_color = _albedo[i] * tint
+		_materials[i].albedo_color = _albedo[i] * colour
 
 
 func tint() -> Color:
