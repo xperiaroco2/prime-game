@@ -1990,8 +1990,8 @@ fails a run that ends with a player named "Hacked" or two players sharing a colo
 `Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
 Kind 18, `Interact` (#796): since #800 (the Generator's G5) Round of `ACCEPTS` lists it from the living, as the base mode
 does, so outside Round, or downed or dead, the hostile's `Interact` is refused `not_accepted`; in Round, alive, a target that
-names nothing, or a station or item whose kind has no `Interact` rule (every one on the greybox, which deals no
-Generator), is `nothing_to_do` (`ChaosOracle._interact`), and only a target whose kind has the rule answers `?`. Since
+names nothing, or a station or item with no `Interact` rule where the host looks for one (a station: its kind's actions, the sender's role's and the mode's; an item: its kind's `target_actions`; every one on the greybox, which deals no
+Generator), is `nothing_to_do` (`ChaosOracle._interact`), and only a target with the rule answers `?`. Since
 #770 its `station` and `item` are both optional (0xFFFF, none), so the hostile sends four shapes
 (`ChaosHostile._interact_args`): a station id from 0 to 9, an item it knows or none, both, and neither; and no field
 value is malformed any more: its malformed shapes are `INTERACT_TRUNCATED` (the seq and 0 to 3 of the 4 field bytes:
@@ -6619,7 +6619,7 @@ Settings:
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
   `tasks` 2 (1 to 2: every type a map plays, in every match, the Generator ADR's GD7 (i): the House's Delivery and Generator; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #800, #828, #79); `banned_task_types` (a set of task types, empty;
-  a host may ban either Delivery: `ChangeSettings` accepts it, and a ban of the picked map's one type leaves its pool empty, so the fit check at `all_ready` refuses the start, `no_task_types`, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
+  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays two types since #800: banning its Delivery leaves the Generator, and banning both House types (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
   decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
@@ -7085,7 +7085,7 @@ it by the deck's `task.switches` ("Switches", `ContentNames.TASK_EXCEPTIONS`) an
 Since #800 `LayoutCheck` also refuses a map on which no task type plays while a row deals tasks at the defaults.
 Tests: `tests/unit/content/generator_content_test.gd` (#800: the data, the fit of House with it and of the greybox
 without it, GD12's switch spacing in the host's world, fixture cases 13 m refused and 16 m accepted at 2 m, and the
-panel's bars matching `switches`), Tests: `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
+panel's bars matching `switches`); and `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
 table), `generator_progress_events_test.gd` (the window, the order, the ticks), `generator_check_test.gd` (GE10,
 `use_emits`, the leak lists, no event naming a player), `generator_role_swap_test.gd` (planted "the button refuses
 dissidents", both failed, reverted), `generator_demands_test.gd` (the exact demands through `LayoutCheck` and the
