@@ -3853,5 +3853,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 3.092, 17.9)
 
 [node name="Loot" type="Marker3D" parent="Stations" unique_id=1150873598]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23, 3.057, 2)
-
-[node name="Markers" type="Node3D" parent="." unique_id=244386076]
