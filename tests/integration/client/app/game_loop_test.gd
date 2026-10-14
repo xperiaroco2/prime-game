@@ -30,11 +30,18 @@ var _hub: LoopbackHub
 var _now := 1000000
 ## Each game's Corrections so far, newest last.
 var _corrections: Dictionary[Game, Array] = {}
+## The mode's maps, loaded before a test so each client's threaded load finds them cached.
+var _maps: Array[PackedScene] = []
 
 
 func before_test() -> void:
 	_hub = LoopbackHub.new()
 	_now = 1000000
+	# The clock moves 0.25 s a frame, the 60 s load deadline passes in 240 frames, and a frame at
+	# --fixed-fps takes about a millisecond: the House's threaded load (1.4 s) must not race it.
+	_maps.clear()
+	for path: String in (load("res://content/modes/base_mode.tres") as GameMode).maps:
+		_maps.append(load(path) as PackedScene)
 
 
 func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
