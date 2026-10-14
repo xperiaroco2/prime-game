@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d3ews4xbqxoxh"]
+
+[ext_resource type="PackedScene" uid="uid://bthfwxoloo0n2" path="res://assets/environment/house_props/sideboard.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dvl13evwmjxxe" path="res://levels/kit/house_props/sideboard.sideboard_col0.tres" id="2"]
+
+[node name="sideboard" unique_id=1201619766 instance=ExtResource("1")]
+
+[node name="sideboard_col0" type="StaticBody3D" parent="." unique_id=1460478200]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="sideboard_col0" unique_id=1479783247]
+shape = ExtResource("2")

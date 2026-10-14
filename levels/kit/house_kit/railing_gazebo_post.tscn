@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c8r0hsdpw7x0a"]
+
+[ext_resource type="PackedScene" uid="uid://53oo4sf5f2y" path="res://assets/environment/house_kit/railing_gazebo_post.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cjf72mhxwgx2u" path="res://levels/kit/house_kit/railing_gazebo_post.railing_gazebo_post_col0.tres" id="2"]
+
+[node name="railing_gazebo_post" unique_id=2019465373 instance=ExtResource("1")]
+
+[node name="railing_gazebo_post_col0" type="StaticBody3D" parent="." unique_id=908686134]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="railing_gazebo_post_col0" unique_id=203926769]
+shape = ExtResource("2")

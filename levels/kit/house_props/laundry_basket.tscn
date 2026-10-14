@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://biq3a0q2wdqde"]
+
+[ext_resource type="PackedScene" uid="uid://cgs6l0xrs0nlc" path="res://assets/environment/house_props/laundry_basket.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://24cg2bvf2o3y" path="res://levels/kit/house_props/laundry_basket.laundry_basket_col0.tres" id="2"]
+
+[node name="laundry_basket" unique_id=1099328423 instance=ExtResource("1")]
+
+[node name="laundry_basket_col0" type="StaticBody3D" parent="." unique_id=1139761913]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="laundry_basket_col0" unique_id=773452745]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dmu0xksqpu5ll"]
+
+[ext_resource type="PackedScene" uid="uid://csgjla2u26djk" path="res://assets/environment/house_props/kids_wardrobe.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b7yr66com8qtp" path="res://levels/kit/house_props/kids_wardrobe.kids_wardrobe_col0.tres" id="2"]
+
+[node name="kids_wardrobe" unique_id=1429806249 instance=ExtResource("1")]
+
+[node name="kids_wardrobe_col0" type="StaticBody3D" parent="." unique_id=115426925]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kids_wardrobe_col0" unique_id=464203904]
+shape = ExtResource("2")

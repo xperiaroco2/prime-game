@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cjad1bonisym8"]
+
+[ext_resource type="PackedScene" uid="uid://q0eg5ydhqflx" path="res://assets/environment/house_props/kitchen_upper.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cawwvq1b3ukxb" path="res://levels/kit/house_props/kitchen_upper.kitchen_upper_col0.tres" id="2"]
+
+[node name="kitchen_upper" unique_id=627262005 instance=ExtResource("1")]
+
+[node name="kitchen_upper_col0" type="StaticBody3D" parent="." unique_id=1256883432]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kitchen_upper_col0" unique_id=375457353]
+shape = ExtResource("2")

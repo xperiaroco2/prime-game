@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://chiljbsivyynd"]
+
+[ext_resource type="PackedScene" uid="uid://cujo3howqdo6a" path="res://assets/environment/house_props/tumble_dryer.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cq23gsf41c4an" path="res://levels/kit/house_props/tumble_dryer.tumble_dryer_col0.tres" id="2"]
+
+[node name="tumble_dryer" unique_id=1261835501 instance=ExtResource("1")]
+
+[node name="tumble_dryer_col0" type="StaticBody3D" parent="." unique_id=871916834]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="tumble_dryer_col0" unique_id=546235445]
+shape = ExtResource("2")

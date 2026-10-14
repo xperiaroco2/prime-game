@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bh3r3aq7vussc"]
+
+[ext_resource type="PackedScene" uid="uid://sm832w6droal" path="res://assets/environment/house_kit/slab_edge_yard_2m.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dy8i4dsqqixtd" path="res://levels/kit/house_kit/slab_edge_yard_2m.slab_edge_yard_2m_col0.tres" id="2"]
+
+[node name="slab_edge_yard_2m" unique_id=1469349432 instance=ExtResource("1")]
+
+[node name="slab_edge_yard_2m_col0" type="StaticBody3D" parent="." unique_id=1371230724]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="slab_edge_yard_2m_col0" unique_id=332236497]
+shape = ExtResource("2")

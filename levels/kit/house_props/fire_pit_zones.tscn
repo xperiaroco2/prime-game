@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://4vaga8fmt1lc"]
+
+[ext_resource type="PackedScene" uid="uid://cxcl2yp0blrw" path="res://assets/environment/house_props/fire_pit_zones.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bjheqyrgrmtlv" path="res://levels/kit/house_props/fire_pit_zones.fire_pit_col0.tres" id="2"]
+
+[node name="fire_pit_zones" unique_id=314268493 instance=ExtResource("1")]
+
+[node name="fire_pit_col0" type="StaticBody3D" parent="." unique_id=163561802]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fire_pit_col0" unique_id=43240675]
+shape = ExtResource("2")

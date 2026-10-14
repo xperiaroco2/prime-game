@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://vxfw4ibimlot"]
+
+[ext_resource type="PackedScene" uid="uid://xv002nityxtr" path="res://assets/environment/house_props/terrace_chair.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://banmhqoj2036e" path="res://levels/kit/house_props/terrace_chair.terrace_chair_col0.tres" id="2"]
+
+[node name="terrace_chair" unique_id=780792444 instance=ExtResource("1")]
+
+[node name="terrace_chair_col0" type="StaticBody3D" parent="." unique_id=720806497]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="terrace_chair_col0" unique_id=130813317]
+shape = ExtResource("2")

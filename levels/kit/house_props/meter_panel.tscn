@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ddake4h44rsrj"]
+
+[ext_resource type="PackedScene" uid="uid://cr1nv74dorr6h" path="res://assets/environment/house_props/meter_panel.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://4hyquus5n1jk" path="res://levels/kit/house_props/meter_panel.meter_panel_col0.tres" id="2"]
+
+[node name="meter_panel" unique_id=1027198671 instance=ExtResource("1")]
+
+[node name="meter_panel_col0" type="StaticBody3D" parent="." unique_id=817821024]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="meter_panel_col0" unique_id=122570808]
+shape = ExtResource("2")

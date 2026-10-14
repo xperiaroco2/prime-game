@@ -5,7 +5,7 @@ pointer file there: a few lines of text that start with the spec's version line.
 fails (`Not a PNG file`, `Not a WAV file`, a glTF parse error), and rewrites its `.import` file as it does; every
 resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI (and a
 Claude Code cloud session, also a checkout that may lack LFS content), the import never sees a pointer file. aside()
-puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, a 10 ms Ogg, an empty glTF scene:
+puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, a 10 ms Ogg, an empty glTF scene, or for a GLB the levels override, one with those nodes (glb_outline()):
 STAND_INS) under its committed `.import` file, so Godot writes the imported file every resource that uses it loads,
 with its uid; a type without a stand-in (WOFF, MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with
 its `.import` file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).
@@ -17,6 +17,7 @@ pointer file.
 from __future__ import annotations
 
 import base64
+import json
 import os
 import re
 import shutil
@@ -194,9 +195,89 @@ def ci_pointers(root: Path | None = None) -> list[str]:
     return pointers(root) if common.IS_CI or common.IS_CLOUD else []
 
 
-def stand_in(name: str) -> bytes | None:
-    """The stand-in aside() imports in place of the pointer file `name`, or None for a type without one."""
+def stand_in(name: str, outline: dict[str, dict[str, int]] | None = None) -> bytes | None:
+    """The stand-in aside() imports in place of the pointer file `name`, or None for a type without one. A GLB that
+    the scenes under levels/ override a node of (`outline`, glb_outline()) gets those nodes, so the override does not
+    warn that its node has vanished (#523)."""
+    nodes = (outline or {}).get(name)
+    if nodes and Path(name).suffix.lower() == ".glb":
+        return glb_with_nodes(nodes)
     return STAND_INS.get(Path(name).suffix.lower())
+
+
+def glb_with_nodes(nodes: dict[str, int]) -> bytes:
+    """A GLB whose scene holds a mesh node per entry of `nodes` (name to its surface count), each surface one
+    triangle: what a scene's override of a GLB's node (a surface material, a shader parameter) needs to exist."""
+    positions = struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0, 1, 0)
+    names = sorted(nodes)
+    meshes = [{"primitives": [{"attributes": {"POSITION": 0}}] * max(1, nodes[name])} for name in names]
+    gltf = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": list(range(len(names)))}],
+        "nodes": [{"name": name, "mesh": index} for index, name in enumerate(names)],
+        "meshes": meshes,
+        "accessors": [
+            {"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3", "min": [0, 0, 0], "max": [1, 1, 0]}
+        ],
+        "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(positions)}],
+        "buffers": [{"byteLength": len(positions)}],
+    }
+    text = json.dumps(gltf, separators=(",", ":")).encode()
+    text += b" " * (-len(text) % 4)
+    body = struct.pack("<I4s", len(text), b"JSON") + text + struct.pack("<I4s", len(positions), b"BIN\0") + positions
+    return b"glTF" + struct.pack("<II", 2, 12 + len(body)) + body
+
+
+_EXT = re.compile(r'^\[ext_resource\b[^\]]*\bpath="(res://[^"]+)"[^\]]*\bid="([^"]+)"[^\]]*\]$', re.MULTILINE)
+_NAME = re.compile(r'\bname="([^"]+)"')
+_PARENT = re.compile(r'\bparent="([^"]*)"')
+_INSTANCE = re.compile(r'\binstance=ExtResource\("([^"]+)"\)')
+_SURFACE = re.compile(r"^surface_material_override/(\d+) = ", re.MULTILINE)
+
+
+def glb_outline(root: Path | None = None) -> dict[str, dict[str, int]]:
+    """For each art GLB (repo-relative), the nodes that the scenes under levels/ override from outside it: the
+    child of an instance of the GLB (or of its wrapper in levels/kit, colliders.py) that the scene names without
+    a type, with the surface count its `surface_material_override/<n>` lines need."""
+    root = root or common.ROOT
+    scenes = sorted((root / "levels").rglob("*.tscn"))
+    wrapped: dict[str, str] = {}
+    for scene in scenes:
+        if "kit" in scene.relative_to(root).parts:
+            first = _EXT.search(scene.read_text(encoding="utf-8"))
+            if first and first.group(1).endswith(".glb"):
+                wrapped["res://" + scene.relative_to(root).as_posix()] = first.group(1)
+    found: dict[str, dict[str, int]] = {}
+    for scene in scenes:
+        if "kit" in scene.relative_to(root).parts:
+            continue
+        text = scene.read_text(encoding="utf-8")
+        ids = {match.group(2): match.group(1) for match in _EXT.finditer(text)}
+        glbs: dict[str, str] = {}  # the path of an instance in the scene -> its GLB
+        for block in re.split(r"\n(?=\[node )", text):
+            head = block.split("\n", 1)[0]
+            name, parent, instance = (pattern.search(head) for pattern in (_NAME, _PARENT, _INSTANCE))
+            if name is None:
+                continue
+            path = name.group(1)
+            if parent is not None and parent.group(1) != ".":
+                path = f"{parent.group(1)}/{path}"
+            if instance is not None:
+                target = ids.get(instance.group(1), "")
+                target = wrapped.get(target, target)
+                if target.startswith("res://") and target.endswith(".glb"):
+                    glbs[path] = target[len("res://") :]
+                continue
+            if parent is None or parent.group(1) not in glbs or " type=" in head:
+                continue
+            body = block.split("\n", 1)[1] if "\n" in block else ""
+            if "surface_material_override/" not in body and "instance_shader_parameters/" not in body:
+                continue
+            surfaces = [int(index) + 1 for index in _SURFACE.findall(body)]
+            nodes = found.setdefault(glbs[parent.group(1)], {})
+            nodes[name.group(1)] = max([nodes.get(name.group(1), 1), *surfaces])
+    return found
 
 
 @contextmanager
@@ -208,6 +289,7 @@ def aside(names: list[str], root: Path | None = None) -> Iterator[None]:
     `.import` file moved too. The moved files go back as they were (their bytes and times: the import stays
     current). A file that cannot go back is a Failure that names it (the checkout would otherwise lose it)."""
     root = root or common.ROOT
+    outline = glb_outline(root) if any(name.lower().endswith(".glb") for name in names) else {}
     moved: list[tuple[Path, Path]] = []
     made: list[Path] = []
     try:
@@ -215,7 +297,7 @@ def aside(names: list[str], root: Path | None = None) -> Iterator[None]:
             (root / ASIDE).mkdir(parents=True, exist_ok=True)
             (root / ASIDE / ".gdignore").touch()  # Godot's scan skips the folder, whoever made tools/out
         for name in names:
-            data = stand_in(name)
+            data = stand_in(name, outline)
             for rel in (name, name + ".import"):
                 source = root / rel
                 if not source.is_file():

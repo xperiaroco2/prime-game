@@ -485,6 +485,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("files", nargs="+", help="repo-relative or res:// paths")
 
     p = sub.add_parser(
+        "colliders",
+        help="move the art GLBs' hint colliders into text scenes and shapes under levels/kit/ (outside LFS)",
+        description="Write each GLB's hint colliders (-colonly, -convcolonly, -col, -convcol) under assets/environment/ "
+        "as text: a wrapper scene levels/kit/<pack>/<stem>.tscn (the GLB as the look, a StaticBody3D per collider) and "
+        "a .tres shape per body; skip the importer's own bodies in the GLB's .import; point every scene under levels/ "
+        "at the wrapper. Needs LFS content (a pointer file is skipped). check runs --check.",
+    )
+    p.add_argument(
+        "--check", action="store_true", help="write nothing: fail on a stale or missing file or a direct GLB instance"
+    )
+
+    p = sub.add_parser(
         "shot",
         help="render a scene off-screen in a real window and save a PNG",
         description="An off-screen PNG of a scene: render it in a real window at an off-screen position and save it.",
@@ -980,6 +992,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import normalize
 
             return normalize.main(args.files)
+        if args.command == "colliders":
+            from . import colliders
+
+            return colliders.main(check_only=args.check)
         if args.command == "shot":
             from . import shot
 

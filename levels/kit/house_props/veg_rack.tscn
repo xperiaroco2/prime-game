@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://mocoi7eelsxe"]
+
+[ext_resource type="PackedScene" uid="uid://cmaeoqjt23813" path="res://assets/environment/house_props/veg_rack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cd7jewb8b5g4" path="res://levels/kit/house_props/veg_rack.veg_rack_col0.tres" id="2"]
+
+[node name="veg_rack" unique_id=1727989570 instance=ExtResource("1")]
+
+[node name="veg_rack_col0" type="StaticBody3D" parent="." unique_id=1374031606]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="veg_rack_col0" unique_id=123105789]
+shape = ExtResource("2")

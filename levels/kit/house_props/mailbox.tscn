@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cx0qim5eeutvl"]
+
+[ext_resource type="PackedScene" uid="uid://cunylb8823sm5" path="res://assets/environment/house_props/mailbox.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dui3x3dlgva7f" path="res://levels/kit/house_props/mailbox.mailbox_col0.tres" id="2"]
+
+[node name="mailbox" unique_id=2043474666 instance=ExtResource("1")]
+
+[node name="mailbox_col0" type="StaticBody3D" parent="." unique_id=566333941]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="mailbox_col0" unique_id=438629130]
+shape = ExtResource("2")

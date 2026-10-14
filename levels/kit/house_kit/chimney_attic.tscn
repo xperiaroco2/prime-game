@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://c3rcwf0e7rq2a"]
+
+[ext_resource type="PackedScene" uid="uid://b2qu6aarfffya" path="res://assets/environment/house_kit/chimney_attic.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bvfqwq6s0ppyx" path="res://levels/kit/house_kit/chimney_attic.chimney_attic_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cgmoyqawvhies" path="res://levels/kit/house_kit/chimney_attic.chimney_attic_col1.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ceoqc77xtob3u" path="res://levels/kit/house_kit/chimney_attic.chimney_attic_col2.tres" id="4"]
+
+[node name="chimney_attic" unique_id=1976769283 instance=ExtResource("1")]
+
+[node name="chimney_attic_col0" type="StaticBody3D" parent="." unique_id=239554364]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chimney_attic_col0" unique_id=1551895925]
+shape = ExtResource("2")
+
+[node name="chimney_attic_col1" type="StaticBody3D" parent="." unique_id=2034270122]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chimney_attic_col1" unique_id=869448596]
+shape = ExtResource("3")
+
+[node name="chimney_attic_col2" type="StaticBody3D" parent="." unique_id=1615408656]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chimney_attic_col2" unique_id=1498703606]
+shape = ExtResource("4")

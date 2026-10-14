@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://baioa5mr4n4lm"]
+
+[ext_resource type="PackedScene" uid="uid://u3wstf3qhbkt" path="res://assets/environment/house_props/order_board.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cnrn8b0wi73dt" path="res://levels/kit/house_props/order_board.order_board_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cu0pbvpy0vh6h" path="res://levels/kit/house_props/order_board.order_board_col1.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b4kts78pf2xe4" path="res://levels/kit/house_props/order_board.order_board_col2.tres" id="4"]
+
+[node name="order_board" unique_id=823347457 instance=ExtResource("1")]
+
+[node name="order_board_col0" type="StaticBody3D" parent="." unique_id=285285855]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="order_board_col0" unique_id=1390342119]
+shape = ExtResource("2")
+
+[node name="order_board_col1" type="StaticBody3D" parent="." unique_id=1711680841]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="order_board_col1" unique_id=1032608006]
+shape = ExtResource("3")
+
+[node name="order_board_col2" type="StaticBody3D" parent="." unique_id=2131721459]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="order_board_col2" unique_id=1460307044]
+shape = ExtResource("4")

@@ -6,8 +6,10 @@ extends GdUnitTestSuite
 ## own data: every Strike of its item kinds that launches, the raise rule's TargetInReach, the
 ## PlayerRules' capsule, step and crouched eye.
 ##
-## The spots a player can walk to: the floors of the House's pieces WALKABLE names (their Floor and
-## stair-step colliders, never a crate's, a table's or the locked roof's top), reached on foot from
+## The spots a player can walk to: the floors of the House's pieces WALKABLE names (their walked
+## colliders (_walked): the art's floor, slab and stair pieces of a room's Shell, the plot's Ground,
+## a greybox piece's Floor and stair-step boxes; never a crate's, a table's, a wall's or the roof's
+## top), each spot named after the smallest piece whose footprint holds it, reached on foot from
 ## the round's spawn markers by a flood fill of the crouched capsule (STEP_M apart, each step a
 ## rise of at most PlayerRules.step_height_m, any drop, the capsule clear of the level at each spot;
 ## WorldQuery.stand_floor_below, as the mover stands). A floor in a gap the fill does not reach is
@@ -62,16 +64,39 @@ const WALKABLE: Array[String] = [
 	"SecondFloor/Bathroom",
 	"SecondFloor/GuestRoom",
 	"SecondFloor/Balcony",
-	"AtticAndRoof/Attic",
 ]
-## The House's pieces no player walks: the roof, whose door is locked in the design
-## (docs/design/house-map.md, decision 11).
-const LOCKED: Array[String] = ["AtticAndRoof/Roof"]
+## The House's pieces players reach but do not walk to: the attic, whose only way up is the art's
+## hatch ladder (#523: a ladder of about 68 degrees, no flight a step at a time; a climb is
+## engine work, so no walk reaches the attic yet: the engineer's call, listed in the PR).
+const LOCKED: Array[String] = ["AtticAndRoof/Attic"]
+## The Shell pieces of the art's rooms players never stand on: walls, fences, railings, roofs,
+## glass, beams, pillars and the ladder (their names' starts; every other Shell piece is a floor,
+## a slab, a porch or a flight of stairs).
+const NOT_WALKED: Array[String] = [
+	"wall_",
+	"fence",
+	"gate",
+	"railing_",
+	"roof_",
+	"glass_",
+	"gable",
+	"beam_",
+	"pillar_",
+	"chimney",
+	"dormer_gable",
+	"hatch_ladder",
+	"gazebo_roof",
+	"gazebo_finial",
+]
 ## The flood fill's spacing, each step taken in two halves (a stair's tread is 0.3 m).
 const STEP_M := 0.5
 ## How far a floor's top may lie from a spot's height, and the height band of the fill's cells.
 const TOP_TOLERANCE_M := 0.02
 const BAND_M := 0.05
+## How far a spot may lie above or below the floor of the piece it is named after (a storey).
+const STOREY_M := 3.3
+## The downward rays on the capsule's ring that look for a walked floor under a spot (_piece_under).
+const RING_RAYS := 8
 ## 60 physics frames a second, 20 host ticks.
 const FRAMES_PER_TICK := 3
 ## The attacker stands this far behind its target, against the launch (within a strike's reach).
@@ -92,8 +117,9 @@ var _house: LevelWorld
 var _layouts: Dictionary[String, LevelLayout]
 var _game: Match
 var _seen := 0
-## The walkable tops: per height band, an Array of [piece, AABB] whose top lies in it.
-var _tops: Dictionary[int, Array] = {}
+## The walked colliders alone (_walked), and each walkable piece's footprint: [key, Rect2, floor y].
+var _walked_world: LevelWorld
+var _footprints: Array[Array] = []
 ## The flood fill: each spot's piece by its cell, and the spots by their column.
 var _spots: Dictionary[Vector3i, String] = {}
 var _columns: Dictionary[Vector2i, Array] = {}
@@ -128,6 +154,7 @@ func after_test() -> void:
 func after() -> void:
 	_world = null
 	_house = null
+	_walked_world = null
 	_mode = null
 	_rules = null
 
@@ -138,6 +165,24 @@ func test_every_piece_of_the_house_is_listed_walkable_or_locked() -> void:
 	var found := _pieces_in_scene.duplicate()
 	found.sort()
 	assert_array(found).is_equal(listed)
+
+
+func test_no_spawn_marker_stands_in_a_locked_piece() -> void:
+	var root: Node = (load(HOUSE) as PackedScene).instantiate()
+	var stuck: Array[String] = []
+	for key: String in LOCKED:
+		var locked := _piece_node(root, key)
+		assert_object(locked).is_not_null()
+		for marker: Node in locked.find_children("*", "Marker3D", true, false):
+			for group: StringName in marker.get_groups():
+				if String(group).begins_with(MarkerReader.GROUP_PREFIX):
+					stuck.append("%s: %s in %s" % [marker.name, group, key])
+	root.free()
+	(
+		assert_array(stuck)
+		. override_failure_message("a spawn marker no one can walk to: %s" % ", ".join(stuck))
+		. is_empty()
+	)
 
 
 func test_the_walk_from_the_spawn_reaches_every_walkable_piece() -> void:
@@ -195,7 +240,7 @@ func test_every_launch_from_a_spot_rests_within_a_raise_of_a_spot() -> void:
 					)
 					assert_object(body.motion).override_failure_message(label).is_null()
 					rests += 1
-					if HouseThrows.on_roof(body.position):
+					if HouseThrows.on_roof(_world, body.position):
 						out_of_reach.append(label + ", on the locked roof")
 					elif not _in_reach_of_a_spot(body.position, reach):
 						out_of_reach.append(label + ", out of a raise's reach of every spot")
@@ -232,67 +277,101 @@ func _raise_reach() -> float:
 	return 0.0
 
 
-## The walkable tops of house.tscn's pieces (their Floor and Stairs...Step box colliders, the
-## scene read, never added to a tree, then freed), and every piece's name.
+## The walked colliders of house.tscn (_walked) in a world of their own, every piece's name (the
+## nodes under a floor group that declare size_m, the map's rooms) and each walkable piece's
+## footprint (its origin's x and z, size_m, its floor at its origin's height). The scene is read,
+## never added to a tree, then freed.
 func _read_tops() -> void:
 	var root := (load(HOUSE) as PackedScene).instantiate()
 	for group: Node in root.get_children():
 		for piece: Node in group.get_children():
+			if not piece.has_meta(&"size_m"):
+				continue
 			var key := "%s/%s" % [group.name, piece.name]
 			_pieces_in_scene.append(key)
 			if not WALKABLE.has(key):
 				continue
-			for node: Node in piece.find_children("*", "CollisionShape3D", true, false):
-				var shape := node as CollisionShape3D
-				var box := shape.shape as BoxShape3D
-				var shape_name := String(shape.name)
-				var walked := (
-					shape_name.begins_with("Floor")
-					or (shape_name.begins_with("Stairs") and shape_name.contains("Step"))
-				)
-				if box == null or not walked:
-					continue
-				var xf := LevelWorld.transform_in_scene(shape, root)
-				var aabb := xf * AABB(-box.size / 2.0, box.size)
-				var band := roundi(aabb.end.y / BAND_M)
-				if not _tops.has(band):
-					_tops[band] = []
-				_tops[band].append([key, aabb])
+			var origin := LevelWorld.transform_in_scene(piece as Node3D, root).origin
+			var size: Vector2i = piece.get_meta(&"size_m")
+			var rect := Rect2(Vector2(origin.x, origin.z), Vector2(size))
+			_footprints.append([key, rect, origin.y])
+	for node: Node in root.find_children("*", "CollisionShape3D", true, false):
+		var shape := node as CollisionShape3D
+		shape.disabled = shape.disabled or not _walked(shape, root)
+	_walked_world = LevelWorld.from_scene(root, HOUSE)
 	root.free()
 
 
-## The piece whose walkable top `at` stands on (within a capsule's radius of its edge, as
-## stand_floor_below reads the footprint), or "" for none.
+## Whether players stand on `shape`: under a walkable piece, one of its Shell's floor, slab or
+## stair pieces (the art's rooms), or a Floor or stair-step box (a greybox piece, the garage);
+## outside the pieces, the plot's Ground and its outdoor flight from the basement's passage up to
+## the yard (its Shell's stairs_outdoor_ pieces).
+func _walked(shape: CollisionShape3D, root: Node) -> bool:
+	var path := String(root.get_path_to(shape)).split("/")
+	if path.size() > 2 and path[0] == "Outdoor":
+		return (
+			path[1] == "Ground" or (path[1] == "Shell" and path[2].begins_with("stairs_outdoor_"))
+		)
+	if path.size() < 3 or not WALKABLE.has("%s/%s" % [path[0], path[1]]):
+		return false
+	var piece := root.get_node(NodePath("%s/%s" % [path[0], path[1]]))
+	if not piece.has_node(^"Shell"):
+		var shape_name := String(shape.name)
+		return (
+			shape_name.begins_with("Floor")
+			or (shape_name.begins_with("Stairs") and shape_name.contains("Step"))
+		)
+	if path[2] != "Shell" or path.size() < 4:
+		return false
+	for start: String in NOT_WALKED:
+		if path[3].begins_with(start):
+			return false
+	return true
+
+
+## The piece `at` stands on: none unless a walked collider lies under the capsule's footprint
+## (its middle or a ring just inside its radius, by downward rays: a cylinder query misses the
+## plot's trimesh ground) within TOP_TOLERANCE_M of its feet (so never a crate's, a table's or a
+## wall's top), then the walkable piece whose footprint holds `at` with its floor nearest `at`'s
+## height (a storey at most), the smaller footprint on a tie (the garden in the yard). "" for none.
+## The piece "Group/Piece" under the House scene's `root`, or null.
+func _piece_node(root: Node, key: String) -> Node:
+	var parts := key.split("/")
+	for group: Node in root.get_children():
+		if group.name == parts[0]:
+			return group.get_node_or_null(parts[1])
+	return null
+
+
 func _piece_under(at: Vector3) -> String:
-	var band := roundi(at.y / BAND_M)
+	var space := _walked_world.space_state()
+	var walked := false
+	for k in RING_RAYS + 1:
+		var angle := TAU * k / RING_RAYS
+		var ring := 0.0 if k == RING_RAYS else _rules.capsule_radius_m * 0.9
+		var top := at + Vector3(cos(angle) * ring, TOP_TOLERANCE_M, sin(angle) * ring)
+		var ray := PhysicsRayQueryParameters3D.create(
+			top, top + Vector3.DOWN * (3.0 * TOP_TOLERANCE_M + 0.02), LevelWorld.WORLD_LAYER
+		)
+		if not space.intersect_ray(ray).is_empty():
+			walked = true
+			break
+	if not walked:
+		return ""
 	var found := ""
 	var best := INF
-	for b: int in [band - 1, band, band + 1]:
-		for top: Array in _tops.get(b, []):
-			var aabb: AABB = top[1]
-			var off := absf(aabb.end.y - at.y)
-			if off > TOP_TOLERANCE_M:
-				continue
-			# A top the point lies over beats one within a radius of it, then the nearer height
-			# wins: the garden's plate lies 0.02 m over the yard's floor.
-			if not _over(aabb, at, _rules.capsule_radius_m):
-				continue
-			if not _over(aabb, at, 0.0):
-				off += 1.0
-			if off < best:
-				best = off
-				found = top[0]
+	for footprint: Array in _footprints:
+		var rect: Rect2 = footprint[1]
+		if not rect.has_point(Vector2(at.x, at.z)):
+			continue
+		var off := absf(at.y - (footprint[2] as float))
+		if off > STOREY_M:
+			continue
+		var score := off * 1000.0 + rect.get_area() * 0.001
+		if score < best:
+			best = score
+			found = footprint[0]
 	return found
-
-
-## Whether `at`'s x and z lie over `aabb`'s footprint grown by `grow`.
-func _over(aabb: AABB, at: Vector3, grow: float) -> bool:
-	return (
-		at.x >= aabb.position.x - grow
-		and at.x <= aabb.end.x + grow
-		and at.z >= aabb.position.z - grow
-		and at.z <= aabb.end.z + grow
-	)
 
 
 ## The flood fill from the round's spawn markers, breadth first.
@@ -332,8 +411,7 @@ func _visit(at: Vector3) -> bool:
 	if _spots.has(cell) or _rejected.has(cell):
 		return false
 	var piece := _piece_under(at)
-	# The roof's side of the attic's locked door (house_throws.gd's on_roof) is no spot either.
-	if piece.is_empty() or HouseThrows.on_roof(at) or not _crouched_fits(at):
+	if piece.is_empty() or not _crouched_fits(at):
 		_rejected[cell] = true
 		return false
 	_spots[cell] = piece

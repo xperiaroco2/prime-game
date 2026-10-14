@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://gwp3ccahkr8a"]
+
+[ext_resource type="PackedScene" uid="uid://bqp4xs1j07wdo" path="res://assets/environment/house_props/coat_hooks.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dy5k3f4kggi2v" path="res://levels/kit/house_props/coat_hooks.coat_hooks_col0.tres" id="2"]
+
+[node name="coat_hooks" unique_id=630427633 instance=ExtResource("1")]
+
+[node name="coat_hooks_col0" type="StaticBody3D" parent="." unique_id=971413429]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="coat_hooks_col0" unique_id=1370424102]
+shape = ExtResource("2")

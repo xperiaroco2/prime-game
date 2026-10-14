@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bi8cwmgtryomh"]
+
+[ext_resource type="PackedScene" uid="uid://ci06e22x67eeq" path="res://assets/environment/house_props/bread_rack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://q8pf7g0qjeov" path="res://levels/kit/house_props/bread_rack.bread_rack_col0.tres" id="2"]
+
+[node name="bread_rack" unique_id=1243198441 instance=ExtResource("1")]
+
+[node name="bread_rack_col0" type="StaticBody3D" parent="." unique_id=1716091618]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bread_rack_col0" unique_id=939146495]
+shape = ExtResource("2")

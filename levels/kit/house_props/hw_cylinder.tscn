@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bghy5hvxpdq87"]
+
+[ext_resource type="PackedScene" uid="uid://bjwlllna812it" path="res://assets/environment/house_props/hw_cylinder.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://gwhng3ltwtnb" path="res://levels/kit/house_props/hw_cylinder.hw_cylinder_col0.tres" id="2"]
+
+[node name="hw_cylinder" unique_id=2086734039 instance=ExtResource("1")]
+
+[node name="hw_cylinder_col0" type="StaticBody3D" parent="." unique_id=1104509325]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hw_cylinder_col0" unique_id=1335826236]
+shape = ExtResource("2")

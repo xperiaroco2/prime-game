@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## floor in front of its bottom step to the floor beyond its top, every rise is a step the player
 ## can take (rules.step_height_m, 0.3 m) and the player's capsule, resting on the step edges, fits:
 ## no wall in the way, room for the head under the floor above. Read in the host's collision world
-## of the level (LevelWorld), the world the host checks movement against.
+## of the level (LevelWorld), the world the host checks movement against. The same walk goes
+## straight through each kit door and gate on a walk (OPENINGS): a leaf left solid fails it.
 
 const MAP := "res://levels/house/house.tscn"
 const RADIUS := 0.4
@@ -13,22 +14,52 @@ const SPACING := 0.1
 ## Where the walk starts and every corner it turns, in map coordinates; y is the start's floor.
 const WALKS := {
 	"main stairs, ground floor to landing":
-	[Vector3(32.5, 0, 35.4), Vector3(28, 0, 35.4), Vector3(28, 0, 30.6)],
+	[Vector3(31, 0, 35), Vector3(26.55, 0, 35), Vector3(26.55, 0, 33), Vector3(31, 0, 33)],
 	"pantry stairs, storage to pantry":
-	[Vector3(25.1, -3.2, 25.2), Vector3(25.1, -3.2, 29.4), Vector3(27.6, -3.2, 29.4)],
-	"outdoor stairs, passage to yard": [Vector3(60.8, -3.2, 31), Vector3(66.8, -3.2, 31)],
-	"external stairs, terrace to balcony": [Vector3(39, 0, 16.4), Vector3(39, 0, 21.6)],
-	"attic stairs, landing to attic":
-	[Vector3(33.05, 3.2, 30.9), Vector3(33.05, 3.2, 26.7), Vector3(31, 3.2, 26.7)],
+	[
+		Vector3(25, -3.2, 28.6),
+		Vector3(25, -3.2, 24.5),
+		Vector3(27, -3.2, 24.5),
+		Vector3(27, -3.2, 29.2),
+	],
+	"outdoor stairs, passage to yard":
+	[
+		Vector3(63, -3.2, 32.6),
+		Vector3(63, -3.2, 28.5),
+		Vector3(65, -3.2, 28.5),
+		Vector3(65, -3.2, 33)
+	],
+	"external stairs, yard to balcony": [Vector3(39, 0, 14.4), Vector3(39, 0, 21.6)],
 }
 ## How high each walk ends: the level it leads to.
 const ENDS := {
 	"main stairs, ground floor to landing": 3.2,
 	"pantry stairs, storage to pantry": 0.0,
-	"outdoor stairs, passage to yard": -0.06,
-	"external stairs, terrace to balcony": 3.2,
-	"attic stairs, landing to attic": 6.4,
+	"outdoor stairs, passage to yard": 0.0,
+	"external stairs, yard to balcony": 3.2,
 }
+## The kit's doors and gates on a walk, open as door openings (E4: their leaves have no collision),
+## walked straight through on the ground floor (house-map.md §5: the yard's two openings to the
+## street, the wicket and the gates; the greenhouse's door from the garden).
+const OPENINGS := {
+	"the wicket, yard to street": [Vector3(30, 0, 58), Vector3(30, 0, 62)],
+	"the gates, driveway to street": [Vector3(64, 0, 58), Vector3(64, 0, 62)],
+	"the greenhouse door, garden to greenhouse": [Vector3(56.5, 0, 12), Vector3(59.5, 0, 12)],
+}
+## How high each opening's walk ends: the street's pavement beyond the wicket stands 0.15 m.
+const OPENING_ENDS := {
+	"the wicket, yard to street": 0.15,
+	"the gates, driveway to street": 0.0,
+	"the greenhouse door, garden to greenhouse": 0.0,
+}
+## The hatch ladder up to the attic (the art's `ladder_attic`, house-map.md §5): its foot
+## on the landing, its top at the hatch's far edge, in map coordinates. A ladder is no flight: at
+## about 68 degrees the player's capsule cannot walk it (#523 lists the climb for the engineer), so
+## it is checked as a link between the two floors, not walked.
+const LADDER_FOOT := Vector2(28, 28.32)
+const LADDER_TOP := Vector2(28, 29.7)
+const LANDING_Y := 3.2
+const ATTIC_Y := 6.4
 
 var _level: LevelWorld
 
@@ -48,44 +79,76 @@ func test_the_map_builds_into_the_host_s_world_without_errors() -> void:
 
 func test_each_flight_can_be_walked_from_bottom_to_top() -> void:
 	for walk: String in WALKS:
-		var corners: Array = WALKS[walk]
-		var floor_y := (corners[0] as Vector3).y
-		var start := true
-		for at in _points(corners):
-			var found := _rest_height(at.x, at.z, floor_y)
-			(
-				assert_bool(is_nan(found))
-				. override_failure_message("%s: no floor under (%.2f, %.2f)" % [walk, at.x, at.z])
-				. is_false()
-			)
-			if is_nan(found):
-				break
-			if not start:
-				(
-					assert_float(found - floor_y)
-					. override_failure_message(
-						"%s: a %.2f m rise at (%.2f, %.2f)" % [walk, found - floor_y, at.x, at.z]
-					)
-					. is_less_equal(STEP)
-				)
-			floor_y = found
-			start = false
-			(
-				assert_bool(_fits(Vector3(at.x, floor_y, at.z)))
-				. override_failure_message(
-					(
-						"%s: the player does not fit at (%.2f, %.2f, %.2f)"
-						% [walk, at.x, floor_y, at.z]
-					)
-				)
-				. is_true()
-			)
-		var end: float = ENDS[walk]
+		_walk(walk, WALKS[walk] as Array, ENDS[walk] as float)
+
+
+func test_each_door_opening_on_a_walk_can_be_walked_through() -> void:
+	for walk: String in OPENINGS:
+		_walk(walk, OPENINGS[walk] as Array, OPENING_ENDS[walk] as float)
+
+
+## Walks `corners` (WALKS): every rise a step, the capsule fitting all the way, ending at `end`.
+func _walk(walk: String, corners: Array, end: float) -> void:
+	var floor_y := (corners[0] as Vector3).y
+	var start := true
+	for at in _points(corners):
+		var found := _rest_height(at.x, at.z, floor_y)
 		(
-			assert_float(floor_y)
-			. override_failure_message("%s ends at %.2f, not at %.2f" % [walk, floor_y, end])
-			. is_equal_approx(end, 0.01)
+			assert_bool(is_nan(found))
+			. override_failure_message("%s: no floor under (%.2f, %.2f)" % [walk, at.x, at.z])
+			. is_false()
 		)
+		if is_nan(found):
+			break
+		if not start:
+			(
+				assert_float(found - floor_y)
+				. override_failure_message(
+					"%s: a %.2f m rise at (%.2f, %.2f)" % [walk, found - floor_y, at.x, at.z]
+				)
+				. is_less_equal(STEP)
+			)
+		floor_y = found
+		start = false
+		(
+			assert_bool(_fits(Vector3(at.x, floor_y, at.z)))
+			. override_failure_message(
+				"%s: the player does not fit at (%.2f, %.2f, %.2f)" % [walk, at.x, floor_y, at.z]
+			)
+			. is_true()
+		)
+	(
+		assert_float(floor_y)
+		. override_failure_message("%s ends at %.2f, not at %.2f" % [walk, floor_y, end])
+		. is_equal_approx(end, 0.01)
+	)
+
+
+func test_the_attic_ladder_joins_the_landing_to_the_attic_floor() -> void:
+	var before_foot := LADDER_FOOT + Vector2(0, -0.5)
+	var beyond_top := LADDER_TOP + Vector2(0, 0.5)
+	assert_float(_floor_under(before_foot.x, before_foot.y, LANDING_Y)).is_equal_approx(
+		LANDING_Y, 0.01
+	)
+	assert_float(_floor_under(beyond_top.x, beyond_top.y, ATTIC_Y)).is_equal_approx(ATTIC_Y, 0.01)
+	# Along the ladder, seen from under the attic floor through the open hatch, it rises from the
+	# landing to the attic floor.
+	var last := LANDING_Y
+	for k in range(1, 10):
+		var at := LADDER_FOOT.lerp(LADDER_TOP, k / 10.0)
+		var ray := PhysicsRayQueryParameters3D.create(
+			Vector3(at.x, ATTIC_Y - 0.05, at.y),
+			Vector3(at.x, LANDING_Y, at.y),
+			LevelWorld.WORLD_LAYER
+		)
+		var hit := _level.space_state().intersect_ray(ray)
+		var rung: float = NAN if hit.is_empty() else (hit["position"] as Vector3).y
+		(
+			assert_bool(rung > last)
+			. override_failure_message("the ladder does not rise above %.2f at %s" % [last, at])
+			. is_true()
+		)
+		last = maxf(last, rung)
 
 
 ## The walk's points every SPACING metres along its corners.

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b3lwrelavekjv"]
+
+[ext_resource type="PackedScene" uid="uid://j2dm3xlk1l4d" path="res://assets/environment/house_props/stool.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://5vmnvxhow8ub" path="res://levels/kit/house_props/stool.stool_col0.tres" id="2"]
+
+[node name="stool" unique_id=2146327120 instance=ExtResource("1")]
+
+[node name="stool_col0" type="StaticBody3D" parent="." unique_id=742039166]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stool_col0" unique_id=975026032]
+shape = ExtResource("2")

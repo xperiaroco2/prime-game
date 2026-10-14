@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://blpynkljuymv0"]
+
+[ext_resource type="PackedScene" uid="uid://dv6p7staeanlb" path="res://assets/environment/house_props/holiday_decor.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ch61jhew21qnf" path="res://levels/kit/house_props/holiday_decor.holiday_decor_col0.tres" id="2"]
+
+[node name="holiday_decor" unique_id=591556809 instance=ExtResource("1")]
+
+[node name="holiday_decor_col0" type="StaticBody3D" parent="." unique_id=1807018601]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="holiday_decor_col0" unique_id=41613253]
+shape = ExtResource("2")

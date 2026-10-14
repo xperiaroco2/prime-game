@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dkxo4yuansn3e"]
+
+[ext_resource type="PackedScene" uid="uid://ctdy70lau3lx0" path="res://assets/environment/house_props/drink_crates.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://btwvvhltflgdl" path="res://levels/kit/house_props/drink_crates.drink_crates_col0.tres" id="2"]
+
+[node name="drink_crates" unique_id=2134275485 instance=ExtResource("1")]
+
+[node name="drink_crates_col0" type="StaticBody3D" parent="." unique_id=1953052497]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="drink_crates_col0" unique_id=1328772584]
+shape = ExtResource("2")

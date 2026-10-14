@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c4o058eecmp4h"]
+
+[ext_resource type="PackedScene" uid="uid://bqv0gsgg1pg30" path="res://assets/environment/house_garden/bush_lavender.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ctko555cx16ib" path="res://levels/kit/house_garden/bush_lavender.bush_lavender_col0.tres" id="2"]
+
+[node name="bush_lavender" unique_id=1553879248 instance=ExtResource("1")]
+
+[node name="bush_lavender_col0" type="StaticBody3D" parent="." unique_id=1117233486]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bush_lavender_col0" unique_id=40154956]
+shape = ExtResource("2")

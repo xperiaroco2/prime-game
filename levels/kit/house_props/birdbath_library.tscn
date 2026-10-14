@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c0vngpcuma2xm"]
+
+[ext_resource type="PackedScene" uid="uid://b607qwan3k37r" path="res://assets/environment/house_props/birdbath_library.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b6lct274v1s7l" path="res://levels/kit/house_props/birdbath_library.birdbath_col0.tres" id="2"]
+
+[node name="birdbath_library" unique_id=1901197013 instance=ExtResource("1")]
+
+[node name="birdbath_col0" type="StaticBody3D" parent="." unique_id=782420552]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="birdbath_col0" unique_id=481380546]
+shape = ExtResource("2")

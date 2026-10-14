@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dqqfc48i2rnqw"]
+
+[ext_resource type="PackedScene" uid="uid://cas2jae5pfini" path="res://assets/environment/house_props/mannequin.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cba0x5sqhrwcv" path="res://levels/kit/house_props/mannequin.mannequin_col0.tres" id="2"]
+
+[node name="mannequin" unique_id=1648739592 instance=ExtResource("1")]
+
+[node name="mannequin_col0" type="StaticBody3D" parent="." unique_id=1706946673]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="mannequin_col0" unique_id=1548150651]
+shape = ExtResource("2")

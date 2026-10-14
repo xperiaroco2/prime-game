@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://3embwjpisb0l"]
+
+[ext_resource type="PackedScene" uid="uid://dvlfofy2gmb7" path="res://assets/environment/house_props/storage_boxes.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://daunrmlj2onh2" path="res://levels/kit/house_props/storage_boxes.storage_boxes_col0.tres" id="2"]
+
+[node name="storage_boxes" unique_id=530717033 instance=ExtResource("1")]
+
+[node name="storage_boxes_col0" type="StaticBody3D" parent="." unique_id=740326097]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="storage_boxes_col0" unique_id=2032360696]
+shape = ExtResource("2")

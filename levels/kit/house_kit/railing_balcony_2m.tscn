@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cuulq5y6hp7rt"]
+
+[ext_resource type="PackedScene" uid="uid://dr2px6x07mu4h" path="res://assets/environment/house_kit/railing_balcony_2m.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cudybylx4m7yf" path="res://levels/kit/house_kit/railing_balcony_2m.railing_balcony_2m_col0.tres" id="2"]
+
+[node name="railing_balcony_2m" unique_id=1581899454 instance=ExtResource("1")]
+
+[node name="railing_balcony_2m_col0" type="StaticBody3D" parent="." unique_id=1019782535]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="railing_balcony_2m_col0" unique_id=734793824]
+shape = ExtResource("2")

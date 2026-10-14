@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ct63jrkf4vdxc"]
+
+[ext_resource type="PackedScene" uid="uid://c72cj8vcdn87q" path="res://assets/environment/house_props/fire_extinguisher.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bsovyn736jbsb" path="res://levels/kit/house_props/fire_extinguisher.fire_extinguisher_col0.tres" id="2"]
+
+[node name="fire_extinguisher" unique_id=54751983 instance=ExtResource("1")]
+
+[node name="fire_extinguisher_col0" type="StaticBody3D" parent="." unique_id=237002678]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fire_extinguisher_col0" unique_id=1798860195]
+shape = ExtResource("2")

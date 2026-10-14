@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dnmdof8kyl7c1"]
+
+[ext_resource type="PackedScene" uid="uid://bt75yfgeqbtxq" path="res://assets/environment/house_kit/roof_pitched_ridge_2m.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://4ufwfq48j0yp" path="res://levels/kit/house_kit/roof_pitched_ridge_2m.roof_pitched_ridge_2m_col0.tres" id="2"]
+
+[node name="roof_pitched_ridge_2m" unique_id=1416515665 instance=ExtResource("1")]
+
+[node name="roof_pitched_ridge_2m_col0" type="StaticBody3D" parent="." unique_id=1689363812]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="roof_pitched_ridge_2m_col0" unique_id=1445994632]
+shape = ExtResource("2")

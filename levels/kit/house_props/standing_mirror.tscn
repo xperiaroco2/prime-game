@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://r4yhyadsyauq"]
+
+[ext_resource type="PackedScene" uid="uid://gurlml5e5bxh" path="res://assets/environment/house_props/standing_mirror.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cw1vrudsqp8wh" path="res://levels/kit/house_props/standing_mirror.standing_mirror_col0.tres" id="2"]
+
+[node name="standing_mirror" unique_id=1892727128 instance=ExtResource("1")]
+
+[node name="standing_mirror_col0" type="StaticBody3D" parent="." unique_id=849793325]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="standing_mirror_col0" unique_id=1631399489]
+shape = ExtResource("2")

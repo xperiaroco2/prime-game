@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dophlxtijfrcr"]
+
+[ext_resource type="PackedScene" uid="uid://0gc2kra3rqgg" path="res://assets/environment/house_kit/stair_dormer.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b3c7ttotbopcp" path="res://levels/kit/house_kit/stair_dormer.stair_dormer_col0.tres" id="2"]
+
+[node name="stair_dormer" unique_id=253262084 instance=ExtResource("1")]
+
+[node name="stair_dormer_col0" type="StaticBody3D" parent="." unique_id=1901521319]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stair_dormer_col0" unique_id=513087585]
+shape = ExtResource("2")

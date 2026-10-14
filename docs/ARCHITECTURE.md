@@ -5719,9 +5719,12 @@ there would not follow from the commands.
   (§3.2). Provisional numbers (#302 comments 6085904317, 6096074314): 5 m/s, the project's physics gravity (9.8
   m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable, but its door may be locked, so instead of
   TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
-  no throw from a standable spot near the roof rests on it (5.5 m/s; the tops of the balcony's 1 m railings decide
-  it, since a 1 m jump may reach them and the eye then stands 1 m higher), less one step. At 5 m/s the highest arc
-  from there tops out at 7.08 m, below the 7.35 m a 0.15 m item needs to clear the roof's parapet.
+  no throw from a standable spot near the roof rests on it, less one step: 5.5 m/s on the greybox House's flat roof
+  at 6.4 m, where the tops of the balcony's 1 m railings decided it (a 1 m jump may reach them and the eye then
+  stands 1 m higher; at 5 m/s the highest arc from there topped out at 7.08 m, below the 7.35 m a 0.15 m item needed
+  to clear the roof's parapet). The art's House (#523) has a pitched roof over the attic, its eaves at about 8.3 m:
+  from the balcony's floor 9 m/s rests 140 of house_roof_throw_test's 38 880 throws on it and 7.5 m/s none, so the
+  rule's 5 m/s keeps a wider margin there.
   **Tests:** `tests/integration/levels/house_roof_throw_test.gd` flies 648 throws from each spot of
   `house_throws.gd` at the rule's own numbers against House's host collision world and fails on any rest on the
   roof (a later speed, gravity, radius, eye height or level change that reaches it turns it red; seen red at 6 m/s);
@@ -5965,10 +5968,13 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   footprint and at most one `Correction`, measured 0).
 - **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
-  `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece is listed there or in
-  `LOCKED`, the roof); a flood fill of the crouched capsule from the `round_player` spawn markers over those pieces'
-  `Floor` and stair-step tops (0.5 m apart in two halves, each rise at most `step_height_m`, any drop) gives the
-  spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
+  `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece, a node declaring
+  `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk; it stays locked until the art's walkable stair under a
+  longer hatch replaces the ladder, prime-game-art#183, and its knife marker moved to the pump room, #523); a flood fill of the
+  crouched capsule from the `round_player` spawn markers over those pieces' walked colliders (the art rooms' `Shell`
+  floor, slab and stair pieces, the plot's ground, the greybox garage's `Floor` and step boxes; each spot named
+  after the smallest piece whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`,
+  any drop) gives the spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
   `Strike` of the base mode's item kinds (read from the data) knocks a body down in 8 directions, and each rest must
   lie off the locked roof and within the raise's reach of a spot (`TargetInReach`'s distance from its feet, read from
   the `Raise` rule, and `TargetInSight` from its crouched eye). On the House as it stands every knife launch passes;
@@ -7726,6 +7732,10 @@ assets/
 - Data only: binaries and the `.import` files Godot writes beside them, no scripts. The engineer owns `assets/`
   (§1). Scenes in `client/` and `levels/` instance them (the avatar a character, the level its environment); an
   asset never refers back to them.
+  One kind of text file is data too: an art set's own materials, its shader and the `.tres` that use it, at the
+  paths its scenes reference, copied as the art ships them (the House's `house_kit/kit_set.gdshader` and
+  `kit_set.tres`, `house_props/prop_fine.gdshader` with `prop_fine_high.tres` and `prop_fine_low.tres`, #523);
+  never GDScript.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).
@@ -7756,6 +7766,21 @@ assets/
   {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
   with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
   (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
+- **The colliders** (#523, the LFS ADR's amendment of 2026-10-14): an environment GLB's import-hint colliders
+  (`-colonly`, `-convcolonly`, `-col`, `-convcol`) leave the GLB as text, so a checkout without LFS content (CI,
+  bots) still has the level's floors, walls and stairs. `tools\run.cmd colliders` (`tools/runner/colliders.py`)
+  writes, per GLB under `assets/environment/`, a wrapper `levels/kit/<pack>/<stem>.tscn` (the GLB instance, the
+  look, plus one `StaticBody3D` per hint collider at its root, named and placed as the importer names and places it)
+  and each body's shape `levels/kit/<pack>/<stem>.<body>.tres` (convex points snapped as Godot's hull snaps them, or
+  the trimesh's triangles), sets the GLB's `.import` to skip the importer's own bodies (`_subresources`
+  `import/skip_import`) and points each scene under `levels/` at the wrapper. `check` runs `colliders.problems()`: a
+  scene under `levels/` that instances a wrapped GLB directly, or a GLB whose files differ from what `colliders`
+  writes, fails it. Run `colliders` after every art import and commit its output. An override that reaches a
+  collider names the wrapper's body (`Shell/<instance>/<body>`). Without LFS content the GLB's stand-in holds the
+  nodes that the scenes under `levels/` override (`lfs.glb_outline`), so those overrides do not print Godot's "has
+  vanished" warnings (11 million log lines on the first CI run).
+  Tests: `tools/runner/tests/test_colliders.py` (in `selftest`); the House's level tests and `game_loop_test` pass
+  in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
   locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
   (the art pipeline's step 15).

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cv4yy887gtmr5"]
+
+[ext_resource type="PackedScene" uid="uid://b0bmkp4hggw0l" path="res://assets/environment/house_kit/ladder_attic.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d4fr1dq5cxav8" path="res://levels/kit/house_kit/ladder_attic.ladder_attic_col0.tres" id="2"]
+
+[node name="ladder_attic" unique_id=556792942 instance=ExtResource("1")]
+
+[node name="ladder_attic_col0" type="StaticBody3D" parent="." unique_id=1781658965]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ladder_attic_col0" unique_id=622931219]
+shape = ExtResource("2")

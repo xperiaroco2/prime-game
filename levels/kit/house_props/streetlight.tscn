@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c205runc1qujb"]
+
+[ext_resource type="PackedScene" uid="uid://b176eokjxee0f" path="res://assets/environment/house_props/streetlight.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c1hekl3e1hgjg" path="res://levels/kit/house_props/streetlight.streetlight_col0.tres" id="2"]
+
+[node name="streetlight" unique_id=265059909 instance=ExtResource("1")]
+
+[node name="streetlight_col0" type="StaticBody3D" parent="." unique_id=660802759]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="streetlight_col0" unique_id=1359970969]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cq68dd6gy5lg8"]
+
+[ext_resource type="PackedScene" uid="uid://cvcn4pie7m04i" path="res://assets/environment/house_props/potted_plant.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cxa80vkalutsw" path="res://levels/kit/house_props/potted_plant.potted_plant_col0.tres" id="2"]
+
+[node name="potted_plant" unique_id=898192211 instance=ExtResource("1")]
+
+[node name="potted_plant_col0" type="StaticBody3D" parent="." unique_id=835526501]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="potted_plant_col0" unique_id=1757491016]
+shape = ExtResource("2")

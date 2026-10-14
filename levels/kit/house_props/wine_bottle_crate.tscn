@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://mjnj5gdlglof"]
+
+[ext_resource type="PackedScene" uid="uid://fqldddykm4t4" path="res://assets/environment/house_props/wine_bottle_crate.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b1xvp48yv7yyr" path="res://levels/kit/house_props/wine_bottle_crate.wine_bottle_crate_col0.tres" id="2"]
+
+[node name="wine_bottle_crate" unique_id=23469248 instance=ExtResource("1")]
+
+[node name="wine_bottle_crate_col0" type="StaticBody3D" parent="." unique_id=835212976]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wine_bottle_crate_col0" unique_id=745976330]
+shape = ExtResource("2")

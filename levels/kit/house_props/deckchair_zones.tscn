@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d13j6y4cr6y6s"]
+
+[ext_resource type="PackedScene" uid="uid://csld7d8d1adof" path="res://assets/environment/house_props/deckchair_zones.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://decd5p0h6xxdu" path="res://levels/kit/house_props/deckchair_zones.deckchair_col0.tres" id="2"]
+
+[node name="deckchair_zones" unique_id=2128352308 instance=ExtResource("1")]
+
+[node name="deckchair_col0" type="StaticBody3D" parent="." unique_id=538981047]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="deckchair_col0" unique_id=1494854532]
+shape = ExtResource("2")

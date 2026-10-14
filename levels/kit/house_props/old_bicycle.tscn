@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://csvmlea1jpvp4"]
+
+[ext_resource type="PackedScene" uid="uid://bdqafvsr50bkq" path="res://assets/environment/house_props/old_bicycle.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bwqyfnn1vktn2" path="res://levels/kit/house_props/old_bicycle.old_bicycle_col0.tres" id="2"]
+
+[node name="old_bicycle" unique_id=2086400276 instance=ExtResource("1")]
+
+[node name="old_bicycle_col0" type="StaticBody3D" parent="." unique_id=1646952125]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="old_bicycle_col0" unique_id=650309703]
+shape = ExtResource("2")

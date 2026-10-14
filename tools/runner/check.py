@@ -1,4 +1,5 @@
-"""`check`: headless import, warnings policy, UID lint, credits and the project-wide parse/load check."""
+"""`check`: headless import, warnings policy, UID lint, credits, the text colliders and the project-wide parse/load
+check."""
 
 from __future__ import annotations
 
@@ -9,7 +10,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import common, credits, lfs, uids
+from . import colliders, common, credits, lfs, uids
 from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, quiet, say, skip, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
@@ -404,6 +405,14 @@ def check_all(files: list[str] | None) -> int:
         ok(f"credits ({credits.count(credit_report.entries)}; every LFS asset outside addons/ credited)")
     for path in credit_report.pending:
         warn(f"credits: {path} is Pending: its files have not landed yet")
+
+    collider_problems = colliders.problems(ROOT)
+    if collider_problems:
+        failed = True
+        for line in collider_problems:
+            bad(line)
+    else:
+        ok("colliders (every wrapped GLB's text colliders current; no level scene instances a wrapped GLB)")
 
     if not project_check(files, lfs.ci_pointers()):
         failed = True

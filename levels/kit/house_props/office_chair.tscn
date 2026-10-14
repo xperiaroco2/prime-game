@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bnc8prjwg81y4"]
+
+[ext_resource type="PackedScene" uid="uid://cwbeiix7dg0g" path="res://assets/environment/house_props/office_chair.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ovul2gporjc4" path="res://levels/kit/house_props/office_chair.office_chair_col0.tres" id="2"]
+
+[node name="office_chair" unique_id=1744014915 instance=ExtResource("1")]
+
+[node name="office_chair_col0" type="StaticBody3D" parent="." unique_id=851136451]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="office_chair_col0" unique_id=1262781107]
+shape = ExtResource("2")

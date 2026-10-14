@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bwu5fbba7sjo6"]
+
+[ext_resource type="PackedScene" uid="uid://dy6tibg28j138" path="res://assets/environment/house_props/sheeted_sofa.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dd26ht308m82l" path="res://levels/kit/house_props/sheeted_sofa.sheeted_sofa_col0.tres" id="2"]
+
+[node name="sheeted_sofa" unique_id=1770917010 instance=ExtResource("1")]
+
+[node name="sheeted_sofa_col0" type="StaticBody3D" parent="." unique_id=147418284]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="sheeted_sofa_col0" unique_id=345781015]
+shape = ExtResource("2")

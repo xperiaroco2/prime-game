@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://clphiqkovgmcg"]
+
+[ext_resource type="PackedScene" uid="uid://dsikitngc1hih" path="res://assets/environment/house_garden/flower_bed_aster.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://s2n2fypc7vps" path="res://levels/kit/house_garden/flower_bed_aster.flower_bed_aster_col0.tres" id="2"]
+
+[node name="flower_bed_aster" unique_id=608030120 instance=ExtResource("1")]
+
+[node name="flower_bed_aster_col0" type="StaticBody3D" parent="." unique_id=939446876]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="flower_bed_aster_col0" unique_id=1851054427]
+shape = ExtResource("2")

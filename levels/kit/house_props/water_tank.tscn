@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://by2qaybxa2n6d"]
+
+[ext_resource type="PackedScene" uid="uid://bq8g4iq3p1g1k" path="res://assets/environment/house_props/water_tank.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://puunpr54sccv" path="res://levels/kit/house_props/water_tank.water_tank_col0.tres" id="2"]
+
+[node name="water_tank" unique_id=254071771 instance=ExtResource("1")]
+
+[node name="water_tank_col0" type="StaticBody3D" parent="." unique_id=727055852]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="water_tank_col0" unique_id=537813225]
+shape = ExtResource("2")

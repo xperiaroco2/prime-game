@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dcirnj0s08iv0"]
+
+[ext_resource type="PackedScene" uid="uid://cqgw7ap27ssi" path="res://assets/environment/house_props/tool_chest.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bwtpkp64ixy8b" path="res://levels/kit/house_props/tool_chest.tool_chest_col0.tres" id="2"]
+
+[node name="tool_chest" unique_id=2023659740 instance=ExtResource("1")]
+
+[node name="tool_chest_col0" type="StaticBody3D" parent="." unique_id=999093478]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="tool_chest_col0" unique_id=528977636]
+shape = ExtResource("2")

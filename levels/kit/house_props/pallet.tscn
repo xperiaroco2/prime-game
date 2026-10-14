@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b3bdc5c2ae132"]
+
+[ext_resource type="PackedScene" uid="uid://bo0utq1ja7a3v" path="res://assets/environment/house_props/pallet.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cfippr7f237ns" path="res://levels/kit/house_props/pallet.pallet_col0.tres" id="2"]
+
+[node name="pallet" unique_id=454080446 instance=ExtResource("1")]
+
+[node name="pallet_col0" type="StaticBody3D" parent="." unique_id=433810919]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pallet_col0" unique_id=1175637838]
+shape = ExtResource("2")

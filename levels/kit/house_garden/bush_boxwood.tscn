@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://gs6hx2xlx3ix"]
+
+[ext_resource type="PackedScene" uid="uid://pul4at1ov60" path="res://assets/environment/house_garden/bush_boxwood.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://0bhu4xpw34fq" path="res://levels/kit/house_garden/bush_boxwood.bush_boxwood_col0.tres" id="2"]
+
+[node name="bush_boxwood" unique_id=793809372 instance=ExtResource("1")]
+
+[node name="bush_boxwood_col0" type="StaticBody3D" parent="." unique_id=988903900]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bush_boxwood_col0" unique_id=649272385]
+shape = ExtResource("2")

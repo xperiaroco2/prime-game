@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cwx4c36aak3cy"]
+
+[ext_resource type="PackedScene" uid="uid://mjp4buvki4kw" path="res://assets/environment/house_props/filing_cabinet.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://degcqt2hoyxpa" path="res://levels/kit/house_props/filing_cabinet.filing_cabinet_col0.tres" id="2"]
+
+[node name="filing_cabinet" unique_id=1412363196 instance=ExtResource("1")]
+
+[node name="filing_cabinet_col0" type="StaticBody3D" parent="." unique_id=1069679523]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="filing_cabinet_col0" unique_id=1982418199]
+shape = ExtResource("2")

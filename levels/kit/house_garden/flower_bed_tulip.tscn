@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b20uyc8revr11"]
+
+[ext_resource type="PackedScene" uid="uid://dhghgbrtf8l3u" path="res://assets/environment/house_garden/flower_bed_tulip.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dqnvn11u2dcsu" path="res://levels/kit/house_garden/flower_bed_tulip.flower_bed_tulip_col0.tres" id="2"]
+
+[node name="flower_bed_tulip" unique_id=1213966450 instance=ExtResource("1")]
+
+[node name="flower_bed_tulip_col0" type="StaticBody3D" parent="." unique_id=693075038]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="flower_bed_tulip_col0" unique_id=1151935794]
+shape = ExtResource("2")

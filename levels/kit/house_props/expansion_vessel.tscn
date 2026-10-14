@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c6v5whs52fupk"]
+
+[ext_resource type="PackedScene" uid="uid://d1q2sr3ha8c21" path="res://assets/environment/house_props/expansion_vessel.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cmym4kelau3o4" path="res://levels/kit/house_props/expansion_vessel.expansion_vessel_col0.tres" id="2"]
+
+[node name="expansion_vessel" unique_id=519728042 instance=ExtResource("1")]
+
+[node name="expansion_vessel_col0" type="StaticBody3D" parent="." unique_id=5025946]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="expansion_vessel_col0" unique_id=2005240262]
+shape = ExtResource("2")

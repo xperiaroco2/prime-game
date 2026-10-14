@@ -34,7 +34,7 @@
 [ext_resource type="PackedScene" uid="uid://c81phx00ncspk" path="res://levels/house/rooms/guest_room.tscn" id="32_guest_room"]
 [ext_resource type="PackedScene" uid="uid://cu3t1d18bukai" path="res://levels/house/rooms/balcony.tscn" id="33_balcony"]
 [ext_resource type="PackedScene" uid="uid://cbiainxdl0yfp" path="res://levels/house/rooms/attic.tscn" id="34_attic"]
-[ext_resource type="PackedScene" uid="uid://bq73ldtdyk6av" path="res://levels/house/rooms/roof.tscn" id="35_roof"]
+[ext_resource type="PackedScene" uid="uid://bnbbibwtgf4wn" path="res://levels/house/outdoor.tscn" id="36_outdoor"]
 
 [node name="House" type="Node3D" unique_id=1417964801]
 
@@ -145,7 +145,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 3.2, 21)
 [node name="AtticAndRoof" type="Node3D" parent="." unique_id=1627247215]
 
 [node name="Attic" parent="AtticAndRoof" unique_id=1608508078 instance=ExtResource("34_attic")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 6.4, 26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 6.4, 24)
 
-[node name="Roof" parent="AtticAndRoof" unique_id=516132861 instance=ExtResource("35_roof")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 6.4, 23)
+[node name="Outdoor" parent="." unique_id=1349620817 instance=ExtResource("36_outdoor")]

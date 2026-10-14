@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cnlb3bhooc01j"]
+
+[ext_resource type="PackedScene" uid="uid://dcpmqqxkg3fsl" path="res://assets/environment/house_props/lantern_zones.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dy34ecnd4lkg1" path="res://levels/kit/house_props/lantern_zones.lantern_col0.tres" id="2"]
+
+[node name="lantern_zones" unique_id=706562359 instance=ExtResource("1")]
+
+[node name="lantern_col0" type="StaticBody3D" parent="." unique_id=2095793974]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="lantern_col0" unique_id=352935242]
+shape = ExtResource("2")

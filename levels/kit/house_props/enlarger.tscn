@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c6ig3ltbesh1b"]
+
+[ext_resource type="PackedScene" uid="uid://dk7ij46vfm8el" path="res://assets/environment/house_props/enlarger.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b5a4sr3slg2hn" path="res://levels/kit/house_props/enlarger.enlarger_col0.tres" id="2"]
+
+[node name="enlarger" unique_id=2079961325 instance=ExtResource("1")]
+
+[node name="enlarger_col0" type="StaticBody3D" parent="." unique_id=1367846853]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="enlarger_col0" unique_id=1881339663]
+shape = ExtResource("2")

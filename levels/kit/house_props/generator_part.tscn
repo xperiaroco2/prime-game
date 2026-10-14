@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ciowpwt4ncxiv"]
+
+[ext_resource type="PackedScene" uid="uid://e3knubm3tj3e" path="res://assets/environment/house_props/generator_part.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dy8gqgevxcwbc" path="res://levels/kit/house_props/generator_part.generator_part_col0.tres" id="2"]
+
+[node name="generator_part" unique_id=852086834 instance=ExtResource("1")]
+
+[node name="generator_part_col0" type="StaticBody3D" parent="." unique_id=41285226]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="generator_part_col0" unique_id=266953040]
+shape = ExtResource("2")

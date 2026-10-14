@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c616yt34edx30"]
+
+[ext_resource type="PackedScene" uid="uid://cbl0bh8i4t8j3" path="res://assets/environment/house_props/attic_shelving.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://oca6by1yxdqw" path="res://levels/kit/house_props/attic_shelving.attic_shelving_col0.tres" id="2"]
+
+[node name="attic_shelving" unique_id=1698369827 instance=ExtResource("1")]
+
+[node name="attic_shelving_col0" type="StaticBody3D" parent="." unique_id=2043423723]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="attic_shelving_col0" unique_id=2116602015]
+shape = ExtResource("2")

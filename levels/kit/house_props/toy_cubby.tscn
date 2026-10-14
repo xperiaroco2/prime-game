@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://2lteh0s32fa7"]
+
+[ext_resource type="PackedScene" uid="uid://c0afh6w32nbhq" path="res://assets/environment/house_props/toy_cubby.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://v2u8adi5acsx" path="res://levels/kit/house_props/toy_cubby.toy_cubby_col0.tres" id="2"]
+
+[node name="toy_cubby" unique_id=55026983 instance=ExtResource("1")]
+
+[node name="toy_cubby_col0" type="StaticBody3D" parent="." unique_id=647427237]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="toy_cubby_col0" unique_id=1611526424]
+shape = ExtResource("2")

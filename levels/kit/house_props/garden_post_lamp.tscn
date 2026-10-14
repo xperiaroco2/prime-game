@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dxbfjj0g5c6ob"]
+
+[ext_resource type="PackedScene" uid="uid://sgroqlyplhiu" path="res://assets/environment/house_props/garden_post_lamp.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://clu3iequ7gh0y" path="res://levels/kit/house_props/garden_post_lamp.garden_post_lamp_col0.tres" id="2"]
+
+[node name="garden_post_lamp" unique_id=1962644163 instance=ExtResource("1")]
+
+[node name="garden_post_lamp_col0" type="StaticBody3D" parent="." unique_id=2048908021]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="garden_post_lamp_col0" unique_id=736088769]
+shape = ExtResource("2")

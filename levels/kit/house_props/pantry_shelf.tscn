@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dy6ydsflwchfg"]
+
+[ext_resource type="PackedScene" uid="uid://d2p377nlks7kp" path="res://assets/environment/house_props/pantry_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dt4142lbdh08r" path="res://levels/kit/house_props/pantry_shelf.pantry_shelf_col0.tres" id="2"]
+
+[node name="pantry_shelf" unique_id=1496761412 instance=ExtResource("1")]
+
+[node name="pantry_shelf_col0" type="StaticBody3D" parent="." unique_id=1121578588]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pantry_shelf_col0" unique_id=1164354524]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://kodogx1vfat8"]
+
+[ext_resource type="PackedScene" uid="uid://bsnvft3d7urh6" path="res://assets/environment/house_kit/beam_concrete_2m.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://5ugics0djilv" path="res://levels/kit/house_kit/beam_concrete_2m.beam_concrete_2m_col0.tres" id="2"]
+
+[node name="beam_concrete_2m" unique_id=439498999 instance=ExtResource("1")]
+
+[node name="beam_concrete_2m_col0" type="StaticBody3D" parent="." unique_id=910426137]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="beam_concrete_2m_col0" unique_id=803959352]
+shape = ExtResource("2")

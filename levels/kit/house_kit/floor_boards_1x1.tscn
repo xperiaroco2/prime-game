@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bmgxpmu1fc2ss"]
+
+[ext_resource type="PackedScene" uid="uid://b4ksh08d4sx04" path="res://assets/environment/house_kit/floor_boards_1x1.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cx56cpa0pbg7j" path="res://levels/kit/house_kit/floor_boards_1x1.floor_boards_1x1_col0.tres" id="2"]
+
+[node name="floor_boards_1x1" unique_id=574038466 instance=ExtResource("1")]
+
+[node name="floor_boards_1x1_col0" type="StaticBody3D" parent="." unique_id=1197499246]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="floor_boards_1x1_col0" unique_id=233709401]
+shape = ExtResource("2")

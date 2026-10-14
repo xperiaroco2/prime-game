@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://g2l4ij6ja6hx"]
+
+[ext_resource type="PackedScene" uid="uid://cecef4csx5ejp" path="res://assets/environment/house_kit/gazebo_finial.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://clhdjbyu2x6ar" path="res://levels/kit/house_kit/gazebo_finial.gazebo_finial_col0.tres" id="2"]
+
+[node name="gazebo_finial" unique_id=1221757257 instance=ExtResource("1")]
+
+[node name="gazebo_finial_col0" type="StaticBody3D" parent="." unique_id=675763574]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="gazebo_finial_col0" unique_id=349700100]
+shape = ExtResource("2")

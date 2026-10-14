@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://btpll0kj5hkmv"]
+
+[ext_resource type="PackedScene" uid="uid://cci0lwopmg4f8" path="res://assets/environment/house_garden/flower_bed_foxglove.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://g8ltykungj6r" path="res://levels/kit/house_garden/flower_bed_foxglove.flower_bed_foxglove_col0.tres" id="2"]
+
+[node name="flower_bed_foxglove" unique_id=909221050 instance=ExtResource("1")]
+
+[node name="flower_bed_foxglove_col0" type="StaticBody3D" parent="." unique_id=24443538]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="flower_bed_foxglove_col0" unique_id=1443555660]
+shape = ExtResource("2")

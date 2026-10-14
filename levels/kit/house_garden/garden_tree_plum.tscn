@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dmyo70f2g1kp0"]
+
+[ext_resource type="PackedScene" uid="uid://blw1gfq54fiq0" path="res://assets/environment/house_garden/garden_tree_plum.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d2u6hxpsb7bb7" path="res://levels/kit/house_garden/garden_tree_plum.garden_tree_plum_col0.tres" id="2"]
+
+[node name="garden_tree_plum" unique_id=1084237663 instance=ExtResource("1")]
+
+[node name="garden_tree_plum_col0" type="StaticBody3D" parent="." unique_id=1990095269]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="garden_tree_plum_col0" unique_id=760752386]
+shape = ExtResource("2")

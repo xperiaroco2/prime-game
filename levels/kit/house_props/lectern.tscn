@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cc5nak6k6jttd"]
+
+[ext_resource type="PackedScene" uid="uid://bou1xqiesolut" path="res://assets/environment/house_props/lectern.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://hqfuefvr3bhk" path="res://levels/kit/house_props/lectern.lectern_col0.tres" id="2"]
+
+[node name="lectern" unique_id=1610560022 instance=ExtResource("1")]
+
+[node name="lectern_col0" type="StaticBody3D" parent="." unique_id=1396449855]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="lectern_col0" unique_id=1950069081]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://kctyc7q68yww"]
+
+[ext_resource type="PackedScene" uid="uid://ckpp1t2s20084" path="res://assets/environment/house_props/kitchen_counter.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cruusopobxh0e" path="res://levels/kit/house_props/kitchen_counter.kitchen_counter_col0.tres" id="2"]
+
+[node name="kitchen_counter" unique_id=558412500 instance=ExtResource("1")]
+
+[node name="kitchen_counter_col0" type="StaticBody3D" parent="." unique_id=2052941349]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kitchen_counter_col0" unique_id=814594929]
+shape = ExtResource("2")

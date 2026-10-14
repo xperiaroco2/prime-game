@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://drqwel7p04iwc"]
+
+[ext_resource type="PackedScene" uid="uid://yku1dktbfh58" path="res://assets/environment/house_props/parked_car.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://chcvw7gvfeia8" path="res://levels/kit/house_props/parked_car.parked_car_col0.tres" id="2"]
+
+[node name="parked_car" unique_id=1998397717 instance=ExtResource("1")]
+
+[node name="parked_car_col0" type="StaticBody3D" parent="." unique_id=1086091363]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="parked_car_col0" unique_id=871026280]
+shape = ExtResource("2")

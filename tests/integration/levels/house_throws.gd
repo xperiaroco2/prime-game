@@ -11,32 +11,33 @@ extends RefCounted
 ## a player's eye above it (_add_column), so the balcony's columns give the balcony and the terrace
 ## under it, and a crate or a raised floor added at a column is swept from its top:
 ## - `balcony`: the balcony (30..40, 21..24 at 3.2 m), every metre, 0.5 m clear of its railing;
-## - `balcony_railing`: the tops of the balcony's four railings (1 m high, so at 4.2 m): a player's
+## - `balcony_railing`: the tops of the balcony's three railings (1 m high, so at 4.2 m, centred on
+##   the balcony's edges z 21, x 30 and x 40; the house's wall is its fourth side): a player's
 ##   1 m jump (PlayerRules.jump_height_m) may land a player on the 0.1 m edge (the playtest
 ##   checks it), and a thrower whose footprint touches it throws from 1 m higher (Items.eye_of
 ##   takes the highest floor under its footprint). The highest spot near the roof, so the one
 ##   that decides the speed (#646);
-## - `external_stairs`: the stairs from the terrace up to the balcony (x 39, z 17.25..20.85);
+## - `external_stairs`: the art's flight from the yard up to the balcony (x 39, z 15.5..20.9);
 ## - `terrace`: the terrace below the balcony (22..42, 16..24 at 0 m), every 2 m;
 ## - `around_the_house`: the yard, the path and the garden 1.5 m outside the house's walls (house
 ##   x 18..42, z 24..44; the terrace is its north side), every 2 m;
 ## - `second_floor`: inside the second floor's rooms (3.2 m), every 2 m: walls and the roof's
 ##   underside stop their throws, unless a level change opens a window. A throw up the attic
-##   stairs' well lands in the attic, which is not the roof.
-## Not swept: the roof itself, and the attic, whose door to the roof is locked in the design
-## (docs/design/house-map.md, decision 11; the greybox has no door there yet).
+##   hatch lands in the attic, which is not the roof.
+## Not swept: the roof itself (the art's pitched roof over the attic, its eaves at about 8.3 m),
+## and the attic, whose way out to the roof is locked in the design (docs/design/house-map.md,
+## decision 11: the dormer window).
 
 const MAP := "res://levels/house/house.tscn"
-## The roof's floor and the attic's (house.tscn places AtticAndRoof's pieces at 6.4 m): a rest at
-## or above it, less this tolerance, is on the roof, its parapet or the attic's top, unless it lies
-## inside the attic (on_roof).
+## The attic's floor (house.tscn places the Attic at 6.4 m): a rest at or above it, less this
+## tolerance, is on the roof, its eaves, gutters or chimney, unless it lies inside the attic
+## (on_roof).
 const ROOF_Y := 6.4
 const ROOF_TOLERANCE_M := 0.05
-## The attic's inside (house.tscn: x 20..40, z 26..40, its ceiling's underside at 8.6 m): a rest
-## there is in a room players reach by its stairs.
-const ATTIC_MIN := Vector2(20.0, 26.0)
-const ATTIC_MAX := Vector2(40.0, 40.0)
-const ATTIC_CEILING_Y := 8.6
+## The attic's footprint (house.tscn: the Attic at x 18, z 24, size_m 24 x 20), less half its
+## knee wall: a rest inside it that sees the attic's floor straight below is in the attic.
+const ATTIC := Rect2(18.0, 24.0, 24.0, 20.0)
+const ATTIC_WALL_HALF_M := 0.15
 ## The fan from each spot: a yaw every 10 degrees, a pitch every 5 from level to 85 up (648
 ## throws). A throw below level reaches no higher than its eye.
 const YAW_STEP_DEG := 10
@@ -59,15 +60,13 @@ static func spots(world: HostWorldQuery, headroom: float) -> Dictionary[String, 
 			_add_column(balcony, world, Vector2(30.5 + x, z), headroom)
 	var railing: Array[Vector3] = []
 	for x in range(0, 8):
-		_add_column(railing, world, Vector2(30.5 + x, 21.05), headroom)
+		_add_column(railing, world, Vector2(30.5 + x, 21.0), headroom)
 	for k in range(0, 5):
-		_add_column(railing, world, Vector2(30.05, 21.5 + 0.5 * k), headroom)
-		_add_column(railing, world, Vector2(39.95, 21.5 + 0.5 * k), headroom)
-	for x: float in [30.3, 31.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 39.7]:
-		_add_column(railing, world, Vector2(x, 23.95), headroom)
+		_add_column(railing, world, Vector2(30.0, 21.5 + 0.5 * k), headroom)
+		_add_column(railing, world, Vector2(40.0, 21.5 + 0.5 * k), headroom)
 	var stairs: Array[Vector3] = []
-	for k in range(0, 7):
-		_add_column(stairs, world, Vector2(39.0, 17.25 + 0.6 * k), headroom)
+	for k in range(0, 10):
+		_add_column(stairs, world, Vector2(39.0, 15.5 + 0.6 * k), headroom)
 	var terrace: Array[Vector3] = []
 	for x in range(23, 42, 2):
 		for z: int in [17, 19, 21, 23]:
@@ -121,23 +120,28 @@ static func roof_rests(
 			if top + Items.SURFACE_CLEARANCE_M < ROOF_Y - ROOF_TOLERANCE_M:
 				continue
 			var rest := rest_of(world, eye, velocity, down, radius, max_ticks, fallback)
-			if on_roof(rest):
+			if on_roof(world, rest):
 				found.append(rest)
 	return found
 
 
-## Whether a rest at `at` is on the roof: at the roof's height or above, outside the attic.
-static func on_roof(at: Vector3) -> bool:
+## Whether a rest at `at` is on the roof: at the attic floor's height or above, and not inside the
+## attic: outside its footprint, or above something that hides the attic's floor (the roof's
+## slope, an eave, a gutter; also a box in the attic, which no sweep from outside reaches but
+## through a wall).
+static func on_roof(world: HostWorldQuery, at: Vector3) -> bool:
 	if at.y < ROOF_Y - ROOF_TOLERANCE_M:
 		return false
-	var in_attic := (
-		at.x > ATTIC_MIN.x
-		and at.x < ATTIC_MAX.x
-		and at.y < ATTIC_CEILING_Y
-		and at.z > ATTIC_MIN.y
-		and at.z < ATTIC_MAX.y
+	if not ATTIC.grow(-ATTIC_WALL_HALF_M).has_point(Vector2(at.x, at.z)):
+		return true
+	var attic_floor := Vector3(at.x, ROOF_Y + ROOF_TOLERANCE_M, at.z)
+	if at.y <= attic_floor.y:
+		return false
+	var lifted := Items.lifted(at)
+	# Both ways: a ray misses a shape it starts in.
+	return not (
+		world.line_of_sight(lifted, attic_floor) and world.line_of_sight(attic_floor, lifted)
 	)
-	return not in_attic
 
 
 ## Where a flight from `eye` rests, as FlightTicks flies it with no player in the way.

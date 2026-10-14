@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://crxcca76vc5xy"]
+
+[ext_resource type="PackedScene" uid="uid://dcj3t5moa6u44" path="res://assets/environment/house_garden/flower_bed_dahlia.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ctcbci2q2na3d" path="res://levels/kit/house_garden/flower_bed_dahlia.flower_bed_dahlia_col0.tres" id="2"]
+
+[node name="flower_bed_dahlia" unique_id=1611783465 instance=ExtResource("1")]
+
+[node name="flower_bed_dahlia_col0" type="StaticBody3D" parent="." unique_id=1691095470]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="flower_bed_dahlia_col0" unique_id=5250557]
+shape = ExtResource("2")

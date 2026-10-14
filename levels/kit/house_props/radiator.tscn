@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dsof8rbuiswti"]
+
+[ext_resource type="PackedScene" uid="uid://dyjhtowtiigfx" path="res://assets/environment/house_props/radiator.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://4ygca33k03x3" path="res://levels/kit/house_props/radiator.radiator_col0.tres" id="2"]
+
+[node name="radiator" unique_id=1084367714 instance=ExtResource("1")]
+
+[node name="radiator_col0" type="StaticBody3D" parent="." unique_id=1494835854]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="radiator_col0" unique_id=937997825]
+shape = ExtResource("2")

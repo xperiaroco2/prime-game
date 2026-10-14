@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b2tnc27vhkt4q"]
+
+[ext_resource type="PackedScene" uid="uid://ctniqoj6132i5" path="res://assets/environment/house_kit/wall_knee_corner_int.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cv31dg6jjfclx" path="res://levels/kit/house_kit/wall_knee_corner_int.wall_knee_corner_int_col0.tres" id="2"]
+
+[node name="wall_knee_corner_int" unique_id=1606287052 instance=ExtResource("1")]
+
+[node name="wall_knee_corner_int_col0" type="StaticBody3D" parent="." unique_id=1798901958]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_knee_corner_int_col0" unique_id=360078196]
+shape = ExtResource("2")

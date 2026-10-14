@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cj6iex6ibf8my"]
+
+[ext_resource type="PackedScene" uid="uid://cwgh0qwdyg7xo" path="res://assets/environment/house_props/coat_rack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dtswtxhoveuje" path="res://levels/kit/house_props/coat_rack.coat_rack_col0.tres" id="2"]
+
+[node name="coat_rack" unique_id=1661944528 instance=ExtResource("1")]
+
+[node name="coat_rack_col0" type="StaticBody3D" parent="." unique_id=2055278935]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="coat_rack_col0" unique_id=604175398]
+shape = ExtResource("2")

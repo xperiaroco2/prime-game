@@ -1,9 +1,8 @@
 # levels/: maps from reusable pieces (the content area)
 
-Loaded when a file in `levels/` is read. This folder belongs to the **engineer** (#518, root `CLAUDE.md`
-Ownership); the optional designer may contribute, and his PRs go to the engineer. Maps are assembled from small,
-reusable sub-scenes: rooms, props, interactables and task stations. Read the root `CLAUDE.md`, `docs/GDD.md` and
-the content-API section of `docs/ARCHITECTURE.md` (which interactables and stations exist) first.
+This folder belongs to the **engineer** (#518, root `CLAUDE.md` Ownership); the optional designer may contribute,
+and his PRs go to the engineer. Maps are assembled from small, reusable sub-scenes: rooms, props, interactables and
+task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its interactables, stations) first.
 
 ## Pieces, not big scenes
 - One reusable piece per scene file. A map instances pieces; it does not copy them.
@@ -12,17 +11,17 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
 - **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
   - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map),
-    `props/`, `kit/` (wrappers of the art kit's GLBs; until then the greybox role materials); `lobby/` and `greybox/` stay;
+    `props/`, `kit/` (the art GLBs' wrappers in `kit/<pack>/`, the greybox role materials); `lobby/` and `greybox/` stay;
   - one grid with the art kit: whole metres, 2 m and 1 m wall modules, 3.2 m floor to floor (Y -3.2, 0, 3.2; an
     attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
   - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
     plan x = X, plan y = Z, no rotation;
   - a room declares `metadata/size_m = Vector2i(w, d)`, its record (#306: `room_id`, `name_key`), its door
     openings as `Marker3D` under `Doors`, its stations as sub-scenes; a test checks the map against the design doc.
-- Greybox with box meshes (CSG where a shape needs it) and `levels/kit/`'s role materials (walls, a floor per zone,
-  stairs, door frames) plus a `Label3D` `Name` on each room's root with its design-doc name, until the art kit
-  lands (#658); the kit's GLBs then replace the greybox inside the same piece. The look comes from the art track
-  (xperiaroco2/prime-game-art).
+- House rooms are the art's (prime-game-art P1-P5, P7, #523): its `Shell` (kit wrappers, see Assets), `Dressing`,
+  `Detail` inside the game's piece (origin, `size_m`, record, `Doors`, `Stations`, `Markers`); the plot is
+  `house/outdoor.tscn`. No door opens in M7 (E4): a kit door or gate on a walk sets `collision_layer = 0` on its
+  wrapper's collider bodies. The garage stays greybox (box meshes, `levels/kit/` materials, a `Label3D`) until P6.
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
   `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1
@@ -70,8 +69,7 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   no rule in `core/`. House's guards (ARCHITECTURE): `house_roof_throw_test.gd` (no throw rests on the roof; a perch
   near it gets columns in `house_throws.gd`) and `house_body_reach_test.gd` (every launch's rest within a raise of a
   spot walked to from the spawn; a new piece goes in its `WALKABLE` or `LOCKED`). Out of reach: the humans' to fix.
-- The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
-  flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
+- The MVP's lobby and map: `lobby/lobby.tscn`, `greybox/greybox.tscn` (the base mode's paths; M2's, dressed in M4).
 
 ## The designer's agent never edits engine code
 - Interactables and task stations come from the engine. If a level needs one that does not exist, open an
@@ -91,7 +89,9 @@ changes: whichever copy is saved last wins. Remind the human of the convention:
 ## Assets
 - Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`). They land
   in `assets/<kind>/<id>/` with their committed `.import` file, never under `levels/`; a level instances them from
-  there (`docs/ARCHITECTURE.md` §11).
+  there (`docs/ARCHITECTURE.md` §11); an art GLB only through its wrapper `kit/<pack>/<stem>.tscn` (#523, LFS ADR
+  amendment 2026-10-14): the GLB is the look, its hint colliders the wrapper's bodies with text `.tres` shapes outside
+  LFS (CI, bots). After an art import: `tools\run.cmd colliders` (`check` fails on a stale or bypassed wrapper).
 - Every third-party asset gets a credits file in `docs/credits/<asset>.md` (source, author, license) in the same PR.
 
 ## Checking the work

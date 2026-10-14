@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://l0sj25f8le0"]
+
+[ext_resource type="PackedScene" uid="uid://dwbvilmn66d8l" path="res://assets/environment/house_props/drum_bund_b.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b6j76vkmoiivi" path="res://levels/kit/house_props/drum_bund_b.drum_bund_b_col0.tres" id="2"]
+
+[node name="drum_bund_b" unique_id=457154737 instance=ExtResource("1")]
+
+[node name="drum_bund_b_col0" type="StaticBody3D" parent="." unique_id=1963179897]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="drum_bund_b_col0" unique_id=321080406]
+shape = ExtResource("2")

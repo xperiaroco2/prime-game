@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://0xlp8edap3d2"]
+
+[ext_resource type="PackedScene" uid="uid://l0jl6j5qujgx" path="res://assets/environment/house_props/leaning_frames.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d1pydj3r86670" path="res://levels/kit/house_props/leaning_frames.leaning_frames_col0.tres" id="2"]
+
+[node name="leaning_frames" unique_id=1167404710 instance=ExtResource("1")]
+
+[node name="leaning_frames_col0" type="StaticBody3D" parent="." unique_id=1954788445]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="leaning_frames_col0" unique_id=1151896817]
+shape = ExtResource("2")

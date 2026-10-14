@@ -121,8 +121,7 @@ room record (#306): its id, its scene's file name, and the copy deck's `room.<id
 
 | Room | x, y | Size | What is there |
 |---|---|---|---|
-| Attic | 20, 26 | 20 x 14 m | Old things and decor to hide items among; the locked door to the roof in the east gable (decision 11). |
-| Roof | 17, 23 | 26 x 22 m | The lookout over the yard; loot may lie here (decision 11). |
+| Attic | 18, 24 | 24 x 20 m | Old things and decor to hide items among, under the pitched roof; the roof outside with the lookout over the yard and the loot (decision 11): one piece since the art import (#523, G1). |
 
 ## 5. Entrances and links between levels
 
@@ -133,7 +132,7 @@ room record (#306): its id, its scene's file name, and the copy deck's `room.<id
 | Main stairs: the ground floor to the landing | 28, 33 | 0 <-> 1 |
 | External stairs: the terrace to the balcony | 39, 22.5 | 0 <-> 1 |
 | Hatch and ladder: the landing to the attic | 28, 28.5 | 1 <-> 2 |
-| Locked door: the attic to the roof | 39.5, 33 | 2 (key or lockpick) |
+| Climb-out: the attic's dormer window to the roof (the art's `stair_dormer`, #523) | 35, 42.85 | 2 (locked, decision 11) |
 
 Ways into the house on the ground floor: the main entrance from the path (hallway, south), the kitchen's side door
 (east) and the dining room's door to the terrace (north). The yard has two openings to the street: the wicket (x 30)
@@ -173,12 +172,12 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
 | Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Zone task | A zone (placeholder until the engineer moves it, #651; up from the generator hall, #681) | 0 | 48, 37 | Yard, between the kitchen and the garage |
-| Zone task | A zone (placeholder, #651) | 0 | 52, 20 | Garden |
+| Zone task | A zone (placeholder, #651; 5 m south of its first point, 52, 20, which the art's garden dressing fills, #523) | 0 | 52, 25 | Garden |
 | Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
-| Other | Hiding spots among old things | 2 | 24, 36 | Attic |
-| Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
-| Other | Loot | 2 | 41.5, 25 | Roof |
+| Other | Hiding spots among old things | 2 | 22, 39 | Attic |
+| Other | Lookout over the yard | 2 | 39, 41.9 | Attic, on its roof |
+| Other | Loot | 2 | 41, 26 | Attic, on its roof |
 
 No zone stands in the basement: the bot scenarios read every map of the base mode through a flat fake whose one floor
 is at y = 0, where a station marker below it finds no floor (`levels/CLAUDE.md`, #681). The yard's zone stands above the
