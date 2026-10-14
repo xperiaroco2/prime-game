@@ -9,9 +9,13 @@ extends GdUnitTestSuite
 
 const HouseThrows := preload("res://tests/integration/levels/house_throws.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
-## A throw this fast from the balcony's floor rests on the roof (#646's sweep: 200 of its 19 440
-## throws), so the check below is not blind.
-const FAST_MPS := 7.5
+## A throw this fast from the balcony's floor rests on the roof (the art's House, #523: 140 of its
+## 38 880 throws; 7.5 m/s, the greybox's number (#646), reaches no more: its pitched roof's eaves
+## stand at about 8.3 m, the greybox's flat roof stood at 6.4), so the check below is not blind.
+const FAST_MPS := 9.0
+## A block this high on the balcony, by the house's wall under the eave, puts a thrower's eye above
+## the eave (#523: 3 m of it reaches nothing, 4 m does).
+const PERCH_M := 4.0
 
 var _world: HostWorldQuery
 var _rules: PlayerRules
@@ -109,33 +113,37 @@ func test_a_crate_on_the_balcony_is_thrown_from_its_top() -> void:
 
 
 func test_a_perch_high_beside_the_roof_turns_the_roof_check_red() -> void:
-	# A 2.5 m block on the balcony, by the roof's eave, puts a thrower's eye above the roof: the
-	# sweep at the rule's own speed must find throws resting on it, or the roof test could never
-	# fail.
-	var perch_world := _house_with_box(Vector3(35.5, 3.2, 22.5), 2.5)
-	var found := 0
-	for feet: Vector3 in HouseThrows.spots(perch_world, _rules.eye_height_m)["balcony"]:
-		found += (
-			HouseThrows
-			. roof_rests(
-				perch_world,
-				feet,
-				_rules.eye_height_m,
-				_throw.speed_mps,
-				_throw.gravity_mps2,
-				_throw.radius_m,
-				maxi(1, Ticks.from_seconds(_throw.longest_flight_s))
-			)
-			. size()
+	# A block PERCH_M high on the balcony, under the roof's eave, puts a thrower's eye above the
+	# roof: the throws at the rule's own speed from its top must find rests on the roof, or the
+	# roof test could never fail. Thrown from its top, not from the spots: the columns are read
+	# from under the attic's floor (HouseThrows.COLUMN_TOP_BELOW_ROOF_M), below this block's top.
+	var base := Vector3(35.5, 3.2, 23.4)
+	var perch_world := _house_with_box(base, PERCH_M)
+	var found := (
+		HouseThrows
+		. roof_rests(
+			perch_world,
+			base + Vector3.UP * PERCH_M,
+			_rules.eye_height_m,
+			_throw.speed_mps,
+			_throw.gravity_mps2,
+			_throw.radius_m,
+			maxi(1, Ticks.from_seconds(_throw.longest_flight_s))
 		)
+		. size()
+	)
 	assert_int(found).is_greater(0)
 
 
 func test_a_rest_in_the_attic_is_not_on_the_roof_but_one_on_its_top_is() -> void:
-	assert_bool(HouseThrows.on_roof(Vector3(30, 6.4, 33))).is_false()
-	assert_bool(HouseThrows.on_roof(Vector3(30, 8.8, 33))).is_true()
-	assert_bool(HouseThrows.on_roof(Vector3(18.5, 6.4, 33))).is_true()
-	assert_bool(HouseThrows.on_roof(Vector3(35, 3.2, 22))).is_false()
+	# The art's attic (#523): its floor at 6.4 m, its pitched roof's ridge at about 12.4 m, a
+	# gutter under the eave at 8.3 m over the balcony's side.
+	assert_bool(HouseThrows.on_roof(_world, Vector3(30, 6.4, 33))).is_false()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(30, 8.0, 34))).is_false()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(30, 12.38, 34))).is_true()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(30, 8.3, 24.2))).is_true()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(17.5, 6.4, 33))).is_true()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(35, 3.2, 22))).is_false()
 
 
 # House's host world with a 1 m by 1 m block of `height` standing on the floor at `base` (centre
