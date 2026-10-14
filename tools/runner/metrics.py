@@ -1274,7 +1274,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             m = d.get("message")
             track_tasks(d, t, timers, bg_of, stopped, launches)
             if since is not None and t < since:
-                continue  # before the window only its keep-alive timers count: one may still be armed in it
+                continue  # before the window only timers, TaskStops and launches count (#981): one may still hold
             stamps.append(t)
             if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
                 bounds.append(len(usage))
@@ -1450,13 +1450,14 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "idle": idle,
         "max_gap": max((g[0] for g in gaps), default=0.0),
         "waits": waits,
-        # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
-        # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
+        # Keep-alive timers as (armed, ended): ended at the notification, at a TaskStop (#981), else when its seconds
+        # ran out. One armed before the window is kept while it is still armed in it; "timers_armed" counts those
+        # armed in the window.
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
-        # #981: its foreground tool calls of IDLE_GAP or more (a permission card holds one) as (the API call that made
-        # it: first seen, its start, its result or None, a human let it run on a card).
         "paused": run_pauses(launches, stopped),  # #981: per run folder, the spans a TaskStop stopped it
+        # #981: its foreground tool calls of IDLE_GAP or more (a permission card holds one) as (the API call that made
+        # it: first seen, its start, its result or None, a human accepted a card for it).
         "fore": [(first_seen[c["mid"]], c["t0"], c["t1"], c.get("card", False)) for c in calls
                  if not c["background"] and (c["t1"] or max(stamps)) - c["t0"] >= IDLE_GAP],  # fmt: skip
         "tool_calls": len(calls),
@@ -3466,11 +3467,11 @@ def held_call(began: float, ended: float, fore: list[tuple]) -> tuple | None:
 
 
 def rewrite_kind(began: float, timers: list[tuple[float, float]], runs: list[dict], ended: float | None = None,
-                 fore: list[tuple] = (), paused: dict | None = None) -> str:  # fmt: skip
+                 fore: list[tuple] | None = None, paused: dict | None = None) -> str:  # fmt: skip
     """What held when a manager's idle gap began (REWRITE_KINDS): a foreground tool call of its own running, a
     keep-alive timer, a run of its own in flight (not stopped by a TaskStop then, #981), neither."""
     paused = paused or {}
-    if ended is not None and held_call(began, ended, list(fore)):
+    if ended is not None and held_call(began, ended, fore or []):
         return "tool"
     if any(armed <= began < ended for armed, ended in timers):
         return "timer"
@@ -3522,8 +3523,9 @@ def rewrite_section(rows: list[dict]) -> list[str]:
             "A re-write is a session's own API call after over 1 hour without one that wrote most of its context to "
             "the cache again (at the 1-hour cache write price: $8 per 1M tokens on Opus 5.5). Each counts once, in "
             "the first column that held when the gap began: a foreground tool call the gap's first call made, running "
-            "for half the gap or more (a permission card waiting for a human; no notification, the timer's included, "
-            "wakes the session meanwhile; #981); a keep-alive timer armed (a background `sleep`, until its "
+            "for half the gap or more (a permission card waiting for a human, or a long command no card held: the "
+            "JSON's `card` tells them apart; no notification, the timer's included, wakes the session meanwhile; "
+            "#981); a keep-alive timer armed (a background `sleep`, until its "
             "notification or a TaskStop; the orchestrate-stage skill, §7), which should stay 0; a workflow run of the "
             "session in flight; else a stop for the human.", ""]  # fmt: skip
 
