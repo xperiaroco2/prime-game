@@ -97,6 +97,10 @@ only what the budget and the trials decide.
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)): judged again at each
   reset with `metrics`' quality scorecard, and stays until the engineer drops it; check a new pair's first wave with
   `tools\run.cmd agents-check` and `metrics`.
+- **`efforts.implement: "medium"`** on a docs-only launch (#982;
+  [effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md) "Decision": docs at medium;
+  launch-args.md's `efforts` row says when): `metrics`' output $ table per role, review tier and effort compares those
+  implementers with the light tier's at high.
 - **`models.plan: "sonnet"`** (#469): the result's `plan.model` shows it; `metrics`' plan phase table compares the plan
   and critique $, the planner files the implementer read again and the critique's findings with the runs before (they
   must not rise).
