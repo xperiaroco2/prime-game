@@ -82,9 +82,9 @@ func test_a_whole_character_passes() -> void:
 
 
 func test_a_missing_clip_names_the_asset_and_the_clip() -> void:
-	var problems := Check.check_character(FIXTURE, _character("", "Crawl"), _contract)
+	var problems := Check.check_character(FIXTURE, _character("", "Crouch_Fwd"), _contract)
 	assert_int(problems.size()).is_equal(1)
-	assert_str(problems[0]).starts_with(FIXTURE + ": lacks 1 contract clips: Crawl (it has: ")
+	assert_str(problems[0]).starts_with(FIXTURE + ": lacks 1 contract clips: Crouch_Fwd (it has: ")
 
 
 func test_a_missing_bone_names_the_asset_and_the_bone() -> void:

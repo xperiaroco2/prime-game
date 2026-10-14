@@ -7811,15 +7811,20 @@ assets/
   routes through LFS) keeps its folder's `compress/mode`.
 
 Each problem is one line that starts with the asset's path and names what is missing, for instance
-`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
+`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crouch_Fwd (it has: Carry_Upper, ...)`. Broken
 fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
 compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
 committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
 clips, which a local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
 
-**The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
-`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to
-Godot's `SkeletonProfileHumanoid` names, and the file changes with it. The clips are the slice's list from
-prime-game-art#42 under the art MVP set's names as Godot imports them (`Idle`, `Jog_Fwd`, `Sprint_Fwd`,
-`Carry_Upper`, `Pickup_Package`, `Putdown_Package`, `Knockdown`, `Crawl`, `Getup_Fours`): not a decision; the
-avatar (#522) settles the clips it maps and edits the list.
+**The contract's data.** The bones are the art export's rig as measured (art `docs/animations.md`:
+`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`, 64 in all, kept until the art contract
+v2, the engineer's "as recommended" of 2026-10-14 on #522); the art contract v2 may move them to Godot's
+`SkeletonProfileHumanoid` names, and the file changes with it. The clips are those the avatar maps (#522,
+`AvatarClips`, §4.7.53) under the art MVP set's names as Godot imports them: `Idle`, `Jog_Fwd`, `Jog_Bwd`,
+`Strafe_Left`, `Strafe_Right`, `Sprint_Fwd`, `Crouch_Idle`, `Crouch_Fwd` and `Carry_Upper` looping, `Pickup_One`,
+`Putdown_One`, `Pickup_Package` and `Putdown_Package` once. The knockdown is a ragdoll (art #115), so `Knockdown`,
+`Crawl` and `Getup_Fours` left the list; the GLB's other clips (jump, turn, raise, talk, push, knife) are not checked
+until a mapping plays them. The first character is `assets/characters/slice_m1/` (prime-game-art `45f73ac`, PR
+art#182): the GLB, its 11 textures as the importer extracts them (`compress/mode=2`) and `slice_m1.ragdoll.json`
+(text, not LFS), which the game builds the ragdoll's bones from (§4.7.53).
