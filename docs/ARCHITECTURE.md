@@ -7776,8 +7776,9 @@ assets/
   `import/skip_import`) and points each scene under `levels/` at the wrapper. `check` runs `colliders.problems()`: a
   scene under `levels/` that instances a wrapped GLB directly, or a GLB whose files differ from what `colliders`
   writes, fails it. Run `colliders` after every art import and commit its output. An override that reaches a
-  collider names the wrapper's body (`Shell/<instance>/<body>`). Without LFS content a room's overrides of nodes
-  inside a GLB print Godot's "was modified from inside an instance, but it has vanished" warnings, not errors.
+  collider names the wrapper's body (`Shell/<instance>/<body>`). Without LFS content the GLB's stand-in holds the
+  nodes that the scenes under `levels/` override (`lfs.glb_outline`), so those overrides do not print Godot's "has
+  vanished" warnings (11 million log lines on the first CI run).
   Tests: `tools/runner/tests/test_colliders.py` (in `selftest`); the House's level tests and `game_loop_test` pass
   in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run

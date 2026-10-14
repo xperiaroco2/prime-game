@@ -5,7 +5,7 @@ pointer file there: a few lines of text that start with the spec's version line.
 fails (`Not a PNG file`, `Not a WAV file`, a glTF parse error), and rewrites its `.import` file as it does; every
 resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI (and a
 Claude Code cloud session, also a checkout that may lack LFS content), the import never sees a pointer file. aside()
-puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, a 10 ms Ogg, an empty glTF scene:
+puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, a 10 ms Ogg, an empty glTF scene, or for a GLB the levels override, one with those nodes (glb_outline()):
 STAND_INS) under its committed `.import` file, so Godot writes the imported file every resource that uses it loads,
 with its uid; a type without a stand-in (WOFF, MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with
 its `.import` file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).

@@ -108,7 +108,10 @@ The GLBs stay in LFS as the look only; their colliders become text resources out
 - **`check` enforces it** (`colliders.problems()`): no scene under `levels/` instances a wrapped GLB directly, and
   each GLB with content has exactly the files `colliders` would write. After an art import, run `colliders`
   (`levels/CLAUDE.md`, Assets).
-- **Without LFS content** a room's override of a node inside a GLB (a material or shader parameter) has nothing to
-  land on and Godot prints `WARNING: Node '…' was modified from inside an instance, but it has vanished.` once per
-  override. Warnings, not errors: `bots` reports no engine errors, the House's level tests and `game_loop_test`
-  pass in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
+- **Without LFS content** a room's override of a node inside a GLB (a material or shader parameter) would have
+  nothing to land on, and Godot would print `WARNING: Node '…' was modified from inside an instance, but it has
+  vanished.` once per override on every House load (CI's first run: 11 million log lines, a test shard at 600 s
+  instead of 289 s). So the GLB's stand-in (`lfs.stand_in`, `lfs.glb_outline`) holds a mesh node per node the
+  scenes under `levels/` override, with the surfaces they need. The House's level tests and `game_loop_test` (at
+  `--fixed-fps`, as CI runs it) pass in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` and print no such warning
+  (#1043).
