@@ -1,6 +1,6 @@
 [gd_resource type="Theme" format=3 uid="uid://lpbp5ylhsq6r"]
 
-[ext_resource type="FontFile" path="res://assets/ui/comfortaa/comfortaa.ttf" id="assets_ui_comfortaa_comfortaa_ttf"]
+[ext_resource type="FontFile" path="res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf" id="assets_ui_toy_pack_fonts_Comfortaa-VariableFont_wght_ttf"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-checked-disabled.svg" id="assets_ui_toy_pack_icons_checkbox-checked-disabled_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-checked.svg" id="assets_ui_toy_pack_icons_checkbox-checked_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-unchecked-disabled.svg" id="assets_ui_toy_pack_icons_checkbox-unchecked-disabled_svg"]
@@ -15,7 +15,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/spin-up.svg" id="assets_ui_toy_pack_icons_spin-up_svg"]
 
 [sub_resource type="FontVariation" id="Comfortaa_wght_700"]
-base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
+base_font = ExtResource("assets_ui_toy_pack_fonts_Comfortaa-VariableFont_wght_ttf")
 variation_opentype = {
 2003265652: 700
 }
@@ -122,7 +122,7 @@ corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
 
 [sub_resource type="FontVariation" id="Comfortaa_wght_600"]
-base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
+base_font = ExtResource("assets_ui_toy_pack_fonts_Comfortaa-VariableFont_wght_ttf")
 variation_opentype = {
 2003265652: 600
 }
