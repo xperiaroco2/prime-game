@@ -239,7 +239,8 @@ _SURFACE = re.compile(r"^surface_material_override/(\d+) = ", re.MULTILINE)
 def glb_outline(root: Path | None = None) -> dict[str, dict[str, int]]:
     """For each art GLB (repo-relative), the nodes that the scenes under levels/ override from outside it: the
     child of an instance of the GLB (or of its wrapper in levels/kit, colliders.py) that the scene names without
-    a type, with the surface count its `surface_material_override/<n>` lines need."""
+    a type, with the surface count its `surface_material_override/<n>` lines need (one for a node that only sets
+    `visible`: a station scene's hidden state mesh)."""
     root = root or common.ROOT
     scenes = sorted((root / "levels").rglob("*.tscn"))
     wrapped: dict[str, str] = {}
@@ -272,7 +273,7 @@ def glb_outline(root: Path | None = None) -> dict[str, dict[str, int]]:
             if parent is None or parent.group(1) not in glbs or " type=" in head:
                 continue
             body = block.split("\n", 1)[1] if "\n" in block else ""
-            if "surface_material_override/" not in body and "instance_shader_parameters/" not in body:
+            if not any(key in body for key in ("surface_material_override/", "instance_shader_parameters/", "visible = ")):
                 continue
             surfaces = [int(index) + 1 for index in _SURFACE.findall(body)]
             nodes = found.setdefault(glbs[parent.group(1)], {})

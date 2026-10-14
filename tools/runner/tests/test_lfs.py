@@ -188,7 +188,9 @@ class AsideTest(unittest.TestCase):
             'surface_material_override/0 = null\nsurface_material_override/1 = null\n\n'
             '[node name="gate_1" parent="." instance=ExtResource("2")]\n\n'
             '[node name="gate" parent="gate_1"]\ninstance_shader_parameters/plan_at = Vector4(0, 0, 0, 0)\n\n'
-            '[node name="leaf" type="StaticBody3D" parent="gate_1"]\ncollision_layer = 0\n'
+            '[node name="leaf" type="StaticBody3D" parent="gate_1"]\ncollision_layer = 0\n\n'
+            '[node name="gate_off" parent="gate_1"]\nvisible = false\n\n'
+            '[node name="gate_col0" parent="gate_1"]\ncollision_layer = 0\n'
         )
         wrapper = (
             '[gd_scene format=3]\n\n'
@@ -201,7 +203,7 @@ class AsideTest(unittest.TestCase):
                 (root / rel).write_text(text, encoding="utf-8", newline="")
             outline = lfs.glb_outline(root)
         self.assertEqual(
-            outline, {"assets/environment/pack/fence.glb": {"fence": 2}, "assets/environment/pack/gate.glb": {"gate": 1}}
+            outline, {"assets/environment/pack/fence.glb": {"fence": 2}, "assets/environment/pack/gate.glb": {"gate": 1, "gate_off": 1}}
         )
         data = lfs.stand_in("assets/environment/pack/fence.glb", outline)
         assert data is not None
