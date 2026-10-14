@@ -6,8 +6,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 
 ## Pieces, not big scenes
 - One reusable piece per scene file. A map instances pieces; it does not copy them.
-- Small files mean two people rarely touch the same scene. Scenes are single-owner: never edit a scene that someone
-  else has an open PR on.
+- Small files mean two people rarely touch the same scene. Scenes are single-owner: never edit one in another's open PR.
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
 - **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
   - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map),
@@ -31,7 +30,8 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle`, `spawn_zone`; House only, provisional (Delivery by meaning DE10, #826): `spawn_drop_dining_table`,
   `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one marker each, none on the greybox;
-  House only, "not a decision" (GE11, #799): `spawn_switch`, `spawn_generator`, the use spots of station scenes).
+  House only, "not a decision" (GE11, #799; P4, #783): station scenes' use spots `spawn_switch`, `spawn_generator`,
+  `spawn_camera`, `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`, `spawn_photo_board`; `spawn_film`, `spawn_photo`).
   A marker in two such groups is a load error. The host reads them in scene-tree order. The bot scenarios snap
   station markers only on the levels they play (the lobby, the first map, any map a scenario names:
   `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no
@@ -56,7 +56,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays: its `maps` list the House
   alone (GD13 (b), #804), the greybox (a test bench, #767) has none; House's three (the yard, the garden, the
   landing) are #651's placeholders until the engineer moves them.
-- **Station scenes** (a device used where it stands: #799's switch and generator; photo, cooking, car repair follow):
+- **Station scenes** (a device used where it stands: #799's switch and generator, #783's photo stations; cooking, car repair follow):
   read the [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at
   the device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.

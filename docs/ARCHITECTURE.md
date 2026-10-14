@@ -6423,7 +6423,7 @@ phase classes come in the task each row names.
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)); since #770 `Interact` may name an item on the ground too, routed to its kind's `target_actions` (a cooking box) | | packages and knives on the ground |
-| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799) |
+| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799), the House's photo tags `camera`, `photo_spot`, `film_box`, `printer`, `photo_board` (use spots) and `photo` (the printer's tray), `film` (the first film; #783) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
 | Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
@@ -7376,6 +7376,23 @@ no hold and no fallback, each failed, reverted), `photo_sounds_test.gd` (the pla
 the photo sounds uncut, failed, reverted), `tests/integration/client/world/item_world_photo_test.gd` (off the
 loopback wire through `ItemWorld`: the flash and the shutter at the lens, the print, the hang, the shutter muffled
 behind a wall (planted unmuffled, failed, reverted), none beyond 12 m, the session's end).
+The station scenes, P4 built in #783 (provisional until the engineer approves them; the convention: the
+[level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes"): `levels/stations/camera.tscn`
+(the art's tripod turned so its lens looks along -Z, the shooter's use spot in `spawn_camera` behind it at +Z, its
+collision below the shooter's eye line; `FilmSlot`, where P8 draws the loaded film, and the hidden, depth-tested
+`FramesLeft` `Label3D`), `photo_spot.tscn` (a floor ring of PD9's 2 m placeholder radius, no device, its marker in
+`spawn_photo_spot` at the centre), `film_box.tscn` (greybox, `spawn_film_box`), `printer.tscn` (the art's desk,
+computer and printer, `spawn_printer`, the `Tray` marker in `spawn_photo` on the printer) and `photo_board.tscn`
+(`spawn_photo_board`, `Slots/Slot1` to `Slot10` on its face); the House's photo zone holds the spot (the gazebo's
+centre, house-map §6), the camera 4.3 m east of it (beyond both reaches, PE12) and the first film's `spawn_film`
+marker, storage the box, the study the printer, the darkroom the board, each in place of a plain marker. Read as
+plain points until P5's data snaps their tags. Tests: `tests/integration/levels/stations/station_scenes_test.gd`
+(the convention, for the four devices), `photo_stations_test.gd` (the camera's eye line clear, its slot and counter,
+the spot's mark, the printer's tray on its top, the board's slots on its face) and
+`tests/integration/levels/house_photo_stations_test.gd` (the markers read once each at §6's points, a player clear
+on each device's use spot, the spot beyond the camera's reach, the shooter seeing a subject on the mark and not one
+behind the backdrop, the film beside the camera, no shared (x, z), no art copy left; the camera moved 0.9 m nearer
+failed it).
 
 #### 9.5.23 Crouch (not a part in v0)
 What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
@@ -7481,6 +7498,8 @@ levels/
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with its players' and items' markers
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
+  stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
+                                   (#783), in House's photo zone, storage, study and darkroom
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the
