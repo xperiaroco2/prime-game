@@ -1,11 +1,22 @@
 class_name RagdollView
 extends RigidBody3D
 ## A knocked-down player's body as this client draws it (the knockdown ADR's KE7, ARCHITECTURE
-## §4.7.9): looks only, a ragdoll held to the host's point. On today's placeholder avatar it is one
+## §4.7.9): looks only, a ragdoll held to the host's point. On the placeholder avatar it is one
 ## capsule of the client's own PlayerRules (radius, standing height), on the `downed` layer with
 ## the world mask only, so it falls, flies and rolls against the level and never against a player,
-## another ragdoll or a client-only object. #522's character replaces it with the skeleton's
-## PhysicalBone3Ds.
+## another ragdoll or a client-only object.
+##
+## With a character (#522, §4.7.53: setup() given a CharacterSet with ragdoll data) the capsule
+## gives way to a fresh CharacterRig of its own, top_level, whose skeleton gets the art's
+## PhysicalBone3Ds (RagdollBuilder) on the same layer and mask. This node stays as the anchor:
+## frozen, with no mesh and no shape on no layer (never hidden through `visible`, which SightHider
+## owns and which hides the rig with it), following the pelvis so `global_position` still says
+## where it lies. The bones are the only ray target, named to their peer by of_collider(). The same
+## spring holds the pelvis (the data's parentless body) to the lying centre (the point plus the
+## pelvis' smallest half extent), the vertical term whole, across the floor faded by how much the
+## pelvis lies, and it changes every bone's velocity alike, so it moves the body, not its joints;
+## a snap moves every bone by the same offset. The fall starts from the idle pose, one physics
+## frame after the node enters the tree (the bodies need a space).
 ##
 ## The host's point (`held_point()`, the interpolated pose's position) is the host capsule's lowest
 ## point (KE14). The spring pulls the capsule's centre to the lying centre over it, the point plus
@@ -43,6 +54,8 @@ const FRICTION := 0.2
 ## Below this horizontal speed start() tips it backwards, in m/s: a placeholder, "not a decision".
 const STILL_MPS := 0.05
 
+const RagdollBuilder := preload("res://client/player/character/ragdoll_builder.gd")
+
 ## The player it shows.
 var peer := 0
 
@@ -57,6 +70,32 @@ var _kick_linear := Vector3.ZERO
 var _kick_angular := Vector3.ZERO
 var _mesh := MeshInstance3D.new()
 var _shape := CollisionShape3D.new()
+## The character's rig, its simulator, its ragdoll data, its bodies and its pelvis; null and empty
+## on the capsule.
+var _rig: CharacterRig
+var _sim: PhysicalBoneSimulator3D
+var _data: Dictionary = {}
+var _bones: Array[PhysicalBone3D] = []
+var _pelvis: PhysicalBone3D
+## The pelvis' height over the point when it lies: its shape's smallest half extent.
+var _pelvis_lying_m := 0.0
+## The rig's fall waits for the tree: started, lying (lie_at_rest), at this velocity.
+var _pending := false
+var _pending_lying := false
+var _pending_velocity := Vector3.ZERO
+## The pelvis body's own axis that points up the body (from the feet to the head).
+var _pelvis_up := Vector3.UP
+
+
+## The RagdollView `node` belongs to (itself, or one of its rig's bones or their shapes), or null:
+## what a ray's collider names.
+static func of_collider(node: Object) -> RagdollView:
+	var at := node as Node
+	while at != null:
+		if at is RagdollView:
+			return at as RagdollView
+		at = at.get_parent()
+	return null
 
 
 func _init() -> void:
@@ -74,11 +113,16 @@ func _init() -> void:
 	add_child(_shape)
 
 
-## Sizes it from `rules` (the client's own copy of the mode's PlayerRules) for `peer` in `tint`.
-func setup(rules: PlayerRules, for_peer: int, tint: Color) -> void:
+## Sizes it from `rules` (the client's own copy of the mode's PlayerRules) for `peer` in `tint`;
+## with `character` (and its ragdoll data) it is that character's skeleton instead (see above).
+func setup(rules: PlayerRules, for_peer: int, tint: Color, character: CharacterSet = null) -> void:
 	_rules = rules
 	peer = for_peer
 	name = "Ragdoll%d" % for_peer
+	if character != null and not character.ragdoll.is_empty():
+		_wear(character)
+		_paint(tint)
+		return
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = rules.capsule_radius_m
 	capsule.height = rules.capsule_height_m
@@ -86,9 +130,27 @@ func setup(rules: PlayerRules, for_peer: int, tint: Color) -> void:
 	_mesh.mesh = LifeLooks.capsule(rules, tint)
 
 
+## The character's rig, or null on the capsule.
+func rig() -> CharacterRig:
+	return _rig
+
+
+## The rig's PhysicalBone3Ds (empty on the capsule).
+func bones() -> Array[PhysicalBone3D]:
+	return _bones
+
+
+## The rig's pelvis body (the data's parentless one), or null on the capsule.
+func pelvis() -> PhysicalBone3D:
+	return _pelvis
+
+
 ## Stands it on `point`, turned by `yaw`, moving at `velocity`, and tips it over (see above).
 func start(point: Vector3, yaw: float, velocity: Vector3) -> void:
 	hold(point, velocity)
+	if _rig != null:
+		_place_rig(Transform3D(Basis(Vector3.UP, yaw), point), false)
+		return
 	var turn := Basis(Vector3.UP, yaw)
 	transform = Transform3D(turn, point + Vector3.UP * _rules.capsule_height_m * 0.5)
 	var flat := Vector3(_velocity.x, 0.0, _velocity.z)
@@ -100,6 +162,9 @@ func start(point: Vector3, yaw: float, velocity: Vector3) -> void:
 func lie_at_rest(point: Vector3, yaw: float) -> void:
 	hold(point, Vector3.ZERO)
 	var lying := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, PI * 0.5)
+	if _rig != null:
+		_place_rig(Transform3D(lying, point), true)
+		return
 	transform = Transform3D(lying, lying_centre())
 	_set_velocities(Vector3.ZERO, Vector3.ZERO)
 
@@ -123,8 +188,11 @@ func held_point() -> Vector3:
 	return _point
 
 
-## Where the spring pulls its centre: the lying capsule's centre over the host's point.
+## Where the spring pulls its centre: the lying capsule's centre (or the rig's lying pelvis) over
+## the host's point.
 func lying_centre() -> Vector3:
+	if _rig != null:
+		return _point + Vector3.UP * _pelvis_lying_m
 	return _point + Vector3.UP * _rules.capsule_radius_m
 
 
@@ -146,6 +214,8 @@ func make_dead(point: Vector3) -> void:
 	_paint(LifeLooks.BODY_COLOUR)
 	_dead = true
 	collision_layer = 0
+	for bone: PhysicalBone3D in _bones:
+		bone.collision_layer = 0
 	hold(point, Vector3.ZERO)
 
 
@@ -153,14 +223,26 @@ func is_dead() -> bool:
 	return _dead
 
 
-## The capsule's colour now.
+## The capsule's (or the rig's tint) colour now.
 func colour() -> Color:
+	if _rig != null:
+		return _rig.tint()
 	var material := (_mesh.mesh as CapsuleMesh).material as StandardMaterial3D
 	return material.albedo_color
 
 
+func _physics_process(delta: float) -> void:
+	if _rig == null or _rules == null:
+		return
+	if _pending:
+		_begin_fall()
+		return
+	if _sim.is_simulating_physics():
+		_pull_rig(delta)
+
+
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
-	if _rules == null:
+	if _rules == null or _rig != null:
 		return
 	if _kick:
 		_kick = false
@@ -189,7 +271,112 @@ func _set_velocities(linear: Vector3, angular: Vector3) -> void:
 	_kick_angular = angular
 
 
+## Gives up the capsule for `character`'s rig and bodies (see above).
+func _wear(character: CharacterSet) -> void:
+	remove_child(_mesh)
+	_mesh.free()
+	remove_child(_shape)
+	_shape.free()
+	collision_layer = 0
+	collision_mask = 0
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	freeze = true
+	_data = character.ragdoll
+	_rig = CharacterRig.make(character)
+	_rig.top_level = true
+	add_child(_rig)
+	_sim = RagdollBuilder.build(_rig.skeleton, _data)
+	var by_bone: Dictionary = RagdollBuilder.bodies(_sim)
+	for entry: Variant in _data["bones"] as Array:
+		var bone := entry as Dictionary
+		var body := by_bone.get(str(bone["bone"])) as PhysicalBone3D
+		if body == null:
+			continue
+		body.collision_layer = PhysicsLayers.DOWNED
+		body.collision_mask = PhysicsLayers.WORLD
+		body.can_sleep = false
+		_bones.append(body)
+		if bone.get("parent") == null and _pelvis == null:
+			_pelvis = body
+			_pelvis_lying_m = _smallest_half(body)
+
+
+## The smallest half extent of `body`'s first shape (a box's or a capsule's radius).
+static func _smallest_half(body: PhysicalBone3D) -> float:
+	for node: Node in body.get_children():
+		var shape := (node as CollisionShape3D).shape if node is CollisionShape3D else null
+		if shape is BoxShape3D:
+			var size := (shape as BoxShape3D).size
+			return minf(size.x, minf(size.y, size.z)) * 0.5
+		if shape is CapsuleShape3D:
+			return (shape as CapsuleShape3D).radius
+	return 0.1
+
+
+## Puts the rig at `at` (its feet's frame) and starts its fall at the next physics step in the
+## tree; `lying`: the pelvis is moved over the lying centre and nothing moves.
+func _place_rig(at: Transform3D, lying: bool) -> void:
+	_rig.transform = at
+	transform = at
+	_pending = true
+	_pending_lying = lying
+	_pending_velocity = Vector3.ZERO if lying else _velocity
+
+
+## Poses the rig idle, stops its animation and starts the simulation (the builder's start).
+func _begin_fall() -> void:
+	_pending = false
+	if _pelvis == null:
+		return
+	_rig.tree.advance(0.0)
+	_rig.tree.active = false
+	if _pending_lying:
+		_rig.global_position += lying_centre() - _pelvis_at_pose().origin
+	# The pelvis axis that points up the body (the rig's up at the idle pose), whatever its bone's
+	# own axes: the spring's measure of how much it lies.
+	_pelvis_up = _pelvis_at_pose().basis.inverse() * _rig.global_basis.y.normalized()
+	RagdollBuilder.start(_sim, _data, _pending_velocity)
+
+
+## The pelvis body's transform from the skeleton's pose (before the simulation runs).
+func _pelvis_at_pose() -> Transform3D:
+	var skeleton := _rig.skeleton
+	var bone := skeleton.find_bone(str(_pelvis.get(&"bone_name")))
+	return skeleton.global_transform * skeleton.get_bone_global_pose(bone) * _pelvis.body_offset
+
+
+## The spring on the rig (see above): from the pelvis' state, the same velocity change for every
+## bone; farther than SNAP_M, every bone moved by the same offset at the held velocity.
+func _pull_rig(delta: float) -> void:
+	var pelvis_state := PhysicsServer3D.body_get_direct_state(_pelvis.get_rid())
+	if pelvis_state == null:
+		return
+	var target := lying_centre()
+	var origin := pelvis_state.transform.origin
+	if origin.distance_to(target) > SNAP_M:
+		var shift := target - origin
+		for bone: PhysicalBone3D in _bones:
+			var state := PhysicsServer3D.body_get_direct_state(bone.get_rid())
+			state.transform = Transform3D(state.transform.basis, state.transform.origin + shift)
+			state.linear_velocity = _velocity
+		global_transform = Transform3D(pelvis_state.transform.basis, target)
+		return
+	var pull := (target - origin) * SPRING_K + (_velocity - pelvis_state.linear_velocity) * SPRING_D
+	var up := (pelvis_state.transform.basis * _pelvis_up).normalized()
+	var upright := absf(up.dot(Vector3.UP))
+	var across := 1.0 - upright
+	pull = Vector3(pull.x * across, pull.y, pull.z * across)
+	for bone: PhysicalBone3D in _bones:
+		var state := PhysicsServer3D.body_get_direct_state(bone.get_rid())
+		state.linear_velocity += pull * delta
+	global_transform = pelvis_state.transform
+
+
 func _paint(tint: Color) -> void:
+	if _rig != null:
+		if _rig.tint() != tint:
+			_rig.set_tint(tint)
+		return
 	var material := (_mesh.mesh as CapsuleMesh).material as StandardMaterial3D
 	if material.albedo_color != tint:
 		material.albedo_color = tint
