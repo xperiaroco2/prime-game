@@ -12,9 +12,10 @@
     "textures": "The pack's textures (the slider's grabbers, the dropdown's arrow, the list's radio icons) as theme icons (#520): the pinned SVGs sit under the pack's .gdignore, so ui-sync also lands every pack asset in `folder`, which Godot imports at the pack's svg_scale, under the same lock; the builder loads each from there and refuses one that is not imported.",
     "hints": "The pack's `base` (the toy base Panel under a raised face, per context) and `toggle` (the selected partner) are not theme items: the builder writes them into each theme's metadata `toy_hints` ({bases: {variation: {context: base}}, toggles: {variation: selected}}), which client/ui/toy_hints.gd reads for ToyRaised and ToyToggle (#289).",
     "deprecated": "Variations the pack marks deprecated (ToyChipNew, ToyChipNewText, ToyHowtoCaption) are not written: no screen uses them and they leave the pack at its next major release.",
-    "base_types": "Engine classes the theme styles under their own name (#576), so a bare control the screens build (a LineEdit with no theme_type_variation) has a look: `from` copies every item of a live pack variation of that very class (the same StyleBox objects), and constants, font_sizes and colors give literal items. A theme on a node is searched through a control's whole type chain before Godot's default theme, so a row on a class with engine subclasses would also restyle them (a Button row every CheckBox): the builder refuses a row item that would replace the default theme's own item on a subclass. The literal rows are #287's greybox values (Godot's default x 5/3, rounded) for the classes the pack has no look for, so they keep their apparent size at gui/theme/default_theme_scale 1. Not a design decision.",
-    "engine_variations": "Type variations Godot itself sets on a control it builds inside another (SpinBox's field is a SpinBoxLineEdit with SpinBoxInnerLineEdit, 4.7.2), written as thin variations of a base type. Godot takes a control's type chain from the theme that names its variation: from its default theme, which does not name it, the field finds this theme's default font size before the LineEdit row (seen in a probe, #576).",
-    "default_font_size": "The theme's default font size, which a control takes when no type in its chain has a font_size (bare Label, Button, CheckBox, ProgressBar): #287's greybox size, Godot's 16 x 5/3. The same in the large-text theme: the pack has no large value for it. Not a design decision."
+    "base_types": "Engine classes the theme styles under their own name (#576), so a bare control the screens build (a LineEdit with no theme_type_variation) has a look: `from` copies every item of a live pack variation of that very class (the same StyleBox objects), and constants, font_sizes and colors give literal items. A theme on a node is searched through a control's whole type chain before Godot's default theme, so a row on a class with engine subclasses would also restyle them (a Button row every CheckBox): the builder refuses a row item that would replace the default theme's own item on a subclass, unless that subclass has a row of its own (CheckBox and OptionButton under Button) or is listed in `unbuilt`. Since ui-0.7.0 (#1020) Button, CheckBox and SpinBox copy the pack's base-type sources ToyButtonPlain, ToyCheckBox and ToySpinBox. The literal rows are #287's greybox values (Godot's default x 5/3, rounded) for the classes the pack has no look for, so they keep their apparent size at gui/theme/default_theme_scale 1. Not a design decision.",
+    "unbuilt": "Engine subclasses of a base type that the game does not build (no screen in client/ui/ makes one, base_controls_test.gd holds it): they would take their parent row's items (a CheckButton the Button row's ToyButtonPlain look), so the shadow check skips them instead of asking for a row the pack has no look for (#1020, prime-game-ui#59 step 6). A screen that starts to build one moves it to a row first.",
+    "engine_variations": "Type variations Godot itself sets on a control it builds inside another (SpinBox's field is a SpinBoxLineEdit with SpinBoxInnerLineEdit, 4.7.2), written as thin variations of a base type or of a live pack variation of a base type's class: SpinBoxInnerLineEdit of ToySpinField (#1020: ToyField with 12 px above and below, so each arrow is at least 24 px high), which falls back to the LineEdit row. Godot takes a control's type chain from the theme that names its variation: from its default theme, which does not name it, the field finds this theme's default font size before the LineEdit row (seen in a probe, #576).",
+    "default_font_size": "The theme's default font size, which a control takes when no type in its chain has a font_size (bare Label, ProgressBar): the pack's `token` at the theme's text size (font.size.theme-default since ui-0.7.0, #1020: 27, 34 in large text)."
   },
   "pack_schemas": [1],
   "pack": "res://client/ui/theme/pack/toy.pack.json",
@@ -78,6 +79,47 @@
       "size": {"width": "width", "height": "height", "min-width": "min_width", "wide-min-width": "wide_min_width", "wide-width": "wide_width"},
       "motion": {"duration": "press_duration_ms", "reduced": "press_duration_reduced_ms", "trans": "press_trans", "ease": "press_ease"},
       "icons": []
+    },
+    "CheckBox": {
+      "states": {"normal": "normal", "hover": "hover", "pressed": "pressed", "hover-pressed": "hover_pressed", "disabled": "disabled", "focus": "focus"},
+      "state_colors": {"font-color": "button_colors"},
+      "items": {
+        "icon-normal-color": {"kind": "color", "name": "icon_normal_color"},
+        "icon-hover-color": {"kind": "color", "name": "icon_hover_color"},
+        "icon-pressed-color": {"kind": "color", "name": "icon_pressed_color"},
+        "icon-hover-pressed-color": {"kind": "color", "name": "icon_hover_pressed_color"},
+        "icon-focus-color": {"kind": "color", "name": "icon_focus_color"},
+        "icon-disabled-color": {"kind": "color", "name": "icon_disabled_color"},
+        "h-separation": {"kind": "constant", "name": "h_separation"}
+      },
+      "label": "font_size",
+      "icons": ["checked", "checked_disabled", "unchecked", "unchecked_disabled"]
+    },
+    "SpinBox": {
+      "states": {
+        "up-background": "up_background",
+        "up-background-hovered": "up_background_hovered",
+        "up-background-pressed": "up_background_pressed",
+        "up-background-disabled": "up_background_disabled",
+        "down-background": "down_background",
+        "down-background-hovered": "down_background_hovered",
+        "down-background-pressed": "down_background_pressed",
+        "down-background-disabled": "down_background_disabled"
+      },
+      "items": {
+        "buttons-width": {"kind": "constant", "name": "buttons_width"},
+        "field-and-buttons-separation": {"kind": "constant", "name": "field_and_buttons_separation"},
+        "buttons-vertical-separation": {"kind": "constant", "name": "buttons_vertical_separation"},
+        "up-icon-modulate": {"kind": "color", "name": "up_icon_modulate"},
+        "up-hover-icon-modulate": {"kind": "color", "name": "up_hover_icon_modulate"},
+        "up-pressed-icon-modulate": {"kind": "color", "name": "up_pressed_icon_modulate"},
+        "up-disabled-icon-modulate": {"kind": "color", "name": "up_disabled_icon_modulate"},
+        "down-icon-modulate": {"kind": "color", "name": "down_icon_modulate"},
+        "down-hover-icon-modulate": {"kind": "color", "name": "down_hover_icon_modulate"},
+        "down-pressed-icon-modulate": {"kind": "color", "name": "down_pressed_icon_modulate"},
+        "down-disabled-icon-modulate": {"kind": "color", "name": "down_disabled_icon_modulate"}
+      },
+      "icons": ["up", "up_hover", "up_pressed", "up_disabled", "down", "down_hover", "down_pressed", "down_disabled"]
     },
     "OptionButton": {
       "states": {"normal": "normal", "hover": "hover", "pressed": "pressed", "hover-pressed": "hover_pressed", "disabled": "disabled", "focus": "focus"},
@@ -233,7 +275,8 @@
     "Shortfalls": {"base": "Label", "colors": {"font_color": [1, 0.75, 0.4, 1]}}
   },
   "base_types": {
-    "CheckBox": {"constants": {"h_separation": 7}},
+    "Button": {"from": "ToyButtonPlain"},
+    "CheckBox": {"from": "ToyCheckBox"},
     "HBoxContainer": {"constants": {"separation": 7}},
     "HSlider": {"from": "ToySlider"},
     "Label": {"constants": {"line_spacing": 5}},
@@ -241,10 +284,12 @@
     "OptionButton": {"from": "ToyDropdown"},
     "PopupMenu": {"from": "ToyDropdownList"},
     "ScrollContainer": {"from": "ToyScroll"},
+    "SpinBox": {"from": "ToySpinBox"},
     "VBoxContainer": {"constants": {"separation": 7}},
     "VScrollBar": {"from": "ToyScrollBar"},
     "VSeparator": {"constants": {"separation": 7}}
   },
-  "engine_variations": {"SpinBoxInnerLineEdit": "LineEdit"},
-  "default_font_size": 27
+  "unbuilt": ["CheckButton", "ColorPickerButton", "MenuButton"],
+  "engine_variations": {"SpinBoxInnerLineEdit": "ToySpinField"},
+  "default_font_size": {"token": "font.size.theme-default"}
 }

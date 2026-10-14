@@ -247,7 +247,7 @@ static func build_with_font(
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
 	if mapping.has("default_font_size"):
-		theme.default_font_size = _int(mapping["default_font_size"])
+		theme.default_font_size = default_font_size(pack, mapping, text_size)
 	var meta := str(_dict(mapping, "hints").get("meta", ""))
 	if not meta.is_empty():
 		theme.set_meta(StringName(meta), hints(pack))
@@ -533,25 +533,63 @@ static func _base_type_problems(pack: Dictionary, mapping: Dictionary) -> Packed
 			problems.append(
 				"engine variation %s: not letters only, an engine class or a name in use" % name
 			)
-		if not rows.has(base):
-			problems.append("engine variation %s: %s is not a base type" % [name, base])
-	var size: Variant = mapping.get("default_font_size")
-	if size != null and _int(size) <= 0:
-		problems.append("default_font_size: %s is not a size" % size)
+		var variation: Dictionary = _dict(variations, base)
+		var from_pack := (
+			not variation.is_empty()
+			and _is_live(variations, base, str(variation.get("class")))
+			and rows.has(str(variation.get("class")))
+		)
+		if not rows.has(base) and not from_pack:
+			problems.append(
+				(
+					"engine variation %s: %s is not a base type or a live pack variation of one"
+					% [name, base]
+				)
+			)
+	for cls: Variant in _array(mapping, "unbuilt"):
+		if not ClassDB.class_exists(str(cls)) or rows.has(str(cls)):
+			problems.append("unbuilt %s: not an engine class, or a base type" % cls)
+	problems.append_array(_default_size_problems(pack, mapping))
 	return problems
+
+
+## mapping.default_font_size names a pack token (#1020): a dimension above 0 at each text size.
+static func _default_size_problems(pack: Dictionary, mapping: Dictionary) -> PackedStringArray:
+	var problems := PackedStringArray()
+	if not mapping.has("default_font_size"):
+		return problems
+	var key := str(_dict(mapping, "default_font_size").get("token", ""))
+	if not _dict(pack, "tokens").has(key):
+		problems.append("default_font_size: %s is not a pack token" % mapping["default_font_size"])
+		return problems
+	for text_size: String in ["default"] + _dict(_dict(pack, "modes"), "textSize").keys():
+		var record := _record(pack, key, text_size)
+		if record.get("type") != "dimension" or _number(record) <= 0:
+			problems.append("default_font_size: %s is not a size (%s text)" % [key, text_size])
+	return problems
+
+
+## The theme's default font size at a text size: mapping.default_font_size's pack token.
+static func default_font_size(pack: Dictionary, mapping: Dictionary, text_size: String) -> int:
+	var key := str(_dict(mapping, "default_font_size").get("token", ""))
+	return _number(_record(pack, key, text_size))
 
 
 ## The items of a base_types row's class that would hide the default theme's own item of an
 ## engine subclass (or a class between the two), walking up from each subclass: a row of a class
-## on the way (this theme's, so searched first) covers its items from there up.
+## on the way (this theme's, so searched first) covers its items from there up. A subclass in
+## mapping.unbuilt (the game builds none, #1020) is skipped: it takes the row's look.
 static func _shadow_problems(mapping: Dictionary, cls: String, where: String) -> PackedStringArray:
 	var found := {}
 	var rows: Dictionary = _dict(mapping, "base_types")
+	var unbuilt := _array(mapping, "unbuilt")
 	var items := base_type_items(mapping, cls)
 	var default := ThemeDB.get_default_theme()
 	var subclasses := Array(ClassDB.get_inheriters_from_class(cls))
 	subclasses.sort()
 	for sub: String in subclasses:
+		if unbuilt.has(sub):
+			continue
 		var covered := {}
 		var type := sub
 		while not type.is_empty() and type != cls:

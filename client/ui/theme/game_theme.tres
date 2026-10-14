@@ -1,12 +1,232 @@
 [gd_resource type="Theme" format=3 uid="uid://c8behqt7jtcn8"]
 
 [ext_resource type="FontFile" path="res://assets/ui/comfortaa/comfortaa.ttf" id="assets_ui_comfortaa_comfortaa_ttf"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-checked-disabled.svg" id="assets_ui_toy_pack_icons_checkbox-checked-disabled_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-checked.svg" id="assets_ui_toy_pack_icons_checkbox-checked_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-unchecked-disabled.svg" id="assets_ui_toy_pack_icons_checkbox-unchecked-disabled_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/checkbox-unchecked.svg" id="assets_ui_toy_pack_icons_checkbox-unchecked_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/chevron-down.svg" id="assets_ui_toy_pack_icons_chevron-down_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-checked-disabled.svg" id="assets_ui_toy_pack_icons_radio-checked-disabled_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-checked.svg" id="assets_ui_toy_pack_icons_radio-checked_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-unchecked.svg" id="assets_ui_toy_pack_icons_radio-unchecked_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/slider-knob-disabled.svg" id="assets_ui_toy_pack_icons_slider-knob-disabled_svg"]
 [ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/slider-knob.svg" id="assets_ui_toy_pack_icons_slider-knob_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/spin-down.svg" id="assets_ui_toy_pack_icons_spin-down_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/spin-up.svg" id="assets_ui_toy_pack_icons_spin-up_svg"]
+
+[sub_resource type="FontVariation" id="Comfortaa_wght_700"]
+base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
+variation_opentype = {
+2003265652: 700
+}
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_disabled"]
+content_margin_left = 22.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+expand_margin_left = -3.0
+expand_margin_top = -3.0
+expand_margin_right = -3.0
+expand_margin_bottom = -3.0
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_hover"]
+content_margin_left = 22.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_hover_pressed"]
+content_margin_left = 22.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_normal"]
+content_margin_left = 22.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="ToyButtonPlain_pressed"]
+content_margin_left = 22.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="FontVariation" id="Comfortaa_wght_600"]
+base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
+variation_opentype = {
+2003265652: 600
+}
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_disabled"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+expand_margin_left = -2.0
+expand_margin_top = -2.0
+expand_margin_right = -2.0
+expand_margin_bottom = -2.0
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_hover"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_hover_pressed"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_normal"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyCheckBox_pressed"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 16.0
+content_margin_bottom = 9.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [sub_resource type="StyleBoxFlat" id="ToySlider_focus"]
 content_margin_left = 3.0
@@ -76,12 +296,6 @@ corner_radius_top_left = 999
 corner_radius_top_right = 999
 corner_radius_bottom_right = 999
 corner_radius_bottom_left = 999
-
-[sub_resource type="FontVariation" id="Comfortaa_wght_700"]
-base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
-variation_opentype = {
-2003265652: 700
-}
 
 [sub_resource type="StyleBoxFlat" id="ToyField_focus"]
 content_margin_left = 3.0
@@ -274,6 +488,134 @@ bg_color = Color(0, 0, 0, 0)
 draw_center = false
 border_width_top = 2
 border_color = Color(0.1647, 0.1216, 0.2, 1)
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_down_background"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.7608, 0.2275, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_down_background_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_down_background_hovered"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.7608, 0.2275, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_down_background_pressed"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.7882, 0.5412, 0.0627, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_up_background"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.7608, 0.2275, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_up_background_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_up_background_hovered"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 0.7608, 0.2275, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToySpinBox_up_background_pressed"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.7882, 0.5412, 0.0627, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="ToyBackdrop_panel"]
 content_margin_left = 0.0
@@ -601,12 +943,6 @@ corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
-
-[sub_resource type="FontVariation" id="Comfortaa_wght_600"]
-base_font = ExtResource("assets_ui_comfortaa_comfortaa_ttf")
-variation_opentype = {
-2003265652: 600
-}
 
 [sub_resource type="StyleBoxFlat" id="ToyButtonGhostOnDark_disabled"]
 content_margin_left = 22.0
@@ -2696,6 +3032,59 @@ corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
 
+[sub_resource type="StyleBoxFlat" id="ToySpinField_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+expand_margin_left = -3.0
+expand_margin_top = -3.0
+expand_margin_right = -3.0
+expand_margin_bottom = -3.0
+
+[sub_resource type="StyleBoxFlat" id="ToySpinField_normal"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToySpinField_read_only"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
 [sub_resource type="StyleBoxFlat" id="ToySpinner_panel"]
 content_margin_left = 0.0
 content_margin_top = 10.0
@@ -3077,7 +3466,51 @@ expand_margin_bottom = 4.0
 [resource]
 default_font = SubResource("Comfortaa_wght_600")
 default_font_size = 27
-CheckBox/constants/h_separation = 7
+Button/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+Button/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/font_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/font_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/icon_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+Button/colors/icon_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/icon_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/icon_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/icon_normal_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/colors/icon_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+Button/font_sizes/font_size = 24
+Button/fonts/font = SubResource("Comfortaa_wght_700")
+Button/styles/disabled = SubResource("ToyButtonPlain_disabled")
+Button/styles/focus = SubResource("ToyButtonPlain_focus")
+Button/styles/hover = SubResource("ToyButtonPlain_hover")
+Button/styles/hover_pressed = SubResource("ToyButtonPlain_hover_pressed")
+Button/styles/normal = SubResource("ToyButtonPlain_normal")
+Button/styles/pressed = SubResource("ToyButtonPlain_pressed")
+CheckBox/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+CheckBox/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/font_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/font_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/icon_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+CheckBox/colors/icon_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/icon_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/icon_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/icon_normal_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/colors/icon_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+CheckBox/constants/h_separation = 12
+CheckBox/font_sizes/font_size = 22
+CheckBox/fonts/font = SubResource("Comfortaa_wght_600")
+CheckBox/icons/checked = ExtResource("assets_ui_toy_pack_icons_checkbox-checked_svg")
+CheckBox/icons/checked_disabled = ExtResource("assets_ui_toy_pack_icons_checkbox-checked-disabled_svg")
+CheckBox/icons/unchecked = ExtResource("assets_ui_toy_pack_icons_checkbox-unchecked_svg")
+CheckBox/icons/unchecked_disabled = ExtResource("assets_ui_toy_pack_icons_checkbox-unchecked-disabled_svg")
+CheckBox/styles/disabled = SubResource("ToyCheckBox_disabled")
+CheckBox/styles/focus = SubResource("ToyCheckBox_focus")
+CheckBox/styles/hover = SubResource("ToyCheckBox_hover")
+CheckBox/styles/hover_pressed = SubResource("ToyCheckBox_hover_pressed")
+CheckBox/styles/normal = SubResource("ToyCheckBox_normal")
+CheckBox/styles/pressed = SubResource("ToyCheckBox_pressed")
 DebugMargin/base_type = &"MarginContainer"
 DebugMargin/constants/margin_bottom = 13
 DebugMargin/constants/margin_left = 13
@@ -3180,7 +3613,34 @@ ScreenColumn/constants/separation = 17
 ScrollContainer/constants/scrollbar_h_separation = 8
 Shortfalls/base_type = &"Label"
 Shortfalls/colors/font_color = Color(1, 0.75, 0.4, 1)
-SpinBoxInnerLineEdit/base_type = &"LineEdit"
+SpinBox/colors/down_disabled_icon_modulate = Color(0.3922, 0.3373, 0.4353, 1)
+SpinBox/colors/down_hover_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/colors/down_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/colors/down_pressed_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/colors/up_disabled_icon_modulate = Color(0.3922, 0.3373, 0.4353, 1)
+SpinBox/colors/up_hover_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/colors/up_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/colors/up_pressed_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+SpinBox/constants/buttons_vertical_separation = 2
+SpinBox/constants/buttons_width = 34
+SpinBox/constants/field_and_buttons_separation = 8
+SpinBox/icons/down = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+SpinBox/icons/down_disabled = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+SpinBox/icons/down_hover = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+SpinBox/icons/down_pressed = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+SpinBox/icons/up = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+SpinBox/icons/up_disabled = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+SpinBox/icons/up_hover = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+SpinBox/icons/up_pressed = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+SpinBox/styles/down_background = SubResource("ToySpinBox_down_background")
+SpinBox/styles/down_background_disabled = SubResource("ToySpinBox_down_background_disabled")
+SpinBox/styles/down_background_hovered = SubResource("ToySpinBox_down_background_hovered")
+SpinBox/styles/down_background_pressed = SubResource("ToySpinBox_down_background_pressed")
+SpinBox/styles/up_background = SubResource("ToySpinBox_up_background")
+SpinBox/styles/up_background_disabled = SubResource("ToySpinBox_up_background_disabled")
+SpinBox/styles/up_background_hovered = SubResource("ToySpinBox_up_background_hovered")
+SpinBox/styles/up_background_pressed = SubResource("ToySpinBox_up_background_pressed")
+SpinBoxInnerLineEdit/base_type = &"ToySpinField"
 TaskDescription/base_type = &"ToyTextMutedOnDark"
 TaskPanel/base_type = &"ToyPlate"
 TaskRow/base_type = &"ToyTextOnDark"
@@ -3309,6 +3769,27 @@ ToyButtonGhostOnLight/styles/hover = SubResource("ToyButtonGhostOnLight_hover")
 ToyButtonGhostOnLight/styles/hover_pressed = SubResource("ToyButtonGhostOnLight_hover_pressed")
 ToyButtonGhostOnLight/styles/normal = SubResource("ToyButtonGhostOnLight_normal")
 ToyButtonGhostOnLight/styles/pressed = SubResource("ToyButtonGhostOnLight_pressed")
+ToyButtonPlain/base_type = &"Button"
+ToyButtonPlain/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+ToyButtonPlain/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/font_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/font_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/icon_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+ToyButtonPlain/colors/icon_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/icon_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/icon_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/icon_normal_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/colors/icon_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyButtonPlain/font_sizes/font_size = 24
+ToyButtonPlain/fonts/font = SubResource("Comfortaa_wght_700")
+ToyButtonPlain/styles/disabled = SubResource("ToyButtonPlain_disabled")
+ToyButtonPlain/styles/focus = SubResource("ToyButtonPlain_focus")
+ToyButtonPlain/styles/hover = SubResource("ToyButtonPlain_hover")
+ToyButtonPlain/styles/hover_pressed = SubResource("ToyButtonPlain_hover_pressed")
+ToyButtonPlain/styles/normal = SubResource("ToyButtonPlain_normal")
+ToyButtonPlain/styles/pressed = SubResource("ToyButtonPlain_pressed")
 ToyButtonPrimary/base_type = &"ToyButton"
 ToyButtonPrimary/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
 ToyButtonPrimary/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
@@ -3353,6 +3834,32 @@ ToyButtonSecondary/styles/hover = SubResource("ToyButtonSecondary_hover")
 ToyButtonSecondary/styles/hover_pressed = SubResource("ToyButtonSecondary_hover_pressed")
 ToyButtonSecondary/styles/normal = SubResource("ToyButtonSecondary_normal")
 ToyButtonSecondary/styles/pressed = SubResource("ToyButtonSecondary_pressed")
+ToyCheckBox/base_type = &"CheckBox"
+ToyCheckBox/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+ToyCheckBox/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/font_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/font_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/icon_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+ToyCheckBox/colors/icon_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/icon_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/icon_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/icon_normal_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/colors/icon_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+ToyCheckBox/constants/h_separation = 12
+ToyCheckBox/font_sizes/font_size = 22
+ToyCheckBox/fonts/font = SubResource("Comfortaa_wght_600")
+ToyCheckBox/icons/checked = ExtResource("assets_ui_toy_pack_icons_checkbox-checked_svg")
+ToyCheckBox/icons/checked_disabled = ExtResource("assets_ui_toy_pack_icons_checkbox-checked-disabled_svg")
+ToyCheckBox/icons/unchecked = ExtResource("assets_ui_toy_pack_icons_checkbox-unchecked_svg")
+ToyCheckBox/icons/unchecked_disabled = ExtResource("assets_ui_toy_pack_icons_checkbox-unchecked-disabled_svg")
+ToyCheckBox/styles/disabled = SubResource("ToyCheckBox_disabled")
+ToyCheckBox/styles/focus = SubResource("ToyCheckBox_focus")
+ToyCheckBox/styles/hover = SubResource("ToyCheckBox_hover")
+ToyCheckBox/styles/hover_pressed = SubResource("ToyCheckBox_hover_pressed")
+ToyCheckBox/styles/normal = SubResource("ToyCheckBox_normal")
+ToyCheckBox/styles/pressed = SubResource("ToyCheckBox_pressed")
 ToyChipAlert/base_type = &"PanelContainer"
 ToyChipAlert/styles/panel = SubResource("ToyChipAlert_panel")
 ToyChipAlertText/base_type = &"Label"
@@ -3917,6 +4424,46 @@ ToySlotTextEmpty/constants/line_spacing = 2
 ToySlotTextEmpty/font_sizes/font_size = 18
 ToySlotTextEmpty/fonts/font = SubResource("Comfortaa_wght_600")
 ToySlotTextEmpty/styles/normal = SubResource("StyleBoxEmpty_empty")
+ToySpinBox/base_type = &"SpinBox"
+ToySpinBox/colors/down_disabled_icon_modulate = Color(0.3922, 0.3373, 0.4353, 1)
+ToySpinBox/colors/down_hover_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/colors/down_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/colors/down_pressed_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/colors/up_disabled_icon_modulate = Color(0.3922, 0.3373, 0.4353, 1)
+ToySpinBox/colors/up_hover_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/colors/up_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/colors/up_pressed_icon_modulate = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinBox/constants/buttons_vertical_separation = 2
+ToySpinBox/constants/buttons_width = 34
+ToySpinBox/constants/field_and_buttons_separation = 8
+ToySpinBox/icons/down = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+ToySpinBox/icons/down_disabled = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+ToySpinBox/icons/down_hover = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+ToySpinBox/icons/down_pressed = ExtResource("assets_ui_toy_pack_icons_spin-down_svg")
+ToySpinBox/icons/up = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+ToySpinBox/icons/up_disabled = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+ToySpinBox/icons/up_hover = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+ToySpinBox/icons/up_pressed = ExtResource("assets_ui_toy_pack_icons_spin-up_svg")
+ToySpinBox/styles/down_background = SubResource("ToySpinBox_down_background")
+ToySpinBox/styles/down_background_disabled = SubResource("ToySpinBox_down_background_disabled")
+ToySpinBox/styles/down_background_hovered = SubResource("ToySpinBox_down_background_hovered")
+ToySpinBox/styles/down_background_pressed = SubResource("ToySpinBox_down_background_pressed")
+ToySpinBox/styles/up_background = SubResource("ToySpinBox_up_background")
+ToySpinBox/styles/up_background_disabled = SubResource("ToySpinBox_up_background_disabled")
+ToySpinBox/styles/up_background_hovered = SubResource("ToySpinBox_up_background_hovered")
+ToySpinBox/styles/up_background_pressed = SubResource("ToySpinBox_up_background_pressed")
+ToySpinField/base_type = &"LineEdit"
+ToySpinField/colors/caret_color = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinField/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinField/colors/font_placeholder_color = Color(0.3922, 0.3373, 0.4353, 1)
+ToySpinField/colors/font_selected_color = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinField/colors/font_uneditable_color = Color(0.1647, 0.1216, 0.2, 1)
+ToySpinField/colors/selection_color = Color(1, 0.7608, 0.2275, 1)
+ToySpinField/font_sizes/font_size = 22
+ToySpinField/fonts/font = SubResource("Comfortaa_wght_700")
+ToySpinField/styles/focus = SubResource("ToySpinField_focus")
+ToySpinField/styles/normal = SubResource("ToySpinField_normal")
+ToySpinField/styles/read_only = SubResource("ToySpinField_read_only")
 ToySpinner/base_type = &"Panel"
 ToySpinner/constants/height = 90
 ToySpinner/constants/width = 90

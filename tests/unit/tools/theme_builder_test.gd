@@ -94,6 +94,8 @@ func test_check_pack_names_a_bad_base_type() -> void:
 	}
 	for want: String in cases:
 		var broken: Dictionary = _mapping.duplicate(true)
+		# CheckBox's own row (#1020) covers it: plant its gap by dropping that row.
+		(broken["base_types"] as Dictionary).erase("CheckBox")
 		(broken["base_types"] as Dictionary).merge(cases[want] as Dictionary, true)
 		var problems := "\n".join(Builder.check_pack(_pack, broken))
 		(
@@ -106,6 +108,7 @@ func test_check_pack_names_a_bad_base_type() -> void:
 	var covered: Dictionary = _mapping.duplicate(true)
 	var size := {"font_sizes": {"font_size": 27}}
 	var rows: Dictionary = covered["base_types"]
+	rows.erase("CheckBox")
 	rows["Button"] = size
 	var shadowed := Array(Builder.check_pack(_pack, covered)).filter(
 		func(problem: String) -> bool: return problem.begins_with("base type Button:")
@@ -114,14 +117,68 @@ func test_check_pack_names_a_bad_base_type() -> void:
 	for problem: String in shadowed:
 		rows[problem.get_slice(" on ", 1)] = size
 	assert_str("\n".join(Builder.check_pack(_pack, covered))).not_contains("base type Button:")
-	var sized: Dictionary = _mapping.duplicate(true)
-	sized["default_font_size"] = 0
-	assert_array(Builder.check_pack(_pack, sized)).contains(["default_font_size: 0 is not a size"])
+	_check_the_unbuilt_subclasses()
+	_check_the_default_font_size()
 	var inner: Dictionary = _mapping.duplicate(true)
-	inner["engine_variations"] = {"SpinBoxInnerLineEdit": "TextEdit", "LineEdit": "Label"}
+	inner["engine_variations"] = {
+		"SpinBoxInnerLineEdit": "TextEdit", "LineEdit": "Label", "Inner": "ToyPlate"
+	}
 	var found := "\n".join(Builder.check_pack(_pack, inner))
-	assert_str(found).contains("engine variation SpinBoxInnerLineEdit: TextEdit is not a base type")
+	assert_str(found).contains(
+		"engine variation SpinBoxInnerLineEdit: TextEdit is not a base type or a live pack"
+	)
 	assert_str(found).contains("engine variation LineEdit: not letters only, an engine class")
+	# ToyPlate is a live pack variation, but of PanelContainer, which is no base type.
+	assert_str(found).contains("engine variation Inner: ToyPlate is not a base type or a live")
+
+
+## The Button row (ToyButtonPlain, #1020) would give its look to the Button subclasses the game
+## does not build; mapping.unbuilt names them, so the check skips them. Without that list the
+## check names each, and an unbuilt name that is no engine class, or is a base type, is named.
+func _check_the_unbuilt_subclasses() -> void:
+	assert_array(_mapping["unbuilt"] as Array).contains_exactly_in_any_order(
+		["CheckButton", "ColorPickerButton", "MenuButton"]
+	)
+	var listed := Array(Builder.check_pack(_pack, _mapping)).filter(
+		func(problem: String) -> bool: return problem.begins_with("base type Button:")
+	)
+	assert_array(listed).is_empty()
+	var unlisted: Dictionary = _mapping.duplicate(true)
+	unlisted["unbuilt"] = []
+	var named := {}
+	for problem: String in Builder.check_pack(_pack, unlisted):
+		if problem.begins_with("base type Button:"):
+			named[problem.get_slice(" on ", 1)] = true
+	assert_array(named.keys()).contains_exactly_in_any_order(
+		["CheckButton", "ColorPickerButton", "MenuButton"]
+	)
+	var bad: Dictionary = _mapping.duplicate(true)
+	bad["unbuilt"] = ["Bogus", "LineEdit"]
+	var found := Array(Builder.check_pack(_pack, bad))
+	(
+		assert_array(found)
+		. contains(
+			[
+				"unbuilt Bogus: not an engine class, or a base type",
+				"unbuilt LineEdit: not an engine class, or a base type",
+			]
+		)
+	)
+
+
+## mapping.default_font_size names a pack token (#1020), a size at each text size.
+func _check_the_default_font_size() -> void:
+	var unknown: Dictionary = _mapping.duplicate(true)
+	unknown["default_font_size"] = 27
+	assert_array(Builder.check_pack(_pack, unknown)).contains(
+		["default_font_size: 27 is not a pack token"]
+	)
+	var zero: Dictionary = _pack.duplicate(true)
+	var large: Dictionary = (zero["modes"] as Dictionary)["textSize"]["large"]
+	large["font.size.theme-default"] = {"type": "dimension", "px": 0}
+	assert_array(Builder.check_pack(zero, _mapping)).contains(
+		["default_font_size: font.size.theme-default is not a size (large text)"]
+	)
 
 
 ## Breaks a copy of the pack the way the problem it must cause names.
@@ -233,8 +290,20 @@ func test_base_types_share_the_toy_looks() -> void:
 						assert_object(ours).override_failure_message(cls + item).is_same(theirs)
 					else:
 						assert_that(ours).override_failure_message(cls + item).is_equal(theirs)
-		assert_str(str(theme.get_type_variation_base(&"SpinBoxInnerLineEdit"))).is_equal("LineEdit")
-		assert_int(theme.default_font_size).is_equal(_mapping["default_font_size"] as int)
+		# SpinBox's field is ToySpinField (#1020), a variation of LineEdit, so the row backs it.
+		var inner := theme.get_type_variation_base(&"SpinBoxInnerLineEdit")
+		assert_str(str(inner)).is_equal("ToySpinField")
+		assert_str(str(theme.get_type_variation_base(inner))).is_equal("LineEdit")
+		# The default font size is the pack's font.size.theme-default (#1020): 27, 34 in large text.
+		assert_int(theme.default_font_size).is_equal(27 if key == "default" else 34)
+		assert_int(theme.default_font_size).is_equal(
+			Builder.default_font_size(_pack, _mapping, key)
+		)
+	for cls: String in ["Button", "CheckBox", "SpinBox"]:
+		assert_bool(rows.has(cls)).override_failure_message(cls).is_true()
+	assert_str(str((rows["Button"] as Dictionary)["from"])).is_equal("ToyButtonPlain")
+	assert_str(str((rows["CheckBox"] as Dictionary)["from"])).is_equal("ToyCheckBox")
+	assert_str(str((rows["SpinBox"] as Dictionary)["from"])).is_equal("ToySpinBox")
 	var normal := _committed("default")
 	assert_int(normal.get_font_size(&"font_size", &"LineEdit")).is_equal(22)
 	assert_int(_committed("large").get_font_size(&"font_size", &"LineEdit")).is_greater(22)
@@ -343,9 +412,35 @@ func test_values_match_the_pack() -> void:
 		if not theme.get_icon_list(type_name).is_empty():
 			with_icons.append(str(type_name))
 	with_icons.sort()
-	assert_array(with_icons).contains_exactly(
-		["HSlider", "OptionButton", "PopupMenu", "ToyDropdown", "ToyDropdownList", "ToySlider"]
+	(
+		assert_array(with_icons)
+		. contains_exactly(
+			[
+				"CheckBox",
+				"HSlider",
+				"OptionButton",
+				"PopupMenu",
+				"SpinBox",
+				"ToyCheckBox",
+				"ToyDropdown",
+				"ToyDropdownList",
+				"ToySlider",
+				"ToySpinBox",
+			]
+		)
 	)
+	# The CheckBox and SpinBox icons (#1020), at svg_scale 1: the box 28 px, the chevrons 18 px.
+	var box := theme.get_icon(&"unchecked_disabled", &"ToyCheckBox")
+	assert_str(box.resource_path).ends_with("/checkbox-unchecked-disabled.svg")
+	assert_object(box.get_size()).is_equal(Vector2(28, 28))
+	var up := theme.get_icon(&"up_pressed", &"ToySpinBox")
+	assert_str(up.resource_path).ends_with("/spin-up.svg")
+	assert_object(up.get_size()).is_equal(Vector2(18, 18))
+	assert_str(theme.get_icon(&"down_disabled", &"ToySpinBox").resource_path).ends_with(
+		"/spin-down.svg"
+	)
+	assert_int(theme.get_constant(&"buttons_width", &"ToySpinBox")).is_equal(34)
+	assert_int(theme.get_constant(&"h_separation", &"ToyCheckBox")).is_equal(12)
 
 
 func test_the_press_motion_and_the_ramp() -> void:
@@ -391,6 +486,8 @@ func test_the_large_theme_differs_only_in_text_sizes() -> void:
 				assert_bool(
 					(
 						lines_normal[index].contains("/font_sizes/font_size")
+						# font.size.theme-default has a large value since ui-0.7.0 (#1020).
+						or lines_normal[index].begins_with("default_font_size = ")
 						or lines_normal[index].contains("/constants/min_width")
 						# A Label's spacing follows its text size (#685; the line spacing test).
 						or lines_normal[index].contains("/constants/line_spacing")
@@ -510,8 +607,8 @@ func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() ->
 	assert_str(str(font["file"])).is_equal("res://assets/ui/comfortaa/comfortaa.ttf")
 	for key: String in ["default", "large"]:
 		var theme := _committed(key)
-		# The size is the greybox one (#576; test_base_types_share_the_toy_looks).
-		assert_int(theme.default_font_size).is_equal(27)
+		# The pack's font.size.theme-default (#1020; test_base_types_share_the_toy_looks).
+		assert_int(theme.default_font_size).is_equal(27 if key == "default" else 34)
 		if not ResourceLoader.exists(str(font["file"])):
 			# The engineer adds the TTF by hand (#520): until then no font, Godot's default draws.
 			assert_object(Builder.base_font(_mapping)).is_null()
