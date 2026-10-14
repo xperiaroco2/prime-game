@@ -125,9 +125,9 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(upload["with"]["name"], "verify-reports-${{ matrix.part }}", "one artifact name per part")
         removal = next(i for i, step in enumerate(part["steps"]) if step.get("name") == "Remove the TwoVoIP extension")
         self.assertLess(removal, part["steps"].index(run))
-        argv = VERIFY_PART.split("tools/run.sh ", 1)[1].replace('"$PART"', "test").split()
+        argv = VERIFY_PART.split("tools/run.sh ", 1)[1].replace('"$PART"', "test-1").split()
         args = cli.build_parser().parse_args(argv)
-        self.assertEqual((args.command, args.full, args.part, args.fail_fast), ("verify", True, "test", False))
+        self.assertEqual((args.command, args.full, args.part, args.fail_fast), ("verify", True, "test-1", False))
 
     def test_the_required_check_verify_needs_every_part_and_runs_whatever_they_ended_in(self) -> None:
         # The ruleset main-2 requires the context `verify`: the aggregate job keeps that name (#857).
@@ -187,11 +187,14 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(len(cache), 1)
         settings = steps[cache[0]]["with"]
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
-        self.assertEqual(settings["restore-keys"], "gdunit-times-")
+        # Each test part under keys of its own (#980): two jobs saving one key race. Its own newest first, else any.
+        self.assertEqual(settings["restore-keys"], "gdunit-times-${{ matrix.part }}-\ngdunit-times-\n")
+        self.assertTrue(settings["key"].startswith("gdunit-times-${{ matrix.part }}-"), settings["key"])
         self.assertIn("${{ github.run_id }}", settings["key"])
         self.assertLess(cache[0], runs.index(VERIFY_PART))
-        # Only the part that runs `test` restores and saves them (#857): another part would save a stale copy.
-        testing = [part for part, names in verify.PARTS.items() if "test" in names]
+        # Only the parts that run `test` restore and save them (#857): another part would save a stale copy.
+        testing = [part for part, names in verify.PARTS.items() if {"test", *verify.HALVES["test"]} & set(names)]
+        self.assertEqual(testing, ["test-1", "test-2"])
         self.assertEqual(steps[cache[0]]["if"], " || ".join(f"matrix.part == '{part}'" for part in testing))
 
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
@@ -319,7 +322,11 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(len(cache), 1)
         settings = steps[cache[0]]["with"]
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
-        self.assertEqual(settings["restore-keys"], "gdunit-times-", "CI's times are restored too")
+        self.assertEqual(
+            settings["restore-keys"],
+            "gdunit-times-nightly-\ngdunit-times-\n",
+            "an earlier night's times first (every suite fresh), CI's as the seed (#980)",
+        )
         self.assertIn("${{ github.run_id }}", settings["key"])
         self.assertIn("${{ matrix.slug }}", settings["key"], "two refs of a night never reserve one key")
         self.assertLess(cache[0], run)

@@ -58,10 +58,11 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
     """Every step replaced by a stub that records its name and fails when it is `failing`."""
 
     def step(name: str) -> mock.MagicMock:
-        def called(*_args: object, **_kwargs: object) -> int:
+        def called(*_args: object, **kwargs: object) -> int:
+            ran = f"{name}-{kwargs['half']}" if kwargs.get("half") else name  # `test`'s halves (#980)
             if record is not None:
-                record.append(name)
-            return int(name == failing)
+                record.append(ran)
+            return int(ran == failing)
 
         return mock.MagicMock(side_effect=called)
 
@@ -195,7 +196,8 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(verify.LANES["selftest-godot"], ("selftest-godot",))
         in_lanes = [name for names in verify.LANES.values() for name in names]
         self.assertEqual(sorted(["doctor", *in_lanes]), sorted(verify.STEP_ORDER))
-        self.assertEqual(set(verify.steps()), set(verify.STEP_ORDER))
+        halves = {half for names in verify.HALVES.values() for half in names}
+        self.assertEqual(set(verify.steps()), {*verify.STEP_ORDER, *halves})
 
     def test_no_other_godot_run_overlaps_a_network_run(self) -> None:
         # #556: the runner tests that start Godot run beside `test`, after `check`'s import; the first network run
@@ -472,9 +474,15 @@ class PartTest(unittest.TestCase):
     """CI's parts (#857): `verify --full --part <name>` runs doctor and one part's steps; CI runs every part."""
 
     def test_part_steps_cover_the_full_run(self) -> None:
-        # The union of the parts is every step of `verify --full`: a step in no part would never run on CI.
-        in_parts = {name for names in verify.PARTS.values() for name in names}
-        self.assertEqual({"doctor", *in_parts}, set(verify.STEP_ORDER))
+        # The union of the parts is every step of `verify --full`: a step in no part would never run on CI. A step of
+        # HALVES (#980) runs as its halves instead, each in exactly one part, in its place in its lane.
+        in_parts = [name for names in verify.PARTS.values() for name in names if name != "check"]
+        self.assertEqual(len(in_parts), len(set(in_parts)), "no step but check runs in two parts")
+        whole = {step for step, halves in verify.HALVES.items() for half in halves if half in in_parts}
+        self.assertEqual(whole, set(verify.HALVES))
+        replaced = {next((s for s, hs in verify.HALVES.items() if n in hs), n) for n in in_parts}
+        self.assertEqual({"doctor", "check", *replaced}, set(verify.STEP_ORDER))
+        self.assertTrue(set(verify.HALVES).isdisjoint(in_parts), "a split step runs only as its halves on CI")
         self.assertNotIn("doctor", in_parts, "every part runs doctor first anyway")
         for part, names in verify.PARTS.items():
             with self.subTest(part=part):
@@ -482,10 +490,26 @@ class PartTest(unittest.TestCase):
                 lanes = verify.part_lanes(part)
                 self.assertEqual(sorted(n for ns in lanes.values() for n in ns), sorted(names))
                 for lane, steps in lanes.items():  # each in its LANES lane, in its order there
-                    self.assertEqual(list(steps), [n for n in verify.LANES[lane] if n in names])
+                    order = [h for n in verify.LANES[lane] for h in (n, *verify.HALVES.get(n, ()))]
+                    self.assertEqual(list(steps), [n for n in order if n in names])
+
+    def test_test_runs_as_its_two_halves_in_a_part_each_after_check(self) -> None:
+        # #980: CI's longest part was `test`; its halves (gdunit.half_of) run in two jobs at once, every suite once.
+        self.assertEqual(verify.HALVES, {"test": ("test-1", "test-2")})
+        for half, name in enumerate(verify.HALVES["test"], 1):
+            with self.subTest(part=name):
+                self.assertEqual(verify.PARTS[name], ("check", name))
+                self.assertEqual(verify.part_lanes(name), {"godot": ("check", name)})
+                self.assertEqual(verify.part_order(name), ("doctor", "check", name))
+                with mock.patch.object(verify.gdunit, "main", return_value=0) as main:
+                    self.assertEqual(verify.steps()[name](), 0)
+                main.assert_called_once_with(run_import=False, half=half)
+        with mock.patch.object(verify.gdunit, "main", return_value=0) as main:
+            self.assertEqual(verify.steps()["test"](), 0)
+        main.assert_called_once_with(run_import=False)  # a local verify --full: one step of every suite
 
     def test_each_part_with_a_godot_step_imports_first_and_keeps_the_network_runs_apart(self) -> None:
-        godot = {*verify.LANES["godot"], "selftest-godot"}
+        godot = {*verify.LANES["godot"], *verify.HALVES["test"], "selftest-godot"}
         for part, names in verify.PARTS.items():
             with self.subTest(part=part):
                 if godot & set(names):
@@ -493,7 +517,8 @@ class PartTest(unittest.TestCase):
                     self.assertEqual(verify.part_lanes(part)["godot"][0], "check")
                 if set(NETWORK_STEPS) & set(names):  # no Godot run of the part beside a network run, as on one machine
                     self.assertLessEqual(set(NETWORK_STEPS), set(names), "the network runs are not split")
-                    self.assertTrue({"test", "selftest-godot"}.isdisjoint(names), "no other Godot run beside them")
+                    others = {"test", *verify.HALVES["test"], "selftest-godot"}
+                    self.assertTrue(others.isdisjoint(names), "no other Godot run beside them")
         # The count check compares both groups' results of one run with one serial discovery.
         holders = [part for part, names in verify.PARTS.items() if set(verify.COUNTED) & set(names)]
         self.assertEqual(len(holders), 1, holders)
@@ -507,7 +532,8 @@ class PartTest(unittest.TestCase):
                 rc, text, record = run.run(inline_lane, full=False, part=part)
                 self.assertEqual(rc, 0, text)
                 self.assertEqual(sorted(ran), sorted(names))  # doctor: the stub in Verify
-                order = [name for name in verify.STEP_ORDER if name == "doctor" or name in names]
+                every = [h for n in verify.STEP_ORDER for h in (n, *verify.HALVES.get(n, ()))]
+                order = [name for name in every if name == "doctor" or name in names]
                 self.assertEqual([name for _status, name in summary_rows(text)], order)
                 line = verify.PART_LINE.format(part=part, names=", ".join(order[1:]))
                 self.assertIn(f"  {line}", text.splitlines())
@@ -533,7 +559,7 @@ class PartTest(unittest.TestCase):
         lane = mock.MagicMock()
         with mock.patch.object(verify.doctor, "main") as doctor_main, self.assertRaises(verify.Failure) as caught:
             verify.main(run_lane=lane, part="nope", verbose=True)
-        self.assertIn("the parts: test, network, runner", str(caught.exception))
+        self.assertIn("the parts: test-1, test-2, network, runner", str(caught.exception))
         doctor_main.assert_not_called()
         lane.assert_not_called()
 
@@ -570,14 +596,14 @@ class PartTest(unittest.TestCase):
         self.assertEqual(verify.steps_in_flight({"doctor", "lint", "check"}, runner), {"signal", "selftest-godot"})
 
     def test_the_cli_passes_the_part_and_a_part_implies_the_full_run(self) -> None:
-        args = cli.build_parser().parse_args(["verify", "--full", "--part", "test"])
-        self.assertEqual((args.full, args.part), (True, "test"))
+        args = cli.build_parser().parse_args(["verify", "--full", "--part", "test-1"])
+        self.assertEqual((args.full, args.part), (True, "test-1"))
         with mock.patch.object(verify, "main", return_value=0) as main:
             self.assertEqual(cli.main(["verify", "--part", "runner"]), 0)
         self.assertEqual(main.call_args.kwargs["part"], "runner")
         seen: list[bool] = []
         with mock.patch.object(verify, "_verify", side_effect=lambda _l, full, *_a: seen.append(full) or 0):
-            verify.main(run_lane=mock.MagicMock(), part="test", verbose=True)
+            verify.main(run_lane=mock.MagicMock(), part="test-2", verbose=True)
         self.assertEqual(seen, [True])
 
 

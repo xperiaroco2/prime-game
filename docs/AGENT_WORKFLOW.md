@@ -1498,7 +1498,11 @@ the background into a log and polls it with `wait <log>` (§11.17). The rest of 
 its steps, lanes, `AFTER` order, output and record work: the docstrings of `tools/runner/verify.py`, `slots.py`,
 `load.py`, `suspend.py`, `common.py` and `verify --help`; the measurements behind them: git history.
 **CI:** `.github/workflows/ci.yml` runs `tools/run.sh verify --full` on ubuntu-24.04 in parts at once (#857), a job
-per part of `verify.PARTS` (`verify --full --part <name>`), each with its own reports artifact. The job named
+per part of `verify.PARTS` (`verify --full --part <name>`), each with its own reports artifact. Since #980 `test`
+runs there as its two halves, the parts `test-1` and `test-2` (`verify.HALVES`): every script of a run without paths
+is in one half (`gdunit.half_of`: `FIXED_FPS_SUITES` and the folders of `gdunit.HALF_ONE` the first, the rest the
+second; a runner test checks the halves against that run), so each suite runs once on CI; a local `verify --full`
+keeps the one `test` step. The job named
 `verify` needs every part (`if: always()`) and is green only when every part's job was. A second job, `python-min`
 (#349), runs `selftest --group python` on the pinned minimum Python (`pins --get python_min`), since 3.12-only code
 once broke `verify` on 3.11 (#345). Both are required checks of `main` (§8.5), so neither `merge` nor a human's merge
@@ -1644,6 +1648,8 @@ one-process run (exit code, `results.xml`, orphans named), a shard whose `user:/
 merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
 declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
 processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+CI's two test parts (#980) each shard one half of the suites so (`gdunit.main(half=1|2)`), counted against the scan
+of that half, and keep their times under cache keys of their own (`gdunit-times-<part>-`).
 
 ### 11.20 The frame-bound suites at fixed fps [applied, the default without paths] (#280, #341)
 Suites run with the
@@ -1874,8 +1880,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   Each run takes as many processes as `test` would (§11.19: `--shards K`, else one for named paths, else
   `PRIME_TEST_SHARDS`, else half the CPUs; `<paths> --fixed-fps --shards K` runs every shard at fixed fps),
   because one real-time process outgrew the runner's `TIMEOUT` of 600 s per process when the suite grew past about 300 suites (#817: nightly run 38120577422, all three runs of
-  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times
-  CI saves, to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
+  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times of an earlier night (else
+  CI's halves save, #980), to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
   `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variable and runs one process
   per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
   1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when the suite outgrows two

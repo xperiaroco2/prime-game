@@ -1,7 +1,8 @@
 # CI runs the whole suite, `tools/run.sh verify --full` (the definition of done's test gate), on Linux; a local
 # `verify` runs only doctor, lint and check (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md).
 # Since #857 it runs in parts at once, a job each (`verify --full --part <name>`, the parts in tools/runner/verify.py
-# PARTS), and the job named `verify`, the check the ruleset main-2 requires, is green only when every part was.
+# PARTS), and the job named `verify`, the check the ruleset main-2 requires, is green only when every part was. Since
+# #980 `test`, the longest part, runs as its two halves, the parts test-1 and test-2 (verify.HALVES, gdunit.half_of).
 # Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
 # docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
@@ -28,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [test, network, runner]
+        part: [test-1, test-2, network, runner]
     steps:
       # No LFS content: addons/ is outside LFS, and in CI `check` imports a stand-in in place of each LFS pointer
       # file (the LFS ADR's amendment of 2026-10-07, #515).
@@ -41,14 +42,19 @@ jobs:
 
       # The last run's per-suite GdUnit4 seconds, by which `test` balances its shards (tools/runner/gdunit.py, #182).
       # A new key every run, saved after a green job: a run restores the newest one of its branch, else of main's.
-      # Only the part that runs `test` reads and writes them, so no other part saves a stale copy under the key.
+      # Only the parts that run `test`'s halves read and write them, so no other part saves a stale copy; each under
+      # keys of its own (#980: two jobs saving one key race, and the second save is lost), restoring its own part's
+      # newest, else the newest of any key (the keys before #980 had no part; a nightly's or the other half's file may
+      # come, harmless: a half balances only its own suites, and the merge keeps the times it did not run).
       - name: Restore the GdUnit4 suite times
-        if: matrix.part == 'test'
+        if: matrix.part == 'test-1' || matrix.part == 'test-2'
         uses: actions/cache@v6
         with:
           path: tools/out/logs/gdunit-times.json
-          key: gdunit-times-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: gdunit-times-
+          key: gdunit-times-${{ matrix.part }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            gdunit-times-${{ matrix.part }}-
+            gdunit-times-
 
       # CI on Linux runs without the TwoVoIP addon (docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md
       # §2, E35 (a)): only its Windows libraries are committed, and Godot prints an ERROR: line for a .gdextension it

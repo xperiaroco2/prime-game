@@ -50,6 +50,7 @@ def shard_timeout(expected_seconds: float) -> float:
     return min(SHARD_TIMEOUT_CAP, max(TIMEOUT, expected_seconds * SHARD_TIMEOUT_MARGIN))
 
 REPORT_DIR = OUT / "gdunit"
+REPORT_RES = "res://tools/out/gdunit"  # REPORT_DIR as GdUnit4's -rd takes it
 # GdUnitCmdTool exit codes (GdUnit4 6.2.1, GdUnitTestSessionRunner.gd).
 EXIT_MEANING = {
     0: "all tests passed",
@@ -218,15 +219,20 @@ def main(
     run_import: bool = True,
     shards: int | None = None,
     fixed_fps: bool | None = None,
+    half: int | None = None,
 ) -> int:
     """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
     with one shard, one process as before #182. `shards` is `--shards K` (1: one process at a time). `fixed_fps` (the
     fixed-fps section below): None, the default and verify's (#341), is True without paths and False with them; True
     without paths runs FIXED_FPS_SUITES at fixed fps in shards of their own, or, with one process at a time, in a
-    second process after the rest; True with paths is `test <paths> --fixed-fps` (#280), False `test --real-time`."""
+    second process after the rest; True with paths is `test <paths> --fixed-fps` (#280), False `test --real-time`.
+    `half` (1 or 2: verify's steps test-1 and test-2, #980): only that half of a run without paths (half_scripts),
+    sharded and clocked as that run is."""
     global LAST_RUN
     LAST_RUN = None
     say("test" + CLOCK_NOTE[fixed_fps])
+    if half is not None and paths:
+        raise Failure("a half of `test` (#980) is one of a run without paths: give no paths")
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
@@ -241,19 +247,21 @@ def main(
         for line in do_import("test-import"):
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
-    items = selectors(paths, tests_dir)
+    items = selectors(paths, tests_dir) if half is None else half_scripts(half, tests_dir)
+    if half is not None:
+        say(f"test: half {half} of {len(HALF_IDS)} of a run without paths (gdunit.half_of, #980): {len(items)} scripts")
     if count > 1:
-        failed = run_shards(items, count, why, fixed_fps, bool(paths))
+        failed = run_shards(items, count, why, fixed_fps, bool(paths), half=half)
     elif fixed_fps and not paths:
         # One process at a time (2 or 3 CPUs, PRIME_TEST_SHARDS=1, no per-process user://): the listed suites still
         # run at fixed fps, in a second process after the rest, so the clock is CI's on every machine.
-        failed = run_shards(items, 2, why, True, in_turn=True)
+        failed = run_shards(items, 2, why, True, in_turn=True, half=half)
     else:
         failed = None
     if failed is None:
         # One process: at fixed fps only for named paths (a run without paths keeps the rest real-time).
         fixed = fixed_fps and bool(paths)
-        res = godot(_args(paths, tests_dir, FIXED_FPS_ARGS if fixed else ()), timeout=TIMEOUT, log="test")
+        res = godot(_command(items, REPORT_RES, FIXED_FPS_ARGS if fixed else ()), timeout=TIMEOUT, log="test")
         reports = _reports()
         _remember([process_record(1, res, reports)], _failed(res, reports))
         if res.timed_out:
@@ -273,7 +281,7 @@ def selectors(paths: list[str] | None, tests_dir: Path) -> list[str]:
 
 
 def _args(paths: list[str] | None, tests_dir: Path, engine_args: Sequence[str] = ()) -> list[str]:
-    return _command(selectors(paths, tests_dir), "res://tools/out/gdunit", engine_args)
+    return _command(selectors(paths, tests_dir), REPORT_RES, engine_args)
 
 
 def _command(items: list[str], report_dir: str, engine_args: Sequence[str] = ()) -> list[str]:
@@ -596,16 +604,17 @@ FIXED_FPS_SUITES: tuple[str, ...] = (
 FIXED_FPS_SPEEDUP = 10.0
 
 
-def fixed_set(suites: dict[str, list[str]], paths: list[str] | None) -> set[str]:
-    """The suites of a --fixed-fps run that run at fixed fps: every one of named paths, else FIXED_FPS_SUITES (a
-    listed suite the scan did not find is named, since the list has gone stale)."""
+def fixed_set(suites: dict[str, list[str]], paths: list[str] | None, half: int | None = None) -> set[str]:
+    """The suites of a --fixed-fps run that run at fixed fps: every one of named paths, else FIXED_FPS_SUITES, those
+    of `half` (#980) when given (a listed suite the scan did not find is named, since the list has gone stale)."""
     if paths:
         return set(suites)
-    gone = [res for res in FIXED_FPS_SUITES if res not in suites]
+    listed = [res for res in FIXED_FPS_SUITES if half is None or half_of(res) == half]
+    gone = [res for res in listed if res not in suites]
     if gone:
         warn(f"gdunit.FIXED_FPS_SUITES: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
              "update the list")  # fmt: skip
-    return {res for res in FIXED_FPS_SUITES if res in suites}
+    return {res for res in listed if res in suites}
 
 
 def fixed_times(fixed: set[str], times: dict[str, float], at_fixed: dict[str, float]) -> dict[str, float]:
@@ -638,6 +647,33 @@ def split_shards(costs: dict[str, float], fixed: set[str], count: int) -> list[t
     fixed_plan = plan_shards({res: costs[res] for res in fixed_paid}, best)
     real_plan = plan_shards({**{res: costs[res] for res in real_paid}, **free}, count - best)
     return [(shard, True) for shard in fixed_plan] + [(shard, False) for shard in real_plan]
+
+
+# --- halves (#980) ----------------------------------------------------------------------------------------------
+# CI runs `test` in two jobs at once: verify's steps test-1 and test-2 (its parts of the same names, a job each) each
+# run one half of the scripts a run without paths loads, sharded and clocked as that run is (main's `half`); a local
+# `verify --full` keeps the one `test` step of them all. Every script is in exactly one half (half_of: the listed
+# suites and HALF_ONE's folders the first, every other script the second), so the two jobs run every suite once
+# between them (a runner test checks both halves against the scan of a run without paths). The split is by path,
+# never by the times: each job restores its own times, and the halves must not depend on which. The listed suites
+# all go in the first half, so the second half's shards are all real-time. Balanced by CI's seconds of run
+# 38525315154 (2026-10-14, 4 vCPUs, so 2 shards a job; the one `test` step took 757 s, a fixed-fps shard of 47 s
+# beside one real-time shard of every other suite): the first half is the fixed-fps shard beside the real-time suites
+# of life/ and player/ (243 s), the second the rest (493 s) in two real-time shards. A folder that outgrows it moves.
+HALF_ONE: tuple[str, ...] = ("res://tests/integration/client/life/", "res://tests/integration/client/player/")
+HALF_IDS = (1, 2)
+
+
+def half_of(res: str) -> int:
+    """The half (1 or 2) a script of a run without paths is in: the first for FIXED_FPS_SUITES and HALF_ONE."""
+    return 1 if res in FIXED_FPS_SUITES or res.startswith(HALF_ONE) else 2
+
+
+def half_scripts(half: int, tests_dir: Path) -> list[str]:
+    """The scripts of a run without paths in one half, as res:// paths in script_files' order."""
+    if half not in HALF_IDS:
+        raise Failure(f"no half {half} of `test` (the halves: {', '.join(map(str, HALF_IDS))})")
+    return [res for res in script_files(selectors(None, tests_dir)) if half_of(res) == half]
 
 
 def merge_junit(reports: list[Path]) -> ET.Element:
@@ -747,13 +783,19 @@ class ShardRun:
 
 
 def run_shards(
-    items: list[str], count: int, why: str, fixed_fps: bool = False, named: bool = False, in_turn: bool = False
+    items: list[str],
+    count: int,
+    why: str,
+    fixed_fps: bool = False,
+    named: bool = False,
+    in_turn: bool = False,
+    half: int | None = None,
 ) -> bool | None:
     """Run the suites under the selectors in `count` processes at once; True when the run failed. None when fewer
     than two suites are found: the caller runs them in one process. With `fixed_fps`, the fixed-fps suites (every
-    suite of `named` paths, else FIXED_FPS_SUITES) run at --fixed-fps in shards of their own (split_shards).
-    `in_turn` (one process at a time, `why` says why): the shards run one after another with the default user://,
-    and None when no fixed-fps suite is found, since the split then buys nothing."""
+    suite of `named` paths, else FIXED_FPS_SUITES, those of `half` when given) run at --fixed-fps in shards of their
+    own (split_shards). `in_turn` (one process at a time, `why` says why): the shards run one after another with the
+    default user://, and None when no fixed-fps suite is found, since the split then buys nothing."""
     files = script_files(items)
     # Only a suite that declares a test function weighs in the plan: a base class alone runs no test case, and a
     # GdUnit4 process given no test case writes no results.xml.
@@ -771,7 +813,7 @@ def run_shards(
         times = {**times, **inferred}
         source += f"; {len(inferred)} real-time by their --fixed-fps seconds x {FIXED_FPS_SPEEDUP:g}"
     costs = estimates(files, suites, times)
-    fixed = fixed_set(suites, items if named else None) if fixed_fps else set()
+    fixed = fixed_set(suites, items if named else None, half) if fixed_fps else set()
     if fixed:
         costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
         by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
