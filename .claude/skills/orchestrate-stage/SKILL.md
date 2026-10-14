@@ -110,9 +110,10 @@ Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `n
 full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2 args
 also `plan` (with its comment's link, `clipped` when its result was cut, and the planner's `model`), `test_review`
 (mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the engineer drags into the PR) and
-`publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where; a `result` line has the `key` of
-its agent's `started` line): read it only when a field you act on points there. `handoff_posted` or `board_in_review`
-false: post the handoff or `board move <n> in-review` yourself. Merge it into
+`publish_clean`; `followup`: the issue the last checkpoint implementer filed for the rest of the task (#983), which
+the next wave plans like any issue. The whole texts are in the run's `journal.jsonl` (`full` says where; a `result`
+line has the `key` of its agent's `started` line): read it only when a field you act on points there.
+`handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it into
 `main` when the gate in §5 holds, and tell the human what you merged and in which
 order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
 what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
