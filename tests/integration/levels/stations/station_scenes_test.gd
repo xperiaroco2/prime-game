@@ -1,5 +1,6 @@
 extends GdUnitTestSuite
-## The Generator's station scenes (#799, G4; the Generator ADR's GE11): each scene is the device,
+## The Generator's station scenes (#799, G4; the Generator ADR's GE11) and the photo task's
+## devices (#783, P4: the camera, the film box, the printer, the board): each scene is the device,
 ## its collision its own primitive shapes on layer 1 (the art body's hint colliders off), one
 ## use-spot Marker3D in its spawn group on the floor in front of the device, where a player
 ## stands clear of the device, and the named nodes the client drives with their default looks
@@ -9,8 +10,23 @@ extends GdUnitTestSuite
 
 const SWITCH := "res://levels/stations/switch.tscn"
 const GENERATOR := "res://levels/stations/generator.tscn"
+## The photo task's devices (#783, P4); its photo spot, a floor mark with no device, is
+## photo_stations_test.gd's.
+const CAMERA := "res://levels/stations/camera.tscn"
+const FILM_BOX := "res://levels/stations/film_box.tscn"
+const PRINTER := "res://levels/stations/printer.tscn"
+const PHOTO_BOARD := "res://levels/stations/photo_board.tscn"
 ## Each station scene and its use spot's tag (provisional, "not a decision").
-const SCENES := {SWITCH: &"switch", GENERATOR: &"generator"}
+const SCENES := {
+	SWITCH: &"switch",
+	GENERATOR: &"generator",
+	CAMERA: &"camera",
+	FILM_BOX: &"film_box",
+	PRINTER: &"printer",
+	PHOTO_BOARD: &"photo_board",
+}
+## The other markers a scene holds besides its use spot: the printer's tray (`spawn_photo`).
+const OTHER_TAGS := {PRINTER: [&"photo"]}
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const NEAR := 1e-3
 ## The capsule's bottom this far above the floor, so the floor under it is no hit.
@@ -23,7 +39,12 @@ func test_each_scene_has_one_use_spot_in_its_group_on_the_floor_in_front() -> vo
 		var root := _scene(path)
 		var read := MarkerReader.read(root, path, HostWorldQuery.new())
 		assert_array(Array(read.errors)).override_failure_message(path).is_empty()
-		assert_array(read.layout.tags()).override_failure_message(path).is_equal([tag])
+		var tags: Array[StringName] = [tag]
+		tags.append_array(OTHER_TAGS.get(path, []) as Array)
+		tags.sort()
+		var found := read.layout.tags()
+		found.sort()
+		assert_array(found).override_failure_message(path).is_equal(tags)
 		assert_int(read.layout.count(tag)).override_failure_message(path).is_equal(1)
 		var spot := root.get_node_or_null("UseSpot") as Marker3D
 		assert_object(spot).override_failure_message("%s: no UseSpot Marker3D" % path).is_not_null()

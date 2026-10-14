@@ -1,0 +1,31 @@
+[gd_scene format=3 uid="uid://qnol4r1j7i22"]
+
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="1_mark"]
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+material = ExtResource("1_mark")
+inner_radius = 1.94
+outer_radius = 2.0
+rings = 96
+
+[sub_resource type="CylinderMesh" id="CentreMesh"]
+material = ExtResource("1_mark")
+top_radius = 0.2
+bottom_radius = 0.2
+height = 0.01
+radial_segments = 32
+rings = 1
+
+[node name="PhotoSpot" type="Node3D" unique_id=659044352]
+
+[node name="Mark" type="Node3D" parent="." unique_id=1774405099]
+
+[node name="Ring" type="MeshInstance3D" parent="Mark" unique_id=25346321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0)
+mesh = SubResource("RingMesh")
+
+[node name="Centre" type="MeshInstance3D" parent="Mark" unique_id=30842996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, 0)
+mesh = SubResource("CentreMesh")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1178721375 groups=["spawn_photo_spot"]]

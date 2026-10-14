@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://x70p3e4ng853"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_stand"]
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="2_box"]
+[ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="3_lid"]
+
+[sub_resource type="BoxMesh" id="StandMesh"]
+material = ExtResource("1_stand")
+size = Vector3(0.7, 0.75, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh"]
+material = ExtResource("2_box")
+size = Vector3(0.5, 0.25, 0.36)
+
+[sub_resource type="BoxMesh" id="LidMesh"]
+material = ExtResource("3_lid")
+size = Vector3(0.52, 0.03, 0.38)
+
+[sub_resource type="BoxShape3D" id="StandShape"]
+size = Vector3(0.7, 0.75, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape"]
+size = Vector3(0.5, 0.28, 0.38)
+
+[node name="FilmBox" type="Node3D" unique_id=1130407644]
+
+[node name="Body" type="Node3D" parent="." unique_id=893654335]
+
+[node name="Stand" type="MeshInstance3D" parent="Body" unique_id=958346449]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0)
+mesh = SubResource("StandMesh")
+
+[node name="Box" type="MeshInstance3D" parent="Body" unique_id=467665684]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)
+mesh = SubResource("BoxMesh")
+
+[node name="Lid" type="MeshInstance3D" parent="Body" unique_id=1683021078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.015, 0)
+mesh = SubResource("LidMesh")
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1545427217]
+
+[node name="Stand" type="CollisionShape3D" parent="Collision" unique_id=429827747]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0)
+shape = SubResource("StandShape")
+
+[node name="Box" type="CollisionShape3D" parent="Collision" unique_id=448818872]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.89, 0)
+shape = SubResource("BoxShape")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1543542780 groups=["spawn_film_box"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.8)
