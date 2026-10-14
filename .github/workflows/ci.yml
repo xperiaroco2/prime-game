@@ -44,7 +44,8 @@ jobs:
       # A new key every run, saved after a green job: a run restores the newest one of its branch, else of main's.
       # Only the parts that run `test`'s halves read and write them, so no other part saves a stale copy; each under
       # keys of its own (#980: two jobs saving one key race, and the second save is lost), restoring its own part's
-      # newest, else any CI run's (the keys before #980 had no part).
+      # newest, else the newest of any key (the keys before #980 had no part; a nightly's or the other half's file may
+      # come, harmless: a half balances only its own suites, and the merge keeps the times it did not run).
       - name: Restore the GdUnit4 suite times
         if: matrix.part == 'test-1' || matrix.part == 'test-2'
         uses: actions/cache@v6

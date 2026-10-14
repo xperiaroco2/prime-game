@@ -249,7 +249,7 @@ def main(
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
     items = selectors(paths, tests_dir) if half is None else half_scripts(half, tests_dir)
     if half is not None:
-        say(f"test: half {half} of {len(HALVES)} of a run without paths (gdunit.half_of, #980): {len(items)} scripts")
+        say(f"test: half {half} of {len(HALF_IDS)} of a run without paths (gdunit.half_of, #980): {len(items)} scripts")
     if count > 1:
         failed = run_shards(items, count, why, fixed_fps, bool(paths), half=half)
     elif fixed_fps and not paths:
@@ -661,7 +661,7 @@ def split_shards(costs: dict[str, float], fixed: set[str], count: int) -> list[t
 # beside one real-time shard of every other suite): the first half is the fixed-fps shard beside the real-time suites
 # of life/ and player/ (243 s), the second the rest (493 s) in two real-time shards. A folder that outgrows it moves.
 HALF_ONE: tuple[str, ...] = ("res://tests/integration/client/life/", "res://tests/integration/client/player/")
-HALVES = (1, 2)
+HALF_IDS = (1, 2)
 
 
 def half_of(res: str) -> int:
@@ -671,8 +671,8 @@ def half_of(res: str) -> int:
 
 def half_scripts(half: int, tests_dir: Path) -> list[str]:
     """The scripts of a run without paths in one half, as res:// paths in script_files' order."""
-    if half not in HALVES:
-        raise Failure(f"no half {half} of `test` (the halves: {', '.join(map(str, HALVES))})")
+    if half not in HALF_IDS:
+        raise Failure(f"no half {half} of `test` (the halves: {', '.join(map(str, HALF_IDS))})")
     return [res for res in script_files(selectors(None, tests_dir)) if half_of(res) == half]
 
 

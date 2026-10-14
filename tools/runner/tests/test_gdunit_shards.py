@@ -720,7 +720,7 @@ class RepoHalvesTest(unittest.TestCase):
     def test_the_halves_split_this_repos_tests_with_every_suite_in_one(self) -> None:
         tests = gdunit.ROOT / "tests"
         whole = gdunit.script_files(gdunit.selectors(None, tests))
-        one, two = (gdunit.half_scripts(half, tests) for half in gdunit.HALVES)
+        one, two = (gdunit.half_scripts(half, tests) for half in gdunit.HALF_IDS)
         self.assertEqual(sorted(one + two), sorted(whole))
         self.assertTrue(set(one).isdisjoint(two))
         suites = [{res for res, found in gdunit.static_suites(half).items() if found} for half in (one, two)]
