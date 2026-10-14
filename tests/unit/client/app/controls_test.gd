@@ -37,10 +37,10 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_seventeen_actions_of_settings_controls_each_with_its_phases() -> void:
-	# #488's rule 5: 16 rows and the crouch's (#951), 17; rule 6: the implementer defines the phase
-	# of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(17)
+func test_there_are_the_eighteen_actions_of_settings_controls_each_with_its_phases() -> void:
+	# #488's rule 5: 16 rows, the crouch's (#951) and the throw's (#851), 18; rule 6: the
+	# implementer defines the phase of each action.
+	assert_int(Controls.ACTIONS.size()).is_equal(18)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -51,7 +51,7 @@ func test_there_are_the_seventeen_actions_of_settings_controls_each_with_its_pha
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_seventeen_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_eighteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -65,6 +65,7 @@ func test_the_seventeen_actions_have_the_issues_deck_keys_and_defaults() -> void
 		[&"use", &"control.use", MOUSE_BUTTON_LEFT],
 		[&"put_down", &"control.put_down", KEY_Q],
 		[&"swap", &"control.swap", KEY_X],
+		[&"throw", &"control.throw", KEY_G],
 		[&"map", &"control.map", KEY_M],
 		[&"give_up", &"control.give_up", KEY_F],
 		[&"ready", &"control.ready", KEY_F],
@@ -96,25 +97,37 @@ func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 		assert_array(controls.clashes_of(action)).override_failure_message(action).is_empty()
 
 
-func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
-	# #842's review: throw (G, #645) is no Settings row yet (#851), so a living action bound to G
-	# would swing and throw on one press. Such a binding is refused, as a fixed key is; an action
-	# that never acts while living may take G.
-	assert_dict(Controls.UNLISTED).is_equal({&"throw": Controls.Phase.ALIVE})
-	assert_bool(Controls.ACTIONS.has(&"throw")).is_false()
+func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions() -> void:
+	# #645's throw on the physical G, acting while living. A Settings row since #851 (deck key
+	# `control.throw`), as every living action, so no action is left unlisted.
+	assert_str(String(Controls.ACTIONS[&"throw"])).is_equal("control.throw")
+	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.Phase.ALIVE)
+	assert_dict(Controls.UNLISTED).is_empty()
+	assert_str(Controls.name_of(&"throw")).is_equal("Toss")
+	TranslationServer.set_locale("uk")
+	assert_str(Controls.name_of(&"throw")).is_equal("Жбурнути")
 	assert_int(_key(Controls.default_event(&"throw"))).is_equal(KEY_G)
+	# No default binding clashes with it: no other action is on G.
 	var controls := Controls.new()
-	assert_bool(controls.bind(&"use", _press(KEY_G))).is_false()
-	assert_bool(controls.is_default(&"use")).is_true()
-	assert_array(Controls.unlisted_on(&"use", _press(KEY_G))).contains_exactly([&"throw"])
-	# Move forward acts while living too (and in the lobby and downed): refused as well.
-	assert_bool(controls.bind(&"move_forward", _press(KEY_G))).is_false()
-	# Give up acts only while downed, Ready only in the lobby: G is theirs to take.
+	assert_bool(controls.is_default(&"throw")).is_true()
+	assert_array(controls.clashes_of(&"throw")).is_empty()
+	# Use on G is no longer refused: it is the same-key warning, both ways (both act while living).
+	assert_bool(controls.bind(&"use", _press(KEY_G))).is_true()
+	assert_array(controls.clashes_of(&"throw")).contains_exactly([&"use"])
+	assert_array(controls.clashes_of(&"use")).contains_exactly([&"throw"])
+	# Give up acts only while downed, Ready only in the lobby: G is no clash for them.
 	assert_bool(controls.bind(&"give_up", _press(KEY_G))).is_true()
 	assert_bool(controls.bind(&"ready", _press(KEY_G))).is_true()
-	assert_array(Controls.unlisted_on(&"give_up", _press(KEY_G))).is_empty()
-	# Another key for a living action is still fine.
-	assert_bool(controls.bind(&"use", _press(KEY_H))).is_true()
+	assert_array(controls.clashes_of(&"throw")).contains_exactly([&"use"])
+	# Rebound, it takes the new key and the others keep theirs.
+	assert_bool(controls.bind(&"throw", _press(KEY_H))).is_true()
+	assert_int(_key(controls.event_of(&"throw"))).is_equal(KEY_H)
+	assert_bool(controls.is_default(&"throw")).is_false()
+	assert_array(controls.clashes_of(&"throw")).is_empty()
+	# Reset puts it back on G; KeyLabel names it from the binding (headless: the key's name).
+	controls.reset()
+	assert_int(_key(controls.event_of(&"throw"))).is_equal(KEY_G)
+	assert_str(KeyLabel.of_action(&"throw")).is_equal(OS.get_keycode_string(KEY_G))
 
 
 func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actions() -> void:
@@ -150,15 +163,16 @@ func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actio
 	assert_str(KeyLabel.of_action(&"crouch")).is_equal(OS.get_keycode_string(KEY_CTRL))
 
 
-func test_a_saved_living_binding_on_the_throw_key_reads_as_its_default() -> void:
-	# A controls.cfg written before the refusal (Use on G) keeps Use's default.
+func test_a_saved_living_binding_on_the_throw_key_is_kept_as_a_clash() -> void:
+	# A controls.cfg with Use on G (refused before #851) now reads as bound: the panel warns.
 	var path := "user://controls_throw_key_test.cfg"
 	var file := ConfigFile.new()
 	file.set_value(Controls.SECTION, "use", Controls.encode(_press(KEY_G)))
 	assert_int(file.save(path)).is_equal(OK)
 	var controls := Controls.new(path)
 	assert_int(controls.read()).is_equal(OK)
-	assert_bool(controls.is_default(&"use")).is_true()
+	assert_bool(controls.is_default(&"use")).is_false()
+	assert_array(controls.clashes_of(&"throw")).contains_exactly([&"use"])
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
@@ -190,7 +204,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 17 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 18 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()
