@@ -82,13 +82,13 @@ func test_bare_spin_boxes_take_toy_spin_box() -> void:
 		)
 		# Each arrow is (the spin box's height - the separation) / 2 (spin_box.cpp, 4.7.2), and
 		# the height is its field's: the field's content margins and one line of Comfortaa.
-		# CI imports a stand-in font (#520), so the line comes from the committed metrics.
+		# CI imports a stand-in font (#520), so the line comes from the committed metrics, and the
+		# margins from the field's StyleBox (the font does not enter them).
 		var field := spin.get_line_edit()
 		var size := field.get_theme_font_size(&"font_size")
-		var font := field.get_theme_font(&"font")
 		var height := spin.get_combined_minimum_size().y
 		assert_float(height).is_equal(field.get_combined_minimum_size().y)
-		var margins := height - font.get_height(size)
+		var margins := field.get_theme_stylebox(&"normal").get_minimum_size().y
 		assert_float(margins).is_equal(24.0)
 		var per_unit := float(size) / float(metrics["size"] as int)
 		var line := ceilf(per_unit * (metrics["ascent"] as int))
