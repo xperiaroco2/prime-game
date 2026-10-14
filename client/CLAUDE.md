@@ -52,7 +52,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera);
-  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525); where the crouch plays a slow step is quieter and nearer by its speed, never the crouch flag (#792).
+  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525); a step at the crouch walk's speed is quieter and nearer, eased to a walk's at the fast crouch's, by its speed, never the crouch flag (#792, #991).
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
@@ -67,7 +67,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.52).
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height, stamina,
-  the crouch's numbers and `crouch_maps`, read by `GameFlow.crouch_plays`, #791) come from the client's own copy of the mode's `PlayerRules`;
+  the crouch's numbers, #791; the crouch plays everywhere, #991) come from the client's own copy of the mode's `PlayerRules`;
   `PlayerTuning` keeps client feel only (the push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
 - Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity, and every head or
   basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be

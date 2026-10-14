@@ -13,8 +13,8 @@ extends CharacterBody3D
 ## A dead player has no body: no layer, no mesh, and the game stops its physics step. The origin is
 ## at the feet.
 ##
-## The crouch (the crouch ADR, #791): while `crouch_held` (Ctrl), living, where `crouch_plays`
-## (Game says so from the mode's crouch_maps, KE10; never in the lobby), the body takes the
+## The crouch (the crouch ADR, #791): while `crouch_held` (Ctrl) and living, anywhere (the lobby
+## included: the crouch plays everywhere, #991), the body takes the
 ## crouched capsule at once, its own CapsuleShape3D's height switched with the feet kept, and the
 ## view eases to the crouched eye (KE5). It stands only where the stand-up test (`test_move`
 ## straight up by the height difference, KE6) finds room, so letting go under a low ceiling keeps
@@ -82,10 +82,6 @@ var sprint_held: bool = false
 var jump_requested: bool = false
 ## The crouch key is held (KE8: hold, not toggle).
 var crouch_held: bool = false
-## Whether the crouch plays in the level the game has loaded (the crouch ADR, KE10): Game sets it;
-## elsewhere the crouch key does nothing, and a change to false stands the body up at once.
-var crouch_plays := false:
-	set = set_crouch_plays
 ## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
 ## captures or frees it; the keys still move the player. Game sets it every frame.
 var mouse_free := false
@@ -193,14 +189,6 @@ func set_rules(value: PlayerRules) -> void:
 	rules = value
 	if rules != null and is_node_ready():
 		_apply_rules()
-
-
-## Sets whether the crouch plays here (KE10). Where it stops playing the body stands at once, as a
-## life change out of the living does: the level is changing under it.
-func set_crouch_plays(value: bool) -> void:
-	crouch_plays = value
-	if not value and _crouched:
-		_set_crouched(false)
 
 
 ## Lets go of every key it holds, as Game does when nothing reads the keys (the Esc menu, #169):
@@ -503,10 +491,10 @@ func _speed() -> float:
 	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
 
 
-## Whether the body wants the crouch now (the crouch ADR's step 1): the key held, living, and the
-## crouch plays here (KE10).
+## Whether the body wants the crouch now (the crouch ADR's step 1): the key held and living,
+## anywhere (the crouch plays everywhere, #991).
 func _wants_crouch() -> bool:
-	return crouch_held and crouch_plays and is_living()
+	return crouch_held and is_living()
 
 
 ## The crouch ADR's steps 2 and 3, at the start of a living step: wanting, the body takes the
@@ -534,13 +522,14 @@ func _stand_to_jump() -> bool:
 	return true
 
 
-## The ADR's step 7, for a body placed anew at `at` (a teleport, a life change): living where the
-## crouch plays, it takes the crouched capsule first and, unless it wants the crouch, stands only
-## where the stand-up test from `at` finds room; otherwise the standing capsule.
+## The ADR's step 7, for a body placed anew at `at` (a teleport, a life change): living (the
+## crouch plays everywhere, #991), it takes the crouched capsule first and, unless it wants the
+## crouch, stands only where the stand-up test from `at` finds room; otherwise the standing
+## capsule.
 func _crouch_where_placed(at: Transform3D) -> void:
 	if _capsule == null:
 		return
-	if not (crouch_plays and is_living()):
+	if not is_living():
 		_set_crouched(false)
 		return
 	_set_crouched(true)

@@ -67,7 +67,7 @@ func before_test() -> void:
 	_pair = NetPair.new()
 	_pair.with_life(RESPAWN_S)
 	_pair.mode.player_rules.knockdown_s = KNOCKDOWN_S
-	_pair.with_crouch_room(true)
+	_pair.with_crouch_room()
 	add_child(_pair)
 
 

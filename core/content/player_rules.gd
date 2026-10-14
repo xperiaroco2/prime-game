@@ -46,20 +46,18 @@ extends ContentPart
 ## for a crouched player's eye (Items.eye_of) and capsule (Strike, the throw's contact and radius
 ## bound), and the crouch walk's speeds without and with Shift, which only the client moves at (KE3
 ## (a): the host checks a crouched claim with the walk's and the sprint's bounds). Placeholders,
-## "not a decision", as are their bounds.
+## "not a decision", as are their bounds. The crouch plays everywhere, the lobby included, with no
+## per-map option (the engineer, #989/#991: the crouch ADR's KE10 amendment). On the client a step
+## at or below `crouch_speed_mps` is quiet and one at `crouch_fast_speed_mps` a walk's (KD1 (b)).
 @export var crouch_height_m := 0.0
 @export var crouch_eye_height_m := 0.0
 @export var crouch_speed_mps := 0.0
 @export var crouch_fast_speed_mps := 0.0
-## The paths of the mode's maps the crouch plays on (KE10), empty for every map, the shape of
-## TaskType.maps: it plays only in a phase on the match's map (PhaseSpec.level MAP) that this
-## lists, never in the lobby (MatchContext.crouch_plays). Each path must be one of the mode's maps.
-@export var crouch_maps: PackedStringArray = PackedStringArray()
 ## The paths of the mode's maps on which a knockdown starts a motion: the host's physics moves the
-## body (the knockdown rework's §4, KE12 (a)), empty for every map, the shape of TaskType.maps and
-## crouch_maps. On a map it leaves out a knockdown takes no launch and starts no host body. Each
-## path must be one of the mode's maps, and the crouch must play on each map it covers (KD11: a
-## body rests only where a crouching player fits, and a raised player gets up crouched).
+## body (the knockdown rework's §4, KE12 (a)), empty for every map, the shape of TaskType.maps. On
+## a map it leaves out a knockdown takes no launch and starts no host body. Each path must be one
+## of the mode's maps. KD11's need (a body rests only where a crouching player fits, and a raised
+## player gets up crouched) holds on every map: the crouch plays everywhere (#991).
 @export var motion_maps: PackedStringArray = PackedStringArray()
 ## The rest (KE15): a motion ends once the reports stay slower than `rest_speed_mps` for `rest_s`
 ## (counted in reports), or once it has lasted `longest_motion_s` (counted in ticks). Placeholders,
@@ -77,12 +75,6 @@ func height_of(crouched: bool) -> float:
 ## The eye's height above the feet of a player standing, or crouched where `crouched`.
 func eye_height_of(crouched: bool) -> float:
 	return crouch_eye_height_m if crouched else eye_height_m
-
-
-## Whether the crouch plays on the map at `path` (KE10): the list is empty or holds it. Says
-## nothing of the phase: MatchContext.crouch_plays asks this only in a phase on the match's map.
-func crouch_plays_on(path: String) -> bool:
-	return crouch_maps.is_empty() or crouch_maps.has(path)
 
 
 ## Whether a knockdown on the map at `path` starts a motion (KE12): the list is empty or holds it.
@@ -125,14 +117,7 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds("longest_motion_s", longest_motion_s, maxf(1.0, rest_s), 60),
 		]
 	)
-	for map: String in crouch_maps:
-		if mode == null or not mode.maps.has(map):
-			found.append("crouch_maps lists %s, which is not one of the mode's maps" % map)
 	for map: String in motion_maps:
 		if mode == null or not mode.maps.has(map):
 			found.append("motion_maps lists %s, which is not one of the mode's maps" % map)
-	if mode != null:
-		for map: String in mode.maps:
-			if motion_plays_on(map) and not crouch_plays_on(map):
-				found.append("a body moves on %s, where the crouch does not play (KD11)" % map)
 	return found

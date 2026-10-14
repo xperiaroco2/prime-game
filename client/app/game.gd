@@ -614,9 +614,6 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 	# (the designer's answer on #253): the controller only stops looking and recapturing. So
 	# does the tutorial's invite (#492), under which no key counts.
 	_player.mouse_free = ui.frees_mouse()
-	# Elsewhere, the lobby included, no crouch key and no quiet step (the crouch ADR, KE10; #792).
-	_player.crouch_plays = GameFlow.crouch_plays(_session_state(), _welcomed_model(), mode)
-	_items.sounds.crouch_plays = _player.crouch_plays
 	_life.reads_device_input = device_input
 	_life.listening = listening and now == GameFlow.Screen.ROUND
 	_items.interactions.reads_device_input = device_input

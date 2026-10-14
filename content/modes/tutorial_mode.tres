@@ -294,7 +294,6 @@ crouch_height_m = 1.2
 crouch_eye_height_m = 1.0
 crouch_speed_mps = 2.0
 crouch_fast_speed_mps = 2.8
-crouch_maps = PackedStringArray("res://levels/tutorial/tutorial.tscn")
 rest_speed_mps = 0.1
 rest_s = 0.5
 longest_motion_s = 8.0

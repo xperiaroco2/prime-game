@@ -201,26 +201,6 @@ func test_space_under_the_slab_does_nothing() -> void:
 	assert_bool(player.jump_requested).is_false()
 
 
-func test_where_the_crouch_does_not_play_the_key_does_nothing() -> void:
-	var player := await _player(START)
-	player.crouch_plays = false
-	player.crouch_held = true
-	player.move_input = Vector2(0.0, 1.0)
-	await _world.frames(150)
-	assert_bool(player.is_crouched()).is_false()
-	assert_float(player.global_position.z).is_greater(SLAB_NEAR_Z)
-	# A teleport underneath stands too, and so does a crouch the level change ends.
-	player.teleport(Transform3D(player.global_basis, UNDER))
-	assert_bool(player.is_crouched()).is_false()
-	player.teleport(Transform3D(player.global_basis, START))
-	player.crouch_plays = true
-	await _world.frames(1)
-	assert_bool(player.is_crouched()).is_true()
-	player.crouch_plays = false
-	assert_bool(player.is_crouched()).is_false()
-	assert_float(_capsule(player).height).is_equal_approx(_rules.capsule_height_m, 0.0001)
-
-
 func test_the_downed_and_the_dead_never_crouch() -> void:
 	var player := await _player(START)
 	player.crouch_held = true
@@ -234,17 +214,15 @@ func test_the_downed_and_the_dead_never_crouch() -> void:
 func test_each_body_keeps_its_own_capsule() -> void:
 	var one := await _player(START)
 	var two := _world.add_player(START + Vector3(4.0, 0.0, 0.0))
-	two.crouch_plays = true
 	one.crouch_held = true
 	await _world.frames(2)
 	assert_float(_capsule(one).height).is_equal_approx(_rules.crouch_height_m, 0.0001)
 	assert_float(_capsule(two).height).is_equal_approx(_rules.capsule_height_m, 0.0001)
 
 
-## A living player at `at` where the crouch plays, at rest on the floor.
+## A living player at `at`, at rest on the floor.
 func _player(at: Vector3) -> PlayerController:
 	var player := _world.add_player(at)
-	player.crouch_plays = true
 	await _world.frames(3)
 	return player
 

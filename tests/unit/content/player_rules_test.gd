@@ -69,29 +69,23 @@ func test_the_crouch_numbers_are_bounded_by_the_standing_ones() -> void:
 	assert_array(Array(rules.check(null))).is_empty()
 
 
-func test_crouch_maps_lists_only_the_modes_maps() -> void:
-	var mode := FixtureModes.basic()
-	var rules := mode.player_rules
-	rules.crouch_maps = PackedStringArray([FixtureModes.MAP])
-	assert_array(Array(rules.check(mode))).is_empty()
-	rules.crouch_maps = PackedStringArray([FixtureModes.MAP, "fixture://elsewhere"])
-	assert_array(Array(rules.check(mode))).is_equal(
-		["crouch_maps lists fixture://elsewhere, which is not one of the mode's maps"]
-	)
+func test_the_crouch_has_no_per_map_option() -> void:
+	# The engineer's change (#989, #991): the crouch plays everywhere, "we need no such option
+	# at all". crouch_maps and crouch_plays_on (the crouch ADR's KE10 (a)) are gone for good.
+	var rules := PlayerRules.new()
+	var names: Array[String] = []
+	for property: Dictionary in rules.get_property_list():
+		names.append(property["name"] as String)
+	assert_array(names).not_contains(["crouch_maps"])
+	assert_bool(rules.has_method(&"crouch_plays_on")).is_false()
 
 
-func test_the_crouched_pick_of_the_height_and_the_eye_and_where_it_plays() -> void:
+func test_the_crouched_pick_of_the_height_and_the_eye() -> void:
 	var rules := FixtureModes.player_rules()
 	assert_float(rules.height_of(false)).is_equal(1.8)
 	assert_float(rules.height_of(true)).is_equal(1.2)
 	assert_float(rules.eye_height_of(false)).is_equal(1.6)
 	assert_float(rules.eye_height_of(true)).is_equal(1.0)
-	# An empty list: every map; a list: its maps alone.
-	assert_bool(rules.crouch_plays_on("fixture://a")).is_true()
-	assert_bool(rules.crouch_plays_on("fixture://b")).is_true()
-	rules.crouch_maps = PackedStringArray(["fixture://a"])
-	assert_bool(rules.crouch_plays_on("fixture://a")).is_true()
-	assert_bool(rules.crouch_plays_on("fixture://b")).is_false()
 
 
 func test_the_rest_numbers_are_bounded() -> void:
@@ -117,9 +111,9 @@ func test_the_rest_numbers_are_bounded() -> void:
 	assert_array(Array(rules.check(null))).is_empty()
 
 
-func test_motion_maps_lists_only_the_modes_maps_and_where_the_crouch_plays() -> void:
-	# KE12 (a), KD11: an empty list moves bodies on every map; a listed path that is not one of the
-	# mode's maps is refused, and so is a map where a body moves but the crouch does not play.
+func test_motion_maps_lists_only_the_modes_maps() -> void:
+	# KE12 (a): an empty list moves bodies on every map; a listed path that is not one of the mode's
+	# maps is refused. KD11's crouch check is gone: the crouch plays everywhere (#991).
 	var mode := FixtureModes.with_motion_map(FixtureModes.basic())
 	var rules := mode.player_rules
 	assert_array(Array(rules.check(mode))).is_empty()
@@ -133,15 +127,3 @@ func test_motion_maps_lists_only_the_modes_maps_and_where_the_crouch_plays() -> 
 	assert_array(Array(rules.check(mode))).is_equal(
 		["motion_maps lists fixture://elsewhere, which is not one of the mode's maps"]
 	)
-	rules.motion_maps = PackedStringArray([FixtureModes.MOTION_MAP])
-	rules.crouch_maps = PackedStringArray([FixtureModes.MAP])
-	assert_array(Array(rules.check(mode))).is_equal(
-		["a body moves on fixture://motion_map, where the crouch does not play (KD11)"]
-	)
-	# An empty motion_maps covers every map, so each must have the crouch.
-	rules.motion_maps = PackedStringArray()
-	assert_array(Array(rules.check(mode))).is_equal(
-		["a body moves on fixture://motion_map, where the crouch does not play (KD11)"]
-	)
-	rules.crouch_maps = PackedStringArray([FixtureModes.MAP, FixtureModes.MOTION_MAP])
-	assert_array(Array(rules.check(mode))).is_empty()

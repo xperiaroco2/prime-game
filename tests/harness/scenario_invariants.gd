@@ -30,9 +30,9 @@ extends RefCounted
 ## - Nothing reaches only the dead: every event a dead peer receives is either for it alone (an
 ##   event for one peer, FOR_ONE or a one-peer declaration, naming it) or also reaches every living
 ##   peer present then.
-## - The crouch invariant (the crouch ADR, KE1, KE10, #790): per tick, no snapshot shows an avatar
-##   crouched unless its player is alive, the phase is on the match's map (PhaseSpec.level MAP) and
-##   the mode's PlayerRules.crouch_maps lists that map or is empty (crouch_problem).
+## - The crouch invariant (the crouch ADR, KE1; KE10 as #991 amended it, #790): per tick, no
+##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
+##   plays in every phase and on every map.
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -397,24 +397,17 @@ func _check_distance(peer: int, speakers: PackedInt32Array, radius: float) -> Pa
 	return found
 
 
-## Why the snapshot avatar `avatar` of `peer` breaks the crouch invariant (the crouch ADR, KE1,
-## KE10), or "" when it does not: it shows `crouched` though the player is not alive, the phase is
-## not on the match's map (PhaseSpec.level MAP: never the lobby, whose state.map is already the
-## next pick), or the mode's PlayerRules.crouch_maps is not empty and does not list state.map.
-## Read from the mode's data, written apart from Match.crouch_plays and MovementRule, so a rule
-## that keeps a crouch where it does not play fails here though view_of agrees with it.
+## Why the snapshot avatar `avatar` of `peer` breaks the crouch invariant (the crouch ADR, KE1),
+## or "" when it does not: it shows `crouched` though the player is not alive. Read from the
+## player's state, written apart from MovementRule, so a rule that keeps a downed or dead player's
+## crouch fails here though view_of agrees with it. The crouch plays in every phase and on every
+## map (#991: the engineer removed the per-map list), so no phase or map clause remains.
 static func crouch_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 	if avatar.get("crouched") != true:
 		return ""
 	var player := game.state.player(peer)
 	if player == null or player.life != PlayerState.Life.ALIVE:
 		return "shows peer %d crouched, not alive" % peer
-	var spec := game.mode.find_phase(game.phase_id())
-	if spec == null or spec.level != PhaseSpec.Level.MAP:
-		return "shows peer %d crouched in %s, a phase off the match's map" % [peer, game.phase_id()]
-	var rules := game.mode.player_rules
-	if rules == null or not (rules.crouch_maps.is_empty() or rules.crouch_maps.has(game.state.map)):
-		return "shows peer %d crouched on %s, a map without the crouch" % [peer, game.state.map]
 	return ""
 
 

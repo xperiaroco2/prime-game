@@ -1,13 +1,13 @@
 extends GdUnitTestSuite
-## The crouch over the real wire, without bots (#790; the crouch ADR, KE1, KE10, KD7 (a); the
-## engineer's answer (a) on #790: no greybox, the harness on a fixture mode instead; ARCHITECTURE
-## §4.6): ClientSessions and a raw client against a HostSession over a LoopbackHub, the codec in
-## between, on the harness's fixture mode with PlayerRules.crouch_maps listing Harness.MAP alone.
-## A crouched claim on MAP is kept and every other client sees the avatar crouched; a downed
-## claim's bit, the bit on SMALL_MAP (a map of the mode crouch_maps does not list) and the bit in
-## the lobby are each ignored, the claim itself still taken (never a Rejected). What each client
-## decoded equals its Match.view_of. A raw client's hand-built crouched claim (a modified client)
-## gets the same answers.
+## The crouch over the real wire, without bots (#790; the crouch ADR, KE1, KD7 (a), KE10 as #991
+## amended it; the engineer's answer (a) on #790: no greybox, the harness on a fixture mode instead;
+## ARCHITECTURE §4.6): ClientSessions and a raw client against a HostSession over a LoopbackHub,
+## the codec in between, on the harness's fixture mode. A crouched claim is kept and every other
+## client sees the avatar crouched, on MAP, on SMALL_MAP and in the lobby (the crouch plays
+## everywhere: the engineer's change on #989, where these tests asserted the bit ignored before);
+## a downed claim's bit is ignored, the claim itself still taken (never a Rejected). What each
+## client decoded equals its Match.view_of. A raw client's hand-built crouched claim (a modified
+## client) gets the same answers.
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 
@@ -27,7 +27,6 @@ func test_a_crouched_avatar_reaches_every_other_client_and_a_downed_claims_bit_i
 	var second := _in_round(Harness.MAP)
 	var game := _h.session.game
 	var peer := _h.peer_of(second)
-	assert_bool(game.crouch_plays()).is_true()
 	_pose(second, true)
 	assert_bool(game.state.player(peer).crouched).is_true()
 	assert_bool(_h.own.model.is_crouched(peer)).is_true()
@@ -50,23 +49,22 @@ func test_a_crouched_avatar_reaches_every_other_client_and_a_downed_claims_bit_i
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_on_a_map_crouch_maps_does_not_list_the_bit_is_ignored() -> void:
+func test_on_the_second_map_the_bit_is_kept() -> void:
 	var second := _in_round(Harness.SMALL_MAP)
 	var game := _h.session.game
 	var peer := _h.peer_of(second)
 	assert_str(game.state.map).is_equal(Harness.SMALL_MAP)
-	assert_bool(game.crouch_plays()).is_false()
 	var claims_before: int = _h.claims_in.get(&"round", 0)
 	_pose(second, true)
 	assert_int(_h.claims_in.get(&"round", 0)).is_greater(claims_before)
-	assert_bool(game.state.player(peer).crouched).is_false()
-	assert_bool(_h.own.model.is_crouched(peer)).is_false()
+	assert_bool(game.state.player(peer).crouched).is_true()
+	assert_bool(_h.own.model.is_crouched(peer)).is_true()
 	for client: ClientSession in _h.clients:
 		assert_array(_h.mismatches(client)).is_empty()
 		assert_array(client.view.events_named(&"Rejected")).is_empty()
 
 
-func test_in_the_lobby_the_bit_is_ignored_though_the_next_map_plays_it() -> void:
+func test_in_the_lobby_the_bit_is_kept() -> void:
 	_h = Harness.new(_mode())
 	var second := _h.join()
 	assert_bool(_h.welcome_all()).is_true()
@@ -74,17 +72,15 @@ func test_in_the_lobby_the_bit_is_ignored_though_the_next_map_plays_it() -> void
 	var game := _h.session.game
 	var peer := _h.peer_of(second)
 	assert_str(str(game.phase_id())).is_equal("lobby")
-	assert_bool(game.state.player_rules.crouch_plays_on(game.state.map)).is_true()
-	assert_bool(game.crouch_plays()).is_false()
 	_pose(second, true)
 	assert_int(_h.claims_in.get(&"lobby", 0)).is_greater(0)
-	assert_bool(game.state.player(peer).crouched).is_false()
-	assert_bool(_h.own.model.is_crouched(peer)).is_false()
+	assert_bool(game.state.player(peer).crouched).is_true()
+	assert_bool(_h.own.model.is_crouched(peer)).is_true()
 	for client: ClientSession in _h.clients:
 		assert_array(_h.mismatches(client)).is_empty()
 
 
-func test_a_hostile_crouch_bit_is_kept_only_where_the_crouch_plays() -> void:
+func test_a_hostile_crouch_bit_is_kept_except_downed() -> void:
 	_h = Harness.new(_mode())
 	var game := _h.session.game
 	var hostile := _h.raw()
@@ -93,13 +89,13 @@ func test_a_hostile_crouch_bit_is_kept_only_where_the_crouch_plays() -> void:
 	_h.pump_frames(4)
 	assert_int(hostile.named(&"Welcome").size()).is_equal(1)
 	var welcome := hostile.named(&"Welcome")[0]
-	# The lobby: the claim is taken, its bit ignored, no answer.
+	# The lobby: the claim is taken, its bit kept (the crouch plays everywhere), no answer.
 	var heard := hostile.received.size()
 	var lobby_claim := _claim(welcome.fields["epoch"] as int, 1, welcome.fields["spot"] as Vector3)
 	assert_int(hostile.send(lobby_claim)).is_equal(OK)
 	_h.pump_frames(4)
 	assert_int(_h.claims_in.get(&"lobby", 0)).is_greater(0)
-	assert_bool(game.state.player(hostile.peer).crouched).is_false()
+	assert_bool(game.state.player(hostile.peer).crouched).is_true()
 	assert_array(_answers(hostile, heard)).is_empty()
 	# The round on MAP: a crouched claim is a pose like any other, kept and shown.
 	assert_int(hostile.send(WireMessage.new(&"SetReady", {"ready": true}, 1))).is_equal(OK)
@@ -110,7 +106,6 @@ func test_a_hostile_crouch_bit_is_kept_only_where_the_crouch_plays() -> void:
 	assert_int(hostile.send(WireMessage.new(&"LoadAck", {"match_id": match_id}, 2))).is_equal(OK)
 	assert_bool(_h.run_until_phase(&"round", 800)).is_true()
 	_h.pump_seconds(SETTLE_S)
-	assert_bool(game.crouch_plays()).is_true()
 	var placed: WireMessage = hostile.named(&"Correction").back()
 	heard = hostile.received.size()
 	var round_claim := _claim(
@@ -139,12 +134,11 @@ func test_a_hostile_crouch_bit_is_kept_only_where_the_crouch_plays() -> void:
 	assert_int(_h.session.malformed_disconnects).is_equal(0)
 
 
-## The harness's fixture mode with the crouch on Harness.MAP alone (the fixture's crouch numbers
-## are FixtureModes.player_rules', not the engineer's).
+## The harness's fixture mode with the knockdown's motion on Harness.MAP alone (the fixture's crouch
+## numbers are FixtureModes.player_rules', not the engineer's).
 static func _mode() -> GameMode:
 	var made := Harness.fixture_mode()
-	made.player_rules.crouch_maps = PackedStringArray([Harness.MAP])
-	# A body moves only where the crouch plays (KD11): nothing is knocked down here.
+	# A knockdown starts no motion on SMALL_MAP: nothing is knocked down there.
 	made.player_rules.motion_maps = PackedStringArray([Harness.MAP])
 	assert(made.player_rules.check(made).is_empty())
 	return made

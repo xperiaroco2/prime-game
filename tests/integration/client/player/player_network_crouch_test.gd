@@ -6,14 +6,12 @@ extends GdUnitTestSuite
 ## Correction, also with every packet held back and with jitter; the host relays the crouch to the
 ## others. Keys go in through Input.parse_input_event (the action states are global; the joiner's
 ## Game alone reads devices) and Esc through the joiner's SubViewport: a held Ctrl does not block W
-## and Shift, the Esc menu lets go of it, and it does nothing in the lobby and on a map the mode's
-## crouch_maps leaves out (KE10). Each Game sets its WorldSounds.crouch_plays (the quiet step, #792)
-## with its controller's. The controller alone: `player_controller_crouch_test.gd`.
+## and Shift, the Esc menu lets go of it, and it crouches in the lobby too (the crouch plays
+## everywhere, #991). The controller alone: `player_controller_crouch_test.gd`.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## Where the joiner starts its walk -Z under the slab (x -9.5 to -6.5, z -1 to 3).
 const START := Vector3(-8.0, 0.0, 6.0)
-const SLAB_NEAR_Z := 3.0
 const SLAB_FAR_Z := -1.0
 const DELAY_FRAMES := 4
 const JITTER_FRAMES := 8
@@ -52,7 +50,7 @@ func test_a_crouched_walk_under_the_slab_with_jitter_is_never_corrected() -> voi
 
 
 func test_ctrl_held_with_w_and_shift_still_moves_and_esc_lets_go_of_it() -> void:
-	var player := await _in_the_round(true)
+	var player := await _in_the_round()
 	assert_bool(await _pair.walk_to(player, START + Vector3(4.0, 0.0, 0.0))).is_true()
 	_face_forward(player)
 	_pair.client.device_input = true
@@ -93,38 +91,24 @@ func test_ctrl_held_with_w_and_shift_still_moves_and_esc_lets_go_of_it() -> void
 	await _pair.stop()
 
 
-func test_the_key_does_nothing_in_the_lobby() -> void:
-	_pair.with_crouch_room(true)
+# The engineer's change (#989, #991): the key crouches in the lobby; this test asserted it did
+# nothing there before, and a second one that it did nothing on a map the list left out.
+func test_the_key_crouches_in_the_lobby() -> void:
+	_pair.with_crouch_room()
 	assert_bool(await _pair.start()).is_true()
 	var player := _pair.client.player()
+	var peer := _pair.peer_of(_pair.client)
 	_pair.client.device_input = true
 	_hold(KEY_CTRL, true)
 	await _pair.frames(20)
 	assert_bool(player.crouch_held).is_true()
-	assert_bool(player.crouch_plays).is_false()
-	assert_bool(_pair.client.items().sounds.crouch_plays).is_false()
-	assert_bool(_pair.host.items().sounds.crouch_plays).is_false()
-	assert_bool(player.is_crouched()).is_false()
-	assert_bool(_pair.host.client().model.is_crouched(_pair.peer_of(_pair.client))).is_false()
+	assert_bool(player.is_crouched()).is_true()
+	assert_bool(_pair.host.client().model.is_crouched(peer)).is_true()
 	_hold(KEY_CTRL, false)
-	await _pair.stop()
-
-
-func test_the_key_does_nothing_on_a_map_the_list_leaves_out() -> void:
-	var player := await _in_the_round(false)
-	assert_bool(player.crouch_plays).is_false()
-	assert_bool(_pair.client.items().sounds.crouch_plays).is_false()
-	assert_bool(_pair.host.items().sounds.crouch_plays).is_false()
-	assert_bool(await _pair.walk_to(player, START)).is_true()
-	_face_forward(player)
-	player.crouch_held = true
-	player.move_input = Vector2(0.0, 1.0)
-	await _pair.frames(150)
-	# Standing, stopped at the slab's near edge.
+	await _pair.frames(20)
 	assert_bool(player.is_crouched()).is_false()
-	assert_float(player.global_position.z).is_greater(SLAB_NEAR_Z)
-	assert_bool(_pair.host.client().model.is_crouched(_pair.peer_of(_pair.client))).is_false()
-	player.move_input = Vector2.ZERO
+	assert_bool(_pair.host.client().model.is_crouched(peer)).is_false()
+	assert_int(_pair.client.client().corrections).is_equal(0)
 	await _pair.stop()
 
 
@@ -132,10 +116,7 @@ func test_the_key_does_nothing_on_a_map_the_list_leaves_out() -> void:
 ## as a sprint), Ctrl let go underneath, on until out and stood up; the host's own client sees
 ## the crouch relayed and then gone; no Correction on either side.
 func _walk_under_and_out() -> void:
-	var player := await _in_the_round(true)
-	assert_bool(player.crouch_plays).is_true()
-	assert_bool(_pair.client.items().sounds.crouch_plays).is_true()
-	assert_bool(_pair.host.items().sounds.crouch_plays).is_true()
+	var player := await _in_the_round()
 	assert_bool(await _pair.walk_to(player, START)).is_true()
 	_face_forward(player)
 	var joiner := _pair.peer_of(_pair.client)
@@ -174,9 +155,9 @@ func _walk_under_and_out() -> void:
 	await _pair.stop()
 
 
-## Both in the round on crouch_room (`listed`: where the crouch plays); the joiner's player.
-func _in_the_round(listed: bool) -> PlayerController:
-	_pair.with_crouch_room(listed)
+## Both in the round on crouch_room; the joiner's player.
+func _in_the_round() -> PlayerController:
+	_pair.with_crouch_room()
 	assert_bool(await _pair.start()).is_true()
 	assert_bool(await _pair.to_round()).is_true()
 	return _pair.client.player()

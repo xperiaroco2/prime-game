@@ -1,18 +1,16 @@
 extends GdUnitTestSuite
-## MovementRule and the crouch (the crouch ADR, KE1, KE2, KE3 (a), KE10; KD5 (b), #790): an
-## accepted claim's `crouched` is kept as its `on_floor` is and shown in every snapshot, only where
-## the crouch plays (a phase on the match's map, a map PlayerRules.crouch_maps lists or any when it
-## is empty); a downed claim's bit, a lobby claim's and one on an unlisted map are ignored; a
-## crouched claim gets the standing bounds (no new check, KE3 (a)) and a crouched sprint is charged
-## as a sprint (KD5 (b)). A placement and a knockdown stand the player up, and a phase where the
-## crouch does not play clears it on entry.
+## MovementRule and the crouch (the crouch ADR, KE1, KE2, KE3 (a); KD5 (b), #790; KE10 as #991
+## amended it): an accepted claim's `crouched` is kept as its `on_floor` is and shown in every
+## snapshot, in every phase that takes a claim, the lobby included (the crouch plays everywhere);
+## a downed claim's bit is ignored; a crouched claim gets the standing bounds (no new check, KE3
+## (a)) and a crouched sprint is charged as a sprint (KD5 (b)). A placement and a knockdown stand
+## the player up; a phase change does not.
 
 const P1 := 1
 const P2 := 2
 const P3 := 3
 const EAST := Vector3(1, 0, 0)
 const NORTH := Vector3(0, 0, 1)
-const ELSEWHERE := "fixture://elsewhere"
 const CROUCHED := {"crouched": true}
 
 
@@ -27,37 +25,16 @@ func test_a_crouched_claim_is_kept_and_shown_to_the_others() -> void:
 	assert_bool(_shown(game, P2, P1)).is_false()
 
 
-func test_with_an_empty_crouch_maps_the_crouch_plays_on_the_match_map() -> void:
-	var game := FixtureMoves.in_round([P1, P2])
-	assert_bool(game.mode.player_rules.crouch_maps.is_empty()).is_true()
-	assert_bool(game.crouch_plays()).is_true()
-
-
-func test_on_a_map_crouch_maps_does_not_list_the_bit_is_ignored() -> void:
-	var game := _round_with_crouch_maps(PackedStringArray([ELSEWHERE]))
-	assert_str(game.state.map).is_equal(FixtureModes.MAP)
-	assert_bool(game.crouch_plays()).is_false()
-	FixtureMoves.step(game, P1, Vector3.ZERO, CROUCHED)
-	assert_bool(game.state.player(P1).crouched).is_false()
-	assert_bool(_shown(game, P2, P1)).is_false()
-	assert_array(Array(game.diagnostics)).is_empty()
-
-
-func test_on_a_map_crouch_maps_lists_the_bit_is_kept() -> void:
-	var game := _round_with_crouch_maps(PackedStringArray([FixtureModes.MAP]))
-	FixtureMoves.step(game, P1, Vector3.ZERO, CROUCHED)
-	assert_bool(game.state.player(P1).crouched).is_true()
-
-
-func test_in_the_lobby_the_bit_is_ignored_though_the_next_map_plays_it() -> void:
+# The engineer's change (#989, #991): the crouch plays in the lobby too. This test asserted the
+# lobby ignored the bit before.
+func test_in_the_lobby_a_crouched_claim_is_kept_and_shown() -> void:
 	var game := FixtureModes.started(FixtureModes.basic(), [P1, P2])
 	assert_str(game.phase_id()).is_equal("lobby")
-	assert_bool(game.state.player_rules.crouch_plays_on(game.state.map)).is_true()
-	assert_bool(game.crouch_plays()).is_false()
 	FixtureMoves.claim(game, P1, game.state.player(P1).position, CROUCHED)
 	FixtureModes.run_ticks(game, 1)
-	assert_bool(game.state.player(P1).crouched).is_false()
-	assert_bool(_shown(game, P2, P1)).is_false()
+	assert_bool(game.state.player(P1).crouched).is_true()
+	assert_bool(_shown(game, P2, P1)).is_true()
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func test_a_downed_claims_bit_is_ignored_and_the_knockdown_stands_it_up() -> void:
@@ -112,7 +89,7 @@ func test_a_crouched_sprint_is_charged_as_a_sprint() -> void:
 
 func test_the_rounds_placement_stands_everyone_up() -> void:
 	var game := FixtureModes.started(FixtureModes.basic(), [P1, P2])
-	# Set by hand: the lobby never keeps a crouch, so only a placement can be seen clearing it.
+	# Set by hand, so only the placement can be seen clearing it.
 	game.state.player(P1).crouched = true
 	for peer: int in [P1, P2]:
 		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
@@ -120,7 +97,9 @@ func test_the_rounds_placement_stands_everyone_up() -> void:
 	assert_bool(game.state.player(P1).crouched).is_false()
 
 
-func test_a_phase_on_the_map_keeps_the_crouch_and_one_off_it_clears_it_on_entry() -> void:
+# The engineer's change (#989, #991): no phase clears a crouch on entry any more; before, a phase
+# off the match's map did.
+func test_a_crouch_is_kept_across_a_phase_change_with_or_without_a_level() -> void:
 	var game := FixtureMoves.in_round([P1, P2])
 	FixtureMoves.step(game, P1, Vector3.ZERO, CROUCHED)
 	game.state.add_to_counter(0, &"crew_win", 1)
@@ -132,11 +111,10 @@ func test_a_phase_on_the_map_keeps_the_crouch_and_one_off_it_clears_it_on_entry(
 	var other := Match.new(off_map, 7, FixtureTerrainWorld.new(), FixtureModes.layouts())
 	_join(other, [P1, P2])
 	FixtureMoves.step(other, P1, Vector3.ZERO, CROUCHED)
-	assert_bool(other.state.player(P1).crouched).is_true()
 	other.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(other, 1)
 	assert_str(other.phase_id()).is_equal("end")
-	assert_bool(other.state.player(P1).crouched).is_false()
+	assert_bool(other.state.player(P1).crouched).is_true()
 
 
 ## Whether `viewer`'s newest snapshot shows `peer` crouched.
@@ -144,27 +122,6 @@ func _shown(game: Match, viewer: int, peer: int) -> bool:
 	var avatars: Dictionary = game.snapshot_for(viewer).get("avatars", {})
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("crouched", false)
-
-
-## A round of FixtureModes.basic() with a second map, ELSEWHERE, and `crouch_maps`; the match is
-## on FixtureModes.MAP, the lobby's first pick. Its motion_maps is crouch_maps.
-func _round_with_crouch_maps(crouch_maps: PackedStringArray) -> Match:
-	var mode := FixtureModes.basic()
-	mode.maps = PackedStringArray([FixtureModes.MAP, ELSEWHERE])
-	mode.player_rules.crouch_maps = crouch_maps
-	# A body moves only where the crouch plays (KD11, the mode check): never knocked down here.
-	mode.player_rules.motion_maps = crouch_maps
-	assert_array(Array(mode.player_rules.check(mode))).is_empty()
-	var layouts := FixtureModes.layouts()
-	var elsewhere := LevelLayout.new(ELSEWHERE)
-	for marker: Vector3 in [Vector3(0, 0, 5), Vector3(1, 0, 5)]:
-		elsewhere.add_marker(&"round_player", marker)
-	layouts[ELSEWHERE] = elsewhere
-	var game := Match.new(mode, 7, FixtureTerrainWorld.new(), layouts)
-	assert_array(Array(game.refusals)).is_empty()
-	_join(game, [P1, P2])
-	assert_str(game.phase_id()).is_equal("round")
-	return game
 
 
 func _join(game: Match, peers: Array[int]) -> void:
