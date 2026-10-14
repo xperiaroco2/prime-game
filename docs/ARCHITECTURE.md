@@ -7791,6 +7791,8 @@ assets/
   re-save (the editor's, `normalize`'s) only with its instance's `[editable path]` entry (#1056; `levels/CLAUDE.md`).
   The garage (the art's P6, #1052) keeps the art's car, lift posts and lift arms as separate wrapper instances
   under `Dressing`, for car repair's R5 (#809); its 8 m gate's leaf is an opening (layer 0, E4) under its lintel.
+  The art has no garage roof, so the room is open above (the greybox's ceiling collider is gone; adding one is
+  the engineer's call).
   Tests: `tests/integration/levels/house_garage_test.gd` (the lift pieces and their colliders at the art handoff's
   points, the panel, picture and station points, the gate, and every override with its editable path).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
