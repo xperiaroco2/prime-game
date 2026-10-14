@@ -92,3 +92,23 @@ all three Vorbis headers, so it is a real file, Kenney Interface Sounds' `click_
 without it CI loaded no sound and every test of them saw none. Where the decision and the amendment of 2026-10-07
 list Ogg (or a font, #520) among the types that go aside with their `.import` file, read MP3 alone.
 `test_lfs.py`'s `RealPointerTest` imports it, and its format test reads its Vorbis header as sfx-check does.
+
+## Amendment 2026-10-14: the art's colliders are text (#523)
+Approved by the engineer (CI option B): https://github.com/xperiaroco2/prime-game/pull/1043#issuecomment-6175506988
+
+The art House's GLBs carry their collision as import-hint meshes (`-colonly`, `-convcolonly`, `-col`, `-convcol`).
+A glTF stand-in is an empty scene (the amendment of 2026-10-07), so CI (`lfs: false`), bots and every checkout
+without LFS content loaded the House with no floors, walls or stairs: hosting it failed ("cannot host").
+The GLBs stay in LFS as the look only; their colliders become text resources outside LFS:
+- **`tools/run.sh colliders`** (`tools/runner/colliders.py`) reads each GLB under `assets/environment/` and writes
+  `levels/kit/<pack>/<stem>.tscn` (a wrapper: the GLB instance plus one `StaticBody3D` per hint collider, named and
+  placed as Godot's importer would) and `levels/kit/<pack>/<stem>.<body>.tres` (its `ConvexPolygonShape3D` or
+  `ConcavePolygonShape3D`, equal to the importer's), sets the GLB's `.import` to skip the importer's own bodies
+  (`_subresources`), and points every scene under `levels/` at the wrapper. A pointer file is skipped.
+- **`check` enforces it** (`colliders.problems()`): no scene under `levels/` instances a wrapped GLB directly, and
+  each GLB with content has exactly the files `colliders` would write. After an art import, run `colliders`
+  (`levels/CLAUDE.md`, Assets).
+- **Without LFS content** a room's override of a node inside a GLB (a material or shader parameter) has nothing to
+  land on and Godot prints `WARNING: Node '…' was modified from inside an instance, but it has vanished.` once per
+  override. Warnings, not errors: `bots` reports no engine errors, the House's level tests and `game_loop_test`
+  pass in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).

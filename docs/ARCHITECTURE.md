@@ -5969,7 +5969,8 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
 - **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
   `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece, a node declaring
-  `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk, #523); a flood fill of the
+  `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk; it stays locked until the art's walkable stair under a
+  longer hatch replaces the ladder, prime-game-art#183, and its knife marker moved to the pump room, #523); a flood fill of the
   crouched capsule from the `round_player` spawn markers over those pieces' walked colliders (the art rooms' `Shell`
   floor, slab and stair pieces, the plot's ground, the greybox garage's `Floor` and step boxes; each spot named
   after the smallest piece whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`,
@@ -7765,6 +7766,20 @@ assets/
   {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
   with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
   (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
+- **The colliders** (#523, the LFS ADR's amendment of 2026-10-14): an environment GLB's import-hint colliders
+  (`-colonly`, `-convcolonly`, `-col`, `-convcol`) leave the GLB as text, so a checkout without LFS content (CI,
+  bots) still has the level's floors, walls and stairs. `tools\run.cmd colliders` (`tools/runner/colliders.py`)
+  writes, per GLB under `assets/environment/`, a wrapper `levels/kit/<pack>/<stem>.tscn` (the GLB instance, the
+  look, plus one `StaticBody3D` per hint collider at its root, named and placed as the importer names and places it)
+  and each body's shape `levels/kit/<pack>/<stem>.<body>.tres` (convex points snapped as Godot's hull snaps them, or
+  the trimesh's triangles), sets the GLB's `.import` to skip the importer's own bodies (`_subresources`
+  `import/skip_import`) and points each scene under `levels/` at the wrapper. `check` runs `colliders.problems()`: a
+  scene under `levels/` that instances a wrapped GLB directly, or a GLB whose files differ from what `colliders`
+  writes, fails it. Run `colliders` after every art import and commit its output. An override that reaches a
+  collider names the wrapper's body (`Shell/<instance>/<body>`). Without LFS content a room's overrides of nodes
+  inside a GLB print Godot's "was modified from inside an instance, but it has vanished" warnings, not errors.
+  Tests: `tools/runner/tests/test_colliders.py` (in `selftest`); the House's level tests and `game_loop_test` pass
+  in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
   locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
   (the art pipeline's step 15).
