@@ -167,6 +167,24 @@ func test_every_piece_of_the_house_is_listed_walkable_or_locked() -> void:
 	assert_array(found).is_equal(listed)
 
 
+func test_no_spawn_marker_stands_in_a_locked_piece() -> void:
+	var root: Node = (load(HOUSE) as PackedScene).instantiate()
+	var stuck: Array[String] = []
+	for key: String in LOCKED:
+		var locked := _piece_node(root, key)
+		assert_object(locked).is_not_null()
+		for marker: Node in locked.find_children("*", "Marker3D", true, false):
+			for group: StringName in marker.get_groups():
+				if String(group).begins_with(MarkerReader.GROUP_PREFIX):
+					stuck.append("%s: %s in %s" % [marker.name, group, key])
+	root.free()
+	(
+		assert_array(stuck)
+		. override_failure_message("a spawn marker no one can walk to: %s" % ", ".join(stuck))
+		. is_empty()
+	)
+
+
 func test_the_walk_from_the_spawn_reaches_every_walkable_piece() -> void:
 	assert_int(_layouts[HOUSE].count(ROUND_SPAWN)).is_greater(0)
 	var reached: Dictionary[String, bool] = {}
@@ -316,6 +334,15 @@ func _walked(shape: CollisionShape3D, root: Node) -> bool:
 ## plot's trimesh ground) within TOP_TOLERANCE_M of its feet (so never a crate's, a table's or a
 ## wall's top), then the walkable piece whose footprint holds `at` with its floor nearest `at`'s
 ## height (a storey at most), the smaller footprint on a tie (the garden in the yard). "" for none.
+## The piece "Group/Piece" under the House scene's `root`, or null.
+func _piece_node(root: Node, key: String) -> Node:
+	var parts := key.split("/")
+	for group: Node in root.get_children():
+		if group.name == parts[0]:
+			return group.get_node_or_null(parts[1])
+	return null
+
+
 func _piece_under(at: Vector3) -> String:
 	var space := _walked_world.space_state()
 	var walked := false
