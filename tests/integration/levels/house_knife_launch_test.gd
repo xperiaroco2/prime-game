@@ -145,8 +145,10 @@ func test_on_the_greybox_the_knife_starts_no_host_body_and_knocks_down_as_today(
 ## The sample of places players stand, each a floor point of house_throws.gd's areas on the House:
 ## the yard (the first spot around the house), the terrace and the balcony (the middle spot of
 ## each on its own floor: the terrace's columns under the balcony give the balcony's floor too),
-## and the top of the external stairs (its highest step). Each column gives every floor in it, the
-## basement's included.
+## and the top of the external stairs (its highest step a body stands on: the art's flight is one
+## sloped collider, and on its last step, the balcony's edge, a body stands on the balcony's floor
+## (HostWorldQuery.stand_floor_below), above the flight's top, so the highest step where a body
+## stands lower than that). Each column gives every floor in it, the basement's included.
 func _places() -> Dictionary[String, Vector3]:
 	_world.use_level(HOUSE)
 	var spots := HouseThrows.spots(_world, _rules.eye_height_m)
@@ -164,11 +166,18 @@ func _places() -> Dictionary[String, Vector3]:
 		if not on_floor.is_empty():
 			found[area] = on_floor[int(on_floor.size() / 2.0)]
 	var stairs: Array = spots["external_stairs"]
-	var top := _highest(stairs)
-	for step: Vector3 in stairs:
+	var highest := _highest(stairs)
+	var on_flight := stairs.filter(func(step: Vector3) -> bool: return _stands_at(step).y < highest)
+	var top := _highest(on_flight)
+	for step: Vector3 in on_flight:
 		if step.y == top:
 			found["top of the stairs"] = step
 	return found
+
+
+## The floor a body standing at `at` stands on (_assert_rests_well's reading).
+func _stands_at(at: Vector3) -> Vector3:
+	return _world.stand_floor_below(Items.lifted(at + Vector3.UP * _rules.capsule_radius_m))
 
 
 ## The highest floor among `spots` (-INF for none).
