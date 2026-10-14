@@ -6,6 +6,7 @@
 # Whole files: never on screen, or debug builds only.
 client/app/end_reasons.gd | * | never on screen: a reason's words for the log, Game.last_words and the headless session (the connecting screen words a failure by its state, #494)
 client/app/launch_options.gd | * | never on screen: command-line problems and the line the runner waits for, printed
+client/player/character/character_set.gd | * | never on screen: why a scene is no character, for the test and one log warning (#522)
 client/ui/debug_overlay.gd | * | the F3 debug overlay, debug builds only (client/CLAUDE.md)
 
 # Literals.
