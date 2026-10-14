@@ -46,6 +46,7 @@ func after_test() -> void:
 func test_a_game_with_no_command_line_keeps_its_settings_in_memory() -> void:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.voice_codec = FakeVoiceCodec.new()
 	var machine := SubViewport.new()
 	machine.own_world_3d = true
@@ -260,6 +261,7 @@ func _saved(which: int) -> UserSettings:
 func _game(args: Array[String], which: int) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = func() -> int: return _now
 	game.make_transport = func() -> NetTransport:

@@ -81,6 +81,7 @@ func _play_and_leave(host: Game, guest: Game, map: String) -> void:
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport

@@ -40,6 +40,7 @@ func test_a_game_with_no_command_line_ignores_the_machines_language() -> void:
 func _game(settings: UserSettings) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.voice_codec = FakeVoiceCodec.new()
 	game.device_input = false
 	game.settings = settings

@@ -319,6 +319,7 @@ func _game(args: Array[String], settings: UserSettings = null) -> Game:
 	var game := GAME.instantiate() as Game
 	game.settings = settings
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport

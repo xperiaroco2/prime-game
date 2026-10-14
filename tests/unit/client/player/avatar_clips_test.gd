@@ -152,3 +152,15 @@ func test_no_velocity_in_the_clip_code() -> void:
 		var source := FileAccess.get_file_as_string(path)
 		assert_bool(source.is_empty()).is_false()
 		assert_bool(source.contains(".velocity")).override_failure_message(path).is_false()
+
+
+## The same for AvatarViews' clip code (_animate): its ragdoll may launch with the host's velocity
+## of a downed snapshot (KE14), its clips never.
+func test_no_velocity_in_avatar_views_clip_code() -> void:
+	var source := FileAccess.get_file_as_string("res://client/world/avatar_views.gd")
+	var start := source.find("\nfunc _animate(")
+	assert_int(start).is_greater(0)
+	var end := source.find("\nfunc ", start + 1)
+	var body := source.substr(start, end - start if end > 0 else -1)
+	assert_bool(body.contains("drawn_move")).is_true()
+	assert_bool(body.contains("velocity")).is_false()
