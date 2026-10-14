@@ -405,6 +405,20 @@ func test_the_rooms_by_name_and_the_own_pin_at_the_own_place_and_heading() -> vo
 	assert_float(screen.here.rotation).is_equal(0.0)
 
 
+func test_a_room_shows_its_records_name_key_in_the_language_now() -> void:
+	# The room record (#306) names the room, not its id; a key the deck lacks shows the id.
+	var screen := _screen(_round_model())
+	var data := MapData.new()
+	data.rooms.append(MapData.Room.new(&"cellar", Rect2(0, 0, 10, 10), "room.storage"))
+	data.rooms.append(MapData.Room.new(&"attic_nook", Rect2(10, 0, 10, 10), "room.no_such_room"))
+	screen.set_data(data)
+	assert_str(_room_label(screen, &"cellar").text).is_equal("Storage")
+	assert_str(_room_label(screen, &"attic_nook").text).is_equal("attic_nook")
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(_room_label(screen, &"cellar").text).is_equal("Склад")
+
+
 func test_a_level_without_rooms_hides_the_board_and_keeps_the_tasks() -> void:
 	var screen := _screen(_round_model())
 	screen.set_data(MapData.new())

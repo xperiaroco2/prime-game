@@ -34,6 +34,23 @@ func test_rooms_come_from_the_size_metadata_in_tree_order_with_their_ids() -> vo
 	assert_that(data.rooms[1].rect).is_equal(Rect2(2, 5, 3, 2))
 
 
+func test_a_room_record_gives_its_id_and_name_key_else_the_node_name_does() -> void:
+	# The room record (#306): the id and the deck key on the room node; without them the node name
+	# in snake_case and `room.<id>`.
+	var level: Node3D = auto_free(Node3D.new())
+	var recorded := _room(level, "NorthWing", Vector3.ZERO, Vector2i(4, 4))
+	recorded.set_meta(MapData.ID_KEY, &"cellar")
+	recorded.set_meta(MapData.NAME_KEY, "room.storage")
+	_room(level, "GuestRoom", Vector3(10, 0, 0), Vector2i(4, 4))
+	var rooms := MapData.rooms_of(level)
+	assert_int(rooms.size()).is_equal(2)
+	assert_str(String(rooms[0].id)).is_equal("cellar")
+	assert_str(rooms[0].name_key).is_equal("room.storage")
+	assert_str(String(rooms[1].id)).is_equal("guest_room")
+	assert_str(rooms[1].name_key).is_equal("room.guest_room")
+	assert_str(MapData.Room.new(&"lab", Rect2()).name_key).is_equal("room.lab")
+
+
 func test_a_task_types_zones_are_the_rooms_holding_a_marker_of_its_items_tag() -> void:
 	var level: Node3D = auto_free(Preview.fake_level())
 	var data := MapData.from_level(level, _mode)
