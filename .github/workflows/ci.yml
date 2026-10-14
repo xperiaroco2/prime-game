@@ -2,7 +2,8 @@
 # `verify` runs only doctor, lint and check (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md).
 # Since #857 it runs in parts at once, a job each (`verify --full --part <name>`, the parts in tools/runner/verify.py
 # PARTS), and the job named `verify`, the check the ruleset main-2 requires, is green only when every part was. Since
-# #980 `test`, the longest part, runs as its two halves, the parts test-1 and test-2 (verify.HALVES, gdunit.half_of).
+# #980 `test`, the longest part, runs as its two halves, the parts test-1 and test-2 (verify.HALVES, gdunit.half_of),
+# and since #1013 the network runs as two parts: network-1 the ENet and loopback runs, network-2 the WebRTC ones.
 # Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
 # docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
@@ -29,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [test-1, test-2, network, runner]
+        part: [test-1, test-2, network-1, network-2, runner]
     steps:
       # No LFS content: addons/ is outside LFS, and in CI `check` imports a stand-in in place of each LFS pointer
       # file (the LFS ADR's amendment of 2026-10-07, #515).
