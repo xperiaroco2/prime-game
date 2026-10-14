@@ -59,17 +59,17 @@ func test_each_room_instances_its_station_scenes_and_no_art_copy_of_them() -> vo
 	for room: String in STATIONS:
 		var root := auto_free((load(ROOMS + room + ".tscn") as PackedScene).instantiate()) as Node
 		var stations: Dictionary = STATIONS[room]
-		for name: String in stations:
-			var where := "%s: Stations/%s" % [room, name]
-			var station := root.get_node_or_null("Stations/" + name)
+		for station_name: String in stations:
+			var where := "%s: Stations/%s" % [room, station_name]
+			var station := root.get_node_or_null("Stations/" + station_name)
 			assert_object(station).override_failure_message(where).is_not_null()
 			if station == null:
 				continue
 			assert_str(station.scene_file_path).override_failure_message(where).is_equal(
-				stations[name]
+				stations[station_name]
 			)
 			# The art's prop of the same device (`metadata/station`) would stand a second device.
-			for copy: Node in _with_station_meta(root, name):
+			for copy: Node in _with_station_meta(root, station_name):
 				(
 					assert_bool(copy == station)
 					. override_failure_message(
