@@ -94,7 +94,7 @@ func _tops(piece: Node3D) -> PackedVector3Array:
 	var tops := PackedVector3Array()
 	var highest := -INF
 	for body: Node in piece.find_children("*", "StaticBody3D", true, false):
-		if (body as StaticBody3D).collision_layer & LevelWorld.WORLD_LAYER == 0:
+		if ((body as StaticBody3D).collision_layer & LevelWorld.WORLD_LAYER) == 0:
 			continue
 		for child: Node in body.get_children():
 			var shape_node := child as CollisionShape3D
