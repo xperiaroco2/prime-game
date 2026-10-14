@@ -20,6 +20,8 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/porch_lamp.glb" id="10"]
 
+[ext_resource type="PackedScene" path="res://levels/props/parasol_stand.tscn" id="11"]
+
 [node name="Terrace" type="Node3D" unique_id=1156316829]
 metadata/room_id = &"terrace"
 metadata/name_key = "room.terrace"
@@ -382,6 +384,11 @@ metadata/station = "TerraceTable"
 [node name="terrace_chair_4" parent="Dressing" instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 7.4, 0, 4.78)
 metadata/prop = "terrace_chair"
+metadata/station = "TerraceTable"
+
+[node name="parasol_stand_1" parent="Dressing" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.98, 0, 4)
+metadata/prop = "parasol_stand"
 metadata/station = "TerraceTable"
 
 [node name="planter_pot_1" parent="Dressing" instance=ExtResource("6")]
