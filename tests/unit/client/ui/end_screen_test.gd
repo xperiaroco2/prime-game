@@ -309,7 +309,12 @@ func test_the_outro_sound_starts_once_per_end_on_the_ui_bus() -> void:
 	assert_str(String(player.bus)).is_equal(String(AudioBuses.UI))
 	var stream := player.stream as AudioStreamRandomizer
 	assert_int(stream.streams_count).is_equal(SfxSet.paths_for(SfxSet.UI_OUTRO).size())
-	assert_bool(player.playing).is_true()
+	# It started: play() made a playback, which the player keeps until its next frame (no frame
+	# runs in this test). Not `playing`: the file lasts about 0.12 s and the headless (Dummy)
+	# driver mixes it on its own thread in real time, so on a loaded runner it has ended and
+	# `playing` is false again before this line (#948).
+	assert_bool(player.has_stream_playback()).is_true()
+	var first := player.get_stream_playback()
 	# A parent hidden and shown again is not a new End: no second outro.
 	_stage.visible = false
 	_stage.visible = true
@@ -320,6 +325,8 @@ func test_the_outro_sound_starts_once_per_end_on_the_ui_bus() -> void:
 	screen.visible = true
 	assert_int(UiSounds.outros).is_equal(outros_before + 2)
 	assert_object(UiSounds.outro_player_in(get_tree())).is_same(player)
+	# Started again: a new playback, not the last End's.
+	assert_object(player.get_stream_playback()).is_not_same(first)
 	_free_outro_player()
 
 
