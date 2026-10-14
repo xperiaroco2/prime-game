@@ -2923,6 +2923,19 @@ Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway fo
 before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
 `class_name` script added after the import: the game fails without the import and `run` imports first and passes).
 
+A failed import (#949): `check.run_import` runs an import that exits non-zero once more (a timeout, `IMPORT_TIMEOUT`
+300 s, is not run again). Each failed attempt's log is kept as `tools/out/logs/<label>-attempt-<n>.log` (the next
+attempt overwrites `<label>.log`; a first failure clears older ones), a signal exit is named (`-11 (SIGSEGV)`),
+and the Failure names those logs and quotes the last 25 lines of the last attempt's output, so a CI log alone tells
+a hang from a crash; CI keeps `tools/out/logs` as each part's artifact. `RealPointerTest`, whose logs live in its
+temporary folder, copies them to `tools/out/logs/<test method>/` when it fails. Its import of every stand-in crashed
+now and then in CI (exit -11, twice in a row) and on Windows (0xC0000005: 2 of 50 runs of the test, both attempts
+ending at `reimport | a.otf`). Measured for #949 on Windows, fresh imports of a throwaway project: the TTF and OTF
+stand-ins together crashed 6 of 140, the other stand-ins 0 of 80, the TTF stand-in alone and the real Comfortaa
+alone 0 of 100 each; the cause is open in #949.
+Tests: `tools/runner/tests/test_lfs.py` (`CheckTest`: over a faked Godot, a crash twice, a crash and then an import,
+a timeout, an import that printed nothing, and the attempt logs each leaves).
+
 Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), amendment of 2026-10-07): in CI
 (`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
 `check.run_import` keeps the LFS pointer files from Godot's import (`lfs.aside`), whose import of one fails and

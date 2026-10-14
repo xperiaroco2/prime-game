@@ -4,6 +4,7 @@ in one summary line; locally nothing changes; the credits check still covers poi
 fails on one. RealPointerTest proves it with the pinned Godot in a throwaway project: a texture imported on a PC with
 LFS, then checked out as a pointer file as CI does."""
 
+import contextlib
 import io
 import os
 import shutil
@@ -12,6 +13,7 @@ import subprocess
 import tempfile
 import unittest
 import zlib
+from collections.abc import Iterator
 from pathlib import Path
 from unittest import mock
 
@@ -342,7 +344,7 @@ class CheckTest(unittest.TestCase):
 
             for ci in (True, False):
                 with mock.patch.object(common, "ROOT", root), mock.patch.multiple(common, IS_CI=ci, IS_CLOUD=False), \
-                        mock.patch.object(check, "godot", fake_godot), \
+                        mock.patch.object(common, "LOGS", root / "logs"), mock.patch.object(check, "godot", fake_godot), \
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     check.run_import()
                 self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
@@ -359,11 +361,96 @@ class CheckTest(unittest.TestCase):
                 write(root, "art/a.png", POINTER)
                 calls: list[object] = []
                 with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "IS_CI", True), \
+                        mock.patch.object(common, "LOGS", root / "logs"), \
                         mock.patch.object(check, "godot", lambda *a, **k: calls.append(a) or Result(0, "", False, 1.0)), \
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     self.assertEqual(check.run_import(), [])
                 self.assertEqual(len(calls), 1)
                 self.assertEqual(lfs.pointers(root), [])
+
+    def run_failing_import(self, results: list[tuple[int, bool, str]]) -> tuple[list[str], dict[str, str], str]:
+        """run_import over a faked Godot whose attempts end as `results` (rc, timed out, output), each writing its
+        output to the import log as Godot's run does: the outputs of the attempts made, the logs left and what it
+        printed (a Failure's message too)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            logs = root / "tools/out/logs"
+            write(logs, "import-attempt-2.log", "an earlier run's\n")
+            made: list[str] = []
+
+            def fake_godot(*_args: object, **kwargs: object) -> Result:
+                rc, timed_out, out = results[len(made)]
+                made.append(out)
+                (logs / f"{kwargs['log']}.log").write_text(out, encoding="utf-8")
+                return Result(rc, out, timed_out, 1.0)
+
+            printed = io.StringIO()
+            with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "LOGS", logs), \
+                    mock.patch.multiple(common, IS_CI=False, IS_CLOUD=False), \
+                    mock.patch.object(check, "godot", fake_godot), mock.patch.object(check, "record_import"), \
+                    mock.patch("sys.stdout", printed):  # fmt: skip
+                try:
+                    check.run_import()
+                except Failure as exc:
+                    printed.write(f"Failure: {exc}\n")
+            kept = {path.name: path.read_text(encoding="utf-8") for path in logs.iterdir()}
+        return made, kept, printed.getvalue()
+
+    def test_a_crash_twice_keeps_each_attempt_log_and_quotes_the_last(self) -> None:
+        # #949: CI's import crashed twice (-11, a SIGSEGV), and its log held the second attempt's output alone.
+        crash = "\x1b[90m\x1b[1ma\x1b[0m\n\nhandle_crash: Program crashed with signal 11\n"  # Godot colours some lines
+        made, kept, said = self.run_failing_import([(-11, False, "first\n"), (-11, False, crash)])
+        self.assertEqual(len(made), 2)
+        self.assertEqual(kept, {"import.log": crash, "import-attempt-1.log": "first\n", "import-attempt-2.log": crash})
+        self.assertIn("godot --import exited -11 (SIGSEGV); retrying once (log: tools/out/logs/import-attempt-1.log)", said)
+        self.assertIn(
+            "Failure: godot --import exited -11 (SIGSEGV) twice (logs: tools/out/logs/import-attempt-1.log,"
+            " tools/out/logs/import-attempt-2.log); its last 2 lines:\n    a\n    handle_crash: Program crashed with"
+            " signal 11\n",
+            said,
+        )
+
+    def test_a_crash_then_an_import_keeps_the_crash_log_and_passes(self) -> None:
+        made, kept, said = self.run_failing_import([(-11, False, "crashed\n"), (0, False, "imported\n")])
+        self.assertEqual(made, ["crashed\n", "imported\n"])
+        # The earlier run's attempt log is gone: the ones left are this run's.
+        self.assertEqual(kept, {"import.log": "imported\n", "import-attempt-1.log": "crashed\n"})
+        self.assertNotIn("Failure", said)
+        self.assertIn("retrying once (log: tools/out/logs/import-attempt-1.log)", said)
+
+    def test_an_import_that_passes_at_once_keeps_no_attempt_log_and_clears_none(self) -> None:
+        # Only a failed attempt touches the attempt logs: an import that passes leaves the folder CI uploads alone.
+        made, kept, said = self.run_failing_import([(0, False, "imported\n")])
+        self.assertEqual(
+            (made, kept, said), (["imported\n"], {"import.log": "imported\n", "import-attempt-2.log": "an earlier run's\n"}, "")
+        )
+
+    def test_a_timeout_is_not_retried_and_quotes_its_last_lines(self) -> None:
+        out = "".join(f"step {i}\n" for i in range(40))
+        made, kept, said = self.run_failing_import([(-9, True, out), (0, False, "")])
+        self.assertEqual(len(made), 1)
+        self.assertEqual(kept, {"import.log": out, "import-attempt-1.log": out})
+        first = 40 - check.IMPORT_TAIL
+        quoted = "".join(f"    step {i}\n" for i in range(first, 40))
+        self.assertEqual(
+            said,
+            f"Failure: godot --import timed out after {check.IMPORT_TIMEOUT}s (log: tools/out/logs/import-attempt-1.log);"
+            f" its last {check.IMPORT_TAIL} lines:\n{quoted}",
+        )
+
+    def test_an_import_that_printed_nothing_says_so(self) -> None:
+        said = self.run_failing_import([(1, False, ""), (2, False, "")])[2]
+        self.assertIn("godot --import exited 1; retrying once", said)
+        self.assertIn("exited 2 twice (logs: tools/out/logs/import-attempt-1.log, tools/out/logs/import-attempt-2.log);"
+                      " it printed nothing", said)  # fmt: skip
+
+    def test_exit_names_and_log_names(self) -> None:
+        self.assertEqual(check.exit_name(-11), "-11 (SIGSEGV)")
+        self.assertEqual(check.exit_name(0xC0000005), "3221225477")
+        self.assertEqual(check.exit_name(-999), "-999")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(common, "ROOT", Path(tmp) / "repo"):
+            self.assertEqual(check.log_name(Path(tmp) / "repo/tools/out/logs/a.log"), "tools/out/logs/a.log")
+            self.assertEqual(check.log_name(Path(tmp) / "logs/a.log"), (Path(tmp) / "logs/a.log").as_posix())
 
     def test_lfs_content_fails_on_a_pointer_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -440,6 +527,65 @@ detect_3d/compress_to=1
 """
 
 
+@contextlib.contextmanager
+def throwaway(test: unittest.TestCase) -> Iterator[Path]:
+    """A temporary folder for a test with the pinned Godot, with an empty logs/ for common.LOGS. Its Godot logs go
+    with it, so on a failure they are first copied to tools/out/logs/<test method>/, which CI keeps as an artifact
+    (#949: the log of an import that crashed was lost), and the failure names that folder."""
+    # A killed engine may still hold files of the temp project for a moment on Windows.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        (Path(tmp) / "logs").mkdir()
+        try:
+            yield Path(tmp)
+        except Exception as exc:
+            kept = common.LOGS / test.id().rsplit(".", 1)[-1]
+            shutil.rmtree(kept, ignore_errors=True)
+            try:
+                shutil.copytree(Path(tmp) / "logs", kept)
+            except OSError as copy_error:  # a log a killed Godot still holds: the test's own failure still goes up
+                exc.add_note(f"its Godot logs could not be kept in {kept}: {copy_error}")
+            else:
+                exc.add_note(f"its Godot logs: {kept}")
+            raise
+
+
+class ThrowawayTest(unittest.TestCase):
+    """throwaway keeps a failed Godot test's logs where CI uploads them (#949), and only a failed one's."""
+
+    def run_throwaway(self, fail: bool) -> tuple[Path, list[str]]:
+        """A throwaway whose Godot wrote logs/import.log, then failed or not: the folder kept and the notes."""
+        with tempfile.TemporaryDirectory() as out, mock.patch.object(common, "LOGS", Path(out) / "logs"):
+            notes: list[str] = []
+            try:
+                with throwaway(self) as tmp:
+                    write(tmp / "logs", "import.log", "handle_crash: Program crashed with signal 11\n")
+                    if fail:
+                        raise AssertionError("the import failed")
+            except AssertionError as exc:
+                notes = exc.__notes__
+            kept = common.LOGS / self._testMethodName
+            found = sorted(path.relative_to(common.LOGS).as_posix() for path in common.LOGS.rglob("*"))
+            text = (kept / "import.log").read_text(encoding="utf-8") if (kept / "import.log").is_file() else ""
+        return kept, [*found, text, *notes]
+
+    def test_a_failure_keeps_its_godot_logs_and_names_them(self) -> None:
+        kept, seen = self.run_throwaway(fail=True)
+        name = self._testMethodName
+        self.assertEqual(
+            seen,
+            [name, f"{name}/import.log", "handle_crash: Program crashed with signal 11\n", f"its Godot logs: {kept}"],
+        )
+
+    def test_a_pass_keeps_nothing(self) -> None:
+        self.assertEqual(self.run_throwaway(fail=False)[1], [""])
+
+    def test_logs_it_cannot_copy_leave_the_tests_own_failure(self) -> None:
+        # On Windows a killed Godot may still hold a log: the copy's error must not replace the test's failure.
+        with mock.patch.object(shutil, "copytree", side_effect=PermissionError("in use")):
+            kept, seen = self.run_throwaway(fail=True)
+        self.assertEqual(seen, ["", f"its Godot logs could not be kept in {kept}: in use"])
+
+
 @starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealPointerTest(unittest.TestCase):
@@ -449,11 +595,9 @@ class RealPointerTest(unittest.TestCase):
     load); in local mode the same checkout fails as it always did. Then every stand-in, as a new asset."""
 
     def test_ci_mode_skips_the_pointer_file_and_local_mode_does_not(self) -> None:
-        # A killed engine may still hold files of the temp project for a moment on Windows.
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            root = repo(Path(tmp))
-            logs = Path(tmp) / "logs"
-            logs.mkdir()
+        with throwaway(self) as tmp:
+            root = repo(tmp)
+            logs = tmp / "logs"
             write(root, "project.godot", PROJECT)
             check_script = root / "tools/check/check_project.gd"
             check_script.parent.mkdir(parents=True)
@@ -498,10 +642,9 @@ class RealPointerTest(unittest.TestCase):
     def test_every_stand_in_imports_under_its_committed_import_file(self) -> None:
         # The PC with LFS: each stand-in is the real asset, imported and its .import file committed. The checkout in
         # CI: pointer files, no .godot/. Nothing fails, nothing is dropped, every .import file stays as committed.
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            root = repo(Path(tmp))
-            logs = Path(tmp) / "logs"
-            logs.mkdir()
+        with throwaway(self) as tmp:
+            root = repo(tmp)
+            logs = tmp / "logs"
             write(root, ".gitattributes", "".join(f"*{suffix} filter=lfs diff=lfs merge=lfs -text\n"
                                                   for suffix in lfs.STAND_INS))  # fmt: skip
             write(root, "project.godot", PROJECT)
