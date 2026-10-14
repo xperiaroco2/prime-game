@@ -40,10 +40,13 @@ exit (#442) carries `exit_crash: true` (a printed summary row notes it after its
 
 Manager cache re-writes (#305): a session's own API call after an idle gap over 1 hour (REWRITE_GAP, the 1-hour prompt
 cache's lifetime) that wrote most of its context to the cache again. Each is put in one bucket by what held when the
-gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_background` whose whole command is a
-`sleep`, optionally followed by an `echo`; armed from its line until the task notification naming its tool-use id, or
-until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
-run of the session in flight, else a stop.
+gap began: a foreground tool call that the gap's first API call made, running for half the gap or more (#981: a
+permission card waiting for a human holds every notification, the timer's too; `card` in the JSON when the human let it
+run on one), else a keep-alive timer armed (a Bash or PowerShell call with `run_in_background` whose whole command is a
+`sleep`, optionally followed by an `echo`; armed from its line until the task notification naming its tool-use id, a
+TaskStop naming its background task id (#981: no notification follows one), or until its seconds or its timeout ran
+out; one armed before --since counts while it is still armed), else a workflow run of the session in flight, else a
+stop.
 
 Subagent cache re-writes after an idle gap (#558): an agent's API call IDLE_GAP (5 minutes) or more after its previous
 one, when the 5-minute prompt cache has lapsed; its $ is that call's cache-write API list $ (most such calls write their
@@ -409,8 +412,9 @@ EDIT_TOOLS = ("Edit", "Write")
 WAIT_RAN = re.compile(r"^wait: still running after (\d+) s \(", re.MULTILINE)
 # A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
 REWRITE_GAP = 3600
-# What held when such a gap began, in the order the first that holds wins (module docstring).
-REWRITE_KINDS = ("timer", "run", "stop")
+# What held when such a gap began, in the order the first that holds wins (module docstring): a foreground tool call
+# of the session running (a permission card, #981), a keep-alive timer armed, a run of its own in flight, else a stop.
+REWRITE_KINDS = ("tool", "timer", "run", "stop")
 # A subagent's cache re-write after an idle gap (#558): its API call 5 minutes or more after its previous one, when the
 # 5-minute prompt cache has lapsed.
 IDLE_GAP = CACHE_TTL  # one 5-minute cache for #555 and #558
@@ -443,6 +447,12 @@ TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
 # A background task's notification names the tool call that started it.
 NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
+# A background shell call's result names its task id, the one a TaskStop names (#981).
+BACKGROUND_ID = re.compile(r"running in background with ID: (\w+)")
+# A Workflow call's result names its task id and its run's transcript folder (a resume launches into the same one).
+WORKFLOW_LAUNCH = re.compile(
+    r"^Workflow launched in background\. Task ID: (\w+)[\s\S]*?Transcript dir: [^\n]*?[\\/](wf_[\w-]+)"
+)
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
 # #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
@@ -835,6 +845,57 @@ def timer_seconds(block: object) -> float | None:
     return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
 
 
+def track_tasks(d: dict, t: float, timers: dict, bg_of: dict[str, str], stopped: dict[str, float],
+                launches: dict[str, list[tuple[float, str]]]) -> None:  # fmt: skip
+    """A transcript line's part in the keep-alive timers and the runs (#305, #981): a timer's tool_use arms it
+    (`timers`: its tool-use id: (armed at, its seconds)), its result names its background task id (`bg_of`), a Workflow
+    call's result names its task id and run folder (`launches`: the folder: (when, task id) per launch), and a TaskStop
+    naming a task id stops that task (`stopped`: the task id: when)."""
+    m = d.get("message")
+    if not isinstance(m, dict) or not isinstance(m.get("content"), list):
+        return
+    if d.get("type") == "assistant" and m.get("model") != "<synthetic>":
+        for b in m["content"]:
+            secs = timer_seconds(b)
+            if secs is not None and b["id"] not in timers:
+                timers[b["id"]] = (t, secs)
+            elif isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "TaskStop":
+                inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+                task = inp.get("task_id") or inp.get("shell_id")
+                if task:
+                    stopped.setdefault(str(task), t)
+    elif d.get("type") == "user":
+        for b in m["content"]:
+            if not isinstance(b, dict) or b.get("type") != "tool_result":
+                continue
+            if b.get("tool_use_id") in timers:
+                named = BACKGROUND_ID.search(text_of(b.get("content")))
+                if named:
+                    bg_of[b["tool_use_id"]] = named.group(1)
+            elif launch := WORKFLOW_LAUNCH.search(text_of(b.get("content"))):
+                launches[launch.group(2)].append((t, launch.group(1)))
+
+
+def run_pauses(launches: dict[str, list[tuple[float, str]]], stopped: dict[str, float]) -> dict[str, list[tuple]]:
+    """#981: per run folder, the spans it was stopped: from a TaskStop of one of its launches to its next launch (a
+    resume into the same folder), else for good."""
+    pauses: dict[str, list[tuple]] = {}
+    for wf, runs in launches.items():
+        runs = sorted(runs)
+        for i, (t0, task) in enumerate(runs):
+            if task in stopped and stopped[task] >= t0:
+                later = [t for t, _task in runs[i + 1:] if t >= stopped[task]]
+                pauses.setdefault(wf, []).append((stopped[task], later[0] if later else float("inf")))
+    return pauses
+
+
+def card_answered(d: dict) -> bool:
+    """Whether a tool result's line says a human let the call run on a permission card (#981): its permissionDecision's
+    source is the user's ("user_temporary", ...), not the settings' ("config")."""
+    decision = d.get("permissionDecision")
+    return isinstance(decision, dict) and str(decision.get("source", "")).startswith("user")
+
+
 def idle_use(tool_id: str, mid: str, name: str, inp: dict) -> dict:
     """A tool call's fields for the idle gaps (#558): its id, the API call (message id) that made it, whether it runs in
     the background (a shell call with run_in_background, a Monitor) and for how long at most, and its cause."""
@@ -1180,6 +1241,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
+    bg_of: dict[str, str] = {}  # a keep-alive timer's tool-use id: its background task id (#981)
+    stopped: dict[str, float] = {}  # a background task id: when a TaskStop named it (#981)
+    launches: dict[str, list[tuple[float, str]]] = defaultdict(list)  # a run folder: (when, task id) per launch (#981)
     woken: dict[str, float] = {}  # a background task's tool-use id: when its notification came
     items: list[dict] = []  # instruction and doc items (#337); each enters the context at the next API call
     pending: list[dict] = []
@@ -1207,14 +1271,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 for tid in NOTIFIED.findall(line):
                     woken.setdefault(tid, t)
             m = d.get("message")
+            track_tasks(d, t, timers, bg_of, stopped, launches)
             if since is not None and t < since:
-                # Before the window only its keep-alive timers count: one may still be armed when a gap in it begins.
-                if d.get("type") == "assistant" and isinstance(m, dict) and m.get("model") != "<synthetic>":
-                    for b in m.get("content") or []:
-                        secs = timer_seconds(b)
-                        if secs is not None and b["id"] not in timers:
-                            timers[b["id"]] = (t, secs)
-                continue
+                continue  # before the window only its keep-alive timers count: one may still be armed in it
             stamps.append(t)
             if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
                 bounds.append(len(usage))
@@ -1268,9 +1327,6 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
                         inp = b.get("input") if isinstance(b.get("input"), dict) else {}
                         cmd = str(inp.get("command", "")) if b.get("name") in ("Bash", "PowerShell") else ""
-                        secs = timer_seconds(b)
-                        if secs is not None and b["id"] not in timers:
-                            timers[b["id"]] = (t, secs)
                         changed = [repo_path(inp.get("file_path"))] if b.get("name") in ("Edit", "Write") else []
                         if TREE_CHANGE.search(cmd):
                             code_seen.clear()
@@ -1298,6 +1354,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                     if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in uses:
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
+                        call["card"] = card_answered(d)
                         text = text_of(b.get("content"))
                         call["out"] = len(text)  # #572: what the call's output adds to every later call's context
                         if call["code"] and not call.get("counted"):
@@ -1333,7 +1390,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
          write_premium(usage[b]), usd_of(usage[b])["usd_cache_write"], first_seen[a])
         for a, b in zip(order, order[1:])
     ]
-    armed = sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items())
+    # A timer ends at its notification, at a TaskStop naming its task (#981: no notification follows one), else when
+    # its seconds run out.
+    armed = sorted((t0, min(woken.get(tid, t0 + secs), stopped.get(bg_of.get(tid, ""), float("inf"))))
+                   for tid, (t0, secs) in timers.items())  # fmt: skip
     calls = list(uses.values())
     made: dict[str, list[dict]] = defaultdict(list)  # an API call's message id: the tool calls it made
     for c in calls:
@@ -1393,6 +1453,11 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
+        # #981: its foreground tool calls of IDLE_GAP or more (a permission card holds one) as (the API call that made
+        # it: first seen, its start, its result or None, a human let it run on a card).
+        "paused": run_pauses(launches, stopped),  # #981: per run folder, the spans a TaskStop stopped it
+        "fore": [(first_seen[c["mid"]], c["t0"], c["t1"], c.get("card", False)) for c in calls
+                 if not c["background"] and (c["t1"] or max(stamps)) - c["t0"] >= IDLE_GAP],  # fmt: skip
         "tool_calls": len(calls),
         # #572: the characters of its tool outputs (text; an image counts 0), and those of the runner's commands
         "tool_output": sum(c.get("out", 0) for c in calls),
@@ -3392,11 +3457,24 @@ def manager_section(managers: list[dict], other_sessions: int) -> list[str]:
     return md
 
 
-def rewrite_kind(began: float, timers: list[tuple[float, float]], runs: list[dict]) -> str:
-    """What held when a manager's idle gap began (REWRITE_KINDS): a keep-alive timer, a run of its own, neither."""
+def held_call(began: float, ended: float, fore: list[tuple]) -> tuple | None:
+    """#981: the foreground tool call that held a manager's idle gap from its API call at `began` to the next at
+    `ended`: one that call made, running for half the gap or more (a permission card waiting, a long command); else
+    None. A notification, the keep-alive timer's too, waits until it ends."""
+    return next((f for f in fore if f[0] == began and (f[2] or ended) - f[1] >= (ended - began) / 2), None)
+
+
+def rewrite_kind(began: float, timers: list[tuple[float, float]], runs: list[dict], ended: float | None = None,
+                 fore: list[tuple] = (), paused: dict | None = None) -> str:  # fmt: skip
+    """What held when a manager's idle gap began (REWRITE_KINDS): a foreground tool call of its own running, a
+    keep-alive timer, a run of its own in flight (not stopped by a TaskStop then, #981), neither."""
+    paused = paused or {}
+    if ended is not None and held_call(began, ended, list(fore)):
+        return "tool"
     if any(armed <= began < ended for armed, ended in timers):
         return "timer"
-    if any(r["start"] <= began < r["end"] for r in runs):
+    if any(r["start"] <= began < r["end"] and not any(a <= began < b for a, b in paused.get(r.get("wf"), []))
+           for r in runs):  # fmt: skip
         return "run"
     return "stop"
 
@@ -3410,9 +3488,12 @@ def rewrite_rows(sessions: list[dict], runs: list[dict]) -> list[dict]:
         if not man or not man["api_calls"]:
             continue
         own = [r for r in runs if r["sid"] == s["id"] and r["start"] is not None and r["end"] is not None]
+        fore = man.get("fore", [])
         found = [
             {"at": iso(g[5] + g[0]), "idle_hours": g[0] / 3600, "tokens": g[1], "usd": g[4],
-             "while": rewrite_kind(g[5], man["timers"], own)}
+             "while": rewrite_kind(g[5], man["timers"], own, g[5] + g[0], fore, man.get("paused")),
+             # #981: whether a human let the call that held the gap run on a permission card
+             "card": bool((held := held_call(g[5], g[5] + g[0], fore)) and held[3])}
             for g in man["gaps"]
             if g[0] > REWRITE_GAP and g[1] > 0.5 * (g[1] + g[2])
         ]
@@ -3428,7 +3509,8 @@ def rewrite_rows(sessions: list[dict], runs: list[dict]) -> list[dict]:
 def rewrite_section(rows: list[dict]) -> list[str]:
     if not rows:
         return []
-    head = ["session", "re-writes", "tokens re-written", "API list $", "a keep-alive timer armed",
+    head = ["session", "re-writes", "tokens re-written", "API list $", "a foreground tool call running",
+            "a keep-alive timer armed",
             "a run of its own in flight", "neither (a stop)", "keep-alive timers", "context of its last call"]
     body = [
         [r["label"], r["rewrites"], fmt_tok(r["tokens"]), fmt_usd(r["usd"]),
@@ -3438,9 +3520,11 @@ def rewrite_section(rows: list[dict]) -> list[str]:
     return ["## Manager cache re-writes after an idle gap over 1 hour (#305)", "", table(head, body), "",
             "A re-write is a session's own API call after over 1 hour without one that wrote most of its context to "
             "the cache again (at the 1-hour cache write price: $8 per 1M tokens on Opus 5.5). Each counts once, in "
-            "the first column that held when the gap began: a keep-alive timer armed (a background `sleep`; the "
-            "orchestrate-stage skill, §7), which should stay 0; a workflow run of the session in flight; else a stop "
-            "for the human.", ""]  # fmt: skip
+            "the first column that held when the gap began: a foreground tool call the gap's first call made, running "
+            "for half the gap or more (a permission card waiting for a human; no notification, the timer's included, "
+            "wakes the session meanwhile; #981); a keep-alive timer armed (a background `sleep`, until its "
+            "notification or a TaskStop; the orchestrate-stage skill, §7), which should stay 0; a workflow run of the "
+            "session in flight; else a stop for the human.", ""]  # fmt: skip
 
 
 def idle_agents(counted: list[dict]) -> list[dict]:

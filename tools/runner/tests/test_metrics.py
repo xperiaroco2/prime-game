@@ -921,12 +921,14 @@ class ManagerRewriteTest(unittest.TestCase):
         self.assertEqual([(f["while"], f["tokens"], round(f["idle_hours"], 2)) for f in row["found"]],
                          [("run", 210_000, 1.25), ("timer", 220_000, 1.5), ("stop", 230_000, 2.0)])  # fmt: skip
         self.assertEqual(row["found"][0]["at"], "2026-10-02T09:20:00Z")
-        self.assertEqual({k: row[k]["rewrites"] for k in metrics.REWRITE_KINDS}, {"timer": 1, "run": 1, "stop": 1})
+        self.assertEqual({k: row[k]["rewrites"] for k in metrics.REWRITE_KINDS},
+                         {"tool": 0, "timer": 1, "run": 1, "stop": 1})  # fmt: skip
         self.assertAlmostEqual(row["timer"]["usd"], 220_000 * 8.0 / 1e6)
         self.assertEqual((row["timers"], row["last_ctx"]), (3, 1 + 240_000 + 10))
         text = "\n".join(md)
         self.assertIn("## Manager cache re-writes after an idle gap over 1 hour (#305)", text)
-        self.assertIn("| 33333333 | 3 | 0.66M | $5.28 | 1 ($1.76) | 1 ($1.68) | 1 ($1.84) | 3 | 0.24M |", text)
+        self.assertIn("| 33333333 | 3 | 0.66M | $5.28 | 0 ($0.00) | 1 ($1.76) | 1 ($1.68) | 1 ($1.84) | 3 | 0.24M |",
+                      text)  # fmt: skip
 
     def test_a_window_counts_only_its_own_gaps(self) -> None:
         until = metrics.parse_time(self.UNTIL)
@@ -966,6 +968,80 @@ class ManagerRewriteTest(unittest.TestCase):
         row = record["manager_rewrites"][0]
         self.assertEqual([f["while"] for f in row["found"]], ["timer"], "k5 was armed when the gap began")
         self.assertEqual(row["timers"], 0, "the count is of the timers armed in the window")
+
+    def stopped_and_carded(self) -> Path:
+        """#981: a manager that stops its timer and its run for a human's stop, resumes the run, then waits on a
+        permission card with a timer armed."""
+        other = Path(self.tmp.name) / "carded" / "projects" / "D--prime-game"
+        sid = "55555555-0000-0000-0000-000000000000"
+        # Its run works from minute 1.5 to 2 and, resumed into the same folder, from 80 to 100.
+        Fixture.run(other / sid / "subagents" / "workflows" / "wf_stop", [
+            ("k-i", "a-i", "implement:#13", "Implement", {"verify_green": True}, [
+                assistant(1.5, "r1", usage(inp=1, write=100)),
+                assistant(100, "r2", usage(inp=1, read=100)),
+            ]),
+        ])  # fmt: skip
+
+        def launched(minutes: float, tool_id: str, task: str) -> dict:
+            folder = r"C:\Users\x\.claude\projects\D--prime-game\55555555\subagents\workflows\wf_stop"
+            return tool_result(minutes, tool_id, f"Workflow launched in background. Task ID: {task}\nSummary: s\n"
+                               f"Transcript dir: {folder}\nScript file: x")  # fmt: skip
+        h = usage(inp=1, write=200_000, out=10, write_1h=200_000)
+        r = usage(inp=1, read=200_000)
+        card = tool_result(170, "c1", "removed")
+        card["permissionDecision"] = {"decision": "accept", "source": "user_temporary"}
+        auto = tool_result(266, "c2", "listed")
+        auto["permissionDecision"] = {"decision": "accept", "source": "config", "reasonType": "mode"}
+        write_lines(other / f"{sid}.jsonl", [
+            assistant(0, "p1", h),
+            assistant(1, "p2", r, tool=background("k6", "sleep 3000")),
+            tool_result(1.1, "k6", "Command running in background with ID: bk6stop. Output is being written to: x"),
+            assistant(1.4, "p2b", r, tool={"id": "w1", "name": "Workflow", "input": {"name": "issue-task"}}),
+            launched(1.5, "w1", "wstop1"),
+            # The human says stop: the manager stops its run and its timer (no notification follows) and ends its turn.
+            assistant(2, "p3", r, tool={"id": "s0", "name": "TaskStop", "input": {"task_id": "wstop1"}}),
+            tool_result(2.05, "s0", '{"message":"Successfully stopped task: wstop1"}'),
+            assistant(2, "p3", r, tool={"id": "s1", "name": "TaskStop", "input": {"task_id": "bk6stop"}}),
+            tool_result(2.1, "s1", '{"message":"Successfully stopped task: bk6stop (sleep 3000)"}'),
+            assistant(3, "p4", r),
+            # 77 minutes later he is back: a stop, neither the timer's (it would have run to minute 51) nor the run's.
+            assistant(80, "p5", h, tool={"id": "w2", "name": "Workflow", "input": {"name": "issue-task"}}),
+            launched(80, "w2", "wstop2"),
+            assistant(80, "p5", h, tool=background("k7", "sleep 3000")),
+            tool_result(80.1, "k7", "Command running in background with ID: bk7card. Output is being written to: y"),
+            # A run's notification wakes it; its guarded command waits on a card 90 minutes. The timer fires at
+            # minute 130, but its notification waits behind the card.
+            assistant(80, "p6", r, tool=bash("c1", "git worktree remove .claude/worktrees/x")),
+            notification(130, "k7"),
+            card,
+            assistant(170.2, "p7", h),
+            # A long command no card held (the settings let it run): still not the timer's.
+            assistant(171, "p8", r, tool=bash("c2", "gh pr checks 9 --watch")),
+            auto,
+            assistant(266.1, "p9", h),
+        ])  # fmt: skip
+        return other
+
+    def test_a_task_stop_ends_a_timer(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        manager = metrics.collect([self.stopped_and_carded()], {"55555555": "C"}, None, until)["sessions"][0]["manager"]
+        t0 = metrics.parse_time(at(0))
+        self.assertEqual([(round((a - t0) / 60, 1), round((b - t0) / 60, 1)) for a, b in manager["timers"]],
+                         [(1.0, 2.0), (80.0, 130.0)], "k6 ends at the TaskStop, k7 at its notification")  # fmt: skip
+
+    def test_a_gap_held_by_a_foreground_call_is_not_the_timers(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        data = metrics.collect([self.stopped_and_carded()], {"55555555": "C"}, None, until)
+        md, record, _compact = metrics.build(data, [], None, None, until)
+        row = record["manager_rewrites"][0]
+        self.assertEqual([(f["while"], f["card"], round(f["idle_hours"], 2)) for f in row["found"]],
+                         [("stop", False, 1.28), ("tool", True, 1.5), ("tool", False, 1.58)])  # fmt: skip
+        self.assertEqual({k: row[k]["rewrites"] for k in metrics.REWRITE_KINDS},
+                         {"tool": 2, "timer": 0, "run": 0, "stop": 1})  # fmt: skip
+        self.assertEqual(data["sessions"][0]["manager"]["paused"]["wf_stop"],
+                         [(metrics.parse_time(at(2)), metrics.parse_time(at(80)))],
+                         "stopped until its resume")  # fmt: skip
+        self.assertIn("a foreground tool call running | a keep-alive timer armed |", "\n".join(md))
 
 
 SONNET = "claude-sonnet-5-5"
