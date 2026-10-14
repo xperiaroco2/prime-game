@@ -37,6 +37,9 @@ func test_after_two_shows_or_a_completion_the_loading_shows_the_tip() -> void:
 	var seen := HowtoProgress.new()
 	seen.note_loading_shown(&"delivery")
 	seen.note_loading_shown(&"delivery")
+	# The House deals the Generator too (#800): its card counts the same way.
+	seen.note_loading_shown(&"generator")
+	seen.note_loading_shown(&"generator")
 	var game := await _round_game(PORT + 1, seen)
 	assert_array(_loading_states).is_equal([&"load"])
 	assert_int(game.howto.loading_shown(&"delivery")).is_equal(2)
@@ -46,6 +49,7 @@ func test_after_two_shows_or_a_completion_the_loading_shows_the_tip() -> void:
 	var veteran := HowtoProgress.new()
 	var model := ClientModel.new(null)
 	model.fold(&"TaskState", {"task": 1, "type": &"delivery", "done": 6, "total": 6})
+	model.fold(&"TaskState", {"task": 2, "type": &"generator", "done": 4, "total": 4})
 	veteran.follow(model)
 	game = await _round_game(PORT + 2, veteran)
 	assert_array(_loading_states).is_equal([&"load"])
@@ -64,9 +68,13 @@ func test_a_task_finished_in_the_round_completes_its_type_for_the_next_loading()
 	assert_str(String(task.type)).is_equal("delivery")
 	assert_bool(game.howto.completed(&"delivery")).is_false()
 	# The round's task reaches its total in the model the game reads, as its TaskState would.
-	model.fold(
-		&"TaskState", {"task": id, "type": task.type, "done": task.total, "total": task.total}
-	)
+	# The House deals the Generator beside it (#800): its task reaches its total too.
+	for task_id: int in model.tasks.keys():
+		var each: ClientModel.Task = model.tasks[task_id]
+		model.fold(
+			&"TaskState",
+			{"task": task_id, "type": each.type, "done": each.total, "total": each.total}
+		)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_bool(game.howto.completed(&"delivery")).is_true()
@@ -84,7 +92,7 @@ func test_a_banned_task_type_shows_no_card() -> void:
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.LOBBY)).is_true()
 	# With every type banned the lobby cannot start: the card is picked from the dealable types.
 	var model := game.client().model
-	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery", "generator"])
 	assert_array(HowtoCards.dealable(game.mode, model)).is_empty()
 	game.ui.show_screen(S.LOADING)
 	assert_array(_loading_states).is_equal([&"load"])
