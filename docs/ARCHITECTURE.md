@@ -7502,7 +7502,9 @@ Settings (`content/tasks/delivery.tres`, id `delivery`, display name "Delivery",
 Wine (`wine`) to the dining table (`drop_dining_table`), Motor oil (`oil`) to the workbench (`drop_workbench`), Garden
 gnome (`gnome`) to the garden (`drop_garden`), Parasol (`parasol`) to the terrace table (`drop_terrace_table`); each
 drop-off a cylinder of radius 1 m and height 2 m (DD3; the height a placeholder, "not a decision") on its one marker
-(D1, #826); each item kind two-handed with the shared `package` spawn tag (DD6 (a), DD8 (a)), placed among the
+(D1, #826), each marker at the furniture the drop-off is named after, whose layer-1 top an item may rest on (D4,
+#831: the art's dining table, terrace table with a parasol stand beside it, workbench and garden drop-off; §9.6);
+each item kind two-handed with the shared `package` spawn tag (DD6 (a), DD8 (a)), placed among the
 packages' storage markers. `subtasks_setting`: `packages` (the same lobby row as Delivery by colours); RNG purposes
 `packages_rng`, `tasks_rng` (`packages`, `tasks`). `station_kinds()` is its routes' drop-offs, each once, in `routes`
 order (D2a's override, #827); `item_spawn_tags()` its kinds' tags, each once.
@@ -7522,7 +7524,8 @@ default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.4
 look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
 Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
 `core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
-`parasol.tres` (provisional, the engineer approves them in the PR). Tests (fixtures, never the House's data, §9.6):
+`parasol.tres` (provisional, the engineer approves them in the PR); the House's circles removed and its drop-offs'
+furniture in #831 (D4). Tests (fixtures, never the House's data, §9.6):
 `tests/unit/tasks/delivery_by_meaning_deal_test.gd`, `delivery_by_meaning_check_test.gd` (the on-rest check, DE7),
 `delivery_by_meaning_demands_test.gd`, `delivery_by_meaning_mode_check_test.gd`, `delivery_by_meaning_filter_test.gd`
 (every peer gets the same task events), on `tests/fixtures/tasks/fixture_meaning_modes.gd`;
@@ -7531,7 +7534,9 @@ StationPlaced, ItemSpawned and PackageDelivered through WireSchema into ClientMo
 carries them over the wire), `tests/unit/client/ui/lobby_panel_maps_test.gd` and `guide_panel_test.gd` (DE16);
 `tests/unit/content/delivery_content_test.gd` (each Delivery's `maps`: one map of the base mode each, the two apart,
 neither the tutorial's); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
-spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; both tasks dealt and the round won
+spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; an item put on each drop-off's
+furniture rests inside its cylinder (#831) in `tests/integration/levels/house_drop_offs_test.gd`; both tasks
+dealt and the round won
 on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
 plays it: the scenarios and the leak test play the greybox's Delivery by colours (§9.7).
 
@@ -7561,6 +7566,9 @@ levels/
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
+  props/parasol_stand.tscn         the terrace table's empty parasol stand, the parasol's sign (#831): primitive
+                                   meshes, primitive layer-1 colliders (no GLB); the House's other drop-offs stand
+                                   at the art's furniture (§9.5.25)
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the
