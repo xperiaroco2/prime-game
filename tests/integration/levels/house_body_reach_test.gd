@@ -70,8 +70,9 @@ const WALKABLE: Array[String] = [
 ## engine work, so no walk reaches the attic yet: the engineer's call, listed in the PR).
 const LOCKED: Array[String] = ["AtticAndRoof/Attic"]
 ## The Shell pieces of the art's rooms players never stand on: walls, fences, railings, roofs,
-## glass, beams, pillars and the ladder (their names' starts; every other Shell piece is a floor,
-## a slab, a porch or a flight of stairs).
+## glass, beams, pillars, the ladder and the garage gate's lintel (its top at 3.0 m would count as
+## a walked floor) (their names' starts; every other Shell piece is a floor, a slab, a porch or a
+## flight of stairs).
 const NOT_WALKED: Array[String] = [
 	"wall_",
 	"fence",
