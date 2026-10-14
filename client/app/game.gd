@@ -705,6 +705,7 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_avatars.mode = mode
 	_avatars.character = _character_set()
 	_bodies.setup(_client.model, mode.player_rules, _avatars)
+	_bodies.character = _avatars.character
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items

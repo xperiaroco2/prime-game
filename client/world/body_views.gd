@@ -33,6 +33,9 @@ var model: ClientModel
 var avatars: AvatarViews
 ## The client's own copy of the mode's PlayerRules: the bodies' size.
 var rules: PlayerRules
+## The character a fresh body's ragdoll wears (#522, §4.7.53), or null: the greybox capsule. The
+## game sets it with AvatarViews.character.
+var character: CharacterSet
 
 var _views: Dictionary[int, BodyView] = {}
 
@@ -98,7 +101,7 @@ func _ragdoll_for(peer: int, point: Vector3) -> RagdollView:
 	var ragdoll := avatars.release_ragdoll(peer) if avatars != null else null
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
-		ragdoll.setup(rules, peer, LifeLooks.BODY_COLOUR)
+		ragdoll.setup(rules, peer, LifeLooks.BODY_COLOUR, character)
 		ragdoll.lie_at_rest(point, 0.0)
 	ragdoll.name = "Ragdoll"
 	ragdoll.make_dead(point)

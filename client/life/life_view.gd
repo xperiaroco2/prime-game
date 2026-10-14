@@ -296,7 +296,8 @@ func raise_target() -> int:
 
 
 ## raise_target()'s cast: the first thing along the camera's ray, so a wall in front hides a
-## downed player behind it. A hit ragdoll names its peer (§4.7.9, the knockdown ADR's §7), and the
+## downed player behind it. A hit ragdoll names its peer (§4.7.9, the knockdown ADR's §7; on the
+## character's skeleton a hit bone names its view's, RagdollView.of_collider(), #522), and the
 ## reach is measured to that peer's interpolated point, the ragdoll's held one, never to the part
 ## the ray hit.
 func _cast_raise_target() -> int:
@@ -308,7 +309,7 @@ func _cast_raise_target() -> int:
 	var mask := PhysicsLayers.WORLD | PhysicsLayers.DOWNED
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [player.get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	var ragdoll := hit.get("collider") as RagdollView
+	var ragdoll := RagdollView.of_collider(hit.get("collider") as Object)
 	if ragdoll == null or ragdoll.peer == 0:
 		return 0
 	if model.life_of(ragdoll.peer) != ClientModel.Life.DOWNED:

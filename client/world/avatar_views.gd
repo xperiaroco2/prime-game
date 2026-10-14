@@ -306,7 +306,7 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	var ragdoll: RagdollView = _ragdolls.get(peer)
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
-		ragdoll.setup(rules, peer, colour)
+		ragdoll.setup(rules, peer, colour, character)
 		ragdoll.start(pose.position, pose.yaw, velocity)
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll

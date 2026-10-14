@@ -183,6 +183,18 @@ func test_the_own_player_s_pick_up_queues_nothing() -> void:
 
 
 ## PEER standing at `at`, drawn for a few frames.
+func test_a_knocked_down_player_s_ragdoll_is_the_character_s_skeleton() -> void:
+	await _stand(Vector3.ZERO)
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _stand(Vector3.ZERO)
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_object(ragdoll).is_not_null()
+	assert_object(ragdoll.rig()).is_not_null()
+	assert_int(ragdoll.bones().size()).is_equal((Fixture.ragdoll()["bones"] as Array).size())
+	assert_object(ragdoll.colour()).is_equal(BodyColours.of(_model.colour_of(PEER)))
+	assert_bool(_views.body_of(PEER).character().visible).is_false()
+
+
 func _stand(at: Vector3) -> void:
 	for tick: int in 4:
 		_arrive(at, Vector3.FORWARD)
