@@ -37,6 +37,7 @@ func _init(
 	name = node_name
 	theme_type_variation = variation
 	tint_from = icon_tint
+	item_label.resized.connect(_fit_item_height)
 	center.name = "Center"
 	row.name = "Row"
 	row.theme_type_variation = &"ToyRowEight"
@@ -104,27 +105,11 @@ func _restyle() -> void:
 
 
 ## The item name's height: a Label that wraps and trims has a minimum height of 1 px (it takes the
-## height its container gives), so the slot is given the lines the name needs, one or two, at the
-## name's width (#1017).
+## height its container gives), so the label is given the lines its name wraps to at its width, one
+## or two (#1017). Run again when the width settles (resized), since the lines depend on it.
 func _fit_item_height() -> void:
-	var font := item_label.get_theme_font(&"font")
-	var font_size := item_label.get_theme_font_size(&"font_size")
-	var flags := (
-		TextServer.BREAK_MANDATORY
-		| TextServer.BREAK_WORD_BOUND
-		| TextServer.BREAK_ADAPTIVE
-		| TextServer.BREAK_TRIM_EDGE_SPACES
-	)
-	var wrapped := font.get_multiline_string_size(
-		item_label.text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		ITEM_NAME_SIZE.x,
-		font_size,
-		ITEM_NAME_LINES,
-		flags
-	)
-	var lines := clampi(
-		roundi(wrapped.y / maxf(font.get_height(font_size), 1.0)), 1, ITEM_NAME_LINES
-	)
+	var lines := clampi(item_label.get_line_count(), 1, ITEM_NAME_LINES)
 	var spacing := item_label.get_theme_constant(&"line_spacing")
-	item_label.custom_minimum_size.y = item_label.get_line_height() * lines + spacing * (lines - 1)
+	var height := item_label.get_line_height() * lines + spacing * (lines - 1)
+	if not is_equal_approx(item_label.custom_minimum_size.y, height):
+		item_label.custom_minimum_size.y = height
