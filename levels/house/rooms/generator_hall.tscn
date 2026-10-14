@@ -18,8 +18,6 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/pillar_concrete.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/generator.tscn" id="10"]
-
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="11"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_gen_zone.glb" id="12"]
@@ -95,6 +93,8 @@
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/industrial_pendant.glb" id="47"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cage_lamp.glb" id="48"]
+
+[ext_resource type="PackedScene" path="res://levels/stations/generator.tscn" id="station_scene"]
 
 [node name="GeneratorHall" type="Node3D" unique_id=405474505]
 metadata/room_id = &"generator_hall"
@@ -1814,20 +1814,6 @@ instance_shader_parameters/plan_at = Vector4(54, -3.2, 38, 0)
 
 [node name="Dressing" type="Node3D" parent="."]
 
-[node name="generator_1" parent="Dressing" instance=ExtResource("10")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9, 0, 11.2)
-metadata/prop = "generator"
-metadata/station = "Generator"
-
-[node name="generator" parent="Dressing/generator_1"]
-surface_material_override/0 = ExtResource("11")
-
-[node name="generator_off" parent="Dressing/generator_1"]
-surface_material_override/0 = ExtResource("11")
-
-[node name="generator_on" parent="Dressing/generator_1"]
-surface_material_override/0 = ExtResource("11")
-
 [node name="floor_gen_zone_1" parent="Dressing" instance=ExtResource("12")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9, 0, 12.2)
 metadata/prop = "floor_gen_zone"
@@ -2982,5 +2968,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 9)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1674144115]
 
-[node name="Generator" type="Marker3D" parent="Stations" unique_id=115368882]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 10)
+[node name="Generator" parent="Stations" instance=ExtResource("station_scene")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9, 0, 11.2)

@@ -12,8 +12,6 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/beam_concrete_2m.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_switch.tscn" id="7"]
-
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="8"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/switchboard.tscn" id="9"]
@@ -71,6 +69,8 @@
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cage_lamp.glb" id="35"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/fluorescent_tube.glb" id="36"]
+
+[ext_resource type="PackedScene" path="res://levels/stations/switch.tscn" id="station_scene"]
 
 [node name="SwitchRoom" type="Node3D" unique_id=1091927937]
 metadata/room_id = &"switch_room"
@@ -384,20 +384,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(46, -0.2, 22, 90)
 
 [node name="Dressing" type="Node3D" parent="."]
-
-[node name="wall_switch_1" parent="Dressing" instance=ExtResource("7")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 0, 3.5)
-metadata/prop = "wall_switch"
-metadata/station = "SwitchD"
-
-[node name="wall_switch" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
-
-[node name="wall_switch_off" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
-
-[node name="wall_switch_on" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
 
 [node name="switchboard_1" parent="Dressing" instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 0.25)
@@ -817,5 +803,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1178256581]
 
-[node name="SwitchD" type="Marker3D" parent="Stations" unique_id=1219845879]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, 3.5)
+[node name="SwitchD" parent="Stations" instance=ExtResource("station_scene")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 0, 3.5)

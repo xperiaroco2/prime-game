@@ -12,8 +12,6 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/beam_concrete_2m.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_switch.tscn" id="7"]
-
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="8"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/water_tank.tscn" id="9"]
@@ -69,6 +67,8 @@
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_calendar.glb" id="34"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cage_lamp.glb" id="35"]
+
+[ext_resource type="PackedScene" path="res://levels/stations/switch.tscn" id="station_scene"]
 
 [node name="PumpRoom" type="Node3D" unique_id=1907944834]
 metadata/room_id = &"pump_room"
@@ -594,20 +594,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(53, -0.2, 50, 90)
 
 [node name="Dressing" type="Node3D" parent="."]
-
-[node name="wall_switch_1" parent="Dressing" instance=ExtResource("7")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 9.9, 0, 6)
-metadata/prop = "wall_switch"
-metadata/station = "SwitchC"
-
-[node name="wall_switch" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
-
-[node name="wall_switch_off" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
-
-[node name="wall_switch_on" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("8")
 
 [node name="water_tank_1" parent="Dressing" instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 0, 5.5)
@@ -1142,8 +1128,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 0)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1367336067]
 
-[node name="SwitchC" type="Marker3D" parent="Stations" unique_id=1085907096]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 6)
+[node name="SwitchC" parent="Stations" instance=ExtResource("station_scene")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 9.4, 0, 6)
 
 [node name="Markers" type="Node3D" parent="." unique_id=1588442113]
 
