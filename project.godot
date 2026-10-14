@@ -163,6 +163,7 @@ locale/translations=PackedStringArray("res://client/i18n/strings.en.translation"
 3d_physics/layer_1="world"
 3d_physics/layer_2="living_players"
 3d_physics/layer_3="downed"
+3d_physics/layer_4="movers"
 
 [physics]
 

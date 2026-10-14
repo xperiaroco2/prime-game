@@ -1,21 +1,19 @@
 extends GdUnitTestSuite
-## KD15 (a)'s push (the knockdown rework's §2 and §10, 728e, #849): a body launched into the
-## lowered car and raised there. The car is client-only (the car repair ADR's RE8 (a)): an
+## KD15 (the knockdown rework's §2 and §10, 728e, #849, #976): a body launched into the lowered
+## car and raised there. The car is client-only (the car repair ADR's RE8 (a)): an
 ## AnimatableBody3D on layer 4, `movers`, which each honest client's own player collides with
 ## beside the world, and which the host's world never holds. So the host's revive Correction
-## places the raised player inside the car's footprint, and its own client's solver pushes it out
-## on its screen, a push the host sees only through the claims that follow and checks as any
-## claims (ARCHITECTURE §7.1.5). This suite records that push and the Corrections the host sends
-## after the revive's placement (it prints them on a `KD15 (a):` line).
+## places the raised player inside the car's footprint, and its own client walks it out on its
+## screen (KD15 (b2)), which the host sees only through the claims that follow and checks as any
+## claims (ARCHITECTURE §7.1.5). It prints what it saw on a `KD15 (b2):` line.
 ##
-## What it measured (#849): the raiser's hint offers the body inside the car (the raise ray passes
-## through `movers`); the crouched capsule placed inside the stand-in is pushed down, not out (about
-## 0.56 m into the floor on its own screen, no Correction while it stands still), and walking out
-## across the long side gets 3 Corrections. ADR §2 makes more than one a stop: the question goes
-## back to the engineer with (b) and (c), in #849 and its PR. So the suite asserts what holds either
-## way (the placement, the way out, the floor once out) and only records the Corrections and the
-## push; the answer sets the bound it is to assert. Its crouch assert checks the hold the suite
-## keeps through the revive (so the controller does not stand up inside the stand-in), not KE6's.
+## Under (a) (#849) the crouched capsule placed inside the stand-in was pushed down by the solver,
+## not out (about 0.56 m into the floor on its own screen), and walking out across the long side
+## got 3 Corrections. The engineer's (b2) (#976): the client walks its capsule out at walk speed,
+## ignoring `movers` until clear. Measured since: no sink, out of the footprint, 0 Corrections; the
+## suite asserts no sink, the capsule out of the footprint and at most MAX_CORRECTIONS. The raiser's
+## hint offers the body inside the car (the raise ray passes through `movers`). Its crouch assert
+## checks the hold the suite keeps through the revive, not KE6's.
 ##
 ## Neither the car (R5) nor the `movers` layer (R7) is built yet, so the suite builds a stand-in:
 ## a box on layer 4 in both Games' worlds (each machine has its own copy, as R7 drives it), and it
@@ -31,8 +29,8 @@ extends GdUnitTestSuite
 ## the mask; R7 decides when the mask gets it).
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
-## Layer 4, `movers` in the car repair ADR's RE8 (a) (bit value 8); not in PhysicsLayers until R7.
-const MOVERS := 1 << 3
+## Layer 4, `movers` in the car repair ADR's RE8 (a); on the living's mask only from R7 on.
+const MOVERS := PhysicsLayers.MOVERS
 ## The lowered car's stand-in: the footprint (RD2's 2.0 m wide, 4.6 m long, long axis along z),
 ## its underside above the floor and below the raised clearance (1.4 m), its top above the
 ## crouched capsule. Not a decision: R5's car.tscn sets the real collider.
@@ -59,6 +57,8 @@ const SETTLE_FRAMES := 30
 const PLACED_M := 0.05
 ## Out of the car, the feet stand on the floor: within this of its height.
 const FLOOR_M := 0.05
+## The most Corrections after the raise, the walk out of the car and on (KD15 (b2): at most one).
+const MAX_CORRECTIONS := 1
 
 var _pair: NetPair
 
@@ -111,17 +111,29 @@ func test_a_player_raised_in_the_lowered_car_is_pushed_out_by_its_own_client() -
 	if not offered:
 		_pair.host.client().send_intent(Intents.RAISE, {"target": raised})
 	var placements := session.placements
+	# Where the host places it (the Correction), not where it stands a step later: its first living
+	# step may already walk out of the car.
+	var placed_at: Array[Vector3] = []
+	session.corrected.connect(func(at: Vector3, _velocity: Vector3) -> void: placed_at.append(at))
 	var revived := func() -> bool:
 		return model.life_of(raised) == ClientModel.Life.ALIVE and session.placements > placements
 	assert_bool(await _until(revived, REVIVE_FRAMES)).is_true()
 	var corrections := session.corrections
-	var placed := player.global_position - body
+	var placed := (placed_at.back() as Vector3) - body
 	var crouched := player.is_crouched()
-	# Still: what its own client's solver does with a crouched capsule inside the car.
+	# Still (no key but the crouch): its own client walks the crouched capsule out of the car
+	# (KD15 (b2)).
 	var still := await _watch(player, body, WATCH_FRAMES)
 	var still_corrected := session.corrections - corrections
-	# Out: the player walks out across the long side away from the raiser, the shortest way.
-	var out_to := body - side * (CAR_SIZE.x * 0.5 + _pair.mode.player_rules.capsule_radius_m + 0.3)
+	var left := player.global_position - body
+	var radius := _pair.mode.player_rules.capsule_radius_m
+	var cleared := (
+		absf(left.x) >= CAR_SIZE.x * 0.5 + radius - FLOOR_M
+		or absf(left.z) >= CAR_SIZE.y * 0.5 + radius - FLOOR_M
+	)
+	# Out: the player walks on, away from the car the way it left.
+	var away := Vector3(left.x, 0.0, left.z).normalized()
+	var out_to := body + away * (Vector2(left.x, left.z).length() + 0.5)
 	var walked_out := await _walk_to(player, out_to)
 	await _frames(SETTLE_FRAMES)
 	var out := await _watch(player, body, WATCH_FRAMES)
@@ -129,8 +141,9 @@ func test_a_player_raised_in_the_lowered_car_is_pushed_out_by_its_own_client() -
 	print(
 		(
 			(
-				"KD15 (a): hint offered %s; placed %s, crouched %s; still %.1f s: push %.3f m, "
-				+ "lift %.3f m, sink %.3f m, Corrections %d; walked out %s to %s; Corrections in all %d"
+				"KD15 (b2): hint offered %s; placed %s, crouched %s; still %.1f s: push %.3f m, "
+				+ "lift %.3f m, sink %.3f m, Corrections %d, cleared %s; walked out %s to %s; "
+				+ "Corrections in all %d"
 			)
 			% [
 				offered,
@@ -141,6 +154,7 @@ func test_a_player_raised_in_the_lowered_car_is_pushed_out_by_its_own_client() -
 				still.lift,
 				still.sink,
 				still_corrected,
+				cleared,
 				walked_out,
 				player.global_position - body,
 				corrected,
@@ -152,6 +166,9 @@ func test_a_player_raised_in_the_lowered_car_is_pushed_out_by_its_own_client() -
 	assert_bool(walked_out).is_true()
 	assert_float(out.sink).is_less(FLOOR_M)
 	assert_float(out.lift).is_less(FLOOR_M)
+	assert_float(still.sink).is_less(FLOOR_M)
+	assert_bool(cleared).is_true()
+	assert_int(corrected).is_less_equal(MAX_CORRECTIONS)
 	await _pair.stop()
 
 

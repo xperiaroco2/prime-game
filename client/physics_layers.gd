@@ -14,3 +14,7 @@ const LIVING := 1 << 1
 ## collide with the level only. The crosshair's search for a downed player to raise reads this
 ## layer.
 const DOWNED := 1 << 2
+## Movers (the car repair ADR's RE8 (a)): the car, an AnimatableBody3D only the clients' worlds
+## hold. A living player's controller walks out of one it is placed inside (KD15 (b2)); R7 puts the
+## layer on the living's collision mask.
+const MOVERS := 1 << 3
