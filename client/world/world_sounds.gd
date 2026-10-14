@@ -407,9 +407,9 @@ func _blocked(from: Vector3, to: Vector3) -> bool:
 func _ears_position() -> Variant:
 	if not is_inside_tree():
 		return null
-	var ears := get_viewport().get_audio_listener_3d()
-	if ears != null:
-		return ears.global_position
+	var audio_listener := get_viewport().get_audio_listener_3d()
+	if audio_listener != null:
+		return audio_listener.global_position
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return null
