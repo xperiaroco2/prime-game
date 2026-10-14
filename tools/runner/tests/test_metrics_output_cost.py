@@ -91,7 +91,8 @@ class OutputCostTest(unittest.TestCase):
     def test_no_table_without_a_run_and_the_compact_summary_keeps_its_lines(self) -> None:
         self.assertEqual(metrics.output_section(metrics.output_rows([])), [])
         _lines, record = self.build()
-        self.assertFalse(any("#982" in line for line in record["compact"]), "the compact summary does not change")
+        for needle in ("#982", "output $", "Output API list", "output_by_role"):
+            self.assertFalse(any(needle in line for line in record["compact"]), f"the compact summary has no {needle!r}")
 
 
 if __name__ == "__main__":
