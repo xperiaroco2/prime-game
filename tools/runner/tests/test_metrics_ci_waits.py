@@ -8,7 +8,7 @@ from pathlib import Path
 
 from runner import metrics
 from runner.common import LINE_CAP
-from runner.tests.test_metrics import SESSION, UNTIL, Fixture, assistant, bash, tool_result, usage
+from runner.tests.test_metrics import SESSION, UNTIL, Fixture, assistant, bash, tool_result, usage, write_lines
 
 CHECKS = "cd /d/x && timeout 180 gh pr checks 9 --watch --interval 30; echo rc=$?"
 OPUS = (4.0, 5.0, 0.20, 20.0)  # USD per million tokens: input, 5-minute cache write, cache read, output
@@ -79,6 +79,11 @@ class PollKindTest(unittest.TestCase):
             "cd /d/x && sleep 3000": "sleep",
             "Start-Sleep -Seconds 30": "sleep",
             "sleep 5; cat log": None,
+            "gh pr checks 9 || gh run view 123 --log-failed | grep FAIL": None,
+            "gh pr checks 9 --watch; gh pr merge 9 --auto": None,
+            "timeout 180 gh pr checks 9 --watch | tail -3; echo rc=$?": "ci",
+            "sleep 60 && gh pr checks 9": "ci",
+            "tools/run.sh wait /c/s/l; sleep 5": "wait",
             "gh pr view 9 --json state": None,
             "tools/run.sh publish > log 2>&1": None,
             "": None,
@@ -90,8 +95,6 @@ class CiWaitCallsTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.path = Path(self.tmp.name) / "agent-p.jsonl"
-        from runner.tests.test_metrics import write_lines
-
         write_lines(self.path, publisher("p", 0))
 
     def tearDown(self) -> None:
@@ -118,6 +121,23 @@ class CiWaitCallsTest(unittest.TestCase):
             "input_tokens": 10, "cache_creation_input_tokens": 15_990, "cache_read_input_tokens": 0,
             "output_tokens": 5, "cache_write_1h": 15_990, "model": None})  # fmt: skip
         self.assertEqual(metrics.poll_agent_usage(u, first=True)["cache_write_1h"], 0)
+
+    def test_a_poll_agents_first_write_has_the_measured_agents_share_of_one_hour_writes(self) -> None:
+        u = usage(inp=10, write=1000, read=40_000, out=5)
+        first = metrics.poll_agent_usage(u, True, 0.25)
+        self.assertEqual((first["cache_creation_input_tokens"], first["cache_write_1h"]), (15_990, 3998))
+        cold = metrics.usd(metrics.usd_of(metrics.poll_agent_usage(u, True)))
+        self.assertGreater(metrics.usd(metrics.usd_of(first)), cold)
+        # The share is the agent's own: 25 of its 400 written tokens at the 1-hour rate.
+        used = {"a": {**u, "cache_creation_input_tokens": 100, "cache_write_1h": 25},
+                "b": {**u, "cache_creation_input_tokens": 300, "cache_write_1h": 0}}  # fmt: skip
+        w = metrics.ci_wait_calls(["a", "b"], {"a": [{"poll": "ci"}], "b": [{"poll": "ci"}]}, used)
+        expect = metrics.usd_of(metrics.poll_agent_usage(used["a"], True, 0.0625))["usd_cache_write"]
+        expect += metrics.usd_of(metrics.poll_agent_usage(used["b"], False))["usd_cache_write"]
+        self.assertAlmostEqual(w["poll_usd"]["usd_cache_write"], expect)
+
+    def test_a_negative_amount_keeps_its_sign_in_front(self) -> None:
+        self.assertEqual([metrics.fmt_usd(v) for v in (-0.312, -1234.56, 1234.56)], ["-$0.31", "-$1,235", "$1,235"])
 
 
 class CiWaitRecordTest(unittest.TestCase):
@@ -220,6 +240,20 @@ class CiWaitRecordTest(unittest.TestCase):
             "(0.01%/7 days): not over the 1% bar"), week)  # fmt: skip
         self.assertIn("In the window (1.0 days), a poll agent's saving -0.01% (-0.09%/7 days)", text)
         self.assertLessEqual(len(week), LINE_CAP)
+
+    def test_a_clause_over_the_cap_keeps_the_verdict(self) -> None:
+        _md, record, _compact = self.build()
+        verdict = metrics.ci_wait_verdict(record["ci_waits"])
+        week = "% of a Max 20x week: " + "x" * 180
+        total = "total API list $: " + "y" * 100
+        lines = [total, week]
+        metrics.attach_ci_wait(lines, record["ci_waits"])
+        self.assertTrue(lines[0].endswith(verdict), lines[0])  # the total line had room for the whole clause
+        self.assertEqual(lines[1], week)
+        lines = [total + "z" * (LINE_CAP - 130), week]
+        metrics.attach_ci_wait(lines, record["ci_waits"])
+        self.assertTrue(lines[1].endswith(f" of the week; {verdict}"), lines[1])  # neither: the short clause
+        self.assertLessEqual(len(lines[1]), LINE_CAP)
 
     def test_without_a_ci_role_nothing_is_added(self) -> None:
         wf = self.dir / SESSION / "subagents" / "workflows"

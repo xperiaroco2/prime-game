@@ -1399,7 +1399,7 @@ one line each (the key in `metrics.json` in brackets):
   one), their list $ by input, cache write, cache read and output, share of the role's $ and % of the week, and a poll
   agent's estimate (each call at 16k context, one launch per wait; `metrics --help` has the model) with its saving and
   a free poll agent's, per 7 days at the window's rate against the engineer's 1% bar (#302's answer 4A); on the compact
-  summary at the end of its % of the week line;
+  summary at the end of its % of the week line (else on the total line, or in a short form);
 - manager sessions with their % of the week and their cache re-writes after an idle gap over 1 hour (#305), by what
   held when it began (a foreground call such as a permission card, a timer until its notification or TaskStop, a run
   not stopped, else a stop; #981), and the subagents' re-writes after a gap of 5 minutes or more, by what preceded

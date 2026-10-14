@@ -109,14 +109,16 @@ CI waits and a poll agent's saving (#1019; #302's answer 4A: a poll agent is bui
 week): per run kind and CI role (CI_WAIT_ROLES: issue-task's publisher, quick-task's quick agent and fixer,
 pr-rebase's rebase and fix agents) over the counted runs, the CI-wait calls (ci_wait_calls: an API call whose tool
 uses all poll CI (`gh pr checks`, `gh run watch`, a `gh run view` without --log), wait on a job (`wait`) or sleep
-alone, and one with no tool use right after one, not the agent's last), the waits (such calls in a row), the polls by
+alone; the parts of its command, split at `&&`, `||`, `;` and `|`, all poll or are a `cd`, `echo` or `tail`; poll_kind),
+and one with no tool use right after one, not the agent's last), the waits (such calls in a row), the polls by
 kind, their API list $ by input, cache write, cache read and output, their share of the role's $ and their % of the
 week; the poll agent's estimate (poll_agent_usage: each call at the same model's prices as a call of POLL_AGENT_CTX
-context with the same input and output, the same cache write up to that, its first call of a wait writing it all,
-the rest a cache read; plus per wait one call of the agent at its first CI-wait call's $, the launch), the saving in $
-and % of the week, and the ceiling (a free poll agent: the launches alone); the savings over all per 7 days at the
-window's rate against POLL_THRESHOLD. A table in the report (`ci_waits` in the JSON record) and a clause at the end of
-the compact summary's % of the week line.
+context with the same input and output, the same cache write up to that, its first call of a wait writing it all (at
+the 1-hour rate for the measured agent's own share of such writes), the rest a cache read; plus per wait one call of
+the agent at its first CI-wait call's $, the launch), the saving in $ and % of the week, and the ceiling (a free poll
+agent: the launches alone); the savings over all per 7 days at the window's rate against POLL_THRESHOLD. A table in
+the report (`ci_waits` in the JSON record) and a clause at the end of the compact summary's % of the week line (else on
+the total line; neither has room: its short form, the week's share and the verdict).
 
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
@@ -438,6 +440,9 @@ RUNNER_OUTPUT_KINDS = frozenset({"wait", "publish", "verify", "selftest", "test"
 # `gh run view` without --log: one with it reads a failure), a `wait` call (CMD_KINDS) or a sleep alone between them.
 CI_WAIT_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
 POLL_KINDS = ("ci", "wait", "sleep")
+POLL_SPLIT = re.compile(r"&&|\|\||[;|\n]")
+POLL_TIMEOUT = re.compile(r"^timeout\s+\d+\s+")
+POLL_NEUTRAL = re.compile(r"^(?:cd|echo|tail|head|true|printf|:)(?!\w)")
 RUN_VIEW = re.compile(r"\bgh\s+run\s+view\b(?!.*--log)")
 SLEEP_ONLY = re.compile(
     r"^\s*(?:cd\s+\S+\s*(?:&&|;)\s*)?(?:sleep|Start-Sleep(?:\s+-Seconds)?)\s+\d+[smh]?\s*(?:;\s*echo\b[^;&|]*)?$", re.I
@@ -721,7 +726,8 @@ def iso(seconds: float | None) -> str:
 
 
 def fmt_usd(v: float) -> str:
-    return f"${v:,.0f}" if v >= 10 else f"${v:.2f}"
+    sign, v = ("-", -v) if v < 0 else ("", v)
+    return sign + (f"${v:,.0f}" if v >= 10 else f"${v:.2f}")
 
 
 def fmt_tok(n: float) -> str:
@@ -1601,27 +1607,38 @@ def bounded_waits(
 
 
 def poll_kind(cmd: str) -> str | None:
-    """#1019: what a shell command polls (POLL_KINDS): CI, a `wait` on a long job, a sleep alone; else None."""
-    if not cmd:
-        return None
-    kind = cmd_kind(cmd)
-    if kind == "ci-wait" or RUN_VIEW.search(cmd):
-        return "ci"
-    if kind == "wait":
-        return "wait"
-    return "sleep" if SLEEP_ONLY.search(cmd) else None
+    """#1019: what a shell command only polls (POLL_KINDS): CI, a `wait` on a long job, a sleep alone; else None. Its
+    parts (split at `&&`, `||`, `;` and `|`) must all poll or be harmless (POLL_NEUTRAL: a `cd`, an `echo`, a `tail`
+    of the result), so `gh pr checks 9 || gh run view 9 --log-failed | grep FAIL` (it reads a failure) and `gh pr
+    checks 9; gh pr merge 9` (it works) are no poll. A command that polls CI and waits on a job is CI's."""
+    kinds: set[str] = set()
+    for part in POLL_SPLIT.split(cmd or ""):
+        part = POLL_TIMEOUT.sub("", part.strip())
+        if not part or POLL_NEUTRAL.match(part):
+            continue
+        if cmd_kind(part) == "ci-wait" or RUN_VIEW.search(part):
+            kinds.add("ci")
+        elif cmd_kind(part) == "wait":
+            kinds.add("wait")
+        elif SLEEP_ONLY.search(part):
+            kinds.add("sleep")
+        else:
+            return None
+    return next((k for k in POLL_KINDS if k in kinds), None)
 
 
-def poll_agent_usage(u: dict, first: bool) -> dict:
+def poll_agent_usage(u: dict, first: bool, share_1h: float = 0.0) -> dict:
     """#1019: one CI-wait call's usage as the poll agent would make it: a prompt of POLL_AGENT_CTX tokens with the same
     input; the same cache write up to the rest of it (a cache that expired re-writes at most POLL_AGENT_CTX), the rest
-    a cache read; its first call of a wait writes the whole prompt; the same output."""
+    a cache read; its first call of a wait writes the whole prompt, `share_1h` of it at the 1-hour rate (the measured
+    agent's own share of such writes: the same harness launches the poll agent); the same output."""
     inp = min(u["input_tokens"], POLL_AGENT_CTX)
     write = POLL_AGENT_CTX - inp if first else min(u["cache_creation_input_tokens"], POLL_AGENT_CTX - inp)
     return {
         "input_tokens": inp, "cache_creation_input_tokens": write,
         "cache_read_input_tokens": POLL_AGENT_CTX - inp - write, "output_tokens": u["output_tokens"],
-        "cache_write_1h": 0 if first else min(u.get("cache_write_1h", 0), write), "model": u.get("model"),
+        "cache_write_1h": round(write * share_1h) if first else min(u.get("cache_write_1h", 0), write),
+        "model": u.get("model"),
     }  # fmt: skip
 
 
@@ -1648,12 +1665,14 @@ def ci_wait_calls(order: list[str], made: dict[str, list[dict]], usage: dict[str
     spent: Counter = Counter()
     poll: Counter = Counter()
     launch: Counter = Counter()
+    written = sum(u["cache_creation_input_tokens"] for u in usage.values())
+    share_1h = min(1.0, sum(u.get("cache_write_1h", 0) for u in usage.values()) / written) if written else 0.0
     for wait in waits:
         launch.update(usd_of(usage[wait[0]]))
         for j, mid in enumerate(wait):
             tokens.update({f: usage[mid][f] for f in TOKEN_FIELDS})
             spent.update(usd_of(usage[mid]))
-            poll.update(usd_of(poll_agent_usage(usage[mid], first=j == 0)))
+            poll.update(usd_of(poll_agent_usage(usage[mid], j == 0, share_1h)))
     return {
         "calls": sum(len(w) for w in waits), "waits": len(waits), "polls": dict(polls), "tokens": dict(tokens),
         "usd": dict(spent), "poll_usd": dict(poll), "launch_usd": dict(launch),
@@ -3836,9 +3855,10 @@ def ci_wait_section(record: dict) -> list[str]:
         f"last). A wait: such calls in a row. % of the week: (list $ without cache reads + {w:g} x cache-read $) / "
         f"${k} per 1%. The poll agent's estimate, at the same model's prices: each CI-wait call as a call of "
         f"{POLL_AGENT_CTX // 1000}k context with the same input and output, the same cache write up to that (its "
-        f"first call of a wait writes it all), the rest a cache read; plus per wait one call of the agent at its "
-        f"first CI-wait call's $ (it launches the poll agent). A free poll agent's: the launches alone. In the "
-        f"window{days}, a poll agent's {ci_wait_verdict(record)} (the engineer's bar, #302's answer 4A).", "",
+        f"first call of a wait writes it all, at the 1-hour rate for the agent's own share of such writes), the rest "
+        f"a cache read; plus per wait one call of the agent at its first CI-wait call's $ (it launches the poll "
+        f"agent). A free poll agent's: the launches alone. In the window{days}, "
+        f"a poll agent's {ci_wait_verdict(record)} (the engineer's bar, #302's answer 4A).", "",
     ]  # fmt: skip
 
 
@@ -3850,6 +3870,18 @@ def ci_wait_compact(record: dict) -> str:
     return (f" | CI waits (#1019): {a['calls']} of {a['api_calls']} CI-role calls, {fmt_usd(a['usd'])} ({split}), "
             f"{share} of their $, {pct2(a['week'])} of the week; a {POLL_AGENT_CTX // 1000}k poll agent "
             f"{fmt_usd(a['estimate_usd'])}: {ci_wait_verdict(record)}")  # fmt: skip
+
+
+def attach_ci_wait(lines: list[str], record: dict) -> None:
+    """#1019: the CI-wait clause on the % of the week line, else on the total line, whole; neither has room under
+    LINE_CAP: the short clause (the share of the week and the verdict, which the cut must not take) on the week line,
+    the table (metrics.md) has the rest."""
+    order = [len(lines) - 1] + [i for i, x in enumerate(lines) if x.startswith("total API list $")]
+    full = ci_wait_compact(record)
+    if any(len(lines[i]) + len(full) <= LINE_CAP for i in order):
+        attach_fitting(lines, order, full)
+    else:
+        lines[-1] += f" | CI waits (#1019): {pct2(record['all']['week'])} of the week; {ci_wait_verdict(record)}"
 
 
 def manager_rows(counted: list[dict], sessions: list[dict]) -> list[dict]:
@@ -5213,7 +5245,7 @@ def compact_lines(
     lines.append(f"% of a Max 20x week: {week['percent']:.1f}% with cache reads at {w:.0%} of their list $ (${k} per "
                  f"1%); {lo:.1f} to {hi:.1f}% if the limit counts them at {w0 * 100:g} to {w1:.0%}")
     if ci_waits and ci_waits["rows"]:  # the summary keeps its line count (#1019)
-        lines[-1] += ci_wait_compact(ci_waits)
+        attach_ci_wait(lines, ci_waits)
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
