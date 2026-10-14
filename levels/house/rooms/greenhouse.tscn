@@ -879,3 +879,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 9.5)
 
 [node name="HerbBeds" type="Marker3D" parent="Stations" unique_id=49469977]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 5)
+
+[node name="glass_door_2m_glass6" parent="Shell/glass_door_2m_1/glass_door_2m_leaf"]
+collision_layer = 0
