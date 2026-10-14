@@ -162,11 +162,11 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Burgers | Herb board (icon -> herb, new each round) | 0 | 62, 15.5 | Greenhouse |
 | Burgers | Herb beds | 0 | 67, 11 | Greenhouse |
 | Photo | Photo spot | 0 | 9, 11 | Photo zone |
-| Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
-| Photo | A film at the round's start, beside the camera (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
-| Photo | Computer and printer | 1 | 40, 29 | Study |
+| Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | 13.3, 11 | Photo zone |
+| Photo | A film at the round's start, beside the camera (#687) | 0 | 12.5, 11.8 | Photo zone |
+| Photo | Computer and printer (the desk at 40, 29; the point is its use spot, #783) | 1 | 39.1, 29 | Study |
 | Photo | Board for the printed photos | -1 | 22, 40 | Darkroom |
-| Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
+| Photo | Box of new films (#687) | -1 | 19.5, 30.4 | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
 | Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
@@ -183,6 +183,15 @@ No zone stands in the basement: the bot scenarios read every map of the base mod
 is at y = 0, where a station marker below it finds no floor (`levels/CLAUDE.md`, #681). The yard's zone stands above the
 generator hall, 4 m east of its old point (44, 37): 6 m from the house and from the garage, 12 m from the nearest
 delivery circle on its floor (the kitchen's).
+
+The photo stations (#783, proposed for the engineer's approval; each point is the use spot of its station scene in
+`levels/stations/`, where the user stands): the photo spot is the gazebo's centre, on its deck (y 0.15), its 2 m floor
+mark inside the deck; the camera stands outside the gazebo's open east side, its use spot 4.3 m from the spot, so the
+whole mark lies beyond the camera's reach (2 m + 2 m, the photo task ADR's PD18 and PE12), and the shooter looks west
+through the opening between the gazebo's posts; the first film lies on the grass 0.8 m north of the tripod; the box
+of new films stands free on storage's floor, west of the darkroom's door (kept clear: a box there shut the darkroom
+off); the printer's desk stays where the art put it, its use spot 0.9 m west of it (the art's chair there is gone);
+the board's use spot is 1.2 m in front of it.
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the

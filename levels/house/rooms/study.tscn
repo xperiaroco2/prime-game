@@ -16,11 +16,9 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/desk.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/computer_set.tscn" id="9"]
+[ext_resource type="PackedScene" uid="uid://blnaiwsyiieoy" path="res://levels/stations/printer.tscn" id="station_printer"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="10"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/photo_printer.tscn" id="11"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/office_chair.tscn" id="12"]
 
@@ -346,35 +344,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(40, 3.2, 30, 0)
 
 [node name="Dressing" type="Node3D" parent="."]
-
-[node name="desk_1" parent="Dressing" instance=ExtResource("8")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
-metadata/prop = "desk"
-metadata/station = "Printer"
-
-[node name="computer_set_1" parent="Dressing" instance=ExtResource("9")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.05, 0.75, 4.75)
-metadata/prop = "computer_set"
-metadata/station = "Printer"
-
-[node name="computer_set" parent="Dressing/computer_set_1"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="photo_printer_1" parent="Dressing" instance=ExtResource("11")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6.1, 0.75, 5.4)
-metadata/prop = "photo_printer"
-metadata/station = "Printer"
-
-[node name="photo_printer" parent="Dressing/photo_printer_1"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="photo_printer_photo" parent="Dressing/photo_printer_1"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="office_chair_1" parent="Dressing" instance=ExtResource("12")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 5.1, 0, 5)
-metadata/prop = "office_chair"
-metadata/station = "Printer"
 
 [node name="desk_2" parent="Dressing" instance=ExtResource("8")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.45, 0, 6)
@@ -772,8 +741,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1397966345]
 
-[node name="Printer" type="Marker3D" parent="Stations" unique_id=1906742452]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 5)
+[node name="Printer" parent="Stations" instance=ExtResource("station_printer")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
 
 [node name="Markers" type="Node3D" parent="." unique_id=1897622788]
 

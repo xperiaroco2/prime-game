@@ -1,5 +1,9 @@
 [gd_scene format=3 uid="uid://bgu42omlmsppo"]
 
+[ext_resource type="PackedScene" uid="uid://qnol4r1j7i22" path="res://levels/stations/photo_spot.tscn" id="1_photo_spot"]
+
+[ext_resource type="PackedScene" uid="uid://cjc0u0tn28m6v" path="res://levels/stations/camera.tscn" id="2_camera"]
+
 [node name="PhotoZone" type="Node3D" unique_id=450689993]
 metadata/room_id = &"photo_zone"
 metadata/name_key = "room.photo_zone"
@@ -113,5 +117,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 5)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1092835069]
 
-[node name="PoseScreen" type="Marker3D" parent="Stations" unique_id=813501668]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)
+[node name="PhotoSpot" parent="Stations" instance=ExtResource("1_photo_spot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.15, 5)
+
+[node name="Camera" parent="Stations" instance=ExtResource("2_camera")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8.5, 0, 5)
+
+[node name="Markers" type="Node3D" parent="."]
+
+[node name="Film" type="Marker3D" parent="Markers" groups=["spawn_film"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 0, 5.8)
