@@ -420,6 +420,20 @@ CACHE_TTL = 300
 BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
 # The runner commands agents run in loops, as CMD_KINDS names them: their share of an implementer's tool output (#572).
 RUNNER_OUTPUT_KINDS = frozenset({"wait", "publish", "verify", "selftest", "test", "check", "lint"})
+# #1019: the CI waits of the agents that wait on CI (issue-task's publisher, quick-task's quick agent (a publisher's
+# label) and fixer, pr-rebase's rebase and fix agents): a shell call that polls CI (`gh pr checks`, `gh run watch`, a
+# `gh run view` without --log: one with it reads a failure), a `wait` call (CMD_KINDS) or a sleep alone between them.
+CI_WAIT_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
+POLL_KINDS = ("ci", "wait", "sleep")
+RUN_VIEW = re.compile(r"\bgh\s+run\s+view\b(?!.*--log)")
+SLEEP_ONLY = re.compile(
+    r"^\s*(?:cd\s+\S+\s*(?:&&|;)\s*)?(?:sleep|Start-Sleep(?:\s+-Seconds)?)\s+\d+[smh]?\s*(?:;\s*echo\b[^;&|]*)?$", re.I
+)
+# #1019: the poll agent the estimate prices: one CI-wait call of the measured agent costs, at the same model's prices,
+# a call of about POLL_AGENT_CTX tokens of context (the issue's "about 16k", not measured). ci_wait_calls has the model.
+POLL_AGENT_CTX = 16_000
+WEEK_SECONDS = 7 * 24 * 3600
+POLL_THRESHOLD = 1.0  # % of the week: the engineer's bar for building the poll agent (#302's answer 4A, #1019)
 # #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
 LATENCY_CLASSES = (
     ("shell-background", "shell calls started in the background (start-up only)"),
@@ -482,6 +496,9 @@ WORKFLOW_LAUNCH = re.compile(
 # (the quick agent, labelled publish:#N) and Review (its reviewers and fix agent, fix:#N).
 WORKFLOW_NAME = re.compile(r"\bname:\s*['\"]([^'\"]+)['\"]")
 QUICK_TASK, QUICK_PHASE = "quick-task", "Quick"
+# #1019: a CI role's name in the CI-wait table, by its run's kind; the others are named by their role.
+CI_WAIT_NAMES = {(QUICK_TASK, "publisher"): "quick agent", (QUICK_TASK, "pr-rebase fix"): "fixer",
+                 ("pr-rebase", "pr-rebase"): "rebase agent", ("pr-rebase", "pr-rebase fix"): "fix agent"}  # fmt: skip
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
 # #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
@@ -1398,6 +1415,7 @@ def parse_agent(path: Path, since: float | None = None, until: float | None = No
                             "code": code_read(str(b.get("name")), inp),
                             "arch": [r for r in code_read(str(b.get("name")), inp, md=True) if r[0] == ARCHITECTURE],
                             "section_piped": any(piped for step, piped in shell_steps(cmd) if SECTION_CMD.search(step)),
+                            "poll": poll_kind(cmd),  # #1019
                             **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
                         files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
@@ -1501,6 +1519,7 @@ def parse_agent(path: Path, since: float | None = None, until: float | None = No
         "idle": idle,
         "max_gap": max((g[0] for g in gaps), default=0.0),
         "waits": waits,
+        "ci_wait": ci_wait_calls(order, made, usage),  # #1019
         # Keep-alive timers as (armed, ended): ended at the notification, at a TaskStop (#981), else when its seconds
         # ran out. One armed before the window is kept while it is still armed in it; "timers_armed" counts those
         # armed in the window.
@@ -1566,6 +1585,66 @@ def bounded_waits(
                 "premium": write_premium(nxt),
             }  # fmt: skip
     return list(longest.values())
+
+
+def poll_kind(cmd: str) -> str | None:
+    """#1019: what a shell command polls (POLL_KINDS): CI, a `wait` on a long job, a sleep alone; else None."""
+    if not cmd:
+        return None
+    kind = cmd_kind(cmd)
+    if kind == "ci-wait" or RUN_VIEW.search(cmd):
+        return "ci"
+    if kind == "wait":
+        return "wait"
+    return "sleep" if SLEEP_ONLY.search(cmd) else None
+
+
+def poll_agent_usage(u: dict, first: bool) -> dict:
+    """#1019: one CI-wait call's usage as the poll agent would make it: a prompt of POLL_AGENT_CTX tokens with the same
+    input; the same cache write up to the rest of it (a cache that expired re-writes at most POLL_AGENT_CTX), the rest
+    a cache read; its first call of a wait writes the whole prompt; the same output."""
+    inp = min(u["input_tokens"], POLL_AGENT_CTX)
+    write = POLL_AGENT_CTX - inp if first else min(u["cache_creation_input_tokens"], POLL_AGENT_CTX - inp)
+    return {
+        "input_tokens": inp, "cache_creation_input_tokens": write,
+        "cache_read_input_tokens": POLL_AGENT_CTX - inp - write, "output_tokens": u["output_tokens"],
+        "cache_write_1h": 0 if first else min(u.get("cache_write_1h", 0), write), "model": u.get("model"),
+    }  # fmt: skip
+
+
+def ci_wait_calls(order: list[str], made: dict[str, list[dict]], usage: dict[str, dict]) -> dict:
+    """#1019: one agent's CI-wait API calls: each whose tool uses all poll (poll_kind), and each with no tool use right
+    after one that is not the agent's last call (it only read a poll's result: a turn ended while a poll ran in the
+    background). A wait is a run of such calls in a row. Their tokens and API list $ (USD_KEYS), the polls by kind,
+    and the estimate: the poll agent's calls (poll_agent_usage) plus, per wait, one call of this agent at its first
+    CI-wait call's $ (the call that would launch the poll agent; the call that reads its answer is the one after the
+    wait, measured or not alike)."""
+    waits: list[list[str]] = []
+    polls: Counter = Counter()
+    before = False
+    for i, mid in enumerate(order):
+        uses = made.get(mid, [])
+        hit = all(c.get("poll") for c in uses) if uses else before and i < len(order) - 1
+        if hit:
+            if not before:
+                waits.append([])
+            waits[-1].append(mid)
+            polls.update(c["poll"] for c in uses)
+        before = hit
+    tokens: Counter = Counter()
+    spent: Counter = Counter()
+    poll: Counter = Counter()
+    launch: Counter = Counter()
+    for wait in waits:
+        launch.update(usd_of(usage[wait[0]]))
+        for j, mid in enumerate(wait):
+            tokens.update({f: usage[mid][f] for f in TOKEN_FIELDS})
+            spent.update(usd_of(usage[mid]))
+            poll.update(usd_of(poll_agent_usage(usage[mid], first=j == 0)))
+    return {
+        "calls": sum(len(w) for w in waits), "waits": len(waits), "polls": dict(polls), "tokens": dict(tokens),
+        "usd": dict(spent), "poll_usd": dict(poll), "launch_usd": dict(launch),
+    }  # fmt: skip
 
 
 def files_of(name: str, inp: dict, call: dict) -> list[str]:
@@ -2235,6 +2314,10 @@ def build(
     md += context_section(context := context_record(context_agents(counted)))
     waits = bounded_wait_record(counted)
     md += bounded_wait_section(waits)
+    starts = [r["start"] for r in counted if r["start"] is not None]
+    span = until - since if since is not None else (until - min(starts) if starts else None)
+    ci_waits = ci_wait_record(counted, span)  # #1019
+    md += ci_wait_section(ci_waits)
     latency = latency_record(counted)
     md += latency_section(latency)
     managers = manager_rows(counted, data["sessions"])
@@ -2249,7 +2332,7 @@ def build(
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
                             instructions=instructions, idle=idle["totals"], types=types, context=context,
-                            batching=batching, quick=quick)  # fmt: skip
+                            batching=batching, quick=quick, ci_waits=ci_waits)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -2271,6 +2354,7 @@ def build(
         "idle": idle,
         "context_per_call": context,
         "bounded_waits": waits,
+        "ci_waits": ci_waits,
         "tool_latency": latency,
         "quality": quality,
         "plans": plans,
@@ -3640,6 +3724,110 @@ def bounded_wait_section(record: dict) -> list[str]:
     return md
 
 
+def ci_wait_row(rows: list[dict], kind: str, role: str, name: str) -> dict:
+    """#1019: ci_wait_record's sums of `rows`' agents (each an agent's CI-wait record plus its API calls and $)."""
+    out = {"kind": kind, "role": role, "name": name, "agents": len(rows), "api_calls": 0, "calls": 0, "waits": 0,
+           "role_usd": 0.0, "role_read_usd": 0.0}  # fmt: skip
+    polls, spent, estimate = Counter(), Counter(), Counter()
+    for r in rows:
+        w = r["ci_wait"]
+        out["api_calls"] += r["api_calls"]
+        out["role_usd"] += r["role_usd"]
+        out["role_read_usd"] += r["role_read_usd"]
+        out["calls"] += w["calls"]
+        out["waits"] += w["waits"]
+        polls.update(w["polls"])
+        spent.update(w["usd"])
+        estimate.update(w["poll_usd"])
+        estimate.update(w["launch_usd"])
+    measured = usd(spent)
+    est = usd(estimate)
+    week = week_percent(measured, spent["usd_cache_read"])["percent"]
+    est_week = week_percent(est, estimate["usd_cache_read"])["percent"]
+    role_week = week_percent(out["role_usd"], out["role_read_usd"])["percent"]
+    return out | {
+        "polls": {k: polls.get(k, 0) for k in POLL_KINDS}, "usd_split": {k: spent.get(k, 0.0) for k in USD_KEYS},
+        "usd": measured, "share": measured / out["role_usd"] if out["role_usd"] else None, "week": week,
+        "role_week": role_week, "estimate_usd": est, "estimate_week": est_week, "saving_usd": measured - est,
+        "saving_week": week - est_week,
+    }  # fmt: skip
+
+
+def ci_wait_record(counted: list[dict], span: float | None) -> dict:
+    """#1019: the CI waits of the CI roles (CI_WAIT_ROLES) of the counted runs, per run kind and role (CI_WAIT_NAMES
+    names quick-task's and pr-rebase's) and over all: agents, API calls, CI-wait calls (ci_wait_calls), waits, polls
+    by kind, their API list $ by kind and in all, the share of the role's $, the % of the week (week_percent's central
+    weight), the poll agent's estimate and the saving in $ and % of the week; `per_week`: the saving over all scaled to
+    7 days at the window's rate (`span`: the window's seconds), and whether it is over POLL_THRESHOLD."""
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if x["role"] in CI_WAIT_ROLES and d and d.get("ci_wait") is not None:
+                kind = "issue-task" if r["kind"] == "issue-task (resumed)" else r["kind"]  # its publisher is one
+                groups[(kind, x["role"])].append({
+                    "ci_wait": d["ci_wait"], "api_calls": d["api_calls"], "role_usd": usd(d["tokens"]),
+                    "role_read_usd": d["tokens"].get("usd_cache_read", 0.0),
+                })  # fmt: skip
+    rows = [ci_wait_row(lst, kind, role, CI_WAIT_NAMES.get((kind, role), role))
+            for (kind, role), lst in sorted(groups.items())]  # fmt: skip
+    every = ci_wait_row([a for lst in groups.values() for a in lst], "all", "all", "all CI roles")
+    per_week = every["saving_week"] * WEEK_SECONDS / span if span and span > 0 else None
+    return {"rows": rows, "all": every, "span_s": span, "per_week": per_week,
+            "over": None if per_week is None else per_week > POLL_THRESHOLD}  # fmt: skip
+
+
+def pct2(v: float) -> str:
+    """#1019: a small % of the week to 0.01, never "-0.00"."""
+    text = f"{v:.2f}%"
+    return "0.00%" if text == "-0.00%" else text
+
+
+def ci_wait_verdict(record: dict) -> str:
+    a = record["all"]
+    if record["per_week"] is None:
+        return f"saving {pct2(a['saving_week'])} of the week"
+    side = "over" if record["over"] else "not over"
+    return (f"saving {pct2(a['saving_week'])} of the week ({pct2(record['per_week'])} per 7 days at the window's rate: "
+            f"{side} the {POLL_THRESHOLD:g}% bar)")  # fmt: skip
+
+
+def ci_wait_section(record: dict) -> list[str]:
+    """#1019: a row per run kind and CI role with an agent in the window, and one over all; nothing without one."""
+    if not record["rows"]:
+        return []
+    rows = [
+        [r["kind"], r["name"], r["agents"], r["api_calls"], r["calls"], r["waits"],
+         "/".join(str(r["polls"][k]) for k in POLL_KINDS), *(fmt_usd(r["usd_split"][k]) for k in USD_KEYS),
+         fmt_usd(r["usd"]), "?" if r["share"] is None else f"{r['share']:.0%}", pct2(r["week"]),
+         fmt_usd(r["estimate_usd"]), fmt_usd(r["saving_usd"]), pct2(r["saving_week"])]
+        for r in [*record["rows"], record["all"]]
+    ]  # fmt: skip
+    head = ["kind", "role", "agents", "API calls", "CI-wait calls", "waits", "polls ci/wait/sleep", "input $",
+            "cache write $", "cache read $", "output $", "CI-wait $", "of the role's $", "of the week",
+            "poll agent $", "saving $", "saving of the week"]  # fmt: skip
+    return [
+        "## CI waits per CI role and a poll agent's saving (#1019)", "", table(head, rows), "",
+        f"A CI-wait call: an API call whose tool uses all poll (CI: `gh pr checks`, `gh run watch`, `gh run view` "
+        f"without --log; a `wait` call; a sleep alone), or one with no tool use right after one (not the agent's last). "
+        f"A wait: such calls in a row. % of the week: {week_rate()}, at the central weight. The poll agent's estimate, "
+        f"at the same model's prices: each CI-wait call as a call of {POLL_AGENT_CTX // 1000}k context with the same "
+        f"input and output, the same cache write up to that (its first call of a wait writes it all), the rest a "
+        f"cache read; plus per wait one call of the agent at its first CI-wait call's $ (the launch). "
+        f"{ci_wait_verdict(record)}.", "",
+    ]  # fmt: skip
+
+
+def ci_wait_compact(record: dict) -> str:
+    """#1019: the compact summary's clause (on its % of the week line)."""
+    a = record["all"]
+    split = ", ".join(f"{name} {fmt_usd(a['usd_split'][k])}" for name, k in zip(("in", "write", "read", "out"), USD_KEYS))
+    share = "?" if a["share"] is None else f"{a['share']:.0%}"
+    return (f" | CI waits (#1019): {a['calls']} of {a['api_calls']} CI-role API calls, {fmt_usd(a['usd'])} ({split}) "
+            f"= {share} of their $, {pct2(a['week'])} of the week; a {POLL_AGENT_CTX // 1000}k poll agent "
+            f"{fmt_usd(a['estimate_usd'])}, {ci_wait_verdict(record)}")  # fmt: skip
+
+
 def manager_rows(counted: list[dict], sessions: list[dict]) -> list[dict]:
     """Per session: its own lines, its hand-run subagents and its counted workflow runs, in API list $."""
     managers = []
@@ -4932,14 +5120,15 @@ def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
     idle: dict | None = None, types: dict | None = None, context: dict | None = None, batching: dict | None = None,
-    quick: dict | None = None,
+    quick: dict | None = None, ci_waits: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify. The finished quick-task runs (#1012,
     quick_record's) keep the line count: their count on the first line, their medians and quality
     on the first of the quality, task medians and total lines that has room under LINE_CAP, their runs at the end of
     the per-task line if it has room (else metrics.md has them); a line of their own when no issue-task run finished;
-    their $ on the total line."""
+    their $ on the total line. The CI waits' clause (#1019, ci_wait_compact) ends the % of the week line when a CI role
+    ran in the window."""
     quick_rows = quick["tasks"] if quick else []
     other = [r for r in counted if r["kind"] not in ("issue-task", QUICK_TASK) or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, "
@@ -4999,6 +5188,8 @@ def compact_lines(
     lo, hi = week["bracket"]
     lines.append(f"% of a Max 20x week: {week['percent']:.1f}% with cache reads at {w:.0%} of their list $ (${k} per "
                  f"1%); {lo:.1f} to {hi:.1f}% if the limit counts them at {w0 * 100:g} to {w1:.0%}")
+    if ci_waits and ci_waits["rows"]:  # the summary keeps its line count (#1019)
+        lines[-1] += ci_wait_compact(ci_waits)
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
