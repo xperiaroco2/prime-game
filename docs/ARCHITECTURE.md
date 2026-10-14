@@ -4081,7 +4081,10 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
     hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
     untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
-    Tagging the house's floors is #523's (the content area).
+    The House's floors carry their tags (#523, the content area: the art's Shell pieces and the plot's Ground);
+    `tests/integration/levels/house_footstep_surface_test.gd` casts this ray on a 1 m grid over every piece's
+    floor in the client's world of the House and asks for a tag on every floor hit (the greybox garage skipped
+    until the art's P6; #1042).
 - `client/ui/`: `UiSounds.click`, from `ToyPress.on_button_down` (every Toy button and toggle: `UiParts.button`,
   `UiParts.toggle`, the connecting screen's back ghost, the map's help, the theme showcase): a mouse or touch
   press or `ui_accept`, never hover, release or a toggle's change alone; a disabled button sends no
@@ -7416,6 +7419,9 @@ levels/
   group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`, the House's `drop_*`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
+  The players' markers (`round_player`, `respawn`) are read as placed: on the House,
+  `tests/integration/levels/house_markers_test.gd` checks each `round_player` and `respawn` marker stands within
+  2 cm of the floor under it with a standing capsule clear of the level (#1042).
   This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
   `content/` or `levels/`. Only the mode check (§9.1) with the content tests beside it (`tests/unit/content/`, and
