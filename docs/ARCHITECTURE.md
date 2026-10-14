@@ -3341,9 +3341,10 @@ lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn`
 a head over a wall and a player beyond 10 m without one).
 
 #### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls; #1020, ui-0.7.0's looks
-- The screens build bare `LineEdit` (the menu's code and address), `SpinBox` (the port, the lobby's numbers),
-  `OptionButton` (the Voice tab's microphone and mode), `HSlider` (its threshold and volumes) and `ScrollContainer`
-  (the Esc menu's pages), with no type variation, so Godot's default theme drew them. `tools/theme/mapping.json`
+- The screens build bare `LineEdit` (the menu's code and address), `OptionButton` (the Voice tab's microphone and
+  mode), `HSlider` (its threshold and volumes), `ScrollContainer` (the Esc menu's pages) and `Button` (the lobby's
+  copy button, the Controls tab's reset button), with no type variation, so Godot's default theme drew them. No
+  screen builds a `SpinBox` or a `CheckBox` today; their looks are there for the ones that will. `tools/theme/mapping.json`
   `base_types` now styles those classes under their own name: `from` copies every item of a live, parentless pack
   variation of that very class, the same objects (a StyleBox stays one sub-resource `<Variation>_<item>`): LineEdit
   ← ToyField, OptionButton ← ToyDropdown, PopupMenu (its list) ← ToyDropdownList, HSlider ← ToySlider, VScrollBar
