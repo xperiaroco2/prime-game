@@ -5,19 +5,19 @@
 
 [sub_resource type="Resource" id="HowtoFrame_1"]
 script = ExtResource("2_frame")
-art = "res://assets/ui/toy_pack/cards/delivery-1.png"
+art = "res://assets/ui/toy_pack/cards/delivery-meaning-1.png"
 
 [sub_resource type="Resource" id="HowtoFrame_2"]
 script = ExtResource("2_frame")
-art = "res://assets/ui/toy_pack/cards/delivery-2.png"
+art = "res://assets/ui/toy_pack/cards/delivery-meaning-2.png"
 
 [sub_resource type="Resource" id="HowtoFrame_3"]
 script = ExtResource("2_frame")
-art = "res://assets/ui/toy_pack/cards/delivery-3.png"
+art = "res://assets/ui/toy_pack/cards/delivery-meaning-3.png"
 
 [sub_resource type="Resource" id="HowtoFrame_4"]
 script = ExtResource("2_frame")
-art = "res://assets/ui/toy_pack/cards/delivery-4.png"
+art = "res://assets/ui/toy_pack/cards/delivery-meaning-4.png"
 done = true
 
 [resource]
