@@ -80,6 +80,12 @@ all their API calls (message ids, each once), both in the window; above 1 when a
 message. A column of the per-role table, `tool_calls_per_api_call` in the JSON record, and for BATCHING_ROLES inside the
 compact summary's "task medians" line (its line count unchanged).
 
+Output $ (#982): the output tokens' API list $, the part of an agent's spend its effort moves most. The per-role table's
+"output $ (of its $)" column, and a table per agent role, review tier and effort over the counted runs (output_rows: an
+issue-task run's tier as #606 reads it, another run's kind; agents, output tokens and $ per agent, total, share of their
+$), `output_by_role` in the JSON record, to compare a role's agents at medium with those at high (the effort ADR gives
+docs work medium). Not on the compact summary.
+
 Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
 the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
 background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
@@ -1987,7 +1993,7 @@ def per_task(r: dict) -> dict:
     )
     pub = next((x["result"] for x in r["agents"] if x["role"] == "publisher" and x["result"]), None) or {}
     impl = implementer_context(r)
-    tier = next((x["data"]["tier"] for x in r["agents"] if x["data"] and x["data"].get("tier")), None) or NO_TIER
+    tier = run_tier(r)
     return {
         "session": r["session"],
         "issue": r["issue"],
@@ -2018,6 +2024,11 @@ def per_task(r: dict) -> dict:
         "over200_usd": impl["over200_usd"],
         "impl_outputs": impl["outputs"],
     }
+
+
+def run_tier(r: dict) -> str:
+    """#606: the review tier its publisher's prompt names (light or full), else NO_TIER."""
+    return next((x["data"]["tier"] for x in r["agents"] if x["data"] and x["data"].get("tier")), None) or NO_TIER
 
 
 def run_path(r: dict, tier: str) -> str:
@@ -2092,6 +2103,8 @@ def build(
     md += stage_section(stages)
     batching = batching_record(counted)
     md += role_section(counted, batching)
+    outputs = output_rows(counted)
+    md += output_section(outputs)
     types = type_record(counted)
     md += type_section(types)
     md += code_read_section(counted)
@@ -2165,6 +2178,7 @@ def build(
         "instructions": instructions,
         "agent_types": types,
         "tool_calls_per_api_call": batching,
+        "output_by_role": outputs,
         "relaunches": relaunches,
         "prompt_sizes": prompts,
         "compact": compact,
@@ -2409,10 +2423,12 @@ def role_section(counted: list[dict], batching: dict[str, dict] | None = None) -
             f"{med(g['tool_s']) / max(1.0, med(g['wall'])):.0%}", f"{med(g['calls']):.0f} / {max(g['calls'])}",
             per_call_text(batching.get(role)), fmt_tok(med(g["fresh"])),
             f"{fmt_usd(usd(g['tok']))} ({usd(g['tok']) / max(1e-9, usd(grand)):.0%})",
+            f"{fmt_usd(g['tok']['usd_output'])} ({g['tok']['usd_output'] / max(1e-9, usd(g['tok'])):.0%})",
             ", ".join(g["models"]), ", ".join(g["efforts"]),
         ])
     head = ["role", "agents", "wall min (median / max)", "time in tools", "tool calls (median / max)",
-            "tool calls per API call", "fresh tokens (median)", "API list $", "models", "efforts"]
+            "tool calls per API call", "fresh tokens (median)", "API list $", "output $ (of its $)", "models",
+            "efforts"]
     md = ["## Per agent role (every run in the window)", "", table(head, rows), ""]
     if total(grand):
         kinds = ", ".join(f"{SHORT[f]} {fmt_tok(grand[f])} ({grand[f] / total(grand):.1%})" for f in TOKEN_FIELDS)
@@ -2423,6 +2439,51 @@ def role_section(counted: list[dict], batching: dict[str, dict] | None = None) -
         md += [f"Models without a price in PRICES (weighed at {next(iter(PRICES))}'s): "
                f"{', '.join(sorted(unpriced))}.", ""]
     return md
+
+
+def output_rows(counted: list[dict]) -> list[dict]:
+    """#982: per agent role, run tier and effort over every counted run, finished or not, the agents' output tokens and
+    output API list $ (the part of an agent's $ its effort moves most): agents, output tokens and $ per agent (median),
+    output $ in total and its share of their whole $. The tier is an issue-task run's review tier (run_tier: light,
+    full or NO_TIER), another run's kind (pr-rebase, other). Sorted by output $, the largest first."""
+    groups: dict[tuple[str, str, str], dict] = {}
+    for r in counted:
+        tier = run_tier(r) if r["kind"].startswith("issue-task") else r["kind"]
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            g = groups.setdefault((x["role"], tier, str(d["effort"])), {"out": [], "out_usd": [], "usd": 0.0})
+            g["out"].append(d["tokens"].get("output_tokens", 0))
+            g["out_usd"].append(d["tokens"].get("usd_output", 0.0))
+            g["usd"] += usd(d["tokens"])
+    rows = [
+        {"role": role, "tier": tier, "effort": effort, "agents": len(g["out"]), "output_tokens": med(g["out"]),
+         "output_usd": med(g["out_usd"]), "output_usd_sum": sum(g["out_usd"]),
+         "share": sum(g["out_usd"]) / g["usd"] if g["usd"] else 0.0}
+        for (role, tier, effort), g in groups.items()
+    ]  # fmt: skip
+    return sorted(rows, key=lambda row: -row["output_usd_sum"])
+
+
+def output_section(rows: list[dict]) -> list[str]:
+    """#982's table: output_rows, one row per role, tier and effort."""
+    if not rows:
+        return []
+    head = ["role", "tier", "effort", "agents", "output tokens (median)", "output $ (median)", "output $ total",
+            "of their $"]
+    body = [
+        [r["role"], r["tier"], r["effort"], r["agents"], fmt_tok(r["output_tokens"]), fmt_usd(r["output_usd"]),
+         fmt_usd(r["output_usd_sum"]), f"{r['share']:.0%}"]
+        for r in rows
+    ]  # fmt: skip
+    return [
+        "## Output API list $ per agent role, review tier and effort (#982, every run in the window)", "",
+        table(head, body), "",
+        f"Tier: an issue-task run's review tier (#606; {NO_TIER}: a run before it or stopped before its publisher), "
+        "another run's kind. Compare a role's rows at two efforts in one tier (the effort ADR: docs work at medium).",
+        "",
+    ]
 
 
 def code_read_section(counted: list[dict]) -> list[str]:
