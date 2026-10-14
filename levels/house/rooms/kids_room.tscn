@@ -18,10 +18,6 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x2.glb" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/railing_balcony_2m.glb" id="10"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/railing_balcony_post.glb" id="11"]
-
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/kids_bed.glb" id="12"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="13"]
@@ -404,12 +400,6 @@ metadata/surface = "wood"
 [node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_20"]
 surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(24, 3.2, 42, 0)
-
-[node name="railing_balcony_2m_1" parent="Shell" instance=ExtResource("10")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 2)
-
-[node name="railing_balcony_post_1" parent="Shell" instance=ExtResource("11")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 2)
 
 [node name="Dressing" type="Node3D" parent="."]
 

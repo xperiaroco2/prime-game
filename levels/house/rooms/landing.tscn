@@ -614,6 +614,18 @@ metadata/surface = "concrete"
 surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(27, 1.6, 32, 0)
 
+[node name="railing_balcony_2m_5" parent="Shell" instance=ExtResource("9")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+
+[node name="railing_balcony_post_7" parent="Shell" instance=ExtResource("10")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
+
+[node name="railing_balcony_2m_6" parent="Shell" instance=ExtResource("9")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12)
+
+[node name="railing_balcony_post_8" parent="Shell" instance=ExtResource("10")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12)
+
 [node name="Dressing" type="Node3D" parent="."]
 
 [node name="landing_runner_1" parent="Dressing" instance=ExtResource("13")]
