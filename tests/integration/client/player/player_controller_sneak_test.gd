@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 ## `world_sounds_steps_test.gd`.
 
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
+const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
 const SPEED_TOLERANCE := 0.05
 
 var _rules := FixtureModes.player_rules()
@@ -18,6 +19,8 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	_key(KEY_ALT, false)
+	_key(KEY_CTRL, false)
 	_world.free()
 
 
@@ -135,3 +138,60 @@ func _player() -> PlayerController:
 
 func _capsule(player: PlayerController) -> CapsuleShape3D:
 	return (player.get_node("CollisionShape3D") as CollisionShape3D).shape as CapsuleShape3D
+
+
+## Under the crouch fixture's slab (1.4 m above the floor) with Ctrl let go and Alt held: the body
+## cannot stand, so it stays crouched and does not sneak; the claim says crouched only.
+func test_crouched_under_a_slab_with_alt_held_stays_crouched_and_does_not_sneak() -> void:
+	_world.add_child((load(CROUCH_ROOM) as PackedScene).instantiate())
+	var player := _world.add_player(Vector3(-8.0, 0.0, 6.0))
+	await _world.frames(3)
+	var schema := WireSchema.game(OS.is_debug_build())
+	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
+	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
+	player.attach(session)
+	player.crouch_held = true
+	player.move_input = Vector2(0.0, 1.0)
+	for i: int in 300:
+		if player.global_position.z <= 1.0:
+			break
+		await _world.frames(1)
+	assert_float(player.global_position.z).is_less(1.5)
+	player.crouch_held = false
+	player.sneak_held = true
+	player.move_input = Vector2.ZERO
+	await _world.frames(5)
+	assert_bool(player.is_crouched()).is_true()
+	assert_bool(player.is_sneaking()).is_false()
+	assert_bool(session._crouched).is_true()
+	assert_bool(session._sneaking).is_false()
+
+
+## The real device path: left Alt as a key event reaches the `sneak` action and the controller.
+func test_the_alt_key_reaches_the_controller_through_the_input_map() -> void:
+	var player := await _player()
+	player.reads_device_input = true
+	_key(KEY_ALT, true)
+	await _world.frames(3)
+	assert_bool(player.sneak_held).is_true()
+	assert_bool(player.is_sneaking()).is_true()
+	# Ctrl + Alt crouches.
+	_key(KEY_CTRL, true)
+	await _world.frames(3)
+	assert_bool(player.is_crouched()).is_true()
+	assert_bool(player.is_sneaking()).is_false()
+	_key(KEY_CTRL, false)
+	_key(KEY_ALT, false)
+	await _world.frames(3)
+	assert_bool(player.sneak_held).is_false()
+	assert_bool(player.is_sneaking()).is_false()
+	player.reads_device_input = false
+
+
+func _key(key: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = key
+	event.keycode = key
+	event.pressed = pressed
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
