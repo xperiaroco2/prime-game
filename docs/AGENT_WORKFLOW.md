@@ -323,7 +323,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
-| `night-audit` | engineer | Run by the meta manager as a workflow before each night: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
+| `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
@@ -1877,7 +1877,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, free Linux runners, once per ref of the night: the latest `main` commit and the newest remote `release/*` branch (#272); 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`, optionally one ref alone) | The run's summary page and an artifact per ref, `nightly-flaky-<ref>` (`/` as `-`: `nightly-flaky-main`, `nightly-flaky-release-m5`); on a failure a comment with the run link on the "Night jobs" issue naming each job's ref |
 | `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the same ref's last successful night's report | The same run, per ref | The run's summary page and artifact `nightly-perf-<ref>`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
-| The skill `night-audit`: one lens a night by weekday (docs drift, decisions vs docs, coverage, flaky, dead code) | The engineer's PC: the meta manager runs it as a workflow from its own session before each night, in a detached worktree at `origin/main` (the skill's "As a workflow") | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
+| The skill `night-audit`: one lens a night by weekday (docs drift, decisions vs docs, coverage, flaky, dead code) | The engineer's PC: the Desktop scheduled task `night-audit` (23:30 local) starts it in a detached worktree at `origin/main`; by hand, for a missed night, a manager runs it as a workflow (the skill's "Scheduled, and as a workflow") | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, in real time (the #222 class,
   #341; `verify` runs the frame-bound suites at fixed fps); any failed run fails it.
@@ -1923,9 +1923,12 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   disabled after 60 days without activity (Actions → Nightly → Enable workflow); `workflow_dispatch` works only once
   the file is on the default branch, so a new workflow's first run is by hand after the merge; since then
   `gh workflow run nightly.yml --ref <task branch>` runs the task branch's version of the file.
-- **Not a scheduled task:** the Desktop scheduled task `night-audit` (2026-10-10) is disabled, not deleted: a
-  scheduled session starts in acceptEdits and stalled on its first permission card all night (the engineer's choice
-  (a), [#302 comment 6107272934](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6107272934)).
+- **A scheduled task starts it:** the Desktop scheduled task `night-audit` (daily at 23:30 local, about 20:30Z); the
+  meta manager no longer launches it as a workflow before the night (the engineer's answer,
+  [#302 comment 6166579802](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6166579802), item 2,
+  reversing [comment 6107272934](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6107272934), where
+  the first scheduled session stalled on a permission card in acceptEdits). A manager runs it as a workflow by hand
+  for a missed night or a lens on its own.
 - **Bounds of the audit** (in the skill): one lens, as a workflow 3 agents (the auditor, one skeptic of type
   `night-skeptic` and a filer; by hand 2, no filer), about 100 tool calls, about $10 list a night; read-only on the
   repo (issue bodies in its worktree's `tests/scratch/`), at most 5 issues a night, never closes or edits issues.
