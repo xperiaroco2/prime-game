@@ -3489,23 +3489,32 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
-  and plan y = Z: the level piece conventions proposed in PR #611; its id is `metadata/room_id`, else its node name
-  in snake_case; a room repeating an id is left out. Only `MapData.rooms_of()` reads that shape, so #306's room
-  record changes one function. A marker is placed as the host's `MarkerReader` places it (`LevelWorld.transform_in_scene`:
+  and plan y = Z: the level piece conventions proposed in PR #611. **The room record** (#306) is that node: its id
+  `metadata/room_id` (a StringName) and its name `metadata/name_key` (a copy deck key with English and Ukrainian
+  text, never the words) beside the outline's `size_m`; no sign and no door-plate position (the engineer, on #306:
+  no wall signs). A room without them still draws, its id its node name in snake_case and its key `room.<id>`; a
+  room repeating an id is left out. Every House room carries its record on its own scene's root (`levels/house/rooms/`,
+  the id its file name, the key the deck's `room.<id>`, ui-0.6.0); the tutorial room's is #715's. Only
+  `MapData.rooms_of()` reads that shape (`MapData.Room`: `id`, `rect`, `name_key`), and the screen names a room by
+  its `name_key`, else its id. A marker is placed as the host's `MarkerReader` places it (`LevelWorld.transform_in_scene`:
   the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
   refuses it); `MapData.SPAWN_GROUP_PREFIX` copies the reader's prefix and a test ties the two. A task
   type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
-  (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox declares no rooms yet
-  (#306), so on it the map shows the tasks only; the previews use a fake house in `client/dev/screen_preview.gd`.
+  (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox, a test bench only
+  (#767), declares no rooms, so on it the map shows the tasks only; the previews use a fake house in
+  `client/dev/screen_preview.gd`.
 - **Privacy** (the M4 ADR's §3 item 4 as amended): the screen reads the model's tasks and clock and the own place
   only; never another player's place, an item's or a circle's.
 - Tests: `tests/unit/client/ui/map_screen_test.gd` (rows, counters and names in English and Ukrainian and a switch,
   no description or NEW, the «?» signal and no focus, the lit zones and chip, the rooms and the pin's place and
   turn; the privacy test: models that differ in other players, items and circles draw the same screen, node by
-  node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"),
-  `map_data_test.gd` (rooms by the metadata through parents, zones from markers only, placement as the reader's, no
+  node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"; a room
+  named by its record's key, else its id, #306), `map_data_test.gd` (rooms by the metadata through parents, the
+  record's id and name key and their fallbacks, zones from markers only, placement as the reader's, no
   rooms, the greybox's rooms have an area,
-  the board's fit), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
+  the board's fit), `tests/unit/levels/house_room_records_test.gd` (#306: every House room has a record, its id
+  unique and its scene's file name, its name key with English and Ukrainian text, read by `MapData` as it stands;
+  seen failing with a pasted id, a missing key and an unknown key), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
   it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
   on Tab; seen failing on the old input map), `controls_test.gd`, `key_label_test.gd`, `controls_panel_test.gd`,
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
@@ -3861,7 +3870,8 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   `gui_get_hovered_control` each frame, not `mouse_entered`/`mouse_exited` (a child takes the parent's hover,
   §4.7.33); the Delivery PNGs keep #520's import without mipmaps (the canvas's default filter samples none); the
   rooms are what MapData reads today, and the greybox has none until #306 (the engineer chose to wait for its
-  room records, PR #652), so in the game the board hides; the base mode has no Switches task type, so neither its
+  room records, PR #652), so in the game the board hides (since #306 the House's rooms carry their records, §4.7.33;
+  the greybox, a test bench, #767, stays roomless); the base mode has no Switches task type, so neither its
   row nor `map.zone_hint.switches` shows; Delivery lights every room with a package marker (the storage-only zone
   is Delivery v2, #255, out of the slice, #521).
 - Tests: `tests/unit/client/ui/map_screen_test.gd` (the tree node for node with its sizes, the ink, one row per type,
@@ -7229,8 +7239,8 @@ levels/
   Corner (10.5, 8.5) and `respawn` Respawn (8.5, 8.5), 2 m from the corner (more than `respawn_free_m`, within
   RoundVoice's 8 m). The ordered `PlacePlayers` puts the own player on Start, stand-in 1 on RaiseSpot and
   stand-in 2 in the Corner. No `lobby_player` marker and no lobby scene (`gather` plays at no level, E72). The
-  environment track dresses it and keeps every marker where it is. The room's map record (#306) waits for #306
-  (the follow-up named in #600's PR).
+  environment track dresses it and keeps every marker where it is.
+  The room's map record (#306's shape, §4.7.33) is #715's (the follow-up named in #600's PR).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
