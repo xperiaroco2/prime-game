@@ -25,6 +25,11 @@ extends CharacterBody3D
 ## crouched capsule first and stands only where the test finds room (the ADR's step 7). Each step's
 ## crouch goes to `set_motion` (KE1).
 ##
+## The sneak (#989, #990): while `sneak_held` (Alt) and living, the body walks standing at the
+## crouch walk's crouch_speed_mps; the crouch wins over it (Ctrl + Alt crouches) and so does the
+## sprint key (Shift + Alt sprints, or walks on an empty stamina bar). Each step's sneak goes to
+## `set_motion`, and WorldSounds silences the steps it draws.
+##
 ## On the network (M4-7) every physics step ends with what it claims: `attach()`ed to a
 ## ClientSession, it calls `set_motion` with its position, velocity, the camera's 3D look vector as
 ## the facing (E22, at most MAX_PITCH up or down), the sprint state, whether it gave movement input
@@ -82,6 +87,8 @@ var sprint_held: bool = false
 var jump_requested: bool = false
 ## The crouch key is held (KE8: hold, not toggle).
 var crouch_held: bool = false
+## The sneak key is held (#990: hold, like the crouch's).
+var sneak_held: bool = false
 ## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
 ## captures or frees it; the keys still move the player. Game sets it every frame.
 var mouse_free := false
@@ -99,6 +106,8 @@ var life := ClientModel.Life.ALIVE:
 	set = set_life
 
 var _sprinting: bool = false
+## The sneak this step (#990): standing, at crouch_speed_mps; never with the crouch or the sprint.
+var _sneaking := false
 ## Height of the floor surface the body last stood on: what a step's height is measured from.
 ## Resting on a stair's edge, the rounded bottom puts the feet below that surface.
 var _floor_y: float = 0.0
@@ -192,17 +201,24 @@ func set_rules(value: PlayerRules) -> void:
 
 
 ## Lets go of every key it holds, as Game does when nothing reads the keys (the Esc menu, #169):
-## the movement keys, sprint, the crouch (KE8) and a pending jump.
+## the movement keys, sprint, the crouch (KE8), the sneak (#990) and a pending jump.
 func release_keys() -> void:
 	move_input = Vector2.ZERO
 	sprint_held = false
 	crouch_held = false
+	sneak_held = false
+	_sneaking = false
 	jump_requested = false
 
 
 ## Whether the body has the crouched capsule (for the HUD and tests).
 func is_crouched() -> bool:
 	return _crouched
+
+
+## Whether the body sneaks this step (#990; WorldSounds' silent step, the HUD and tests).
+func is_sneaking() -> bool:
+	return _sneaking
 
 
 ## Claims to `client` from the next physics step on, settles its stamina by the claims and follows
@@ -267,6 +283,7 @@ func set_life(value: ClientModel.Life) -> void:
 			collision_layer = 0
 	velocity = Vector3.ZERO
 	_sprinting = false
+	_sneaking = false
 	_stepping = false
 	# A jump asked for while dead (no step ran to consume it) must not fire at the respawn.
 	jump_requested = false
@@ -340,6 +357,7 @@ func _apply_rules() -> void:
 func _hold(delta: float) -> void:
 	velocity = Vector3.ZERO
 	_sprinting = false
+	_sneaking = false
 	_stepping = false
 	_moving = false
 	_jumped = false
@@ -352,6 +370,7 @@ func _read_device_input() -> void:
 	sprint_held = Input.is_action_pressed("sprint")
 	# Inexact (the default): a held Ctrl blocks no other key, and Ctrl+W still walks (KE8).
 	crouch_held = Input.is_action_pressed("crouch")
+	sneak_held = Input.is_action_pressed("sneak")
 	if Input.is_action_just_pressed("jump"):
 		jump_requested = true
 
@@ -367,6 +386,16 @@ func _walk(delta: float) -> void:
 	if not exiting:
 		_follow_crouch()
 	_sprinting = not exiting and sprint_held and stamina.can_sprint(_sprinting, is_downed())
+	# The sneak (#989): the crouch wins over it (Ctrl + Alt crouches, a jump from the crouch
+	# included) and so does Shift (Shift + Alt sprints, or walks on an empty stamina bar).
+	_sneaking = (
+		sneak_held
+		and is_living()
+		and not exiting
+		and not crouch_held
+		and not _crouched
+		and not sprint_held
+	)
 	var speed := _speed()
 	var steering := _horizontal_wish()
 	if exiting:
@@ -429,7 +458,8 @@ func _claim() -> void:
 		_sprinting,
 		_moving,
 		is_on_floor() or _stepping,
-		_crouched
+		_crouched,
+		_sneaking
 	)
 
 
@@ -484,10 +514,13 @@ func _follow_claims() -> void:
 
 
 ## Metres per second on the ground this step: the living walk or sprint; crouched, the crouch walk,
-## or in the sprint state crouch_fast_speed_mps, paid as a sprint (KD5 (b)).
+## or in the sprint state crouch_fast_speed_mps, paid as a sprint (KD5 (b)); sneaking, standing at
+## the crouch walk's speed (#989: one value for both).
 func _speed() -> float:
 	if _crouched:
 		return rules.crouch_fast_speed_mps if _sprinting else rules.crouch_speed_mps
+	if _sneaking:
+		return rules.crouch_speed_mps
 	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
 
 
