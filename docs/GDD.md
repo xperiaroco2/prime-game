@@ -156,6 +156,44 @@ Open question:
 - After a jump from the crouch with Ctrl still held, does the player crouch again on landing (recommended), or only
   at a fresh press of Ctrl?
 
+### Movement: the sneak (#989)
+The engineer's mechanic (#989, 2026-10-14). Engine parts: the sneak state
+[#990](https://github.com/xperiaroco2/prime-game/issues/990); the crouch and its quiet step everywhere, the quiet step
+only at the crouch walk's speed [#991](https://github.com/xperiaroco2/prime-game/issues/991). Record: the crouch
+ADR's amendments of 2026-10-14 (`docs/decisions/2026-10-10-crouch.md`).
+
+Intent: a player can sneak up on others: hold a key and walk slower, and nobody hears the steps. Movement basics
+(walk, run, crouch, sneak) work everywhere, the lobby included.
+
+Rules:
+- Hold left Alt to sneak (hold, like the crouch's Ctrl). Release: a normal walk.
+- Speed: the same as the crouch walk's (one value for both).
+- Sound: a sneaking player's steps are silent for everyone. The crouch walk stays a little audible (its quiet step);
+  the fast crouch (Shift while crouched) sounds like a walk.
+- A state of its own, standing height: sneaking and crouching never combine. Ctrl + Alt: the crouch wins (crouched,
+  a little audible). Shift + Alt: Shift wins (a normal sprint, audible, with its stamina).
+- Everywhere: the sneak and the crouch play in the lobby, the tutorial, the House and the greybox; no per-map option.
+
+Hidden information: nothing hidden beyond sound. Others see a sneaking player where they would see any player; a
+silent step is decided on each listener's client, as every step is.
+
+Edge cases:
+- A modified client that claims the sneak while it walks at full speed is heard as a walker: a step is silent only
+  when the relayed sneak state is set and the step's speed is at or below the crouch walk's (plus the footstep jitter
+  margin).
+- Downed, dead and ghosts: as today (no sneak while downed; a ghost's steps as today).
+
+Numbers (placeholders, "not a decision"): the sneak's speed is the crouch walk's (2.0 m/s); the quiet step's top
+speed is the crouch walk's; the silent step's jitter margin is 0.2 m/s (an engine tolerance).
+
+Keys: `sneak` on left Alt. It becomes a Controls row once the deck has `control.sneak` (the UI track, #150); lesson
+1's key row lists it then.
+
+Open questions, for the engineer (built as today until he answers):
+- Does a sneaking player look different to others (only the slower walk, or a pose)?
+- A jump while sneaking: does the landing make a sound?
+- Carrying an item while sneaking: any change?
+
 ## 4. Roles
 
 - Which roles exist in the first playable version, and which come later?

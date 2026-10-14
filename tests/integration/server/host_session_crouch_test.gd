@@ -195,6 +195,7 @@ static func _claim(epoch: int, client_tick: int, at: Vector3) -> WireMessage:
 		"moving": false,
 		"on_floor": true,
 		"crouched": true,
+		"sneaking": false,
 		"jumps": 0,
 		"sprint_ticks": 0,
 		"moved_ticks": 0,

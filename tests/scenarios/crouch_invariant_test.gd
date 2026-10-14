@@ -40,3 +40,16 @@ func test_a_crouched_downed_player_is_caught() -> void:
 	game.state.player(P2).crouched = true
 	var problem := ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))
 	assert_str(problem).contains("not alive")
+
+
+func test_a_sneaking_living_player_passes_and_a_downed_or_crouched_one_is_caught() -> void:
+	# The sneak (#990): ScenarioInvariants.sneak_problem, beside the crouch's.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	game.state.player(P2).sneaking = true
+	assert_bool(_avatar(game, P2)["sneaking"] as bool).is_true()
+	assert_str(ScenarioInvariants.sneak_problem(game, P2, _avatar(game, P2))).is_empty()
+	game.state.player(P2).crouched = true
+	assert_str(ScenarioInvariants.sneak_problem(game, P2, _avatar(game, P2))).contains("crouched")
+	game.state.player(P2).crouched = false
+	game.state.player(P2).life = PlayerState.Life.DOWNED
+	assert_str(ScenarioInvariants.sneak_problem(game, P2, _avatar(game, P2))).contains("not alive")

@@ -9,6 +9,7 @@ const ACTIONS: Array[StringName] = [
 	&"move_right",
 	&"sprint",
 	&"jump",
+	&"sneak",
 	&"interact",
 	&"put_down",
 	&"throw",
@@ -128,6 +129,31 @@ func test_push_to_talk_is_held_on_v() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_V])
+
+
+func test_sneak_is_held_on_the_left_alt_only_and_blocks_no_other_key() -> void:
+	# #990: `sneak` on the physical left Alt only (the engineer's answer 2A on PR #1007); the right
+	# Alt does not sneak. Godot 4.7.2 matches an action's located key only to an event of that
+	# location (InputEventKey.action_match), so a right or unlocated Alt press is no sneak.
+	var events := InputMap.action_get_events(&"sneak")
+	assert_int(events.size()).is_equal(1)
+	var key := events[0] as InputEventKey
+	assert_int(key.physical_keycode).is_equal(KEY_ALT)
+	assert_int(key.location).is_equal(KEY_LOCATION_LEFT)
+	assert_bool(key.alt_pressed or key.ctrl_pressed or key.shift_pressed).is_false()
+	var alt := InputEventKey.new()
+	alt.physical_keycode = KEY_ALT
+	alt.pressed = true
+	alt.location = KEY_LOCATION_LEFT
+	assert_bool(alt.is_action_pressed(&"sneak")).is_true()
+	alt.location = KEY_LOCATION_RIGHT
+	assert_bool(alt.is_action_pressed(&"sneak")).is_false()
+	# Inexact: a held Alt blocks no movement key, so Alt + W still walks (sneaking).
+	var forward := InputEventKey.new()
+	forward.physical_keycode = KEY_W
+	forward.pressed = true
+	forward.alt_pressed = true
+	assert_bool(forward.is_action_pressed(&"move_forward")).is_true()
 
 
 func test_alt_enter_toggles_fullscreen_and_enter_alone_does_not() -> void:

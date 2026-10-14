@@ -239,6 +239,7 @@ func _twin(epoch: int, client_tick: int, position: Vector3) -> WireMessage:
 		"moving": true,
 		"on_floor": true,
 		"crouched": false,
+		"sneaking": false,
 		"jumps": 0,
 		"sprint_ticks": 0,
 		"moved_ticks": ChaosFrames.HONEST_MOVED_TICKS,

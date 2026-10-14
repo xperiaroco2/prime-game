@@ -166,8 +166,8 @@ var winner: StringName = &""
 var ended_by: StringName = &""
 var round_seconds := -1
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed, crouched,
-## invulnerable, held_item, belt_item}): the other players', and the own player's only while it is
-## knocked down (KE5; AvatarViews draws it as its ragdoll, 728d).
+## sneaking, invulnerable, held_item, belt_item}): the other players', and the own player's only
+## while it is knocked down (KE5; AvatarViews draws it as its ragdoll, 728d).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.
@@ -244,6 +244,13 @@ func is_invulnerable(peer: int) -> bool:
 func is_crouched(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("crouched", false)
+
+
+## Whether the newest snapshot shows `peer` sneaking (the avatar's flag, #990): only a living player
+## that is not crouched. The own player's arrives only while knocked down, and never sneaking.
+func is_sneaking(peer: int) -> bool:
+	var avatar: Dictionary = avatars.get(peer, {})
+	return avatar.get("sneaking", false)
 
 
 ## The client's own copy of the current phase, or null.

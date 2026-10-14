@@ -99,10 +99,12 @@ func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 
 func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions() -> void:
 	# #645's throw on the physical G, acting while living. A Settings row since #851 (deck key
-	# `control.throw`), as every living action, so no action is left unlisted.
+	# `control.throw`), as every living action; the sneak alone is unlisted (#990, until the deck
+	# has `control.sneak`).
 	assert_str(String(Controls.ACTIONS[&"throw"])).is_equal("control.throw")
 	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.Phase.ALIVE)
-	assert_dict(Controls.UNLISTED).is_empty()
+	assert_bool(Controls.UNLISTED.has(&"throw")).is_false()
+	assert_dict(Controls.UNLISTED).is_equal({&"sneak": Controls.Phase.LOBBY | Controls.Phase.ALIVE})
 	assert_str(Controls.name_of(&"throw")).is_equal("Toss")
 	TranslationServer.set_locale("uk")
 	assert_str(Controls.name_of(&"throw")).is_equal("Жбурнути")
@@ -128,6 +130,39 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 	controls.reset()
 	assert_int(_key(controls.event_of(&"throw"))).is_equal(KEY_G)
 	assert_str(KeyLabel.of_action(&"throw")).is_equal(OS.get_keycode_string(KEY_G))
+
+
+func test_the_sneak_is_unlisted_on_alt_where_it_acts() -> void:
+	# #990: `sneak` on the physical Alt, held, acting wherever the player walks (the lobby and the
+	# round). No Settings row before the deck has `control.sneak` (#150), so its key is kept from
+	# every action of those phases, and a downed-only action may take it.
+	assert_bool(Controls.ACTIONS.has(&"sneak")).is_false()
+	assert_int(_key(Controls.default_event(&"sneak"))).is_equal(KEY_ALT)
+	# The left Alt only (the engineer's answer 2A on PR #1007): project.godot's event is located,
+	# so a right Alt press does not reach `sneak` (Godot 4.7.2's InputEventKey.action_match).
+	var setting := ProjectSettings.get_setting("input/sneak") as Dictionary
+	var alt := (setting["events"] as Array)[0] as InputEventKey
+	assert_int(alt.physical_keycode).is_equal(KEY_ALT)
+	assert_int(alt.location).is_equal(KEY_LOCATION_LEFT)
+	assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak")).is_true()
+	var right := _press_at(KEY_ALT, KEY_LOCATION_RIGHT)
+	assert_bool(InputMap.event_is_action(right, &"sneak")).is_false()
+	# A binding is a physical key on either side (normalised()), so an action bound to Alt would
+	# act on the left one too: a left or a right Alt press is kept from the sneak's phases alike.
+	var controls := Controls.new()
+	var left := _press_at(KEY_ALT, KEY_LOCATION_LEFT)
+	assert_array(Controls.unlisted_on(&"use", left)).contains_exactly([&"sneak"])
+	assert_array(Controls.unlisted_on(&"use", right)).contains_exactly([&"sneak"])
+	assert_array(Controls.unlisted_on(&"use", _press(KEY_ALT))).contains_exactly([&"sneak"])
+	assert_bool(controls.bind(&"use", left)).is_false()
+	assert_bool(controls.bind(&"use", right)).is_false()
+	assert_bool(controls.bind(&"use", _press(KEY_ALT))).is_false()
+	assert_bool(controls.bind(&"jump", left)).is_false()
+	assert_bool(controls.bind(&"ready", left)).is_false()
+	assert_bool(controls.is_default(&"use")).is_true()
+	assert_bool(controls.bind(&"give_up", left)).is_true()
+	assert_int(_key(controls.event_of(&"give_up"))).is_equal(KEY_ALT)
+	assert_bool(controls.bind(&"sneak", _press(KEY_B))).is_false()
 
 
 func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actions() -> void:
@@ -375,6 +410,12 @@ func _press(key: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.physical_keycode = key
 	event.pressed = true
+	return event
+
+
+func _press_at(key: Key, location: KeyLocation) -> InputEventKey:
+	var event := _press(key)
+	event.location = location
 	return event
 
 

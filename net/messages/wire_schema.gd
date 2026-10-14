@@ -46,7 +46,9 @@ extends RefCounted
 ## snapshot avatar's (4) and ShotTaken's record row's (2) (the crouch ADR, KE1, KE2).
 ## 30 since #847 lets a knocked-down viewer's snapshot carry its own avatar (MAX_AVATARS, 16) and
 ## the Rejected reason `moving` (the knockdown rework's KE5, KE12).
-const VERSION := 30
+## 31 since #990 added the `sneaking` flag to MoveClaim's and MoveClaimReliable's flags (16) and the
+## snapshot avatar's (8).
+const VERSION := 31
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -298,7 +300,7 @@ static func _claim_fields() -> Array[WireField]:
 		_vec3("position"),
 		_vec3("velocity"),
 		_vec3("facing"),
-		WireField.bits(PackedStringArray(["sprint", "moving", "on_floor", "crouched"])),
+		WireField.bits(PackedStringArray(["sprint", "moving", "on_floor", "crouched", "sneaking"])),
 		_u16("jumps"),
 		_u32("sprint_ticks"),
 		_u32("moved_ticks"),
@@ -585,7 +587,9 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("position"),
 				_vec3("velocity"),
 				_vec3("facing"),
-				WireField.bits(PackedStringArray(["downed", "invulnerable", "crouched"])),
+				WireField.bits(
+					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking"])
+				),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
 			]

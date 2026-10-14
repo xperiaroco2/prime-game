@@ -174,6 +174,8 @@ class Claim:
 	var on_floor := false
 	## The crouch at the claim's last physics step (KE1): a pose, so no latch and no mask.
 	var crouched := false
+	## The sneak at the claim's last physics step (#990): a pose like the crouch, no latch, no mask.
+	var sneaking := false
 
 
 ## What the checks found, for accepting the claim.
@@ -337,6 +339,9 @@ static func _accept(
 	# The pose of a living claim in every phase that takes one, the lobby included: the crouch
 	# plays everywhere (#991). A downed claim's bit is ignored (_take_look).
 	player.crouched = claim.crouched
+	# The sneak (#990), a pose like the crouch and ignored where it is; never with a crouch (the
+	# crouch wins, #989), so a claim of both keeps only the crouch.
+	player.sneaking = claim.sneaking and not claim.crouched
 	player.sprint_held = claim.sprint
 	player.moving = checked.moved_itself
 
@@ -643,6 +648,7 @@ static func _read(command: MatchCommand) -> Claim:
 	claim.jumps = jumps
 	claim.on_floor = command.get_bool("on_floor")
 	claim.crouched = command.get_bool("crouched")
+	claim.sneaking = command.get_bool("sneaking")
 	return claim
 
 
