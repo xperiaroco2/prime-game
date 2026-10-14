@@ -43,6 +43,11 @@ var on_floor := true
 ## never taken from a downed claim; kept in every phase, the crouch plays everywhere (#991). The eye
 ## and the capsule read it (PlayerRules.height_of, eye_height_of), and the snapshot relays it.
 var crouched := false
+## The last accepted claim's sneak (#990): a standing pose, never with `crouched` (the crouch wins);
+## false at every placement, knockdown, raise and respawn, never taken from a downed claim, kept in
+## every phase like the crouch. The snapshot relays it; each listener's client silences the steps
+## of a sneaking body only at the crouch walk's speed (FootstepCadence.silent_of).
+var sneaking := false
 ## The client tick of the last accepted claim, or -1.
 var claim_tick := -1
 ## Raised by every placement; a claim of another epoch is dropped as stale (§7).

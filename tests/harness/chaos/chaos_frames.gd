@@ -268,6 +268,7 @@ static func claim(
 		"moving": true,
 		"on_floor": true,
 		"crouched": false,
+		"sneaking": false,
 		"jumps": jumps,
 		"sprint_ticks": 0,
 		"moved_ticks": HONEST_MOVED_TICKS,
@@ -388,7 +389,8 @@ static func _bad_payload(
 		Shape.FLAG_BITS:
 			packet = claim(Claim.TELEPORT, schema, 0, 0, Vector3.ZERO, 0)
 			bytes = packet.bytes.duplicate()
-			bytes[at + CLAIM_FLAGS_AT] = bytes[at + CLAIM_FLAGS_AT] | (16 << rng.randi_range(0, 3))
+			# The claim's five flags (sneaking, #990, is bit 4) leave bits 5 to 7 unknown.
+			bytes[at + CLAIM_FLAGS_AT] = bytes[at + CLAIM_FLAGS_AT] | (32 << rng.randi_range(0, 2))
 		Shape.BAD_ID:
 			packet = message(schema, &"ChangeSettings", {"settings": {"packages": 2}}, CHAOS_SEQ)
 			bytes = packet.bytes.duplicate()

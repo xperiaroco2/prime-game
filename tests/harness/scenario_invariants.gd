@@ -32,7 +32,8 @@ extends RefCounted
 ##   peer present then.
 ## - The crouch invariant (the crouch ADR, KE1; KE10 as #991 amended it, #790): per tick, no
 ##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
-##   plays in every phase and on every map.
+##   plays in every phase and on every map. The sneak alike (#990): no snapshot shows an avatar
+##   sneaking unless its player is alive and not crouched (sneak_problem).
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -76,6 +77,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"downed",
 	"invulnerable",
 	"crouched",
+	"sneaking",
 	"held_item",
 	"belt_item",
 ]
@@ -219,6 +221,9 @@ func check_tick() -> PackedStringArray:
 			var crouch := crouch_problem(_game, other, avatar)
 			if crouch != "":
 				found.append("peer %d's snapshot %s" % [peer, crouch])
+			var sneak := sneak_problem(_game, other, avatar)
+			if sneak != "":
+				found.append("peer %d's snapshot %s" % [peer, sneak])
 		# A phase that sends no snapshot (End, Loading) has none to check.
 		var downed := _life_of(peer) == PlayerState.Life.DOWNED
 		var own := own_avatar_problem(peer, avatars, downed) if not snapshot.is_empty() else ""
@@ -408,6 +413,18 @@ static func crouch_problem(game: Match, peer: int, avatar: Dictionary) -> String
 	var player := game.state.player(peer)
 	if player == null or player.life != PlayerState.Life.ALIVE:
 		return "shows peer %d crouched, not alive" % peer
+	return ""
+
+
+## Why the snapshot avatar `avatar` of `peer` breaks the sneak's invariant (#990), or "" when it
+## does not: it shows `sneaking` though the player is not alive, or is crouched (the crouch wins,
+## #989). Read from the player's state, written apart from MovementRule, like crouch_problem.
+static func sneak_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	if avatar.get("sneaking") != true:
+		return ""
+	var player := game.state.player(peer)
+	if player == null or player.life != PlayerState.Life.ALIVE or player.crouched:
+		return "shows peer %d sneaking, not alive or crouched" % peer
 	return ""
 
 

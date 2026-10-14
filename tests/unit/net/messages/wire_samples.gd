@@ -369,6 +369,7 @@ static func _claim() -> Dictionary:
 		"moving": false,
 		"on_floor": true,
 		"crouched": false,
+		"sneaking": true,
 		"jumps": 0xFFFF,
 		"sprint_ticks": 0xFFFFFFFF,
 		"moved_ticks": 0,
@@ -385,6 +386,7 @@ static func _avatar(
 		"downed": downed,
 		"invulnerable": invulnerable,
 		"crouched": not (downed or invulnerable),
+		"sneaking": invulnerable and not downed,
 		"held_item": held,
 		"belt_item": belt,
 	}

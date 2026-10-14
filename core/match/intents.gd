@@ -113,6 +113,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 		"moving": TYPE_BOOL,
 		"on_floor": TYPE_BOOL,
 		"crouched": TYPE_BOOL,
+		"sneaking": TYPE_BOOL,
 		"jumps": TYPE_INT,
 		"sprint_ticks": TYPE_INT,
 		"moved_ticks": TYPE_INT,

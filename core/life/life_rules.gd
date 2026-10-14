@@ -134,6 +134,7 @@ static func knock_down(ctx: MatchContext, peer: int, launch := Vector3.ZERO) -> 
 	downed.life_deadline = ctx.tick + Ticks.from_seconds(rules.knockdown_s)
 	downed.sprinting = false
 	downed.crouched = false
+	downed.sneaking = false
 	downed.epoch += 1
 	if moves:
 		# The body starts at the last accepted position with the launch (§4, step 2): the
@@ -360,6 +361,7 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	back.stamina_settled_tick = ctx.tick
 	back.sprinting = false
 	back.crouched = false
+	back.sneaking = false
 	back.sprint_held = false
 	back.moving = false
 	back.position = at

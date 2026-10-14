@@ -42,6 +42,7 @@ func run(ctx: MatchContext) -> void:
 		var player := ctx.state.players[peers[i]]
 		player.position = spots[order[i]]
 		player.crouched = false
+		player.sneaking = false
 		player.velocity = Vector3.ZERO
 		player.epoch += 1
 		placed[player.peer] = player.position

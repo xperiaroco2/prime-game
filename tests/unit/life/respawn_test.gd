@@ -289,9 +289,11 @@ func test_the_respawned_stand_up() -> void:
 	_kill(game)
 	var dead := game.state.player(P2)
 	dead.crouched = true
+	dead.sneaking = true
 	_run_out(game)
 	assert_int(dead.life).is_equal(PlayerState.Life.ALIVE)
 	assert_bool(dead.crouched).is_false()
+	assert_bool(dead.sneaking).is_false()
 
 
 func _duel(seed_value: int = 7) -> Match:
