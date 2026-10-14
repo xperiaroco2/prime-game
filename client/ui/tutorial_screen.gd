@@ -6,8 +6,9 @@ extends Control
 ## - The invite (first launch only, open_invite()): `Dim` (ToyBackdrop), `Lang` (two language
 ##   chips at the top right, one ButtonGroup, each language named in itself) and `Box` (the raised
 ##   ToyPanelDialog: the title, the body, Start and Skip). Start has the focus as it opens.
-## - `Step` (top centre, 40 px down, 912 px wide): "Step n of 8", the title, and How: the how
-##   sentence in pieces around the keycap of the action bound now (KeyLabel, #211), or lesson 1's
+## - `Step` (top centre, 40 px down, 912 px wide): "Step n of N" (N the lessons, nine, #901),
+##   the title, and How: the how sentence in pieces around the keycap of the action bound now
+##   (KeyLabel, #211), or lesson 1's
 ##   row of keycaps (`HowKeys`), or nothing (a title only, as lesson 4 had until #900, the
 ##   engineer's answer on PR #722). A step's «?» (no lesson's since #900) is a ToyKeyRound keycap,
 ##   the look of the map's «?».

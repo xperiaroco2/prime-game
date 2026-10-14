@@ -2975,7 +2975,7 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
 `LifeScreen` (#497), the `LobbyHud` (#495: `lobby.status`, `lobby.ready`, and `lobby.roster`, a line per row "<name
-as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of 8", and
+as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of N", and
 `tutorial.how`, its how line as drawn), the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
@@ -4100,7 +4100,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
   Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
   Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
-  lesson 8 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
+  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
   `tutorial_requested` to `start_tutorial(false)` (the item was disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
@@ -4172,7 +4172,7 @@ Protocol 13 (§4.3.4).
   the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
   decodes the same shortfall, and the same reason at the end, equal to `view_of`).
 
-#### 4.7.45 Built in #602 (M6.2), the lesson runner and the lessons (eight since #900)
+#### 4.7.45 Built in #602 (M6.2), the lesson runner and the lessons (nine since #901)
 T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engineer's D29 to D33, D36 answers on PR
 #596). The plates, the lesson list and the invite (#492) read it.
 - **Data** (`core/content/tutorial/`, data only, §9.3): `TutorialLessons` (the root, `lessons`), `TutorialLesson`
@@ -4196,7 +4196,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   claims that moved the player itself (`Ticks.RATE`) until `amount`. `voice_sent` fires on a frame sent and, with an
   `amount`, after that many seconds in a row in which the step's conditions hold and no microphone is open (D31 (a):
   a voice frame within the radius, or 3 s within it with none open). After the last lesson, a completion by
-  `esc_opened` makes the next `esc_closed()` emit `finished` (D32 (b)); a menu opened before lesson 8 started does
+  `esc_opened` makes the next `esc_closed()` emit `finished` (D32 (b)); a menu opened before lesson 9 started does
   not count. Signals `changed`, `next_stage_requested`, `finished`; queries for #492: `lesson()` (1-based, 0 for
   none), `step()`, `current_step()`, `keys()`, `is_done(n)`, `lesson_count()`, `is_running()`, `is_finished()`.
 - **The wiring** (`GameTutorial`, so no screen knows the tutorial exists): `start()` builds `Game.tutorial.runner`
@@ -4212,24 +4212,24 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   `esc_opened()` and `esc_closed()`. `next_stage_requested` sends `NextStage` through the own session; `finished`
   calls `Game.leave()`. Without the invite, lesson 1 begins as `PhaseChanged` brings the `lessons` phase; with it,
   `GameTutorial.begin(game)` is #492's Start.
-- **The eight lessons** follow the design's §1 table and §9.3 on the deck keys of `client/i18n/strings.csv`
+- **The nine lessons** follow the design's §1 table and §9.3 on the deck keys of `client/i18n/strings.csv`
   (ui-0.4.0; LD8 (a)): lesson 3 as drawn (D29 (a)) until the UI track's first instruction exists (#150); #900 (the
   tutorial without tasks, its ADR `docs/decisions/2026-10-12-tutorial-without-tasks.md`) dropped the Delivery
-  lesson and the map lesson's «?» step (LD2 (a), LD7 (a)): lesson 4 only opens the map; lesson 6 completes on the
-  switch or the own `Respawned` (D36 (a)); lesson 1's key row also lists `crouch` after `jump` (825c, #902, LD4 (b); the row only shows the key, lesson 1 completes on walking alone), its label the raw action name until the UI track puts `control.crouch` in the deck and `Controls.ACTIONS` (#791 follow-up). lesson 7 waits for the own life living. The parts `TasksDone`,
+  lesson and the map lesson's «?» step (LD2 (a), LD7 (a)): lesson 5 only opens the map; lesson 7 completes on the
+  switch or the own `Respawned` (D36 (a)); lesson 1's key row also lists `crouch` after `jump` (825c, #902, LD4 (b); the row only shows the key, lesson 1 completes on walking alone), its label the raw action name until the UI track puts `control.crouch` in the deck and `Controls.ACTIONS` (#791 follow-up). #901 (825b, LD3 (a)) added lesson 4, the throw, after Hand and belt: its one step (`tutorial.step.throw.*`, the `throw` key) completes on the own `ItemThrown`, and its how asks for an item in the hand (a belt item is never thrown). Lesson 8 waits for the own life living. The parts `TasksDone`,
   `howto_opened` and `TutorialStep.HOWTO_GLYPH` stay, used by no lesson (LE3 (a)). The numbers (1 s, 3 s) are
   D33's placeholders. If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
 - Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
-  against `ClientModel.Life`), `tutorial_content_test.gd` (the eight lessons as §1's rows, lesson 1's row with `crouch`, deck keys and actions,
-  `RequestStage` only in 5 and 6, no step waiting on what nothing can complete: a `howto_opened` with no card, a
+  against `ClientModel.Life`), `tutorial_content_test.gd` (the nine lessons as §1's rows, lesson 1's row with `crouch`, deck keys and actions,
+  `RequestStage` only in 6 and 7, no step waiting on what nothing can complete: a `howto_opened` with no card, a
   `TasksDone` with no task type), `tests/unit/client/tutorial/lesson_runner_test.gd`
   (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
   the end after the menu closes), `lesson_runner_source_test.gd`, the switch in
   `tests/integration/client/life/spectate_cycle_test.gd`, and
-  `tests/integration/client/app/game_tutorial_lessons_test.gd` (the eight lessons on the real session, no task dealt
-  and the package put down where the player stands, the stages from the runner's own `NextStage`, lesson 7's quiet
+  `tests/integration/client/app/game_tutorial_lessons_test.gd` (the nine lessons on the real session, no task dealt
+  and the package put down where the player stands, the stages from the runner's own `NextStage`, lesson 8's quiet
   time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
-  runner); the `tutorial` playcheck scenario plays to lesson 4's map.
+  runner); the `tutorial` playcheck scenario plays through lesson 4's throw to lesson 5's map.
 
 #### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
 The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
@@ -6281,7 +6281,7 @@ phase classes come in the task each row names.
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
-| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the eight lessons, §4.7.45 |
+| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -6777,19 +6777,19 @@ What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68)
 Settings:
 - Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
   (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
-  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 6 is a short wait); its `crouch_maps`, which listed its own map
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 7 is a short wait); its `crouch_maps`, which listed its own map
   (the engineer's answer (c) on #790), went with #991: the crouch plays everywhere, and lesson 1's key row names it (825c, #902; the mode file is unchanged). No `lobby_level` (E72), no
   win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
   bound equal to its value): `packages` 1, `knives` 1 (no `tasks` or `banned_task_types` since #900).
 - Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. No task type (#900). Actions: PickUp,
-  PutDown, Raise, StopRaise and Swap as in the base mode, and `NextStage` with one effect, `ReportOutcome(next)`. No
+  PutDown, Raise, StopRaise, Swap and Throw (`Holds`, `OverFloor`, `ThrowItem`, #901) as in the base mode, and `NextStage` with one effect, `ReportOutcome(next)`. No
   `Use` and no `GiveUp` is accepted in any phase (the knife swings at nobody; D28 (a) kills the own player at once).
 - Phases (accepts; tick systems; voice; level; snapshots), none checking wins or running a clock: `gather` (Lobby;
   `Hello` from newcomers, `SetReady` from players; none; Silent; none; no), `loading` (Loading 60 s; `LoadAck`;
-  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap` from the living,
-  `NextStage` from the host; none; RoundVoice 8 m; the map; yes), `raise_stage` (as `lessons`, plus `Raise` and
-  `StopRaise` from the living and `MoveClaim` from the downed; ChannelTicks, no LifeTicks), `death_stage` (as
-  `raise_stage` but no `NextStage`; LifeTicks with a Respawn (`respawn`), ChannelTicks).
+  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap`, `Throw` from the living,
+  `NextStage` from the host; FlightTicks; RoundVoice 8 m; the map; yes), `raise_stage` (as `lessons`, plus `Raise` and
+  `StopRaise` from the living and `MoveClaim` from the downed, no `Throw`; ChannelTicks and FlightTicks, no LifeTicks), `death_stage` (as
+  `raise_stage` but no `NextStage`; LifeTicks with a Respawn (`respawn`), ChannelTicks, FlightTicks).
 - Transitions: `gather, all_ready → loading`; `loading, all_loaded → lessons`: `DealRoles` (no quota, default Crew),
   `SpawnItems` (Package by `packages`, its own `rng_purpose` `packages`, LE2 (a)), `SpawnItems` (Knife by `knives`),
   `PlacePlayers` (`round_player`, `ordered`), no `StartClock`; `lessons, next → raise_stage`: `KnockDown` (`pick`
@@ -6802,11 +6802,11 @@ Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (
 provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
 (#601, §4.7.43). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
 `SpawnItems`, designed in #825 ([ADR](decisions/2026-10-12-tutorial-without-tasks.md), `docs/design/tutorial.md` §9)
-and built in #900 (825a; the engineer's LD1 (a), LD2 (a), LD7 to LD10 (a) on PR #894), provisional for his approval.
+and built in #900 (825a; the engineer's LD1 (a), LD2 (a), LD7 to LD10 (a) on PR #894), provisional for his approval; the throw lesson's `Throw` and FlightTicks in #901 (825b, LD3 (a)).
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
 `docs/design/tutorial.md` §2.3, no task dealt, and a match from `gather` to the respawn in `death_stage`
 (`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
-(`tests/integration/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
+and no throw at the mode's numbers leaving it, a flight over a wall resting at its fallback below the thrower; the rests on the north wall's top from the table are known, not a failure, until the map's rework (the engineer's (c) on #901, #911) (`tests/integration/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
 `NextStage`, waits past the 10 s knockdown while bot 2 stays down, raises it, sends `NextStage` again, dies at once
 and respawns; nobody else dies; expects `none`) in the core runner and in `tools\run.cmd bots`.
 
@@ -7231,7 +7231,7 @@ content/
   scenarios/                       bot scenarios (§9.7), one per file
   howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
-  tutorial/tutorial.tres           the tutorial's eight lessons (#602, §4.7.45; client data on core/content/tutorial/)
+  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
@@ -7577,7 +7577,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
-| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 5 and 6 (6 and 7 before #900) staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here. Its rework without tasks (DD10, #825): proposed on 2026-10-12 ([design](design/tutorial.md) §9, [ADR](decisions/2026-10-12-tutorial-without-tasks.md)); the engineer answered LD1 to LD10 as recommended on PR #894; 825a built in #900 (eight lessons, no task, §4.7.45, §9.5.17), 825b (#901) and 825c (#902) follow |
+| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 (also before #900; 5 and 6 until #901) staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here. Its rework without tasks (DD10, #825): proposed on 2026-10-12 ([design](design/tutorial.md) §9, [ADR](decisions/2026-10-12-tutorial-without-tasks.md)); the engineer answered LD1 to LD10 as recommended on PR #894; 825a built in #900 (eight lessons, no task, §4.7.45, §9.5.17), 825b in #901 (the throw lesson, nine lessons), 825c in #902 |
 | The cooking chain's game rules, numbers, names and looks (CD1 to CD17 of the [cooking ADR](decisions/2026-10-10-cooking-task.md), §9.8) | Settled by the engineer on 2026-10-10 ([PR #701, comment 6095326743](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743)): every recommendation, except CD3 (b), CD5 (b), CD6 (c), CD8 (b) and CD13 (b), with his words for the buns and the patties; CD17 is technical, a flood guard. Then the four questions left ([comment 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400), its item 3 replaced by [6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)): the drafted words and looks and the five herbs as drafted (the ADR's §5.1); CD3 (b) reaching every take, so beside a two-handed item a take from a box, a bed, the grill or the floor puts the new item onto the belt, a full belt's item at the taker's feet, while what is not a take stays refused as today (`two_handed` at a plate, the grill or a station, `nothing_to_do` for a hit; the floor's pick-up is a change to `Items.take`, §7.1.11, in its C2); a displaced hand item at the taker's feet. It plays on House alone (CD15, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no cooking scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
 
 ## 11. Art assets: the handoff from the art repo (#519)

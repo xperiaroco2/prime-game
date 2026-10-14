@@ -87,6 +87,25 @@ script = ExtResource("2_lesson")
 list_key = &"tutorial.list.hand_belt"
 steps = Array[ExtResource("3_step")]([SubResource("Step_hand_belt")])
 
+[sub_resource type="Resource" id="Event_thrown"]
+script = ExtResource("7_event_seen")
+event = &"ItemThrown"
+fields = {
+"peer": &"own"
+}
+
+[sub_resource type="Resource" id="Step_throw"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.throw.title"
+how_key = &"tutorial.step.throw.how"
+keys = Array[StringName]([&"throw"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_thrown")])
+
+[sub_resource type="Resource" id="Lesson_throw"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.throw"
+steps = Array[ExtResource("3_step")]([SubResource("Step_throw")])
+
 [sub_resource type="Resource" id="Seen_map"]
 script = ExtResource("8_client_seen")
 signal_name = &"map_opened"
@@ -196,4 +215,4 @@ steps = Array[ExtResource("3_step")]([SubResource("Step_menu")])
 
 [resource]
 script = ExtResource("1_lessons")
-lessons = Array[ExtResource("2_lesson")]([SubResource("Lesson_move"), SubResource("Lesson_pick_up"), SubResource("Lesson_hand_belt"), SubResource("Lesson_map"), SubResource("Lesson_downed"), SubResource("Lesson_death"), SubResource("Lesson_voice"), SubResource("Lesson_menu")])
+lessons = Array[ExtResource("2_lesson")]([SubResource("Lesson_move"), SubResource("Lesson_pick_up"), SubResource("Lesson_hand_belt"), SubResource("Lesson_throw"), SubResource("Lesson_map"), SubResource("Lesson_downed"), SubResource("Lesson_death"), SubResource("Lesson_voice"), SubResource("Lesson_menu")])

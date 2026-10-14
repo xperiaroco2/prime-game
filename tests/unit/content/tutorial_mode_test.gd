@@ -123,9 +123,12 @@ func test_the_accepts_as_the_design_s_table() -> void:
 		Intents.PICK_UP: LIVING,
 		Intents.PUT_DOWN: LIVING,
 		Intents.SWAP: LIVING,
+		Intents.THROW: LIVING,
 		Intents.NEXT_STAGE: HOST,
 	}
 	var raising := items.duplicate()
+	# The throw is taught in lessons only (#901, LD3 (a)); a flight outlives NextStage (FlightTicks).
+	raising.erase(Intents.THROW)
 	raising[Intents.MOVE_CLAIM] = LIVING | DOWNED
 	raising[Intents.RAISE] = LIVING
 	raising[Intents.STOP_RAISE] = LIVING
@@ -152,16 +155,18 @@ func test_no_phase_accepts_use_or_give_up() -> void:
 		assert_int(spec.senders_of(Intents.GIVE_UP)).override_failure_message(spec.id).is_equal(0)
 
 
-func test_the_tick_systems_with_life_ticks_only_in_the_death_stage() -> void:
+func test_flight_ticks_in_every_stage_and_life_ticks_only_in_the_death_stage() -> void:
+	# FlightTicks in the three stages (#901, LD3 (a)): a phase without it pauses every flight, so an
+	# item thrown just before NextStage would hang FLYING through the later lessons.
 	var mode := _mode()
 	assert_array(mode.find_phase(&"gather").tick_systems).is_empty()
 	assert_array(mode.find_phase(&"loading").tick_systems).is_empty()
-	assert_array(mode.find_phase(&"lessons").tick_systems).is_empty()
+	assert_array(_classes(mode.find_phase(&"lessons").tick_systems)).contains_exactly([FlightTicks])
 	assert_array(_classes(mode.find_phase(&"raise_stage").tick_systems)).contains_exactly(
-		[ChannelTicks]
+		[ChannelTicks, FlightTicks]
 	)
 	var death := mode.find_phase(&"death_stage").tick_systems
-	assert_array(_classes(death)).contains_exactly([LifeTicks, ChannelTicks])
+	assert_array(_classes(death)).contains_exactly([LifeTicks, ChannelTicks, FlightTicks])
 	var respawn := (death[0] as LifeTicks).respawn
 	assert_str(respawn.tag).is_equal("respawn")
 
@@ -221,6 +226,62 @@ func test_next_stage_reports_next_and_nothing_else() -> void:
 	assert_object(report).is_not_null()
 	assert_str(report.outcome).is_equal("next")
 	assert_str(report.argument).is_empty()
+
+
+func test_the_throw_is_the_base_mode_s_rule() -> void:
+	# #901 (LD3 (a)): the lesson teaches the throw a match plays, so its parts and numbers are the
+	# base mode's.
+	var ours := _throw_rule(_mode())
+	var base := _throw_rule(load(BASE_MODE) as GameMode)
+	assert_object(ours).is_not_null()
+	assert_object(base).is_not_null()
+	assert_array(_classes(ours.conditions)).is_equal(_classes(base.conditions))
+	assert_array(_classes(ours.effects)).is_equal([ThrowItem])
+	assert_array(_classes(base.effects)).is_equal([ThrowItem])
+	var our_throw := ours.effects[0] as ThrowItem
+	var base_throw := base.effects[0] as ThrowItem
+	for property: String in ["speed_mps", "gravity_mps2", "radius_m", "longest_flight_s"]:
+		assert_float(our_throw.get(property) as float).override_failure_message(property).is_equal(
+			base_throw.get(property) as float
+		)
+
+
+func test_a_throw_just_before_next_stage_rests_in_the_raise_stage() -> void:
+	# FlightTicks runs in every stage (#901): a flight launched in lessons outlives NextStage.
+	var mode := _mode()
+	var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), levels.layouts)
+	game.start(0)
+	var peers: Array[int] = [1, 2, 3]
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	for peer: int in peers:
+		FixtureBaseMode.ready(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	for peer: int in peers:
+		FixtureBaseMode.load_ack(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("lessons")
+	var package: ItemState = null
+	for id: int in game.state.items:
+		if game.state.items[id].kind.id == &"package":
+			package = game.state.items[id]
+	FixtureItemModes.stand(game, 1, package.position)
+	FixtureItemModes.pick_up(game, 1, package)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(package.holder).is_equal(1)
+	FixtureModes.send(game, Intents.THROW, 1, {"facing": Vector3(0.0, 1.0, 0.0)})
+	FixtureModes.run_ticks(game, 1)
+	assert_object(FixtureFlightModes.flying(game)).is_same(package)
+	FixtureStageModes.next_stage(game, 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("raise_stage")
+	assert_bool(package.is_in_flight()).is_true()
+	FixtureModes.run_ticks(game, Ticks.from_seconds(3.0))
+	assert_bool(package.is_in_flight()).is_false()
+	assert_int(package.holder).is_equal(0)
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func test_a_match_from_gather_to_the_respawn_in_the_death_stage() -> void:
@@ -290,6 +351,13 @@ func _classes(parts: Array) -> Array:
 	for part: Object in parts:
 		found.append(part.get_script())
 	return found
+
+
+func _throw_rule(mode: GameMode) -> Rule:
+	for rule: Rule in mode.actions:
+		if rule.trigger == Intents.THROW:
+			return rule
+	return null
 
 
 func _mode() -> GameMode:

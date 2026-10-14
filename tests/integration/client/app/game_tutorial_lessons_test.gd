@@ -1,14 +1,14 @@
 extends GdUnitTestSuite
-## The eight lessons in the game (client/app/game_tutorial.gd's runner over
-## content/tutorial/tutorial.tres, docs/design/tutorial.md §1, §3, §5, §9.3; #602, #900), headless
-## on a simulated clock as game_tutorial_test: with no task dealt, the own player walks, picks up
-## the package and puts it down, swaps, opens the map, raises the stand-in the host knocked down
-## after the runner's own NextStage, dies after the second, switches the spectate target,
-## respawns, waits 3 s near a stand-in with no microphone (D31 (a); not while the Esc menu is
-## open), and opens and closes the Esc menu: the session ends at the main menu (D32 (b)). And when
-## the lessons begin: by themselves without the invite, on begin() with it. No step feeds the
-## runner by hand: the item keys' intents go out through the own session, the raise through
-## LifeView, the rest through Game.
+## The nine lessons in the game (client/app/game_tutorial.gd's runner over
+## content/tutorial/tutorial.tres, docs/design/tutorial.md §1, §3, §5, §9.3; #602, #900, #901),
+## headless on a simulated clock as game_tutorial_test: with no task dealt, the own player walks,
+## picks up the package and puts it down, swaps, takes the package in the hand again and throws
+## it, opens the map, raises the stand-in the host knocked down after the runner's own NextStage,
+## dies after the second, switches the spectate target, respawns, waits 3 s near a stand-in with
+## no microphone (D31 (a); not while the Esc menu is open), and opens and closes the Esc menu: the
+## session ends at the main menu (D32 (b)). And when the lessons begin: by themselves without the
+## invite, on begin() with it. No step feeds the runner by hand: the item keys' intents go out
+## through the own session, the raise through LifeView, the rest through Game.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7321
@@ -20,7 +20,7 @@ const MAX_FRAMES := 900
 const SETTINGS_PATH := "user://game_tutorial_lessons_test.cfg"
 ## Metres from an item's or a downed player's feet the own player stops at: inside the reach.
 const NEAR_M := 1.0
-## Physics frames with the Esc menu open in lesson 7: 6 s at 60 Hz, twice D31 (a)'s 3 s.
+## Physics frames with the Esc menu open in lesson 8: 6 s at 60 Hz, twice D31 (a)'s 3 s.
 const QUIET_PAUSED_FRAMES := 360
 
 const S := GameFlow.Screen
@@ -39,7 +39,7 @@ func after_test() -> void:
 		DirAccess.remove_absolute(SETTINGS_PATH)
 
 
-func test_the_eight_lessons_run_on_the_real_session_and_end_at_the_main_menu() -> void:
+func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() -> void:
 	var game := _game([])
 	assert_bool(game.start_tutorial()).is_true()
 	var runner := game.tutorial.runner
@@ -69,7 +69,7 @@ func test_the_eight_lessons_run_on_the_real_session_and_end_at_the_main_menu() -
 	assert_bool(await _until(func() -> bool: return runner.step() == 2)).is_true()
 	game.client().send_intent(Intents.PUT_DOWN, {"facing": Vector3.DOWN})
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 3)).is_true()
-	# 3: the knife in the hand, then Swap; 4, the map, shows.
+	# 3: the knife in the hand, then Swap; 4, the throw, shows.
 	assert_bool(await _walk(game, model.items[knife].position, NEAR_M)).is_true()
 	game.client().send_intent(Intents.PICK_UP, {"item": knife})
 	assert_bool(await _until(func() -> bool: return model.hand_item(own) == knife)).is_true()
@@ -78,12 +78,23 @@ func test_the_eight_lessons_run_on_the_real_session_and_end_at_the_main_menu() -
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 4)).is_true()
 	assert_bool(runner.is_done(3)).is_true()
 	assert_str(String(model.phase)).is_equal("lessons")
-	# 4: the map opens (LD2 (a): its step only); 5 starts with the runner's own NextStage: the host
+	# 4 (#901): the hand is empty after the swap and a belt item is never thrown, so the package is
+	# taken in the hand again, then thrown into the room.
+	assert_int(model.hand_item(own)).is_equal(-1)
+	assert_bool(await _walk(game, model.items[package].position, NEAR_M)).is_true()
+	game.client().send_intent(Intents.PICK_UP, {"item": package})
+	assert_bool(await _until(func() -> bool: return model.hand_item(own) == package)).is_true()
+	assert_int(runner.lesson()).is_equal(4)
+	game.client().send_intent(Intents.THROW, {"facing": Vector3(0.0, 0.5, 1.0).normalized()})
+	assert_bool(await _until(func() -> bool: return runner.lesson() == 5)).is_true()
+	assert_bool(runner.is_done(4)).is_true()
+	assert_str(String(model.phase)).is_equal("lessons")
+	# 5: the map opens (LD2 (a): its step only); 6 starts with the runner's own NextStage: the host
 	# knocks the first stand-in down.
 	game.ui.open_map()
 	assert_bool(await _until(func() -> bool: return model.phase == &"raise_stage")).is_true()
-	assert_bool(runner.is_done(4)).is_true()
-	assert_int(runner.lesson()).is_equal(5)
+	assert_bool(runner.is_done(5)).is_true()
+	assert_int(runner.lesson()).is_equal(6)
 	assert_dict(model.tasks).is_empty()
 	game.ui.close_map()
 	var downed := _downed(model)
@@ -96,31 +107,31 @@ func test_the_eight_lessons_run_on_the_real_session_and_end_at_the_main_menu() -
 	game.life().press_raise()
 	assert_bool(await _until(func() -> bool: return model.is_alive(downed))).is_true()
 	game.life().release_raise()
-	# 6: its NextStage kills the own player; a switch of the target completes it while dead.
+	# 7: its NextStage kills the own player; a switch of the target completes it while dead.
 	assert_bool(await _until(func() -> bool: return model.phase == &"death_stage")).is_true()
-	assert_int(runner.lesson()).is_equal(6)
+	assert_int(runner.lesson()).is_equal(7)
 	assert_bool(await _until(func() -> bool: return not model.is_alive(own))).is_true()
 	assert_bool(await _until(func() -> bool: return game.life().target() != 0)).is_true()
 	game.life().cycle_target(1)
-	assert_bool(runner.is_done(6)).is_true()
-	# 7 waits for the respawn, then 3 s near a stand-in with no microphone open.
+	assert_bool(runner.is_done(7)).is_true()
+	# 8 waits for the respawn, then 3 s near a stand-in with no microphone open.
 	assert_int(runner.lesson()).is_equal(0)
 	assert_bool(await _until(func() -> bool: return model.is_alive(own))).is_true()
-	assert_int(runner.lesson()).is_equal(7)
+	assert_int(runner.lesson()).is_equal(8)
 	assert_bool(game.sender().live()).is_false()
 	# The quiet time stands still under the Esc menu (the engineer's answer on PR #722): twice its
-	# 3 s there leave lesson 7 as it was; closed, it counts on.
+	# 3 s there leave lesson 8 as it was; closed, it counts on.
 	game.open_esc()
 	for i in QUIET_PAUSED_FRAMES:
 		_now += WALK_USEC
 		await get_tree().physics_frame
 	await _settle()
-	assert_int(runner.lesson()).is_equal(7)
+	assert_int(runner.lesson()).is_equal(8)
 	game.close_esc()
-	assert_bool(await _until(func() -> bool: return runner.lesson() == 8)).is_true()
-	# 8: the Esc menu opens; as it closes the tutorial ends at the main menu, with no failure.
+	assert_bool(await _until(func() -> bool: return runner.lesson() == 9)).is_true()
+	# 9: the Esc menu opens; as it closes the tutorial ends at the main menu, with no failure.
 	game.open_esc()
-	assert_bool(runner.is_done(8)).is_true()
+	assert_bool(runner.is_done(9)).is_true()
 	assert_bool(game.tutorial.running).is_true()
 	game.close_esc()
 	assert_bool(runner.is_finished()).is_true()
