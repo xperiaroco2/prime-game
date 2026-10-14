@@ -11,14 +11,8 @@ extends GdUnitTestSuite
 ## each piece has at least one point on a floor. The world is the client's: house.tscn in a tree of
 ## its own (a SubViewport with its own World3D), as the client plays it, since the host's
 ## LevelWorld keeps no nodes and so no tags.
-##
-## The garage (GREYBOX) stays the greybox's until the art's P6 (#523): its boxes carry no tag, so
-## every step there is the default; points in its footprint are skipped, and a GREYBOX piece with
-## an art Shell fails, so P6's import tags it and takes it off the list.
 
 const HOUSE := "res://levels/house/house.tscn"
-## The pieces with no tag yet: greybox, no art Shell (until the art's P6).
-const GREYBOX: Array[String] = ["GroundFloor/Garage"]
 ## The grid's spacing, and its inset from a footprint's edges (on a wall's foot: a denser band hits
 ## the exterior walls' tops, which are no floor).
 const STEP_M := 1.0
@@ -101,20 +95,6 @@ func test_a_tag_is_read_from_an_ancestor_and_a_missing_one_is_the_default() -> v
 	assert_str(String(FootstepSurface.of(collider))).is_equal(String(FootstepSurface.DEFAULT))
 
 
-func test_the_greybox_pieces_have_no_art_shell_yet() -> void:
-	for key: String in GREYBOX:
-		var piece := _house.get_node_or_null(NodePath(key))
-		assert_object(piece).override_failure_message(key).is_not_null()
-		if piece != null:
-			(
-				assert_bool(piece.has_node(^"Shell"))
-				. override_failure_message(
-					"%s has the art's Shell: tag it, drop it from GREYBOX" % key
-				)
-				. is_false()
-			)
-
-
 ## The grid walk over every piece: {pieces: the pieces walked, no_floor: the pieces with no floor
 ## point, untagged: "piece: collider path" -> the points that step on an untagged collider}.
 func _walk() -> Dictionary:
@@ -122,16 +102,11 @@ func _walk() -> Dictionary:
 	var untagged: Dictionary[String, int] = {}
 	var no_floor: Array[String] = []
 	var pieces := 0
-	var greybox: Array[AABB] = []
-	for key: String in GREYBOX:
-		greybox.append(_footprint(_house.get_node(NodePath(key)) as Node3D))
 	for group: Node in _house.get_children():
 		for piece: Node in group.get_children():
 			if not piece.has_meta(&"size_m"):
 				continue
 			var key := "%s/%s" % [group.name, piece.name]
-			if GREYBOX.has(key):
-				continue
 			pieces += 1
 			var hits := 0
 			var footprint := _footprint(piece as Node3D)
@@ -141,8 +116,6 @@ func _walk() -> Dictionary:
 				while z < footprint.end.z:
 					var feet := Vector3(x, (piece as Node3D).global_position.y, z)
 					z += STEP_M
-					if greybox.any(func(box: AABB) -> bool: return box.has_point(feet)):
-						continue
 					var hit := _floor_hit(space, feet)
 					if hit.is_empty():
 						continue

@@ -79,6 +79,7 @@ const NOT_WALKED: Array[String] = [
 	"railing_",
 	"roof_",
 	"glass_",
+	"garage_door",
 	"gable",
 	"beam_",
 	"pillar_",
@@ -303,9 +304,9 @@ func _read_tops() -> void:
 
 
 ## Whether players stand on `shape`: under a walkable piece, one of its Shell's floor, slab or
-## stair pieces (the art's rooms), or a Floor or stair-step box (a greybox piece, the garage);
-## outside the pieces, the plot's Ground and its outdoor flight from the basement's passage up to
-## the yard (its Shell's stairs_outdoor_ pieces).
+## stair pieces (the art's rooms), or a Floor or stair-step box (a greybox piece: the House has
+## none since the garage's art, #1052); outside the pieces, the plot's Ground and its outdoor
+## flight from the basement's passage up to the yard (its Shell's stairs_outdoor_ pieces).
 func _walked(shape: CollisionShape3D, root: Node) -> bool:
 	var path := String(root.get_path_to(shape)).split("/")
 	if path.size() > 2 and path[0] == "Outdoor":

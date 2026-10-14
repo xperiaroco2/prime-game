@@ -40,17 +40,20 @@ const ENDS := {
 }
 ## The kit's doors and gates on a walk, open as door openings (E4: their leaves have no collision),
 ## walked straight through on the ground floor (house-map.md §5: the yard's two openings to the
-## street, the wicket and the gates; the greenhouse's door from the garden).
+## street, the wicket and the gates; the greenhouse's door from the garden; the garage's 8 m gate
+## from the driveway, #1052).
 const OPENINGS := {
 	"the wicket, yard to street": [Vector3(30, 0, 58), Vector3(30, 0, 62)],
 	"the gates, driveway to street": [Vector3(64, 0, 58), Vector3(64, 0, 62)],
 	"the greenhouse door, garden to greenhouse": [Vector3(56.5, 0, 12), Vector3(59.5, 0, 12)],
+	"the garage's gate, driveway to garage": [Vector3(64, 0, 50), Vector3(64, 0, 46)],
 }
 ## How high each opening's walk ends: the street's pavement beyond the wicket stands 0.15 m.
 const OPENING_ENDS := {
 	"the wicket, yard to street": 0.15,
 	"the gates, driveway to street": 0.0,
 	"the greenhouse door, garden to greenhouse": 0.0,
+	"the garage's gate, driveway to garage": 0.0,
 }
 ## The hatch ladder up to the attic (the art's `ladder_attic`, house-map.md §5): its foot
 ## on the landing, its top at the hatch's far edge, in map coordinates. A ladder is no flight: at
