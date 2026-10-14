@@ -883,7 +883,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
-| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`, 8 `crouched`, #790: the pose at the claim's last physics step, kept for a living claim in any phase, §7.1.17; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
+| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`, 8 `crouched`, #790: the pose at the claim's last physics step, kept for a living claim in any phase, §7.1.17; 16 `sneaking`, #990: kept only for a living claim that is not also crouched, §9.5.24; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
 | 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
@@ -1008,7 +1008,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row., 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row. M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row. M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -4035,6 +4035,9 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     `crouch_fast_speed_mps` (`quiet_of`; the ease is a placeholder), so Shift while crouched sounds like a walk.
     Both numbers are placeholders, "not a decision". It is read from the step's speed, averaged over the step
     (`step_speed_mps`, so one jittery frame of a pose never sets it), never the crouch flag.
+  - **Silent** (#990, §9.5.24): a step of a player whose relayed `sneaking` flag is set (the own `sneak_held`) AND
+    whose step speed is at most `crouch_speed_mps` plus `FootstepCadence.SNEAK_SPEED_MARGIN_MPS` plays nothing for
+    every listener (`FootstepCadence.silent_of`); a flag with a faster step is heard as the speed says.
   - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
     hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
     untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
@@ -4729,8 +4732,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   The rule is evaluated when the event is emitted, against the state after the command. An event has one audience: when
   parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
-  living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable` and `crouched`,
-  the last only for a living player, in any phase since #991, §7.1.17, #790; hand and belt items) reaches every player of
+  living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable`, `crouched` and `sneaking`,
+  the last two only for a living player and never together (#990, §9.5.24), `crouched` in any phase since #991, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`. #728's design (§7.1.18, built in 728b, #847) adds one exception: the own avatar while
