@@ -2,7 +2,8 @@ class_name ItemInteractions
 extends Node3D
 ## The own player's item keys (ARCHITECTURE §4.7, Interactions; the M4 ADR's §2, D6; M4-8), while
 ## the own player is living in the round:
-## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair;
+## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair, or
+##   Interact(station, item -1) for the station it offers there (#801, §4.7.53);
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
 ##   that captures the mouse is not a use;
@@ -38,7 +39,12 @@ var listening := true
 ## Whether a throw still waits for the host's answer (ItemWorld gives ItemViews.is_predicting).
 var predicting := Callable()
 
+## Which station a collider of the level belongs to (StationViews.station_of_body, given by
+## ItemWorld), -1 for none; unset: only the use spot names a station.
+var station_of_body := Callable()
+
 var _target := -1
+var _station := -1
 ## The reach the hint offers within (TargetChoice.hint_reach_of): the host's, less a margin.
 var _reach_m := 0.0
 ## Whether the mouse was captured at the last _process: the click that captures it (the
@@ -73,6 +79,21 @@ func hint() -> String:
 	var kind := mode.find_item_kind(item.kind)
 	var what := kind.display_name if kind != null else String(item.kind)
 	return "%s: pick up %s" % [KeyLabel.of_action(&"interact"), what]
+
+
+## The station the crosshair is on that E would use (TargetChoice.choose_target, #801), or -1
+## (cast in the last physics step). Never set while `target()` is.
+func station_target() -> int:
+	return _station
+
+
+## E: Interact(station, item -1) for the station target (#801; the host decides what it does:
+## a switch toggles, the generator's button starts the charge), else PickUp for the item target;
+## the sequence number sent, or -1 when nothing was sent.
+func interact() -> int:
+	if _station >= 0 and _acts():
+		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
+	return pick_up()
 
 
 ## E: PickUp(item) for the target; the sequence number sent, or -1 when nothing was sent.
@@ -129,13 +150,16 @@ func throw() -> int:
 
 ## The target's cast: the camera's ray against the level (as the host's line of sight) and the
 ## downed players' capsules (a downed player in front is M4-9's raise target, and E there picks up
-## nothing behind it), then the item along it and the reach from the feet (TargetChoice); then
-## the host's InSight: the line from the camera to the item's middle must be clear of the level,
-## so an item just behind a thin wall or around a door jamb, whose pick sphere the ray enters
-## before the wall, is never named (the M4 ADR's §3 item 5).
-func cast_target() -> int:
-	if not _acts() or not player.is_inside_tree() or _reach_m <= 0.0:
-		return -1
+## nothing behind it), then the item or station along it and the reach from the feet
+## (TargetChoice.choose_target; the level's hit names a station when it is a station scene's
+## collision, `station_of_body`); then the host's InSight: the line from the camera to the item's
+## middle must be clear of the level, so an item just behind a thin wall or around a door jamb,
+## whose pick sphere the ray enters before the wall, is never named (the M4 ADR's §3 item 5); for
+## a station the host's StationInSight, the line to its lifted floor point (#801).
+func cast_target() -> TargetChoice.Target:
+	var none := TargetChoice.Target.new()
+	if not _acts() or not player.is_inside_tree():
+		return none
 	var eye := player.get_camera().global_position
 	var look := player.look_vector()
 	var to := eye + look * TargetChoice.RAY_M
@@ -145,22 +169,32 @@ func cast_target() -> int:
 	)
 	var hit := space.intersect_ray(query)
 	var blocked_at := TargetChoice.RAY_M
+	var device := -1
 	if not hit.is_empty():
 		blocked_at = eye.distance_to(hit["position"] as Vector3)
-	var picked := TargetChoice.choose(
-		model, eye, look, blocked_at, player.global_position, _reach_m
+		if station_of_body.is_valid():
+			device = station_of_body.call(hit["collider"] as Object) as int
+	var picked := TargetChoice.choose_target(
+		model, mode, eye, look, blocked_at, player.global_position, _reach_m, device
 	)
-	if picked < 0:
-		return -1
-	var item := model.items[picked]
+	var seen := Vector3.ZERO
+	if picked.is_item():
+		var item := model.items[picked.id]
+		seen = ItemView.centre_of(item.kind, item.position)
+	elif picked.is_station():
+		seen = Items.lifted(model.stations[picked.id].position)
+	else:
+		return none
 	var sight := PhysicsRayQueryParameters3D.create(
-		eye, ItemView.centre_of(item.kind, item.position), PhysicsLayers.WORLD, [player.get_rid()]
+		eye, seen, PhysicsLayers.WORLD, [player.get_rid()]
 	)
-	return picked if space.intersect_ray(sight).is_empty() else -1
+	return picked if space.intersect_ray(sight).is_empty() else none
 
 
 func _physics_process(_delta: float) -> void:
-	_target = cast_target() if listening else -1
+	var aimed := cast_target() if listening else TargetChoice.Target.new()
+	_target = aimed.id if aimed.is_item() else -1
+	_station = aimed.id if aimed.is_station() else -1
 
 
 func _process(_delta: float) -> void:
@@ -172,7 +206,7 @@ func _process(_delta: float) -> void:
 	if not listening:
 		return
 	if Input.is_action_just_pressed(&"interact"):
-		pick_up()
+		interact()
 	if Input.is_action_just_pressed(&"put_down"):
 		put_down()
 	if Input.is_action_just_pressed(&"swap"):

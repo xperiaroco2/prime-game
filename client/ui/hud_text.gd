@@ -34,6 +34,9 @@ class Local:
 	var stamina := -1.0
 	## The item the crosshair is on within reach (ItemInteractions.target()); -1 for none.
 	var aim := -1
+	## The station the crosshair is on that E would use (ItemInteractions.station_target(), #801);
+	## -1 for none. Never both this and `aim`.
+	var aim_station := -1
 	## Whether anyone may hear the own player now (VoiceSender.live()).
 	var mic := false
 	## The own raise's progress (LifeView.raise_shown()), 0 to 1; negative for none.
@@ -120,6 +123,9 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 		shown.raise_key = local.raise_key
 	elif local.aim >= 0:
 		shown.aim = slot_of(model, mode, local.aim).item
+	elif model.stations.has(local.aim_station):
+		# The station's name alone: never a switch's on or off (#801).
+		shown.aim = ContentNames.station(model.stations[local.aim_station].kind)
 	return shown
 
 

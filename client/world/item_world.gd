@@ -94,6 +94,7 @@ func hud_local() -> HudText.Local:
 	if _player != null and _player.stamina != null:
 		local.stamina = _player.stamina.get_stamina()
 	local.aim = interactions.target()
+	local.aim_station = interactions.station_target()
 	return local
 
 
