@@ -185,7 +185,8 @@ func test_pack_widens_the_hand_with_its_icon_and_name() -> void:
 	)
 	assert_bool(hand.item_label.visible).is_true()
 	assert_str(hand.item_label.text).is_equal("item.package")
-	assert_vector(hand.item_label.custom_minimum_size).is_equal(Vector2(106, 0))
+	# The width is the handoff's 106 px; the height is the name's lines (#1017).
+	assert_float(hand.item_label.custom_minimum_size.x).is_equal(106.0)
 	assert_bool(hand.item_label.clip_text).is_true()
 	assert_int(hand.item_label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
 	assert_vector(hand.custom_minimum_size).is_equal(Vector2(180, 88))
@@ -196,6 +197,38 @@ func test_pack_widens_the_hand_with_its_icon_and_name() -> void:
 	# Empty again: back to 88.
 	hud.show_hud(_state(&"empty"))
 	assert_vector(hand.custom_minimum_size).is_equal(Vector2(88, 88))
+
+
+func test_a_two_handed_name_wraps_onto_two_lines_and_a_short_one_stays_on_one() -> void:
+	var hud := await _hud()
+	hud.show_hud(_state(&"pack"))
+	await get_tree().process_frame
+	var hand := hud.hand
+	var label := hand.item_label
+	assert_int(label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
+	assert_int(label.max_lines_visible).is_equal(2)
+	assert_int(label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
+	# A name that fits looks as before: one line, one line's height.
+	await _show_item(hand, "Package")
+	assert_int(label.get_line_count()).is_equal(1)
+	var one_line := label.get_combined_minimum_size().y
+	assert_int(one_line as int).is_equal(label.get_line_height())
+	var two_lines := 2.0 * one_line + label.get_theme_constant(&"line_spacing")
+	# Delivery D2's names (#1017): whole, on two lines, in the slot's unchanged width.
+	for name_text: String in ["Garden gnome", "Моторна олива", "Садовий гном"]:
+		await _show_item(hand, name_text)
+		assert_int(label.get_line_count()).override_failure_message(name_text).is_equal(2)
+		assert_float(label.get_combined_minimum_size().y).is_equal(two_lines)
+		assert_float(label.size.x).override_failure_message(name_text).is_equal(106.0)
+		assert_float(label.size.y).override_failure_message(name_text).is_equal(two_lines)
+		assert_float(hand.size.x).override_failure_message(name_text).is_equal(180.0)
+	# More than two lines' worth: the label is two lines tall, the slot as wide as before.
+	await _show_item(hand, "Garden gnome with a very long hat")
+	assert_float(label.size.y).is_equal(two_lines)
+	assert_float(hand.size.x).is_equal(180.0)
+	# A short name again: back to one line.
+	await _show_item(hand, "Package")
+	assert_float(label.size.y).is_equal(one_line)
 
 
 func test_tired_and_hurt_change_only_their_bar() -> void:
@@ -371,3 +404,14 @@ func _hud() -> Hud:
 	holder.add_child(hud)
 	await get_tree().process_frame
 	return hud
+
+
+## Shows `item_name` as a two-handed item in `hand` and lets the layout settle.
+func _show_item(hand: HudSlot, item_name: String) -> void:
+	var slot := HudText.Slot.new()
+	slot.item = item_name
+	slot.icon = &"item"
+	slot.two_handed = true
+	hand.show_slot(slot)
+	await get_tree().process_frame
+	await get_tree().process_frame
