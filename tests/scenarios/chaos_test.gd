@@ -152,6 +152,66 @@ func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach(
 	assert_str(str(near)).is_equal("?")
 
 
+func test_the_oracle_looks_for_interact_rules_where_the_host_does() -> void:
+	# Match._find_action: a station tries its kind's actions, the actor's role's and the mode's;
+	# an item only its kind's target_actions (never its actions, ModeCheck's GE2).
+	var interact := Rule.new()
+	interact.trigger = Intents.INTERACT
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	me.role = &"crew"
+	var bare := StationKind.new()
+	var ruled := StationKind.new()
+	ruled.actions = [interact]
+	var shown := StationKind.new()
+	shown.display = true
+	shown.actions = [interact]
+	state.stations[0] = StationState.new(0, bare, Vector3.ZERO, Color.WHITE)
+	state.stations[1] = StationState.new(1, ruled, Vector3.ZERO, Color.WHITE)
+	state.stations[2] = StationState.new(2, shown, Vector3.ZERO, Color.WHITE)
+	var plain := ItemKind.new()
+	var targeted := ItemKind.new()
+	targeted.target_actions = [interact]
+	var held := ItemKind.new()
+	held.actions = [interact]
+	state.items[0] = ItemState.new(0, plain, Vector3.ZERO)
+	state.items[1] = ItemState.new(1, targeted, Vector3.ZERO)
+	state.items[2] = ItemState.new(2, held, Vector3.ZERO)
+	var role := GameRole.new()
+	role.id = &"crew"
+	var mode := GameMode.new()
+	mode.roles = [role]
+	var cases: Array[Array] = [
+		[{"station": 0}, &"nothing_to_do"],
+		[{"station": 1}, &"?"],
+		[{"station": 2}, &"nothing_to_do"],
+		[{"station": 7}, &"nothing_to_do"],
+		[{"item": 0}, &"nothing_to_do"],
+		[{"item": 1}, &"?"],
+		[{"item": 2}, &"nothing_to_do"],
+		[{"item": 9}, &"nothing_to_do"],
+		[{"station": 0, "item": 0}, &"bad_args"],
+		[{}, &"bad_args"],
+	]
+	for case: Array in cases:
+		var answer := ChaosOracle.answer(
+			&"Interact", case[0] as Dictionary, 4, &"round", me, 0, state, mode
+		)
+		assert_str(str(answer)).override_failure_message("%s" % [case]).is_equal(str(case[1]))
+	# A role's or the mode's rule is tried for a station target, never for an item target.
+	role.actions = [interact]
+	var by_role := ChaosOracle.answer(&"Interact", {"station": 0}, 4, &"round", me, 0, state, mode)
+	assert_str(str(by_role)).is_equal("?")
+	var item_by_role := ChaosOracle.answer(
+		&"Interact", {"item": 0}, 4, &"round", me, 0, state, mode
+	)
+	assert_str(str(item_by_role)).is_equal("nothing_to_do")
+	role.actions = []
+	mode.actions = [interact]
+	var by_mode := ChaosOracle.answer(&"Interact", {"station": 0}, 4, &"round", me, 0, state, mode)
+	assert_str(str(by_mode)).is_equal("?")
+
+
 func test_the_oracle_answers_a_raise_by_the_targets_life_alone() -> void:
 	var state := MatchState.new(1)
 	var me := state.add_player(4, "Player4")
