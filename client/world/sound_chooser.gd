@@ -25,6 +25,9 @@ extends RefCounted
 ##   right before), PhotoHung's hang at the board's marker. Each event reaches everyone with its
 ##   place already public (the stations, the tray); the same cut-off keeps a shot, a print or a
 ##   hang beyond the hearing range silent, and the muffle ray applies as to every sound.
+## - the Generator (#801, G6): SwitchChanged's click at the switch's station, ButtonPressed's at the
+##   generator's, each the place its StationPlaced already told everyone; the hum while it charges
+##   is StationHums', not an event's.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -56,6 +59,12 @@ const SHUTTER_AIM_M := 0.0
 ## A hang plays at the board's marker, on the floor below the board: the ray aims at about where a
 ## photo goes on it, as a swing aims at a chest. A placeholder, "not a decision".
 const HANG_AIM_M := SWING_AIM_M
+## The Generator's clicks (#801, G6): a switch thrown, the generator's button pressed.
+const SWITCH_CLICK := &"switch_click"
+const BUTTON_CLICK := &"button_click"
+## A switch and the button sit on a panel at about a chest's height above their station's marker on
+## the floor: the ray aims there, as a swing aims at a chest. A placeholder, "not a decision".
+const PANEL_AIM_M := SWING_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -121,6 +130,12 @@ static func source(
 		&"PhotoHung":
 			var board: ClientModel.Station = model.stations.get(fields["station"] as int)
 			return Sound.new(HANG, board.position, HANG_AIM_M) if board != null else null
+		&"SwitchChanged", &"ButtonPressed":
+			var panel: ClientModel.Station = model.stations.get(fields["station"] as int)
+			if panel == null:
+				return null
+			var id := SWITCH_CLICK if event_name == &"SwitchChanged" else BUTTON_CLICK
+			return Sound.new(id, panel.position, PANEL_AIM_M)
 	return null
 
 

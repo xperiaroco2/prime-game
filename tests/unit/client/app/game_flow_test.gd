@@ -124,3 +124,17 @@ func test_seconds_left_round_up_and_never_go_below_zero() -> void:
 	assert_int(GameFlow.seconds_left(100, 99)).is_equal(1)
 	assert_int(GameFlow.seconds_left(100, 100)).is_equal(0)
 	assert_int(GameFlow.seconds_left(100, 140)).is_equal(0)
+
+
+func test_in_round_holds_only_while_the_round_plays() -> void:
+	assert_bool(GameFlow.in_round(null)).is_false()
+	var model := ClientModel.new(load(MODE) as GameMode)
+	var welcome := WelcomeEvent.new(2, Vector3.ZERO, 1)
+	welcome.phase = &"lobby"
+	model.fold(&"Welcome", welcome.to_dict())
+	assert_bool(GameFlow.in_round(model)).is_false()
+	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": 5000})
+	assert_bool(GameFlow.in_round(model)).is_true()
+	# A win ends the round at once, while the clock's end_tick still lies ahead.
+	model.fold(&"MatchEnded", {"side": &"crew"})
+	assert_bool(GameFlow.in_round(model)).is_false()
