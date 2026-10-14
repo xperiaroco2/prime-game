@@ -7390,9 +7390,9 @@ plain points until P5's data snaps their tags. Tests: `tests/integration/levels/
 (the convention, for the four devices), `photo_stations_test.gd` (the camera's eye line clear, its slot and counter,
 the spot's mark, the printer's tray on its top, the board's slots on its face) and
 `tests/integration/levels/house_photo_stations_test.gd` (the markers read once each at §6's points, a player clear
-on each device's use spot, the spot beyond the camera's reach, the shooter seeing a subject on the mark and not one
-behind the backdrop, the film beside the camera, no shared (x, z), no art copy left; the camera moved 0.9 m nearer
-failed it).
+on each device's use spot on a whole floor, the spot beyond the camera's reach, the shooter seeing a subject on
+the mark and not one behind the backdrop, the film beside the camera, no shared (x, z), no art copy left; the
+camera moved 0.9 m nearer and a floor tile moved beside the board each failed it).
 
 #### 9.5.23 Crouch (not a part in v0)
 What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the

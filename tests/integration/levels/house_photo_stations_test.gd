@@ -3,10 +3,10 @@ extends GdUnitTestSuite
 ## darkroom and storage place the photo station scenes in place of the plain markers, and the
 ## host's marker reader finds their use spots, snapped to the floor in the host's collision world,
 ## at the points of docs/design/house-map.md §6 (its Photo rows), with a player standing on each
-## device's use spot clear of every wall and device. The photo spot's whole mark lies beyond the
-## camera's reach (PD18, PE12), the shooter sees a subject on it, the first film lies beside the
-## camera, no other marker shares a photo marker's (x, z), and the art's own copy of each device is
-## gone from the room's dressing (the scene is the device).
+## device's use spot clear of every wall and device, the floor whole around it. The photo spot's
+## whole mark lies beyond the camera's reach (PD18, PE12), the shooter sees a subject on it, the
+## first film lies beside the camera, no other marker shares a photo marker's (x, z), and the art's
+## own copy of each device is gone from the room's dressing (the scene is the device).
 
 const MAP := "res://levels/house/house.tscn"
 const DOC := "res://docs/design/house-map.md"
@@ -47,6 +47,9 @@ const NEAR := 0.01
 const DECK_M := 0.2
 ## The capsule's bottom this far above the floor, so the floor under it is no hit.
 const FLOOR_GAP_M := 0.05
+## The floor probes around each use spot: this many, this far out (a player's step around it).
+const AROUND := 8
+const AROUND_M := 1.0
 
 
 func test_the_markers_read_without_errors_one_of_each() -> void:
@@ -105,11 +108,39 @@ func test_a_player_on_each_device_s_use_spot_stands_clear_of_walls_and_devices()
 		for at: Vector3 in read.layout.positions(tag):
 			(
 				assert_int(_hits(level, at))
-				. override_failure_message("a player on the %s use spot at %s meets the level" % [tag, at])
+				. override_failure_message(
+					"a player on the %s use spot at %s meets the level" % [tag, at]
+				)
 				. is_equal(0)
 			)
 	# The check can fail: a player in the study's art desk, where the printer's marker stood.
 	assert_int(_hits(level, Vector3(40, 3.2, 29))).is_greater(0)
+
+
+func test_the_floor_holds_around_each_device_s_use_spot() -> void:
+	# A text edit of an art room once moved a floor tile beside the darkroom's board: a body
+	# knocked there fell through the House.
+	var level := LevelWorld.build(MAP)
+	var world := _world(level)
+	var read := MarkerReader.read_scene(MAP, world, STATION_TAGS)
+	for tag: StringName in DEVICE_TAGS:
+		for at: Vector3 in read.layout.positions(tag):
+			for turn: int in AROUND:
+				var probe := (
+					at + Vector3.FORWARD.rotated(Vector3.UP, TAU * turn / AROUND) * AROUND_M
+				)
+				var floor_at := world.floor_below(probe + Vector3.UP * 0.1)
+				var what := "no floor at %s beside the %s use spot at %s" % [probe, tag, at]
+				(
+					assert_bool(floor_at != WorldQuery.NO_FLOOR)
+					. override_failure_message(what)
+					. is_true()
+				)
+				(
+					assert_float(absf(floor_at.y - at.y))
+					. override_failure_message("%s: it lies at %s" % [what, floor_at])
+					. is_less(DECK_M)
+				)
 
 
 func test_the_whole_photo_spot_lies_beyond_the_camera_s_reach() -> void:
@@ -173,7 +204,10 @@ func test_no_other_marker_shares_a_photo_marker_s_x_and_z() -> void:
 					(
 						assert_float(apart)
 						. override_failure_message(
-							"the %s marker at %s shares the %s marker at %s" % [other, at, tag, spot]
+							(
+								"the %s marker at %s shares the %s marker at %s"
+								% [other, at, tag, spot]
+							)
 						)
 						. is_greater(NEAR)
 					)
