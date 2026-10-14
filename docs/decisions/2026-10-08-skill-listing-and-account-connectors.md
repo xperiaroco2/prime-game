@@ -84,3 +84,25 @@ second row of the docs' table applies. The `anthropic-skills` plugin comes from 
 - Measuring the effect: the settings load when a session starts in the main checkout, so the after side is a new
   manager session after the merge: `metrics --since <merge>` (its instruction table's skill listing and MCP rows) and
   the first call of that session and of its first workflow agents, against the numbers above.
+
+## Amendment 2026-10-14 (#977): the engineer's final account decision
+His answers to "Left to the engineer" in #562 and #977 (chat with the meta manager session). Both items live in the
+engineer's claude.ai account settings, not in the repo: no file here changes, and no lint covers them. The text above
+stays as history.
+
+1. **The Claude Docs connector stays** (option **(c)**, answer B:
+   [#562, comment 6162462358](https://github.com/xperiaroco2/prime-game/issues/562#issuecomment-6162462358)). It is
+   built into the desktop app and is not in the Customize > Connectors list of his account (which holds only GitHub
+   Integration, Gmail, Google Calendar and Google Drive), so there is nothing to disconnect at
+   claude.ai/customize/connectors. Saving: none taken. What it costs: 1,914 characters of MCP instructions in every
+   session and subagent (the table above); the engineer's own estimate is about 0.1% of a week, not measured by us.
+2. **The six Anthropic skills are turned off** (option **(a)** for the `anthropic-skills` plugin:
+   [#977, comment 6162484378](https://github.com/xperiaroco2/prime-game/issues/977#issuecomment-6162484378)). In
+   Customize > Skills, "From Anthropic & Partners", he switches off `google-workspace`, `docs`, `deep-research`,
+   `import-memory`, `morning` and `skill-creator`; neither he nor the project's flows use them (the project's skills
+   live in `.claude/skills/`). Saving: the plugin's 17 skills were 10,211 of the manager's 22,924 listing characters;
+   the share of these six is not measured, and the 10,211 is the most it can be.
+
+Checking, as in Consequences: a new manager session's first-call context against the 67.7k and 67.4k above, and
+`metrics`' instruction table (the skill listing and MCP rows). The connector row should not change; the listing should
+no longer name the six skills.
