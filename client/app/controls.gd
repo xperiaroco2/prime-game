@@ -68,11 +68,11 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"spectate_previous": &"control.spectate_previous",
 }
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
-## Ready (Game._unhandled_input); the round reads the item keys and the raise while living
-## (ItemInteractions, LifeView), the look alone while downed (it holds still: PlayerController), the
-## give-up while downed and the spectate buttons while dead (LifeView), and the map on any life
-## (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule hears
-## (VoiceSender.may_speak).
+## Ready (Game._unhandled_input), the crouch too (#991); the round reads the item keys and the raise
+## while living (ItemInteractions, LifeView), the look alone while downed (it holds still:
+## PlayerController), the give-up while downed and the spectate buttons while dead (LifeView), and
+## the map on any life (Game, #253). Talk sends while the own life is living, in the lobby too,
+## whose VoiceRule hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
 	&"move_back": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
@@ -80,7 +80,7 @@ const PHASES: Dictionary[StringName, int] = {
 	&"move_right": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
 	&"sprint": Phase.LOBBY | Phase.ALIVE,
 	&"jump": Phase.LOBBY | Phase.ALIVE,
-	&"crouch": Phase.ALIVE,
+	&"crouch": Phase.LOBBY | Phase.ALIVE,
 	&"interact": Phase.ALIVE,
 	&"use": Phase.ALIVE,
 	&"put_down": Phase.ALIVE,

@@ -167,9 +167,10 @@ func test_the_sneak_is_unlisted_on_alt_where_it_acts() -> void:
 
 func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actions() -> void:
 	# The crouch ADR's KE8 (#791): `crouch` on the physical Ctrl, either one (no location), acting
-	# while living. A Settings row since #951 (deck key `control.crouch`), as every living action.
+	# in the lobby and while living (#991). A Settings row since #951 (deck key `control.crouch`),
+	# as every living action.
 	assert_str(String(Controls.ACTIONS[&"crouch"])).is_equal("control.crouch")
-	assert_int(Controls.PHASES[&"crouch"]).is_equal(Controls.Phase.ALIVE)
+	assert_int(Controls.PHASES[&"crouch"]).is_equal(Controls.Phase.LOBBY | Controls.Phase.ALIVE)
 	assert_bool(Controls.UNLISTED.has(&"crouch")).is_false()
 	assert_str(Controls.name_of(&"crouch")).is_equal("Crouch")
 	TranslationServer.set_locale("uk")
@@ -187,11 +188,15 @@ func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actio
 	assert_int(_key(controls.event_of(&"crouch"))).is_equal(KEY_C)
 	assert_bool(controls.is_default(&"crouch")).is_false()
 	assert_array(controls.clashes_of(&"crouch")).is_empty()
-	# A living action on its key clashes (both act while living); Ready acts only in the lobby.
+	# A living action on its key clashes (both act while living); so does Ready, which acts in the
+	# lobby, where the crouch plays too (#1008). Give up (downed only) does not.
 	assert_bool(controls.bind(&"jump", _press(KEY_C))).is_true()
 	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump"])
 	assert_bool(controls.bind(&"ready", _press(KEY_C))).is_true()
-	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump"])
+	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump", &"ready"])
+	assert_array(controls.clashes_of(&"ready")).contains_exactly([&"jump", &"crouch"])
+	assert_bool(controls.bind(&"give_up", _press(KEY_C))).is_true()
+	assert_array(controls.clashes_of(&"crouch")).contains_exactly([&"jump", &"ready"])
 	# Reset puts it back on Ctrl; KeyLabel names it from the binding (headless: the key's name).
 	controls.reset()
 	assert_int(_key(controls.event_of(&"crouch"))).is_equal(KEY_CTRL)

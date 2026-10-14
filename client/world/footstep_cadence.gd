@@ -38,7 +38,8 @@ const QUIET_STEP_DB := -6.0
 const QUIET_STEP_RANGE_M := 6.0
 ## The sneak's silent step (#990): how far above the crouch walk's speed a sneaking step's measured
 ## speed may be and still be silent, so an interpolated pose's jitter never lets an honest sneak at
-## crouch_speed_mps be heard. Engine tolerance, a placeholder, "not a decision".
+## crouch_speed_mps be heard. An engine tolerance, kept as built: the engineer's answer 1a on
+## PR #1007 (comment 6166558510).
 const SNEAK_SPEED_MARGIN_MPS := 0.2
 
 ## How far through the present step, 0 to 1.
