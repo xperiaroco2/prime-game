@@ -162,6 +162,7 @@ class Notice:
     output_file: str
     task_id: str
     tool_use_id: str
+    kind: str = ""  # its <task-type>, on the notifications of no task: artifact-watch-lifecycle, ...
 
 
 @dataclass
@@ -382,7 +383,8 @@ def notices_in(text: str, t: float) -> list[Notice]:
     for piece in text.split("<task-notification>")[1:]:
         body = piece.split("</task-notification>")[0]
         found.append(Notice(t, tag(body, "status"), tag(body, "summary"), tag(body, "result"),
-                            tag(body, "output-file"), tag(body, "task-id"), tag(body, "tool-use-id")))  # fmt: skip
+                            tag(body, "output-file"), tag(body, "task-id"), tag(body, "tool-use-id"),
+                            tag(body, "task-type")))  # fmt: skip
     return found
 
 

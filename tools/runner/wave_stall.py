@@ -13,6 +13,10 @@ files (sessions.read_all). A session is flagged when its process is alive (or no
   run's notification, else the end of its journal), unless it was stopped or killed (NO_TURN_STATUSES); or
 - a notification has waited in its queue, undelivered, for more than STALL_MINUTES, after its last turn (before it,
   only when the session waits on a permission card: the card's own turn may have been busy when the notification came).
+  A notification of no task that starts no turn (NO_TURN_KINDS: an artifact watch that dropped, #1044) never counts.
+A session that handed over to a fresh one in its last turn (since the human's last prompt: it posted the comment titled
+HANDOVER_TITLE, or asked him to close this session and paste the kickoff) takes no more turns: of its queued
+notifications only a result of its own workflow counts, unless stopped or killed, and its line says when it handed over.
 A turn is an assistant record. A queued notification is an `enqueue` queue-operation record with a
 <task-notification> that no later `remove`, `dequeue` (the queue's head) or user record carrying its task id took
 out; `queued_command` attachments only repeat an enqueue and do not deliver it. Each flagged line names what the
@@ -44,6 +48,17 @@ TASK_ID = re.compile(r"<task-id>(.*?)</task-id>", re.S)
 # A run someone stopped or killed (TaskStop, the app's stop button, a handover) ends with a notification that starts no
 # turn: on 2026-10-09 two handed-over sessions got their runs' `stopped` notifications at 20:25Z and stayed idle.
 NO_TURN_STATUSES = ("stopped", "killed")
+# Notifications of no task that start no turn (#1044): an artifact watch that dropped or ended, and auto-replies paused
+# by an interrupt. On 2026-10-14 the art manager c0f5845a was flagged for six hours for a dropped watch alone.
+NO_TURN_KINDS = ("artifact-watch-lifecycle", "artifact-auto-react")
+# A handover to a fresh session (docs/MANAGERS.md §6, the orchestrate-stage skill's handover.md): its comment posted
+# by hand under its title (art, UI) or by `wave --title` (game, meta), or the For-you that asks the human to close
+# this session and paste the kickoff, in English or in the engineer's chat language.
+HANDOVER_TITLE = "Handover to a fresh manager session"
+HANDOVER_POST = re.compile(rf"(?m)^#{{1,6}}[ \t]*{HANDOVER_TITLE}[ \t]*$|--title[ =][\"']{HANDOVER_TITLE}[\"']")
+CLOSE_SESSION = re.compile(r"(?i)\bclose this session\b|\bзакрий(?:те)? цю сесію")
+PASTE = re.compile(r"(?i)\bpaste\b|\bвстав")
+NOT_PROMPTS = ("<task-notification>", "[Request interrupted")
 
 
 @dataclass
@@ -65,6 +80,7 @@ class Activity:
     last_turn: float | None = None
     waiting: list[Waiting] = field(default_factory=list)  # since the newest tool result, oldest first
     queued: list[wave.Notice] = field(default_factory=list)  # oldest first
+    handed_over: float | None = None  # the handover's record, when it came after the human's last prompt
 
 
 @dataclass
@@ -77,6 +93,7 @@ class Stall:
     queued: list[wave.Notice]
     waiting: Waiting | None
     alive: bool | None
+    handed_over: float | None = None
 
 
 def what_of(inp: object) -> str:
@@ -113,6 +130,40 @@ def task_of(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def strings_in(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in strings_in(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in strings_in(v)]
+    return []
+
+
+def hands_over(block: dict) -> bool:
+    """Whether an assistant content block hands the session over: it posts the handover comment or asks the human to
+    close the session and paste the kickoff."""
+    if block.get("type") == "tool_use":
+        return any(HANDOVER_POST.search(s) for s in strings_in(block.get("input")))
+    if block.get("type") == "text":
+        words = str(block.get("text") or "")
+        return bool(CLOSE_SESSION.search(words) and PASTE.search(words))
+    return False
+
+
+def is_prompt(d: dict, content: object) -> bool:
+    """Whether a user record is a human's message: its `origin` says so; a record without one (an older Claude Code)
+    when it is no tool result, task notification, interrupt or meta text (a skill body, an image)."""
+    origin = d.get("origin")
+    if isinstance(origin, dict) and origin.get("kind"):
+        return origin.get("kind") == "human"
+    if d.get("isMeta") or (isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result"
+                                                             for b in content)):  # fmt: skip
+        return False
+    words = metrics.text_of(content).lstrip()
+    return bool(words) and not words.startswith(NOT_PROMPTS)
+
+
 def read_activity(path: Path) -> Activity:
     """The module docstring's rules, in one pass; broken lines are passed over."""
     act = Activity()
@@ -122,6 +173,7 @@ def read_activity(path: Path) -> Activity:
     answered = -1  # the newest turn (message number) one of whose calls got a result
     turn, last_id = 0, None
     made: dict[str, Waiting] = {}  # every call: the turn of a result after its call left `calls`
+    handover: float | None = None  # since the human's last prompt
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -140,12 +192,16 @@ def read_activity(path: Path) -> Activity:
                     turn += 1
                 last_id = mid
                 for b in m.get("content") or []:
+                    if isinstance(b, dict) and hands_over(b):
+                        handover = t
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
                         tool = str(b.get("name") or "?")
                         calls[str(b["id"])] = Waiting(str(b["id"]), t, tool, what_of(b.get("input")), turn)
                         made[str(b["id"])] = calls[str(b["id"])]
             elif kind == "user":
                 content = m.get("content")
+                if is_prompt(d, content):
+                    handover = None
                 if isinstance(content, list):
                     for b in content:
                         if isinstance(b, dict) and b.get("type") == "tool_result":
@@ -179,6 +235,7 @@ def read_activity(path: Path) -> Activity:
     # Parallel calls of one turn stay: one may have its result while another waits on its card.
     act.waiting = sorted((c for c in calls.values() if c.turn >= answered), key=lambda c: c.time)
     act.queued = [n for content, t in queue for n in wave.notices_in(content, t)]
+    act.handed_over = handover
     return act
 
 
@@ -192,8 +249,12 @@ def stall_of(path: Path, sid: str, now: float, alive: bool | None, minutes: floa
     waiting = waited_on(act.waiting)
     # A card shows from its call on; a notification queued earlier, in the same busy turn, is behind it too.
     since = float("-inf") if waiting and waiting.ask else after
-    queued = [n for n in act.queued if since < n.time <= cut]
+    queued = [n for n in act.queued if since < n.time <= cut and n.kind not in NO_TURN_KINDS]
     s = wave.read_session(path, sid)
+    if act.handed_over is not None:
+        # A handed-over session takes no more turns: only a run of its own that ended unstopped still needs one.
+        ours = {x.tool_use_id for x in s.launches} | {x.task_id for x in s.launches if x.task_id}
+        queued = [n for n in queued if (n.tool_use_id in ours or n.task_id in ours) and n.status not in NO_TURN_STATUSES]
     runs = []
     if s.launches:
         runs = [r for r in wave.build_runs(s) if r.finished and r.finished_at is not None
@@ -202,7 +263,7 @@ def stall_of(path: Path, sid: str, now: float, alive: bool | None, minutes: floa
         return None
     runs.sort(key=lambda r: r.finished_at or 0.0)
     return Stall(sid=sid, folder=path.parent.name, title=s.title, last_turn=act.last_turn, runs=runs, queued=queued,
-                 waiting=waiting, alive=alive)  # fmt: skip
+                 waiting=waiting, alive=alive, handed_over=act.handed_over)  # fmt: skip
 
 
 def waited_on(waiting: list[Waiting]) -> Waiting | None:
@@ -236,6 +297,8 @@ def line_of(st: Stall, now: float) -> str:
     if st.queued:
         n = len(st.queued)
         parts.append(f"{n} notification{'s' if n != 1 else ''} queued, the oldest since {hhmm(st.queued[0].time)}")
+    if st.handed_over is not None:
+        parts.append(f"it handed over at {hhmm(st.handed_over)}")
     w = st.waiting
     if w and w.ask:
         parts.append(f"waits on a permission card since {hhmm(w.time)}: {w.tool} `{w.what}` (the guard asked: {w.ask})")
