@@ -72,6 +72,11 @@ the heavy agents (CONTEXT_HEAVY_AVG average or CONTEXT_HEAVY_PEAK peak, by the t
 run and issue; the compact summary's first line names each role's average/peak and the heaviest agents; `--run` ends
 with each agent's average and peak.
 
+Tool calls per API call (#979): per agent role over the counted runs, all its agents' tool calls (tool_use blocks) over
+all their API calls (message ids, each once), both in the window; above 1 when agents batch independent calls in one
+message. A column of the per-role table, `tool_calls_per_api_call` in the JSON record, and for BATCHING_ROLES inside the
+compact summary's "task medians" line (its line count unchanged).
+
 Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
 the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
 background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
@@ -335,7 +340,8 @@ ROLES = {
     "ab-judge": "ab-judge",
 }
 # The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
-REVIEWERS = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
+BATCHING_ROLES = ("implementer", "publisher")  # #979: their tool calls per API call on the compact summary
+REVIEWERS =("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 # Every agent that reports findings: the review table shows them all.
 FINDERS = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
 SEVERITIES = ("blocker", "major", "minor", "nit")
@@ -2017,7 +2023,8 @@ def build(
     md += update_section(updates)
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
-    md += role_section(counted)
+    batching = batching_record(counted)
+    md += role_section(counted, batching)
     types = type_record(counted)
     md += type_section(types)
     md += code_read_section(counted)
@@ -2059,7 +2066,8 @@ def build(
         md += ci_section(ci)
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
-                            instructions=instructions, idle=idle["totals"], types=types, context=context)  # fmt: skip
+                            instructions=instructions, idle=idle["totals"], types=types, context=context,
+                            batching=batching)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -2089,6 +2097,7 @@ def build(
         "publisher_trial": pub_trial,
         "instructions": instructions,
         "agent_types": types,
+        "tool_calls_per_api_call": batching,
         "relaunches": relaunches,
         "prompt_sizes": prompts,
         "compact": compact,
@@ -2278,8 +2287,34 @@ def type_section(rec: dict) -> list[str]:
     ]
 
 
-def role_section(counted: list[dict]) -> list[str]:
-    """Per agent role, over every counted run, finished or not: the tokens were spent."""
+def batching_record(counted: list[dict]) -> dict[str, dict]:
+    """#979: per agent role over the counted runs, its agents' tool calls (tool_use blocks) and API calls (message ids,
+    each once) in the window, and tool calls per API call ("per_call", None without an API call): above 1 when the
+    agents batch independent calls in one message."""
+    roles: dict[str, dict] = defaultdict(lambda: {"agents": 0, "tool_calls": 0, "api_calls": 0})
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            g = roles[x["role"]]
+            g["agents"] += 1
+            g["tool_calls"] += d["tool_calls"]
+            g["api_calls"] += d["api_calls"]
+    return {role: {**g, "per_call": g["tool_calls"] / g["api_calls"] if g["api_calls"] else None}
+            for role, g in roles.items()}  # fmt: skip
+
+
+def per_call_text(g: dict | None) -> str:
+    """A role's tool calls per API call (#979), two decimals; `-` without an API call."""
+    return f"{g['per_call']:.2f}" if g and g["per_call"] is not None else "-"
+
+
+def role_section(counted: list[dict], batching: dict[str, dict] | None = None) -> list[str]:
+    """Per agent role, over every counted run, finished or not: the tokens were spent. Its tool calls per API call
+    column is batching_record's (#979), all its agents' tool calls over all their API calls."""
+    if batching is None:
+        batching = batching_record(counted)
     roles: dict[str, dict] = defaultdict(lambda: {"n": 0, "wall": [], "calls": [], "tok": Counter(), "fresh": [],
                                                   "tool_s": [], "models": Counter(), "efforts": Counter()})
     grand: Counter = Counter()
@@ -2305,11 +2340,11 @@ def role_section(counted: list[dict]) -> list[str]:
         rows.append([
             role, g["n"], f"{mins(med(g['wall']))} / {mins(max(g['wall']))}",
             f"{med(g['tool_s']) / max(1.0, med(g['wall'])):.0%}", f"{med(g['calls']):.0f} / {max(g['calls'])}",
-            fmt_tok(med(g["fresh"])), f"{fmt_usd(usd(g['tok']))} ({usd(g['tok']) / max(1e-9, usd(grand)):.0%})",
+            per_call_text(batching.get(role)), fmt_tok(med(g["fresh"])), f"{fmt_usd(usd(g['tok']))} ({usd(g['tok']) / max(1e-9, usd(grand)):.0%})",
             ", ".join(g["models"]), ", ".join(g["efforts"]),
         ])
     head = ["role", "agents", "wall min (median / max)", "time in tools", "tool calls (median / max)",
-            "fresh tokens (median)", "API list $", "models", "efforts"]
+            "tool calls per API call", "fresh tokens (median)", "API list $", "models", "efforts"]
     md = ["## Per agent role (every run in the window)", "", table(head, rows), ""]
     if total(grand):
         kinds = ", ".join(f"{SHORT[f]} {fmt_tok(grand[f])} ({grand[f] / total(grand):.1%})" for f in TOKEN_FIELDS)
@@ -4546,7 +4581,7 @@ def update_compact(rows: list[dict]) -> str:
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
-    idle: dict | None = None, types: dict | None = None, context: dict | None = None,
+    idle: dict | None = None, types: dict | None = None, context: dict | None = None, batching: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify."""
@@ -4566,8 +4601,11 @@ def compact_lines(
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
         impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
         over = sum(p.get("over200_calls", 0) for p in tasks)
+        # #979: the task roles' tool calls per API call, inside this line: the summary keeps its line count
+        per = ", ".join(f"{role} {per_call_text(batching.get(role))}" for role in BATCHING_ROLES
+                        if batching and role in batching)  # fmt: skip
         lines.append(f"task medians: {mins(wall)} min, {fmt_usd(cost)}, {fmt_tok(ctx)} final context, "
-                     f"{calls:.0f} tool calls; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
+                     f"{calls:.0f} tool calls{f' (per API call: {per}, #979)' if per else ''}; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
                      f"({fmt_usd(sum(p.get('over200_usd', 0.0) for p in tasks))}), "
                      f"{sum(p.get('handoffs', 0) for p in tasks)} handoffs (#559)")  # fmt: skip
         outputs = [pair for p in tasks for pair in p.get("impl_outputs", [])]
