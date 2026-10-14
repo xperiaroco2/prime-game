@@ -6,10 +6,12 @@ extends GdUnitTestSuite
 ## M7-Z5; ZD10 (a), provisional until the engineer moves them) keep ZE9's spacing, fit the mode
 ## at the most zones and packages, and each zone's cylinder stands on flat floor clear of walls,
 ## ceilings and furniture (the convention in `levels/CLAUDE.md`, checked here in the host's
-## collision world; a `shot` still shows it). The House is the base mode's second map (#626); the
-## scenarios play only its flat first map (ARCHITECTURE §9.7), whose fake world is one flat floor.
-## The zone checks read the zone task from FixtureBaseModeWithZones: the engineer took it out of
-## the shipped base mode on #842, and the House keeps its zones.
+## collision world; a `shot` still shows it). Its round and respawn markers, read as placed, each
+## stand a player on the floor under it with a standing capsule clear of the level (#1042). The
+## House is the base mode's second map (#626); the scenarios play only its flat first map
+## (ARCHITECTURE §9.7), whose fake world is one flat floor. The zone checks read the zone task
+## from FixtureBaseModeWithZones: the engineer took it out of the shipped base mode on #842, and
+## the House keeps its zones.
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"
@@ -20,6 +22,11 @@ const FLOOR_GAP_M := 0.05
 const FLAT_M := 0.01
 ## How many points on each ring under a zone the flat-floor test samples.
 const RING_POINTS := 16
+## How far a round or respawn marker may stand off the floor under it: float noise, no step.
+const SPAWN_FLOOR_M := 0.02
+## A point on the house's south wall (docs/design/house-map.md: x 18..42, y 24..44), west of
+## the front door, for the spawn check's refusal case.
+const SOUTH_WALL := Vector3(21.0, 1.0, 44.0)
 
 
 func test_the_markers_read_without_errors_in_the_host_s_world() -> void:
@@ -149,6 +156,78 @@ static func _floor_step(world: HostWorldQuery, at: Vector3, radius: float) -> fl
 	return step
 
 
+func test_each_round_and_respawn_marker_stands_a_player_on_a_floor_clear_of_the_level() -> void:
+	# The round's spawns (the yard, on the plot's ground: the walk starts there) and the respawns
+	# are read as placed, never snapped: each marker stands on the floor under it (within
+	# SPAWN_FLOOR_M) and a standing player's capsule there meets no collider of the level.
+	var rules := _base_mode().player_rules
+	var level := LevelWorld.build(MAP)
+	var world := _world(level, rules)
+	var layout := (
+		MarkerReader.read_scene(MAP, world, MarkerReader.floor_tags_of(_base_mode())).layout
+	)
+	for tag: StringName in [&"round_player", &"respawn"]:
+		var spots := layout.positions(tag)
+		assert_int(spots.size()).override_failure_message(String(tag)).is_greater(0)
+		for at: Vector3 in spots:
+			var where := "the %s marker at %s" % [tag, at]
+			(
+				assert_float(_off_the_floor(world, at, rules))
+				. override_failure_message(where + ": not on the floor under it")
+				. is_less_equal(SPAWN_FLOOR_M)
+			)
+			(
+				assert_int(_standing_hits(level, at, rules))
+				. override_failure_message(where + ": a standing player does not fit there")
+				. is_equal(0)
+			)
+
+
+func test_the_spawn_check_refuses_a_marker_in_the_ground_or_against_a_wall() -> void:
+	# The check above can fail: a yard spawn 10 cm into the plot's ground (as the yard's markers
+	# stood at y -0.06 before #523's fix), one 30 cm above it, and one on the house's south wall.
+	var rules := _base_mode().player_rules
+	var level := LevelWorld.build(MAP)
+	var world := _world(level, rules)
+	var spawn := (
+		MarkerReader
+		. read_scene(MAP, world, MarkerReader.floor_tags_of(_base_mode()))
+		. layout
+		. positions(&"round_player")[0]
+	)
+	var buried := spawn + Vector3.DOWN * 0.1
+	assert_float(_off_the_floor(world, buried, rules)).is_greater(SPAWN_FLOOR_M)
+	assert_int(_standing_hits(level, buried, rules)).is_greater(0)
+	assert_float(_off_the_floor(world, spawn + Vector3.UP * 0.3, rules)).is_greater(SPAWN_FLOOR_M)
+	var by_wall := world.floor_below(SOUTH_WALL)
+	_assert_floor_found(by_wall, "on the south wall")
+	assert_int(_standing_hits(level, by_wall, rules)).is_greater(0)
+
+
+## How far `at` lies from the floor a player with its feet there stands on (as
+## house_knife_launch_test.gd reads a rest: the capsule's footprint, from a radius above); no
+## floor is INF.
+static func _off_the_floor(world: HostWorldQuery, at: Vector3, rules: PlayerRules) -> float:
+	var floor_at := world.stand_floor_below(Items.lifted(at + Vector3.UP * rules.capsule_radius_m))
+	if floor_at == WorldQuery.NO_FLOOR:
+		return INF
+	return absf(floor_at.y - at.y)
+
+
+## How many colliders on the world layer a standing player's capsule with its feet at `at` meets,
+## lifted by Items.SURFACE_CLEARANCE_M and narrowed by it (touching the floor or a wall is no hit).
+static func _standing_hits(level: LevelWorld, at: Vector3, rules: PlayerRules) -> int:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = rules.capsule_radius_m - Items.SURFACE_CLEARANCE_M
+	capsule.height = rules.capsule_height_m
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.collision_mask = LevelWorld.WORLD_LAYER
+	var centre := at + Vector3.UP * (rules.capsule_height_m / 2.0 + Items.SURFACE_CLEARANCE_M)
+	query.transform = Transform3D(Basis.IDENTITY, centre)
+	return level.space_state().intersect_shape(query).size()
+
+
 func test_each_drop_off_has_one_marker_and_no_item_spawns_inside_one() -> void:
 	# DE12 of the delivery-by-meaning ADR (#828): the House's Delivery by meaning finds one marker
 	# per drop-off tag, and no marker of its items' spawn tags lies in a drop-off's cylinder at its
@@ -193,8 +272,12 @@ func _house_mode(base: GameMode = null) -> GameMode:
 	return mode
 
 
-func _world(level: LevelWorld) -> HostWorldQuery:
-	var world := HostWorldQuery.new()
+func _world(level: LevelWorld, rules: PlayerRules = null) -> HostWorldQuery:
+	var world := (
+		HostWorldQuery.new()
+		if rules == null
+		else HostWorldQuery.new(rules.capsule_radius_m, rules.crouch_height_m)
+	)
 	world.add_level(level)
 	world.use_level(MAP)
 	return world
