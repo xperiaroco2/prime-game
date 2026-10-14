@@ -188,7 +188,7 @@ The photo stations (#783, proposed for the engineer's approval; each point is th
 `levels/stations/`, where the user stands): the photo spot is the gazebo's centre, on its deck (y 0.15), its 2 m floor
 mark inside the deck; the camera stands outside the gazebo's open east side, its use spot 4.3 m from the spot, so the
 whole mark lies beyond the camera's reach (2 m + 2 m, the photo task ADR's PD18 and PE12), and the shooter looks west
-through the opening between the gazebo's posts; the first film lies on the grass 0.8 m north of the tripod; the box
+through the opening between the gazebo's posts; the first film lies on the grass 0.8 m south of the tripod; the box
 of new films stands free on storage's floor, west of the darkroom's door (kept clear: a box there shut the darkroom
 off); the printer's desk stays where the art put it, its use spot 0.9 m west of it (the art's chair there is gone);
 the board's use spot is 1.2 m in front of it.
