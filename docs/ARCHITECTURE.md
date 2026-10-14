@@ -4557,6 +4557,47 @@ TE5 (a)). The wire is unchanged.
   built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
   a wall, and the own predicted knife held at a wall a step ahead.
 
+#### 4.7.53 Built in #522, the animated character
+The art character (`assets/characters/slice_m1/`, §11.3) on the avatars, its clips from a pure mapping. Being built
+in parts; what is not listed here is not built yet.
+- `client/player/AvatarClips` (pure, `RefCounted`): the drawn state in, the clip out. The state is what the client may
+  draw (invariants 2 and 7): a remote avatar's drawn move (its interpolated position's change over the drawn frame,
+  never `Pose.velocity`, a claimed or host velocity; a source test holds it), its pose's yaw and public `crouched` bit
+  (#790), whether its hand item (`ClientModel.hand_item`, from events it already received) is two-handed, and its
+  life (knocked down, or a dead player's body). The rates are the drawn speed over the clip's ground speed at rate 1
+  (the art's table: `Jog_*` and `Strafe_*` 4.5 m/s, `Sprint_Fwd` 7.0, `Crouch_Fwd` 0.75), clamped to 0.25..4.0 (a
+  placeholder, "not a decision"). Checked in this order:
+
+  | State | Base clip | Rate |
+  |---|---|---|
+  | knocked down, or a dead body | none: the ragdoll (`RAGDOLL`, KE7), no clip; a revive stands up at once (KD7 (a)) | - |
+  | drawn speed under 0.5 m/s (`FootstepCadence.MIN_SPEED_MPS`), crouched | `Crouch_Idle` | 1 |
+  | drawn speed under 0.5 m/s, standing (sneaking too) | `Idle` | 1 |
+  | moving, crouched (any heading) | `Crouch_Fwd` | speed / 0.75 |
+  | moving within 45° of the body's back | `Jog_Bwd` | speed / 4.5 |
+  | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` | speed / 4.5 |
+  | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` | speed / 4.5 |
+  | moving ahead, faster | `Sprint_Fwd` | speed / 7.0 |
+
+  Holding a two-handed item adds the `Carry_Upper` layer over any base (carry idle = `Idle` + `Carry_Upper`, carry
+  walk = `Jog_Fwd` + `Carry_Upper`). Picking up and putting down are one-shots (`one_shot()`): `Pickup_Package` and
+  `Putdown_Package` for a two-handed item, `Pickup_One` and `Putdown_One` for another. Not mapped (they stay in the
+  GLB): jump, turn, raise, talk, push and knife clips, and the head's pitch.
+- `client/player/character/CharacterSet`: the injected character (the GLB's scene and its ragdoll data), null for the
+  placeholder capsule. It is a set only when the instantiated scene is the character (one `Skeleton3D` with the bones
+  the rig names, one `AnimationPlayer` with every mapped clip), never judged from the GLB's bytes: CI's empty LFS
+  stand-in and a missing file give null silently, so no test needs LFS content.
+- `client/player/character/CharacterRig`: one avatar's instance of the set, turned to face -Z, on an `AnimationTree`
+  in the physics step (base clips cross-faded, a time scale, the carry layer filtered to `Torso` and every bone below
+  it, a one-shot), with no root motion (the clips are in place; the body's code moves the body, the collision capsule
+  is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
+  the hand, belt and carry points where the placeholder had them at the rest pose (placeholders until a `shot`). A
+  tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+- Tests: `tests/unit/client/player/avatar_clips_test.gd` (the table, every clip in the import contract with its loop:
+  seen failing on the old contract; the velocity guard: seen failing on a planted read),
+  `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an in-memory character
+  (`character_fixture.gd`; the carry filter seen failing with the filter off).
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
