@@ -22,6 +22,8 @@ script = ExtResource("6_strike")
 angle_deg = 30.0
 reach_m = 1.5
 damage = 50
+launch_mps = 4.0
+launch_up_mps = 2.0
 
 [sub_resource type="Resource" id="Rule_use"]
 script = ExtResource("1_nx1in")

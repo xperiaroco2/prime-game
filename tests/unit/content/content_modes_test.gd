@@ -303,6 +303,10 @@ func test_knife() -> void:
 	assert_float(strike.angle_deg).is_equal(30.0)
 	assert_float(strike.reach_m).is_equal(1.5)
 	assert_int(strike.damage).is_equal(50)
+	# The launch of a knockdown (728e, #849; KD2, KE9): 4 m/s away and 2 m/s up, placeholders
+	# "not a decision" (KD9 (b)), moving bodies only where motion_maps lists the map (the House).
+	assert_float(strike.launch_mps).is_equal(4.0)
+	assert_float(strike.launch_up_mps).is_equal(2.0)
 	var check := ModeCheck.run(mode)
 	assert_array(Array(check.errors)).is_empty()
 	assert_array(Array(check.warnings)).is_empty()
