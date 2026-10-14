@@ -4593,10 +4593,27 @@ in parts; what is not listed here is not built yet.
   is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
   the hand, belt and carry points where the placeholder had them at the rest pose (placeholders until a `shot`). A
   tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+- The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
+  the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
+  and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
+  colour; `hand_point()`, `belt_point()` and `carry_point()` return its sockets, so the item views follow the bones
+  (the tree runs in the physics step at AvatarViews' -80, before the item views read them). `AvatarViews` (its
+  `character` and `mode` set by `Game`) plays each frame `AvatarClips.plan` of the drawn move since its last frame (a
+  move faster than `SnapshotBuffer.SNAP_SPEED_MPS` is a placement and counts as none), the pose's yaw and crouch bit
+  and the model's hand item. One-shots: `ItemPickedUp` (its `peer`) plays the pick-up, and `ItemPlaced` with the cause
+  `put_down` the put-down on the peer the last physics frame drew holding the item (the event names no holder and
+  the model has already folded it); each plays once the interpolation delay has passed since the event arrived, when
+  the drawn body reaches its tick, on a body still drawn standing; other causes (thrown, swap, death, leave) and the
+  own player play none. The own living player has no character on its own screen (no mirror or shadow yet).
+- `Game` loads the shipped set once, at the first session (`load_character`, on unless a test turns it off: every
+  `Game` test does, so a checkout with the LFS art and CI without it run the same capsules).
 - Tests: `tests/unit/client/player/avatar_clips_test.gd` (the table, every clip in the import contract with its loop:
-  seen failing on the old contract; the velocity guard: seen failing on a planted read),
-  `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an in-memory character
-  (`character_fixture.gd`; the carry filter seen failing with the filter off).
+  seen failing on the old contract; the velocity guards on AvatarClips and on AvatarViews' clip code: seen failing on
+  planted reads), `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an
+  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off),
+  `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
+  sockets; the clip per drawn move, a claimed sprint standing still is `Idle`: seen failing on a planted
+  `pose.velocity`; a placement's jump; the carry layer; the one-shots per cause after the delay).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
