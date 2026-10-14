@@ -4,14 +4,17 @@ extends PanelContainer
 ## `ui-0.4.0` `docs/handoff/s07-hud.md`) `Hud/Slots/Hand` and `Belt`, `<slot>` > `Center`
 ## CenterContainer > `Row` ToyRowEight > `Icon`, `Name` and `ItemName`. One pattern for both: empty
 ## shows the slot's name; a one-handed item only its icon (48 px); a two-handed item (the package)
-## widens the slot to its variation's `wide_width` and shows its icon and its name, cut at 106 px
-## with an ellipsis. A kind with no pack icon shows its name instead. The slot never repeats the
-## package's room sign (#255).
+## widens the slot to its variation's `wide_width` and shows its icon and its name, wrapped at
+## 106 px onto at most two lines (word boundaries; the ellipsis only after the second line, #1017):
+## the slot keeps its width and its height takes the second line. A kind with no pack icon shows
+## its name instead. The slot never repeats the package's room sign (#255).
 
 ## The icon's size and the item name's width, px at the 1920x1080 base (the handoff: 106 = 180, the
 ## wide width, - 2 x 9, the content margins, - 48, the icon, - 8, the gap). Layout, not style.
 const ICON_SIZE := Vector2(48, 48)
 const ITEM_NAME_SIZE := Vector2(106, 0)
+## A two-handed item's name wraps at word boundaries onto at most this many lines (#1017).
+const ITEM_NAME_LINES := 2
 
 var center := CenterContainer.new()
 var row := HBoxContainer.new()
@@ -48,6 +51,9 @@ func _init(
 	item_label.name = "ItemName"
 	item_label.custom_minimum_size = ITEM_NAME_SIZE
 	item_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	item_label.custom_maximum_size = Vector2(ITEM_NAME_SIZE.x, -1)
+	item_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	item_label.max_lines_visible = ITEM_NAME_LINES
 	item_label.clip_text = true
 	item_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	item_label.visible = false
@@ -70,6 +76,7 @@ func show_slot(slot: HudText.Slot) -> void:
 	icon.texture = texture
 	icon.visible = not slot.is_empty() and texture != null
 	item_label.text = slot.item
+	_fit_item_height()
 	item_label.visible = not slot.is_empty() and (slot.two_handed or texture == null)
 	if wide != slot.two_handed:
 		wide = slot.two_handed
@@ -93,3 +100,31 @@ func _restyle() -> void:
 		return
 	custom_minimum_size = UiParts.size_of(self, wide)
 	icon.self_modulate = icon.get_theme_color(&"font_color", tint_from)
+	_fit_item_height()
+
+
+## The item name's height: a Label that wraps and trims has a minimum height of 1 px (it takes the
+## height its container gives), so the slot is given the lines the name needs, one or two, at the
+## name's width (#1017).
+func _fit_item_height() -> void:
+	var font := item_label.get_theme_font(&"font")
+	var font_size := item_label.get_theme_font_size(&"font_size")
+	var flags := (
+		TextServer.BREAK_MANDATORY
+		| TextServer.BREAK_WORD_BOUND
+		| TextServer.BREAK_ADAPTIVE
+		| TextServer.BREAK_TRIM_EDGE_SPACES
+	)
+	var wrapped := font.get_multiline_string_size(
+		item_label.text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		ITEM_NAME_SIZE.x,
+		font_size,
+		ITEM_NAME_LINES,
+		flags
+	)
+	var lines := clampi(
+		roundi(wrapped.y / maxf(font.get_height(font_size), 1.0)), 1, ITEM_NAME_LINES
+	)
+	var spacing := item_label.get_theme_constant(&"line_spacing")
+	item_label.custom_minimum_size.y = item_label.get_line_height() * lines + spacing * (lines - 1)
