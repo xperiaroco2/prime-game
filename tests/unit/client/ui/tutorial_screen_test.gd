@@ -244,7 +244,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 		assert_str(screen.how_text())
 		. is_equal(
 			(
-				"%s %s %s %s Walk %s Sprint Space Jump Ctrl Crouch"
+				"%s %s %s %s Walk %s Sprint Space Jump Ctrl Crouch Alt Sneak"
 				% [
 					KeyLabel.of_action(&"move_forward"),
 					KeyLabel.of_action(&"move_left"),

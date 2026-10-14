@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 18 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 19 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -14,10 +14,13 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: `sneak`,
-##   #990, until the deck has `control.sneak`, #150; `throw` and `crouch` left it for a row, #851,
-##   #951) keeps its key for the phases it acts in: a binding that would put an action of such a
-##   phase on it is refused, as a fixed key is, so one press never does both.
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+##   `throw`, `crouch` and `sneak` left it for a row, #851, #951, #1009) keeps its key for the
+##   phases it acts in: a binding that would put an action of such a phase on it is refused, as a
+##   fixed key is, so one press never does both.
+## - An action left on its default keeps project.godot's event as it is, a located key too (the
+##   sneak's left Alt only, #990, the engineer's answer 2A on PR #1007): apply() puts that event
+##   in the InputMap, not the bare physical key. A rebind is the bare physical key, either side.
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
 ##   default.
 ## - Never sent to anyone.
@@ -34,9 +37,9 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: the sneak (#990, Alt, wherever the player walks) until the deck has
-## `control.sneak` (#150); `throw`, G, became a Settings row in #851, as `crouch` did in #951.
-const UNLISTED: Dictionary[StringName, int] = {&"sneak": Phase.LOBBY | Phase.ALIVE}
+## those phases: none now; `throw`, G, became a Settings row in #851, `crouch` in #951 and the
+## sneak (Alt) in #1009.
+const UNLISTED: Dictionary[StringName, int] = {}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -55,6 +58,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"sprint": &"control.sprint",
 	&"jump": &"control.jump",
 	&"crouch": &"control.crouch",
+	&"sneak": &"control.sneak",
 	&"interact": &"control.interact",
 	&"use": &"control.use",
 	&"put_down": &"control.put_down",
@@ -68,11 +72,11 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"spectate_previous": &"control.spectate_previous",
 }
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
-## Ready (Game._unhandled_input), the crouch too (#991); the round reads the item keys and the raise
-## while living (ItemInteractions, LifeView), the look alone while downed (it holds still:
-## PlayerController), the give-up while downed and the spectate buttons while dead (LifeView), and
-## the map on any life (Game, #253). Talk sends while the own life is living, in the lobby too,
-## whose VoiceRule hears (VoiceSender.may_speak).
+## Ready (Game._unhandled_input), the crouch and the sneak too (#991, #990); the round reads the
+## item keys and the raise while living (ItemInteractions, LifeView), the look alone while downed
+## (it holds still: PlayerController), the give-up while downed and the spectate buttons while
+## dead (LifeView), and the map on any life (Game, #253). Talk sends while the own life is living,
+## in the lobby too, whose VoiceRule hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
 	&"move_back": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
@@ -81,6 +85,7 @@ const PHASES: Dictionary[StringName, int] = {
 	&"sprint": Phase.LOBBY | Phase.ALIVE,
 	&"jump": Phase.LOBBY | Phase.ALIVE,
 	&"crouch": Phase.LOBBY | Phase.ALIVE,
+	&"sneak": Phase.LOBBY | Phase.ALIVE,
 	&"interact": Phase.ALIVE,
 	&"use": Phase.ALIVE,
 	&"put_down": Phase.ALIVE,
@@ -128,8 +133,14 @@ static func name_of(action: StringName) -> String:
 	return String(TranslationServer.translate(key))
 
 
-## `action`'s default from `project.godot`; null when it has none.
+## `action`'s default from `project.godot` as a binding (normalised()); null when it has none.
 static func default_event(action: StringName) -> InputEvent:
+	return normalised(project_event(action))
+
+
+## The first event `project.godot` binds `action` to that can be a binding, as it is there (a
+## located key keeps its location: the sneak's left Alt); null when it has none.
+static func project_event(action: StringName) -> InputEvent:
 	var setting: Variant = ProjectSettings.get_setting("input/%s" % action)
 	if not setting is Dictionary:
 		return null
@@ -137,8 +148,8 @@ static func default_event(action: StringName) -> InputEvent:
 	if not events is Array:
 		return null
 	for each: Variant in events as Array:
-		var event := normalised(each as InputEvent)
-		if event != null:
+		var event := each as InputEvent
+		if normalised(event) != null:
 			return event
 	return null
 
@@ -288,6 +299,10 @@ func clashes_of(action: StringName) -> Array[StringName]:
 func apply() -> void:
 	for action: StringName in ACTIONS:
 		var event := event_of(action)
+		if is_default(action):
+			var raw := project_event(action)
+			if raw != null:
+				event = raw.duplicate() as InputEvent
 		if event == null or not InputMap.has_action(action):
 			continue
 		InputMap.action_erase_events(action)

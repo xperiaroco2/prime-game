@@ -3236,7 +3236,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
 #### 4.7.28 Built in #211 (M6.2), give-up on F and the controls the player rebinds
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
-- `client/app/Controls`: the 18 rebindable actions of Settings › Controls (#488's 16, `crouch` after `jump`, #951, and `throw` after `swap`, #851) in order with their `control.*` deck
+- `client/app/Controls`: the 19 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, and `throw` after `swap`, #851) in order with their `control.*` deck
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
@@ -3247,7 +3247,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
   act on their `project.godot` key but have no Settings row yet, with their phases: none now (`throw`, G, #645, alive, left it
-  for a row in #851; `crouch`, Ctrl, #791, in #951). `bind()` refuses a binding that would put an action of such a phase on
+  for a row in #851; `crouch`, Ctrl, #791, in #951; `sneak`, the left Alt, #990, in #1009). `bind()` refuses a binding that would put an action of such a phase on
   that key (`unlisted_on()`; one press must never do both), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
@@ -4235,7 +4235,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   (ui-0.4.0; LD8 (a)): lesson 3 as drawn (D29 (a)) until the UI track's first instruction exists (#150); #900 (the
   tutorial without tasks, its ADR `docs/decisions/2026-10-12-tutorial-without-tasks.md`) dropped the Delivery
   lesson and the map lesson's «?» step (LD2 (a), LD7 (a)): lesson 5 only opens the map; lesson 7 completes on the
-  switch or the own `Respawned` (D36 (a)); lesson 1's key row also lists `crouch` after `jump` (825c, #902, LD4 (b); the row only shows the key, lesson 1 completes on walking alone), its label the raw action name until the UI track puts `control.crouch` in the deck and `Controls.ACTIONS` (#791 follow-up). #901 (825b, LD3 (a)) added lesson 4, the throw, after Hand and belt: its one step (`tutorial.step.throw.*`, the `throw` key) completes on the own `ItemThrown`, and its how asks for an item in the hand (a belt item is never thrown). Lesson 8 waits for the own life living. The parts `TasksDone`,
+  switch or the own `Respawned` (D36 (a)); lesson 1's key row also lists `crouch` after `jump` (825c, #902, LD4 (b); the row only shows the key, lesson 1 completes on walking alone), its label the deck key of `Controls.ACTIONS`' row (#951); `sneak` follows `crouch` (#1009). #901 (825b, LD3 (a)) added lesson 4, the throw, after Hand and belt: its one step (`tutorial.step.throw.*`, the `throw` key) completes on the own `ItemThrown`, and its how asks for an item in the hand (a belt item is never thrown). Lesson 8 waits for the own life living. The parts `TasksDone`,
   `howto_opened` and `TutorialStep.HOWTO_GLYPH` stay, used by no lesson (LE3 (a)). The numbers (1 s, 3 s) are
   D33's placeholders. If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
 - Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
@@ -5755,7 +5755,7 @@ reads, do not move.
   (placeholders), eased to a walk's at `crouch_fast_speed_mps` (#991: the fast crouch sounds like a walk; the ease a
   placeholder), anywhere; the cadence's held stride makes
   them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8); since #791 it acts on Ctrl but has no
-  Settings row (and so no rebinding) until the copy deck names `control.crouch` (`Controls.UNLISTED`, as `throw`, #851).
+  Settings row until #951 (`control.crouch`; `Controls.UNLISTED` until then, as `throw`, #851).
 - **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
   height alone asks for the crouch (KD3 (a), the engineer's, which also answers the car repair ADR's RD1). A crouched
   player may hold the lift (KD8), so the car repair ADR's "no view of who is under the car" test (its RE15, in R8)
@@ -5790,7 +5790,7 @@ reads, do not move.
   claim alike; each client's decode equals its `view_of`).
 - **Built in #791 (727b)** (#991 removed `PlayerController.crouch_plays` and `GameFlow.crouch_plays`), the local
   player's crouch (§7's controller, §4.7.6): the `crouch` action on physical
-  Ctrl in `project.godot`, in `Controls.UNLISTED` (alive) until the deck names `control.crouch`, so `bind()` puts no
+  Ctrl in `project.godot`, in `Controls.UNLISTED` (alive) until #951 made it a row, so `bind()` put no
   living action on Ctrl; `PlayerController`'s `crouch_held`, `crouch_plays`, `is_crouched()` and `release_keys()`,
   the capsule switched with the feet kept, the eased eye, the `test_move` stand-up test, the crouched speeds, the
   jump from the crouch, the crouched capsule first after every teleport and life change, and `set_motion`'s
@@ -7256,8 +7256,8 @@ downed claim, and clears it at every placement, knockdown and respawn. Each list
 of a sneaking pose whose measured step speed is at or below `crouch_speed_mps` plus
 `FootstepCadence.SNEAK_SPEED_MARGIN_MPS` (0.2, kept as built: the engineer's answer 1a on PR #1007), so a claimed
 sneak at a walk is heard.
-Settings: none of its own (the crouch walk's speed; the action `sneak` on the left Alt only, `Controls.UNLISTED`
-until the deck has `control.sneak`, #150).
+Settings: the action `sneak` is a row of Settings › Controls (#1009, the deck key `control.sneak`), on the left Alt only: `apply()`
+puts `project.godot`'s located event in the InputMap for a default binding, a rebind is the bare physical key.
 Why not a part: as for sprint.
 Visible to: the avatar's `sneaking` flag is public in the snapshot, only for a living, uncrouched player; never the
 own avatar's (a living viewer never gets its own).
