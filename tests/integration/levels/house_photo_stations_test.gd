@@ -161,7 +161,10 @@ func test_the_shooter_sees_a_subject_on_the_mark_and_not_through_the_backdrop() 
 	var spot := layout.positions(&"photo_spot")[0]
 	var lens := camera + Vector3.UP * eye
 	var towards := Vector3(camera.x - spot.x, 0, camera.z - spot.z).normalized()
-	# A subject on the mark, in front of the art's pose screen at its centre: across, near, far edge.
+	# A subject on the mark's near half, in front of the art's pose screen at its centre: across,
+	# near, far edge. The far half stands behind that screen (outdoor.tscn's pose_screen_1, #1042's
+	# file for now), as does the frame's aim at the mark's centre: the PR asks the engineer to move
+	# or drop the screen, then these probes reach the far half and the aim (photo task ADR PE3).
 	var side := towards.cross(Vector3.UP)
 	for at: Vector3 in [
 		spot + towards * 0.6,
@@ -175,7 +178,7 @@ func test_the_shooter_sees_a_subject_on_the_mark_and_not_through_the_backdrop() 
 			. override_failure_message("the shooter at %s does not see a head at %s" % [lens, head])
 			. is_true()
 		)
-	# The check can fail: behind the art's backdrop, 2 m beyond the mark's centre.
+	# The check can fail: 2 m beyond the mark's centre, behind the art's pose screen and its backdrop.
 	var hidden := spot - towards * 2.0 + Vector3.UP * eye
 	assert_bool(world.line_of_sight(lens, hidden)).is_false()
 
