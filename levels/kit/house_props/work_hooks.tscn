@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b5y6gu2vq7v2b"]
+
+[ext_resource type="PackedScene" uid="uid://dd1fpy6coy74c" path="res://assets/environment/house_props/work_hooks.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bxh8cg10k0s2h" path="res://levels/kit/house_props/work_hooks.work_hooks_col0.tres" id="2"]
+
+[node name="work_hooks" unique_id=619924719 instance=ExtResource("1")]
+
+[node name="work_hooks_col0" type="StaticBody3D" parent="." unique_id=1684133718]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="work_hooks_col0" unique_id=542471897]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c6m4pbxmucxl"]
+
+[ext_resource type="PackedScene" uid="uid://bepvgu7kmklgh" path="res://assets/environment/house_props/firewood_stack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bdrcxeg85flej" path="res://levels/kit/house_props/firewood_stack.firewood_stack_col0.tres" id="2"]
+
+[node name="firewood_stack" unique_id=1270670996 instance=ExtResource("1")]
+
+[node name="firewood_stack_col0" type="StaticBody3D" parent="." unique_id=533352978]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="firewood_stack_col0" unique_id=358540403]
+shape = ExtResource("2")

@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://cb2sushm384pl"]
+
+[ext_resource type="PackedScene" uid="uid://2t7ahck783dc" path="res://assets/environment/house_kit/glass_roof_2x2.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://5lldpi21ka5h" path="res://levels/kit/house_kit/glass_roof_2x2.glass_roof_2x2_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dbeyrja6bul5y" path="res://levels/kit/house_kit/glass_roof_2x2.glass_roof_2x2_glass1.tres" id="3"]
+
+[node name="glass_roof_2x2" unique_id=910791151 instance=ExtResource("1")]
+
+[node name="glass_roof_2x2_col0" type="StaticBody3D" parent="." unique_id=1066046285]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_roof_2x2_col0" unique_id=1119855125]
+shape = ExtResource("2")
+
+[node name="glass_roof_2x2_glass1" type="StaticBody3D" parent="." unique_id=1682155342]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_roof_2x2_glass1" unique_id=759329742]
+shape = ExtResource("3")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://v7f1rpbvsdwq"]
+
+[ext_resource type="PackedScene" uid="uid://c6ckaepmsbtly" path="res://assets/environment/house_props/hand_trolley.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dvkd725ybgsv3" path="res://levels/kit/house_props/hand_trolley.hand_trolley_col0.tres" id="2"]
+
+[node name="hand_trolley" unique_id=1584899838 instance=ExtResource("1")]
+
+[node name="hand_trolley_col0" type="StaticBody3D" parent="." unique_id=1488445755]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hand_trolley_col0" unique_id=53695682]
+shape = ExtResource("2")

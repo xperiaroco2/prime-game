@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://crl4aqf5qjnrv"]
+
+[ext_resource type="PackedScene" uid="uid://dqgo2d2bdwmd2" path="res://assets/environment/house_props/fuse_box.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://p0gp8ykvlgaf" path="res://levels/kit/house_props/fuse_box.fuse_box_col0.tres" id="2"]
+
+[node name="fuse_box" unique_id=2091911751 instance=ExtResource("1")]
+
+[node name="fuse_box_col0" type="StaticBody3D" parent="." unique_id=851195627]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fuse_box_col0" unique_id=429433576]
+shape = ExtResource("2")

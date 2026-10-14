@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://blasi5shwqe2t"]
+
+[ext_resource type="PackedScene" uid="uid://bugkblvdog00j" path="res://assets/environment/house_props/rocking_horse.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://do7iuyt3q1ws6" path="res://levels/kit/house_props/rocking_horse.rocking_horse_col0.tres" id="2"]
+
+[node name="rocking_horse" unique_id=1434112465 instance=ExtResource("1")]
+
+[node name="rocking_horse_col0" type="StaticBody3D" parent="." unique_id=10216891]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="rocking_horse_col0" unique_id=887918972]
+shape = ExtResource("2")

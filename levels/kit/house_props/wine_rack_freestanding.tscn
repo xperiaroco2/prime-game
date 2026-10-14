@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://5g4gr0nfdjww"]
+
+[ext_resource type="PackedScene" uid="uid://dggufxgtsn07m" path="res://assets/environment/house_props/wine_rack_freestanding.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cymblnsx5m78w" path="res://levels/kit/house_props/wine_rack_freestanding.wine_rack_freestanding_col0.tres" id="2"]
+
+[node name="wine_rack_freestanding" unique_id=405325474 instance=ExtResource("1")]
+
+[node name="wine_rack_freestanding_col0" type="StaticBody3D" parent="." unique_id=889443084]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wine_rack_freestanding_col0" unique_id=1603283189]
+shape = ExtResource("2")

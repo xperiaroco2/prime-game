@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bmuwfy5s345ca"]
+
+[ext_resource type="PackedScene" uid="uid://b02ulvp8v8w83" path="res://assets/environment/house_kit/glass_post.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://563krx144alf" path="res://levels/kit/house_kit/glass_post.glass_post_col0.tres" id="2"]
+
+[node name="glass_post" unique_id=1662761389 instance=ExtResource("1")]
+
+[node name="glass_post_col0" type="StaticBody3D" parent="." unique_id=1976792978]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_post_col0" unique_id=776885346]
+shape = ExtResource("2")

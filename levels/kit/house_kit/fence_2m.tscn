@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cle5mhfr182ff"]
+
+[ext_resource type="PackedScene" uid="uid://dbs7r2dtv521n" path="res://assets/environment/house_kit/fence_2m.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bijpp1p6vnhie" path="res://levels/kit/house_kit/fence_2m.fence_2m_col0.tres" id="2"]
+
+[node name="fence_2m" unique_id=1581654925 instance=ExtResource("1")]
+
+[node name="fence_2m_col0" type="StaticBody3D" parent="." unique_id=1918165684]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fence_2m_col0" unique_id=1460767373]
+shape = ExtResource("2")

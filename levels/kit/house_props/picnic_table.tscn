@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c5yv3gso0j4mx"]
+
+[ext_resource type="PackedScene" uid="uid://c7p7la6wwyo1x" path="res://assets/environment/house_props/picnic_table.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c6frq3uf3odhu" path="res://levels/kit/house_props/picnic_table.picnic_table_col0.tres" id="2"]
+
+[node name="picnic_table" unique_id=64510270 instance=ExtResource("1")]
+
+[node name="picnic_table_col0" type="StaticBody3D" parent="." unique_id=609247048]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="picnic_table_col0" unique_id=1851262883]
+shape = ExtResource("2")

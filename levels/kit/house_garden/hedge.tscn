@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cttgohvcce3gk"]
+
+[ext_resource type="PackedScene" uid="uid://dmu1cv2npdg18" path="res://assets/environment/house_garden/hedge.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://km5ey0566l36" path="res://levels/kit/house_garden/hedge.hedge_col0.tres" id="2"]
+
+[node name="hedge" unique_id=1320168542 instance=ExtResource("1")]
+
+[node name="hedge_col0" type="StaticBody3D" parent="." unique_id=527742157]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hedge_col0" unique_id=2034913197]
+shape = ExtResource("2")

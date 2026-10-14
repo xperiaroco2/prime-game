@@ -1,108 +1,108 @@
 [gd_scene format=3 uid="uid://cbiainxdl0yfp"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_knee_2m_ext.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_knee_2m_ext.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_knee_2m_window_ext.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_knee_2m_window_ext.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_knee_corner_ext.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_knee_corner_ext.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x2_hatch.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_boards_2x2_hatch.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x2.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_boards_2x2.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x1.glb" id="7"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_boards_2x1.tscn" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/chimney_attic.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/chimney_attic.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/chimney_attic_n.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/chimney_attic_n.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_vent.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_vent.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_vent_n.glb" id="11"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_vent_n.tscn" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/stair_dormer.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/stair_dormer.tscn" id="12"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_eave_2m.glb" id="13"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_eave_2m.tscn" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_2x2.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_2x2.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_verge_2_l.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_verge_2_l.tscn" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_verge_2_r.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_verge_2_r.tscn" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_corner_l.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_corner_l.tscn" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_corner_r.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_corner_r.tscn" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_ridge_2m.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_ridge_2m.tscn" id="19"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_ridge_end_l.glb" id="20"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_ridge_end_l.tscn" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_ridge_end_r.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_ridge_end_r.tscn" id="21"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_downpipe.glb" id="22"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_downpipe.tscn" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/roof_pitched_2x1.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/roof_pitched_2x1.tscn" id="23"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/dormer_gable.glb" id="24"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/dormer_gable.tscn" id="24"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/gable_tri_2m_up.glb" id="25"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/gable_tri_2m_up.tscn" id="25"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/gable_tri_2m_down.glb" id="26"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/gable_tri_2m_down.tscn" id="26"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/gable_band_2m.glb" id="27"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/gable_band_2m.tscn" id="27"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/ladder_attic.glb" id="28"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/ladder_attic.tscn" id="28"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/old_wardrobe.glb" id="29"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/old_wardrobe.tscn" id="29"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="30"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/trunk.glb" id="31"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/trunk.tscn" id="31"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_box.glb" id="32"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_box.tscn" id="32"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/attic_shelving.glb" id="33"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/attic_shelving.tscn" id="33"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/attic_shelving_b.glb" id="34"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/attic_shelving_b.tscn" id="34"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_boxes.glb" id="35"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_boxes.tscn" id="35"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/sheeted_furniture.glb" id="36"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/sheeted_furniture.tscn" id="36"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/rolled_carpet.glb" id="37"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/rolled_carpet.tscn" id="37"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_crate.glb" id="38"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_crate.tscn" id="38"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/leaning_frames.glb" id="39"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/leaning_frames.tscn" id="39"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/standing_mirror.glb" id="40"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/standing_mirror.tscn" id="40"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/suitcase.glb" id="41"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/suitcase.tscn" id="41"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/rocking_horse.glb" id="42"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/rocking_horse.tscn" id="42"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/mannequin.glb" id="43"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/mannequin.tscn" id="43"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/rug.glb" id="44"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/potted_plant.glb" id="45"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/potted_plant.tscn" id="45"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/holiday_decor.glb" id="46"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/holiday_decor.tscn" id="46"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/old_bicycle.glb" id="47"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/old_bicycle.tscn" id="47"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/burger_sign.glb" id="48"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/burger_sign.tscn" id="48"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/generator_part.glb" id="49"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/generator_part.tscn" id="49"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/sports_kit.glb" id="50"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/sports_kit.tscn" id="50"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/sheeted_sofa.glb" id="51"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/sheeted_sofa.tscn" id="51"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/sheeted_dresser.glb" id="52"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/sheeted_dresser.tscn" id="52"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/delivery_bag.glb" id="53"]
 

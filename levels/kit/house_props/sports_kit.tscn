@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b5jxy746o5l84"]
+
+[ext_resource type="PackedScene" uid="uid://che0ds3apncpy" path="res://assets/environment/house_props/sports_kit.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bcejojayd8wnk" path="res://levels/kit/house_props/sports_kit.sports_kit_col0.tres" id="2"]
+
+[node name="sports_kit" unique_id=1664183222 instance=ExtResource("1")]
+
+[node name="sports_kit_col0" type="StaticBody3D" parent="." unique_id=1645184448]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="sports_kit_col0" unique_id=834242433]
+shape = ExtResource("2")

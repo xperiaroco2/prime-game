@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cw4cx7srwwt8s"]
+
+[ext_resource type="PackedScene" uid="uid://c7x06yiy1awf7" path="res://assets/environment/house_props/bath_vanity.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dqjbmbqyfkxjs" path="res://levels/kit/house_props/bath_vanity.bath_vanity_col0.tres" id="2"]
+
+[node name="bath_vanity" unique_id=1665946027 instance=ExtResource("1")]
+
+[node name="bath_vanity_col0" type="StaticBody3D" parent="." unique_id=242210098]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bath_vanity_col0" unique_id=344026812]
+shape = ExtResource("2")

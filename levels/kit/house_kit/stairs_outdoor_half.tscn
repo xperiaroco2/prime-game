@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d3kg2amaiqfhm"]
+
+[ext_resource type="PackedScene" uid="uid://bkbn2s1q1ni6m" path="res://assets/environment/house_kit/stairs_outdoor_half.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://boo314omveww7" path="res://levels/kit/house_kit/stairs_outdoor_half.stairs_outdoor_half_col0.tres" id="2"]
+
+[node name="stairs_outdoor_half" unique_id=578184745 instance=ExtResource("1")]
+
+[node name="stairs_outdoor_half_col0" type="StaticBody3D" parent="." unique_id=1113479239]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stairs_outdoor_half_col0" unique_id=1280250089]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cnnqk6etmict0"]
+
+[ext_resource type="PackedScene" uid="uid://b3gerpp7vtlwl" path="res://assets/environment/house_props/kitchen_sink.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cpgiovc4evavy" path="res://levels/kit/house_props/kitchen_sink.kitchen_sink_col0.tres" id="2"]
+
+[node name="kitchen_sink" unique_id=1133984060 instance=ExtResource("1")]
+
+[node name="kitchen_sink_col0" type="StaticBody3D" parent="." unique_id=521639531]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kitchen_sink_col0" unique_id=184459217]
+shape = ExtResource("2")

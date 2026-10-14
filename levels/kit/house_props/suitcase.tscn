@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b4oj262m1d84s"]
+
+[ext_resource type="PackedScene" uid="uid://fy52802qnifp" path="res://assets/environment/house_props/suitcase.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b5byeyn5dyvua" path="res://levels/kit/house_props/suitcase.suitcase_col0.tres" id="2"]
+
+[node name="suitcase" unique_id=1992146347 instance=ExtResource("1")]
+
+[node name="suitcase_col0" type="StaticBody3D" parent="." unique_id=501391910]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="suitcase_col0" unique_id=2048720994]
+shape = ExtResource("2")

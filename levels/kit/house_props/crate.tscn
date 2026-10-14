@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cr34g5smqh2g1"]
+
+[ext_resource type="PackedScene" uid="uid://bs0vnw0s5jmg0" path="res://assets/environment/house_props/crate.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dynuwn3diyf5y" path="res://levels/kit/house_props/crate.crate_col0.tres" id="2"]
+
+[node name="crate" unique_id=877693659 instance=ExtResource("1")]
+
+[node name="crate_col0" type="StaticBody3D" parent="." unique_id=1185603542]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crate_col0" unique_id=524858163]
+shape = ExtResource("2")

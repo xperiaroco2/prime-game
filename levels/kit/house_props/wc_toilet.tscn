@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dsihhg2jnkaro"]
+
+[ext_resource type="PackedScene" uid="uid://bxypwysdyh4ag" path="res://assets/environment/house_props/wc_toilet.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dbiih4xmnwo4r" path="res://levels/kit/house_props/wc_toilet.wc_toilet_col0.tres" id="2"]
+
+[node name="wc_toilet" unique_id=1310731311 instance=ExtResource("1")]
+
+[node name="wc_toilet_col0" type="StaticBody3D" parent="." unique_id=457308464]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wc_toilet_col0" unique_id=1996956196]
+shape = ExtResource("2")

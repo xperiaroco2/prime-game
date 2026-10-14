@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bbhfqlmudlxo5"]
+
+[ext_resource type="PackedScene" uid="uid://ud41heo5osrj" path="res://assets/environment/house_props/assembly_island.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dfd6115748ijr" path="res://levels/kit/house_props/assembly_island.assembly_island_col0.tres" id="2"]
+
+[node name="assembly_island" unique_id=1182253608 instance=ExtResource("1")]
+
+[node name="assembly_island_col0" type="StaticBody3D" parent="." unique_id=55461801]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="assembly_island_col0" unique_id=874226933]
+shape = ExtResource("2")

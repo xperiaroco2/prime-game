@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://by7p6o3q11n01"]
+
+[ext_resource type="PackedScene" uid="uid://ca8o4d4le1o2d" path="res://assets/environment/house_props/wheelbarrow.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://celjrjrnv5b3u" path="res://levels/kit/house_props/wheelbarrow.wheelbarrow_col0.tres" id="2"]
+
+[node name="wheelbarrow" unique_id=525761060 instance=ExtResource("1")]
+
+[node name="wheelbarrow_col0" type="StaticBody3D" parent="." unique_id=1175513386]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wheelbarrow_col0" unique_id=332324482]
+shape = ExtResource("2")

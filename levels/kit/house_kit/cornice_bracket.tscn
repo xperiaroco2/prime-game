@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cmuvaugwbma33"]
+
+[ext_resource type="PackedScene" uid="uid://jk84vqtxdpxt" path="res://assets/environment/house_kit/cornice_bracket.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dd2ld03atakxk" path="res://levels/kit/house_kit/cornice_bracket.cornice_bracket_col0.tres" id="2"]
+
+[node name="cornice_bracket" unique_id=1632243692 instance=ExtResource("1")]
+
+[node name="cornice_bracket_col0" type="StaticBody3D" parent="." unique_id=524149381]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="cornice_bracket_col0" unique_id=1714309047]
+shape = ExtResource("2")

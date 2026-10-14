@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://w7dwro2qa0sp"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/stairs_balcony.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/stairs_balcony.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 

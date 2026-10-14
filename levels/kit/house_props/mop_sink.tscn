@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bn8t86twif6l4"]
+
+[ext_resource type="PackedScene" uid="uid://b3li5kquqw3xi" path="res://assets/environment/house_props/mop_sink.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dkmj82nt6jgq6" path="res://levels/kit/house_props/mop_sink.mop_sink_col0.tres" id="2"]
+
+[node name="mop_sink" unique_id=1144798345 instance=ExtResource("1")]
+
+[node name="mop_sink_col0" type="StaticBody3D" parent="." unique_id=960294686]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="mop_sink_col0" unique_id=2015183877]
+shape = ExtResource("2")

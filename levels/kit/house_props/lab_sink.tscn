@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c71jp0668vdvt"]
+
+[ext_resource type="PackedScene" uid="uid://bvm6qsmlqlqsq" path="res://assets/environment/house_props/lab_sink.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dump2f3c55dtc" path="res://levels/kit/house_props/lab_sink.lab_sink_col0.tres" id="2"]
+
+[node name="lab_sink" unique_id=1644667248 instance=ExtResource("1")]
+
+[node name="lab_sink_col0" type="StaticBody3D" parent="." unique_id=923497200]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="lab_sink_col0" unique_id=1610435085]
+shape = ExtResource("2")

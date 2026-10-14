@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://tbe4rja85xda"]
+
+[ext_resource type="PackedScene" uid="uid://dlk45ea0qny3y" path="res://assets/environment/house_props/chem_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d1dqprf1a5ms7" path="res://levels/kit/house_props/chem_shelf.chem_shelf_col0.tres" id="2"]
+
+[node name="chem_shelf" unique_id=156979189 instance=ExtResource("1")]
+
+[node name="chem_shelf_col0" type="StaticBody3D" parent="." unique_id=418683888]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="chem_shelf_col0" unique_id=1676340966]
+shape = ExtResource("2")

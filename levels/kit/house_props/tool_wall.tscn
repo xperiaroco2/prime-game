@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dq24lj2klxsye"]
+
+[ext_resource type="PackedScene" uid="uid://dfvhntibc17wo" path="res://assets/environment/house_props/tool_wall.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bx1dck30ivl8v" path="res://levels/kit/house_props/tool_wall.tool_wall_col0.tres" id="2"]
+
+[node name="tool_wall" unique_id=2036715142 instance=ExtResource("1")]
+
+[node name="tool_wall_col0" type="StaticBody3D" parent="." unique_id=225470500]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="tool_wall_col0" unique_id=1824576398]
+shape = ExtResource("2")

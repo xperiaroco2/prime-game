@@ -1,22 +1,22 @@
 [gd_scene format=3 uid="uid://bpnumhegeongv"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_2m.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_2m.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_1m.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_1m.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_2m_door.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_2m_door.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_corner.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_corner.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_concrete_2x2.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/slab_yard_2x2.glb" id="7"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/slab_yard_2x2.tscn" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/boiler.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/boiler.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_switch.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_switch.tscn" id="9"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="10"]
 
@@ -24,33 +24,33 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cable_tray.glb" id="12"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_boiler.glb" id="13"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_boiler.tscn" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hw_cylinder.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hw_cylinder.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/expansion_vessel.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/expansion_vessel.tscn" id="15"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/valve_panel.glb" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/water_softener.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/water_softener.tscn" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/store_shelving_b.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/store_shelving_b.tscn" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_box.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_box.tscn" id="19"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_crate.glb" id="20"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_crate.tscn" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/tool_wall.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/tool_wall.tscn" id="21"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/store_shelving.glb" id="22"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/store_shelving.tscn" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/mop_sink.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/mop_sink.tscn" id="23"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/pallet.glb" id="24"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/pallet.tscn" id="24"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/fire_extinguisher.glb" id="25"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/fire_extinguisher.tscn" id="25"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/toolbox_cart.glb" id="26"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/toolbox_cart.tscn" id="26"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/clipboard.glb" id="27"]
 

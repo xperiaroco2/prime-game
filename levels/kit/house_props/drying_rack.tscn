@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://7gxgkxmtxjgq"]
+
+[ext_resource type="PackedScene" uid="uid://bn1p0rmogol2" path="res://assets/environment/house_props/drying_rack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cn0t7q1iel1m8" path="res://levels/kit/house_props/drying_rack.drying_rack_col0.tres" id="2"]
+
+[node name="drying_rack" unique_id=2048820983 instance=ExtResource("1")]
+
+[node name="drying_rack_col0" type="StaticBody3D" parent="." unique_id=1938493163]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="drying_rack_col0" unique_id=277069832]
+shape = ExtResource("2")

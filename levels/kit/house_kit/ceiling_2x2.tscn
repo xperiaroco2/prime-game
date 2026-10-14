@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b3ukn6e2b8qhp"]
+
+[ext_resource type="PackedScene" uid="uid://cj6b2gyqgb8jk" path="res://assets/environment/house_kit/ceiling_2x2.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d0bvyrxqjp50d" path="res://levels/kit/house_kit/ceiling_2x2.ceiling_2x2_col0.tres" id="2"]
+
+[node name="ceiling_2x2" unique_id=1616775187 instance=ExtResource("1")]
+
+[node name="ceiling_2x2_col0" type="StaticBody3D" parent="." unique_id=1299868967]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ceiling_2x2_col0" unique_id=1672863739]
+shape = ExtResource("2")

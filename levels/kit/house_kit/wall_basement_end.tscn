@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://gy4urcgu277e"]
+
+[ext_resource type="PackedScene" uid="uid://cvwaewmkdp3vq" path="res://assets/environment/house_kit/wall_basement_end.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b8a5h5eowwbwv" path="res://levels/kit/house_kit/wall_basement_end.wall_basement_end_col0.tres" id="2"]
+
+[node name="wall_basement_end" unique_id=1359272796 instance=ExtResource("1")]
+
+[node name="wall_basement_end_col0" type="StaticBody3D" parent="." unique_id=881346625]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_basement_end_col0" unique_id=2098569719]
+shape = ExtResource("2")

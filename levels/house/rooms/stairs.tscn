@@ -1,14 +1,14 @@
 [gd_scene format=3 uid="uid://n4ioj5we4gky"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_int.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_1m_int.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_1m_int.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_door_int.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_door_int.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_boards_2x2.tscn" id="5"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/stair_runner.glb" id="6"]
 
@@ -22,25 +22,25 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_runner.glb" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_console.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hall_console.tscn" id="12"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_mirror.glb" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_bench.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hall_bench.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/radiator.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/radiator.tscn" id="15"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_city.glb" id="16"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/picture_frame.glb" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bookcase.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/bookcase.tscn" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/shoe_rack.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/shoe_rack.tscn" id="19"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/coat_rack.glb" id="20"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/coat_rack.tscn" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_plant.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_plant.tscn" id="21"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/side_lamp.glb" id="22"]
 

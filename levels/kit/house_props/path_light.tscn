@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://2cqafeee5ygv"]
+
+[ext_resource type="PackedScene" uid="uid://k0cs52yr1ai5" path="res://assets/environment/house_props/path_light.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c863sownlgrus" path="res://levels/kit/house_props/path_light.path_light_col0.tres" id="2"]
+
+[node name="path_light" unique_id=827634482 instance=ExtResource("1")]
+
+[node name="path_light_col0" type="StaticBody3D" parent="." unique_id=1815851138]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="path_light_col0" unique_id=1052932981]
+shape = ExtResource("2")

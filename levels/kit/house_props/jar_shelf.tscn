@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bmtudj0bt3afq"]
+
+[ext_resource type="PackedScene" uid="uid://cbct12ws0jl06" path="res://assets/environment/house_props/jar_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://caekvqeh3af86" path="res://levels/kit/house_props/jar_shelf.jar_shelf_col0.tres" id="2"]
+
+[node name="jar_shelf" unique_id=22464982 instance=ExtResource("1")]
+
+[node name="jar_shelf_col0" type="StaticBody3D" parent="." unique_id=893956251]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="jar_shelf_col0" unique_id=1448731357]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b3g7m3mvg4wjr"]
+
+[ext_resource type="PackedScene" uid="uid://lxlv7qpfx8sn" path="res://assets/environment/house_props/dining_table.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://d3rsl60e882od" path="res://levels/kit/house_props/dining_table.dining_table_col0.tres" id="2"]
+
+[node name="dining_table" unique_id=337163440 instance=ExtResource("1")]
+
+[node name="dining_table_col0" type="StaticBody3D" parent="." unique_id=10700188]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="dining_table_col0" unique_id=1900202992]
+shape = ExtResource("2")

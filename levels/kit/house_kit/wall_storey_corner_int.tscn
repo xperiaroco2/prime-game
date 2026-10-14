@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bbpeufo063i6f"]
+
+[ext_resource type="PackedScene" uid="uid://beu3s0dgii0d0" path="res://assets/environment/house_kit/wall_storey_corner_int.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cq8as65xadba" path="res://levels/kit/house_kit/wall_storey_corner_int.wall_storey_corner_int_col0.tres" id="2"]
+
+[node name="wall_storey_corner_int" unique_id=1263922579 instance=ExtResource("1")]
+
+[node name="wall_storey_corner_int_col0" type="StaticBody3D" parent="." unique_id=690195414]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_storey_corner_int_col0" unique_id=1659831353]
+shape = ExtResource("2")

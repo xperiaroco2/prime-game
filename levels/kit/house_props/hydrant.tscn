@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dqrmhgqb0u72g"]
+
+[ext_resource type="PackedScene" uid="uid://8kmq6npejh1a" path="res://assets/environment/house_props/hydrant.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bswcaomjf240r" path="res://levels/kit/house_props/hydrant.hydrant_col0.tres" id="2"]
+
+[node name="hydrant" unique_id=1520942364 instance=ExtResource("1")]
+
+[node name="hydrant_col0" type="StaticBody3D" parent="." unique_id=396497664]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="hydrant_col0" unique_id=1758141936]
+shape = ExtResource("2")

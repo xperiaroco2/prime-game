@@ -1,14 +1,14 @@
 [gd_scene format=3 uid="uid://cc4i5jxgyrnd3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_int.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_1m_ext.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_1m_ext.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_window_ext.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_window_ext.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_lino_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_lino_2x2.tscn" id="5"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_tiles.glb" id="6"]
 
@@ -18,33 +18,33 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_tiles_shower.glb" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_tub.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/bath_tub.tscn" id="10"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_mat.glb" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_vanity.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/bath_vanity.tscn" id="12"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/mirror_cabinet.glb" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/step_stool.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/step_stool.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/washer.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/washer.tscn" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wc_toilet.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/wc_toilet.tscn" id="16"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_bubbles.glb" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_plant.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_plant.tscn" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bath_shelf.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/bath_shelf.tscn" id="19"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/towel_rail.glb" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/laundry_basket.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/laundry_basket.tscn" id="21"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_wash.glb" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/radiator.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/radiator.tscn" id="23"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/landing_plant.glb" id="24"]
 

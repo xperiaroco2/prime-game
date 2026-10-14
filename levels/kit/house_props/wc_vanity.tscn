@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dj1b4pc8wd5ab"]
+
+[ext_resource type="PackedScene" uid="uid://c71puveuepgwu" path="res://assets/environment/house_props/wc_vanity.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bd2dmuuvdjolh" path="res://levels/kit/house_props/wc_vanity.wc_vanity_col0.tres" id="2"]
+
+[node name="wc_vanity" unique_id=685889374 instance=ExtResource("1")]
+
+[node name="wc_vanity_col0" type="StaticBody3D" parent="." unique_id=1660026839]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wc_vanity_col0" unique_id=134699488]
+shape = ExtResource("2")

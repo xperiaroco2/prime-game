@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://i3rb44k7cxli"]
+
+[ext_resource type="PackedScene" uid="uid://c6xj1oga80ocy" path="res://assets/environment/house_kit/glass_gable_tri_2m_down.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://wkfb6fajc2ec" path="res://levels/kit/house_kit/glass_gable_tri_2m_down.glass_gable_tri_2m_down_col1.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://76fy4j0e7s7w" path="res://levels/kit/house_kit/glass_gable_tri_2m_down.glass_gable_tri_2m_down_col2.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://da164x835tmw8" path="res://levels/kit/house_kit/glass_gable_tri_2m_down.glass_gable_tri_2m_down_col3.tres" id="4"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bkqbj3taj2ga5" path="res://levels/kit/house_kit/glass_gable_tri_2m_down.glass_gable_tri_2m_down_glass0.tres" id="5"]
+
+[node name="glass_gable_tri_2m_down" unique_id=527667516 instance=ExtResource("1")]
+
+[node name="glass_gable_tri_2m_down_col1" type="StaticBody3D" parent="." unique_id=1177569799]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_gable_tri_2m_down_col1" unique_id=1159484303]
+shape = ExtResource("2")
+
+[node name="glass_gable_tri_2m_down_col2" type="StaticBody3D" parent="." unique_id=1597578173]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_gable_tri_2m_down_col2" unique_id=798658285]
+shape = ExtResource("3")
+
+[node name="glass_gable_tri_2m_down_col3" type="StaticBody3D" parent="." unique_id=675162923]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_gable_tri_2m_down_col3" unique_id=1086863372]
+shape = ExtResource("4")
+
+[node name="glass_gable_tri_2m_down_glass0" type="StaticBody3D" parent="." unique_id=1730103722]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="glass_gable_tri_2m_down_glass0" unique_id=1717819856]
+shape = ExtResource("5")

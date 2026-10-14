@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bonuc2g0fij8q"]
+
+[ext_resource type="PackedScene" uid="uid://bg502vtqq0463" path="res://assets/environment/house_garden/flower_bed_rose.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://du4vppk3x38p6" path="res://levels/kit/house_garden/flower_bed_rose.flower_bed_rose_col0.tres" id="2"]
+
+[node name="flower_bed_rose" unique_id=258944061 instance=ExtResource("1")]
+
+[node name="flower_bed_rose_col0" type="StaticBody3D" parent="." unique_id=253920477]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="flower_bed_rose_col0" unique_id=1439866783]
+shape = ExtResource("2")

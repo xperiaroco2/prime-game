@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://i5hlhaa7vom4"]
+
+[ext_resource type="PackedScene" uid="uid://tv23whds2mcn" path="res://assets/environment/house_props/terrace_table.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://x8adjojyy33o" path="res://levels/kit/house_props/terrace_table.terrace_table_col0.tres" id="2"]
+
+[node name="terrace_table" unique_id=2056916724 instance=ExtResource("1")]
+
+[node name="terrace_table_col0" type="StaticBody3D" parent="." unique_id=296600525]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="terrace_table_col0" unique_id=626113861]
+shape = ExtResource("2")

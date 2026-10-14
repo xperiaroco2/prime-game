@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://q3fopo8grucd"]
+
+[ext_resource type="PackedScene" uid="uid://bxn471uh8sj8p" path="res://assets/environment/house_props/sheeted_dresser.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://0j1mqg7gckqi" path="res://levels/kit/house_props/sheeted_dresser.sheeted_dresser_col0.tres" id="2"]
+
+[node name="sheeted_dresser" unique_id=1844595304 instance=ExtResource("1")]
+
+[node name="sheeted_dresser_col0" type="StaticBody3D" parent="." unique_id=1124695978]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="sheeted_dresser_col0" unique_id=1991920041]
+shape = ExtResource("2")

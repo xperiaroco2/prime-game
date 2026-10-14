@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cfgjbaqqp3xwx"]
+
+[ext_resource type="PackedScene" uid="uid://pwq4yoh1lc8b" path="res://assets/environment/house_garden/bush_hydrangea.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://v6g5ui6otbwn" path="res://levels/kit/house_garden/bush_hydrangea.bush_hydrangea_col0.tres" id="2"]
+
+[node name="bush_hydrangea" unique_id=2018154972 instance=ExtResource("1")]
+
+[node name="bush_hydrangea_col0" type="StaticBody3D" parent="." unique_id=1666431431]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bush_hydrangea_col0" unique_id=302067363]
+shape = ExtResource("2")

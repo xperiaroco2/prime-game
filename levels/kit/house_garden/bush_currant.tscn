@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b5cvbc3qhnrqo"]
+
+[ext_resource type="PackedScene" uid="uid://dr3t1hg4uyipn" path="res://assets/environment/house_garden/bush_currant.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://tab77in7mc36" path="res://levels/kit/house_garden/bush_currant.bush_currant_col0.tres" id="2"]
+
+[node name="bush_currant" unique_id=1382998446 instance=ExtResource("1")]
+
+[node name="bush_currant_col0" type="StaticBody3D" parent="." unique_id=1677067112]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bush_currant_col0" unique_id=1867278611]
+shape = ExtResource("2")

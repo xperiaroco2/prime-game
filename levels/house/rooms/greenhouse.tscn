@@ -1,30 +1,30 @@
 [gd_scene format=3 uid="uid://cqpa4dvxde8d6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/glass_wall_2m.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/glass_wall_2m.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/glass_wall_1m.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/glass_wall_1m.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/glass_door_2m.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/glass_door_2m.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_concrete_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/herb_board.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/herb_board.tscn" id="6"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/herb_bed.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/herb_bed.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/potting_bench.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/potting_bench.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/greenhouse_shelf.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/greenhouse_shelf.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hose_reel.glb" id="11"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hose_reel.tscn" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/watering_can.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/watering_can.tscn" id="12"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/planter_pot.glb" id="13"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/planter_pot.tscn" id="13"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/string_lights.glb" id="14"]
 
@@ -880,5 +880,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 9.5)
 [node name="HerbBeds" type="Marker3D" parent="Stations" unique_id=49469977]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 5)
 
-[node name="glass_door_2m_glass6" parent="Shell/glass_door_2m_1/glass_door_2m_leaf"]
+[node name="glass_door_2m_glass6" parent="Shell/glass_door_2m_1"]
 collision_layer = 0

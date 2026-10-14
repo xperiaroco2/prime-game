@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bjcxbm5ekii3l"]
+
+[ext_resource type="PackedScene" uid="uid://bxktrx024vt27" path="res://assets/environment/house_props/pump_set_b.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dfrms20gbcfb6" path="res://levels/kit/house_props/pump_set_b.pump_set_b_col0.tres" id="2"]
+
+[node name="pump_set_b" unique_id=741483591 instance=ExtResource("1")]
+
+[node name="pump_set_b_col0" type="StaticBody3D" parent="." unique_id=1972521407]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pump_set_b_col0" unique_id=818533975]
+shape = ExtResource("2")

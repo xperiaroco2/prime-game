@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://7nt2at4d8paa"]
+
+[ext_resource type="PackedScene" uid="uid://cogoatrjpfwyb" path="res://assets/environment/house_props/burger_sign.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://xaowyxf78o33" path="res://levels/kit/house_props/burger_sign.burger_sign_col0.tres" id="2"]
+
+[node name="burger_sign" unique_id=1109236617 instance=ExtResource("1")]
+
+[node name="burger_sign_col0" type="StaticBody3D" parent="." unique_id=900064419]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="burger_sign_col0" unique_id=1712827025]
+shape = ExtResource("2")

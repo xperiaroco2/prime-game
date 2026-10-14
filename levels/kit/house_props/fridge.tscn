@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ct28vy6al30f3"]
+
+[ext_resource type="PackedScene" uid="uid://bupyvnnnnwt26" path="res://assets/environment/house_props/fridge.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://djpus63v1rdyo" path="res://levels/kit/house_props/fridge.fridge_col0.tres" id="2"]
+
+[node name="fridge" unique_id=135463984 instance=ExtResource("1")]
+
+[node name="fridge_col0" type="StaticBody3D" parent="." unique_id=216820161]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fridge_col0" unique_id=762320147]
+shape = ExtResource("2")

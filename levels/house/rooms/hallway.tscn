@@ -1,16 +1,16 @@
 [gd_scene format=3 uid="uid://b0c8q1r7dbhah"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_window_ext.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_window_ext.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_1m_ext.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_1m_ext.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_door_ext.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_door_ext.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_boards_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_boards_2x2.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_console.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hall_console.tscn" id="6"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="7"]
 
@@ -18,29 +18,29 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/gallery_wall.glb" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_plant.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_plant.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/potted_plant.glb" id="11"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/potted_plant.tscn" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bookcase.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/bookcase.tscn" id="12"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_runner.glb" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/umbrella_stand.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/umbrella_stand.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_bench.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hall_bench.tscn" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/coat_hooks.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/coat_hooks.tscn" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/radiator.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/radiator.tscn" id="17"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_blueprint.glb" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/dresser.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/dresser.tscn" id="19"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_abstract.glb" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_lamp.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_lamp.tscn" id="21"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_city.glb" id="22"]
 

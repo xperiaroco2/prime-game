@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b6ssh0fkodmap"]
+
+[ext_resource type="PackedScene" uid="uid://b123qyei3yc1s" path="res://assets/environment/house_props/balcony_chair.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://br5gwx0h8h3tw" path="res://levels/kit/house_props/balcony_chair.balcony_chair_col0.tres" id="2"]
+
+[node name="balcony_chair" unique_id=347536423 instance=ExtResource("1")]
+
+[node name="balcony_chair_col0" type="StaticBody3D" parent="." unique_id=2048553371]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="balcony_chair_col0" unique_id=955486468]
+shape = ExtResource("2")

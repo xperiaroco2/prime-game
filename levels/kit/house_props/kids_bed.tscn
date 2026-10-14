@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bl7wn0h7v6s20"]
+
+[ext_resource type="PackedScene" uid="uid://dcfv0737dmwnr" path="res://assets/environment/house_props/kids_bed.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cmfkii5gte2b7" path="res://levels/kit/house_props/kids_bed.kids_bed_col0.tres" id="2"]
+
+[node name="kids_bed" unique_id=1486001006 instance=ExtResource("1")]
+
+[node name="kids_bed_col0" type="StaticBody3D" parent="." unique_id=854353243]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kids_bed_col0" unique_id=1990047169]
+shape = ExtResource("2")

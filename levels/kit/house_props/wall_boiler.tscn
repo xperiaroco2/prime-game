@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ce0i34r3ildl6"]
+
+[ext_resource type="PackedScene" uid="uid://o3uwsjjne335" path="res://assets/environment/house_props/wall_boiler.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://lrj3j8anvsa2" path="res://levels/kit/house_props/wall_boiler.wall_boiler_col0.tres" id="2"]
+
+[node name="wall_boiler" unique_id=34677527 instance=ExtResource("1")]
+
+[node name="wall_boiler_col0" type="StaticBody3D" parent="." unique_id=835650966]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_boiler_col0" unique_id=1601258612]
+shape = ExtResource("2")

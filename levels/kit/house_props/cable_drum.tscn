@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://fvyiws06r5il"]
+
+[ext_resource type="PackedScene" uid="uid://b2q31o10j2fne" path="res://assets/environment/house_props/cable_drum.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ow38u038xfrr" path="res://levels/kit/house_props/cable_drum.cable_drum_col0.tres" id="2"]
+
+[node name="cable_drum" unique_id=1616007709 instance=ExtResource("1")]
+
+[node name="cable_drum_col0" type="StaticBody3D" parent="." unique_id=1056380620]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="cable_drum_col0" unique_id=1025455208]
+shape = ExtResource("2")

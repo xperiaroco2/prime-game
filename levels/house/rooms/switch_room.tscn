@@ -1,52 +1,52 @@
 [gd_scene format=3 uid="uid://dm6hn7blo44y4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_2m.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_2m.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_corner.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_corner.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_concrete_2x2.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/slab_yard_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/slab_yard_2x2.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/beam_concrete_2m.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/beam_concrete_2m.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_switch.glb" id="7"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_switch.tscn" id="7"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/switchboard.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/switchboard.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/desk.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/desk.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/office_chair.glb" id="11"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/office_chair.tscn" id="11"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cable_tray.glb" id="12"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/switch_mat.glb" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/elec_cabinet.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/elec_cabinet.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/elec_cabinet_b.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/elec_cabinet_b.tscn" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/cable_drum.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/cable_drum.tscn" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/meter_panel.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/meter_panel.tscn" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/filing_cabinet.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/filing_cabinet.tscn" id="18"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/lectern.glb" id="19"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/lectern.tscn" id="19"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/fire_extinguisher.glb" id="20"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/fire_extinguisher.tscn" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_box.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_box.tscn" id="21"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_crate.glb" id="22"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_crate.tscn" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hand_trolley.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hand_trolley.tscn" id="23"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/step_ladder.glb" id="24"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/step_ladder.tscn" id="24"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/sign_volt.glb" id="25"]
 

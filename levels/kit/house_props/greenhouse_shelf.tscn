@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://oinlmyvdd0qm"]
+
+[ext_resource type="PackedScene" uid="uid://b5vcofg5qym20" path="res://assets/environment/house_props/greenhouse_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b51r5afbbn56r" path="res://levels/kit/house_props/greenhouse_shelf.greenhouse_shelf_col0.tres" id="2"]
+
+[node name="greenhouse_shelf" unique_id=113661761 instance=ExtResource("1")]
+
+[node name="greenhouse_shelf_col0" type="StaticBody3D" parent="." unique_id=2025697329]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="greenhouse_shelf_col0" unique_id=2101729184]
+shape = ExtResource("2")

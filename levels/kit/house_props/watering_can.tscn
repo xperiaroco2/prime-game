@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ilc8xnr1fhev"]
+
+[ext_resource type="PackedScene" uid="uid://dqoeakw6w8uon" path="res://assets/environment/house_props/watering_can.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bvixbova7n4i5" path="res://levels/kit/house_props/watering_can.watering_can_col0.tres" id="2"]
+
+[node name="watering_can" unique_id=1671211611 instance=ExtResource("1")]
+
+[node name="watering_can_col0" type="StaticBody3D" parent="." unique_id=913659226]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="watering_can_col0" unique_id=1718297347]
+shape = ExtResource("2")

@@ -39,7 +39,43 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"nodes": {
+"PATH:dormer_gable_col0": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col1": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col10": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col2": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col3": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col4": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col5": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col6": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col7": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col8": {
+"import/skip_import": true
+},
+"PATH:dormer_gable_col9": {
+"import/skip_import": true
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b0twcihmwcya"]
+
+[ext_resource type="PackedScene" uid="uid://tkxrdaduvbmd" path="res://assets/environment/house_garden/garden_tree_pear.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bwg50ghtpiwba" path="res://levels/kit/house_garden/garden_tree_pear.garden_tree_pear_col0.tres" id="2"]
+
+[node name="garden_tree_pear" unique_id=1744977007 instance=ExtResource("1")]
+
+[node name="garden_tree_pear_col0" type="StaticBody3D" parent="." unique_id=1334426283]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="garden_tree_pear_col0" unique_id=498345316]
+shape = ExtResource("2")

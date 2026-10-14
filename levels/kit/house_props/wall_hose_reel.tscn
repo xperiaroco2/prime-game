@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c4gb3yp2f6y4j"]
+
+[ext_resource type="PackedScene" uid="uid://cgmyrs8i5r14h" path="res://assets/environment/house_props/wall_hose_reel.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dytu1g8y0imel" path="res://levels/kit/house_props/wall_hose_reel.wall_hose_reel_col0.tres" id="2"]
+
+[node name="wall_hose_reel" unique_id=1942782018 instance=ExtResource("1")]
+
+[node name="wall_hose_reel_col0" type="StaticBody3D" parent="." unique_id=2033340009]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="wall_hose_reel_col0" unique_id=1982394691]
+shape = ExtResource("2")

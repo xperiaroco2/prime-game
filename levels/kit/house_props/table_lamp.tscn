@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bts846kwclx1m"]
+
+[ext_resource type="PackedScene" uid="uid://c7owcmn3fhbur" path="res://assets/environment/house_props/table_lamp.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://co7syfoemo4i1" path="res://levels/kit/house_props/table_lamp.table_lamp_col0.tres" id="2"]
+
+[node name="table_lamp" unique_id=1366140950 instance=ExtResource("1")]
+
+[node name="table_lamp_col0" type="StaticBody3D" parent="." unique_id=1413537227]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="table_lamp_col0" unique_id=1903008944]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dfnlrprj13tvo"]
+
+[ext_resource type="PackedScene" uid="uid://bs762tlsddykm" path="res://assets/environment/house_kit/stairs_main.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cs8g4y20uf8b3" path="res://levels/kit/house_kit/stairs_main.stairs_main_col0.tres" id="2"]
+
+[node name="stairs_main" unique_id=1292753155 instance=ExtResource("1")]
+
+[node name="stairs_main_col0" type="StaticBody3D" parent="." unique_id=1442402113]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stairs_main_col0" unique_id=770365819]
+shape = ExtResource("2")

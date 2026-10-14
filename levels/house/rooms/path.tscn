@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://yeg032vu86yo"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/porch_2x2.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/porch_2x2.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ct67o0ohbwcw1"]
+
+[ext_resource type="PackedScene" uid="uid://c6u1371cbv1mb" path="res://assets/environment/house_props/guest_wardrobe.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ce0bpyihcb03e" path="res://levels/kit/house_props/guest_wardrobe.guest_wardrobe_col0.tres" id="2"]
+
+[node name="guest_wardrobe" unique_id=1268798371 instance=ExtResource("1")]
+
+[node name="guest_wardrobe_col0" type="StaticBody3D" parent="." unique_id=1652735930]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="guest_wardrobe_col0" unique_id=1399850033]
+shape = ExtResource("2")

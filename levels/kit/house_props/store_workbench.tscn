@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bk1y4dtxtgq7f"]
+
+[ext_resource type="PackedScene" uid="uid://eb0usektfvrb" path="res://assets/environment/house_props/store_workbench.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dlpyr8wryciwj" path="res://levels/kit/house_props/store_workbench.store_workbench_col0.tres" id="2"]
+
+[node name="store_workbench" unique_id=85693042 instance=ExtResource("1")]
+
+[node name="store_workbench_col0" type="StaticBody3D" parent="." unique_id=1744576443]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="store_workbench_col0" unique_id=1944787629]
+shape = ExtResource("2")

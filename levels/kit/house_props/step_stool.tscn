@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cin7kv6xrd0ye"]
+
+[ext_resource type="PackedScene" uid="uid://cq08mwa7wlvmk" path="res://assets/environment/house_props/step_stool.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://djew6hqpqe2ts" path="res://levels/kit/house_props/step_stool.step_stool_col0.tres" id="2"]
+
+[node name="step_stool" unique_id=365203745 instance=ExtResource("1")]
+
+[node name="step_stool_col0" type="StaticBody3D" parent="." unique_id=1790253814]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="step_stool_col0" unique_id=1295588628]
+shape = ExtResource("2")

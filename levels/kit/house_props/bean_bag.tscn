@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cm6vtdx0dours"]
+
+[ext_resource type="PackedScene" uid="uid://dot1fi4ymvxec" path="res://assets/environment/house_props/bean_bag.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://r0o5ma3hx452" path="res://levels/kit/house_props/bean_bag.bean_bag_col0.tres" id="2"]
+
+[node name="bean_bag" unique_id=1491999938 instance=ExtResource("1")]
+
+[node name="bean_bag_col0" type="StaticBody3D" parent="." unique_id=339709763]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bean_bag_col0" unique_id=1914107107]
+shape = ExtResource("2")

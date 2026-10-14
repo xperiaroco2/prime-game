@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bhgwn8myhbqbf"]
+
+[ext_resource type="PackedScene" uid="uid://dsmy362dptbvu" path="res://assets/environment/house_props/umbrella_stand.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bmtdr5mffq0d0" path="res://levels/kit/house_props/umbrella_stand.umbrella_stand_col0.tres" id="2"]
+
+[node name="umbrella_stand" unique_id=1047575571 instance=ExtResource("1")]
+
+[node name="umbrella_stand_col0" type="StaticBody3D" parent="." unique_id=337065856]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="umbrella_stand_col0" unique_id=1552886744]
+shape = ExtResource("2")

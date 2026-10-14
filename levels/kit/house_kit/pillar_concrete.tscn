@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c6151d552m4sa"]
+
+[ext_resource type="PackedScene" uid="uid://bcvuaqbobyw1l" path="res://assets/environment/house_kit/pillar_concrete.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b7kx324vjgey6" path="res://levels/kit/house_kit/pillar_concrete.pillar_concrete_col0.tres" id="2"]
+
+[node name="pillar_concrete" unique_id=239779210 instance=ExtResource("1")]
+
+[node name="pillar_concrete_col0" type="StaticBody3D" parent="." unique_id=409778923]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pillar_concrete_col0" unique_id=1024076318]
+shape = ExtResource("2")

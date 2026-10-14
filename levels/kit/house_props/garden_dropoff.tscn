@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dqx2wd7j2uvof"]
+
+[ext_resource type="PackedScene" uid="uid://bqc2doahtj7hd" path="res://assets/environment/house_props/garden_dropoff.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://h4ekgorbgt2c" path="res://levels/kit/house_props/garden_dropoff.garden_dropoff_col0.tres" id="2"]
+
+[node name="garden_dropoff" unique_id=93299962 instance=ExtResource("1")]
+
+[node name="garden_dropoff_col0" type="StaticBody3D" parent="." unique_id=395992809]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="garden_dropoff_col0" unique_id=1678695486]
+shape = ExtResource("2")

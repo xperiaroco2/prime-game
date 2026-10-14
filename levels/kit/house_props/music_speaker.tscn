@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://v75bv4isqdlw"]
+
+[ext_resource type="PackedScene" uid="uid://hosujw7rmnnt" path="res://assets/environment/house_props/music_speaker.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://56ensad3awlf" path="res://levels/kit/house_props/music_speaker.music_speaker_col0.tres" id="2"]
+
+[node name="music_speaker" unique_id=164792533 instance=ExtResource("1")]
+
+[node name="music_speaker_col0" type="StaticBody3D" parent="." unique_id=71311411]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="music_speaker_col0" unique_id=1743580798]
+shape = ExtResource("2")

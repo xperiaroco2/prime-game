@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c8356dn57s2g0"]
+
+[ext_resource type="PackedScene" uid="uid://b1htksi2pi2f2" path="res://assets/environment/house_props/bath_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://3e6c3kdg368x" path="res://levels/kit/house_props/bath_shelf.bath_shelf_col0.tres" id="2"]
+
+[node name="bath_shelf" unique_id=717004962 instance=ExtResource("1")]
+
+[node name="bath_shelf_col0" type="StaticBody3D" parent="." unique_id=372768647]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bath_shelf_col0" unique_id=338045409]
+shape = ExtResource("2")

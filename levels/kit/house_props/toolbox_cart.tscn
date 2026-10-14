@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dlnwls8osl3cn"]
+
+[ext_resource type="PackedScene" uid="uid://gbwcujbis2od" path="res://assets/environment/house_props/toolbox_cart.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dfmjtta340s7c" path="res://levels/kit/house_props/toolbox_cart.toolbox_cart_col0.tres" id="2"]
+
+[node name="toolbox_cart" unique_id=1116932727 instance=ExtResource("1")]
+
+[node name="toolbox_cart_col0" type="StaticBody3D" parent="." unique_id=663233273]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="toolbox_cart_col0" unique_id=1277775864]
+shape = ExtResource("2")

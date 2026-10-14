@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://btpwa5ephxh32"]
+
+[ext_resource type="PackedScene" uid="uid://cfoq64n1wek6e" path="res://assets/environment/house_props/bun_shelf.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cfcvyllgb451h" path="res://levels/kit/house_props/bun_shelf.bun_shelf_col0.tres" id="2"]
+
+[node name="bun_shelf" unique_id=1880883700 instance=ExtResource("1")]
+
+[node name="bun_shelf_col0" type="StaticBody3D" parent="." unique_id=895366144]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bun_shelf_col0" unique_id=542789276]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dfgk23abyppwt"]
+
+[ext_resource type="PackedScene" uid="uid://dn15lmlvqg5b6" path="res://assets/environment/house_props/cutting_table.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c7sv4dqeev402" path="res://levels/kit/house_props/cutting_table.cutting_table_col0.tres" id="2"]
+
+[node name="cutting_table" unique_id=794892843 instance=ExtResource("1")]
+
+[node name="cutting_table_col0" type="StaticBody3D" parent="." unique_id=313516379]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="cutting_table_col0" unique_id=1756593518]
+shape = ExtResource("2")

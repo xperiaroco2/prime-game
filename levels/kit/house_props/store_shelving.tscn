@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://c7t1v3hckl6na"]
+
+[ext_resource type="PackedScene" uid="uid://b4cn0asaps4dn" path="res://assets/environment/house_props/store_shelving.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dy6ogvljhkq61" path="res://levels/kit/house_props/store_shelving.store_shelving_col0.tres" id="2"]
+
+[node name="store_shelving" unique_id=133053162 instance=ExtResource("1")]
+
+[node name="store_shelving_col0" type="StaticBody3D" parent="." unique_id=1366228670]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="store_shelving_col0" unique_id=1049966918]
+shape = ExtResource("2")

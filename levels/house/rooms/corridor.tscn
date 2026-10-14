@@ -1,50 +1,50 @@
 [gd_scene format=3 uid="uid://s5ctkd0ejhqb"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_2m.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_2m.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_1m.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_1m.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_basement_2m_door.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_basement_2m_door.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_concrete_2x2.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/fire_extinguisher.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/fire_extinguisher.tscn" id="6"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/work_hooks.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/work_hooks.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/shoe_rack.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/shoe_rack.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/fuse_box.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/fuse_box.tscn" id="10"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_hatch.glb" id="11"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/store_shelving_b.glb" id="12"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/store_shelving_b.tscn" id="12"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_box.glb" id="13"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_box.tscn" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/storage_crate.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/storage_crate.tscn" id="14"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/sign_way_out.glb" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/umbrella_stand.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/umbrella_stand.tscn" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/trash_bin.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/trash_bin.tscn" id="17"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/sign_staff.glb" id="18"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/picture_frame.glb" id="19"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/hall_bench.glb" id="20"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/hall_bench.tscn" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/radiator.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/radiator.tscn" id="21"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_blueprint.glb" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/store_shelving.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/store_shelving.tscn" id="23"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/art_burger.glb" id="24"]
 

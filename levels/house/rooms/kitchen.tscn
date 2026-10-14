@@ -1,58 +1,58 @@
 [gd_scene format=3 uid="uid://df56ock2ivnx2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_1m_ext.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_1m_ext.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_window_ext.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_window_ext.tscn" id="3"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_ext.glb" id="4"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_ext.tscn" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_int.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_1m_int.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_1m_int.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_door_int.glb" id="7"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_door_int.tscn" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_2m_door_ext.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_door_ext.tscn" id="8"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/wall_storey_corner_ext.glb" id="9"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_corner_ext.tscn" id="9"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_lino_2x2.glb" id="10"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_lino_2x2.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/assembly_island.glb" id="11"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/assembly_island.tscn" id="11"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="12"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/order_board.glb" id="13"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/order_board.tscn" id="13"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/kitchen_counter.glb" id="14"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/kitchen_counter.tscn" id="14"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/stove.glb" id="15"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/stove.tscn" id="15"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/kitchen_sink.glb" id="16"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/kitchen_sink.tscn" id="16"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/fridge.glb" id="17"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/fridge.tscn" id="17"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/kitchen_upper.glb" id="18"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/kitchen_upper.tscn" id="18"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/backsplash_l.glb" id="19"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/backsplash_r.glb" id="20"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/stool.glb" id="21"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/stool.tscn" id="21"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/trash_bin.glb" id="22"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/trash_bin.tscn" id="22"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/potted_plant.glb" id="23"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/potted_plant.tscn" id="23"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/armchair.glb" id="24"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/armchair.tscn" id="24"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/small_table.glb" id="25"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/small_table.tscn" id="25"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/jar_shelf.glb" id="26"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/jar_shelf.tscn" id="26"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/sideboard.glb" id="27"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/sideboard.tscn" id="27"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/picture_frame.glb" id="28"]
 
@@ -78,7 +78,7 @@
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_sconce.glb" id="39"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/floor_lamp.glb" id="40"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_lamp.tscn" id="40"]
 
 [node name="Kitchen" type="Node3D" unique_id=1802981680]
 metadata/room_id = &"kitchen"

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://beo884jx301ww"]
+
+[ext_resource type="PackedScene" uid="uid://c81y5x4jujqwv" path="res://assets/environment/house_kit/roof_pitched_verge_1_l.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://wal5uxyft30x" path="res://levels/kit/house_kit/roof_pitched_verge_1_l.roof_pitched_verge_1_l_col0.tres" id="2"]
+
+[node name="roof_pitched_verge_1_l" unique_id=1352757545 instance=ExtResource("1")]
+
+[node name="roof_pitched_verge_1_l_col0" type="StaticBody3D" parent="." unique_id=2122117021]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="roof_pitched_verge_1_l_col0" unique_id=2096569799]
+shape = ExtResource("2")

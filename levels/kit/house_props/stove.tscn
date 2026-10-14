@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://c0mvvv2evjw0c"]
+
+[ext_resource type="PackedScene" uid="uid://b04af7njkxx5c" path="res://assets/environment/house_props/stove.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c5lxd2g4wb5ys" path="res://levels/kit/house_props/stove.stove_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c8lsg8furspo1" path="res://levels/kit/house_props/stove.stove_col1.tres" id="3"]
+
+[node name="stove" unique_id=1623373137 instance=ExtResource("1")]
+
+[node name="stove_col0" type="StaticBody3D" parent="." unique_id=1315296899]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stove_col0" unique_id=475272295]
+shape = ExtResource("2")
+
+[node name="stove_col1" type="StaticBody3D" parent="." unique_id=962782741]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stove_col1" unique_id=1929814662]
+shape = ExtResource("3")

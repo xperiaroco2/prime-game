@@ -39,7 +39,40 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"nodes": {
+"PATH:glass_door_2m_col0": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_col1": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_col2": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_col3": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_col4": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_col5": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_glass7": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_glass8": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_glass9": {
+"import/skip_import": true
+},
+"PATH:glass_door_2m_leaf/glass_door_2m_glass6": {
+"import/skip_import": true
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

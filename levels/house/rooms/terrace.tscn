@@ -1,20 +1,20 @@
 [gd_scene format=3 uid="uid://cisslecv6fw6b"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_kit/floor_concrete_2x2.glb" id="1"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="1"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/terrace_table.glb" id="3"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/terrace_table.tscn" id="3"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="4"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/terrace_chair.glb" id="5"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/terrace_chair.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/planter_pot.glb" id="6"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/planter_pot.tscn" id="6"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/potted_plant.glb" id="7"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/potted_plant.tscn" id="7"]
 
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/lantern.glb" id="8"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_props/lantern.tscn" id="8"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/string_lights.glb" id="9"]
 

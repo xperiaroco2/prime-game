@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://dp1tce0nt8p7f"]
+
+[ext_resource type="PackedScene" uid="uid://stsa5l2drt06" path="res://assets/environment/house_props/study_bookcase.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://da1xlwp0xo04u" path="res://levels/kit/house_props/study_bookcase.study_bookcase_col0.tres" id="2"]
+
+[node name="study_bookcase" unique_id=1314971853 instance=ExtResource("1")]
+
+[node name="study_bookcase_col0" type="StaticBody3D" parent="." unique_id=1402311026]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="study_bookcase_col0" unique_id=212688370]
+shape = ExtResource("2")

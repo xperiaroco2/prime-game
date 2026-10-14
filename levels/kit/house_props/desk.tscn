@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://b2qnu565xwq55"]
+
+[ext_resource type="PackedScene" uid="uid://6xqls3hxkgew" path="res://assets/environment/house_props/desk.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ccr5p17veewbt" path="res://levels/kit/house_props/desk.desk_col0.tres" id="2"]
+
+[node name="desk" unique_id=1515127925 instance=ExtResource("1")]
+
+[node name="desk_col0" type="StaticBody3D" parent="." unique_id=717128153]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="desk_col0" unique_id=1495751169]
+shape = ExtResource("2")

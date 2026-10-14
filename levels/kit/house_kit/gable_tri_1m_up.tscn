@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cidhl7tu517ua"]
+
+[ext_resource type="PackedScene" uid="uid://bdqyo774bneda" path="res://assets/environment/house_kit/gable_tri_1m_up.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://do1y0464ka3am" path="res://levels/kit/house_kit/gable_tri_1m_up.gable_tri_1m_up_col0.tres" id="2"]
+
+[node name="gable_tri_1m_up" unique_id=1781820268 instance=ExtResource("1")]
+
+[node name="gable_tri_1m_up_col0" type="StaticBody3D" parent="." unique_id=655400188]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="gable_tri_1m_up_col0" unique_id=1946136921]
+shape = ExtResource("2")
