@@ -78,10 +78,10 @@ func test_what_the_deck_does_not_name() -> void:
 	assert_str(ContentNames.item(&"wrench", mode)).is_equal("wrench")
 	assert_str(ContentNames.task(&"wiring", mode)).is_equal("wiring")
 	assert_str(ContentNames.role(&"crew", null)).is_equal("role.engineer")
-	assert_str(ContentNames.room(&"boiler_room")).is_equal("boiler_room")
+	assert_str(ContentNames.room(&"boiler_room")).is_equal("room.boiler_room")
 	assert_str(ContentNames.text("Saboteur")).is_equal("Saboteur")
 	assert_str(ContentNames.map("res://levels/house/house.tscn")).is_equal("House")
-	assert_bool(ContentNames.has_key("room.boiler_room")).is_false()
+	assert_bool(ContentNames.has_key("room.boiler_room")).is_true()
 	assert_bool(ContentNames.has_key("room.lab")).is_true()
 
 
