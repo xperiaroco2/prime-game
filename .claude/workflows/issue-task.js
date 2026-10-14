@@ -135,10 +135,13 @@ export const meta = {
 //                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
 //                 returns handoff, the note's path. A fresh implementer, labelled implement:#<n>#<k> (k = 2, 3) with the
 //                 same type, effort and model, continues from the note and the worktree; at most 2 handoffs (the third
-//                 implementer cannot hand over). The implementer's result is then the last one's with the union of the
-//                 decisions, needs_engineer, proposed_issues, provisional_content and commits, and the compact result
-//                 shows checkpoint: true and handoffs (#597). false: every prompt, label and option as before #920 (no
-//                 rule, no handoff key), and the result shows neither. +0 agents, up to +2 with handoffs
+//                 implementer cannot hand over: past 200,000 it stops at its last green commit, files the rest as a
+//                 follow-up issue, "Part of #<n>" with the task's area label, and returns followup, its URL, so the
+//                 reviewers and the publisher run on what is green; with no green commit it goes on, #983). The
+//                 implementer's result is then the last one's with the union of the decisions, needs_engineer,
+//                 proposed_issues, provisional_content and commits, and the compact result shows checkpoint: true and
+//                 handoffs (#597), and followup when one was filed. false: every prompt, label and option as before
+//                 #920 (no rule, no handoff key), and the result shows neither. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
@@ -675,7 +678,20 @@ const HANDOFF_CALLS = 60
 const HANDOFF_MAX = 2
 const thousands = x => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 const HANDOFF_SCHEMA = { ...IMPL_SCHEMA, properties: { ...IMPL_SCHEMA.properties, handoff: { type: 'string' } } }
+// #983: the last implementer (after HANDOFF_MAX handoffs) may not hand over; past HANDOFF_HARD it stops at its
+// last green commit and files the rest as a follow-up issue, whose URL it returns as followup. Its schema gains that
+// key instead of handoff; with checkpoint: false no implementer is the last one, so nothing changes there.
+const FOLLOWUP_SCHEMA = { ...IMPL_SCHEMA, properties: { ...IMPL_SCHEMA.properties, followup: { type: 'string' } } }
 const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under ${thousands(HANDOFF_AT)} tokens. Measure it, never estimate it: run \`cd ${WTB} && tools/run.sh ctx --at ${HANDOFF_AT} --hard ${HANDOFF_HARD}\` every ~15 tool calls and after each verify (each \`wait\` that ends one); it reads your own transcript and prints your context. When it prints HANDOFF NOW, or after ${HANDOFF_CALLS} tool calls in any case (whatever ctx printed, also when it found no transcript), hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to ${SCRATCH}/handoff-${k + 1}.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "handed over"} (only the implementer that finishes runs playcheck)' : ''}. If only the final verify and the return are left, finish instead, unless ctx printed past ${thousands(HANDOFF_HARD)}. A fresh implementer of the same kind continues from your note and the worktree (at most ${HANDOFF_MAX} handoffs per task).`
+// The last one's stop (#983): the same measure as handoffRule, but past HANDOFF_HARD (the issue's hard threshold: a
+// fresh agent no longer takes over, so the 150k mark and the 60-call backstop would cut the task's capacity to about
+// 60 + 60 + 60 calls); the call backstop STOP_CALLS only when ctx finds no transcript. Then its last green commit
+// instead of a note. Work after that commit is dropped only once refs/dropped/<n>-<sha> keeps it (the task branch's
+// reflog dies with the branch) and the follow-up holds its diff. Never red: with no green commit since the base it goes
+// on as before #983.
+const STOP_CALLS = 150
+const STOP_HEAD = 'Checkpoint stop (checkpoint, #983):'
+const stopRule = `${STOP_HEAD} you may not hand over, so past the context limit you stop and file the rest. Measure your context as the others did: run \`cd ${WTB} && tools/run.sh ctx --at ${HANDOFF_AT} --hard ${HANDOFF_HARD}\` every ~15 tool calls and after each verify (each \`wait\` that ends one). When it prints \`HANDOFF NOW: past ${thousands(HANDOFF_HARD)}\` (a plain HANDOFF NOW does not stop you), or when it found no transcript and you have made ${STOP_CALLS} tool calls, stop at your last green commit: the last commit since origin/${BASE} that a whole \`verify --changed\` passed on with the tree unchanged since (the earlier implementers' notes say theirs). Finish the step in hand only where a verify is all it lacks; leave no background job (verify, mutants) running; start nothing new. Then, in this order: (1) keep the work after that commit (uncommitted changes: a WIP commit first, so all of it has a sha; commits no verify passed) in a ref that outlives the task branch, which \`worktree-done\` deletes after the merge: \`git update-ref refs/dropped/${N}-<HEAD's short sha> HEAD\`; (2) file the rest as a follow-up issue: \`gh issue create --title "<the task's area>: <the rest of the task> (follow-up of #${N})" --label <area> --body-file <file under ${SCRATCH}/>\`, plus \`--milestone "<its title>"\` when #${N} has one (<area>: the task's area:* label; both are in \`gh issue view ${N} --json labels,milestone\`), the body: "Part of #${N}", the acceptance criteria not met yet with the next step, then what a handoff note holds: done (each commit, a line), decisions (each with its why), gotchas (what cost you time, what to avoid), the verify state (the green commit, its verify log) and the dropped work: each dropped commit's sha and what it tried, the ref that keeps it, and \`git diff --stat <that commit> <the ref>\` (the whole diff too when it is under 200 lines), so it also lives on GitHub; (3) only then \`git reset --hard <that commit>\` in your worktree. Never close, reopen or edit #${N}. Then return the structured result with complete false, verify_green true and verify_tail from that commit's verify, left (what the follow-up holds), and followup: the follow-up issue's URL${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "stopped at the context limit"}' : ''}: the reviewers and the publisher go on with what is green. If only the final verify and the return are left, finish instead. No commit since origin/${BASE} was ever green: file nothing and go on as the budget line says.`
 const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
 // update (#856): the implementer records the PR's published head first (nothing is pushed before the publisher, so a
 // continuation reads the same head) and returns the delta since it.
@@ -695,10 +711,10 @@ const implement = (k, note) => agent([
   '`tools\\run.cmd verify --changed` in the worktree until green: the fast verify (#605: doctor, lint and check, a minute or two). Every test runs on GitHub CI once the publisher pushes, so never run `verify --full` or the whole `test` suite here; while you build and debug, run the tests your change touches by path (`tools\\run.cmd test <path>`).',
   waits(false, true),
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
-  CHECKPOINT && k < HANDOFF_MAX ? handoffRule(k) : '',
+  CHECKPOINT && k < HANDOFF_MAX ? handoffRule(k) : CHECKPOINT && k === HANDOFF_MAX ? stopRule : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end. summary: at most ${SUMMARY_MAX} characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.`,
-].filter(Boolean).join('\n\n'), withModel({ label: k ? `implement:#${N}#${k + 1}` : `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: CHECKPOINT && k < HANDOFF_MAX ? HANDOFF_SCHEMA : IMPL_SCHEMA }, 'implement'))
+].filter(Boolean).join('\n\n'), withModel({ label: k ? `implement:#${N}#${k + 1}` : `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: !CHECKPOINT ? IMPL_SCHEMA : k < HANDOFF_MAX ? HANDOFF_SCHEMA : FOLLOWUP_SCHEMA }, 'implement'))
 // A handoff's own verify_green is never read: the last implementer's result is the one the run goes on with (a red
 // one stops below), with the earlier ones' lists joined, since each continuation returns only its own.
 const HANDOFF_LISTS = ['decisions', 'needs_engineer', 'proposed_issues', 'provisional_content', 'commits']
@@ -723,6 +739,10 @@ if (impl && handedOver.length) {
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
+// #983: the follow-up issue the last implementer filed for the rest at its context limit; only the last one's schema
+// has the key, so an earlier one's is never read. The run goes on as for any result (a red one still stops below).
+const FOLLOWUP = CHECKPOINT && handedOver.length === HANDOFF_MAX && typeof impl.followup === 'string' && impl.followup.trim() ? impl.followup.trim() : ''
+if (FOLLOWUP) log(`#${N}: the last implementer stopped at its context limit and filed the rest as ${FOLLOWUP}`)
 const [TIER, TIER_WHY] = tierOf(impl.changed_paths || [])
 const LIGHT = TIER === 'light'
 // The agents the launch passed that this run's tier dropped (#606). Light removes the skeptic and plan_review; on a
@@ -927,6 +947,8 @@ const brief = (stopped, pub, extra) => {
   // ran with checkpoint: false. Off adds nothing: CompactResultTest's size guard (a tenth of the whole results) has no
   // room for checkpoint: false.
   if (CHECKPOINT) Object.assign(out, { checkpoint: true, handoffs: handedOver.length })
+  // #983: the issue the last implementer filed for the rest; no key: none was filed.
+  if (FOLLOWUP) out.followup = FOLLOWUP
   // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
   // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
   if (!pub) {
@@ -983,7 +1005,9 @@ const brief = (stopped, pub, extra) => {
 // the cached red result); the implementer continues from the worktree's commits.
 if (!impl.verify_green) {
   log(`#${N}: verify RED after the implementer; nothing reviewed or published`)
-  return brief('verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes', null, {})
+  // #983: a red last implementer that filed a follow-up: the relaunch builds only what the follow-up does not hold.
+  const rest = FOLLOWUP ? `, and that the rest of #${N} is ${FOLLOWUP}'s (the last implementer filed it): build only up to it` : ''
+  return brief(`verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes${rest}`, null, {})
 }
 
 phase('Publish')
@@ -1028,6 +1052,7 @@ const pub = stoppedByMutants
     `Fresh reviewers found (each finding's fix only on a blocker or major): ${JSON.stringify(pubReviews(reviews))}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
     TIER_LINE,
     UPDATE_LINE,
+    FOLLOWUP ? `Follow-up (checkpoint, #983): the last implementer stopped at its context limit, at its last green commit, and filed the rest as ${FOLLOWUP}. The PR says \`Part of #${N}\` and links it under what is left; so does the handoff comment. Do not build what it filed.` : '',
     AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
     planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`

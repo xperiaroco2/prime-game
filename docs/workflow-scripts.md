@@ -42,9 +42,9 @@ agent `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `metrics` reads
   arg has a row `//   <arg>  ...` in the header comment and `<arg>?` in `meta.whenToUse`; `KNOWN` lists them; a
   wrong value throws before any agent runs; an unknown arg only logs, and so does a retired one (`RETIRED`, #883:
   `bounded_waits`, `lean`, `lean_reason`, always on now).
-- `issue-task.js`'s `checkpoint` (#559) is on by default (#920): `A.checkpoint !== false`; `false` runs without the
-  rule and the handoff key. Launch it without the arg. `CheckpointTest` covers both, `checkpoint-off-main` pins the
-  opt-out.
+- `issue-task.js`'s `checkpoint` (#559), on by default (#920; launch it without the arg): `false` runs without the
+  rules and the `handoff` key (the last one's `followup`, #983). `CheckpointTest` covers both,
+  `checkpoint-off-main` the opt-out.
 - Every agent's options are built in `withModel` (`asReviewer` for a reviewer): models, efforts and the lean agent
   type are appended last, so a launch without them keeps its options.
 - `tools/runner/tests/test_workflows.py` runs the three scripts under Node with stub agents (`selftest`, in `verify`).
