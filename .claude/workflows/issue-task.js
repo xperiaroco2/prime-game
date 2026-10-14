@@ -1005,7 +1005,9 @@ const brief = (stopped, pub, extra) => {
 // the cached red result); the implementer continues from the worktree's commits.
 if (!impl.verify_green) {
   log(`#${N}: verify RED after the implementer; nothing reviewed or published`)
-  return brief('verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes', null, {})
+  // #983: a red last implementer that filed a follow-up: the relaunch builds only what the follow-up does not hold.
+  const rest = FOLLOWUP ? `, and that the rest of #${N} is ${FOLLOWUP}'s (the last implementer filed it): build only up to it` : ''
+  return brief(`verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes${rest}`, null, {})
 }
 
 phase('Publish')

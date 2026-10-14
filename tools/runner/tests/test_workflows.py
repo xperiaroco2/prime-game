@@ -2642,6 +2642,7 @@ class CheckpointTest(unittest.TestCase):
             self.assertNotIn(FOLLOWUP_LINE, calls(result, "publish")[0]["prompt"])
             self.assertFalse([e for e in agents(result) if STOP_HEAD in e["prompt"]])
         self.assertIn("verify red after the implementer", red["returned"]["stopped"])
+        self.assertTrue(red["returned"]["stopped"].endswith(f"with the failure in notes, and that the rest of #7 is {FOLLOWUP}'s (the last implementer filed it): build only up to it"))
         self.assertEqual(red["returned"]["followup"], FOLLOWUP)
         self.assertFalse(calls(red, "publish"))
 
