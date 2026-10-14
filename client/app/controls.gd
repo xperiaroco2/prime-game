@@ -16,9 +16,8 @@ extends RefCounted
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
 ## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: `sneak`,
 ##   #990, until the deck has `control.sneak`, #150; `throw` and `crouch` left it for a row, #851,
-##   #951) keeps its key for the phases it acts in: a
-##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
-##   press never does both.
+##   #951) keeps its key for the phases it acts in: a binding that would put an action of such a
+##   phase on it is refused, as a fixed key is, so one press never does both.
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
 ##   default.
 ## - Never sent to anyone.
