@@ -83,6 +83,10 @@ class PollKindTest(unittest.TestCase):
             "gh pr checks 9 --watch; gh pr merge 9 --auto": None,
             "timeout 180 gh pr checks 9 --watch | tail -3; echo rc=$?": "ci",
             "sleep 60 && gh pr checks 9": "ci",
+            "cd /d/x && timeout 180 gh pr checks 9 --watch > /dev/null 2>&1; rc=$?; echo rc=$rc; "
+            "gh pr checks 9 2>&1 | cut -f1,2 | head -10": "ci",
+            'cd /d/x && S=/c/s/a1; timeout 175 tools/run.sh wait "$S/publish-1.log" 2>&1 | tail -3': "wait",
+            "cd /d/x && git log --oneline -4; tools/run.sh wait /c/s/l": None,
             "tools/run.sh wait /c/s/l; sleep 5": "wait",
             "gh pr view 9 --json state": None,
             "tools/run.sh publish > log 2>&1": None,

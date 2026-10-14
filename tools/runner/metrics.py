@@ -109,7 +109,8 @@ CI waits and a poll agent's saving (#1019; #302's answer 4A: a poll agent is bui
 week): per run kind and CI role (CI_WAIT_ROLES: issue-task's publisher, quick-task's quick agent and fixer,
 pr-rebase's rebase and fix agents) over the counted runs, the CI-wait calls (ci_wait_calls: an API call whose tool
 uses all poll CI (`gh pr checks`, `gh run watch`, a `gh run view` without --log), wait on a job (`wait`) or sleep
-alone; the parts of its command, split at `&&`, `||`, `;` and `|`, all poll or are a `cd`, `echo` or `tail`; poll_kind),
+alone; no part of its command, split at `&&`, `||`, `;` and `|`, does other work such as a `gh` or `git` command, an
+`--log` read or a runner command: poll_kind),
 and one with no tool use right after one, not the agent's last), the waits (such calls in a row), the polls by
 kind, their API list $ by input, cache write, cache read and output, their share of the role's $ and their % of the
 week; the poll agent's estimate (poll_agent_usage: each call at the same model's prices as a call of POLL_AGENT_CTX
@@ -442,7 +443,9 @@ CI_WAIT_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
 POLL_KINDS = ("ci", "wait", "sleep")
 POLL_SPLIT = re.compile(r"&&|\|\||[;|\n]")
 POLL_TIMEOUT = re.compile(r"^timeout\s+\d+\s+")
-POLL_NEUTRAL = re.compile(r"^(?:cd|echo|tail|head|true|printf|:)(?!\w)")
+POLL_WORK = re.compile(
+    r"\b(?:gh|git)\s|run(?:\.cmd|\.sh)\s+(?!wait\b)|\b(?:python3?|py|curl|rm|mv|cp|mkdir)\s"
+)  # what a command does besides polling and reading the result
 RUN_VIEW = re.compile(r"\bgh\s+run\s+view\b(?!.*--log)")
 SLEEP_ONLY = re.compile(
     r"^\s*(?:cd\s+\S+\s*(?:&&|;)\s*)?(?:sleep|Start-Sleep(?:\s+-Seconds)?)\s+\d+[smh]?\s*(?:;\s*echo\b[^;&|]*)?$", re.I
@@ -1608,23 +1611,22 @@ def bounded_waits(
 
 def poll_kind(cmd: str) -> str | None:
     """#1019: what a shell command only polls (POLL_KINDS): CI, a `wait` on a long job, a sleep alone; else None. Its
-    parts (split at `&&`, `||`, `;` and `|`) must all poll or be harmless (POLL_NEUTRAL: a `cd`, an `echo`, a `tail`
-    of the result), so `gh pr checks 9 || gh run view 9 --log-failed | grep FAIL` (it reads a failure) and `gh pr
-    checks 9; gh pr merge 9` (it works) are no poll. A command that polls CI and waits on a job is CI's."""
+    parts (split at `&&`, `||`, `;` and `|`) may poll and read the result (`cd`, `echo`, `tail`, `cut`...), but none
+    may do work (POLL_WORK: another `gh` or `git` command, another runner command, Python...), so `gh pr checks 9 ||
+    gh run view 9 --log-failed | grep FAIL` (it reads a failure) and `gh pr checks 9; gh pr merge 9` are no poll. A
+    command with a CI poll and a `wait` is CI's."""
     kinds: set[str] = set()
     for part in POLL_SPLIT.split(cmd or ""):
         part = POLL_TIMEOUT.sub("", part.strip())
-        if not part or POLL_NEUTRAL.match(part):
-            continue
         if cmd_kind(part) == "ci-wait" or RUN_VIEW.search(part):
             kinds.add("ci")
         elif cmd_kind(part) == "wait":
             kinds.add("wait")
-        elif SLEEP_ONLY.search(part):
-            kinds.add("sleep")
-        else:
+        elif POLL_WORK.search(part):
             return None
-    return next((k for k in POLL_KINDS if k in kinds), None)
+    if kinds:
+        return next(k for k in POLL_KINDS if k in kinds)
+    return "sleep" if SLEEP_ONLY.search(cmd or "") else None
 
 
 def poll_agent_usage(u: dict, first: bool, share_1h: float = 0.0) -> dict:
