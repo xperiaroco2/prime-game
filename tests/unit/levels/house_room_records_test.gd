@@ -6,8 +6,9 @@ extends GdUnitTestSuite
 
 const MAP := "res://levels/house/house.tscn"
 const ROOMS := "res://levels/house/rooms/"
-## The House's rooms (docs/design/house-map.md §4, the issue's 35).
-const ROOM_COUNT := 35
+## The House's rooms (docs/design/house-map.md §4: the issue's 35, less the roof the art import
+## made part of the attic, #523 G1).
+const ROOM_COUNT := 34
 
 
 func test_every_house_room_has_a_record_with_a_unique_id() -> void:

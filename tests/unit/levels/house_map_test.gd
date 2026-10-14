@@ -8,8 +8,11 @@ const MAP := "res://levels/house/house.tscn"
 const DOC := "res://docs/design/house-map.md"
 const ROOMS := "res://levels/house/rooms/"
 const NEAR := Vector3(1e-3, 1e-3, 1e-3)
-## How far a collision box may reach past its room's bounds: rounding only.
-const SLACK := 1e-3
+## How far a collision shape may reach past its room's bounds: the art's walls stand centred on
+## the room's edge, so half a 0.2 m wall reaches past it (and rounding).
+const SLACK := 0.1 + 1e-3
+## Rooms whose shapes may reach further: the attic's pitched roof, its eaves 0.5 m past the walls.
+const OVERHANG := {"Attic": 0.5 + 1e-3}
 
 
 ## One row of the doc's room tables.
@@ -122,24 +125,25 @@ func test_the_map_places_only_the_doc_s_rooms_each_once() -> void:
 func test_each_room_s_collision_stays_inside_its_size() -> void:
 	for room in _rooms_of(_map()):
 		var size: Vector2i = room.get_meta(&"size_m")
+		var slack: float = OVERHANG.get(String(room.name), SLACK)
 		for shape in room.find_children("*", "CollisionShape3D", true, false):
-			var box := (shape as CollisionShape3D).shape as BoxShape3D
+			var form := (shape as CollisionShape3D).shape
 			(
-				assert_object(box)
-				. override_failure_message("%s/%s is not a box" % [room.name, shape.name])
+				assert_object(form)
+				. override_failure_message("%s/%s has no shape" % [room.name, shape.name])
 				. is_not_null()
 			)
-			if box == null:
+			if form == null:
 				continue
 			# transform_in_scene counts the room's own place on the map: undo it for the room's frame.
 			var in_map := LevelWorld.transform_in_scene(shape as Node3D, room)
 			var local := room.transform.affine_inverse() * in_map
-			var aabb := local * AABB(-box.size / 2, box.size)
+			var aabb := local * _bounds(form)
 			var inside := (
-				aabb.position.x >= -SLACK
-				and aabb.position.z >= -SLACK
-				and aabb.end.x <= size.x + SLACK
-				and aabb.end.z <= size.y + SLACK
+				aabb.position.x >= -slack
+				and aabb.position.z >= -slack
+				and aabb.end.x <= size.x + slack
+				and aabb.end.z <= size.y + slack
 			)
 			(
 				assert_bool(inside)
@@ -148,6 +152,21 @@ func test_each_room_s_collision_stays_inside_its_size() -> void:
 				)
 				. is_true()
 			)
+
+
+## A shape's bounds in its own frame: a box's size, a hull's points (the art's `-convcolonly`
+## colliders), else the debug mesh Godot draws for it.
+func _bounds(form: Shape3D) -> AABB:
+	if form is BoxShape3D:
+		var size := (form as BoxShape3D).size
+		return AABB(-size / 2, size)
+	if form is ConvexPolygonShape3D:
+		var points := (form as ConvexPolygonShape3D).points
+		var hull := AABB(points[0], Vector3.ZERO)
+		for point in points:
+			hull = hull.expand(point)
+		return hull
+	return form.get_debug_mesh().get_aabb()
 
 
 func _map() -> Node3D:
