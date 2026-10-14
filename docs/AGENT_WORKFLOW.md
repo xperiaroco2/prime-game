@@ -1300,11 +1300,10 @@ exit code and verdict line, and only when it flagged something or failed its tab
 --compact` prints, computed in memory with no metrics file written, from metrics' transcript cache (§11.12), plus
 with `--stage-since S` the stage's `total API list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py`
 takes more lines over metrics' JSON record, the hook for #314); housekeeping (below); the handover args of each
-running run and of each failed, killed or stopped one
-that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
-`ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
-context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
-also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
+running run and of each failed, killed or stopped one that no later launch of its issue and workflow has replaced
+(the args exactly as passed, `indent=1`, `ensure_ascii=False`; a resume without args inherits its run's); and a
+footer (the session's age, its last call's context, the mean API list $ per call of its first and last 20 calls, and
+any records it skipped), whose last line, also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
 orchestrate-stage skill's §7 turn-end check; thresholds 500k and, at a stop for the human, 250k, #511). A due verdict
 ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment's notes end with the ready kickoff the human
 pastes; route C (`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead) only if he asked for it, the
