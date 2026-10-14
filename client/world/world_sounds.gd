@@ -17,10 +17,10 @@ extends Node3D
 ## range before any ray; FootstepSurface's ray down finds the floor's surface, and no floor (a
 ## jump) plays none. Another player's step casts the muffle ray to SoundChooser.STEP_AIM_M above
 ## its feet; the own steps cast none (nothing stands between the ears and the own feet).
-## Where the crouch plays (crouch_plays), a step at or below the mode's crouch_fast_speed_mps is
+## Anywhere (the crouch plays everywhere, #991), a step at or below the mode's crouch_speed_mps is
 ## FootstepCadence.QUIET_STEP_DB quieter and heard within its QUIET_STEP_RANGE_M, easing to a walk's
-## step at the walk speed (#792, the crouch ADR's KD1 (b)): read from the step's speed, never the
-## crouch flag.
+## step at its crouch_fast_speed_mps (#792, #991, the crouch ADR's KD1 (b)): read from the step's
+## speed, never the crouch flag.
 ## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
 ## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
@@ -51,10 +51,6 @@ var sfx := SfxSet.new()
 ## How far above a photo camera's marker its lens is, where the shutter plays: the client's own
 ## copy of the mode's eye height (ItemWorld sets it).
 var lens_m := 0.0
-## Whether the crouch plays where this client is (the crouch ADR's KE10; Game sets it as it sets
-## the controller's): there a slow step, the own or another player's, is quiet (KD1 (b),
-## FootstepCadence.quiet_of() of its speed); elsewhere every step is a walk's.
-var crouch_plays := false
 
 var _played := 0
 var _rays := 0
@@ -219,11 +215,9 @@ func _physics_process(delta: float) -> void:
 		)
 		if not due or not heard_from is Vector3:
 			continue
-		var quiet := 0.0
-		if crouch_plays:
-			quiet = FootstepCadence.quiet_of(
-				_cadences[peer].step_speed_mps, rules.crouch_fast_speed_mps, rules.walk_speed_mps
-			)
+		var quiet := FootstepCadence.quiet_of(
+			_cadences[peer].step_speed_mps, rules.crouch_speed_mps, rules.crouch_fast_speed_mps
+		)
 		_step(at, heard_from as Vector3, peer != 0, quiet)
 
 
