@@ -4614,12 +4614,13 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   70 kg). The view stays as the anchor: frozen, with no mesh, no shape and no layer (never hidden through `visible`,
   which `SightHider` owns; hiding the view hides its rig), following the pelvis. The bones are on the `downed` layer
   with the world mask, never sleep, and are the only ray target: `RagdollView.of_collider` names a hit bone's view,
-  which the raise hint uses. The fall starts from the idle pose one physics frame after the view enters the tree, with
+  which the raise hint uses. The fall starts from the idle pose one physics frame after the view enters the tree, tipped
+  over as the capsule is (each body turned about the feet, so the legs do not fold under a body left sitting), with
   the host's velocity. The spring is the capsule's on the pelvis (the data's parentless body): to the point plus the
   pelvis' smallest half extent, the vertical term whole, across the floor faded by how much the pelvis lies (its axis
   up the body, measured at the idle pose), the same velocity change on every bone so it moves the body, not its
-  joints; past `SNAP_M` every bone moves by one offset. On the real rig a body launched at 3 m/s rests within about
-  0.15 m of the point (friction keeps the rest; looks only). `lie_at_rest` lays the rig on its back along the yaw's
+  joints; past `SNAP_M` every bone moves by one offset. The bones take the capsule's low `FRICTION`, not the data's,
+  so the floor does not hold a body off the point. `lie_at_rest` lays the rig on its back along the yaw's
   axis with its pelvis on the lying centre; `make_dead` greys the tint and puts every bone on no layer; the handover
   to `BodyViews` keeps it simulating, and `BodyViews.character` (set by `Game` with `AvatarViews.character`) dresses
   a fresh body. The living rig has no physical bones. The export ships the data (`include_filter="*.ragdoll.json"`

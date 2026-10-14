@@ -75,6 +75,9 @@ func test_started_standing_it_falls_and_its_pelvis_rests_over_the_point() -> voi
 	var joints := sim.find_children("*", "Joint3D", false, false)
 	assert_int(joints.size()).is_equal(3)
 	assert_vector(_pelvis()).is_equal_approx(_ragdoll.lying_centre(), Vector3.ONE * SETTLE_M)
+	# Lying, not sitting on its pelvis: the chest is as low as the pelvis (start() tips it over).
+	var torso := _ragdoll.bones()[2].global_position
+	assert_float(torso.y).is_less(_pelvis().y + 0.1)
 	# The anchor follows the pelvis.
 	assert_vector(_ragdoll.global_position).is_equal_approx(_pelvis(), Vector3.ONE * 0.05)
 

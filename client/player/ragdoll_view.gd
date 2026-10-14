@@ -15,8 +15,9 @@ extends RigidBody3D
 ## spring holds the pelvis (the data's parentless body) to the lying centre (the point plus the
 ## pelvis' smallest half extent), the vertical term whole, across the floor faded by how much the
 ## pelvis lies, and it changes every bone's velocity alike, so it moves the body, not its joints;
-## a snap moves every bone by the same offset. The fall starts from the idle pose, one physics
-## frame after the node enters the tree (the bodies need a space).
+## a snap moves every bone by the same offset. The fall starts from the idle pose, tipped over as
+## the capsule is (_tip_rig), one physics frame after the node enters the tree (the bodies need a
+## space).
 ##
 ## The host's point (`held_point()`, the interpolated pose's position) is the host capsule's lowest
 ## point (KE14). The spring pulls the capsule's centre to the lying centre over it, the point plus
@@ -295,6 +296,8 @@ func _wear(character: CharacterSet) -> void:
 		body.collision_layer = PhysicsLayers.DOWNED
 		body.collision_mask = PhysicsLayers.WORLD
 		body.can_sleep = false
+		# The capsule's low friction, not the data's: the floor must not hold the body off the point.
+		body.friction = FRICTION
 		_bones.append(body)
 		if bone.get("parent") == null and _pelvis == null:
 			_pelvis = body
@@ -336,6 +339,20 @@ func _begin_fall() -> void:
 	# own axes: the spring's measure of how much it lies.
 	_pelvis_up = _pelvis_at_pose().basis.inverse() * _rig.global_basis.y.normalized()
 	RagdollBuilder.start(_sim, _data, _pending_velocity)
+	if not _pending_lying:
+		_tip_rig()
+
+
+## Tips the standing rig over as start() tips the capsule: each body gets the velocity of a turn
+## about the feet at TIP_RAD_PER_S towards the horizontal velocity, or backwards with none, so the
+## legs do not fold under a balanced body that would then sit on its pelvis.
+func _tip_rig() -> void:
+	var flat := Vector3(_pending_velocity.x, 0.0, _pending_velocity.z)
+	var towards := flat.normalized() if flat.length() > STILL_MPS else _rig.global_basis.z
+	var feet := _rig.global_position.y
+	for bone: PhysicalBone3D in _bones:
+		var up := maxf(bone.global_position.y - feet, 0.0)
+		bone.linear_velocity = _pending_velocity + towards * TIP_RAD_PER_S * up
 
 
 ## The pelvis body's transform from the skeleton's pose (before the simulation runs).
