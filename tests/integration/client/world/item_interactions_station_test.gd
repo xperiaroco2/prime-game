@@ -91,6 +91,32 @@ func test_the_device_names_its_station_only_through_station_of_body() -> void:
 	assert_int(_keys.station_target()).is_equal(SWITCH)
 
 
+func test_a_visible_device_whose_use_spot_is_hidden_offers_nothing() -> void:
+	# The device is in plain sight at eye height; a small box low down hides only the line to
+	# the use spot's lifted floor point (the host's StationInSight), clear of the player's body.
+	_place(SWITCH, &"switch", Vector3(0, 0, -0.6))
+	_world.call(&"add_box", Vector3(0, 1.6, -1.2), Vector3(0.4, 0.4, 0.2))
+	_device = _last_box()
+	await _look_at(Vector3(0, 1.6, -1.2))
+	assert_int(_keys.station_target()).is_equal(SWITCH)
+	var eye := _player.get_camera().global_position
+	var floor_point := Items.lifted(_model.stations[SWITCH].position)
+	_world.call(&"add_box", eye.lerp(floor_point, 0.8), Vector3(0.3, 0.05, 0.05))
+	await _frames(2)
+	assert_int(_keys.station_target()).is_equal(-1)
+	assert_int(_keys.interact()).is_equal(-1)
+
+
+func test_e_sends_nothing_once_the_own_player_is_downed_after_the_aim() -> void:
+	await _look_at(TargetChoice.aim_point(_model.stations[SWITCH]))
+	assert_int(_keys.station_target()).is_equal(SWITCH)
+	# Downed between the physics frame that aimed and the frame that reads E.
+	_model.lives[_model.own_peer] = ClientModel.Life.DOWNED
+	assert_int(_keys.interact()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
+
+
 func test_a_box_before_the_use_spot_offers_nothing() -> void:
 	_place(SWITCH, &"switch", Vector3(0, 0, -0.6))
 	# A shelf over the use spot, met before the ray enters its sphere.
