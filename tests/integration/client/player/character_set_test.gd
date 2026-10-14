@@ -54,6 +54,16 @@ func test_broken_ragdoll_data_is_dropped() -> void:
 	)
 
 
+## A body on a bone the skeleton lacks would leave the ragdoll without its pelvis (the builder skips
+## it), standing forever: the data is dropped and the capsule stands in.
+func test_ragdoll_data_on_a_missing_bone_is_dropped() -> void:
+	var data := Fixture.ragdoll()
+	((data["bones"] as Array)[0] as Dictionary)["bone"] = "No.Such.Bone"
+	var character := CharacterSet.from_scene(Fixture.scene(), data)
+	assert_object(character).is_not_null()
+	assert_bool(character.ragdoll.is_empty()).is_true()
+
+
 ## The shipped data: 16 bodies, 15 joints, the downed layer against the world only, each body on a
 ## bone of the import contract, and every key RagdollBuilder reads.
 func test_the_shipped_ragdoll_file() -> void:

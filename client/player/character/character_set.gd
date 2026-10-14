@@ -36,16 +36,32 @@ static func from_scene(packed: PackedScene, data: Dictionary) -> CharacterSet:
 	if packed == null or not packed.can_instantiate():
 		return null
 	var root := packed.instantiate()
-	var has_skeleton := not root.find_children("*", "Skeleton3D", true, false).is_empty()
+	var skeletons := root.find_children("*", "Skeleton3D", true, false)
 	var problems := problems_of(root)
+	var missing := PackedStringArray()
+	if problems.is_empty() and valid_ragdoll(data):
+		missing = missing_bones(skeletons[0] as Skeleton3D, data)
 	root.free()
 	if not problems.is_empty():
-		if has_skeleton:
+		if not skeletons.is_empty():
 			push_warning("CharacterSet: %s: %s" % [packed.resource_path, "; ".join(problems)])
 		return null
+	if not missing.is_empty():
+		push_warning("CharacterSet: the ragdoll names no such bone: %s" % ", ".join(missing))
 	var out := CharacterSet.new()
 	out.scene = packed
-	out.ragdoll = data if valid_ragdoll(data) else {}
+	out.ragdoll = data if valid_ragdoll(data) and missing.is_empty() else {}
+	return out
+
+
+## The bones `data`'s bodies name that `skeleton` lacks: the builder would skip each, and without
+## the parentless one the ragdoll never falls.
+static func missing_bones(skeleton: Skeleton3D, data: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for entry: Variant in data["bones"] as Array:
+		var bone := str((entry as Dictionary).get("bone", "")) if entry is Dictionary else ""
+		if skeleton.find_bone(bone) < 0:
+			out.append(bone)
 	return out
 
 
