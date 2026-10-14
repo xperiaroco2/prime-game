@@ -129,6 +129,38 @@ func test_a_second_deal_binds_again_with_one_wrapper_per_scene() -> void:
 	assert_object(_views.scene_of(G.FIRST_SWITCH)).is_same(_level.get_child(1))
 
 
+func test_each_switch_binds_the_scene_on_its_spot_not_the_first_free_one() -> void:
+	# The level's first two switch scenes swap places: the deal's order no longer follows the
+	# scenes' order, as in a real deal, whose spots come in random order.
+	var first := _level.get_child(1) as Node3D
+	var second := _level.get_child(2) as Node3D
+	var first_at := first.position
+	first.position = second.position
+	second.position = first_at
+	_views.model = G.dealt()
+	await _frames()
+	assert_object(_views.scene_of(G.FIRST_SWITCH)).is_same(second)
+	assert_object(_views.scene_of(G.FIRST_SWITCH + 1)).is_same(first)
+	G.switch_to(_views.model, 0, true)
+	await _frames()
+	assert_bool((second.get_node(^"StationSight/Active/On") as Node3D).visible).is_true()
+	assert_bool((first.get_node(^"StationSight/Active/On") as Node3D).visible).is_false()
+
+
+func test_a_switch_beyond_the_tolerance_of_every_scene_binds_none() -> void:
+	# The first switch scene stands far from every placed switch: no station binds it, so it
+	# shows the fixed look, and the first switch station has no scene.
+	var far := _level.get_child(1) as Node3D
+	far.position += Vector3(10.0, 0.0, 0.0)
+	_views.model = G.dealt()
+	await _frames()
+	assert_object(_views.scene_of(G.FIRST_SWITCH)).is_null()
+	assert_bool((far.get_node(^"Fixed") as Node3D).visible).is_true()
+	assert_int(_views.station_of_body(far.get_node(^"Collision"))).is_equal(-1)
+	for i in range(1, FixtureGeneratorModes.SWITCHES):
+		assert_object(_views.scene_of(G.FIRST_SWITCH + i)).is_same(_level.get_child(i + 1))
+
+
 func test_a_downed_eye_behind_a_wall_sees_no_driven_part() -> void:
 	_views.model = G.dealt()
 	G.switch_to(_views.model, 0, true)
