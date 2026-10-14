@@ -3,6 +3,7 @@
 
 import io
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -1059,7 +1060,8 @@ REPO = "https://github.com/o/r/pull/"
 
 
 def gh_stub(github: dict, calls: list | None = None):
-    """A stand-in for `gh` serving the PR, CI run and issue lists of `github`."""
+    """A stand-in for `gh` serving the PR, CI run and issue lists of `github` (the runs also as metrics.run_pages'
+    pages, in their final shape: the stub plays the `--jq`)."""
 
     def gh(args: list[str]) -> str:
         if calls is not None:
@@ -1067,6 +1069,9 @@ def gh_stub(github: dict, calls: list | None = None):
         for prefix, key in ((["pr", "list"], "prs"), (["run", "list"], "runs"), (["issue", "list"], "issues")):
             if args[:2] == prefix:
                 return json.dumps(github[key])
+        if args[0] == "api" and (page := re.search(r"/actions/workflows/ci\.yml/runs\?.*&page=(\d+)$", args[1])):
+            first = (int(page[1]) - 1) * metrics.RUN_PAGE
+            return json.dumps(github["runs"][first : first + metrics.RUN_PAGE])
         raise AssertionError(f"unexpected gh call: {args}")
 
     return gh
@@ -1314,9 +1319,12 @@ class QualityTest(unittest.TestCase):
     def test_quality_from_github(self) -> None:
         calls: list = []
         github = metrics.read_github(gh_stub(self.GITHUB, calls))
-        self.assertEqual([c[:2] for c in calls], [["pr", "list"], ["run", "list"], ["issue", "list"]])
-        self.assertIn("all", calls[0])
-        self.assertEqual(calls[1][2:4], ["--workflow", "ci.yml"])
+        # The calls run at once (#1014), so they are compared in a set order.
+        listed = sorted(c[1] if c[0] == "api" else " ".join(c[:2]) for c in calls)
+        pages = [f"repos/{{owner}}/{{repo}}/actions/workflows/ci.yml/runs?per_page=100&exclude_pull_requests=true"
+                 f"&page={n}" for n in range(1, 12)]  # fmt: skip
+        self.assertEqual(listed, sorted(["pr list", "issue list", *pages]))
+        self.assertTrue(all("all" in c for c in calls if c[0] in ("pr", "issue")))
         rows = self.rows(github)
         a = rows["wf_a"]
         self.assertEqual((a["merged"], a["ci_runs"], a["ci_red_rounds"], a["ci_red_after_run"]), (True, 5, 2, 1),

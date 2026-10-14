@@ -173,27 +173,65 @@ class TranscriptCacheTest(unittest.TestCase):
 
 
 class ReadGithubTest(unittest.TestCase):
-    """#1014's other half: a warm `metrics` run waits mostly on its three `gh` listings, so they are read at once."""
+    """#1014's other half: a warm `metrics` run waits mostly on `gh`, so its lists, and the run list's ten pages
+    (`gh run list` reads them one after another), are read at once."""
 
-    def test_the_three_lists_are_read_at_once(self) -> None:
-        barrier = threading.Barrier(3, timeout=10)  # passes only when all three calls wait together
+    @staticmethod
+    def kind(args: list[str]) -> str:
+        return "run" if args[0] == "api" else args[0]
+
+    def test_every_list_and_run_page_is_read_at_once(self) -> None:
+        pages = len(metrics.run_pages(metrics.CI_LIST_LIMIT))
+        self.assertEqual(pages, 11)
+        barrier = threading.Barrier(pages + 2, timeout=10)  # passes only when every call waits together
 
         def gh(args: list[str]) -> str:
             barrier.wait()
+            if args[0] == "api":
+                n = int(args[1].rsplit("=", 1)[1])
+                return json.dumps([{"databaseId": n * 1000 + i} for i in range(2)] if n <= 2 else [])
             return json.dumps([{"kind": args[0]}])
 
         github = metrics.read_github(gh)
-        self.assertEqual([github[k] for k in ("prs", "runs", "issues")], [[{"kind": "pr"}], [{"kind": "run"}],
-                                                                           [{"kind": "issue"}]])  # fmt: skip
+        self.assertEqual([github["prs"], github["issues"]], [[{"kind": "pr"}], [{"kind": "issue"}]])
+        self.assertEqual(github["runs"], [{"databaseId": i} for i in (1000, 1001, 2000, 2001)])
+
+    def test_run_pages_ask_for_gh_run_lists_shape(self) -> None:
+        calls = metrics.run_pages(250)
+        self.assertEqual([c[1].rsplit("&page=", 1)[1] for c in calls], ["1", "2", "3", "4"])
+        for c in calls:
+            self.assertEqual(c[0], "api")
+            self.assertTrue(c[1].startswith("repos/{owner}/{repo}/actions/workflows/ci.yml/runs?per_page=100&"))
+            self.assertEqual(c[2], "--jq")
+        jq = calls[0][3]
+        for field, source in (("databaseId", ".id"), ("headBranch", ".head_branch"), ("headSha", ".head_sha"),
+                              ("conclusion", '(.conclusion // "")'), ("createdAt", ".created_at"),
+                              ("attempt", ".run_attempt")):  # fmt: skip
+            self.assertIn(f"{field}: {source}", jq)
+        self.assertIn("event", jq)
+
+    def test_a_run_shifted_onto_the_next_page_counts_once_and_the_list_keeps_its_limit(self) -> None:
+        def gh(args: list[str]) -> str:
+            if args[0] != "api":
+                return "[]"
+            n = int(args[1].rsplit("=", 1)[1])
+            # A new run between the reads: page 2 starts with page 1's last run again.
+            first = (n - 1) * 100 - (1 if n > 1 else 0)
+            return json.dumps([{"databaseId": 5000 - i} for i in range(first, first + 100)])
+
+        runs = metrics.read_github(gh)["runs"]
+        self.assertEqual(len(runs), metrics.CI_LIST_LIMIT)
+        self.assertEqual([r["databaseId"] for r in runs], list(range(5000, 5000 - metrics.CI_LIST_LIMIT, -1)))
 
     def test_a_failure_is_the_first_in_order(self) -> None:
         def gh(args: list[str]) -> str:
             if args[0] == "pr":
                 return "[]"
-            raise Failure(f"gh {args[0]} list failed")
+            raise Failure(f"gh {self.kind(args)} list failed")
 
         with self.assertRaisesRegex(Failure, "gh run list failed"):
             metrics.read_github(gh)
+
 
 if __name__ == "__main__":
     unittest.main()
