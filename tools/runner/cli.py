@@ -658,6 +658,13 @@ def build_parser() -> argparse.ArgumentParser:
         "wait; #558), the average and peak context per API call per agent role and the heavy agents (#584), and the "
         "median and p95 of a tool call's time from its start to its output per class of call (#568). A quick-task "
         "run is a kind of its own (#1012: its rows, medians and quality row apart from the issue-task runs'). "
+        "CI waits (#1019): per run kind and CI role (publisher, quick agent, fixer, rebase and fix agent) the API "
+        "calls that only poll CI (gh pr checks, gh run watch, gh run view without --log), wait on a job (wait) or "
+        "sleep, or end a turn right after one; their list $ by input, cache write, cache read and output, share of "
+        "the role's $ and % of the week; and a poll agent's estimate: each such call at the same model's prices with "
+        "a 16k context (the same input, output and cache write up to 16k, the first call of each wait writing all "
+        "16k, the rest a cache read) plus one launch call per wait at the agent's own $, the saving in % of the week "
+        "and per 7 days at the window's rate against the 1% bar, and a free poll agent's (the launches alone). "
         "--track: each track's share of the week against its --budget, and without --compact its re-write table. "
         "--run: a run's "
         "spend so far, a line of its re-writes when it has one and a line of each agent's context per API call.",
@@ -680,7 +687,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--compact",
         action="store_true",
         help="print only the summary of at most eleven lines (wave comments); its first line ends with the context "
-        "per API call per role and the heavy agents, and its total line ends with the re-write table's count and $",
+        "per API call per role and the heavy agents, its total line ends with the re-write table's count and $, and "
+        "its %% of the week line with the CI waits and a poll agent's saving (#1019)",
     )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
