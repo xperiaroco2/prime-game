@@ -172,7 +172,7 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
 | Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Zone task | A zone (placeholder until the engineer moves it, #651; up from the generator hall, #681) | 0 | 48, 37 | Yard, between the kitchen and the garage |
-| Zone task | A zone (placeholder, #651) | 0 | 52, 20 | Garden |
+| Zone task | A zone (placeholder, #651; 5 m south of its first point, 52, 20, which the art's garden dressing fills, #523) | 0 | 52, 25 | Garden |
 | Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 22, 39 | Attic |
