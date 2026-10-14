@@ -87,6 +87,30 @@ func test_the_rounds_end_freezes_the_bar() -> void:
 	assert_float(frozen).is_equal(5.0)
 
 
+func test_hovering_or_focusing_the_generator_row_lights_nothing_on_the_board() -> void:
+	var type := FixtureGeneratorModes.type_of(_mode)
+	assert_array(Array(_data.zone_of(type.id))).is_empty()
+	var screen := _screen(1000.0)
+	# Hovering a row lights its type (light(), as _process does for the row under the mouse).
+	screen.light(type.id)
+	assert_int(_zones(screen)).is_equal(0)
+	assert_bool(screen.zone_hint.visible).is_false()
+	screen.unlight()
+	# The keyboard's focus on the row's «?».
+	var help := screen.rows_box.get_child(0).find_child("Help", true, false) as Button
+	help.grab_focus()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_int(_zones(screen)).is_equal(0)
+	assert_bool(screen.zone_hint.visible).is_false()
+	get_viewport().gui_release_focus()
+	await get_tree().process_frame
+
+
+func _zones(screen: MapScreen) -> int:
+	return screen.plan.find_children("Zone*", "Panel", true, false).size()
+
+
 func _task(done: int) -> void:
 	var type := FixtureGeneratorModes.type_of(_mode)
 	_model.fold(
