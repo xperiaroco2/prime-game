@@ -1,6 +1,6 @@
 ---
 name: night-audit
-description: One read-only audit lens a night for prime-game (docs drift, decisions vs docs, coverage, flaky tests, dead code by weekday), every finding re-checked by a skeptic before it becomes an issue, and a summary on the "Night jobs" issue. Run by the meta manager as a workflow before each night, or when a human says "night audit" or runs /night-audit with a lens.
+description: One read-only audit lens a night for prime-game (docs drift, decisions vs docs, coverage, flaky tests, dead code by weekday), every finding re-checked by a skeptic before it becomes an issue, and a summary on the "Night jobs" issue. Started each night by the Desktop scheduled task `night-audit` (23:30 local); a manager runs it as a workflow only by hand (a missed night, a lens on its own), or when a human says "night audit" or runs /night-audit with a lens.
 argument-hint: "[docs-drift | decisions | coverage | flaky | dead-code]"
 allowed-tools:
   - Bash(tools/run.sh *)
@@ -50,10 +50,16 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
 - Lenses beyond docs drift are the first thing to drop: the engineer drops them by setting every weekday below to
   `docs-drift`.
 
-## As a workflow
-The meta manager runs the night's lens as a workflow from its own session (the engineer's choice, #302 comment
-6107272934: a scheduled session starts in acceptEdits and stalls on its first permission card), each `agent()`
-call with its lean type (AGENT_WORKFLOW §5, #466).
+## Scheduled, and as a workflow
+The night audit starts by the Desktop scheduled task `night-audit` (daily at 23:30 local, about 20:30Z): its session
+follows the steps below itself, with the subagent of step 4 (the engineer's answer,
+https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6166579802, item 2; it reverses #302 comment
+6107272934). The meta manager does not launch it before the night. A scheduled session starts in acceptEdits: file
+edits pass, but a tool call outside this skill's `allowed-tools` stops on a permission card nobody answers at night,
+so stay inside the steps and tools here (the audit edits no tracked file).
+
+By hand (a missed night, a lens run on its own) a manager runs the lens as a workflow from its own session, each
+`agent()` call with its lean type (AGENT_WORKFLOW §5, #466).
 Bounds: 3 agents, about 100 tool calls split among them (auditor about 60, skeptic about 30, filer about 10), the
 rest of the bounds above. Steps 1 and 2 are the script's or the manager's, not an agent's: a workflow agent starts in
 the manager's checkout, where step 1's own-worktree test would skip the run and a lean type may not switch
