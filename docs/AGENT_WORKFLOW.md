@@ -1389,8 +1389,10 @@ one line each (the key in `metrics.json` in brackets):
 - agents by role and agent type, and how many ran general (#557, `agent_types`);
 - cache re-writes after a `wait` or a CI wait (#555, §11.17, `bounded_waits`) and the tool-call start-up per class of
   call (#568, §8.2, `tool_latency`);
-- manager sessions with their % of the week and their cache re-writes after an idle gap over 1 hour (#305), and the
-  subagents' re-writes after a gap of 5 minutes or more, by what preceded it (#558, `idle`);
+- manager sessions with their % of the week and their cache re-writes after an idle gap over 1 hour (#305), by what
+  held when it began (a foreground call such as a permission card, a timer until its notification or TaskStop, a run
+  not stopped, else a stop; #981), and the subagents' re-writes after a gap of 5 minutes or more, by what preceded
+  it (#558, `idle`);
 - the context per API call of every agent, with the heavy ones (#584, `context_per_call`);
 - the quality scorecard (#314, `quality`): per run, per session and per role setting, blockers and majors, skeptics'
   refutations, "clean" (#315's rule), the publisher's fixes and rounds, and from `gh` (read-only, by default; `--no-gh`
