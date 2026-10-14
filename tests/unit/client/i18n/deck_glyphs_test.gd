@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The game's font draws every character of the copy deck (#549, #208 part c; ARCHITECTURE
 ## §4.7.48): each character of both columns (en, uk) of client/i18n/strings.csv, placeholders
 ## (`{count}`) and line breaks left out, is in the character map of the real Comfortaa file
-## (assets/ui/comfortaa/comfortaa.ttf, #684), read from the file itself with FreeType
-## (FontFile.load_dynamic_font, has_char), never Godot's imported copy.
+## (assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf, #684), read from the file itself with
+## FreeType (FontFile.load_dynamic_font, has_char), never Godot's imported copy.
 ##
 ## A checkout without Git LFS content (CI, §4.7.21) has a pointer file there and imports a stand-in
 ## font in its place, which says nothing of Comfortaa's glyphs: there the check prints a `skip` line
@@ -11,7 +11,7 @@ extends GdUnitTestSuite
 ## pull`), as the local `test` does.
 
 const Check := preload("res://tools/assets/asset_check.gd")
-const FONT := "res://assets/ui/comfortaa/comfortaa.ttf"
+const FONT := "res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf"
 const DECK := "res://client/i18n/strings.csv"
 const PLACEHOLDER := "\\{[^}]*\\}"
 ## The deck's columns the game shows.

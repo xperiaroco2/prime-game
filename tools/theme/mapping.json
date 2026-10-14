@@ -24,7 +24,7 @@
     "default": {"path": "res://client/ui/theme/game_theme.tres", "uid": "uid://c8behqt7jtcn8", "text_size": "default"},
     "large": {"path": "res://client/ui/theme/game_theme_large.tres", "uid": "uid://lpbp5ylhsq6r", "text_size": "large"}
   },
-  "font": {"family": "Comfortaa", "file": "res://assets/ui/comfortaa/comfortaa.ttf", "axis": "wght", "item": "font", "default": "type.body", "metrics": {"size": 1000, "ascent": 881, "descent": 234, "issue": 685}, "issue": 520},
+  "font": {"family": "Comfortaa", "file": "res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf", "axis": "wght", "item": "font", "default": "type.body", "metrics": {"size": 1000, "ascent": 881, "descent": 234, "issue": 685}, "issue": 520},
   "textures": {"folder": "res://assets/ui/toy_pack/", "issue": 520},
   "deprecated": "skip",
   "variation_members": {

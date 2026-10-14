@@ -604,7 +604,9 @@ func test_the_base_must_be_the_packs_reference() -> void:
 func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() -> void:
 	var font: Dictionary = _mapping["font"]
 	assert_str(str(font["family"])).is_equal("Comfortaa")
-	assert_str(str(font["file"])).is_equal("res://assets/ui/comfortaa/comfortaa.ttf")
+	assert_str(str(font["file"])).is_equal(
+		"res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf"
+	)
 	for key: String in ["default", "large"]:
 		var theme := _committed(key)
 		# The pack's font.size.theme-default (#1020; test_base_types_share_the_toy_looks).

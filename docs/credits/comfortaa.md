@@ -1,13 +1,14 @@
 # Comfortaa
 
-- **Files:** `assets/ui/comfortaa/**`, `assets/ui/toy_pack/fonts/**`, `client/ui/theme/pack/fonts/**` (the last
-  two the UI pack's copy, which ui-sync lands from the pinned pack since #1020, ui-0.8.0: the same file byte for
-  byte, the same SHA-256, and its LICENCES.json)
+- **Files:** `assets/ui/toy_pack/fonts/**`, `client/ui/theme/pack/fonts/**` (the UI pack's copy, which ui-sync lands
+  from the pinned pack since #1020, ui-0.8.0, with its LICENCES.json; the theme loads the first; #1045 dropped the
+  older hand-added copy under assets/ui/comfortaa, the same file byte for byte)
 - **Author:** The Comfortaa Project Authors (the source repository google/fonts' `ofl/comfortaa/METADATA.pb` names:
   https://github.com/alexeiva/comfortaa)
 - **Source:** https://github.com/google/fonts/tree/main/ofl/comfortaa (one variable file, `Comfortaa[wght].ttf`,
   `wght` 300 to 700, with Cyrillic; proposed on prime-game-ui#44 at google/fonts commit `db64f6b`), downloaded by the
-  engineer on 2026-10-10 and saved as `assets/ui/comfortaa/comfortaa.ttf` (201,756 bytes; SHA-256
+  engineer on 2026-10-10 and first saved as `assets/ui/comfortaa/comfortaa.ttf`, now
+  `assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (201,756 bytes; SHA-256
   `0fc3f45dc48b614db9c39181502544b37217ecbf8bee2fb35886992bc96c5bd3`)
 - **License:** SIL Open Font License 1.1 (https://openfontlicense.org/), Reserved Font Name "Comfortaa"; shipped
   unmodified; the license text is `docs/credits/licenses/comfortaa/OFL.txt` (https://github.com/google/fonts/blob/main/ofl/comfortaa/OFL.txt),

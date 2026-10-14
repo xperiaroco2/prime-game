@@ -3561,8 +3561,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
 #### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
   icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`; at `ui-0.8.0` (#1020) 23 icons with the CheckBox
-  and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the same file as
-  the font hook's `assets/ui/comfortaa/comfortaa.ttf`, which the theme still loads) in `assets/ui/toy_pack/`, a folder Godot
+  and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the font hook's
+  file since #1045: the theme loads it, `assets/ui/comfortaa/` is gone) in `assets/ui/toy_pack/`, a folder Godot
   imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
   LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
   handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
@@ -3577,7 +3577,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
   §4.7.41); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
-- **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, added in #684 (google/fonts'
+- **The font hook.** `mapping.font.file` is `res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (the pack's copy since #1045;
+  `assets/ui/comfortaa/comfortaa.ttf` before), added in #684 (google/fonts'
   variable `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; a Git LFS file; proposed on prime-game-ui#44).
   `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's `fontWeight`
   on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`), sets it as the
@@ -4355,7 +4356,7 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `ItemInteractions.hint()` keeps the display name). The deck (`ui-0.4.0`) has no key for a map, the House's rooms or
   the `tasks` count setting: they show as before (no key invented, the PR lists them).
 - **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
-  `assets/ui/comfortaa/comfortaa.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
+  `assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
   through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
   (placeholders and line breaks left out) it lacks. In a checkout without LFS content (CI, §4.7.21) the file is a
   pointer and the import a stand-in font: the test prints a `skip:` line naming it and checks only that it is a
@@ -7727,7 +7728,7 @@ assets/
   asset never refers back to them.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
-  to `ui/comfortaa/comfortaa.ttf` (#520).
+  to `ui/toy_pack/fonts/` (#520, #1045).
 - The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
   `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
   file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
