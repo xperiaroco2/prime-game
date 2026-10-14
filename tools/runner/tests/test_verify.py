@@ -546,10 +546,10 @@ class PartTest(unittest.TestCase):
 
     def test_a_red_step_of_a_part_fails_it(self) -> None:
         with stub_steps([], "game"):
-            rc, text, record = Verify(self).run(inline_lane, part="network")
+            rc, text, record = Verify(self).run(inline_lane, part="network-1")
         self.assertEqual(rc, 1)
         self.assertIn(("FAILED", "game"), summary_rows(text))
-        self.assertEqual((record["status"], record["part"]), ("FAILED", "network"))
+        self.assertEqual((record["status"], record["part"]), ("FAILED", "network-1"))
 
     def test_a_full_run_names_no_part_and_an_unknown_part_fails_before_anything_runs(self) -> None:
         with stub_steps([]):
@@ -564,7 +564,7 @@ class PartTest(unittest.TestCase):
         lane.assert_not_called()
 
     def test_a_step_whose_after_step_is_in_no_lane_of_the_run_does_not_wait_for_it(self) -> None:
-        # The network part's first network run waits for selftest-godot (AFTER), which runs in another part: a real
+        # Network-1's first network run (enet) waits for selftest-godot (AFTER), which runs in another part: a real
         # lane process, gated, starts it at once instead of waiting out its lane timeout for a step that never ends.
         tools = str(ROOT / "tools")
         code = (
@@ -588,9 +588,10 @@ class PartTest(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 15)
 
     def test_the_steps_in_flight_of_a_part_wait_for_no_step_outside_it(self) -> None:
-        network = verify.part_lanes("network")
-        self.assertEqual(verify.steps_in_flight({"doctor"}, network), {"check"})
-        self.assertEqual(verify.steps_in_flight({"doctor", "check"}, network), {NETWORK_STEPS[0]})
+        for part in ("network", "network-1"):  # network-1 is the CI part whose first run has an AFTER step outside it
+            network = verify.part_lanes(part)
+            self.assertEqual(verify.steps_in_flight({"doctor"}, network), {"check"})
+            self.assertEqual(verify.steps_in_flight({"doctor", "check"}, network), {NETWORK_STEPS[0]})
         runner = verify.part_lanes("runner")
         self.assertEqual(verify.steps_in_flight({"doctor", "lint"}, runner), {"signal", "check"})
         self.assertEqual(verify.steps_in_flight({"doctor", "lint", "check"}, runner), {"signal", "selftest-godot"})
