@@ -4599,7 +4599,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
   colour; `hand_point()`, `belt_point()` and `carry_point()` return its sockets, so the item views follow the bones
-  (the tree runs in the physics step at AvatarViews' -80, before the item views read them). `AvatarViews` (its
+  (the tree runs in the physics callback; the skeleton applies its pose in its deferred update, so a socket, and an item on
+  it, may show the previous step's bone pose: a one-step lag, accepted). `AvatarViews` (its
   `character` and `mode` set by `Game`) plays each frame `AvatarClips.plan` of the drawn move since its last frame (a
   move faster than `SnapshotBuffer.SNAP_SPEED_MPS` is a placement and counts as none), the pose's yaw and crouch bit
   and the model's hand item. One-shots: `ItemPickedUp` (its `peer`) plays the pick-up, and `ItemPlaced` with the cause

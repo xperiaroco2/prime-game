@@ -7,8 +7,9 @@ extends Node3D
 ##   Carry_Upper, filtered to Torso and every bone below it) -> shot (a OneShot of the pick-up or
 ##   put-down clip) -> output
 ##
-## The tree runs in the physics step (callback PHYSICS), so the bones, and the sockets on them,
-## move in the step the item views read them. No root motion: the clips are in place, the tree
+## The tree runs in the physics callback (PHYSICS); the skeleton applies the pose in its deferred
+## update, so a socket (and an item view on it) may show the previous step's bone pose: a one-step
+## lag, accepted (ARCHITECTURE §4.7.53). No root motion: the clips are in place, the tree
 ## has no root motion track, and the rig node never moves itself; the body's code moves the body.
 ## Its meshes take a tint (the player's body colour, #551; grey for a dead body) multiplied into
 ## each surface's albedo. It has no PhysicalBoneSimulator3D: a living rig is no ray target.
