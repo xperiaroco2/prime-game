@@ -2447,6 +2447,10 @@ class RebaseRuleTest(unittest.TestCase):
 # checkpoint (#559): an implementer past 150k context hands over to a fresh one, at most twice.
 RULE_HEAD = "Checkpoint (checkpoint, #559): keep your context under 150,000 tokens."
 NOTE = "C:/scratchpad/a7/handoff-1.md"
+# #983: the last implementer's stop rule, the follow-up it files, and the publisher's line about it.
+STOP_HEAD = "Checkpoint stop (checkpoint, #983):"
+FOLLOWUP = "https://github.com/xperiaroco2/prime-game/issues/99"
+FOLLOWUP_LINE = "Follow-up (checkpoint, #983):"
 
 
 def handing_over(note: str = NOTE, **extra) -> dict:
@@ -2570,12 +2574,75 @@ class CheckpointTest(unittest.TestCase):
         self.assertIn("You are the last one: do not hand over", third["prompt"])
         self.assertNotIn(RULE_HEAD, third["prompt"])
         self.assertNotIn("handoff", options(third)["schema"]["properties"])
+        # #983: the last one stops and files the rest instead; the first two may not (they hand over).
+        self.assertIn(STOP_HEAD, third["prompt"])
+        self.assertFalse([e for e in impls[:2] if STOP_HEAD in e["prompt"] or "followup" in options(e)["schema"]["properties"]])
         logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
         self.assertTrue(any("handoff 2 of 2" in m for m in logs), logs)
         self.assertTrue(any("handoff ignored: the last implementer may not hand over" in m for m in logs), logs)
         self.assertTrue(calls(result, "review:code"))
         self.assertEqual(result["returned"]["handoffs"], 2)
         self.assertIn(f'"handoffs":["{notes[0]}","{notes[1]}"]', calls(result, "publish")[0]["prompt"])
+        # No follow-up returned: no key, no publisher line.
+        self.assertNotIn("followup", result["returned"])
+        self.assertNotIn(FOLLOWUP_LINE, calls(result, "publish")[0]["prompt"])
+
+    def test_the_last_implementer_stops_at_green_and_files_the_rest(self) -> None:
+        # #983: past the threshold the last implementer stops at its last green commit, files the rest as a follow-up
+        # issue and returns its URL; the reviewers and the publisher run on what is green.
+        notes = [f"C:/scratchpad/a7/handoff-{k}.md" for k in (1, 2)]
+        last = implemented(["tools/runner/x.py"], complete=False, left=["the rest, in #99"], summary="the green part", followup=f" {FOLLOWUP} ")
+        result = run_one("issue-task.js", {}, dict(self.PATHS, queues={"implement": [*(handing_over(n, verify_green=True) for n in notes), last]}))
+        self.assertIsNone(result["error"])
+        third = calls(result, "implement")[2]
+        (rule,) = [p for p in third["prompt"].split("\n\n") if p.startswith(STOP_HEAD)]
+        self.assertTrue(third["prompt"].index(STOP_HEAD) < third["prompt"].index("Do NOT publish"))
+        for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000` every ~15 tool calls and after each verify",
+                      "When it prints HANDOFF NOW, or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript), stop at your last green commit",
+                      "a whole `verify --changed` passed on", "leave no background job", "a WIP commit first, so each has a sha",
+                      "`git reset --hard <that commit>` in your worktree, after the follow-up names each dropped commit's sha",
+                      "`gh issue create --title", "--label <area> --body-file <file under a7/>`", "area:* label", '"Part of #7"',
+                      "done (", "decisions (", "gotchas (", "the verify state (", "Never close, reopen or edit #7.",
+                      "complete false, verify_green true", "followup: the follow-up issue's URL",
+                      "unless ctx printed past 200,000", "No commit since origin/main was ever green: file nothing"):  # fmt: skip
+            self.assertIn(words, rule)
+        self.assertNotIn("playcheck", rule)
+        schema = options(third)["schema"]
+        self.assertEqual(schema["properties"]["followup"], {"type": "string"})
+        self.assertNotIn("followup", schema["required"])
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any(f"the last implementer stopped at its context limit and filed the rest as {FOLLOWUP}" in m for m in logs), logs)
+        self.assertTrue(calls(result, "review:code"))
+        pub = calls(result, "publish")[0]["prompt"]
+        self.assertIn(f"{FOLLOWUP_LINE} the last implementer stopped at its context limit, at its last green commit, and filed the rest as {FOLLOWUP}. The PR says `Part of #7`", pub)
+        out = result["returned"]
+        self.assertEqual((out["followup"], out["handoffs"], out["complete"], out["verify_green"]), (FOLLOWUP, 2, False, True))
+        self.assertNotIn("stopped", out)
+
+    def test_a_followup_only_from_the_last_implementer(self) -> None:
+        # Only the third implementer's schema has the key: an earlier one's (or any with checkpoint: false) is not read.
+        # A red last one still stops the run, and the result names the issue it filed.
+        stray = {"queues": {"implement": [implemented(["tools/runner/x.py"], followup=FOLLOWUP)]}}
+        red_last = [handing_over(verify_green=True), handing_over(verify_green=True), implemented(["tools/runner/x.py"], verify_green=False, verify_tail="FAILED", followup=FOLLOWUP)]
+        first, off, red = run_jobs([
+            ("issue-task.js", dict(ARGS), dict(self.PATHS, **stray)),
+            ("issue-task.js", dict(ARGS, checkpoint=False), dict(self.PATHS, **stray)),
+            ("issue-task.js", dict(ARGS), dict(self.PATHS, queues={"implement": red_last})),
+        ])  # fmt: skip
+        for result in (first, off):
+            self.assertIsNone(result["error"])
+            self.assertNotIn("followup", result["returned"])
+            self.assertNotIn(FOLLOWUP_LINE, calls(result, "publish")[0]["prompt"])
+            self.assertFalse([e for e in agents(result) if STOP_HEAD in e["prompt"]])
+        self.assertIn("verify red after the implementer", red["returned"]["stopped"])
+        self.assertEqual(red["returned"]["followup"], FOLLOWUP)
+        self.assertFalse(calls(red, "publish"))
+
+    def test_the_stop_rule_with_visual(self) -> None:
+        notes = [f"C:/scratchpad/a7/handoff-{k}.md" for k in (1, 2)]
+        result = run_one("issue-task.js", {"visual": True}, dict(self.PATHS, queues={"implement": [handing_over(n, verify_green=True) for n in notes]}))
+        third = calls(result, "implement")[2]
+        self.assertIn('followup: the follow-up issue\'s URL, and playcheck {available: false, pngs: [], notes: "stopped at the context limit"}', third["prompt"])
 
     def test_a_dead_or_red_continuation(self) -> None:
         dead, red = run_jobs([
