@@ -339,9 +339,9 @@ ROLES = {
     "review:code-control": "code-reviewer-control",
     "ab-judge": "ab-judge",
 }
-# The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
 BATCHING_ROLES = ("implementer", "publisher")  # #979: their tool calls per API call on the compact summary
-REVIEWERS =("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
+# The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
+REVIEWERS = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 # Every agent that reports findings: the review table shows them all.
 FINDERS = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
 SEVERITIES = ("blocker", "major", "minor", "nit")
@@ -2340,7 +2340,8 @@ def role_section(counted: list[dict], batching: dict[str, dict] | None = None) -
         rows.append([
             role, g["n"], f"{mins(med(g['wall']))} / {mins(max(g['wall']))}",
             f"{med(g['tool_s']) / max(1.0, med(g['wall'])):.0%}", f"{med(g['calls']):.0f} / {max(g['calls'])}",
-            per_call_text(batching.get(role)), fmt_tok(med(g["fresh"])), f"{fmt_usd(usd(g['tok']))} ({usd(g['tok']) / max(1e-9, usd(grand)):.0%})",
+            per_call_text(batching.get(role)), fmt_tok(med(g["fresh"])),
+            f"{fmt_usd(usd(g['tok']))} ({usd(g['tok']) / max(1e-9, usd(grand)):.0%})",
             ", ".join(g["models"]), ", ".join(g["efforts"]),
         ])
     head = ["role", "agents", "wall min (median / max)", "time in tools", "tool calls (median / max)",
