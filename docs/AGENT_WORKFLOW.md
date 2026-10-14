@@ -1369,6 +1369,9 @@ once; a run counts when its first line is at or after `--since` and its last bef
 past `--until` gives the same tables later. `--session dd93bf79=M4` labels sessions (one label: one stage). It prints
 and writes `tools/out/metrics/metrics.md` and `.json`; the `metrics.py` docstrings (the module's and each table function's) have each table's fields. The tables,
 one line each (the key in `metrics.json` in brackets):
+- per finished `quick-task` run (#1012, `quick_tasks`; its own kind, by the run's saved script name, else the `script` of its saved
+  run record, else its Quick phase, never a resumed `issue-task`): wall, $, the reviewers' blockers and majors, fix agent, PR, CI and CI rounds,
+  their medians, and the quality scorecard's `quick-task` row; on the compact summary as clauses of its lines;
 - per finished `issue-task` run, per session (a stage) and per agent role, from the agent's label (§7.1); the role
   table's tool calls per API call (#979, `tool_calls_per_api_call`; the implementer's and publisher's on the compact
   "task medians" line) and its output $ with their share of the role's $ (#982);

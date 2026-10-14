@@ -654,8 +654,10 @@ def build_parser() -> argparse.ArgumentParser:
         "of the subagents' cache re-writes after an idle gap of 5 min or more per run and per agent (by what preceded "
         "the gap: wait, verify/publish/mutants, a shell sleep, other shell, Monitor, Read or another tool, an API "
         "wait; #558), the average and peak context per API call per agent role and the heavy agents (#584), and the "
-        "median and p95 of a tool call's time from its start to its output per class of call (#568). --track: each "
-        "track's share of the week against its --budget, and without --compact its re-write table. --run: a run's "
+        "median and p95 of a tool call's time from its start to its output per class of call (#568). A quick-task "
+        "run is a kind of its own (#1012: its rows, medians and quality row apart from the issue-task runs'). "
+        "--track: each track's share of the week against its --budget, and without --compact its re-write table. "
+        "--run: a run's "
         "spend so far, a line of its re-writes when it has one and a line of each agent's context per API call.",
     )
     p.add_argument(
