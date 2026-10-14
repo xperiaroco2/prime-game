@@ -1,16 +1,18 @@
 """The transcript cache (#1014): metrics.read_agent's parsed summaries kept per transcript, keyed by path, size and
 mtime, on test_metrics' synthetic project folder (never real transcripts): a hit, a miss on a changed size or mtime,
 a corrupt entry, a version or parser change, a file written while it is read, and every report byte-identical with
-and without the cache."""
+and without the cache; and metrics' GitHub lists read at once."""
 
 import json
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from runner import cli, common, metrics, transcript_cache
+from runner.common import Failure
 from runner.tests.test_metrics import SESSION, UNTIL, Fixture, assistant, usage
 
 WINDOWS = [(None, UNTIL), ("2026-10-02T08:20:00Z", UNTIL), ("2026-10-02T08:01:00Z", "2026-10-02T08:30:00Z")]
@@ -169,6 +171,29 @@ class TranscriptCacheTest(unittest.TestCase):
         self.assertEqual(seen, [common.TRANSCRIPT_CACHE])
         self.assertIsNone(transcript_cache.folder())
 
+
+class ReadGithubTest(unittest.TestCase):
+    """#1014's other half: a warm `metrics` run waits mostly on its three `gh` listings, so they are read at once."""
+
+    def test_the_three_lists_are_read_at_once(self) -> None:
+        barrier = threading.Barrier(3, timeout=10)  # passes only when all three calls wait together
+
+        def gh(args: list[str]) -> str:
+            barrier.wait()
+            return json.dumps([{"kind": args[0]}])
+
+        github = metrics.read_github(gh)
+        self.assertEqual([github[k] for k in ("prs", "runs", "issues")], [[{"kind": "pr"}], [{"kind": "run"}],
+                                                                           [{"kind": "issue"}]])  # fmt: skip
+
+    def test_a_failure_is_the_first_in_order(self) -> None:
+        def gh(args: list[str]) -> str:
+            if args[0] == "pr":
+                return "[]"
+            raise Failure(f"gh {args[0]} list failed")
+
+        with self.assertRaisesRegex(Failure, "gh run list failed"):
+            metrics.read_github(gh)
 
 if __name__ == "__main__":
     unittest.main()

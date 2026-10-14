@@ -302,6 +302,7 @@ import statistics
 import subprocess
 import time
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -2007,13 +2008,20 @@ def gh_list(gh, args: list[str]) -> list[dict]:
 
 
 def read_github(gh=_gh) -> dict:
-    """What the quality scorecard reads from GitHub (read-only): every PR, the runs of CI_WORKFLOW, every issue."""
-    prs = gh_list(gh, ["pr", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
-                       "number,url,title,body,headRefName,state,createdAt,mergedAt"])  # fmt: skip
-    runs = gh_list(gh, ["run", "list", "--workflow", CI_WORKFLOW, "--limit", str(CI_LIST_LIMIT), "--json",
-                        "databaseId,event,headBranch,headSha,conclusion,createdAt,attempt"])  # fmt: skip
-    issues = gh_list(gh, ["issue", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
-                          "number,title,body,createdAt"])  # fmt: skip
+    """What the quality scorecard reads from GitHub (read-only): every PR, the runs of CI_WORKFLOW, every issue.
+
+    #1014: the three lists are read at once (each `gh` call waits about 15 s on the network, most of a warm run's
+    time); a failure is the first one's in this order, as when they were read one after another."""
+    listings = (
+        ["pr", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
+         "number,url,title,body,headRefName,state,createdAt,mergedAt"],
+        ["run", "list", "--workflow", CI_WORKFLOW, "--limit", str(CI_LIST_LIMIT), "--json",
+         "databaseId,event,headBranch,headSha,conclusion,createdAt,attempt"],
+        ["issue", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json", "number,title,body,createdAt"],
+    )  # fmt: skip
+    with ThreadPoolExecutor(max_workers=len(listings)) as pool:
+        futures = [pool.submit(gh_list, gh, args) for args in listings]
+    prs, runs, issues = (f.result() for f in futures)
     # A run list at its limit misses older runs: a PR opened before its oldest run has unknown CI rounds.
     oldest = min((t for r in runs if (t := stamp(r.get("createdAt"))) is not None), default=None)
     cut = [name for name, lst, limit in (("PRs", prs, GH_LIST_LIMIT), ("CI runs", runs, CI_LIST_LIMIT),
