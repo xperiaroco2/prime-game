@@ -171,6 +171,25 @@ class TranscriptCacheTest(unittest.TestCase):
         self.assertEqual(seen, [common.TRANSCRIPT_CACHE])
         self.assertIsNone(transcript_cache.folder())
 
+    def test_the_cli_caches_only_while_wave_runs(self) -> None:
+        from runner import wave, wave_stall
+
+        runs = (
+            (wave, ["wave", "--since", "2026-10-01T00:00:00Z", "--no-merge-check"]),
+            (wave_stall, ["wave", "--stalled"]),
+        )
+        for module, argv in runs:
+            seen = []
+
+            def main(*_args, **_kwargs) -> int:
+                seen.append(transcript_cache.folder())
+                return 0
+
+            with self.subTest(argv=argv), mock.patch.object(module, "main", side_effect=main):
+                self.assertEqual(cli.main(argv), 0)
+                self.assertEqual(seen, [common.TRANSCRIPT_CACHE])
+                self.assertIsNone(transcript_cache.folder())
+
 
 class ReadGithubTest(unittest.TestCase):
     """#1014's other half: a warm `metrics` run waits mostly on `gh`, so its lists, and the run list's ten pages
