@@ -1498,7 +1498,11 @@ the background into a log and polls it with `wait <log>` (§11.17). The rest of 
 its steps, lanes, `AFTER` order, output and record work: the docstrings of `tools/runner/verify.py`, `slots.py`,
 `load.py`, `suspend.py`, `common.py` and `verify --help`; the measurements behind them: git history.
 **CI:** `.github/workflows/ci.yml` runs `tools/run.sh verify --full` on ubuntu-24.04 in parts at once (#857), a job
-per part of `verify.PARTS` (`verify --full --part <name>`), each with its own reports artifact. The job named
+per part of `verify.PARTS` (`verify --full --part <name>`), each with its own reports artifact. Since #980 `test`
+runs there as its two halves, the parts `test-1` and `test-2` (`verify.HALVES`): every script of a run without paths
+is in one half (`gdunit.half_of`: `FIXED_FPS_SUITES` and the folders of `gdunit.HALF_ONE` the first, the rest the
+second; a runner test checks the halves against that run), so each suite runs once on CI; a local `verify --full`
+keeps the one `test` step. The job named
 `verify` needs every part (`if: always()`) and is green only when every part's job was. A second job, `python-min`
 (#349), runs `selftest --group python` on the pinned minimum Python (`pins --get python_min`), since 3.12-only code
 once broke `verify` on 3.11 (#345). Both are required checks of `main` (§8.5), so neither `merge` nor a human's merge
@@ -1644,6 +1648,8 @@ one-process run (exit code, `results.xml`, orphans named), a shard whose `user:/
 merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
 declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
 processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+CI's two test parts (#980) each shard one half of the suites so (`gdunit.main(half=1|2)`), counted against the scan
+of that half, and keep their times under cache keys of their own (`gdunit-times-<part>-`).
 
 ### 11.20 The frame-bound suites at fixed fps [applied, the default without paths] (#280, #341)
 Suites run with the

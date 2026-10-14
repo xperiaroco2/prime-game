@@ -7,7 +7,8 @@ no test: every test runs on CI, whose job runs `verify --full`. Its record's "mo
 agent's shell): its `lint` step is `lint --changed`, the gdformat and gdlint of the changed GDScript only, its summary
 row and record say so (step_note, step_detail); `--full` and CI never narrow it. The rest of this docstring is
 `verify --full` (exactly what CI runs, in parts: `verify --full --part <name>` runs doctor and only that part's steps
-of PARTS, and CI runs each part in a job of its own, #857).
+of PARTS, and CI runs each part in a job of its own, #857; there `test` is two steps, test-1 and test-2, a half of
+the suites each in a part of its own, #980).
 
 `doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
@@ -194,9 +195,11 @@ AFTER: dict[str, tuple[str, ...]] = {
 # every other Godot run as in one machine's run (AFTER); selftest and selftest-godot share a part, as the count check
 # compares both groups' results of one run with one serial discovery. Grouped by CI's step seconds of 2026-10-11 (run
 # 38165201035, the whole job 12.7 min): test 427 s, the network, bots and chaos runs and game 290 s together, lint 104 s
-# and selftest 104 s beside check 25 s and selftest-godot 61 s; so `test` alone is the longest part.
+# and selftest 104 s beside check 25 s and selftest-godot 61 s; so `test` alone was the longest part. It grew to 757 s
+# (run 38525315154, 2026-10-14, the job 13.4 min), so since #980 CI runs it as its two halves (HALVES), a part each.
 PARTS: dict[str, tuple[str, ...]] = {
-    "test": ("check", "test"),
+    "test-1": ("check", "test-1"),
+    "test-2": ("check", "test-2"),
     "network": (
         "check",
         "enet",
@@ -215,6 +218,10 @@ PARTS: dict[str, tuple[str, ...]] = {
     ),
     "runner": ("lint", "signal", "check", "selftest", "selftest-godot"),
 }
+# A step of LANES that CI's parts run as these steps instead, between them every test of it once (#980): `test` as its
+# two halves (gdunit.half_of). A part's step of these takes the step's place in its lane (part_lanes); a run of the
+# whole of LANES (a local `verify --full`) runs the one step, so it is no slower for the split.
+HALVES: dict[str, tuple[str, ...]] = {"test": ("test-1", "test-2")}
 # A part run's summary line (and its record's "part"); metrics.PART_RUN reads it, so a part's total is no full run's.
 PART_LINE = "part {part} of verify --full: {names}"
 # The steps whose results the count check compares with one serial discovery: it runs only where both ran.
@@ -365,6 +372,9 @@ def steps() -> dict[str, Callable[[], int]]:
         "check": lambda: check.main(verbose=True),
         # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
         "test": lambda: gdunit.main(run_import=False),
+        # Its halves (#980), CI's parts test-1 and test-2: every suite of `test` in exactly one of them
+        "test-1": lambda: gdunit.main(run_import=False, half=1),
+        "test-2": lambda: gdunit.main(run_import=False, half=2),
         "enet": enet,
         "freeze": freeze,
         "stall": stall,
@@ -476,7 +486,7 @@ def step_detail(name: str) -> dict[str, object] | None:
     Windows refused while it ran (common.take_starts, #441), and the `check` step's `exit_crash`, whether its project
     check passed although Godot crashed at exit (check.take_exit_crashes, #442, #449): written true or false on every
     check step since #449, so a record without it is known to predate the field."""
-    detail = dict(gdunit.take_last_run() or {}) if name == "test" else {}
+    detail = dict(gdunit.take_last_run() or {}) if name in ("test", *HALVES["test"]) else {}
     scope = lint.take_scope()  # `lint --changed`'s scope (#859), taken after every step as the crashes below
     if name == "lint":
         detail.update(scope)
@@ -1404,11 +1414,21 @@ def steps_in_flight(ended: set[str], lanes: dict[str, tuple[str, ...]] | None = 
 
 
 def part_lanes(part: str) -> dict[str, tuple[str, ...]]:
-    """A part's lanes (#857): each lane of LANES with only the part's steps, in their order there; no empty lane."""
+    """A part's lanes (#857): each lane of LANES with only the part's steps, in their order there, a step's HALVES
+    in the part in its place (#980); no empty lane."""
     if part not in PARTS:
         raise Failure(f"verify: no part {part!r} (the parts: {', '.join(PARTS)})")
-    lanes = {lane: tuple(name for name in names if name in PARTS[part]) for lane, names in LANES.items()}
+    lanes = {
+        lane: tuple(step for name in names for step in (name, *HALVES.get(name, ())) if step in PARTS[part])
+        for lane, names in LANES.items()
+    }
     return {lane: names for lane, names in lanes.items() if names}
+
+
+def part_order(part: str) -> tuple[str, ...]:
+    """A part run's summary order: doctor, then the part's steps in STEP_ORDER, a step's HALVES in its place."""
+    names = (step for name in STEP_ORDER for step in (name, *HALVES.get(name, ())))
+    return tuple(name for name in names if name == "doctor" or name in PARTS[part])
 
 
 def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
@@ -1479,7 +1499,7 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: 
     lanes, order = (LANES, STEP_ORDER) if full else (FAST_LANES, FAST_ORDER)
     if part is not None:
         lanes = part_lanes(part)
-        order = tuple(name for name in STEP_ORDER if name == "doctor" or name in PARTS[part])
+        order = part_order(part)
     part_line = PART_LINE.format(part=part, names=", ".join(order[1:])) if part is not None else ""
     run_id = uuid.uuid4().hex
     os.environ[RUN_ID_VAR] = run_id  # the lane processes inherit it; their selftest results carry it

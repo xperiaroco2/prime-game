@@ -632,6 +632,107 @@ class FixedFpsTest(Fixture):
         self.assertIn("at --fixed-fps 60 by tools/out/logs/gdunit-times.json", text)
 
 
+class HalvesTest(Fixture):
+    """`test`'s halves (#980): CI's parts test-1 and test-2 (verify's steps of the same names) run one half each of
+    a run without paths, sharded and clocked as it is; between them every script once."""
+
+    A, B = "res://tests/unit/a_test.gd", "res://tests/unit/b_test.gd"
+    C, D = "res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd"
+
+    def setUp(self) -> None:
+        super().setUp()
+        patch = mock.patch.object(gdunit, "HALF_ONE", ("res://tests/integration/",))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def selected(self) -> list[str]:
+        return [item for call in self.calls for item in call["selected"]]
+
+    def suites_of(self, items: list[str]) -> list[str]:
+        return sorted(item for item in items if SUITES.get(item))
+
+    def step_run(self, name: str) -> list[str]:
+        """What verify's step ran, in CI's 2 shards: every script given to GdUnit4."""
+        self.calls.clear()
+        with mock.patch.object(gdunit, "default_shards", return_value=2), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(verify.steps()[name](), 0)
+        return self.selected()
+
+    def test_the_two_halves_are_the_run_without_paths_every_script_in_one(self) -> None:
+        tests = self.root / "tests"
+        one, two = gdunit.half_scripts(1, tests), gdunit.half_scripts(2, tests)
+        self.assertEqual(one, ["res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd",
+                               "res://tests/integration/outside.gd"])  # fmt: skip
+        self.assertEqual(sorted(one + two), sorted(gdunit.script_files(gdunit.selectors(None, tests))))
+        self.assertTrue(set(one).isdisjoint(two))
+
+    def test_verifys_halves_run_between_them_what_its_test_step_runs_each_script_once(self) -> None:
+        # The acceptance test of #980: the union of CI's two test parts is the one `test` step, with no overlap.
+        whole = self.step_run("test")
+        one, two = self.step_run("test-1"), self.step_run("test-2")
+        self.assertEqual(sorted(one + two), sorted(whole))
+        self.assertEqual(len(one + two), len(set(one + two)), "no script in both halves, nor twice in one")
+        self.assertEqual(self.suites_of(one), [self.C, self.D])
+        self.assertEqual(self.suites_of(two), [self.A, self.B])
+
+    def test_a_half_runs_in_shards_judged_against_its_own_scan(self) -> None:
+        rc, text = self.run_test(shards=2, half=2)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(sorted(call["log"] for call in self.calls), ["test-shard1", "test-shard2"])
+        self.assertIn("test: half 2 of 2 of a run without paths (gdunit.half_of, #980): 4 scripts", text)
+        self.assertIn("2 suites and 3 test cases ran in 2 processes; a one-process scan finds 2 suites with 3", text)
+        times = json.loads((self.root / "tools" / "out" / "logs" / "gdunit-times.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(times["suites"]), [self.A, self.B])
+
+    def test_a_half_in_one_process_runs_only_its_scripts(self) -> None:
+        rc, text = self.run_test(shards=1, half=1)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual([call["log"] for call in self.calls], ["test"])
+        self.assertEqual(self.selected(), gdunit.half_scripts(1, self.root / "tests"))
+        self.assertEqual(self.calls[0]["args"][-4:], ["-rd", "res://tools/out/gdunit", "-rc", "1"])
+
+    def test_the_listed_suites_are_in_the_first_half_and_the_second_has_no_fixed_fps_shard(self) -> None:
+        with mock.patch.object(gdunit, "HALF_ONE", ()), mock.patch.object(gdunit, "FIXED_FPS_SUITES", (self.C, self.D)):
+            self.assertEqual([gdunit.half_of(res) for res in (self.A, self.C, self.D)], [2, 1, 1])
+            rc, text = self.run_test(shards=2, half=2)
+            self.assertEqual(rc, 0, text)
+            self.assertNotIn("update the list", text, "a listed suite of the other half is not stale")
+            self.assertFalse([call for call in self.calls if "--fixed-fps" in call["args"]])
+            self.calls.clear()
+            rc, text = self.run_test(shards=2, half=1)
+            self.assertEqual(rc, 0, text)
+        self.assertEqual(len(self.calls), 2)
+        self.assertTrue(all("--fixed-fps" in call["args"] for call in self.calls))
+        self.assertEqual(self.suites_of(self.selected()), [self.C, self.D])
+
+    def test_a_half_takes_no_paths_and_there_are_two(self) -> None:
+        with self.assertRaises(gdunit.Failure):
+            self.run_test(paths=["tests/unit"], half=1)
+        with self.assertRaises(gdunit.Failure) as caught:
+            self.run_test(half=3)
+        self.assertIn("no half 3 of `test` (the halves: 1, 2)", str(caught.exception))
+        self.assertEqual(self.calls, [])
+
+
+class RepoHalvesTest(unittest.TestCase):
+    """This repo's halves (#980): CI's two test parts run every suite of a run without paths once between them."""
+
+    def test_the_halves_split_this_repos_tests_with_every_suite_in_one(self) -> None:
+        tests = gdunit.ROOT / "tests"
+        whole = gdunit.script_files(gdunit.selectors(None, tests))
+        one, two = (gdunit.half_scripts(half, tests) for half in gdunit.HALVES)
+        self.assertEqual(sorted(one + two), sorted(whole))
+        self.assertTrue(set(one).isdisjoint(two))
+        suites = [{res for res, found in gdunit.static_suites(half).items() if found} for half in (one, two)]
+        self.assertEqual(suites[0] | suites[1], {res for res, found in gdunit.static_suites(whole).items() if found})
+        for found in suites:  # each half has suites enough for CI's two shards
+            self.assertGreaterEqual(len(found), 2)
+        self.assertLessEqual(set(gdunit.FIXED_FPS_SUITES), suites[0], "the fixed-fps shard is the first half's")
+        for folder in gdunit.HALF_ONE:  # a stale folder would move its share to the second half unseen
+            self.assertTrue(folder.endswith("/"), folder)
+            self.assertTrue(any(res.startswith(folder) for res in suites[0] - set(gdunit.FIXED_FPS_SUITES)), folder)
+
+
 class SplitTest(unittest.TestCase):
     """split_shards (pure), and the list itself against the real project (no ROOT patch)."""
 
