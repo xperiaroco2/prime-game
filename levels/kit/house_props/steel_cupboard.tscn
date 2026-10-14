@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d4csayskoxpdc"]
+
+[ext_resource type="PackedScene" uid="uid://dm3anla22vphe" path="res://assets/environment/house_props/steel_cupboard.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cyj4cw4mah3fn" path="res://levels/kit/house_props/steel_cupboard.steel_cupboard_col0.tres" id="2"]
+
+[node name="steel_cupboard" unique_id=65333932 instance=ExtResource("1")]
+
+[node name="steel_cupboard_col0" type="StaticBody3D" parent="." unique_id=654290385]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="steel_cupboard_col0" unique_id=1457491090]
+shape = ExtResource("2")

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://d2r5bhwclo7xy"]
+
+[ext_resource type="PackedScene" uid="uid://dtpn072d70i1s" path="res://assets/environment/house_props/lift_panel.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cul03wdui51ur" path="res://levels/kit/house_props/lift_panel.lift_panel_col0.tres" id="2"]
+
+[node name="lift_panel" unique_id=1903753717 instance=ExtResource("1")]
+
+[node name="lift_panel_col0" type="StaticBody3D" parent="." unique_id=2135808088]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="lift_panel_col0" unique_id=139630188]
+shape = ExtResource("2")

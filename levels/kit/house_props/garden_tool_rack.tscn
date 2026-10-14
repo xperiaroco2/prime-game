@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://brk533a8hv2cu"]
+
+[ext_resource type="PackedScene" uid="uid://dgaiuplg5jjnx" path="res://assets/environment/house_props/garden_tool_rack.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bsjqn166sx3sx" path="res://levels/kit/house_props/garden_tool_rack.garden_tool_rack_col0.tres" id="2"]
+
+[node name="garden_tool_rack" unique_id=387587984 instance=ExtResource("1")]
+
+[node name="garden_tool_rack_col0" type="StaticBody3D" parent="." unique_id=1922587351]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="garden_tool_rack_col0" unique_id=1801616543]
+shape = ExtResource("2")
