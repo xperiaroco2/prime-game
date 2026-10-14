@@ -19,7 +19,8 @@ extends GdUnitTestSuite
 const HOUSE := "res://levels/house/house.tscn"
 ## The pieces with no tag yet: greybox, no art Shell (until the art's P6).
 const GREYBOX: Array[String] = ["GroundFloor/Garage"]
-## The grid's spacing, and its inset from a footprint's edges (on a wall's foot).
+## The grid's spacing, and its inset from a footprint's edges (on a wall's foot: a denser band hits
+## the exterior walls' tops, which are no floor).
 const STEP_M := 1.0
 const INSET_M := 0.5
 
@@ -48,6 +49,75 @@ func after_test() -> void:
 
 func test_every_floor_of_every_piece_carries_a_surface_tag() -> void:
 	await get_tree().physics_frame
+	var found := _walk()
+	assert_int(found["pieces"]).is_greater(30)
+	var no_floor: Array[String] = found["no_floor"]
+	(
+		assert_array(no_floor)
+		. override_failure_message("no floor found on %s" % ", ".join(no_floor))
+		. is_empty()
+	)
+	var lines := _lines(found["untagged"])
+	(
+		assert_array(lines)
+		. override_failure_message("steps on an untagged floor:\n" + "\n".join(lines))
+		. is_empty()
+	)
+
+
+func test_the_walk_reports_a_piece_whose_tags_are_removed() -> void:
+	# The walk above can fail: strip every tag under the bedroom and it names the bedroom's floor.
+	await get_tree().physics_frame
+	assert_array(_lines(_walk()["untagged"])).is_empty()
+	var bedroom := _house.get_node(^"SecondFloor/Bedroom")
+	var stripped := 0
+	for node: Node in [bedroom] + bedroom.find_children("*", "", true, false):
+		if node.has_meta(FootstepSurface.META):
+			node.remove_meta(FootstepSurface.META)
+			stripped += 1
+	assert_int(stripped).is_greater(0)
+	var lines := _lines(_walk()["untagged"])
+	var named: Array[String] = lines.filter(func(line: String) -> bool: return "/Bedroom:" in line)
+	assert_array(named).is_not_empty()
+
+
+func test_a_tag_is_read_from_an_ancestor_and_a_missing_one_is_the_default() -> void:
+	# The yard's first round spawn stands on the plot's Ground, whose tag is its own; without it the
+	# same ray finds no tag, and FootstepSurface plays its default.
+	await get_tree().physics_frame
+	var space := _house.get_world_3d().direct_space_state
+	var spawn := _house.get_tree().get_nodes_in_group(&"spawn_round_player")[0] as Node3D
+	var hit := _floor_hit(space, spawn.global_position)
+	assert_bool(hit.is_empty()).is_false()
+	if hit.is_empty():
+		return
+	var collider := hit["collider"] as Node
+	assert_str(String(_tag_of(collider))).is_equal("grass")
+	var tagged := collider
+	while not tagged.has_meta(FootstepSurface.META):
+		tagged = tagged.get_parent()
+	tagged.remove_meta(FootstepSurface.META)
+	assert_str(String(_tag_of(collider))).is_equal("")
+	assert_str(String(FootstepSurface.of(collider))).is_equal(String(FootstepSurface.DEFAULT))
+
+
+func test_the_greybox_pieces_have_no_art_shell_yet() -> void:
+	for key: String in GREYBOX:
+		var piece := _house.get_node_or_null(NodePath(key))
+		assert_object(piece).override_failure_message(key).is_not_null()
+		if piece != null:
+			(
+				assert_bool(piece.has_node(^"Shell"))
+				. override_failure_message(
+					"%s has the art's Shell: tag it, drop it from GREYBOX" % key
+				)
+				. is_false()
+			)
+
+
+## The grid walk over every piece: {pieces: the pieces walked, no_floor: the pieces with no floor
+## point, untagged: "piece: collider path" -> the points that step on an untagged collider}.
+func _walk() -> Dictionary:
 	var space := _house.get_world_3d().direct_space_state
 	var untagged: Dictionary[String, int] = {}
 	var no_floor: Array[String] = []
@@ -84,54 +154,15 @@ func test_every_floor_of_every_piece_carries_a_surface_tag() -> void:
 				x += STEP_M
 			if hits == 0:
 				no_floor.append(key)
-	assert_int(pieces).is_greater(30)
-	(
-		assert_array(no_floor)
-		. override_failure_message("no floor found on %s" % ", ".join(no_floor))
-		. is_empty()
-	)
+	return {"pieces": pieces, "no_floor": no_floor, "untagged": untagged}
+
+
+static func _lines(found: Variant) -> Array[String]:
 	var lines: Array[String] = []
+	var untagged := found as Dictionary
 	for where: String in untagged:
 		lines.append("%s (%d points)" % [where, untagged[where]])
-	(
-		assert_array(lines)
-		. override_failure_message("steps on an untagged floor:\n" + "\n".join(lines))
-		. is_empty()
-	)
-
-
-func test_the_check_finds_an_untagged_floor_and_reads_a_tag_from_an_ancestor() -> void:
-	# The check above can fail: the yard's first round spawn stands on the plot's Ground, whose tag
-	# is its own; without it the same ray finds no tag.
-	await get_tree().physics_frame
-	var space := _house.get_world_3d().direct_space_state
-	var spawn := _house.get_tree().get_nodes_in_group(&"spawn_round_player")[0] as Node3D
-	var hit := _floor_hit(space, spawn.global_position)
-	assert_bool(hit.is_empty()).is_false()
-	if hit.is_empty():
-		return
-	var collider := hit["collider"] as Node
-	assert_str(String(_tag_of(collider))).is_equal("grass")
-	var tagged := collider
-	while not tagged.has_meta(FootstepSurface.META):
-		tagged = tagged.get_parent()
-	tagged.remove_meta(FootstepSurface.META)
-	assert_str(String(_tag_of(collider))).is_equal("")
-	assert_str(String(FootstepSurface.of(collider))).is_equal(String(FootstepSurface.DEFAULT))
-
-
-func test_the_greybox_pieces_have_no_art_shell_yet() -> void:
-	for key: String in GREYBOX:
-		var piece := _house.get_node_or_null(NodePath(key))
-		assert_object(piece).override_failure_message(key).is_not_null()
-		if piece != null:
-			(
-				assert_bool(piece.has_node(^"Shell"))
-				. override_failure_message(
-					"%s has the art's Shell: tag it, drop it from GREYBOX" % key
-				)
-				. is_false()
-			)
+	return lines
 
 
 ## Whether the collision shape at `path` (from the House's root) is a floor's: a piece's Shell
@@ -168,8 +199,8 @@ static func _tag_of(collider: Node) -> StringName:
 		if node.has_meta(FootstepSurface.META):
 			var tag: Variant = node.get_meta(FootstepSurface.META)
 			if tag is String or tag is StringName:
-				var name := StringName(tag as String)
-				return name if name in FootstepSurface.SURFACES else &""
+				var surface := StringName(tag as String)
+				return surface if surface in FootstepSurface.SURFACES else &""
 			return &""
 		node = node.get_parent()
 	return &""
