@@ -2602,7 +2602,8 @@ class CheckpointTest(unittest.TestCase):
                       "a whole `verify --changed` passed on", "leave no background job", "a WIP commit first, so all of it has a sha",
                       "(1) keep the work after that commit", "`git update-ref refs/dropped/7-<HEAD's short sha> HEAD`",
                       "(2) file the rest as a follow-up issue: `gh issue create --title", "each dropped commit's sha",
-                      "`git diff --stat <that commit> <the ref>` (the whole diff too", "(3) only then `git reset --hard <that commit>`", "--label <area> --body-file <file under a7/>`", "area:* label", '"Part of #7"',
+                      "`git diff --stat <that commit> <the ref>` (the whole diff too", "(3) only then `git reset --hard <that commit>`", "--label <area> --body-file <file under a7/>`", "area:* label",
+                      "`--milestone \"<its title>\"` when #7 has one", "`gh issue view 7 --json labels,milestone`", '"Part of #7"',
                       "done (", "decisions (", "gotchas (", "the verify state (", "Never close, reopen or edit #7.",
                       "complete false, verify_green true", "followup: the follow-up issue's URL",
                       "If only the final verify and the return are left, finish instead.", "No commit since origin/main was ever green: file nothing"):  # fmt: skip
