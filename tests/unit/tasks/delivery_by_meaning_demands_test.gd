@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## DeliveryByMeaning's demands (#683's ADR DE6, GE10; ARCHITECTURE §9.4, §9.5.24) and its map
+## DeliveryByMeaning's demands (#683's ADR DE6, GE10; ARCHITECTURE §9.4, §9.5.25) and its map
 ## (DE9, `TaskType.maps`): exactly one marker per drop-off tag, per item tag the most items a draw
 ## can put there, no colours; a map the type does not list asks none of its markers and deals it
 ## not.

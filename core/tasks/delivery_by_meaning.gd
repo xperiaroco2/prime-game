@@ -1,6 +1,6 @@
 class_name DeliveryByMeaning
 extends TaskType
-## Delivery by meaning (#683's ADR, ARCHITECTURE §3.3, §7.1.14, §9.5.24): the House's Delivery.
+## Delivery by meaning (#683's ADR, ARCHITECTURE §3.3, §7.1.14, §9.5.25): the House's Delivery.
 ## One shared task of `subtasks_setting` items, each carried to the one place where its kind
 ## belongs (its route's drop-off), not to a colour. Nobody owns the task: any living player
 ## delivers any item. Today's Delivery (colour circles) stays its own class on the greybox (DE15).

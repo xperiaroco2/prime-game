@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## DeliveryByMeaning's deal (#683's ADR §2.1, DD2 (a), DE3, DE5 (b), DE6; ARCHITECTURE §3.3,
-## §9.5.24): the routes shuffled, every route an item before any has two, one station per drop-off
+## §9.5.25): the routes shuffled, every route an item before any has two, one station per drop-off
 ## in use in `routes` order, the items by tag then the markers' level order, everything white.
 
 const P1 := 1

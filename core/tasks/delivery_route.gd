@@ -1,6 +1,6 @@
 class_name DeliveryRoute
 extends ContentPart
-## One row of Delivery by meaning (#683's ADR DE2, ARCHITECTURE §9.5.24): items of `item` go to
+## One row of Delivery by meaning (#683's ADR DE2, ARCHITECTURE §9.5.25): items of `item` go to
 ## the place of `drop_off`. No behaviour: DeliveryByMeaning reads its routes, and its check names a
 ## route with no item or no drop-off. One drop-off may serve several routes; one item kind is in one
 ## route only.

@@ -176,7 +176,7 @@ countdown changes no scene and places nobody.
   §9.5.4): circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
   bound to a random circle of its own, whose colour it takes (`tasks`). The House's Delivery by meaning (`delivery`,
-  #828, §9.5.24): the routes shuffled (`tasks`), *packages* items split over them so every route has one before any has
+  #828, §9.5.25): the routes shuffled (`tasks`), *packages* items split over them so every route has one before any has
   a second; a white drop-off station on the one marker of each drop-off that got an item, its station ids in `routes`
   order (not the level's); the items on distinct random free markers of their spawn tag and which item takes which
   marker (`packages`), item ids in the markers' level order; subtask *i* is item *i*. The zone task's deal (#647, §9.5.18): one task
@@ -5573,7 +5573,7 @@ point `core/` knows of an item: the centre of its base on the surface it rests o
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
 
-Delivery by meaning (the House's, #828, §9.5.24) runs the same check with a drop-off for the circle: an item of an
+Delivery by meaning (the House's, #828, §9.5.25) runs the same check with a drop-off for the circle: an item of an
 undone subtask resting on the ground inside its own route's drop-off (the same `StationState.contains`, radius 1 m,
 height 2 m placeholder) is delivered and locked. An item resting in another route's drop-off, or any other item there,
 does nothing (the engineer's DD5 (a)). One drop-off may take several items: it is shown as done only once every item
@@ -6288,7 +6288,7 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag (empty for a kind no deal places, one only given or changed into: each part that places a kind on markers, `SpawnItems` and `Delivery's package, refuses one without a tag in its own check; the cooking ADR's CE18 (a), #780), and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5), and `vanish_seconds` (0, never, or 1 to 3600: how long it may lie before it vanishes, `VanishTicks`, #779), `max_items` (0, no cap, or 1 to `MatchState.MAX_ITEM_ID`, a technical bound: the most of the kind at once, which `GiveItem` keeps by vanishing the loose one that lay longest, the cooking ADR's CE3, #770) and `target_actions` (its rules on an intent naming one of its items on the ground, `Interact`'s `item`, §9.2: a box's take, CE1, #770) | `ItemKind` | `content/items/` | Package, Knife; Wine, Oil, Gnome, Parasol (the House's Delivery, #828) |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order; a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery (by meaning, the House's, §9.5.24), Delivery by colours (`colour_delivery`, the greybox's, §9.5.4) |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order; a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery (by meaning, the House's, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's, §9.5.4) |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)); since #770 `Interact` may name an item on the ground too, routed to its kind's `target_actions` (a cooking box) | | packages and knives on the ground |
@@ -6510,8 +6510,8 @@ Settings:
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
-  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.24).
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.24), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); Hold
+  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25).
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
@@ -6575,7 +6575,7 @@ Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Test
 #### 9.5.4 Delivery by colours (task type)
 **The greybox's Delivery** (#683, the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md),
 answered and approved by the engineer on PR #713; built in #828): the House plays a second task type,
-`DeliveryByMeaning` (§9.5.24): items of several kinds, each carried to its own drop-off by what it is, with no
+`DeliveryByMeaning` (§9.5.25): items of several kinds, each carried to its own drop-off by what it is, with no
 colours and no marker through walls. It took the id `delivery` and the file `content/tasks/delivery.tres` (DE15 (i)),
 so the copy deck's `task.delivery` and the how-to card follow the Delivery players play. This entry, today's Delivery,
 moved unchanged but for its id and `maps` to `content/tasks/colour_delivery.tres` (id `colour_delivery`, display
@@ -6632,7 +6632,7 @@ check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 #### 9.5.5 Package (item kind)
 What it does: the item a subtask of the greybox's Delivery by colours moves; any living player may carry any
 package. The House's Delivery by meaning carries four other kinds built the same way (spawn tag `package`, `hands`
-2, no actions): Wine, Oil, Gnome and Parasol (§9.5.24, #828).
+2, no actions): Wine, Oil, Gnome and Parasol (§9.5.25, #828).
 Settings: id `package`; display name "Package"; spawn tag `package`; `hands` 2 (M4-5, vision revision 1: never on
 the belt, and a carrier cannot swap); actions: none, so `Use` with a package in hand is rejected (`nothing_to_do`).
 Placed by Delivery.
@@ -7312,7 +7312,7 @@ content/
   modes/tutorial_mode.tres         the tutorial's solo session (§9.5.17, #600), on levels/tutorial/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
-  items/wine.tres, oil.tres, gnome.tres, parasol.tres   the House's Delivery items (#828, §9.5.24)
+  items/wine.tres, oil.tres, gnome.tres, parasol.tres   the House's Delivery items (#828, §9.5.25)
   tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
   tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
@@ -7576,7 +7576,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
-  Delivery by meaning (#828, §9.5.24) has no bot scenario either: it plays on the House alone (DD9 (c)). The greybox,
+  Delivery by meaning (#828, §9.5.25) has no bot scenario either: it plays on the House alone (DD9 (c)). The greybox,
   where every scenario, the chaos bots and `bots` play, keeps today's Delivery by colours (`colour_delivery`, §9.5.4),
   so no scenario changed; the House's Delivery is tested without bots: its unit tests on fixture modes, its markers in
   `house_markers_test.gd`, and both tasks dealt and the crew's win on the House in `house_zone_test.gd` (below).
