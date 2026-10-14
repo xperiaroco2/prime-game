@@ -18,10 +18,10 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
     plan x = X, plan y = Z, no rotation;
   - a room declares `metadata/size_m = Vector2i(w, d)`, its record (#306: `room_id`, `name_key`), its door
     openings as `Marker3D` under `Doors`, its stations as sub-scenes; a test checks the map against the design doc.
-- House rooms are the art's (prime-game-art P1-P5, P7, #523): its `Shell` (kit wrappers, see Assets), `Dressing`,
-  `Detail` inside the game's piece (origin, `size_m`, record, `Doors`, `Stations`, `Markers`); the plot is
-  `house/outdoor.tscn`. No door opens in M7 (E4): a kit door or gate on a walk sets `collision_layer = 0` on its
-  wrapper's collider bodies. The garage stays greybox (box meshes, `levels/kit/` materials, a `Label3D`) until P6.
+- House rooms are the art's (P1-P7, #523, #1052): its `Shell` (kit wrappers, see Assets), `Dressing`, `Detail`
+  inside the game's piece (origin, `size_m`, record, `Doors`, `Stations`, `Markers`); the plot is `house/outdoor.tscn`.
+  No door opens in M7 (E4): a kit door or gate on a walk sets `collision_layer = 0` on its wrapper's collider bodies.
+  An override inside an instance (a material, a body's layer) needs its `[editable path]`, or a re-save drops it (#1056).
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
   `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1

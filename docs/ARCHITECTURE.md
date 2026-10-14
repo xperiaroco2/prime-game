@@ -4083,8 +4083,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
     The House's floors carry their tags (#523, the content area: the art's Shell pieces and the plot's Ground);
     `tests/integration/levels/house_footstep_surface_test.gd` casts this ray on a 1 m grid over every piece's
-    floor in the client's world of the House and asks for a tag on every floor hit (the greybox garage skipped
-    until the art's P6; #1042).
+    floor in the client's world of the House and asks for a tag on every floor hit (the garage too since the
+    art's P6, #1052; #1042).
 - `client/ui/`: `UiSounds.click`, from `ToyPress.on_button_down` (every Toy button and toggle: `UiParts.button`,
   `UiParts.toggle`, the connecting screen's back ghost, the map's help, the theme showcase): a mouse or touch
   press or `ui_accept`, never hover, release or a toggle's change alone; a disabled button sends no
@@ -5975,7 +5975,7 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk; it stays locked until the art's walkable stair under a
   longer hatch replaces the ladder, prime-game-art#183, and its knife marker moved to the pump room, #523); a flood fill of the
   crouched capsule from the `round_player` spawn markers over those pieces' walked colliders (the art rooms' `Shell`
-  floor, slab and stair pieces, the plot's ground, the greybox garage's `Floor` and step boxes; each spot named
+  floor, slab and stair pieces, the garage's among them since the art's P6, #1052, and the plot's ground; each spot named
   after the smallest piece whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`,
   any drop) gives the spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
   `Strike` of the base mode's item kinds (read from the data) knocks a body down in 8 directions, and each rest must
@@ -7787,6 +7787,14 @@ assets/
   vanished" warnings (11 million log lines on the first CI run).
   Tests: `tools/runner/tests/test_colliders.py` (in `selftest`); the House's level tests and `game_loop_test` pass
   in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
+  An override of a node inside an instance (a Shell, Dressing or Detail material, a collider's layer) survives a
+  re-save (the editor's, `normalize`'s) only with its instance's `[editable path]` entry (#1056; `levels/CLAUDE.md`).
+  The garage (the art's P6, #1052) keeps the art's car, lift posts and lift arms as separate wrapper instances
+  under `Dressing`, for car repair's R5 (#809); its 8 m gate's leaf is an opening (layer 0, E4) under its lintel.
+  The art has no garage roof, so the room is open above (the greybox's ceiling collider is gone; adding one is
+  the engineer's call).
+  Tests: `tests/integration/levels/house_garage_test.gd` (the lift pieces and their colliders at the art handoff's
+  points, the panel, picture and station points, the gate, and every override with its editable path).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
   locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
   (the art pipeline's step 15).

@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://crvq4x4xguql4"]
+
+[ext_resource type="PackedScene" uid="uid://llp5yrsgx17w" path="res://assets/environment/house_props/air_compressor.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://0ppv681qdchq" path="res://levels/kit/house_props/air_compressor.air_compressor_col0.tres" id="2"]
+
+[node name="air_compressor" unique_id=1747780586 instance=ExtResource("1")]
+
+[node name="air_compressor_col0" type="StaticBody3D" parent="." unique_id=1337265666]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="air_compressor_col0" unique_id=413905934]
+shape = ExtResource("2")
