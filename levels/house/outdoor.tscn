@@ -3261,3 +3261,6 @@ collision_layer = 0
 
 [node name="fence_gates_8m_col2" parent="Shell/fence_gates_8m_1/fence_gates_8m_leaf_r"]
 collision_layer = 0
+
+[node name="fence_wicket_2m_col5" parent="Shell/fence_wicket_2m_1/fence_wicket_2m_leaf"]
+collision_layer = 0
