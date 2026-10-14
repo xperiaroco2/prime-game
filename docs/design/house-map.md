@@ -222,7 +222,7 @@ are his, approved as drafted
 Delivery plays on the House only: the greybox, a test bench only (#767), keeps today's colour-matched Delivery as far
 as its bot scenarios and the information-leak test need it, and gets no drop-offs (DD9 (c) of the
 [Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), the same comment). The House's circle
-markers went with the ADR's D4 (#831), all but the study's, which the study's owner (#783) leaves to a follow-up. Each
+markers went with the ADR's D4 (#831), all but the study's, which the study's owner (#783) leaves to a follow-up (#1059). Each
 drop-off's furniture is the art's dressing where the art gives it (the rows above), with layer-1 colliders: an item
 put on a top rests inside the drop-off's cylinder (`tests/integration/levels/house_drop_offs_test.gd`). The two
 tables differ at a glance: the long indoor one with eight chairs, the small outdoor one with four and the empty

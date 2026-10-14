@@ -7536,8 +7536,7 @@ carries them over the wire), `tests/unit/client/ui/lobby_panel_maps_test.gd` and
 neither the tutorial's); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
 spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; an item put on each drop-off's
 furniture rests inside its cylinder (#831) in `tests/integration/levels/house_drop_offs_test.gd`; both tasks
-dealt and the round won
-on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
+dealt and the round won on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
 plays it: the scenarios and the leak test play the greybox's Delivery by colours (§9.7).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)

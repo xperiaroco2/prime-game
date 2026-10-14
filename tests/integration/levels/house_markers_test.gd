@@ -3,16 +3,15 @@ extends GdUnitTestSuite
 ## host's marker reader in the host's world of the map, its markers raise no error (each station
 ## marker, a drop-off, a zone or the study's last circle, stands on a floor; no marker has two
 ## tags) and the layout check of a mode that plays on it finds nothing missing for the mode's
-## maximum of players. Its zone markers (#651,
-## M7-Z5; ZD10 (a), provisional until the engineer moves them) keep ZE9's spacing, fit the mode
-## at the most zones and packages, and each zone's cylinder stands on flat floor clear of walls,
-## ceilings and furniture (the convention in `levels/CLAUDE.md`, checked here in the host's
-## collision world; a `shot` still shows it). Its round and respawn markers, read as placed, each
-## stand a player on the floor under it with a standing capsule clear of the level (#1042). The
-## House is the base mode's second map (#626); the scenarios play only its flat first map
-## (ARCHITECTURE §9.7), whose fake world is one flat floor. The zone checks read the zone task
-## from FixtureBaseModeWithZones: the engineer took it out of the shipped base mode on #842, and
-## the House keeps its zones.
+## maximum of players. Its zone markers (#651, M7-Z5; ZD10 (a), provisional until the engineer
+## moves them) keep ZE9's spacing, fit the mode at the most zones and packages, and each zone's
+## cylinder stands on flat floor clear of walls, ceilings and furniture (the convention in
+## `levels/CLAUDE.md`, checked here in the host's collision world; a `shot` still shows it). Its
+## round and respawn markers, read as placed, each stand a player on the floor under it with
+## a standing capsule clear of the level (#1042). The House is the base mode's second map
+## (#626); the scenarios play only its flat first map (ARCHITECTURE §9.7), whose fake world
+## is one flat floor. The zone checks read the zone task from FixtureBaseModeWithZones: the
+## engineer took it out of the shipped base mode on #842, and the House keeps its zones.
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"
@@ -46,8 +45,8 @@ func test_the_markers_are_the_engineer_s_counts() -> void:
 	assert_int(layout.count(&"round_player")).is_equal(10)
 	assert_int(layout.count(&"package")).is_equal(10)
 	# Today's colour Delivery deals on the greybox alone (DE9), so the House's ten circles went
-	# (#831), all but the study's Circle10: the study has its own owner (#783, PR #1058), and its
-	# follow-up removes it, this count then 0.
+	# (#831), all but the study's Circle10: the study has its own owner (#783, PR #1058), and the
+	# follow-up #1059 removes it, this count then 0.
 	assert_int(layout.count(&"circle")).is_equal(1)
 	assert_int(layout.count(&"knife")).is_equal(4)
 	assert_int(layout.count(&"respawn")).is_equal(4)
