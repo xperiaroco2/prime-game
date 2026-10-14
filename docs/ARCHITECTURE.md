@@ -7834,9 +7834,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   highest top a player can put it on: the table or the bench, D4's), and one put down in the room past the wall
   nearest the drop-off at eye height is not, then is once carried back. Horizontal rays from each marker, above its
   furniture (1 to 1.9 m), reach no point of its cylinder past a wall: hidden both ways, so a cylinder may end inside
-  a wall (the workbench's reaches 0.1 m into the garage's 0.2 m east wall), never past it. Every drop-off and storage
-  marker reads without an error, each on a floor. Every spot is found in the host's world, none written down. Seen
-  failing with the drop-offs' radius at 10 m (the next room) and the rays at 1.2 times it (the workbench's wall).
+  a wall, never past it. Every drop-off and storage
+  marker reads without an error, each on a floor. Every spot is found in the host's world, none written down.
   The zone task has no bot scenario since #804 (GD13 (b) of the [Generator
   ADR](decisions/2026-10-10-generator-task.md): the zone task plays on the House alone, which bots do not play). The
   three that played the greybox's zones from #649 (M7-Z3; `crew_works_every_zone`, `zone_paused_by_a_knockdown`,
