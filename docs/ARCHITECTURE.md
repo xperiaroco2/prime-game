@@ -5719,7 +5719,9 @@ there would not follow from the commands.
   (§3.2). Provisional numbers (#302 comments 6085904317, 6096074314): 5 m/s, the project's physics gravity (9.8
   m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable, but its door may be locked, so instead of
   TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
-  no throw from a standable spot near the roof rests on it (5.5 m/s; the tops of the balcony's 1 m railings decide
+  no throw from a standable spot near the roof rests on it (on the greybox's flat roof at 6.4 m: 5.5 m/s; the art's
+  House, #523, has a pitched roof over the attic, its eaves at about 8.3 m, so 9 m/s from the balcony's floor
+  reaches it and 7.5 no longer does; the tops of the balcony's 1 m railings decide
   it, since a 1 m jump may reach them and the eye then stands 1 m higher), less one step. At 5 m/s the highest arc
   from there tops out at 7.08 m, below the 7.35 m a 0.15 m item needs to clear the roof's parapet.
   **Tests:** `tests/integration/levels/house_roof_throw_test.gd` flies 648 throws from each spot of
@@ -5965,10 +5967,12 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   footprint and at most one `Correction`, measured 0).
 - **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
-  `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece is listed there or in
-  `LOCKED`, the roof); a flood fill of the crouched capsule from the `round_player` spawn markers over those pieces'
-  `Floor` and stair-step tops (0.5 m apart in two halves, each rise at most `step_height_m`, any drop) gives the
-  spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
+  `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece, a node declaring
+  `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk, #523); a flood fill of the
+  crouched capsule from the `round_player` spawn markers over those pieces' walked colliders (the art rooms' `Shell`
+  floor, slab and stair pieces, the plot's ground, the greybox garage's `Floor` and step boxes; each spot named
+  after the smallest piece whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`,
+  any drop) gives the spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
   `Strike` of the base mode's item kinds (read from the data) knocks a body down in 8 directions, and each rest must
   lie off the locked roof and within the raise's reach of a spot (`TargetInReach`'s distance from its feet, read from
   the `Raise` rule, and `TargetInSight` from its crouched eye). On the House as it stands every knife launch passes;
