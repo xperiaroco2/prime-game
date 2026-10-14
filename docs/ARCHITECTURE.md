@@ -172,9 +172,14 @@ countdown changes no scene and places nobody.
   and each dissident the dissidents); then `DealTasks` (the engineer's decision of 2026-09-30, #79): it draws *tasks*
   different task types from the mode's task types that play on the match's map (`TaskType.maps`, #803) minus the host's
   bans (`task_types`), the map's whole pool when *tasks* asks for more, and runs each drawn type's deal
-  once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
+  once, in the mode's order. Tasks are shared: nobody owns one. The greybox's Delivery by colours (`colour_delivery`,
+  §9.5.4): circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
-  bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.18): one task
+  bound to a random circle of its own, whose colour it takes (`tasks`). The House's Delivery by meaning (`delivery`,
+  #828, §9.5.25): the routes shuffled (`tasks`), *packages* items split over them so every route has one before any has
+  a second; a white drop-off station on the one marker of each drop-off that got an item, its station ids in `routes`
+  order (not the level's); the items on distinct random free markers of their spawn tag and which item takes which
+  marker (`packages`), item ids in the markers' level order; subtask *i* is item *i*. The zone task's deal (#647, §9.5.18): one task
   of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
   *i* is subtask *i* in station-id order. The Generator's deal (#797, §9.5.19): its generator on the one
   `generator` marker, then a switch on as many of the `switch` markers as its subtasks setting asks, drawn with `switches`, in level
@@ -188,14 +193,14 @@ countdown changes no scene and places nobody.
   five kinds (camera, photo spot, film box, printer, board, in that id order), then one fresh film on the `film`
   marker; nothing drawn; at 0 photos nothing placed. Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
-  every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
-  (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
-  emitted in id order, so an id follows the level, not the draw. Packages and knives share spawn points when their item
+  every task, 0 done unless a package spawned in its circle or an item in its drop-off) to everyone; knife positions (`SpawnItems`); player spawn points
+  (`PlacePlayers`). Item and station ids are assigned in spawn-point order (Delivery by meaning's drop-offs in `routes`
+  order) and `ItemSpawned` and `StationPlaced` are emitted in id order, so an id follows the level, not the draw. Packages and knives share spawn points when their item
   kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker (§9.6):
   `SpawnItems` and Delivery's packages skip the markers where an item already rests (`Items.free_markers`, which every
   placing part uses). Each placing part emits all its `ItemSpawned` first, then raises `item_rested` (spawn) for each
-  item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the `package` and
-  `circle` tags keep the two kinds of spawn points apart.
+  item in id order. A package that spawns inside its own circle (an item inside its own drop-off) is delivered at once,
+  by the rule; the `package` and `circle` tags (and the `drop_*` tags) keep the two kinds of spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
@@ -1482,7 +1487,9 @@ it lay; a phase change does not end a flight (the host only pauses it). `hand_it
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
 `ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
 (the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
-else changes them (no prediction). `ItemVanished` (#779) removes its item from `items`, so its id may name a new item's `ItemSpawned` later. `ItemChanged` (#771) gives a known item its new `kind` where it is (`ItemViews` rebuilds a view whose kind differs), and an `ItemPickedUp` whose `belted` names the item itself puts it straight on the belt, the hand item still held (CE20, CE21). `SwitchChanged` (#797) sets its station's `on` (a switch is off until its first
+else changes them (no prediction). `PackageDelivered` marks its item delivered and sets its station `done` only when no
+undelivered item names that station (`Item.station`, from `ItemSpawned`): a drop-off of Delivery by meaning that takes
+two items stays open after the first (DE7, #828); a colour circle takes one package, so it is done at once as before. `ItemVanished` (#779) removes its item from `items`, so its id may name a new item's `ItemSpawned` later. `ItemChanged` (#771) gives a known item its new `kind` where it is (`ItemViews` rebuilds a view whose kind differs), and an `ItemPickedUp` whose `belted` names the item itself puts it straight on the belt, the hand item still held (CE20, CE21). `SwitchChanged` (#797) sets its station's `on` (a switch is off until its first
 one) and `ButtonPressed` counts its station's `presses`; neither keeps a peer (they name none). Tests:
 `client_model_test.gd`.
 
@@ -3644,7 +3651,7 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
 - **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` (`client/app/GameHowto`) shows
   the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
-  bans in the set its `banned_setting` names, that play on the lobby's map (`TaskType.maps`, #803); DealTasks draws them at the end of Loading, so no more is known) that
+  bans in the set its `banned_setting` names, that play on the lobby's map (`TaskType.maps`, #803; the mode's default map while none is known, `HowtoCards.shown_map`, DE16, #828); DealTasks draws them at the end of Loading, so no more is known) that
   has a card (`HowtoCards.with_card`), the player has not completed and has seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
 - **Seen and completed** (`client/app/HowtoProgress`, `user://howto.cfg`, one file per player as the controls): the
   loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
@@ -3654,7 +3661,7 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   written): a showing counts on top of the file's count, a completion stays.
 - **The Guide** (`client/ui/GuidePanel`, s5's `guide`): a Guide tab after Resume in every screen, the lobby
   included (`EscMenuState.Tab.GUIDE`, its label the deck's `esc.tab.guide`); the basics' chips and one chip per task
-  type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
+  type of the mode with a card that plays on the match's map (`HowtoCards.of_tasks(mode, map)`; `GuidePanel.set_map`, called by `EscMenu.refresh`, keeps the selection; DE16, #828: the House's guide shows one Delivery, the greybox's the other), one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
   control, so #491's restyle hosts it; it draws for a light page (the handoff's, the Toy Esc menu's since #491) or a
   dark one (`...OnDark` captions and chips, an option no menu uses now).
 - **In `Game`** (`client/app/GameHowto`): its `howto` progress, the Guide tab's mode, the loading card and the follow, as
@@ -3972,7 +3979,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   No knives, the own preset and Save your own; the values are placeholders, "not a decision"), a 784 px
   `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
   arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
-  allowed; a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
+  allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
   the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
   ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
@@ -4382,7 +4389,7 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
 The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
 `ProfileChanged` (which also renames), and `ClientModel.colour_of(peer)` gives 0 for a peer not on the roster.
 `BodyColours` (`client/player/`) maps an index to what is drawn: the delivery circles' ten colours (the
-circle `StationKind`'s palette in `content/tasks/delivery.tres`, in its order, which `body_colours_test.gd` pins),
+circle `StationKind`'s palette in `content/tasks/colour_delivery.tres` since #828, in its order, which `body_colours_test.gd` pins),
 the engineer's choice on PR #745 until the UI track's player-colour list (asked on #150) replaces them; one const
 array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics frame through
 `RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh per frame; a
@@ -5566,6 +5573,12 @@ point `core/` knows of an item: the centre of its base on the surface it rests o
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
 
+Delivery by meaning (the House's, #828, §9.5.25) runs the same check with a drop-off for the circle: an item of an
+undone subtask resting on the ground inside its own route's drop-off (the same `StationState.contains`, radius 1 m,
+height 2 m placeholder) is delivered and locked. An item resting in another route's drop-off, or any other item there,
+does nothing (the engineer's DD5 (a)). One drop-off may take several items: it is shown as done only once every item
+routed to it this round is delivered (DE7), on the host and in the `ClientModel` fold alike (§4.6.1.2).
+
 #### 7.1.15 Lost claims (#429, M6; the engineer's A1 + B3 on PR #434)
 Over Wi-Fi a LATEST `MoveClaim` is lost now and then. Two cases hurt an honest player: Alice's claim for the step
 that brought her within reach is lost, and her reliable `PickUp` is checked against the claim before
@@ -6185,8 +6198,8 @@ phase classes come in the task each row names.
   the task type's `TaskState` class; M4-5, E30: `Tasks.state_of`)
   and `TaskProgress` (everyone; `Tasks.progress` counts the subtasks done and in total over every task), then raises
   `subtask_done`. `Tasks.announce` emits every task's `TaskState` in id order; `DealTasks` calls it after the deal. `Tasks.all_done` is "every task done"
-  for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
-  `Delivery.State`) and the zone task (`core/tasks/zone_task.gd`, `ZoneTask.State`, #647) are the two task types.
+  for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, the greybox's by colours, with its task state as the inner class
+  `Delivery.State`; the House's Delivery by meaning in `core/tasks/delivery_by_meaning.gd`, `DeliveryByMeaning.State`, #828) and the zone task (`core/tasks/zone_task.gd`, `ZoneTask.State`, #647) were the first task types.
   `StationState.contains` is the one cylinder test of a station, which both ask. `StationKind.radius_m` and `height_m` have a neutral default of 0,
   which the mode check refuses: the data sets them.
 - **Win** (`core/win/`, 2h #64): the win conditions' parts `AllSubtasksDone`, `NoneAlive` and `ClockEnded`, and the
@@ -6274,12 +6287,12 @@ phase classes come in the task each row names.
 | Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, FlightTicks, TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
-| Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag (empty for a kind no deal places, one only given or changed into: each part that places a kind on markers, `SpawnItems` and `Delivery's package, refuses one without a tag in its own check; the cooking ADR's CE18 (a), #780), and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5), and `vanish_seconds` (0, never, or 1 to 3600: how long it may lie before it vanishes, `VanishTicks`, #779), `max_items` (0, no cap, or 1 to `MatchState.MAX_ITEM_ID`, a technical bound: the most of the kind at once, which `GiveItem` keeps by vanishing the loose one that lay longest, the cooking ADR's CE3, #770) and `target_actions` (its rules on an intent naming one of its items on the ground, `Interact`'s `item`, §9.2: a box's take, CE1, #770) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order; a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
-| Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type | the delivery circle |
+| Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag (empty for a kind no deal places, one only given or changed into: each part that places a kind on markers, `SpawnItems` and `Delivery's package, refuses one without a tag in its own check; the cooking ADR's CE18 (a), #780), and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5), and `vanish_seconds` (0, never, or 1 to 3600: how long it may lie before it vanishes, `VanishTicks`, #779), `max_items` (0, no cap, or 1 to `MatchState.MAX_ITEM_ID`, a technical bound: the most of the kind at once, which `GiveItem` keeps by vanishing the loose one that lay longest, the cooking ADR's CE3, #770) and `target_actions` (its rules on an intent naming one of its items on the ground, `Interact`'s `item`, §9.2: a box's take, CE1, #770) | `ItemKind` | `content/items/` | Package, Knife; Wine, Oil, Gnome, Parasol (the House's Delivery, #828) |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order; a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery (by meaning, the House's, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's, §9.5.4) |
+| Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)); since #770 `Interact` may name an item on the ground too, routed to its kind's `target_actions` (a cooking box) | | packages and knives on the ground |
-| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
+| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
 | Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
@@ -6472,8 +6485,8 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 1 (1 to 1, the number of the mode's task types; #79); `banned_task_types` (a set of task types, empty;
-  with one type nothing can be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a
+  `tasks` 1 (1 to 1: each map plays one of the two Deliveries, #828; #79); `banned_task_types` (a set of task types, empty;
+  a host may ban either Delivery: `ChangeSettings` accepts it, and a ban of the picked map's one type leaves its pool empty, so the fit check at `all_ready` refuses the start, `no_task_types`, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
   decision"); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
@@ -6497,9 +6510,9 @@ Settings:
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
-  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery, Hold
-  the zone (§9.5.18). Win conditions, in order: every task done, no crew present, time up.
+  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25).
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); Hold
+  the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
@@ -6524,7 +6537,7 @@ between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) 
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)).
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
 from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -6559,16 +6572,20 @@ Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to
 Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
-#### 9.5.4 Delivery (task type)
-**A second Delivery designed** (#683, the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md),
-answered and approved by the engineer on PR #713; nothing built): on the House, a new task type, `DeliveryByMeaning`:
-items of several kinds, each carried to its own drop-off by what it is, with no colours and no marker through walls.
-This entry, today's Delivery, stays the flat greybox's, a test bench only (#767), for the bot scenarios and the leak
-test (the ADR's DD9 (c)); the ADR's D2 adds the new type's entry beside it.
+#### 9.5.4 Delivery by colours (task type)
+**The greybox's Delivery** (#683, the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md),
+answered and approved by the engineer on PR #713; built in #828): the House plays a second task type,
+`DeliveryByMeaning` (§9.5.25): items of several kinds, each carried to its own drop-off by what it is, with no
+colours and no marker through walls. It took the id `delivery` and the file `content/tasks/delivery.tres` (DE15 (i)),
+so the copy deck's `task.delivery` and the how-to card follow the Delivery players play. This entry, today's Delivery,
+moved unchanged but for its id and `maps` to `content/tasks/colour_delivery.tres` (id `colour_delivery`, display
+name "Delivery"; `ContentNames` names it by the deck's `task.delivery`, its `TASK_EXCEPTIONS`; a copy of the how-to
+card in `content/howto/tasks/colour_delivery.tres`). It stays the flat greybox's, a test bench only (#767), for the bot
+scenarios and the leak test (the ADR's DD9 (c)); the class `Delivery` keeps its name and code.
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
 when its package rests inside its own circle, however it got there (§7.1.14). Nobody owns the task: any living player
 delivers any package.
-Maps (`TaskType.maps`, #803, every task type's): none listed, so every map of the mode.
+Maps (`TaskType.maps`, #803, every task type's): the greybox alone (#828; before it none listed, so every map).
 Settings: `package`: the Package item kind; `circle`: a station kind (spawn tag `circle`, radius 1 m (0.2 to 10;
 game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeholder, "not a decision"), a colour
 palette: 10 distinct colours, provisional, one per package at the most `packages` allows); `subtasks_setting`:
@@ -6603,8 +6620,8 @@ state (`Delivery.State`): per subtask its package, its circle and whether it is 
 (§9.5.18, #647) is the task type that ticks.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
-Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
-shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
+Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional;
+`content/tasks/colour_delivery.tres` since #828); shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
 private task event), `tests/unit/tasks/delivery_test.gd` (the check; a done subtask is never delivered again; the cylinder's
 edges moved with the test to `tests/unit/match/station_state_test.gd` in #647), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
@@ -6613,7 +6630,9 @@ edges moved with the test to `tests/unit/match/station_state_test.gd` in #647), 
 check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 
 #### 9.5.5 Package (item kind)
-What it does: the item a Delivery subtask moves; any living player may carry any package.
+What it does: the item a subtask of the greybox's Delivery by colours moves; any living player may carry any
+package. The House's Delivery by meaning carries four other kinds built the same way (spawn tag `package`, `hands`
+2, no actions): Wine, Oil, Gnome and Parasol (§9.5.25, #828).
 Settings: id `package`; display name "Package"; spawn tag `package`; `hands` 2 (M4-5, vision revision 1: never on
 the belt, and a carrier cannot swap); actions: none, so `Use` with a package in hand is rejected (`nothing_to_do`).
 Placed by Delivery.
@@ -7236,6 +7255,56 @@ Status: built in #990. Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
 `tests/integration/server/host_session_sneak_test.gd`, `tests/integration/client/player/player_controller_sneak_test.gd`,
 `tests/unit/client/world/footstep_cadence_test.gd`, `tests/integration/client/world/world_sounds_steps_test.gd`.
 
+#### 9.5.25 Delivery by meaning (task type)
+What it does (the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md) §2, the engineer's DD2, DD5,
+DD6 and DD8, each (a)): the House's Delivery. One shared task of `packages` items; each item is carried to the one
+place where its kind belongs, its route's drop-off, found by what the item is: no colours, no marker through walls.
+A subtask is done when its item rests on the ground inside its own drop-off, however it got there (§7.1.14); an item
+in another route's place does nothing. Nobody owns the task: any living player delivers any item.
+The deal (§3.3; ADR §2.1): the routes shuffled (`tasks`); route at shuffled position *p* gets floor(N / K) items plus
+one if *p* < N mod K (N the setting, K the routes), so every route has an item before any has a second. One station
+per drop-off that got an item, on its tag's one marker, station ids in `routes` order of first appearance; the items
+on distinct random free markers of their spawn tag (`packages`), item ids in the markers' level order; subtask *i* is
+item *i*. A drop-off is done once every item routed to it is delivered (DE7). With N = 0 the task has no subtasks.
+Maps (`TaskType.maps`): the House alone; the greybox plays Delivery by colours (§9.5.4).
+Settings (`content/tasks/delivery.tres`, id `delivery`, display name "Delivery", DE15 (i)): `routes`, an array of
+`DeliveryRoute` (`core/tasks/delivery_route.gd`: `item`, an `ItemKind`; `drop_off`, a `StationKind` with no palette):
+Wine (`wine`) to the dining table (`drop_dining_table`), Motor oil (`oil`) to the workbench (`drop_workbench`), Garden
+gnome (`gnome`) to the garden (`drop_garden`), Parasol (`parasol`) to the terrace table (`drop_terrace_table`); each
+drop-off a cylinder of radius 1 m and height 2 m (DD3; the height a placeholder, "not a decision") on its one marker
+(D1, #826); each item kind two-handed with the shared `package` spawn tag (DD6 (a), DD8 (a)), placed among the
+packages' storage markers. `subtasks_setting`: `packages` (the same lobby row as Delivery by colours); RNG purposes
+`packages_rng`, `tasks_rng` (`packages`, `tasks`). `station_kinds()` is its routes' drop-offs, each once, in `routes`
+order (D2a's override, #827); `item_spawn_tags()` its kinds' tags, each once.
+`description`: "Carry each item from storage to the place where it belongs. Every item takes both hands."
+Demands (§9.6, DE6): while N > 0, exactly one marker of each drop-off's tag, and per item spawn tag the most items a
+draw can put there, min(N, r × floor(N / K) + min(r, N mod K)) with r the routes whose kind has that tag. No colours.
+Checks (DE13, `DeliveryByMeaning.check`): `routes` not empty; each route with an item kind the mode declares, with a
+spawn tag, that does not vanish (the task knows an item by its id, and a vanished item's id is reused), and a
+drop-off; no kind in two routes; no palette on a drop-off; no drop-off tag equal to an item tag (an item would spawn
+delivered); both RNG purposes set; ZE3 across the mode through `station_kinds()`.
+Produces: `StationPlaced` (white, no palette, DE5 (b)), `ItemSpawned` (its drop-off station, white) in the deal;
+`PackageDelivered`, `TaskState`, `TaskProgress` on a delivery; no new event, no wire change.
+Visible to: everyone; it deals no private event (the leak test's per-peer filter holds by construction).
+Client: `ClientModel` sets a drop-off done only when no undelivered item names it (§4.6.1.2); the lobby's ban chips,
+the guide's cards and the loading card list only the types that play on the picked or the match's map, the mode's
+default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.46). Until D3 gives a drop-off its own
+look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
+Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
+`core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
+`parasol.tres` (provisional, the engineer approves them in the PR). Tests (fixtures, never the House's data, §9.6):
+`tests/unit/tasks/delivery_by_meaning_deal_test.gd`, `delivery_by_meaning_check_test.gd` (the on-rest check, DE7),
+`delivery_by_meaning_demands_test.gd`, `delivery_by_meaning_mode_check_test.gd`, `delivery_by_meaning_filter_test.gd`
+(every peer gets the same task events), on `tests/fixtures/tasks/fixture_meaning_modes.gd`;
+`tests/unit/client/net/client_model_test.gd` (DE7's fold), `client_model_wire_roundtrip_test.gd` (the deal's
+StationPlaced, ItemSpawned and PackageDelivered through WireSchema into ClientModel, two items on one drop-off: no bot
+carries them over the wire), `tests/unit/client/ui/lobby_panel_maps_test.gd` and `guide_panel_test.gd` (DE16);
+`tests/unit/content/delivery_content_test.gd` (each Delivery's `maps`: one map of the base mode each, the two apart,
+neither the tutorial's); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
+spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; both tasks dealt and the round won
+on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
+plays it: the scenarios and the leak test play the greybox's Delivery by colours (§9.7).
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
@@ -7243,11 +7312,13 @@ content/
   modes/tutorial_mode.tres         the tutorial's solo session (§9.5.17, #600), on levels/tutorial/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
-  tasks/delivery.tres              with its circle station inside it
+  items/wine.tres, oil.tres, gnome.tres, parasol.tres   the House's Delivery items (#828, §9.5.25)
+  tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
+  tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
-  howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/tasks/delivery.tres, colour_delivery.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
@@ -7303,7 +7374,7 @@ levels/
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
   scene-tree order, the level order of §3.3 (`MarkerReader`, 2j): each where the scene puts it, through its
   `Node3D` parents; a marker in two `spawn_` groups, a `spawn_` group on a node that is not a `Marker3D` and a
-  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`) are snapped
+  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`, the House's `drop_*`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
   This convention is provisional until 4e settles it with the designer (§10).
@@ -7505,6 +7576,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
+  Delivery by meaning (#828, §9.5.25) has no bot scenario either: it plays on the House alone (DD9 (c)). The greybox,
+  where every scenario, the chaos bots and `bots` play, keeps today's Delivery by colours (`colour_delivery`, §9.5.4),
+  so no scenario changed; the House's Delivery is tested without bots: its unit tests on fixture modes, its markers in
+  `house_markers_test.gd`, and both tasks dealt and the crew's win on the House in `house_zone_test.gd` (below).
   The zone task has no bot scenario since #804 (GD13 (b) of the [Generator
   ADR](decisions/2026-10-10-generator-task.md): the zone task plays on the House alone, which bots do not play). The
   three that played the greybox's zones from #649 (M7-Z3; `crew_works_every_zone`, `zone_paused_by_a_knockdown`,

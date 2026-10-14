@@ -51,7 +51,7 @@ func test_the_zones_keep_ze9_s_spacing() -> void:
 	var zone := Spacing.zone_task(mode).zone
 	var layout := _read(mode).layout
 	assert_int(layout.count(zone.spawn_tag)).is_greater(0)
-	assert_array(Array(Spacing.faults(MAP, layout, zone, Spacing.circle(mode)))).is_empty()
+	assert_array(Array(Spacing.faults(MAP, layout, zone, Spacing.others(mode)))).is_empty()
 
 
 func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
@@ -61,7 +61,9 @@ func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
 	var settings := mode.default_settings()
 	settings[&"zones"] = mode.find_setting(&"zones").max_value
 	settings[&"packages"] = mode.find_setting(&"packages").max_value
-	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	var demands := LayoutCheck.demands_of(
+		mode, PhaseSpec.Level.MAP, settings, mode.max_players, {}, MAP
+	)
 	assert_array(Array(demands.shortfalls(map))).is_empty()
 	assert_int(demands.markers.get(&"zone", 0)).is_equal(settings[&"zones"])
 	assert_int(zone.zone.palette.size()).is_greater_equal(settings[&"zones"])
@@ -145,6 +147,32 @@ static func _floor_step(world: HostWorldQuery, at: Vector3, radius: float) -> fl
 				return INF
 			step = maxf(step, absf(under.y - at.y))
 	return step
+
+
+func test_each_drop_off_has_one_marker_and_no_item_spawns_inside_one() -> void:
+	# DE12 of the delivery-by-meaning ADR (#828): the House's Delivery by meaning finds one marker
+	# per drop-off tag, and no marker of its items' spawn tags lies in a drop-off's cylinder at its
+	# snapped floor (an item there would spawn delivered).
+	var mode := _base_mode()
+	var delivery := mode.find_task_type(&"delivery") as DeliveryByMeaning
+	assert_object(delivery).is_not_null()
+	if delivery == null:
+		return
+	assert_bool(delivery.plays_on(MAP)).is_true()
+	var layout := _read(mode).layout
+	var kinds := delivery.station_kinds()
+	assert_int(kinds.size()).is_equal(4)
+	for kind: StationKind in kinds:
+		var tag := kind.spawn_tag
+		assert_int(layout.count(tag)).override_failure_message(tag).is_equal(1)
+		for at: Vector3 in layout.positions(tag):
+			var drop_off := StationState.new(0, kind, at, Color.WHITE)
+			# The check can fail: the drop-off's own spot is inside it.
+			assert_bool(drop_off.contains(at)).is_true()
+			for item_tag: StringName in delivery.item_spawn_tags():
+				for spot: Vector3 in layout.positions(item_tag):
+					var inside := "%s marker at %s lies in %s" % [item_tag, spot, kind.id]
+					assert_bool(drop_off.contains(spot)).override_failure_message(inside).is_false()
 
 
 func _base_mode() -> GameMode:

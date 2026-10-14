@@ -63,6 +63,11 @@
 [ext_resource type="Script" uid="uid://dtq8afy52ua35" path="res://core/items/throw_item.gd" id="78_throw"]
 [ext_resource type="Script" uid="uid://uvlgs3p3qbgt" path="res://core/items/over_floor.gd" id="79_over_floor"]
 [ext_resource type="Script" uid="uid://doh8ordg6dl1t" path="res://core/items/flight_ticks.gd" id="80_flight_ticks"]
+[ext_resource type="Resource" uid="uid://dog8edgi102bs" path="res://content/tasks/colour_delivery.tres" id="120_colour_delivery"]
+[ext_resource type="Resource" uid="uid://0086pdgtlyoo" path="res://content/items/wine.tres" id="121_wine"]
+[ext_resource type="Resource" uid="uid://k3li074rvv8p" path="res://content/items/oil.tres" id="122_oil"]
+[ext_resource type="Resource" uid="uid://beqj22bnihvqd" path="res://content/items/gnome.tres" id="123_gnome"]
+[ext_resource type="Resource" uid="uid://kapnebg1wj21" path="res://content/items/parasol.tres" id="124_parasol"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -547,12 +552,12 @@ settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
-task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"

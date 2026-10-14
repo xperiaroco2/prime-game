@@ -11,7 +11,8 @@ func test_a_task_type_names_no_tag_by_default() -> void:
 
 
 func test_delivery_names_its_package_kinds_spawn_tag_only() -> void:
-	var delivery := (load(BASE_MODE) as GameMode).find_task_type(&"delivery") as Delivery
+	# The greybox's Delivery by colours (#828: the House's Delivery has the id `delivery`).
+	var delivery := (load(BASE_MODE) as GameMode).find_task_type(&"colour_delivery") as Delivery
 	assert_array(delivery.item_spawn_tags()).contains_exactly([delivery.package.spawn_tag])
 	assert_array(delivery.item_spawn_tags()).not_contains([delivery.circle.spawn_tag])
 	var kind := ItemKind.new()

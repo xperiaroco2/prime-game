@@ -18,6 +18,12 @@ extends RefCounted
 const ROLE_EXCEPTIONS: Dictionary[StringName, String] = {
 	&"crew": "role.engineer",
 }
+## A task type id whose deck key is not `task.<id>`: the greybox's Delivery by colours (id
+## `colour_delivery`, DE15 (i) of the delivery-by-meaning ADR, #828) is the Delivery its players
+## play there, the deck's `task.delivery`; the House's Delivery has that id.
+const TASK_EXCEPTIONS: Dictionary[StringName, String] = {
+	&"colour_delivery": "task.delivery",
+}
 const ROLE_PREFIX := "role."
 const ITEM_PREFIX := "item."
 const TASK_PREFIX := "task."
@@ -45,6 +51,8 @@ static func item(id: StringName, mode: GameMode) -> String:
 
 ## A task type's deck key, else the mode's display name for it, else its id.
 static func task(id: StringName, mode: GameMode) -> String:
+	if TASK_EXCEPTIONS.has(id):
+		return TASK_EXCEPTIONS[id]
 	if has_key(TASK_PREFIX + String(id)):
 		return TASK_PREFIX + String(id)
 	var found := mode.find_task_type(id) if mode != null else null

@@ -49,9 +49,11 @@ func test_the_crew_works_every_zone_and_package_and_wins() -> void:
 	assert_object(delivery).is_not_null()
 	if delivery == null:
 		return
-	var package := FixtureDeliveryModes.package_of(_game, delivery, 0)
-	var circle := FixtureDeliveryModes.circle_of(_game, delivery, 0)
-	_carry(carrier, package, circle.position)
+	# The House's Delivery by meaning (#828): the item of subtask 0 to its drop-off.
+	var dealt := delivery.state as DeliveryByMeaning.State
+	var item := _game.state.items[dealt.items[0]]
+	var drop_off := _game.state.stations[dealt.stations[0]]
+	_carry(carrier, item, drop_off.position)
 	assert_int(_game.view_of(carrier).events_named(&"PackageDelivered").size()).is_equal(1)
 	assert_str(_game.phase_id()).is_equal("round")
 	_hold_until_the_end([holder])
@@ -299,7 +301,7 @@ func _clear(at: Vector3, side: Vector3, length: float) -> bool:
 
 func _delivery() -> MatchTask:
 	for id: int in _game.state.tasks:
-		if _game.state.tasks[id].type is Delivery:
+		if _game.state.tasks[id].type is DeliveryByMeaning:
 			return _game.state.tasks[id]
 	return null
 

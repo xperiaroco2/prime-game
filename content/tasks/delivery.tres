@@ -1,22 +1,71 @@
-[gd_resource type="Resource" script_class="Delivery" format=3 uid="uid://b5eyuq0do4t6h"]
+[gd_resource type="Resource" script_class="DeliveryByMeaning" format=3 uid="uid://b5eyuq0do4t6h"]
 
-[ext_resource type="Script" uid="uid://cbdj2emlwcf75" path="res://core/tasks/delivery.gd" id="1_delivery"]
-[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
-[ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="3_package"]
+[ext_resource type="Script" uid="uid://uy5frriohcu8" path="res://core/tasks/delivery_by_meaning.gd" id="1_meaning"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_o7vmi"]
+[ext_resource type="Script" uid="uid://bjd04xjrdrw4j" path="res://core/tasks/delivery_route.gd" id="2_route"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="3_station"]
+[ext_resource type="Resource" uid="uid://0086pdgtlyoo" path="res://content/items/wine.tres" id="4_wine"]
+[ext_resource type="Resource" uid="uid://k3li074rvv8p" path="res://content/items/oil.tres" id="5_oil"]
+[ext_resource type="Resource" uid="uid://beqj22bnihvqd" path="res://content/items/gnome.tres" id="6_gnome"]
+[ext_resource type="Resource" uid="uid://kapnebg1wj21" path="res://content/items/parasol.tres" id="7_parasol"]
 
-[sub_resource type="Resource" id="StationKind_circle"]
-script = ExtResource("2_station")
-id = &"circle"
-spawn_tag = &"circle"
+[sub_resource type="Resource" id="StationKind_dining_table"]
+script = ExtResource("3_station")
+id = &"drop_dining_table"
+spawn_tag = &"drop_dining_table"
 radius_m = 1.0
 height_m = 2.0
-palette = PackedColorArray(0.9, 0.1, 0.1, 1, 0.95, 0.5, 0.05, 1, 0.95, 0.85, 0.1, 1, 0.15, 0.7, 0.2, 1, 0.1, 0.8, 0.85, 1, 0.15, 0.3, 0.95, 1, 0.55, 0.2, 0.85, 1, 0.95, 0.4, 0.7, 1, 0.5, 0.3, 0.1, 1, 0.95, 0.95, 0.95, 1)
+palette = PackedColorArray()
+
+[sub_resource type="Resource" id="DeliveryRoute_wine"]
+script = ExtResource("2_route")
+item = ExtResource("4_wine")
+drop_off = SubResource("StationKind_dining_table")
+
+[sub_resource type="Resource" id="StationKind_workbench"]
+script = ExtResource("3_station")
+id = &"drop_workbench"
+spawn_tag = &"drop_workbench"
+radius_m = 1.0
+height_m = 2.0
+palette = PackedColorArray()
+
+[sub_resource type="Resource" id="DeliveryRoute_oil"]
+script = ExtResource("2_route")
+item = ExtResource("5_oil")
+drop_off = SubResource("StationKind_workbench")
+
+[sub_resource type="Resource" id="StationKind_garden"]
+script = ExtResource("3_station")
+id = &"drop_garden"
+spawn_tag = &"drop_garden"
+radius_m = 1.0
+height_m = 2.0
+palette = PackedColorArray()
+
+[sub_resource type="Resource" id="DeliveryRoute_gnome"]
+script = ExtResource("2_route")
+item = ExtResource("6_gnome")
+drop_off = SubResource("StationKind_garden")
+
+[sub_resource type="Resource" id="StationKind_terrace_table"]
+script = ExtResource("3_station")
+id = &"drop_terrace_table"
+spawn_tag = &"drop_terrace_table"
+radius_m = 1.0
+height_m = 2.0
+palette = PackedColorArray()
+
+[sub_resource type="Resource" id="DeliveryRoute_parasol"]
+script = ExtResource("2_route")
+item = ExtResource("7_parasol")
+drop_off = SubResource("StationKind_terrace_table")
 
 [resource]
-script = ExtResource("1_delivery")
-package = ExtResource("3_package")
-circle = SubResource("StationKind_circle")
-subtasks_setting = &"packages"
+script = ExtResource("1_meaning")
+routes = Array[ExtResource("2_route")]([SubResource("DeliveryRoute_wine"), SubResource("DeliveryRoute_oil"), SubResource("DeliveryRoute_gnome"), SubResource("DeliveryRoute_parasol")])
 id = &"delivery"
 display_name = "Delivery"
-description = "Carry each package to the circle of its colour. Packages take both hands."
+description = "Carry each item from storage to the place where it belongs. Every item takes both hands."
+maps = PackedStringArray("res://levels/house/house.tscn")
+subtasks_setting = &"packages"

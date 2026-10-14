@@ -2,7 +2,7 @@ class_name BodyColours
 extends RefCounted
 ## What each body colour index (PlayerColours, #551) looks like on this client: a player's capsule,
 ## standing or lying downed. The ten are the delivery circles' ten colours (the palette of the
-## circle StationKind in content/tasks/delivery.tres, in its order; a test pins them), the
+## circle StationKind in content/tasks/colour_delivery.tres, in its order; a test pins them), the
 ## engineer's choice for now (PR #745, comment 6098097836). The UI track is asked for a
 ## player-colour list on #150 (comment 6098103407); its ten replace HEXES later. A dead body stays
 ## LifeLooks.BODY_COLOUR, grey.

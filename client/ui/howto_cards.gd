@@ -21,16 +21,29 @@ static func of_basic(id: StringName) -> HowtoCard:
 	return _load(BASICS_FOLDER + "%s.tres" % id)
 
 
-## The cards of `mode`'s task types that have one, in the mode's order.
-static func of_tasks(mode: GameMode) -> Array[HowtoCard]:
+## The cards of `mode`'s task types that have one and play on `map` (TaskType.maps; every type
+## when `map` is empty), in the mode's order: the Guide lists the picked map's (DE16 of the
+## delivery-by-meaning ADR), so the House shows one Delivery and the greybox another.
+static func of_tasks(mode: GameMode, map := "") -> Array[HowtoCard]:
 	var found: Array[HowtoCard] = []
 	if mode == null:
 		return found
 	for type: TaskType in mode.task_types:
-		var card := of_task(type.id) if type != null else null
+		if type == null or not type.plays_on(map):
+			continue
+		var card := of_task(type.id)
 		if card != null:
 			found.append(card)
 	return found
+
+
+## The map a client's task lists follow (DE16): `map`, the lobby's picked one or the match's, else
+## `mode`'s default (GameMode.default_map(), the picker's first) while no Welcome has named one, so
+## a list never shows every map's types at once; empty with no mode.
+static func shown_map(mode: GameMode, map: String) -> String:
+	if not map.is_empty() or mode == null:
+		return map
+	return mode.default_map()
 
 
 ## What keeps `mode`'s task types from each having a valid card, one line each; empty when every
@@ -54,7 +67,8 @@ static func problems_of(mode: GameMode) -> PackedStringArray:
 ## The task types this round may deal, in `mode`'s order: the pool of the mode's DealTasks (its
 ## task types minus the ones the host banned in the lobby, the id set its `banned_setting` names
 ## in `model`'s settings; no other set) that play on the lobby's map (`model.map`, TaskType.maps;
-## every type while the model has no map or is null); none when the mode deals no tasks. The deal
+## the mode's default map while the model has none or is null, as shown_map() gives it); none
+## when the mode deals no tasks. The deal
 ## itself comes at the end of Loading (DealTasks on `all_loaded`), so the loading screen knows no
 ## more.
 static func dealable(mode: GameMode, model: ClientModel) -> Array[StringName]:
@@ -67,7 +81,7 @@ static func dealable(mode: GameMode, model: ClientModel) -> Array[StringName]:
 	if model != null:
 		banned = model.id_sets.get(deal.banned_setting, PackedStringArray())
 		map = model.map
-	for type: TaskType in DealTasks.pool_of(mode, banned, map):
+	for type: TaskType in DealTasks.pool_of(mode, banned, shown_map(mode, map)):
 		found.append(type.id)
 	return found
 

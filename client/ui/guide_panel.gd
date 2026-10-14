@@ -29,6 +29,9 @@ var selected: StringName = &""
 
 var _cards: Dictionary[StringName, HowtoCard] = {}
 var _task_chips: Array[Button] = []
+var _mode: GameMode
+## The map the task chips follow (HowtoCards.shown_map).
+var _map := ""
 
 
 func _init(on_context: StringName = ToyHints.LIGHT) -> void:
@@ -65,20 +68,42 @@ func _init(on_context: StringName = ToyHints.LIGHT) -> void:
 	set_mode(null)
 
 
-## The task chips of `mode`'s task types with a card, in its order; the first task's card is
-## selected (the handoff's sample), else the first basic's.
-func set_mode(mode: GameMode) -> void:
+## The task chips of `mode`'s task types with a card that play on `map` (HowtoCards.shown_map:
+## `mode`'s default map when empty; DE16), in its order; the first task's card is selected (the
+## handoff's sample), else the first basic's.
+func set_mode(mode: GameMode, map := "") -> void:
+	_mode = mode
+	_map = HowtoCards.shown_map(mode, map)
+	_build_tasks(&"")
+
+
+## Follows the lobby's picked map or the match's (DE16): the task chips of the types that play
+## there; the selected card stays while its chip does. Called every frame the menu is open, so it
+## rebuilds only on a change.
+func set_map(map: String) -> void:
+	var shown := HowtoCards.shown_map(_mode, map)
+	if shown == _map:
+		return
+	_map = shown
+	_build_tasks(selected)
+
+
+## Rebuilds the task chips; selects `keep` if it still has a chip, else the first task's.
+func _build_tasks(keep: StringName) -> void:
 	for chip: Button in _task_chips:
 		chips.erase(_id_of(chip))
 		_cards.erase(_id_of(chip))
 		column.remove_child(chip)
 		chip.free()
 	_task_chips.clear()
-	for each: HowtoCard in HowtoCards.of_tasks(mode):
+	for each: HowtoCard in HowtoCards.of_tasks(_mode, _map):
 		var chip := _chip(each)
 		_task_chips.append(chip)
 		column.add_child(chip)
 	tasks_label.visible = not _task_chips.is_empty()
+	if _cards.has(keep):
+		select(keep)
+		return
 	var first := _task_chips[0] if not _task_chips.is_empty() else null
 	if first == null and not chips.is_empty():
 		first = chips.values()[0]

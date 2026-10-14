@@ -80,7 +80,8 @@ class Station:
 	var kind: StringName
 	var colour := Color.WHITE
 	var position := Vector3.ZERO
-	## Done: a package was delivered to it (§4.2 PackageDelivered), or, for a zone or the
+	## Done: a package was delivered to it (§4.2 PackageDelivered) and no other item routed to it
+	## is undelivered (DE7 of the delivery-by-meaning ADR), or, for a zone or the
 	## generator, its last ZoneProgress has `ticks` at `needed` (ZE8 of the zone task ADR).
 	var done := false
 	## A zone's progress, or the generator's charge (GE7), as its last ZoneProgress told it (ZE4,
@@ -431,9 +432,10 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 				item.belted = false
 				item.flying = false
 				item.delivered = true
-			var station: Station = stations.get(fields["station"] as int)
+			var station_id: int = fields["station"]
+			var station: Station = stations.get(station_id)
 			if station != null:
-				station.done = true
+				station.done = _all_delivered_to(station_id)
 		&"ZoneProgress":
 			var zone: Station = stations.get(fields["station"] as int)
 			if zone != null:
@@ -514,6 +516,16 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	if belted != null:
 		belted.holder = peer
 		belted.belted = true
+
+
+## Whether no item routed to the station is still undelivered (DE7 of the delivery-by-meaning
+## ADR): a drop-off with two bottles is done after the second. Asked only on a PackageDelivered,
+## never on StationPlaced or ItemSpawned, so a drop-off is not done before its items arrive.
+func _all_delivered_to(station_id: int) -> bool:
+	for item: Item in items.values():
+		if item.station == station_id and not item.delivered:
+			return false
+	return true
 
 
 ## A throw (§7.1.16): the item leaves its thrower's hand and flies, its launch kept exactly as

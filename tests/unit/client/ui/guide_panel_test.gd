@@ -109,6 +109,34 @@ func test_no_mode_lists_the_basics_only() -> void:
 	assert_str(String(guide.selected)).is_equal("moving")
 
 
+func test_the_task_chips_follow_the_map_and_keep_a_selection_that_stays() -> void:
+	# DE16 (#828): a type that lists a map gets its chip on that map only. The fixture's map-only
+	# type takes the id `delivery`, the one task card content/howto/ holds for every mode.
+	var mode := FixtureMapTaskModes.mode()
+	mode.find_task_type(&"map_only").id = &"delivery"
+	var guide: GuidePanel = auto_free(GuidePanel.new())
+	add_child(guide)
+	guide.set_mode(mode, FixtureBaseMode.MAP)
+	assert_bool(guide.chips.has(&"delivery")).is_true()
+	assert_str(String(guide.selected)).is_equal("delivery")
+	guide.set_map(FixtureBaseMode.SMALL_MAP)
+	assert_bool(guide.chips.has(&"delivery")).is_false()
+	assert_bool(guide.tasks_label.visible).is_false()
+	assert_str(String(guide.selected)).is_equal("moving")
+	guide.select(&"voice")
+	guide.set_map(FixtureBaseMode.MAP)
+	assert_bool(guide.chips.has(&"delivery")).is_true()
+	assert_str(String(guide.selected)).is_equal("voice")
+	# No map yet: the mode's default (its first player map), never every map's types.
+	mode.maps = PackedStringArray([FixtureBaseMode.SMALL_MAP, FixtureBaseMode.MAP])
+	guide.set_mode(mode, "")
+	assert_bool(guide.chips.has(&"delivery")).is_false()
+	assert_array(HowtoCards.of_tasks(mode, FixtureBaseMode.MAP)).has_size(1)
+	assert_array(HowtoCards.of_tasks(mode, FixtureBaseMode.SMALL_MAP)).is_empty()
+	assert_str(HowtoCards.shown_map(mode, "")).is_equal(FixtureBaseMode.SMALL_MAP)
+	assert_str(HowtoCards.shown_map(null, "")).is_empty()
+
+
 func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
 	# The dark look stays an option (the greybox Esc menu used it before #491 made it light).
 	var guide: GuidePanel = auto_free(GuidePanel.new(ToyHints.DARK))

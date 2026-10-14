@@ -223,6 +223,9 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := 
 		_steppers[id].set_editable(may_change)
 		if model.settings.has(id):
 			_steppers[id].show_value(model.settings[id])
+	# The chips and plates of the types that play on the picked map only (DE16 of the
+	# delivery-by-meaning ADR): the House shows one Delivery, the greybox another.
+	var on_map := HowtoCards.shown_map(_mode, model.map)
 	for id: StringName in _bans:
 		var banned: PackedStringArray = model.id_sets.get(id, PackedStringArray())
 		var chips: Dictionary = _bans[id]
@@ -230,8 +233,12 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := 
 		(_ban_boxes[id][1] as Control).visible = not may_change
 		for task: Variant in chips:
 			var allowed := not banned.has(str(task))
+			var type := _mode.find_task_type(task as StringName) if _mode != null else null
+			var plays := type == null or type.plays_on(on_map)
+			(chips[task] as Button).visible = plays
 			SettingRows.set_pressed(chips[task] as Button, allowed)
 			var plate := _plates[id][task] as PanelContainer
+			plate.visible = plays
 			plate.theme_type_variation = &"ToyChipLight" if allowed else &"ToyChipLineOnLight"
 			(plate.get_child(0) as Label).theme_type_variation = (
 				&"ToyChipLightText" if allowed else &"ToyChipLineOnLightText"
@@ -379,8 +386,15 @@ func _send_map(index: int) -> void:
 func _send_bans(id: StringName) -> void:
 	var banned := PackedStringArray()
 	var chips: Dictionary = _bans[id]
+	if _model != null:
+		# A ban on a type the picked map hides stays in the setting (DE16): no chip shows to undo it.
+		for task: String in _model.id_sets.get(id, PackedStringArray()):
+			var chip: Button = chips.get(StringName(task))
+			if chip == null or not chip.visible:
+				banned.append(task)
 	for task: Variant in chips:
-		if not (chips[task] as Button).button_pressed:
+		var chip := chips[task] as Button
+		if chip.visible and not chip.button_pressed:
 			banned.append(str(task))
 	_send(id, banned)
 
