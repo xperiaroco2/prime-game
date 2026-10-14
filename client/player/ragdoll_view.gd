@@ -15,9 +15,10 @@ extends RigidBody3D
 ## spring holds the pelvis (the data's parentless body) to the lying centre (the point plus the
 ## pelvis' smallest half extent), the vertical term whole, across the floor faded by how much the
 ## pelvis lies, and it changes every bone's velocity alike, so it moves the body, not its joints;
-## a snap moves every bone by the same offset. The fall starts from the idle pose, tipped over as
-## the capsule is (_tip_rig), one physics frame after the node enters the tree (the bodies need a
-## space).
+## a snap moves every bone by the same offset, measured from where the pelvis belongs as it lies
+## now (a standing one stands over the lying centre, so the feet stay on the point). The fall
+## starts from the idle pose, tipped over as the capsule is (_tip_rig), one physics frame after the
+## node enters the tree (the bodies need a space).
 ##
 ## The host's point (`held_point()`, the interpolated pose's position) is the host capsule's lowest
 ## point (KE14). The spring pulls the capsule's centre to the lying centre over it, the point plus
@@ -86,6 +87,8 @@ var _pending_lying := false
 var _pending_velocity := Vector3.ZERO
 ## The pelvis body's own axis that points up the body (from the feet to the head).
 var _pelvis_up := Vector3.UP
+## How far the standing (idle) pelvis is over the lying centre: the snap's measure (_pull_rig).
+var _pelvis_stand_m := 0.0
 
 
 ## The RagdollView `node` belongs to (itself, or one of its rig's bones or their shapes), or null:
@@ -338,6 +341,9 @@ func _begin_fall() -> void:
 	# The pelvis axis that points up the body (the rig's up at the idle pose), whatever its bone's
 	# own axes: the spring's measure of how much it lies.
 	_pelvis_up = _pelvis_at_pose().basis.inverse() * _rig.global_basis.y.normalized()
+	# The idle pelvis' height over the feet, along the rig's up, whether it stands or lies.
+	var stand := (_rig.global_transform.affine_inverse() * _pelvis_at_pose().origin).y
+	_pelvis_stand_m = maxf(stand - _pelvis_lying_m, 0.0)
 	RagdollBuilder.start(_sim, _data, _pending_velocity)
 	if not _pending_lying:
 		_tip_rig()
@@ -363,29 +369,38 @@ func _pelvis_at_pose() -> Transform3D:
 
 
 ## The spring on the rig (see above): from the pelvis' state, the same velocity change for every
-## bone; farther than SNAP_M, every bone moved by the same offset at the held velocity.
+## bone; farther than SNAP_M from where the pelvis belongs (the lying centre, raised by the
+## standing pelvis height as much as it stands), every bone moved by the same offset at the held
+## velocity.
 func _pull_rig(delta: float) -> void:
 	var pelvis_state := PhysicsServer3D.body_get_direct_state(_pelvis.get_rid())
 	if pelvis_state == null:
 		return
 	var target := lying_centre()
 	var origin := pelvis_state.transform.origin
-	if origin.distance_to(target) > SNAP_M:
-		var shift := target - origin
-		for bone: PhysicalBone3D in _bones:
-			var state := PhysicsServer3D.body_get_direct_state(bone.get_rid())
-			state.transform = Transform3D(state.transform.basis, state.transform.origin + shift)
-			state.linear_velocity = _velocity
-		global_transform = Transform3D(pelvis_state.transform.basis, target)
-		return
-	var pull := (target - origin) * SPRING_K + (_velocity - pelvis_state.linear_velocity) * SPRING_D
 	var up := (pelvis_state.transform.basis * _pelvis_up).normalized()
 	var upright := absf(up.dot(Vector3.UP))
+	# The snap measures from where the pelvis belongs as it lies now: a standing pelvis is
+	# _pelvis_stand_m over the lying centre, so a standing pose is moved with its feet on the point,
+	# never down into the floor.
+	var belongs := target + Vector3.UP * _pelvis_stand_m * upright
+	if origin.distance_to(belongs) > SNAP_M:
+		var shift := belongs - origin
+		for bone: PhysicalBone3D in _bones:
+			var state := PhysicsServer3D.body_get_direct_state(bone.get_rid())
+			if state == null:
+				continue
+			state.transform = Transform3D(state.transform.basis, state.transform.origin + shift)
+			state.linear_velocity = _velocity
+		global_transform = Transform3D(pelvis_state.transform.basis, belongs)
+		return
+	var pull := (target - origin) * SPRING_K + (_velocity - pelvis_state.linear_velocity) * SPRING_D
 	var across := 1.0 - upright
 	pull = Vector3(pull.x * across, pull.y, pull.z * across)
 	for bone: PhysicalBone3D in _bones:
 		var state := PhysicsServer3D.body_get_direct_state(bone.get_rid())
-		state.linear_velocity += pull * delta
+		if state != null:
+			state.linear_velocity += pull * delta
 	global_transform = pelvis_state.transform
 
 

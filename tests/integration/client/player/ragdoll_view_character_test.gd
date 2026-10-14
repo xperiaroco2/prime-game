@@ -134,6 +134,35 @@ func test_a_point_lifted_within_the_snap_distance_lifts_the_pelvis_to_it() -> vo
 	assert_float(_pelvis().y).is_equal_approx(_ragdoll.lying_centre().y, 0.25)
 
 
+func test_knocked_down_on_a_step_whose_point_steps_down_it_does_not_snap_into_the_floor() -> void:
+	# Knocked down standing on a 0.2 m step whose edge is at x 0; within the first frames the
+	# host's point steps down beside it. The standing pelvis is about 0.9 m over the lying centre,
+	# so measured against the lying centre alone this is past the snap distance, and the snap
+	# would shift the standing pose down into the floor.
+	# With a foot: a body that stands on the floor, as the art's shins and feet do.
+	_ragdoll.free()
+	_ragdoll = RagdollView.new()
+	_ragdoll.setup(
+		_rules,
+		7,
+		BodyColours.of(3),
+		CharacterSet.from_scene(Fixture.scene(), Fixture.ragdoll(true))
+	)
+	var step := _box(Vector3(2.0, 0.2, 2.0), Vector3(-1.0, 0.1, 0.0))
+	_ragdoll.start(Vector3(-0.15, 0.2, 0.0), 0.0, Vector3.ZERO)
+	add_child(_ragdoll)
+	var lowest := INF
+	for i: int in 160:
+		if i == 3:
+			_ragdoll.hold(Vector3(0.3, 0.0, 0.0), Vector3.ZERO)
+		await get_tree().physics_frame
+		for bone: PhysicalBone3D in _ragdoll.bones():
+			lowest = minf(lowest, bone.global_position.y)
+	assert_float(lowest).is_greater(-0.05)
+	assert_vector(_pelvis()).is_equal_approx(_ragdoll.lying_centre(), Vector3.ONE * SETTLE_M)
+	step.free()
+
+
 func test_a_dead_one_is_grey_with_every_body_on_no_layer() -> void:
 	_ragdoll.start(Vector3.ZERO, 0.0, Vector3(2.0, 0.0, 0.0))
 	add_child(_ragdoll)

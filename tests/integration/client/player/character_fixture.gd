@@ -96,25 +96,28 @@ static func scene(
 	return packed
 
 
-## A small ragdoll: the pelvis, the spine (a cone), the chest (a cone) and a thigh (a hinge).
-static func ragdoll() -> Dictionary:
+## A small ragdoll: the pelvis, the spine (a cone), the chest (a cone) and a thigh (a hinge);
+## `with_foot`: also a foot on the thigh (a hinge), a body that stands on the floor.
+static func ragdoll(with_foot := false) -> Dictionary:
 	var cone := {"type": "cone", "swing_deg": 30.0, "twist_deg": 15.0, "anchor": [0, 0, 0]}
 	var hinge := {
 		"type": "hinge", "axis": [1, 0, 0], "min_deg": 0.0, "max_deg": 120.0, "anchor": [0, 0, 0]
 	}
+	var bones: Array = [
+		_body("Body", null, null, 0.4),
+		_body("Abdomen", "Body", cone, 0.2),
+		_body("Torso", "Abdomen", cone, 0.3),
+		_body("UpperLeg.L", "Body", hinge, 0.1),
+	]
+	if with_foot:
+		bones.append(_body("Foot.L", "UpperLeg.L", hinge, 0.05))
 	return {
 		"format": "prime-ragdoll",
 		"version": 1,
 		"total_mass_kg": 70.0,
 		"collision": {"layer": 3, "mask": [1]},
 		"material": {"friction": 0.8, "bounce": 0.0, "linear_damp": 0.1, "angular_damp": 6.0},
-		"bones":
-		[
-			_body("Body", null, null, 0.4),
-			_body("Abdomen", "Body", cone, 0.2),
-			_body("Torso", "Abdomen", cone, 0.3),
-			_body("UpperLeg.L", "Body", hinge, 0.1),
-		],
+		"bones": bones,
 	}
 
 
