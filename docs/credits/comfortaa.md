@@ -1,6 +1,8 @@
 # Comfortaa
 
-- **Files:** `assets/ui/comfortaa/**`
+- **Files:** `assets/ui/comfortaa/**`, `assets/ui/toy_pack/fonts/**`, `client/ui/theme/pack/fonts/**` (the last
+  two the UI pack's copy, which ui-sync lands from the pinned pack since #1020, ui-0.8.0: the same file byte for
+  byte, the same SHA-256, and its LICENCES.json)
 - **Author:** The Comfortaa Project Authors (the source repository google/fonts' `ofl/comfortaa/METADATA.pb` names:
   https://github.com/alexeiva/comfortaa)
 - **Source:** https://github.com/google/fonts/tree/main/ofl/comfortaa (one variable file, `Comfortaa[wght].ttf`,

@@ -1,10 +1,17 @@
 {
-  "commit": "d7650db6590d925fc509fa1b2d793fc336c3b37d",
-  "deferred": {},
+  "commit": "903cfeda69283b9048ccdf25b5d9407f67fca4c9",
+  "deferred": {
+    "fonts/OFL.txt": "bc85bae0b512b799bbfb2b916e4d0a34cfd963d09778cd783e248b479e67760a"
+  },
   "files": {
-    "cards/LICENCES.json": "a8434cbb416d0c4efa7f70be3f86b389aee9ae428e6b07bfd872af99da0d5d9f",
-    "icons/LICENCES.json": "a26508fab129c1555268057307f6233b1d27b36ee754c5b6ba876d93ae8bd97f",
+    "cards/LICENCES.json": "acdbe0e38d9fbbde181acf253875088313f24eb655a270b326576ba151aff4c8",
+    "fonts/LICENCES.json": "2ed4355efb58710ca6b78a7901dc2d1d1e57bfcbdede73a58568c937f99b27ef",
+    "icons/LICENCES.json": "65c642d4a1578ab44436c32f50873fb447a34a05466afda085b73b734dcf2a6c",
     "icons/check.svg": "075bc05d17706a82166f60f442a4cb5f46a4570c5ae01caf963a1666224e22a9",
+    "icons/checkbox-checked-disabled.svg": "794a55f7ebebec8528b325f34f069722296150973888245197fe5f7ca41118ed",
+    "icons/checkbox-checked.svg": "6209d0494dddcda640c616c1ae72d6e362dc6f7424e3e9816913f5bc5dd7d2ef",
+    "icons/checkbox-unchecked-disabled.svg": "464dfde6bbd9a980be2dd5affe02d9bbb79205ac48e93226295484a87e53e0ae",
+    "icons/checkbox-unchecked.svg": "4e3bf488d8e0a9b62d23f7205b146b3f98dead5ce0bb690feddde7f82dcb5068",
     "icons/chevron-down.svg": "79f4e00556440671049e289a5fc78eb1605fbbc722b02d0dc44ac08b17ac996b",
     "icons/chevron-left.svg": "44982e3c824e0b0d4d1b24763f8b51ad52501587b41e8fc126d99a7ef8adc4ef",
     "icons/chevron-right.svg": "0032c16ed1887d8bcc9f1316d6dd1453f3b34f005c0264365c62168c84a5e7b0",
@@ -28,16 +35,27 @@
     "icons/room/workshop.svg": "e087b0c2d33a5d3eaf97f88196ef82d32ca41553ce889a2be5116a0aa69fdc35",
     "icons/slider-knob-disabled.svg": "cdab927fe1fdca684baad29ec81e14061fddca607e30b1aa8149d7d98d565d19",
     "icons/slider-knob.svg": "bcbe3f04441b873af09c7be72007ffab2f816fe1c5524137a07097bbb36888da",
+    "icons/spin-down.svg": "7ad2778bdc944196e856e4b39912a5c164d443b698da7a106fcfc78894a4e4e2",
+    "icons/spin-up.svg": "ac12cab8a66e2d6b5e429f1c0aa42da8d4223674b3521c205ab65d522170ebef",
     "icons/swatch-disc.svg": "e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506",
     "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a",
-    "toy.pack.json": "46879ba540c46c6a60c8fbad1d7fef2b0446b61e757b46df3a5ee9ca3c3575e9"
+    "toy.pack.json": "194ae0081475e17a1651d0aec00d27ac3779bcc3215ee40479d12b32f5898d02"
   },
   "imported": {
     "cards/delivery-1.png": "1ec1cc493d4d6914e97c1402f95b4034c0db0360a0319791760b794c4ec33406",
     "cards/delivery-2.png": "908f06d9590e9fbe7dd39f1f96f48c2480ead92dac21d22182cd5d4d3b775edf",
     "cards/delivery-3.png": "317c2cc59ad15027804ad9452b2666a3825d742c9482b3f5605bc97acc119511",
     "cards/delivery-4.png": "6ad3198cde63c2250a0c233360a06ce34751039cb000563d71ab9d052c142d0e",
+    "cards/delivery-meaning-1.png": "f09790aff9b931297d4d1a2a101b0a326a34135864a613963f408aa01f6ff3a9",
+    "cards/delivery-meaning-2.png": "a5c5001e1c0cc45f452e473254dd26c698a0a8b6c1f258ce93419cca486701d7",
+    "cards/delivery-meaning-3.png": "33dc172b4b7f40009828d347c9cb5c901900fae97c8e20725d191056304050fc",
+    "cards/delivery-meaning-4.png": "c382a1616fa735f5e7192ea53dcae3daede872494ea20102ef1dbb0ecc971b05",
+    "fonts/Comfortaa-VariableFont_wght.ttf": "0fc3f45dc48b614db9c39181502544b37217ecbf8bee2fb35886992bc96c5bd3",
     "icons/check.svg": "075bc05d17706a82166f60f442a4cb5f46a4570c5ae01caf963a1666224e22a9",
+    "icons/checkbox-checked-disabled.svg": "794a55f7ebebec8528b325f34f069722296150973888245197fe5f7ca41118ed",
+    "icons/checkbox-checked.svg": "6209d0494dddcda640c616c1ae72d6e362dc6f7424e3e9816913f5bc5dd7d2ef",
+    "icons/checkbox-unchecked-disabled.svg": "464dfde6bbd9a980be2dd5affe02d9bbb79205ac48e93226295484a87e53e0ae",
+    "icons/checkbox-unchecked.svg": "4e3bf488d8e0a9b62d23f7205b146b3f98dead5ce0bb690feddde7f82dcb5068",
     "icons/chevron-down.svg": "79f4e00556440671049e289a5fc78eb1605fbbc722b02d0dc44ac08b17ac996b",
     "icons/chevron-left.svg": "44982e3c824e0b0d4d1b24763f8b51ad52501587b41e8fc126d99a7ef8adc4ef",
     "icons/chevron-right.svg": "0032c16ed1887d8bcc9f1316d6dd1453f3b34f005c0264365c62168c84a5e7b0",
@@ -60,9 +78,11 @@
     "icons/room/workshop.svg": "e087b0c2d33a5d3eaf97f88196ef82d32ca41553ce889a2be5116a0aa69fdc35",
     "icons/slider-knob-disabled.svg": "cdab927fe1fdca684baad29ec81e14061fddca607e30b1aa8149d7d98d565d19",
     "icons/slider-knob.svg": "bcbe3f04441b873af09c7be72007ffab2f816fe1c5524137a07097bbb36888da",
+    "icons/spin-down.svg": "7ad2778bdc944196e856e4b39912a5c164d443b698da7a106fcfc78894a4e4e2",
+    "icons/spin-up.svg": "ac12cab8a66e2d6b5e429f1c0aa42da8d4223674b3521c205ab65d522170ebef",
     "icons/swatch-disc.svg": "e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506",
     "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a"
   },
   "repo": "xperiaroco2/prime-game-ui",
-  "tag": "ui-0.4.0"
+  "tag": "ui-0.8.0"
 }

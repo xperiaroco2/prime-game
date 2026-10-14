@@ -33,7 +33,11 @@ const PAGES: Array[Dictionary] = [
 				DARK,
 				["ToyButtonGhostOnDark", "ToyMenuItem", "ToyChipToggleOnDark"]
 			],
-			["Buttons", LIGHT, ["ToyButtonPrimary", "ToyButtonSecondary", "ToyButtonDanger"]],
+			[
+				"Buttons (plain: a bare Button's look, #1020)",
+				LIGHT,
+				["ToyButtonPrimary", "ToyButtonSecondary", "ToyButtonDanger", "ToyButtonPlain"]
+			],
 			[
 				"Ghost, tab, chip",
 				LIGHT,
@@ -77,7 +81,8 @@ const PAGES: Array[Dictionary] = [
 		],
 	},
 	{
-		"title": "Plates, chips, radio, keys, surfaces, fields, dropdown, slider",
+		"title":
+		"Plates, chips, radio, keys, surfaces, fields, dropdown, slider, spin and check box",
 		"sections":
 		[
 			["Plates", DARK, ["ToyPlate", "ToyPlateNight", "ToyPlateAlert", "ToyNamePlate"]],
@@ -104,6 +109,11 @@ const PAGES: Array[Dictionary] = [
 			["Field", LIGHT, ["ToyField"]],
 			["Dropdown", LIGHT, ["ToyDropdown"]],
 			["Slider", LIGHT, ["ToySlider"]],
+			[
+				"Spin box (its field ToySpinField) and check box",
+				LIGHT,
+				["ToySpinBox", "ToyCheckBox"]
+			],
 			[
 				"Text",
 				LIGHT,
@@ -497,6 +507,8 @@ func _made(variation: StringName, entry: String, context: StringName) -> Control
 	var special: Dictionary[StringName, Callable] = {
 		&"ToyField": _fields,
 		&"ToyDropdown": _dropdowns,
+		&"ToySpinBox": _spin_boxes,
+		&"ToyCheckBox": _check_boxes,
 		&"ToySlider": _sliders.bind(context),
 		&"ToyScroll": _scroll,
 		&"ToyMapBoard": _map.bind(context),
@@ -654,6 +666,40 @@ func _fields() -> Control:
 		if state == "focus":
 			field.add_child(FocusRing.new())
 		row.add_child(field)
+	return row
+
+
+## SpinBox's arrows hover and press only under the pointer: normal, disabled and a live one.
+func _spin_boxes() -> Control:
+	var row := HBoxContainer.new()
+	row.theme_type_variation = &"ToyRowEight"
+	for state: String in ["normal", "disabled", "live"]:
+		var spin := SpinBox.new()
+		spin.theme_type_variation = &"ToySpinBox"
+		spin.get_line_edit().theme_type_variation = &"ToySpinField"
+		spin.get_line_edit().context_menu_enabled = false
+		spin.max_value = 20
+		spin.value = 6
+		spin.editable = state != "disabled"
+		row.add_child(spin)
+	return row
+
+
+func _check_boxes() -> Control:
+	var row := HBoxContainer.new()
+	row.theme_type_variation = &"ToyRowEight"
+	var states: Array[String] = ["normal", "checked", "hover", "disabled", "checked + disabled"]
+	for state: String in states + ["focus", "live"]:
+		var check := CheckBox.new()
+		check.theme_type_variation = &"ToyCheckBox"
+		check.text = "Delivery"
+		check.set_pressed_no_signal(state.begins_with("checked"))
+		check.disabled = state.ends_with("disabled")
+		row.add_child(check)
+		if state == "hover":
+			check.theme = _hover_theme(&"ToyCheckBox")
+		if state == "focus":
+			check.add_child(FocusRing.new())
 	return row
 
 
