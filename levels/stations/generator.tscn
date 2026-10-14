@@ -1,0 +1,115 @@
+[gd_scene format=3 uid="uid://bp1s30k4sy0g5"]
+
+[ext_resource type="PackedScene" uid="uid://8slu7v62pncu" path="res://levels/kit/house_props/generator.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+[ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="3_dark"]
+[ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="4_button"]
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="5_back"]
+[ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="6_green"]
+[ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="7_blue"]
+
+[sub_resource type="BoxShape3D" id="HousingShape"]
+size = Vector3(2.4, 1.28, 1.1)
+
+[sub_resource type="BoxShape3D" id="ExhaustShape"]
+size = Vector3(0.2, 0.22, 0.2)
+
+[sub_resource type="BoxShape3D" id="PanelShape"]
+size = Vector3(1, 0.6, 0.12)
+
+[sub_resource type="BoxMesh" id="Board"]
+material = ExtResource("3_dark")
+size = Vector3(0.9, 0.5, 0.03)
+
+[sub_resource type="BoxMesh" id="ButtonCap"]
+material = ExtResource("4_button")
+size = Vector3(0.14, 0.14, 0.06)
+
+[sub_resource type="BoxMesh" id="GlowPlate"]
+material = ExtResource("7_blue")
+size = Vector3(0.5, 0.38, 0.005)
+
+[sub_resource type="BoxMesh" id="BarsBack"]
+material = ExtResource("5_back")
+size = Vector3(0.42, 0.3, 0.01)
+
+[sub_resource type="BoxMesh" id="BarLit"]
+material = ExtResource("6_green")
+size = Vector3(0.07, 0.24, 0.02)
+
+[node name="Generator" type="Node3D" unique_id=753524007]
+
+[node name="Body" parent="." unique_id=1090577598 instance=ExtResource("1_body")]
+
+[node name="generator" parent="Body" index="0" unique_id=1515964855]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="generator_off" parent="Body" index="1" unique_id=2121660099]
+visible = false
+
+[node name="generator_on" parent="Body" index="2" unique_id=1804830842]
+visible = false
+
+[node name="generator_col0" parent="Body" index="3" unique_id=1408606408]
+collision_layer = 0
+
+[node name="generator_col1" parent="Body" index="4" unique_id=619876446]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=754070148]
+
+[node name="Housing" type="CollisionShape3D" parent="Collision" unique_id=702923332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.64, 0)
+shape = SubResource("HousingShape")
+
+[node name="Exhaust" type="CollisionShape3D" parent="Collision" unique_id=601304083]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 1.39, -0.15)
+shape = SubResource("ExhaustShape")
+
+[node name="Panel" type="CollisionShape3D" parent="Collision" unique_id=1791744827]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.61)
+shape = SubResource("PanelShape")
+
+[node name="Panel" type="MeshInstance3D" parent="." unique_id=488389166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0.565)
+mesh = SubResource("Board")
+
+[node name="Button" type="MeshInstance3D" parent="." unique_id=897178048]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.28, 0.85, 0.6)
+mesh = SubResource("ButtonCap")
+
+[node name="Glow" type="MeshInstance3D" parent="." unique_id=194673665]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17, 0.85, 0.5825)
+visible = false
+mesh = SubResource("GlowPlate")
+
+[node name="Bars" type="Node3D" parent="." unique_id=394492120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.17, 0.85, 0.585)
+
+[node name="Back" type="MeshInstance3D" parent="Bars" unique_id=1046560230]
+mesh = SubResource("BarsBack")
+
+[node name="Bar1" type="MeshInstance3D" parent="Bars" unique_id=738290245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0, 0.01)
+visible = false
+mesh = SubResource("BarLit")
+
+[node name="Bar2" type="MeshInstance3D" parent="Bars" unique_id=840463025]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05, 0, 0.01)
+visible = false
+mesh = SubResource("BarLit")
+
+[node name="Bar3" type="MeshInstance3D" parent="Bars" unique_id=693172923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0, 0.01)
+visible = false
+mesh = SubResource("BarLit")
+
+[node name="Bar4" type="MeshInstance3D" parent="Bars" unique_id=218189193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 0.01)
+visible = false
+mesh = SubResource("BarLit")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1203833460 groups=["spawn_generator"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.2)
+
+[editable path="Body"]
