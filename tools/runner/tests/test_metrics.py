@@ -1043,6 +1043,16 @@ class ManagerRewriteTest(unittest.TestCase):
                          "stopped until its resume")  # fmt: skip
         self.assertIn("a foreground tool call running | a keep-alive timer armed |", "\n".join(md))
 
+    def test_only_an_accepted_user_decision_is_a_card_a_human_answered(self) -> None:
+        def decision(verdict: str, source: str) -> dict:
+            return {"permissionDecision": {"decision": verdict, "source": source}}
+
+        self.assertTrue(metrics.card_answered(decision("accept", "user_temporary")))
+        self.assertTrue(metrics.card_answered(decision("accept", "user_permanent")))
+        self.assertFalse(metrics.card_answered(decision("accept", "config")))
+        self.assertFalse(metrics.card_answered(decision("reject", "user_temporary")), "a rejected card")
+        self.assertFalse(metrics.card_answered({}))
+
 
 SONNET = "claude-sonnet-5-5"
 REPO = "https://github.com/o/r/pull/"

@@ -890,10 +890,11 @@ def run_pauses(launches: dict[str, list[tuple[float, str]]], stopped: dict[str, 
 
 
 def card_answered(d: dict) -> bool:
-    """Whether a tool result's line says a human let the call run on a permission card (#981): its permissionDecision's
-    source is the user's ("user_temporary", ...), not the settings' ("config")."""
+    """Whether a tool result's line says a human let the call run on a permission card (#981): its permissionDecision
+    accepts it and its source is the user's ("user_temporary", ...), not the settings' ("config")."""
     decision = d.get("permissionDecision")
-    return isinstance(decision, dict) and str(decision.get("source", "")).startswith("user")
+    return (isinstance(decision, dict) and decision.get("decision") == "accept"
+            and str(decision.get("source", "")).startswith("user"))  # fmt: skip
 
 
 def idle_use(tool_id: str, mid: str, name: str, inp: dict) -> dict:
