@@ -73,6 +73,43 @@ func test_the_end_reason_reads_in_each_clients_language() -> void:
 	assert_str(screen.reason_label.text).is_equal("Усі задачі виконано за 7:41.")
 
 
+func test_the_shortfalls_label_and_the_status_plate_word_every_demand_alike() -> void:
+	_harness.welcome()
+	var problems: Array[HostText] = [
+		HostText.of(
+			HostText.PLAYERS_MANY, PackedStringArray(), {&"count": 1, &"min": 2, &"max": 10}
+		),
+		HostText.of(HostText.MARKERS, PackedStringArray(["crew"]), {&"need": 5, &"have": 3}),
+		HostText.of(HostText.NO_LAYOUT),
+		HostText.of(HostText.NO_TASK_TYPES),
+	]
+	var no_sets: Dictionary[StringName, PackedStringArray] = {}
+	_harness.send(
+		SettingsChangedEvent.new(
+			{}, "res://levels/maps/a.tscn", 1, Demands.new(null), null, problems, no_sets
+		)
+	)
+	_harness.pump()
+	var model := _harness.session.model
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	_stage.add_child(panel)
+	for locale: String in ["en", "uk"]:
+		TranslationServer.set_locale(locale)
+		panel.refresh(model, -1, false)
+		var plate := LobbyText.status_text(LobbyText.of(model, load(MODE) as GameMode, 0))
+		assert_str(panel.shortfalls_label.text).is_equal(plate)
+		assert_int(plate.split("\n").size()).is_equal(4)
+		assert_str(plate).not_contains("=")
+	TranslationServer.set_locale("en")
+	panel.refresh(model, -1, false)
+	assert_str(panel.shortfalls_label.text).is_equal(
+		(
+			"Too many players: up to 10\nNot enough spawn points on the map: 3 of 5\n"
+			+ "Map unavailable\nNo tasks left for this map"
+		)
+	)
+
+
 ## The host's SettingsChanged of a lobby of one, `count` players short of the mode's minimum.
 func _lacking(count: int) -> SettingsChangedEvent:
 	var problems: Array[HostText] = [

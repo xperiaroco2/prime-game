@@ -4152,10 +4152,9 @@ Protocol 13 (§4.3.4).
   pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
   argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
-- **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
-  only. `players_many`, `markers`, `markers_exact` (#797), `colours`, `no_layout`, `no_task_types` (#803) and `short_axis` (#807) have none, so `HostTextView.plain` shows the id, its
+- **The deck's gaps (ui-0.6.0).** The deck has keys for `players_few`, `players_many` (`lobby.too_many`, by `max`), `markers` (`lobby.need_markers`, by `have` and `need`), `no_layout`, `no_task_types` (#718; no plural form, so no `PLURAL_BY` entry) and the reasons `every_task_done` and `time_up`. `markers_exact` (#797), `colours`, `short_axis` (#807) and `photo_spot_near` have none, so `HostTextView.plain` shows the id, its
   subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
-  base mode only `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
+  base mode `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
   lacks markers, colours or a layout); `no_crew_present` hides the reason line. No key is invented: the UI track's
   deck adds them, then one table entry each.
 - **Tests.** `tests/unit/net/messages/wire_schema_test.gd` (no row carries `text` or `note`, seen failing on row 37
@@ -4265,8 +4264,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
 - **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
-  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
-  (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
+  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls, one line each by its deck key (`players_many` is `lobby.too_many`, `markers` is `lobby.need_markers`, `no_layout` and `no_task_types` their own, #718); `colours` (and `markers_exact`) have no key and stay #548's neutral line. The Esc Lobby page's Shortfalls label words them the same way.
 - **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
   the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
 - Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in

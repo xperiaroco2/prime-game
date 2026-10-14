@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## HostTextView (#548): a shortfall's id worded by the deck's key in the current language, the
-## plural by its count; an id the deck has no key for (ui-0.4.0: players_many, markers, colours,
-## no_layout, markers_exact) or an unknown one as plain(), the id and its arguments with no words
-## of a language.
+## plural by its count; the other ids of #718 (players_many, markers, no_layout, no_task_types) by
+## their keys' placeholders; an id the deck has no key for (colours, markers_exact) or an unknown
+## one as plain(), the id and its arguments with no words of a language.
 
 var _locale := ""
 
@@ -25,23 +25,29 @@ func test_players_few_is_the_decks_need_more_by_its_count() -> void:
 	)
 
 
-func test_an_id_without_a_key_is_its_plain_line() -> void:
+func test_the_other_demands_are_worded_by_their_keys() -> void:
+	var many := _text(&"players_many", [], {&"count": 2, &"min": 1, &"max": 10})
+	assert_str(HostTextView.shortfall(many)).is_equal("Too many players: up to 10")
 	var markers := _text(&"markers", ["package"], {&"need": 4, &"have": 2})
-	assert_str(HostTextView.shortfall(markers)).is_equal("markers package have=2 need=4")
+	assert_str(HostTextView.shortfall(markers)).is_equal(
+		"Not enough spawn points on the map: 2 of 4"
+	)
+	assert_str(HostTextView.shortfall(_text(&"no_layout", [], {}))).is_equal("Map unavailable")
+	assert_str(HostTextView.shortfall(_text(HostText.NO_TASK_TYPES, [], {}))).is_equal(
+		"No tasks left for this map"
+	)
+	TranslationServer.set_locale("uk")
+	assert_str(HostTextView.shortfall(many)).is_equal("Забагато гравців: максимум 10")
+	assert_str(HostTextView.shortfall(markers)).is_equal("На мапі замало точок появи: 2 з 4")
+
+
+func test_an_id_without_a_key_is_its_plain_line() -> void:
 	# #797: an exact demand met by another count; the deck has no key for it yet.
 	var exact := _text(&"markers_exact", ["switch"], {&"need": 4, &"have": 5})
 	assert_str(HostTextView.shortfall(exact)).is_equal("markers_exact switch have=5 need=4")
 	assert_bool(HostTextView.SHORTFALL_KEYS.has(HostText.MARKERS_EXACT)).is_false()
-	var many := _text(&"players_many", [], {&"count": 2, &"min": 1, &"max": 10})
-	assert_str(HostTextView.shortfall(many)).is_equal("players_many count=2 max=10 min=1")
-	assert_str(HostTextView.shortfall(_text(&"no_layout", [], {}))).is_equal("no_layout")
-	# #803: no task type plays on the map after the bans; the deck has no key for it yet.
-	assert_str(HostTextView.shortfall(_text(HostText.NO_TASK_TYPES, [], {}))).is_equal(
-		"no_task_types"
-	)
 	assert_str(HostTextView.shortfall(_text(&"what_now", ["a", "b"], {}))).is_equal("what_now a b")
-	for id: StringName in [&"players_many", &"markers", &"colours", &"no_layout", &"no_task_types"]:
-		assert_bool(HostTextView.SHORTFALL_KEYS.has(id)).override_failure_message(id).is_false()
+	assert_bool(HostTextView.SHORTFALL_KEYS.has(&"colours")).is_false()
 
 
 func test_every_key_of_the_table_is_in_the_deck() -> void:
