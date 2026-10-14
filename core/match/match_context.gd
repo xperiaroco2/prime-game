@@ -85,13 +85,6 @@ func map_layout() -> LevelLayout:
 	return _match.layout(state.map)
 
 
-## Whether the crouch plays in the current phase (the crouch ADR, KE10; Match.crouch_plays): only
-## Match holds the phase's spec, and state.map alone would say yes in a lobby whose next map lists
-## the crouch.
-func crouch_plays() -> bool:
-	return _match.crouch_plays()
-
-
 ## The actor's player state, or null.
 func actor_state() -> PlayerState:
 	return state.player(actor)

@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
-## The crouch invariant (ScenarioInvariants.crouch_problem, the crouch ADR, KE1, KE10, #790) over
-## snapshots of a fixture match whose state is set by hand: a crouched living player on a map the
-## crouch plays on passes; a crouched downed player, a crouch on a map crouch_maps does not list
-## and a crouch in the lobby are each caught.
+## The crouch invariant (ScenarioInvariants.crouch_problem, the crouch ADR, KE1, #790; KE10 as #991
+## amended it) over snapshots of a fixture match whose state is set by hand: a crouched living
+## player passes in the round and in the lobby (the crouch plays everywhere, the engineer's change
+## on #989); a crouched downed player is caught.
 
 const P1 := 1
 const P2 := 2
@@ -13,12 +13,19 @@ func _avatar(game: Match, of: int) -> Dictionary:
 	return avatars.get(of, {})
 
 
-func test_a_crouched_living_player_on_a_crouch_map_passes() -> void:
+func test_a_crouched_living_player_in_the_round_passes() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	game.state.player(P2).crouched = true
 	assert_bool(_avatar(game, P2)["crouched"] as bool).is_true()
 	assert_str(ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))).is_empty()
-	game.mode.player_rules.crouch_maps = PackedStringArray([FixtureModes.MAP])
+
+
+func test_a_crouched_living_player_in_the_lobby_passes() -> void:
+	# The engineer's change (#989, #991): this was caught as "a phase off the match's map" before.
+	var game := FixtureModes.started(FixtureModes.basic(), [P1, P2])
+	assert_str(game.phase_id()).is_equal("lobby")
+	game.state.player(P2).crouched = true
+	assert_bool(_avatar(game, P2)["crouched"] as bool).is_true()
 	assert_str(ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))).is_empty()
 
 
@@ -33,19 +40,3 @@ func test_a_crouched_downed_player_is_caught() -> void:
 	game.state.player(P2).crouched = true
 	var problem := ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))
 	assert_str(problem).contains("not alive")
-
-
-func test_a_crouch_on_a_map_crouch_maps_does_not_list_is_caught() -> void:
-	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
-	game.mode.player_rules.crouch_maps = PackedStringArray(["fixture://elsewhere"])
-	game.state.player(P2).crouched = true
-	var problem := ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))
-	assert_str(problem).contains("a map without the crouch")
-
-
-func test_a_crouch_in_the_lobby_is_caught() -> void:
-	# The lobby's state.map already holds the next match's pick, a map the crouch plays on.
-	var game := FixtureModes.started(FixtureModes.basic(), [P1, P2])
-	game.state.player(P2).crouched = true
-	var problem := ScenarioInvariants.crouch_problem(game, P2, _avatar(game, P2))
-	assert_str(problem).contains("a phase off the match's map")

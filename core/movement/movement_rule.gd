@@ -334,8 +334,9 @@ static func _accept(
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.on_floor = claim.on_floor
-	# The pose only where the crouch plays (KE10); elsewhere the bit is ignored, as a downed one is.
-	player.crouched = claim.crouched and ctx.crouch_plays()
+	# The pose of a living claim in every phase that takes one, the lobby included: the crouch
+	# plays everywhere (#991). A downed claim's bit is ignored (_take_look).
+	player.crouched = claim.crouched
 	player.sprint_held = claim.sprint
 	player.moving = checked.moved_itself
 

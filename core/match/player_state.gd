@@ -40,8 +40,8 @@ var velocity := Vector3.ZERO
 var facing := Vector3.FORWARD
 var on_floor := true
 ## The last accepted claim's crouch (the crouch ADR, KE2): false at every placement and knockdown,
-## never taken from a downed claim or where the crouch does not play (KE10). The eye and the capsule
-## read it (PlayerRules.height_of, eye_height_of), and the snapshot relays it.
+## never taken from a downed claim; kept in every phase, the crouch plays everywhere (#991). The eye
+## and the capsule read it (PlayerRules.height_of, eye_height_of), and the snapshot relays it.
 var crouched := false
 ## The client tick of the last accepted claim, or -1.
 var claim_tick := -1

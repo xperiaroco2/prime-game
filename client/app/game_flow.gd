@@ -64,17 +64,6 @@ static func level(session: Session, model: ClientModel) -> PhaseSpec.Level:
 	return spec.level if spec != null else PhaseSpec.Level.NONE
 
 
-## Whether the crouch plays in the level that plays now (the crouch ADR, KE10), read as the host's
-## Match.crouch_plays reads it: in a phase on the match's map (PhaseSpec.level MAP) that the own
-## `mode`'s PlayerRules.crouch_maps lists, or on every map when the list is empty. Never in the
-## lobby, whose phase holds the next match's pick in `model.map`, and never before Welcome or
-## without PlayerRules.
-static func crouch_plays(session: Session, model: ClientModel, mode: GameMode) -> bool:
-	if mode == null or mode.player_rules == null or level(session, model) != PhaseSpec.Level.MAP:
-		return false
-	return mode.player_rules.crouch_plays_on(model.map)
-
-
 ## Whether the local player stands still: Loading, Pregame and End accept no MoveClaim (the map is
 ## not there yet, the round has not begun, or the match is over), and nothing moves it before
 ## Welcome.

@@ -186,15 +186,6 @@ func test_the_base_mode_writes_its_numbers() -> void:
 	assert_int(defaults.max_players).is_equal(0)
 
 
-func test_the_base_mode_crouches_on_the_house_alone() -> void:
-	# The crouch ADR (KE10, the engineer's answer on PR #752): crouch_maps is the House alone, so
-	# the greybox test bench relays no crouch (its numbers: the test of the MVP player rules).
-	var rules := _base_mode().player_rules
-	assert_array(Array(rules.crouch_maps)).contains_exactly([HOUSE])
-	assert_bool(rules.crouch_plays_on(HOUSE)).is_true()
-	assert_bool(rules.crouch_plays_on(GREYBOX)).is_false()
-
-
 func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 	# Placed first, a downed player would still be downed when PlayersPlaced goes to everyone
 	# (#58).
@@ -573,7 +564,7 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 		var number: String = property["name"]
 		var usage: int = property["usage"]
 		var kind: int = property["type"]
-		# Only the numbers: crouch_maps, a list of maps, has its own test (#790).
+		# Only the numbers (motion_maps, a list of maps, has its own test).
 		if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0 or kind not in [TYPE_FLOAT, TYPE_INT]:
 			continue
 		var got: float = mode.player_rules.get(number)

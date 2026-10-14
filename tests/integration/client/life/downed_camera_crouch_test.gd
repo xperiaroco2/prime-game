@@ -80,11 +80,10 @@ func test_downed_in_the_open_the_pivot_is_the_standing_eye() -> void:
 	)
 
 
-## The own player crouched at `at` (the crouch key held where the crouch plays), followed by the
+## The own player crouched at `at` (the crouch key held), followed by the
 ## LifeView.
 func _crouched_player(at: Vector3) -> PlayerController:
 	var player := _world.add_player(OPEN)
-	player.crouch_plays = true
 	player.crouch_held = true
 	player.teleport(Transform3D(Basis.IDENTITY, at))
 	_life.player = player

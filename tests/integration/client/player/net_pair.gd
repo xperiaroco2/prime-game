@@ -175,16 +175,11 @@ func with_life(respawn_s: float) -> void:
 
 ## Plays the fixture `crouch_room.tscn` (#791: a slab 1.4 m above the floor, over x -9.5 to -6.5
 ## and z -1 to 3; round markers along z = 12 from x = -16) as the lobby and the match's map, before
-## start(). `listed`: the mode's crouch_maps lists it (the crouch plays in its round); otherwise it
-## lists steps_room alone, a map of the mode the match does not play (KE10). The motion map stays
-## the third and last, where the crouch plays too (KD11): the match plays the first, which keeps
-## today's knockdown.
-func with_crouch_room(listed: bool) -> void:
+## start(). The crouch plays there as everywhere (#991). The motion map stays the third and last:
+## the match plays the first, which keeps today's knockdown.
+func with_crouch_room() -> void:
 	mode.lobby_level = CROUCH_ROOM
 	mode.maps = PackedStringArray([CROUCH_ROOM, STEPS_ROOM, MOTION_LEVEL])
-	mode.player_rules.crouch_maps = PackedStringArray(
-		[CROUCH_ROOM if listed else STEPS_ROOM, MOTION_LEVEL]
-	)
 
 
 ## Gives the mode knives and the pick-up (#319's suite), before start(): the item kind `knife`,
