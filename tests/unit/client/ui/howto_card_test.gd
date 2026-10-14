@@ -43,10 +43,13 @@ func test_a_card_needs_three_to_four_frames_each_a_picture_or_words() -> void:
 
 func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 	var model := Preview.fake_model(_mode, true)
-	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery"])
+	# The House deals Delivery and the Generator (#800).
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery", &"generator"])
 	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"generator"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery", "generator"])
 	assert_array(HowtoCards.dealable(_mode, model)).is_empty()
-	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"delivery"])
+	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"delivery", &"generator"])
 
 
 func test_the_dealable_types_of_a_mode_with_zones_leave_out_the_banned_ones() -> void:
@@ -78,7 +81,7 @@ func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
 	# Another set setting (say a later "banned roles") that happens to name a task type.
 	model.id_sets[&"some_other_set"] = PackedStringArray(["delivery"])
-	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery"])
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery", &"generator"])
 	assert_str(String(HowtoCards.deal_of(_mode).banned_setting)).is_equal("banned_task_types")
 	var no_deal := GameMode.new()
 	no_deal.task_types = _mode.task_types
