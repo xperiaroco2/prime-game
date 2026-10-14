@@ -293,6 +293,7 @@ carry it) and as "prompt_sizes" in the JSON record. Run it over a window before 
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -301,10 +302,11 @@ import statistics
 import subprocess
 import time
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import agents_check
+from . import agents_check, transcript_cache
 from .common import LINE_CAP, OUT, ROOT, Failure, cut_line, run, say, shown, warn
 
 TOKEN_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
@@ -401,10 +403,17 @@ SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
 # The most failing tests and failure lines the verify section lists (#273); the JSON record keeps every run's.
 RED_ROWS = 20
-# `gh run list --limit`: enough for the project's history so far (149 runs before 2026-10-02 11:00 UTC).
+# The CI run list's limit (the scorecard's REST pages, `ci_data`'s `gh run list --limit`): enough for the project's
+# history so far (149 runs before 2026-10-02 11:00 UTC).
 CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
 CI_WORKFLOW = "ci.yml"
+# The quality scorecard's run list (#1014): the REST API's pages of CI_WORKFLOW's runs, read at once (`gh run list`
+# reads its ten pages one after another, about 2.5 s each). RUN_JQ gives each run `gh run list --json`'s shape for
+# its fields (a null conclusion, a run still going, is "" as there).
+RUN_PAGE = 100
+RUN_JQ = ("[.workflow_runs[] | {databaseId: .id, event, headBranch: .head_branch, headSha: .head_sha, "
+          'conclusion: (.conclusion // ""), createdAt: .created_at, attempt: .run_attempt}]')  # fmt: skip
 GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to 10 min"), (600, None, "over 10 min"))
 # A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
 CACHE_TTL = 300
@@ -1250,7 +1259,26 @@ def price_items(items: list[dict], calls: list[dict], bounds: list[int]) -> None
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
-    Lines outside [since, until] are left out (used for a manager session that spans several windows)."""
+    Lines outside [since, until] are left out (used for a manager session that spans several windows). From the
+    transcript cache (#1014, transcript_cache's docstring) when the CLI enabled it and the file is unchanged."""
+    return transcript_cache.read(path, since, until, parse_agent, parser_salt())
+
+
+def parser_salt() -> str:
+    """#1014: a hash of this module's source, so an entry parsed by another version of the parser is a miss."""
+    global _PARSER_SALT
+    if _PARSER_SALT is None:
+        _PARSER_SALT = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    return _PARSER_SALT
+
+
+_PARSER_SALT: str | None = None
+
+
+def parse_agent(path: Path, since: float | None = None, until: float | None = None) -> tuple[dict, float | None]:
+    """read_agent's summary of one transcript, parsed, and the newest timestamp of its lines (None when none has one):
+    an `until` after it cuts nothing."""
+    latest: float | None = None
     usage: dict[str, dict] = {}
     first_seen: dict[str, float] = {}
     uses: dict[str, dict] = {}
@@ -1286,7 +1314,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "custom-title" and d.get("customTitle"):
                 title = str(d["customTitle"])
             t = stamp(d.get("timestamp"))
-            if t is None or (until is not None and t >= until):
+            if t is None:
+                continue
+            latest = t if latest is None else max(latest, t)
+            if until is not None and t >= until:
                 continue
             if "<task-notification>" in line:  # a queue-operation line or a user message, whichever comes first
                 for tid in NOTIFIED.findall(line):
@@ -1449,7 +1480,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     budgets = Counter(n + ctx for n, ctx in left)
     budget = budgets.most_common(1)[0][0] if budgets else None
     both = (prompt or "") + "\n" + (launch or "")  # the harness may relay the user request first: look in both
-    return {
+    summary = {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
         "model": model,
@@ -1499,6 +1530,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "high_ctx": {"calls": len(high), "usd": sum(usd(usd_of(u)) for u in high)},
         "reminders": {"n": len(left), "exact": budgets[budget] if budget is not None else 0, "budget": budget},
     }
+    return summary, latest
 
 
 def latency_class(call: dict) -> str | None:
@@ -1982,14 +2014,46 @@ def gh_list(gh, args: list[str]) -> list[dict]:
     return [v for v in value if isinstance(v, dict)]
 
 
+def run_pages(limit: int) -> list[list[str]]:
+    """The `gh api` calls for the newest `limit` runs of CI_WORKFLOW, a page each, in `gh run list`'s order (newest
+    first) and shape (RUN_JQ), and one page more: a run started while they are read repeats a run on the next page
+    (first_of_each drops it), and the list still reaches `limit`. A page past the last run is an empty list."""
+    path = (f"repos/{{owner}}/{{repo}}/actions/workflows/{CI_WORKFLOW}/runs"
+            f"?per_page={RUN_PAGE}&exclude_pull_requests=true")  # fmt: skip
+    return [["api", f"{path}&page={page}", "--jq", RUN_JQ] for page in range(1, -(-limit // RUN_PAGE) + 2)]
+
+
+def first_of_each(pages: list[list[dict]], key: str) -> list[dict]:
+    """The pages' items in order, each `key` once: a run started while the pages were read shifts the later ones by
+    one, so a page can repeat the last item of the one before."""
+    seen: set = set()
+    out = []
+    for item in (i for page in pages for i in page):
+        k = item.get(key)
+        if k is not None and k in seen:
+            continue
+        seen.add(k)
+        out.append(item)
+    return out
+
+
 def read_github(gh=_gh) -> dict:
-    """What the quality scorecard reads from GitHub (read-only): every PR, the runs of CI_WORKFLOW, every issue."""
-    prs = gh_list(gh, ["pr", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
-                       "number,url,title,body,headRefName,state,createdAt,mergedAt"])  # fmt: skip
-    runs = gh_list(gh, ["run", "list", "--workflow", CI_WORKFLOW, "--limit", str(CI_LIST_LIMIT), "--json",
-                        "databaseId,event,headBranch,headSha,conclusion,createdAt,attempt"])  # fmt: skip
-    issues = gh_list(gh, ["issue", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
-                          "number,title,body,createdAt"])  # fmt: skip
+    """What the quality scorecard reads from GitHub (read-only): every PR, the runs of CI_WORKFLOW, every issue.
+
+    #1014: every list, and each page of the run list (run_pages), is read at once (each `gh` call waits seconds on
+    the network, most of a warm run's time); a failure is the first one's in this order (PRs, the run pages, issues),
+    as when they were read one after another."""
+    listings = (
+        ["pr", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
+         "number,url,title,body,headRefName,state,createdAt,mergedAt"],
+        *run_pages(CI_LIST_LIMIT),
+        ["issue", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json", "number,title,body,createdAt"],
+    )  # fmt: skip
+    with ThreadPoolExecutor(max_workers=len(listings)) as pool:
+        futures = [pool.submit(gh_list, gh, args) for args in listings]
+    lists = [f.result() for f in futures]
+    prs, issues = lists[0], lists[-1]
+    runs = first_of_each(lists[1:-1], "databaseId")[:CI_LIST_LIMIT]
     # A run list at its limit misses older runs: a PR opened before its oldest run has unknown CI rounds.
     oldest = min((t for r in runs if (t := stamp(r.get("createdAt"))) is not None), default=None)
     cut = [name for name, lst, limit in (("PRs", prs, GH_LIST_LIMIT), ("CI runs", runs, CI_LIST_LIMIT),
