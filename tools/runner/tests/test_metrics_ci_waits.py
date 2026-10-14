@@ -176,6 +176,7 @@ class CiWaitRecordTest(unittest.TestCase):
         self.assertAlmostEqual(pub["usd"], MEASURED)
         self.assertAlmostEqual(pub["estimate_usd"], POLL + LAUNCH)
         self.assertAlmostEqual(pub["saving_usd"], MEASURED - POLL - LAUNCH)
+        self.assertAlmostEqual(pub["ceiling_usd"], MEASURED - LAUNCH, msg="a free poll agent: the launches alone")
         self.assertAlmostEqual(pub["share"], MEASURED / pub["role_usd"])
         read = price(read=206_000)
         self.assertAlmostEqual(pub["week"], (MEASURED - read + 0.75 * read) / 23.0)
@@ -191,10 +192,20 @@ class CiWaitRecordTest(unittest.TestCase):
         every = ci["all"]
         self.assertEqual((every["agents"], every["calls"], every["waits"]), (4, 7, 4))
         self.assertAlmostEqual(every["usd"], sum(r["usd"] for r in ci["rows"]))
-        self.assertAlmostEqual(every["saving_week"], every["week"] - every["estimate_week"])
+        self.assertAlmostEqual(every["estimate_usd"], every["poll_usd"] + every["launch_usd"])
+        self.assertLess(every["saving_week"], every["ceiling_week"])
         self.assertEqual(ci["span_s"], 86_400)
         self.assertAlmostEqual(ci["per_week"], every["saving_week"] * 7)
-        self.assertEqual(ci["over"], ci["per_week"] > 1.0)
+        self.assertAlmostEqual(ci["ceiling_per_week"], every["ceiling_week"] * 7)
+        self.assertFalse(ci["over"])
+
+    def test_the_verdict_against_the_bar(self) -> None:
+        record = {"all": {"saving_week": 0.2, "ceiling_week": 0.3}, "per_week": 1.4, "ceiling_per_week": 2.1,
+                  "over": True}  # fmt: skip
+        self.assertEqual(metrics.ci_wait_verdict(record),
+                         "saving 0.20% (1.40%/7 days), a free one 0.30% (2.10%/7 days): over the 1% bar")
+        record |= {"per_week": None, "ceiling_per_week": None, "over": False}
+        self.assertEqual(metrics.ci_wait_verdict(record), "saving 0.20%, a free one 0.30%: not over the 1% bar")
 
     def test_the_section_and_the_compact_clause(self) -> None:
         md, _record, compact = self.build()
@@ -203,10 +214,11 @@ class CiWaitRecordTest(unittest.TestCase):
         self.assertIn("| pr-rebase | rebase agent | 1 | 2 | 1 | 1 | 1/0/0 |", text)
         self.assertLessEqual(len(compact), 11)
         week = next(x for x in compact if x.startswith("% of a Max 20x week"))
-        self.assertIn(" | CI waits (#1019): 7 of 15 CI-role API calls, $0.72 (in $0.00, write $0.67, read $0.04, out $0.01) "
-                      "= ", week)  # fmt: skip
-        self.assertIn("; a 16k poll agent $1.03, saving ", week)
-        self.assertRegex(week, r"per 7 days at the window's rate: (not )?over the 1% bar\)$")
+        self.assertTrue(week.endswith(
+            " | CI waits (#1019): 7 of 15 CI-role calls, $0.72 (in $0.00, write $0.67, read $0.04, out $0.01), 67% of "
+            "their $, 0.03% of the week; a 16k poll agent $1.03: saving -0.01% (-0.09%/7 days), a free one 0.00% "
+            "(0.01%/7 days): not over the 1% bar"), week)  # fmt: skip
+        self.assertIn("In the window (1.0 days), a poll agent's saving -0.01% (-0.09%/7 days)", text)
         self.assertLessEqual(len(week), LINE_CAP)
 
     def test_without_a_ci_role_nothing_is_added(self) -> None:

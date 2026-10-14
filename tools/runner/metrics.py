@@ -105,6 +105,19 @@ most of its context, priced as its write's premium over a read. A `wait` that ra
 clock ("still running after N s"); the gap minus N is the time around wait (the shell's and Python's start-up, the
 guard hook, the model's turn): the step (wait's DEFAULT_MAX) plus that time's p95 must stay under CACHE_TTL.
 
+CI waits and a poll agent's saving (#1019; #302's answer 4A: a poll agent is built only if it saves over 1% of the
+week): per run kind and CI role (CI_WAIT_ROLES: issue-task's publisher, quick-task's quick agent and fixer,
+pr-rebase's rebase and fix agents) over the counted runs, the CI-wait calls (ci_wait_calls: an API call whose tool
+uses all poll CI (`gh pr checks`, `gh run watch`, a `gh run view` without --log), wait on a job (`wait`) or sleep
+alone, and one with no tool use right after one, not the agent's last), the waits (such calls in a row), the polls by
+kind, their API list $ by input, cache write, cache read and output, their share of the role's $ and their % of the
+week; the poll agent's estimate (poll_agent_usage: each call at the same model's prices as a call of POLL_AGENT_CTX
+context with the same input and output, the same cache write up to that, its first call of a wait writing it all,
+the rest a cache read; plus per wait one call of the agent at its first CI-wait call's $, the launch), the saving in $
+and % of the week, and the ceiling (a free poll agent: the launches alone); the savings over all per 7 days at the
+window's rate against POLL_THRESHOLD. A table in the report (`ci_waits` in the JSON record) and a clause at the end of
+the compact summary's % of the week line.
+
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
   issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
@@ -3728,43 +3741,46 @@ def ci_wait_row(rows: list[dict], kind: str, role: str, name: str) -> dict:
     """#1019: ci_wait_record's sums of `rows`' agents (each an agent's CI-wait record plus its API calls and $)."""
     out = {"kind": kind, "role": role, "name": name, "agents": len(rows), "api_calls": 0, "calls": 0, "waits": 0,
            "role_usd": 0.0, "role_read_usd": 0.0}  # fmt: skip
-    polls, spent, estimate = Counter(), Counter(), Counter()
+    polls, spent, poll, launch = Counter(), Counter(), Counter(), Counter()
     for r in rows:
         w = r["ci_wait"]
-        out["api_calls"] += r["api_calls"]
-        out["role_usd"] += r["role_usd"]
-        out["role_read_usd"] += r["role_read_usd"]
+        for k in ("api_calls", "role_usd", "role_read_usd"):
+            out[k] += r[k]
         out["calls"] += w["calls"]
         out["waits"] += w["waits"]
         polls.update(w["polls"])
         spent.update(w["usd"])
-        estimate.update(w["poll_usd"])
-        estimate.update(w["launch_usd"])
-    measured = usd(spent)
-    est = usd(estimate)
-    week = week_percent(measured, spent["usd_cache_read"])["percent"]
-    est_week = week_percent(est, estimate["usd_cache_read"])["percent"]
-    role_week = week_percent(out["role_usd"], out["role_read_usd"])["percent"]
+        poll.update(w["poll_usd"])
+        launch.update(w["launch_usd"])
+
+    def week(c: Counter) -> float:
+        return week_percent(usd(c), c["usd_cache_read"])["percent"]
+
+    measured, est = usd(spent), usd(poll) + usd(launch)
     return out | {
         "polls": {k: polls.get(k, 0) for k in POLL_KINDS}, "usd_split": {k: spent.get(k, 0.0) for k in USD_KEYS},
-        "usd": measured, "share": measured / out["role_usd"] if out["role_usd"] else None, "week": week,
-        "role_week": role_week, "estimate_usd": est, "estimate_week": est_week, "saving_usd": measured - est,
-        "saving_week": week - est_week,
+        "usd": measured, "share": measured / out["role_usd"] if out["role_usd"] else None, "week": week(spent),
+        "role_week": week_percent(out["role_usd"], out["role_read_usd"])["percent"],
+        "poll_usd": usd(poll), "launch_usd": usd(launch), "estimate_usd": est, "saving_usd": measured - est,
+        "saving_week": week(spent) - week(poll) - week(launch), "ceiling_usd": measured - usd(launch),
+        "ceiling_week": week(spent) - week(launch),
     }  # fmt: skip
 
 
 def ci_wait_record(counted: list[dict], span: float | None) -> dict:
     """#1019: the CI waits of the CI roles (CI_WAIT_ROLES) of the counted runs, per run kind and role (CI_WAIT_NAMES
-    names quick-task's and pr-rebase's) and over all: agents, API calls, CI-wait calls (ci_wait_calls), waits, polls
-    by kind, their API list $ by kind and in all, the share of the role's $, the % of the week (week_percent's central
-    weight), the poll agent's estimate and the saving in $ and % of the week; `per_week`: the saving over all scaled to
-    7 days at the window's rate (`span`: the window's seconds), and whether it is over POLL_THRESHOLD."""
+    names quick-task's and pr-rebase's; a resumed issue-task run's publisher is issue-task's) and over all: agents,
+    API calls, CI-wait calls (ci_wait_calls), waits, polls by kind, their API list $ by kind and in all, the share of
+    the role's $, the % of the week (week_percent's central weight), the poll agent's estimate (its calls and the
+    launches) and the saving in $ and % of the week, and the ceiling: the saving of a poll agent that cost nothing
+    (the CI-wait calls minus the launches). `per_week` and `ceiling_per_week`: the two savings over all scaled to 7
+    days at the window's rate (`span`: the window's seconds); `over`: the first is over POLL_THRESHOLD."""
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for r in counted:
         for x in r["agents"]:
             d = x["data"]
             if x["role"] in CI_WAIT_ROLES and d and d.get("ci_wait") is not None:
-                kind = "issue-task" if r["kind"] == "issue-task (resumed)" else r["kind"]  # its publisher is one
+                kind = "issue-task" if r["kind"] == "issue-task (resumed)" else r["kind"]
                 groups[(kind, x["role"])].append({
                     "ci_wait": d["ci_wait"], "api_calls": d["api_calls"], "role_usd": usd(d["tokens"]),
                     "role_read_usd": d["tokens"].get("usd_cache_read", 0.0),
@@ -3772,9 +3788,11 @@ def ci_wait_record(counted: list[dict], span: float | None) -> dict:
     rows = [ci_wait_row(lst, kind, role, CI_WAIT_NAMES.get((kind, role), role))
             for (kind, role), lst in sorted(groups.items())]  # fmt: skip
     every = ci_wait_row([a for lst in groups.values() for a in lst], "all", "all", "all CI roles")
-    per_week = every["saving_week"] * WEEK_SECONDS / span if span and span > 0 else None
+    scale = WEEK_SECONDS / span if span and span > 0 else None
+    per_week = every["saving_week"] * scale if scale else None
     return {"rows": rows, "all": every, "span_s": span, "per_week": per_week,
-            "over": None if per_week is None else per_week > POLL_THRESHOLD}  # fmt: skip
+            "ceiling_per_week": every["ceiling_week"] * scale if scale else None,
+            "over": (every["saving_week"] if per_week is None else per_week) > POLL_THRESHOLD}  # fmt: skip
 
 
 def pct2(v: float) -> str:
@@ -3784,12 +3802,15 @@ def pct2(v: float) -> str:
 
 
 def ci_wait_verdict(record: dict) -> str:
+    """#1019: the saving and the ceiling, in the window and per 7 days at its rate, against POLL_THRESHOLD."""
     a = record["all"]
-    if record["per_week"] is None:
-        return f"saving {pct2(a['saving_week'])} of the week"
-    side = "over" if record["over"] else "not over"
-    return (f"saving {pct2(a['saving_week'])} of the week ({pct2(record['per_week'])} per 7 days at the window's rate: "
-            f"{side} the {POLL_THRESHOLD:g}% bar)")  # fmt: skip
+
+    def both(window: float, week: float | None) -> str:
+        return pct2(window) + ("" if week is None else f" ({pct2(week)}/7 days)")
+
+    return (f"saving {both(a['saving_week'], record['per_week'])}, a free one "
+            f"{both(a['ceiling_week'], record['ceiling_per_week'])}: {'' if record['over'] else 'not '}over the "
+            f"{POLL_THRESHOLD:g}% bar")  # fmt: skip
 
 
 def ci_wait_section(record: dict) -> list[str]:
@@ -3800,21 +3821,24 @@ def ci_wait_section(record: dict) -> list[str]:
         [r["kind"], r["name"], r["agents"], r["api_calls"], r["calls"], r["waits"],
          "/".join(str(r["polls"][k]) for k in POLL_KINDS), *(fmt_usd(r["usd_split"][k]) for k in USD_KEYS),
          fmt_usd(r["usd"]), "?" if r["share"] is None else f"{r['share']:.0%}", pct2(r["week"]),
-         fmt_usd(r["estimate_usd"]), fmt_usd(r["saving_usd"]), pct2(r["saving_week"])]
+         fmt_usd(r["estimate_usd"]), fmt_usd(r["saving_usd"]), pct2(r["saving_week"]), pct2(r["ceiling_week"])]
         for r in [*record["rows"], record["all"]]
     ]  # fmt: skip
     head = ["kind", "role", "agents", "API calls", "CI-wait calls", "waits", "polls ci/wait/sleep", "input $",
             "cache write $", "cache read $", "output $", "CI-wait $", "of the role's $", "of the week",
-            "poll agent $", "saving $", "saving of the week"]  # fmt: skip
+            "poll agent $", "saving $", "saving of the week", "a free poll agent's"]  # fmt: skip
+    w, k = WEEK_CENTRAL
+    days = f" ({record['span_s'] / 86400:.1f} days)" if record["span_s"] else ""
     return [
         "## CI waits per CI role and a poll agent's saving (#1019)", "", table(head, rows), "",
         f"A CI-wait call: an API call whose tool uses all poll (CI: `gh pr checks`, `gh run watch`, `gh run view` "
-        f"without --log; a `wait` call; a sleep alone), or one with no tool use right after one (not the agent's last). "
-        f"A wait: such calls in a row. % of the week: {week_rate()}, at the central weight. The poll agent's estimate, "
-        f"at the same model's prices: each CI-wait call as a call of {POLL_AGENT_CTX // 1000}k context with the same "
-        f"input and output, the same cache write up to that (its first call of a wait writes it all), the rest a "
-        f"cache read; plus per wait one call of the agent at its first CI-wait call's $ (the launch). "
-        f"{ci_wait_verdict(record)}.", "",
+        f"without --log; a `wait` call; a sleep alone), or one with no tool use right after one (not the agent's "
+        f"last). A wait: such calls in a row. % of the week: (list $ without cache reads + {w:g} x cache-read $) / "
+        f"${k} per 1%. The poll agent's estimate, at the same model's prices: each CI-wait call as a call of "
+        f"{POLL_AGENT_CTX // 1000}k context with the same input and output, the same cache write up to that (its "
+        f"first call of a wait writes it all), the rest a cache read; plus per wait one call of the agent at its "
+        f"first CI-wait call's $ (it launches the poll agent). A free poll agent's: the launches alone. In the "
+        f"window{days}, a poll agent's {ci_wait_verdict(record)} (the engineer's bar, #302's answer 4A).", "",
     ]  # fmt: skip
 
 
@@ -3823,9 +3847,9 @@ def ci_wait_compact(record: dict) -> str:
     a = record["all"]
     split = ", ".join(f"{name} {fmt_usd(a['usd_split'][k])}" for name, k in zip(("in", "write", "read", "out"), USD_KEYS))
     share = "?" if a["share"] is None else f"{a['share']:.0%}"
-    return (f" | CI waits (#1019): {a['calls']} of {a['api_calls']} CI-role API calls, {fmt_usd(a['usd'])} ({split}) "
-            f"= {share} of their $, {pct2(a['week'])} of the week; a {POLL_AGENT_CTX // 1000}k poll agent "
-            f"{fmt_usd(a['estimate_usd'])}, {ci_wait_verdict(record)}")  # fmt: skip
+    return (f" | CI waits (#1019): {a['calls']} of {a['api_calls']} CI-role calls, {fmt_usd(a['usd'])} ({split}), "
+            f"{share} of their $, {pct2(a['week'])} of the week; a {POLL_AGENT_CTX // 1000}k poll agent "
+            f"{fmt_usd(a['estimate_usd'])}: {ci_wait_verdict(record)}")  # fmt: skip
 
 
 def manager_rows(counted: list[dict], sessions: list[dict]) -> list[dict]:

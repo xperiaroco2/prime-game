@@ -547,9 +547,9 @@ class MetricsTest(unittest.TestCase):
         # The headline is at the central weight whatever the share of cache reads (the fixture's are 1% of list $).
         # #1019: the publisher's CI watch (its last call reads no poll's result: no CI-wait call) ends the line.
         self.assertIn("% of a Max 20x week: 0.6% with cache reads at 75% of their list $ ($23.0 per 1%); 0.7 to 0.6% "
-                      "if the limit counts them at 60 to 100% | CI waits (#1019): 1 of 4 CI-role API calls, $0.04 (in "
-                      "$0.00, write $0.04, read $0.00, out $0.00) = 93% of their $, 0.00% of the week; a 16k poll agent "
-                      "$0.12, saving 0.00% of the week (-0.20% per 7 days at the window's rate: not over the 1% bar)",
+                      "if the limit counts them at 60 to 100% | CI waits (#1019): 1 of 4 CI-role calls, $0.04 (in "
+                      "$0.00, write $0.04, read $0.00, out $0.00), 93% of their $, 0.00% of the week; a 16k poll agent "
+                      "$0.12: saving 0.00% (-0.20%/7 days), a free one 0.00% (0.00%/7 days): not over the 1% bar",
                       compact)  # fmt: skip
         self.assertTrue(any(line.startswith("local verify (agents): 1 runs, 1 red, median 271 s") for line in compact))
         self.assertEqual(compact[-1], "CI: 3 runs in the window; last 2 green: job 6.5 min median, verify 385 s")
