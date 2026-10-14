@@ -1043,15 +1043,16 @@ def main(argv: list[str] | None = None) -> int:
 
             return agents_check.main(session=args.session, all_sessions=args.all, launch=args.launch)
         if args.command == "metrics":
-            from . import metrics
+            from . import metrics, transcript_cache
 
-            return metrics.main(
-                args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run, verbose=args.verbose,
-                adr_reads=args.adr_reads,
-            )
+            with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+                return metrics.main(
+                    args.session, since=args.since, until=args.until, ci=args.ci, out=args.out,
+                    compact=args.compact, no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
+                    verbose=args.verbose, adr_reads=args.adr_reads,
+                )
         if args.command == "wave":
-            from . import wave
+            from . import transcript_cache, wave
 
             if args.stalled:
                 from . import wave_stall
@@ -1061,14 +1062,18 @@ def main(argv: list[str] | None = None) -> int:
                          ("--notes", args.notes), ("--stage-since", args.stage_since)) if value is not None]  # fmt: skip
                 if given or not args.merge_check:
                     raise Failure(f"wave: {', '.join(given) or '--no-merge-check'} does not go with --stalled")
-                return wave_stall.main(minutes=wave_stall.STALL_MINUTES if args.minutes is None else args.minutes)
+                with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+                    return wave_stall.main(
+                        minutes=wave_stall.STALL_MINUTES if args.minutes is None else args.minutes
+                    )
             if args.minutes is not None:
                 raise Failure("wave: --minutes goes with --stalled")
-            return wave.main(
-                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow,
-                base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
-                merge_check=args.merge_check,
-            )  # fmt: skip
+            with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+                return wave.main(
+                    session=args.session, since=args.since, args_issue=args.args, out=args.out,
+                    workflow=args.workflow, base=args.base, plan=args.plan, title=args.title, notes=args.notes,
+                    stage_since=args.stage_since, merge_check=args.merge_check,
+                )  # fmt: skip
         if args.command == "inbox":
             from . import inbox
 

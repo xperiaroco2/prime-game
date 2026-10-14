@@ -293,6 +293,7 @@ carry it) and as "prompt_sizes" in the JSON record. Run it over a window before 
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -304,7 +305,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import agents_check
+from . import agents_check, transcript_cache
 from .common import LINE_CAP, OUT, ROOT, Failure, cut_line, run, say, shown, warn
 
 TOKEN_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
@@ -1250,7 +1251,26 @@ def price_items(items: list[dict], calls: list[dict], bounds: list[int]) -> None
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
-    Lines outside [since, until] are left out (used for a manager session that spans several windows)."""
+    Lines outside [since, until] are left out (used for a manager session that spans several windows). From the
+    transcript cache (#1014, transcript_cache's docstring) when the CLI enabled it and the file is unchanged."""
+    return transcript_cache.read(path, since, until, parse_agent, parser_salt())
+
+
+def parser_salt() -> str:
+    """#1014: a hash of this module's source, so an entry parsed by another version of the parser is a miss."""
+    global _PARSER_SALT
+    if _PARSER_SALT is None:
+        _PARSER_SALT = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    return _PARSER_SALT
+
+
+_PARSER_SALT: str | None = None
+
+
+def parse_agent(path: Path, since: float | None = None, until: float | None = None) -> tuple[dict, float | None]:
+    """read_agent's summary of one transcript, parsed, and the newest timestamp of its lines (None when none has one):
+    an `until` after it cuts nothing."""
+    latest: float | None = None
     usage: dict[str, dict] = {}
     first_seen: dict[str, float] = {}
     uses: dict[str, dict] = {}
@@ -1286,7 +1306,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "custom-title" and d.get("customTitle"):
                 title = str(d["customTitle"])
             t = stamp(d.get("timestamp"))
-            if t is None or (until is not None and t >= until):
+            if t is None:
+                continue
+            latest = t if latest is None else max(latest, t)
+            if until is not None and t >= until:
                 continue
             if "<task-notification>" in line:  # a queue-operation line or a user message, whichever comes first
                 for tid in NOTIFIED.findall(line):
@@ -1449,7 +1472,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     budgets = Counter(n + ctx for n, ctx in left)
     budget = budgets.most_common(1)[0][0] if budgets else None
     both = (prompt or "") + "\n" + (launch or "")  # the harness may relay the user request first: look in both
-    return {
+    summary = {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
         "model": model,
@@ -1499,6 +1522,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "high_ctx": {"calls": len(high), "usd": sum(usd(usd_of(u)) for u in high)},
         "reminders": {"n": len(left), "exact": budgets[budget] if budget is not None else 0, "budget": budget},
     }
+    return summary, latest
 
 
 def latency_class(call: dict) -> str | None:
