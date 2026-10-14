@@ -6,9 +6,12 @@ extends RefCounted
 ##
 ## A room is a Node3D of the level with `metadata/size_m` (Vector2i or Vector2, whole metres), the
 ## level piece conventions (PR #611): its origin is its north-west floor corner, its plan rect runs
-## `size_m` from there along +X and +Z, unrotated; plan x is X and plan y is Z. Its id is its
-## `metadata/room_id`, else its node name in snake_case; the screen names it by the deck key
-## `room.<id>`. Only rooms_of() reads this shape, so #306's room record changes that one function.
+## `size_m` from there along +X and +Z, unrotated; plan x is X and plan y is Z.
+##
+## The room record (#306) is that node: its id `metadata/room_id` and its name `metadata/name_key`,
+## a copy deck key with English and Ukrainian text, beside the outline's `size_m`. A room without
+## them still draws: its id is its node name in snake_case, its name key `room.<id>`. Every House
+## room carries both (tests/unit/levels/house_room_records_test.gd). Only rooms_of() reads this.
 ##
 ## A task type's zones are the rooms holding a level marker (a Marker3D in the group `spawn_<tag>`)
 ## of one of its TaskType.item_spawn_tags(): every such marker, never the ones a deal chose, so a
@@ -16,23 +19,28 @@ extends RefCounted
 
 ## A room's size in metres, on the room node (PR #611's convention).
 const SIZE_KEY := &"size_m"
-## A room's id, when its node name is not it.
+## A room's id (its record's; without it the node name in snake_case).
 const ID_KEY := &"room_id"
+## A room's name: a copy deck key (its record's; without it `room.<id>`).
+const NAME_KEY := &"name_key"
 ## The spawn points' group prefix (MarkerReader's, which client/ may not name).
 const SPAWN_GROUP_PREFIX := "spawn_"
 ## The empty border around the rooms on the board, a share of the board's shorter side (layout).
 const MARGIN := 0.05
 
 
-## One room on the plan, in metres: `rect.position` its north-west corner (X, Z).
+## One room on the plan, in metres: `rect.position` its north-west corner (X, Z); `name_key` the
+## deck key that names it (`room.<id>` when none is given).
 class Room:
 	extends RefCounted
 	var id: StringName
 	var rect: Rect2
+	var name_key: String
 
-	func _init(room_id: StringName, plan_rect: Rect2) -> void:
+	func _init(room_id: StringName, plan_rect: Rect2, deck_key: String = "") -> void:
 		id = room_id
 		rect = plan_rect
+		name_key = deck_key if not deck_key.is_empty() else ContentNames.ROOM_PREFIX + String(id)
 
 
 var rooms: Array[Room] = []
@@ -70,7 +78,7 @@ static func from_level(level: Node, mode: GameMode) -> MapData:
 	return data
 
 
-## The rooms under `level`, in scene-tree order (the room reader of #253 until #306's record).
+## The rooms under `level` with their records (#306), in scene-tree order.
 static func rooms_of(level: Node) -> Array[Room]:
 	var found: Array[Room] = []
 	var taken: Array[StringName] = []
@@ -94,7 +102,7 @@ static func rooms_of(level: Node) -> Array[Room]:
 			continue
 		taken.append(id)
 		var corner := plan_of(_placed(room, level).origin)
-		found.append(Room.new(id, Rect2(corner, size)))
+		found.append(Room.new(id, Rect2(corner, size), str(room.get_meta(NAME_KEY, ""))))
 	return found
 
 

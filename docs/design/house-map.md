@@ -66,8 +66,8 @@ house is 24 x 20 m (x 18..42, y 24..44) on two floors, with the attic and the ro
 
 ## 4. Rooms (working draft)
 
-Position is the room's north-west corner (x, y). Names are English working names; ids and the Ukrainian names come
-with the room record (#306).
+Position is the room's north-west corner (x, y). Names are English working names; the game names each room by its
+room record (#306): its id, its scene's file name, and the copy deck's `room.<id>` with English and Ukrainian text.
 
 ### Level -1: basement
 
@@ -266,8 +266,8 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
 - **#523** (answered). How does this map relate to the environment team's house in #523 (the M6.2 slice's level)? Is
   House that level, or a later map? Players always play the House (the engineer's option (a) on #767, GDD §13);
   #523 imports the art track's expanded House into `levels/house`.
-- **Rooms in the level data.** The room record (#306) gives each room its id, names and sign; this file's names are
-  working names until then.
+- **Rooms in the level data** (answered). The room record (#306) gives each room its id and its name as a deck key
+  (English and Ukrainian), on the room scene's root; no sign (the engineer on #306: no wall signs).
 - **Ideas from the sketch, not decided.** The sketch described these, but the engineer has not decided them; they stay
   out of the rules until he does (the generator's two he decided on 2026-10-09, in #679 and [GDD](../GDD.md) §8: it
   charges only while every switch is on, and anyone may switch any active switch on or off):

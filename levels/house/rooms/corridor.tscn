@@ -41,6 +41,8 @@ material = ExtResource("4_door")
 size = Vector3(0.12, 2.15, 0.12)
 
 [node name="Corridor" type="Node3D" unique_id=870916183]
+metadata/room_id = &"corridor"
+metadata/name_key = "room.corridor"
 metadata/size_m = Vector2i(10, 4)
 
 [node name="Body" type="StaticBody3D" parent="." unique_id=1670389755]

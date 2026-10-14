@@ -84,6 +84,8 @@ material = ExtResource("4_door")
 size = Vector3(0.12, 2.15, 0.12)
 
 [node name="DiningRoom" type="Node3D" unique_id=1583215982]
+metadata/room_id = &"dining_room"
+metadata/name_key = "room.dining_room"
 metadata/size_m = Vector2i(12, 6)
 
 [node name="Body" type="StaticBody3D" parent="." unique_id=217313591]

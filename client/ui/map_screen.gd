@@ -428,8 +428,8 @@ func _refresh_now() -> void:
 ## the zones' tag.
 func _retext() -> void:
 	_retext_rows()
-	for id: StringName in _room_labels:
-		_room_labels[id].text = _room_name(id)
+	for room: MapData.Room in _data.rooms:
+		_room_labels[room.id].text = _room_name(room)
 	if _model != null:
 		time_label.text = time_text(_model, _host_tick)
 	_show_zone_hint()
@@ -537,7 +537,7 @@ func _rebuild_rooms() -> void:
 	var pixels_per_metre := _data.scale_for(ROOMS_SIZE)
 	var at := 0
 	for room: MapData.Room in _data.rooms:
-		var tile := _room_tile(room.id)
+		var tile := _room_tile(room)
 		tile.position = _data.to_board(room.rect.position, ROOMS_SIZE)
 		tile.size = room.rect.size * pixels_per_metre
 		plan.add_child(tile, true)
@@ -548,7 +548,8 @@ func _rebuild_rooms() -> void:
 
 
 ## A room (ToyMapRoom): its pictogram drawn in ink and its name, centred in a column.
-func _room_tile(id: StringName) -> PanelContainer:
+func _room_tile(room: MapData.Room) -> PanelContainer:
+	var id := room.id
 	var tile := PanelContainer.new()
 	tile.name = String(id).to_pascal_case()
 	tile.theme_type_variation = &"ToyMapRoom"
@@ -570,7 +571,7 @@ func _room_tile(id: StringName) -> PanelContainer:
 	# A room the pack draws no pictogram for shows its name only.
 	icon.visible = icon.texture != null
 	column.add_child(icon)
-	var label := UiParts.styled_label(_room_name(id), &"ToyMapRoomText")
+	var label := UiParts.styled_label(_room_name(room), &"ToyMapRoomText")
 	label.name = "Name"
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label.custom_minimum_size = Vector2(ROOM_NAME_WIDTH, 0)
@@ -612,8 +613,11 @@ func _clear_zones() -> void:
 			zone.free()
 
 
-func _room_name(id: StringName) -> String:
-	return ContentNames.text(ContentNames.room(id))
+## A room's name by its record's deck key (#306), else its id, as ContentNames names content.
+func _room_name(room: MapData.Room) -> String:
+	if ContentNames.has_key(room.name_key):
+		return ContentNames.text(room.name_key)
+	return String(room.id)
 
 
 ## The zones' tag under the first lit room, its left edge on the room's: the deck's

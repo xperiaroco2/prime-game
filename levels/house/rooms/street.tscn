@@ -17,6 +17,8 @@ material = ExtResource("1_greybox")
 size = Vector3(80, 0.2, 6)
 
 [node name="Street" type="Node3D" unique_id=1668556017]
+metadata/room_id = &"street"
+metadata/name_key = "room.street"
 metadata/size_m = Vector2i(80, 6)
 
 [node name="Body" type="StaticBody3D" parent="." unique_id=522613528]
