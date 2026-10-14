@@ -27,7 +27,7 @@ func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
 	# (a), D31 (a), D36 (a)).
 	var expected := [
 		(
-			"move | move.title | - | move_forward move_left move_back move_right sprint jump crouch"
+			"move | move.title | - | move_forward move_left move_back move_right sprint jump crouch sneak"
 			+ " | trigger ClientSeen moved 1"
 		),
 		(
