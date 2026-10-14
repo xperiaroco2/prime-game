@@ -2598,15 +2598,18 @@ class CheckpointTest(unittest.TestCase):
         (rule,) = [p for p in third["prompt"].split("\n\n") if p.startswith(STOP_HEAD)]
         self.assertTrue(third["prompt"].index(STOP_HEAD) < third["prompt"].index("Do NOT publish"))
         for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000` every ~15 tool calls and after each verify",
-                      "When it prints HANDOFF NOW, or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript), stop at your last green commit",
+                      "When it prints `HANDOFF NOW: past 200,000` (a plain HANDOFF NOW does not stop you), or when it found no transcript and you have made 150 tool calls, stop at your last green commit",
                       "a whole `verify --changed` passed on", "leave no background job", "a WIP commit first, so each has a sha",
                       "`git reset --hard <that commit>` in your worktree, after the follow-up names each dropped commit's sha",
                       "`gh issue create --title", "--label <area> --body-file <file under a7/>`", "area:* label", '"Part of #7"',
                       "done (", "decisions (", "gotchas (", "the verify state (", "Never close, reopen or edit #7.",
                       "complete false, verify_green true", "followup: the follow-up issue's URL",
-                      "unless ctx printed past 200,000", "No commit since origin/main was ever green: file nothing"):  # fmt: skip
+                      "If only the final verify and the return are left, finish instead.", "No commit since origin/main was ever green: file nothing"):  # fmt: skip
             self.assertIn(words, rule)
         self.assertNotIn("playcheck", rule)
+        # The hard threshold, not the handoff's 150k mark or its 60-call backstop (#983's review).
+        self.assertNotIn("after 60 tool calls", rule)
+        self.assertNotIn("unless ctx printed past", rule)
         schema = options(third)["schema"]
         self.assertEqual(schema["properties"]["followup"], {"type": "string"})
         self.assertNotIn("followup", schema["required"])
