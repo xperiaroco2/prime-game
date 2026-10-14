@@ -59,6 +59,8 @@ HANDOVER_POST = re.compile(rf"(?m)^#{{1,6}}[ \t]*{HANDOVER_TITLE}[ \t]*$|--title
 CLOSE_SESSION = re.compile(r"(?i)\bclose this session\b|\bзакрий(?:те)? цю сесію")
 PASTE = re.compile(r"(?i)\bpaste\b|\bвстав")
 NOT_PROMPTS = ("<task-notification>", "[Request interrupted")
+# Tools whose input is file content: a skill or doc that holds the handover title is no post of it.
+FILE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
 
 @dataclass
@@ -144,6 +146,8 @@ def hands_over(block: dict) -> bool:
     """Whether an assistant content block hands the session over: it posts the handover comment or asks the human to
     close the session and paste the kickoff."""
     if block.get("type") == "tool_use":
+        if block.get("name") in FILE_TOOLS:
+            return False
         return any(HANDOVER_POST.search(s) for s in strings_in(block.get("input")))
     if block.get("type") == "text":
         words = str(block.get("text") or "")

@@ -375,6 +375,21 @@ class StallTest(unittest.TestCase):
                 self.assertIsNone(wave_stall.read_activity(self.p.write()).handed_over)
                 self.assertIsNotNone(self.stall(60))
 
+    def test_editing_a_file_that_holds_the_title_hands_nothing_over(self) -> None:
+        # The handover skill's own file starts with the title as a heading: a turn that edits it posts no handover.
+        title = "# Handover to a fresh manager session\n\nThe order from here."
+        for tool, inp in (("Write", {"file_path": "handover.md", "content": title}),
+                          ("Edit", {"file_path": "handover.md", "old_string": "x", "new_string": title}),
+                          ("MultiEdit", {"file_path": "handover.md",
+                                         "edits": [{"old_string": "x", "new_string": title}]})):  # fmt: skip
+            with self.subTest(tool=tool):
+                self.p.lines = self.p.lines[:1]
+                call = {"type": "tool_use", "id": "e1", "name": tool, "input": inp}
+                self.p.add(prompt(-5, "update the handover skill"), tw.assistant(0, "m-e", [call]),
+                           tw.enqueue(10, timer_note("btimer")))  # fmt: skip
+                self.assertIsNone(wave_stall.read_activity(self.p.write()).handed_over)
+                self.assertIsNotNone(self.stall(60))
+
     def test_the_command_line(self) -> None:
         args = cli.build_parser().parse_args(["wave", "--stalled"])
         self.assertEqual((args.stalled, args.minutes, args.since, args.args), (True, None, None, None))
