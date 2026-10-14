@@ -112,6 +112,30 @@ func test_equal_crouch_speeds_make_a_hard_edge() -> void:
 	assert_float(FootstepCadence.quiet_of(CROUCH + 0.01, CROUCH, 1.5)).is_equal(0.0)
 
 
+func test_a_sneaking_step_at_or_below_the_crouch_walks_speed_is_silent() -> void:
+	# #990: the sneak bit and a step at the crouch walk's speed, give or take the jitter margin.
+	var edge := CROUCH + FootstepCadence.SNEAK_SPEED_MARGIN_MPS
+	assert_float(FootstepCadence.SNEAK_SPEED_MARGIN_MPS).is_greater(0.0)
+	assert_bool(FootstepCadence.silent_of(true, CROUCH, CROUCH)).is_true()
+	assert_bool(FootstepCadence.silent_of(true, 1.0, CROUCH)).is_true()
+	assert_bool(FootstepCadence.silent_of(true, edge, CROUCH)).is_true()
+
+
+func test_a_sneaking_step_above_the_margin_is_heard() -> void:
+	# A modified client that claims the sneak while it walks: heard (#989).
+	var edge := CROUCH + FootstepCadence.SNEAK_SPEED_MARGIN_MPS
+	assert_bool(FootstepCadence.silent_of(true, edge + 0.01, CROUCH)).is_false()
+	assert_bool(FootstepCadence.silent_of(true, CROUCH_FAST, CROUCH)).is_false()
+	assert_bool(FootstepCadence.silent_of(true, WALK, CROUCH)).is_false()
+
+
+func test_a_step_without_the_sneak_bit_is_never_silent() -> void:
+	assert_bool(FootstepCadence.silent_of(false, CROUCH, CROUCH)).is_false()
+	assert_bool(FootstepCadence.silent_of(false, 1.0, CROUCH)).is_false()
+	# Nor in a mode with no crouch speed (the sneak walks at it).
+	assert_bool(FootstepCadence.silent_of(true, 0.0, 0.0)).is_false()
+
+
 func test_a_step_carries_its_speed_over_the_step_not_one_frame() -> void:
 	# Frames of 2.0 and 3.0 m/s alternate (an interpolated pose's jitter): the step's speed is
 	# their mean; a standing frame between them neither counts nor resets it.

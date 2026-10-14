@@ -20,7 +20,10 @@ extends Node3D
 ## Anywhere (the crouch plays everywhere, #991), a step at or below the mode's crouch_speed_mps is
 ## FootstepCadence.QUIET_STEP_DB quieter and heard within its QUIET_STEP_RANGE_M, easing to a walk's
 ## step at its crouch_fast_speed_mps (#792, #991, the crouch ADR's KD1 (b)): read from the step's
-## speed, never the crouch flag.
+## speed, never the crouch flag. A sneaking player's step plays nothing (#989, #990): the sneak flag
+## of the drawn pose (the own controller's, a body's relayed one) AND a step speed at or below
+## crouch_speed_mps plus FootstepCadence.SNEAK_SPEED_MARGIN_MPS (FootstepCadence.silent_of), so a
+## peer that claims the sneak while it walks faster is heard.
 ## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
 ## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
@@ -215,8 +218,11 @@ func _physics_process(delta: float) -> void:
 		)
 		if not due or not heard_from is Vector3:
 			continue
+		var step_speed := _cadences[peer].step_speed_mps
+		if FootstepCadence.silent_of(_sneaking(peer), step_speed, rules.crouch_speed_mps):
+			continue
 		var quiet := FootstepCadence.quiet_of(
-			_cadences[peer].step_speed_mps, rules.crouch_speed_mps, rules.crouch_fast_speed_mps
+			step_speed, rules.crouch_speed_mps, rules.crouch_fast_speed_mps
 		)
 		_step(at, heard_from as Vector3, peer != 0, quiet)
 
@@ -226,6 +232,15 @@ func _rules_of(peer: int) -> PlayerRules:
 	if peer == 0:
 		return player.rules
 	return avatars.rules
+
+
+## Whether `peer`'s drawn pose sneaks (#990; 0: the own player's controller, else the sneak flag
+## its body's interpolated pose carries).
+func _sneaking(peer: int) -> bool:
+	if peer == 0:
+		return player.is_sneaking()
+	var body := avatars.body_of(peer)
+	return body != null and body.is_sneaking()
 
 
 ## A footstep of feet at `at` heard from `heard_from`, muffled by the level if `occlude`; `quiet`

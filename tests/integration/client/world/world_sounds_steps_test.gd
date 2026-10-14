@@ -196,6 +196,66 @@ func test_a_step_between_the_crouch_speeds_eases() -> void:
 	assert_float(step["max_distance"] as float).is_equal_approx(half_m, 0.6)
 
 
+func test_a_sneaker_at_the_crouch_walks_speed_is_silent() -> void:
+	# #990: the relayed sneak bit and an honest sneak at exactly crouch_speed_mps, near the ears:
+	# no step at all, whatever the interpolated pose's jitter.
+	var sneak := Vector3.LEFT * _views.rules.crouch_speed_mps
+	await _walk(Vector3(3, 0, -2), sneak, Vector3.ZERO, 150, false, false, true)
+	assert_bool((_views.body_of(PEER) as RemotePlayerBody).is_sneaking()).is_true()
+	assert_int(_sounds.steps()).is_equal(0)
+	assert_int(_sounds.played()).is_equal(0)
+
+
+func test_a_claimed_sneak_above_the_crouch_walks_speed_is_heard() -> void:
+	# A modified client claiming the sneak at the fast crouch's or the walk's speed: heard as today.
+	var rules := _views.rules
+	await _walk(
+		Vector3(3, 0, -2),
+		Vector3.LEFT * rules.crouch_fast_speed_mps,
+		Vector3.ZERO,
+		150,
+		false,
+		false,
+		true
+	)
+	assert_int(_sounds.steps()).is_greater(0)
+	assert_float(_last()["volume_db"] as float).is_equal_approx(0.0, 0.15)
+	_started.clear()
+	await _walk(
+		Vector3(3, 0, -2),
+		Vector3.LEFT * rules.walk_speed_mps,
+		Vector3.ZERO,
+		120,
+		false,
+		false,
+		true
+	)
+	assert_bool(_started.is_empty()).is_false()
+	assert_float(_last()["volume_db"] as float).is_equal(0.0)
+
+
+func test_a_slow_step_without_the_sneak_bit_is_the_quiet_step() -> void:
+	var slow := Vector3.LEFT * _views.rules.crouch_speed_mps
+	await _walk(Vector3(3, 0, -2), slow, Vector3.ZERO, 150)
+	assert_int(_sounds.steps()).is_greater(0)
+	assert_float(_last()["volume_db"] as float).is_less(-3.0)
+
+
+func test_the_local_player_sneaking_is_silent() -> void:
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.sneak_held = true
+	player.move_input = Vector2(0, 1)
+	await _world.frames(150)
+	assert_bool(player.is_sneaking()).is_true()
+	assert_int(_sounds.steps()).is_equal(0)
+	# Let go: a walk's steps.
+	player.sneak_held = false
+	await _world.frames(60)
+	assert_int(_sounds.steps()).is_greater(0)
+
+
 func test_a_quiet_step_beyond_its_range_is_cut_where_a_walks_is_heard() -> void:
 	var rules := _views.rules
 	var far := FootstepCadence.QUIET_STEP_RANGE_M + 1.5
@@ -226,7 +286,7 @@ func test_the_local_players_slow_steps_are_quiet_too() -> void:
 
 
 ## PEER's snapshots for `frames` physics frames, one a tick: from `from` moving at `velocity`
-## (m/s), each claiming `claimed`; `downed` and `crouched` as the snapshot says.
+## (m/s), each claiming `claimed`; `downed`, `crouched` and `sneaking` as the snapshot says.
 func _walk(
 	from: Vector3,
 	velocity: Vector3,
@@ -234,6 +294,7 @@ func _walk(
 	frames: int,
 	downed := false,
 	crouched := false,
+	sneaking := false,
 ) -> void:
 	for i: int in frames:
 		_now += FRAME_USEC
@@ -246,6 +307,7 @@ func _walk(
 				"facing": Vector3.FORWARD,
 				"downed": downed,
 				"crouched": crouched,
+				"sneaking": sneaking,
 				"invulnerable": false,
 				"held_item": -1,
 			}

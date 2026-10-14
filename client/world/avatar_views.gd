@@ -200,6 +200,7 @@ func _physics_process(delta: float) -> void:
 		body.set_colour(BodyColours.of(model.colour_of(peer)))
 		# Before set_pose places it: the push search of this frame reads the crouched capsule.
 		body.set_crouched(pose.crouched, ease_s)
+		body.set_sneaking(pose.sneaking)
 		body.set_pose(pose)
 
 

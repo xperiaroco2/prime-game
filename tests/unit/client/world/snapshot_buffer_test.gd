@@ -113,6 +113,21 @@ func test_the_crouch_is_the_snapshots_at_or_before_the_drawn_tick_never_blended(
 	assert_bool(old.pose_of(PEER, 20.0).crouched).is_false()
 
 
+func test_the_sneak_is_the_snapshots_at_or_before_the_drawn_tick_never_blended() -> void:
+	# #990: taken as the crouch is; a snapshot without the flag (an older host's) is no sneak.
+	var buffer := SnapshotBuffer.new()
+	var sneaking := _avatar(Vector3(1, 0, 0), Vector3.RIGHT)
+	sneaking["sneaking"] = true
+	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.RIGHT)}, 500000)
+	buffer.add(11, {PEER: sneaking}, 550000)
+	buffer.add(12, {PEER: _avatar(Vector3(2, 0, 0), Vector3.RIGHT)}, 600000)
+	assert_bool(buffer.pose_of(PEER, 10.9).sneaking).is_false()
+	assert_bool(buffer.pose_of(PEER, 11.0).sneaking).is_true()
+	assert_bool(buffer.pose_of(PEER, 11.9).sneaking).is_true()
+	assert_bool(buffer.pose_of(PEER, 11.9).crouched).is_false()
+	assert_bool(buffer.pose_of(PEER, 12.0).sneaking).is_false()
+
+
 func test_a_placement_snaps() -> void:
 	var buffer := SnapshotBuffer.new()
 	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.FORWARD)}, 500000)

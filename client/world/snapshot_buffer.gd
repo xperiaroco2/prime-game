@@ -60,6 +60,9 @@ class Pose:
 	## The avatar's crouch (the crouch ADR, KE7) in the snapshot at or before the render time, or
 	## the only one held: a flag is never blended.
 	var crouched := false
+	## The avatar's sneak (#990), taken as the crouch is: never blended. WorldSounds reads it
+	## (through RemotePlayerBody.is_sneaking) for the silent step.
+	var sneaking := false
 
 
 ## Snapshots of this host tick or older are not kept (clear()): -1 before the first clear.
@@ -188,6 +191,7 @@ func pose_of(peer: int, at: float) -> Pose:
 	var pose := Pose.new()
 	pose.velocity = _field(newest, peer, "velocity")
 	pose.crouched = _flag(before if before >= 0 else after, peer, "crouched")
+	pose.sneaking = _flag(before if before >= 0 else after, peer, "sneaking")
 	if before < 0 or after < 0:
 		var only := before if before >= 0 else after
 		pose.position = _field(only, peer, "position")

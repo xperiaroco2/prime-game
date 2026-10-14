@@ -59,6 +59,7 @@ var _shell: MeshInstance3D
 var _downed := false
 var _watched := false
 var _crouched := false
+var _sneaking := false
 ## Whether the capsule, meshes and shell have the crouched height now (crouched, not downed).
 var _fitted_low := false
 ## How far the head and the points hung on it are below their standing places now, in metres:
@@ -162,6 +163,18 @@ func set_crouched(crouched: bool, delta: float) -> void:
 ## Whether the body is drawn crouched (set_crouched): the crouched capsule, unless it lies.
 func is_crouched() -> bool:
 	return _crouched
+
+
+## Sets whether the player sneaks (#990, the pose's flag): it changes nothing drawn (whether a
+## sneaking player looks different is the engineer's open question on #989); WorldSounds reads it
+## for the silent step.
+func set_sneaking(value: bool) -> void:
+	_sneaking = value
+
+
+## Whether the pose says the player sneaks (set_sneaking).
+func is_sneaking() -> bool:
+	return _sneaking
 
 
 ## Shows the invulnerable shell (the avatar's flag): it pulses while shown.

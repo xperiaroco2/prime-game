@@ -15,7 +15,9 @@ extends RefCounted
 ## start, the host's correction, a snapped pose): no step, and the cadence starts again.
 ##
 ## A step at the crouch walk's speed is quiet, anywhere (#792, #991, the crouch ADR's KD1 (b)):
-## quiet_of() of the step's own speed (step_speed_mps), never the crouch flag.
+## quiet_of() of the step's own speed (step_speed_mps), never the crouch flag. A sneaking player's
+## step is silent (#989, #990): silent_of() reads the sneak flag the pose carries AND the step's own
+## speed, so a peer that claims the sneak while it walks faster is heard as quiet_of() says.
 
 ## Below this horizontal speed a player stands. A placeholder, "not a decision".
 const MIN_SPEED_MPS := 0.5
@@ -34,6 +36,10 @@ const START := 0.5
 ## host reads. Placeholders, "not a decision" (the engineer's listening session tunes them).
 const QUIET_STEP_DB := -6.0
 const QUIET_STEP_RANGE_M := 6.0
+## The sneak's silent step (#990): how far above the crouch walk's speed a sneaking step's measured
+## speed may be and still be silent, so an interpolated pose's jitter never lets an honest sneak at
+## crouch_speed_mps be heard. Engine tolerance, a placeholder, "not a decision".
+const SNEAK_SPEED_MARGIN_MPS := 0.2
 
 ## How far through the present step, 0 to 1.
 var progress := START
@@ -72,6 +78,15 @@ static func quiet_of(speed_mps: float, quiet_mps: float, loud_mps: float) -> flo
 	if loud_mps <= quiet_mps:
 		return 1.0 if speed_mps <= quiet_mps else 0.0
 	return clampf((loud_mps - speed_mps) / (loud_mps - quiet_mps), 0.0, 1.0)
+
+
+## Whether a step at `step_speed_mps` is silent (#990): only while `sneaking` (the drawn pose's
+## flag) and at or below the mode's `crouch_speed_mps` (the sneak's speed, #989) plus
+## SNEAK_SPEED_MARGIN_MPS; never in a mode with no crouch speed.
+static func silent_of(sneaking: bool, step_speed_mps: float, crouch_speed_mps: float) -> bool:
+	if not sneaking or crouch_speed_mps <= 0.0:
+		return false
+	return step_speed_mps <= crouch_speed_mps + SNEAK_SPEED_MARGIN_MPS
 
 
 ## Whether a step falls in this frame, in which the feet moved `moved` in `delta` seconds; at most
