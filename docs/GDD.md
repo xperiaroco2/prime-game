@@ -703,5 +703,10 @@ the tutorial deals no task at all and teaches only movement and the basic mechan
 [`docs/design/tutorial.md`](design/tutorial.md) §9, and its [ADR](decisions/2026-10-12-tutorial-without-tasks.md):
 his answers on [PR #894](https://github.com/xperiaroco2/prime-game/pull/894#issuecomment-6122434286) (LD1 (a), LD2
 (a), LD7 to LD10 (a)). Built in #900 (825a): the package is a plain item, no task is dealt, no drop-off stands in
-the room, and eight lessons remain (Controls, Picking up and putting down, Hand and belt, Map and tasks, Downed,
-Death, Voice nearby, Menu). The throw lesson (#901) and the crouch key (#902) are later issues.
+the room, and eight lessons remained (Controls, Picking up and putting down, Hand and belt, Map and tasks, Downed,
+Death, Voice nearby, Menu). Built in #901 (825b, LD3 (a)): the throw lesson, lesson 4 after Hand and belt, so the
+tutorial has nine lessons (Controls, Picking up and putting down, Hand and belt, Throwing, Map and tasks, Downed,
+Death, Voice nearby, Menu). It completes on the player's own throw; its words are the deck's (`tutorial.list.throw`
+"Throwing", `tutorial.step.throw.title` "Throw an item", `tutorial.step.throw.how` "Take an item in your hand and
+press {key}"), and the room is kept as it is (the engineer's answer (c) on #901, #911). The crouch key (#902) is
+lesson 1's key row.
