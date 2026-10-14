@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The how-to cards in `content/howto/` (#254): every task type of every mode in content/modes/
-## has a valid card (HowtoCards.problems_of), Delivery's has the UI pack's four pictures with the
-## finish last, the Guide's basics are the tutorial's words, and every deck key a card names is in
+## has a valid card (HowtoCards.problems_of), Delivery's has the UI pack's by-meaning pictures
+## (ui-0.8.0) with the finish last and the greybox's colour Delivery keeps delivery-1..4, the
+## Guide's basics are the tutorial's words, and every deck key a card names is in
 ## the copy deck. A task type without a card fails the check. Loads `content/` on purpose, as the
 ## mode check does (§9.6).
 
@@ -34,7 +35,7 @@ func test_a_task_type_without_a_card_fails_the_check() -> void:
 	assert_str(problems[0]).contains("no_such_task has no how-to card")
 
 
-func test_delivery_has_the_packs_four_pictures_and_the_finish_last() -> void:
+func test_delivery_has_the_by_meaning_pictures_and_the_finish_last() -> void:
 	var card := HowtoCards.of_task(&"delivery")
 	assert_object(card).is_not_null()
 	assert_str(String(card.title)).is_equal("task.delivery")
@@ -44,6 +45,28 @@ func test_delivery_has_the_packs_four_pictures_and_the_finish_last() -> void:
 		art.append(frame.art)
 		done.append(frame.done)
 		assert_str(String(frame.text)).is_empty()
+	(
+		assert_array(art)
+		. is_equal(
+			[
+				PACK_CARDS + "delivery-meaning-1.png",
+				PACK_CARDS + "delivery-meaning-2.png",
+				PACK_CARDS + "delivery-meaning-3.png",
+				PACK_CARDS + "delivery-meaning-4.png",
+			]
+		)
+	)
+	assert_array(done).is_equal([false, false, false, true])
+
+
+func test_the_greybox_colour_delivery_keeps_the_colour_pictures() -> void:
+	var card := HowtoCards.of_task(&"colour_delivery")
+	assert_object(card).is_not_null()
+	var art: Array[String] = []
+	var done: Array[bool] = []
+	for frame: HowtoFrame in card.frames:
+		art.append(frame.art)
+		done.append(frame.done)
 	(
 		assert_array(art)
 		. is_equal(
