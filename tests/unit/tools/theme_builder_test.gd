@@ -558,7 +558,7 @@ func test_the_hints_are_in_both_themes() -> void:
 func test_legacy_names_are_thin_variations_of_toy_ones() -> void:
 	var theme := _committed("default")
 	var legacy: Dictionary = _mapping["legacy"]
-	assert_int(legacy.size()).is_equal(17)
+	assert_int(legacy.size()).is_equal(18)
 	for type_name: String in legacy:
 		var entry: Dictionary = legacy[type_name]
 		assert_str(str(theme.get_type_variation_base(type_name))).is_equal(str(entry["variation"]))
