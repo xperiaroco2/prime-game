@@ -8,7 +8,7 @@ agent's shell): its `lint` step is `lint --changed`, the gdformat and gdlint of 
 row and record say so (step_note, step_detail); `--full` and CI never narrow it. The rest of this docstring is
 `verify --full` (exactly what CI runs, in parts: `verify --full --part <name>` runs doctor and only that part's steps
 of PARTS, and CI runs each part in a job of its own, #857; there `test` is two steps, test-1 and test-2, a half of
-the suites each in a part of its own, #980).
+the suites each in a part of its own, #980, and the network runs two parts, network-1 and network-2, #1013).
 
 `doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
@@ -197,27 +197,28 @@ AFTER: dict[str, tuple[str, ...]] = {
 # 38165201035, the whole job 12.7 min): test 427 s, the network, bots and chaos runs and game 290 s together, lint 104 s
 # and selftest 104 s beside check 25 s and selftest-godot 61 s; so `test` alone was the longest part. It grew to 757 s
 # (run 38525315154, 2026-10-14, the job 13.4 min), so since #980 CI runs it as its two halves (HALVES), a part each.
+# Then the network part was the longest, 405 s (run 38550038208: its steps 366 s, check 25 s; test-1 273 s, test-2
+# 294 s, runner 218 s), so since #1013 it is two: network-1 the ENet and loopback runs (171 s of steps there), network-2
+# the WebRTC runs (195 s). Each is a job of its own on a machine of its own, so its network runs overlap no other Godot
+# run as on one machine; GROUPS keeps `--part network`, both at once, for a local run.
 PARTS: dict[str, tuple[str, ...]] = {
     "test-1": ("check", "test-1"),
     "test-2": ("check", "test-2"),
-    "network": (
+    "network-1": ("check", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"),
+    "network-2": (
         "check",
-        "enet",
-        "freeze",
-        "stall",
         "webrtc",
         "webrtc-freeze",
         "webrtc-stall",
         "webrtc-silence",
-        "bots",
-        "bots-enet",
         "bots-webrtc",
-        "chaos",
         "chaos-webrtc",
-        "game",
     ),
     "runner": ("lint", "signal", "check", "selftest", "selftest-godot"),
 }
+# A name `--part` takes beside PARTS' (#1013): these parts' steps as one part, in their order there. CI runs only
+# PARTS; `verify --full --part network` runs every network run on one machine, as the one part did before the split.
+GROUPS: dict[str, tuple[str, ...]] = {"network": ("network-1", "network-2")}
 # A step of LANES that CI's parts run as these steps instead, between them every test of it once (#980): `test` as its
 # two halves (gdunit.half_of). A part's step of these takes the step's place in its lane (part_lanes); a run of the
 # whole of LANES (a local `verify --full`) runs the one step, so it is no slower for the split.
@@ -1413,13 +1414,21 @@ def steps_in_flight(ended: set[str], lanes: dict[str, tuple[str, ...]] | None = 
     return running
 
 
+def part_steps(part: str) -> frozenset[str]:
+    """A part's steps: those of PARTS, or of every part of a group of GROUPS (#1013); an unknown name fails."""
+    if part in PARTS:
+        return frozenset(PARTS[part])
+    if part in GROUPS:
+        return frozenset(step for name in GROUPS[part] for step in PARTS[name])
+    raise Failure(f"verify: no part {part!r} (the parts: {', '.join(PARTS)}; {', '.join(GROUPS)} runs several)")
+
+
 def part_lanes(part: str) -> dict[str, tuple[str, ...]]:
     """A part's lanes (#857): each lane of LANES with only the part's steps, in their order there, a step's HALVES
     in the part in its place (#980); no empty lane."""
-    if part not in PARTS:
-        raise Failure(f"verify: no part {part!r} (the parts: {', '.join(PARTS)})")
+    steps = part_steps(part)
     lanes = {
-        lane: tuple(step for name in names for step in (name, *HALVES.get(name, ())) if step in PARTS[part])
+        lane: tuple(step for name in names for step in (name, *HALVES.get(name, ())) if step in steps)
         for lane, names in LANES.items()
     }
     return {lane: names for lane, names in lanes.items() if names}
@@ -1427,8 +1436,9 @@ def part_lanes(part: str) -> dict[str, tuple[str, ...]]:
 
 def part_order(part: str) -> tuple[str, ...]:
     """A part run's summary order: doctor, then the part's steps in STEP_ORDER, a step's HALVES in its place."""
+    steps = part_steps(part)
     names = (step for name in STEP_ORDER for step in (name, *HALVES.get(name, ())))
-    return tuple(name for name in names if name == "doctor" or name in PARTS[part])
+    return tuple(name for name in names if name == "doctor" or name in steps)
 
 
 def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
@@ -1453,8 +1463,8 @@ def main(
     """`verify`, quiet unless `verbose` (#572): the whole output goes to tools/out/logs/verify-output.log as it is
     printed (the run before it is kept as verify-output.prev.log), the terminal gets each red step's excerpt and the
     summary block (Split). An exception (Ctrl+C, a crash) prints one line with the log's path and goes on up
-    unchanged. `part` (`--part`, #857): only that part of PARTS, a `--full` run's. `changed` (`verify --changed`, #859):
-    the lint step lints the changed GDScript only; never with `full`."""
+    unchanged. `part` (`--part`, #857): only that part of PARTS (or group of GROUPS), a `--full` run's.
+    `changed` (`verify --changed`, #859): the lint step lints the changed GDScript only; never with `full`."""
     global _SPLIT
     if part is not None:
         part_lanes(part)  # an unknown part fails before anything runs

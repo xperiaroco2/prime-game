@@ -170,8 +170,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--part",
         metavar="NAME",
         help="only one part of the --full run (implies --full; #857): doctor, then that part's steps of "
-        "verify.PARTS (test-1, test-2, network, runner; test-1 and test-2 run a half of `test`'s suites each, #980); "
-        "CI runs each part in a job of its own, and its check `verify` is green only when every part was",
+        "verify.PARTS (test-1, test-2, network-1, network-2, runner; test-1 and test-2 run a half of `test`'s suites "
+        "each, #980; network-1 the ENet and loopback network runs, network-2 the WebRTC ones, #1013); CI runs each "
+        "part in a job of its own, and its check `verify` is green only when every part was; `network` runs both "
+        "network parts as one (verify.GROUPS), every network run in one local run",
     )
     p.add_argument(
         "--verbose",

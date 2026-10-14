@@ -1509,7 +1509,9 @@ per part of `verify.PARTS` (`verify --full --part <name>`), each with its own re
 runs there as its two halves, the parts `test-1` and `test-2` (`verify.HALVES`): every script of a run without paths
 is in one half (`gdunit.half_of`: `FIXED_FPS_SUITES` and the folders of `gdunit.HALF_ONE` the first, the rest the
 second; a runner test checks the halves against that run), so each suite runs once on CI; a local `verify --full`
-keeps the one `test` step. The job named
+keeps the one `test` step. Since #1013 the network runs are two parts too: `network-1` the ENet and loopback runs,
+`network-2` the WebRTC ones, each run in one of them (a runner test checks it); `verify --full --part network` (the
+group of `verify.GROUPS`) runs both as one, every network run, locally. The job named
 `verify` needs every part (`if: always()`) and is green only when every part's job was. A second job, `python-min`
 (#349), runs `selftest --group python` on the pinned minimum Python (`pins --get python_min`), since 3.12-only code
 once broke `verify` on 3.11 (#345). Both are required checks of `main` (§8.5), so neither `merge` nor a human's merge

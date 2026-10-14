@@ -516,9 +516,9 @@ class PartTest(unittest.TestCase):
                     self.assertIn("check", names, "a fresh checkout needs check's import before any Godot run")
                     self.assertEqual(verify.part_lanes(part)["godot"][0], "check")
                 if set(NETWORK_STEPS) & set(names):  # no Godot run of the part beside a network run, as on one machine
-                    self.assertLessEqual(set(NETWORK_STEPS), set(names), "the network runs are not split")
                     others = {"test", *verify.HALVES["test"], "selftest-godot"}
                     self.assertTrue(others.isdisjoint(names), "no other Godot run beside them")
+                    self.assertTrue(set(names) <= {"check", *NETWORK_STEPS}, "a network part runs only network runs")
         # The count check compares both groups' results of one run with one serial discovery.
         holders = [part for part, names in verify.PARTS.items() if set(verify.COUNTED) & set(names)]
         self.assertEqual(len(holders), 1, holders)
@@ -546,10 +546,10 @@ class PartTest(unittest.TestCase):
 
     def test_a_red_step_of_a_part_fails_it(self) -> None:
         with stub_steps([], "game"):
-            rc, text, record = Verify(self).run(inline_lane, part="network")
+            rc, text, record = Verify(self).run(inline_lane, part="network-1")
         self.assertEqual(rc, 1)
         self.assertIn(("FAILED", "game"), summary_rows(text))
-        self.assertEqual((record["status"], record["part"]), ("FAILED", "network"))
+        self.assertEqual((record["status"], record["part"]), ("FAILED", "network-1"))
 
     def test_a_full_run_names_no_part_and_an_unknown_part_fails_before_anything_runs(self) -> None:
         with stub_steps([]):
@@ -559,12 +559,12 @@ class PartTest(unittest.TestCase):
         lane = mock.MagicMock()
         with mock.patch.object(verify.doctor, "main") as doctor_main, self.assertRaises(verify.Failure) as caught:
             verify.main(run_lane=lane, part="nope", verbose=True)
-        self.assertIn("the parts: test-1, test-2, network, runner", str(caught.exception))
+        self.assertIn("the parts: test-1, test-2, network-1, network-2, runner; network runs several", str(caught.exception))
         doctor_main.assert_not_called()
         lane.assert_not_called()
 
     def test_a_step_whose_after_step_is_in_no_lane_of_the_run_does_not_wait_for_it(self) -> None:
-        # The network part's first network run waits for selftest-godot (AFTER), which runs in another part: a real
+        # Network-1's first network run (enet) waits for selftest-godot (AFTER), which runs in another part: a real
         # lane process, gated, starts it at once instead of waiting out its lane timeout for a step that never ends.
         tools = str(ROOT / "tools")
         code = (
@@ -588,12 +588,37 @@ class PartTest(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 15)
 
     def test_the_steps_in_flight_of_a_part_wait_for_no_step_outside_it(self) -> None:
-        network = verify.part_lanes("network")
-        self.assertEqual(verify.steps_in_flight({"doctor"}, network), {"check"})
-        self.assertEqual(verify.steps_in_flight({"doctor", "check"}, network), {NETWORK_STEPS[0]})
+        for part in ("network", "network-1"):  # network-1 is the CI part whose first run has an AFTER step outside it
+            network = verify.part_lanes(part)
+            self.assertEqual(verify.steps_in_flight({"doctor"}, network), {"check"})
+            self.assertEqual(verify.steps_in_flight({"doctor", "check"}, network), {NETWORK_STEPS[0]})
         runner = verify.part_lanes("runner")
         self.assertEqual(verify.steps_in_flight({"doctor", "lint"}, runner), {"signal", "check"})
         self.assertEqual(verify.steps_in_flight({"doctor", "lint", "check"}, runner), {"signal", "selftest-godot"})
+
+    def test_the_network_runs_two_parts_and_the_group_network_runs_both_as_one(self) -> None:
+        # #1013: CI's longest part was the network runs (405 s); CI runs them in two jobs, network-1 the ENet and
+        # loopback runs and network-2 the WebRTC ones, and `--part network` still runs every one of them locally.
+        self.assertEqual(verify.GROUPS, {"network": ("network-1", "network-2")})
+        self.assertTrue(set(verify.GROUPS).isdisjoint(verify.PARTS), "a group is no part of CI's")
+        one, two = (verify.PARTS[name] for name in verify.GROUPS["network"])
+        self.assertEqual((one[0], two[0]), ("check", "check"))
+        self.assertEqual(sorted([*one[1:], *two[1:]]), sorted(NETWORK_STEPS), "every network run in one of them once")
+        self.assertTrue(all("webrtc" in name for name in two[1:]), two)
+        self.assertFalse(any("webrtc" in name for name in one[1:]), one)
+        self.assertEqual(verify.part_lanes("network"), {"godot": ("check", *NETWORK_STEPS)})
+        self.assertEqual(verify.part_order("network"), ("doctor", "check", *NETWORK_STEPS))
+        ran: list[str] = []
+        with stub_steps(ran):
+            rc, text, record = Verify(self).run(inline_lane, full=False, part="network")
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(ran, ["check", *NETWORK_STEPS])
+        self.assertEqual((record["mode"], record["part"]), ("full", "network"))
+        line = verify.PART_LINE.format(part="network", names=", ".join(["check", *NETWORK_STEPS]))
+        self.assertIn(f"  {line}", text.splitlines())
+        # network-2's first run waits for nothing outside its part (AFTER names only enet, of network-1)
+        webrtc = verify.part_lanes("network-2")
+        self.assertEqual(verify.steps_in_flight({"doctor", "check"}, webrtc), {two[1]})
 
     def test_the_cli_passes_the_part_and_a_part_implies_the_full_run(self) -> None:
         args = cli.build_parser().parse_args(["verify", "--full", "--part", "test-1"])
