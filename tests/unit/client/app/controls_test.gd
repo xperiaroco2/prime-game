@@ -37,10 +37,10 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_eighteen_actions_of_settings_controls_each_with_its_phases() -> void:
-	# #488's rule 5: 16 rows, the crouch's (#951) and the throw's (#851), 18; rule 6: the
-	# implementer defines the phase of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(18)
+func test_there_are_the_nineteen_actions_of_settings_controls_each_with_its_phases() -> void:
+	# #488's rule 5: 16 rows, the crouch's (#951), the throw's (#851) and the sneak's (#1009), 19;
+	# rule 6: the implementer defines the phase of each action.
+	assert_int(Controls.ACTIONS.size()).is_equal(19)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -51,7 +51,7 @@ func test_there_are_the_eighteen_actions_of_settings_controls_each_with_its_phas
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_eighteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_nineteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -61,6 +61,7 @@ func test_the_eighteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 		[&"sprint", &"control.sprint", KEY_SHIFT],
 		[&"jump", &"control.jump", KEY_SPACE],
 		[&"crouch", &"control.crouch", KEY_CTRL],
+		[&"sneak", &"control.sneak", KEY_ALT],
 		[&"interact", &"control.interact", KEY_E],
 		[&"use", &"control.use", MOUSE_BUTTON_LEFT],
 		[&"put_down", &"control.put_down", KEY_Q],
@@ -99,12 +100,10 @@ func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 
 func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions() -> void:
 	# #645's throw on the physical G, acting while living. A Settings row since #851 (deck key
-	# `control.throw`), as every living action; the sneak alone is unlisted (#990, until the deck
-	# has `control.sneak`).
+	# `control.throw`), as every living action.
 	assert_str(String(Controls.ACTIONS[&"throw"])).is_equal("control.throw")
 	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.Phase.ALIVE)
 	assert_bool(Controls.UNLISTED.has(&"throw")).is_false()
-	assert_dict(Controls.UNLISTED).is_equal({&"sneak": Controls.Phase.LOBBY | Controls.Phase.ALIVE})
 	assert_str(Controls.name_of(&"throw")).is_equal("Toss")
 	TranslationServer.set_locale("uk")
 	assert_str(Controls.name_of(&"throw")).is_equal("Жбурнути")
@@ -132,37 +131,54 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 	assert_str(KeyLabel.of_action(&"throw")).is_equal(OS.get_keycode_string(KEY_G))
 
 
-func test_the_sneak_is_unlisted_on_alt_where_it_acts() -> void:
-	# #990: `sneak` on the physical Alt, held, acting wherever the player walks (the lobby and the
-	# round). No Settings row before the deck has `control.sneak` (#150), so its key is kept from
-	# every action of those phases, and a downed-only action may take it.
-	assert_bool(Controls.ACTIONS.has(&"sneak")).is_false()
+func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_acts() -> void:
+	# #990: `sneak` on the physical left Alt, held, acting wherever the player walks (the lobby and
+	# the round). A Settings row since #1009 (deck key `control.sneak`), as every living action.
+	assert_str(String(Controls.ACTIONS[&"sneak"])).is_equal("control.sneak")
+	assert_int(Controls.PHASES[&"sneak"]).is_equal(Controls.Phase.LOBBY | Controls.Phase.ALIVE)
+	assert_dict(Controls.UNLISTED).is_empty()
+	assert_str(Controls.name_of(&"sneak")).is_equal("Sneak")
+	TranslationServer.set_locale("uk")
+	assert_str(Controls.name_of(&"sneak")).is_equal("Крастися")
+	TranslationServer.set_locale("en")
 	assert_int(_key(Controls.default_event(&"sneak"))).is_equal(KEY_ALT)
 	# The left Alt only (the engineer's answer 2A on PR #1007): project.godot's event is located,
-	# so a right Alt press does not reach `sneak` (Godot 4.7.2's InputEventKey.action_match).
+	# and apply() keeps it for a default binding, so a right Alt press does not reach `sneak`
+	# (Godot 4.7.2's InputEventKey.action_match).
 	var setting := ProjectSettings.get_setting("input/sneak") as Dictionary
 	var alt := (setting["events"] as Array)[0] as InputEventKey
-	assert_int(alt.physical_keycode).is_equal(KEY_ALT)
 	assert_int(alt.location).is_equal(KEY_LOCATION_LEFT)
-	assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak")).is_true()
-	var right := _press_at(KEY_ALT, KEY_LOCATION_RIGHT)
-	assert_bool(InputMap.event_is_action(right, &"sneak")).is_false()
-	# A binding is a physical key on either side (normalised()), so an action bound to Alt would
-	# act on the left one too: a left or a right Alt press is kept from the sneak's phases alike.
 	var controls := Controls.new()
-	var left := _press_at(KEY_ALT, KEY_LOCATION_LEFT)
-	assert_array(Controls.unlisted_on(&"use", left)).contains_exactly([&"sneak"])
-	assert_array(Controls.unlisted_on(&"use", right)).contains_exactly([&"sneak"])
-	assert_array(Controls.unlisted_on(&"use", _press(KEY_ALT))).contains_exactly([&"sneak"])
-	assert_bool(controls.bind(&"use", left)).is_false()
-	assert_bool(controls.bind(&"use", right)).is_false()
-	assert_bool(controls.bind(&"use", _press(KEY_ALT))).is_false()
-	assert_bool(controls.bind(&"jump", left)).is_false()
-	assert_bool(controls.bind(&"ready", left)).is_false()
-	assert_bool(controls.is_default(&"use")).is_true()
-	assert_bool(controls.bind(&"give_up", left)).is_true()
-	assert_int(_key(controls.event_of(&"give_up"))).is_equal(KEY_ALT)
-	assert_bool(controls.bind(&"sneak", _press(KEY_B))).is_false()
+	controls.apply()
+	var right := _press_at(KEY_ALT, KEY_LOCATION_RIGHT)
+	assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak")).is_true()
+	assert_bool(InputMap.event_is_action(right, &"sneak")).is_false()
+	assert_str(KeyLabel.of_action(&"sneak")).is_equal(OS.get_keycode_string(KEY_ALT))
+	assert_array(controls.clashes_of(&"sneak")).is_empty()
+	# A rebind is a bare physical key (normalised()); it clashes with the actions of its phases.
+	assert_bool(controls.bind(&"sneak", _press(KEY_B))).is_true()
+	assert_int(_key(controls.event_of(&"sneak"))).is_equal(KEY_B)
+	assert_bool(controls.is_default(&"sneak")).is_false()
+	controls.apply()
+	assert_bool(InputMap.event_is_action(_press(KEY_B), &"sneak")).is_true()
+	(
+		assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak"))
+		. is_false()
+	)
+	# Another action on Alt clashes with the sneak where both act (the lobby and the round), not
+	# with give_up (downed only).
+	controls.reset()
+	assert_bool(controls.bind(&"use", _press(KEY_ALT))).is_true()
+	assert_array(controls.clashes_of(&"sneak")).contains_exactly([&"use"])
+	assert_bool(controls.bind(&"jump", _press(KEY_ALT))).is_true()
+	assert_array(controls.clashes_of(&"sneak")).contains_exactly([&"jump", &"use"])
+	assert_bool(controls.bind(&"give_up", _press(KEY_ALT))).is_true()
+	assert_array(controls.clashes_of(&"give_up")).is_empty()
+	# Back to its default, the sneak is the left Alt again.
+	controls.reset()
+	controls.apply()
+	assert_bool(InputMap.event_is_action(_press_at(KEY_ALT, KEY_LOCATION_LEFT), &"sneak")).is_true()
+	assert_bool(InputMap.event_is_action(right, &"sneak")).is_false()
 
 
 func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actions() -> void:
@@ -244,7 +260,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 18 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 19 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()
