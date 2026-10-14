@@ -34,6 +34,9 @@ const OTHER_CREW := 3
 const PUT_DOWN_M := 1.0
 ## How many directions are tried around a drop-off.
 const SIDES := 16
+## How many horizontal rays the wall check casts per height: one every 0.1 m of a 1 m rim, so a
+## wall end or corner cannot slip between two.
+const WALL_SIDES := 64
 ## A floor spot lies this far inside its drop-off's rim.
 const RIM_INSET_M := 0.2
 ## The step between the samples of a top along a direction.
@@ -42,6 +45,9 @@ const TOP_STEP_M := 0.1
 const TOP_MIN_M := 0.3
 ## Floors this close in height are one floor.
 const FLAT_M := 0.05
+## The step between floor samples along a clear side, and how far its sight line overshoots it.
+const CLEAR_STEP_M := 0.25
+const CLEAR_OVERSHOOT_M := 0.5
 ## An item resting this close to the spot it was put down towards is at that spot.
 const REST_M := 0.01
 ## The next room: the nearest wall at eye height within this reach of the marker ...
@@ -166,8 +172,9 @@ func test_no_drop_off_reaches_past_a_wall() -> void:
 	for kind: StationKind in kinds:
 		for marker: Vector3 in layout.positions(kind.spawn_tag):
 			for height: float in WALL_HEIGHTS:
-				for i in SIDES:
-					var past := _past_a_wall(world, marker + Vector3.UP * height, _dir(i), kind)
+				for i in WALL_SIDES:
+					var ray := _dir(i, WALL_SIDES)
+					var past := _past_a_wall(world, marker + Vector3.UP * height, ray, kind)
 					var where := "%s: %s, %.1f m up, lies past a wall" % [kind.id, past, height]
 					(
 						assert_bool(past == WorldQuery.NO_FLOOR)
@@ -325,7 +332,7 @@ func _floor_spots(drop_off: StationState) -> Array[Spot]:
 
 
 ## A spot on the highest top inside `drop_off` that a player can put an item on (its table or
-## bench; the parasol stand's tube, higher, has no room for one), at that top's outermost sample
+## bench), at that top's outermost sample
 ## along a side a player can stand on; null when there is none.
 func _top_spot(drop_off: StationState) -> Spot:
 	var eye := _eye_height()
@@ -498,8 +505,8 @@ func _eye_height() -> float:
 	return _game.mode.player_rules.eye_height_of(false)
 
 
-static func _dir(i: int) -> Vector3:
-	var angle := TAU * i / SIDES
+static func _dir(i: int, sides: int = SIDES) -> Vector3:
+	var angle := TAU * i / sides
 	return Vector3(cos(angle), 0.0, sin(angle))
 
 
@@ -517,13 +524,13 @@ func _clear_side(at: Vector3, length: float) -> Vector3:
 func _clear(at: Vector3, side: Vector3, length: float) -> bool:
 	for height: float in PROBE_HEIGHTS:
 		var up := Vector3.UP * height
-		if not _world.line_of_sight(at + up, at + side * (length + 0.5) + up):
+		if not _world.line_of_sight(at + up, at + side * (length + CLEAR_OVERSHOOT_M) + up):
 			return false
-	var samples := ceili(length / 0.25)
+	var samples := ceili(length / CLEAR_STEP_M)
 	for s in range(1, samples + 1):
 		var point := at + side * (length * s / samples)
 		var below := _world.floor_below(point + Vector3.UP)
-		if absf(below.y - at.y) > 0.05:
+		if absf(below.y - at.y) > FLAT_M:
 			return false
 	return true
 
