@@ -20,8 +20,9 @@ Rules (the ADR's "How the baseline was computed"):
 - a tool call lasts from the assistant line that made it to the user line that carries its result;
 - a `verify` run is a "verify summary" block printed in a tool result, deduplicated per agent, with each step's seconds;
 - a run is finished when its journal ends with a result and every started agent has one; it is a `quick-task` run
-  when its workflow (the session's saved script's name, WORKFLOW_NAME's comment) is quick-task, or, with no saved
-  script, an agent worked in its Quick phase (#1012); else an `issue-task` run when it has an implementer, `pr-rebase`
+  when its workflow (the session's saved script's name, else the `script` field of the saved run record
+  workflows/<wf>.json, WORKFLOW_NAME's comment) is quick-task, or, with neither, an agent worked in its Quick phase
+  (#1012); else an `issue-task` run when it has an implementer, `pr-rebase`
   when it has a rebaser, a resumed `issue-task` when it has only a publisher.
 Units: final context is the tokens of an agent's last API call, summed over agents (what the managers reported as
 "subagent tokens"); fresh tokens are input, cache writes and output without cache reads; API list $ weighs every kind
@@ -160,8 +161,8 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
   `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
   its share of lines read again); `instructions.arch_reads` in the JSON record always;
-- per issue that 2 or more counted issue-task, quick-task or pr-rebase runs worked on (#833; a pr-rebase under the issue of its
-  PR): the runs, the $ after the first, the unfinished runs, the handoff continuations and the runs that started
+- per issue that 2 or more counted issue-task, quick-task or pr-rebase runs worked on (#833; a pr-rebase under the
+  issue of its PR): the runs, the $ after the first, the unfinished runs, the handoff continuations and the runs that started
   within RELAUNCH_BACK_TO_BACK after the previous one's end;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
@@ -545,8 +546,8 @@ GH_LIST_LIMIT = 1000
 # The signals of a run, and those of its PR (counted once per PR when several runs end on it).
 RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
-GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_rounds", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
-                  "green_first", "followups", "late_followups", "fixups")  # fmt: skip
+GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_rounds", "ci_red_rounds", "ci_red_after_run", "ci_last",
+                  "ci_reruns", "green_first", "followups", "late_followups", "fixups")  # fmt: skip
 
 # Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
 # docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
@@ -3955,8 +3956,8 @@ def pr_issues(runs: list[dict]) -> dict[int, int]:
 def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[dict]:
     """#833: each issue that 2 or more counted runs worked on, the most $ first: issue-task runs (resumed too),
     quick-task runs (#1012, each under its kind) and pr-rebase runs; an "other" run (a wave, a probe) is left out, its
-    issue is only the most common #N in its labels, which may name several issues. A pr-rebase run is labelled with its PR's number: it is put under the issue whose
-    publisher (in `known`, every run read, else `counted`) returned that PR, else under "PR #N" (`pr` set, `issue`
+    issue is only the most common #N in its labels, which may name several issues. A pr-rebase run is labelled with
+    its PR's number: it is put under the issue whose publisher (in `known`, every run read, else `counted`) returned that PR, else under "PR #N" (`pr` set, `issue`
     None). Per row: its runs, the $ of all of them and of those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
     continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds after the
     previous one's end (one run's update that could have been in the previous launch; a run that started before the
@@ -4024,8 +4025,8 @@ def relaunch_section(rows: list[dict]) -> list[str]:
     return [
         "## Issues launched 2 or more times (#833)",
         "",
-        "Per issue: its issue-task, quick-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, else under "
-        "\"PR #N\"; wave and other runs left out), the $ of the runs after the first, the runs that did not finish, "
+        "Per issue: its issue-task, quick-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, "
+        "else under \"PR #N\"; wave and other runs left out), the $ of the runs after the first, the runs that did not finish, "
         "the implementer continuations after a checkpoint handoff, and the runs that started within "
         f"{RELAUNCH_BACK_TO_BACK // 60} minutes after the previous one's end (an update that could have gone into "
         "that launch). A relaunch for the engineer's answer is not a waste; its cause is in the run's notes and the issue's "
@@ -4850,6 +4851,19 @@ def update_compact(rows: list[dict]) -> str:
     return f"update runs (#856): {paths or 'none'}; baseline {fmt_usd(lo)} to {fmt_usd(hi)}; {update_advice(rows)}"
 
 
+def attach_fitting(lines: list[str], order: list[int], text: str, *, whole: bool = True) -> None:
+    """#1012: append `text` to the first of lines[order] that stays within LINE_CAP with it. None fits: whole=True puts
+    it on the shortest of them (the line is cut at LINE_CAP, the clause with it), whole=False leaves it out (metrics.md
+    has it)."""
+    for i in order:
+        if len(lines[i]) + len(text) <= LINE_CAP:
+            lines[i] += text
+            return
+    if whole:
+        i = min(order, key=lambda j: len(lines[j]))
+        lines[i] += text
+
+
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
@@ -4858,9 +4872,10 @@ def compact_lines(
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify. The finished quick-task runs (#1012,
-    quick_record's) keep the line count: their count on the first line, their runs at the end of the per-task line,
-    their medians and quality after the quality line's (a line of their own when no issue-task run finished), their
-    $ on the total line."""
+    quick_record's) keep the line count: their count on the first line, their medians and quality
+    on the first of the quality, task medians and total lines that has room under LINE_CAP, their runs at the end of
+    the per-task line if it has room (else metrics.md has them); a line of their own when no issue-task run finished;
+    their $ on the total line."""
     quick_rows = quick["tasks"] if quick else []
     other = [r for r in counted if r["kind"] not in ("issue-task", QUICK_TASK) or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, "
@@ -4875,8 +4890,7 @@ def compact_lines(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
         # #875: the update runs' clause ends this line; the summary keeps its line count
         lines[-1] += " | " + update_compact(update_rows(tasks))
-        if quick_rows:
-            lines[-1] += " | quick-task: " + quick_runs_compact(quick)
+        task_line = len(lines) - 1
         wall, cost = med([p["wall"] for p in tasks]), med([p["usd"] for p in tasks])
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
         impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
@@ -4892,8 +4906,9 @@ def compact_lines(
         if outputs:  # #572: compare a wave before a change with one after it
             lines[-1] += (f"; tool output per implementer median {fmt_k(med([o[0] for o in outputs]))} tokens, "
                           f"runner commands {fmt_k(med([o[1] for o in outputs]))} (#572)")  # fmt: skip
+        medians_line = len(lines) - 1
         if quality:
-            lines.append(quality["compact"] + (" | " + quick_compact(quick) if quick_rows else ""))
+            lines.append(quality["compact"])
     if quick_rows and not (tasks and quality):
         lines.append(f"{quick_compact(quick)}; per run (wall min, API list $): {quick_runs_compact(quick)}")
     diet = instruction_compact(instructions) if instructions else None
@@ -4911,6 +4926,10 @@ def compact_lines(
         line += (f"; API calls after 5+ min idle (its table): {idle['rewrites']}, {idle['most']} of them re-wrote most "
                  f"of the context, {fmt_usd(idle['usd'])} ({idle['share']:.0%} of the agents' cache-write $)")
     lines.append(line)
+    if quick_rows and tasks and quality:  # each clause goes where it fits under LINE_CAP, else it is cut (#1012)
+        order = ([medians_line + 1] if quality else []) + [medians_line, len(lines) - 1]
+        attach_fitting(lines, order, " | " + quick_compact(quick))
+        attach_fitting(lines, [task_line], " | quick-task: " + quick_runs_compact(quick), whole=False)
     w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]

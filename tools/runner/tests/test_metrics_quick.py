@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from runner import metrics, wave
+from runner.common import LINE_CAP
 from runner.tests.test_metrics import REPO, UNTIL, Fixture, assistant, ci_run, gh_stub, pull, usage
 
 SID = "77777777-0000-0000-0000-000000000000"
@@ -154,9 +155,19 @@ class QuickTaskTest(unittest.TestCase):
         self.assertLessEqual(len(compact), 11)
         self.assertIn("1 finished issue-task runs, 3 finished quick-task runs, 1 other runs (0 unfinished)", compact[0])
         self.assertTrue(compact[1].endswith("| quick-task: #51 12 min $0.01, #52 30 min $0.03, #53 10 min $0.01"))
+        self.assertTrue(all(len(x) <= LINE_CAP for x in compact if "quick-task" in x), "no quick-task clause is cut")
         total = next(x for x in compact if x.startswith("total API list $"))
         self.assertIn("+ quick tasks $0.04 + other runs", total)
         self.assertTrue(compact[-1].startswith("CI: 1 runs"))
+
+    def test_attach_fitting_keeps_a_clause_inside_the_line_cap(self) -> None:
+        lines = ["a" * (LINE_CAP - 5), "b" * 100, "c" * 10]
+        metrics.attach_fitting(lines, [0, 1, 2], " | clause")
+        self.assertEqual((len(lines[0]), lines[1].endswith(" | clause"), len(lines[2])), (LINE_CAP - 5, True, 10))
+        metrics.attach_fitting(lines, [0], " | long clause", whole=False)
+        self.assertEqual(len(lines[0]), LINE_CAP - 5, "a clause that fits nowhere is left out when it need not stay whole")
+        metrics.attach_fitting(lines, [0, 2], " | " + "x" * LINE_CAP)
+        self.assertTrue(lines[2].endswith("x"), "else it goes on the shortest line")
 
     def test_compact_without_a_finished_issue_task_run_gives_quick_tasks_a_line(self) -> None:
         for wf in ("wf_i", "wf_r"):
