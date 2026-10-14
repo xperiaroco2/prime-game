@@ -158,6 +158,8 @@ func _lobby_mode() -> GameMode:
 	var made := FixtureBaseMode.mode()
 	var type := FixtureCarRepairModes.car_repair_type()
 	type.maps = PackedStringArray([FixtureBaseMode.MAP])
+	# The mode plays that map alone too: a map no task type plays on fails the load check (#800).
+	made.maps = PackedStringArray([FixtureBaseMode.MAP])
 	made.task_types = [type]
 	made.item_kinds.append_array(type.parts)
 	made.settings.append(FixtureModes.setting(&"tasks", 1, 1, 1))

@@ -92,3 +92,23 @@ func test_a_map_with_none_of_a_types_markers_passes_the_load_check_when_the_type
 	assert_array(Array(LayoutCheck.run(mode, FixtureMapTaskModes.layouts()))).is_equal(
 		["fixture://small_map has no lone marker, which the row loading, all_loaded places on"]
 	)
+
+
+## A map on which no task type plays at the defaults is a data mistake the load check refuses
+## (#800, the engineer's follow-up of #853), not only the lobby's fit check (`no_task_types`).
+func test_a_map_no_task_type_plays_on_fails_the_load_check() -> void:
+	var mode := FixtureMapTaskModes.mode()
+	(mode.task_types[0] as TaskType).maps = PackedStringArray([MAP])
+	assert_array(Array(LayoutCheck.run(mode, FixtureMapTaskModes.layouts()))).is_equal(
+		[
+			(
+				"fixture://small_map has no task type that plays on it, which the row loading,"
+				+ " all_loaded deals"
+			)
+		]
+	)
+	# With `tasks` at 0 by default no row deals a task, so no map needs a type.
+	for i in mode.settings.size():
+		if mode.settings[i].id == &"tasks":
+			mode.settings[i] = FixtureModes.setting(&"tasks", 0, 0, 2)
+	assert_array(Array(LayoutCheck.run(mode, FixtureMapTaskModes.layouts()))).is_empty()

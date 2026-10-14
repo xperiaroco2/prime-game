@@ -8,6 +8,8 @@ extends RefCounted
 ##   and the mode's maximum of players, §9.4), or that a tick system of a phase played on the
 ##   level places on (LifeTicks' Respawn: `respawn` markers on every map, M4-3); a map is asked
 ##   only for the markers of the task types that play on it (TaskType.maps, GE15, #803);
+## - a map on which no task type plays while a row deals tasks at the default settings (the fit
+##   check's `no_task_types` with no bans, a data mistake: #800, the follow-up of #853);
 ## - a spawn tag demanded exactly (Demands.exact: the Generator's, GE10, #797) whose markers on the
 ##   level number anything else, more or fewer, at the default settings;
 ## - a marker with two tags (the same position under two tags; §9.6: a marker carries one tag);
@@ -112,8 +114,10 @@ static func _check_level(
 		var tags: Array[StringName] = []
 		tags.assign(demands.markers.keys())
 		tags.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
+		var where := "the row %s, %s" % [row.from, row.outcome]
+		if demands.no_task_types:
+			found.append("%s has no task type that plays on it, which %s deals" % [path, where])
 		for tag: StringName in tags:
-			var where := "the row %s, %s" % [row.from, row.outcome]
 			if demands.exact.has(tag):
 				_check_exact(path, layout, tag, demands.markers[tag], where, found)
 			elif layout.count(tag) == 0:

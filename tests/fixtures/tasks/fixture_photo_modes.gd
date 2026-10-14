@@ -158,11 +158,13 @@ static func layouts(spot_at: Vector3 = SPOT_AT) -> Dictionary[String, LevelLayou
 
 
 ## FixtureBaseMode's lobby (JoinRules, FitCheck) with the photo task dealt on the map's `all_loaded`
-## row, playing on the fixture map only.
+## row, playing on the fixture map only. The mode plays that map alone too: a map no task type
+## plays on fails the load check (#800).
 static func lobby_mode(photos: int = 2) -> GameMode:
 	var mode := FixtureBaseMode.mode()
 	_add_photo(mode, photos)
 	type_of(mode).maps = PackedStringArray([FixtureBaseMode.MAP])
+	mode.maps = PackedStringArray([FixtureBaseMode.MAP])
 	mode.find_transition(&"loading", LoadingPhase.ALL_LOADED).actions.insert(
 		0, FixtureDealModes.deal_tasks()
 	)
