@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ## builds, since no lesson shows them (#900); the plates taking no mouse or focus; the texts in
 ## English and Ukrainian, rebuilt on a language change; the keycaps following a rebind (and so the
 ## keyboard layout, which KeyLabel reads with the binding, key_label_test.gd) and the large-text
-## width; nothing outside the screen at large text in Ukrainian; the step under lesson 6's
+## width; nothing outside the screen at large text in Ukrainian; the step under lesson 7's
 ## Spectate plate.
 
 const LESSONS := "res://content/tutorial/tutorial.tres"
@@ -119,7 +119,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	_assert_node(column, "V", "VBoxContainer", &"ToyColumnEight")
 	assert_int(column.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
 	_assert_node(screen.progress_label, "Progress", "Label", &"ToyTextMutedOnDark")
-	assert_str(screen.progress_label.text).is_equal("Step 2 of 8")
+	assert_str(screen.progress_label.text).is_equal("Step 2 of 9")
 	assert_int(screen.progress_label.auto_translate_mode).is_equal(
 		Node.AUTO_TRANSLATE_MODE_DISABLED
 	)
@@ -145,7 +145,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	assert_str(screen.how_text()).is_equal("Aim at the package and press E")
 	# Its second instruction swaps Title and How within the same step number.
 	_show(screen, 2, 2, 1)
-	assert_str(screen.progress_label.text).is_equal("Step 2 of 8")
+	assert_str(screen.progress_label.text).is_equal("Step 2 of 9")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.put_down.title")
 	assert_str(screen.how_text()).is_equal("Press Q")
 	# The list: lesson 1 done with its check, the current one a chip, the rest muted.
@@ -163,7 +163,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	for row: Node in screen.rows.get_children():
 		names.append(String(row.name))
 	assert_array(names).contains_exactly(
-		["MoveDone", "PickUpNow", "HandBelt", "Map", "Downed", "Death", "Voice", "Menu"]
+		["MoveDone", "PickUpNow", "HandBelt", "Throw", "Map", "Downed", "Death", "Voice", "Menu"]
 	)
 	var done := screen.rows.get_node("MoveDone") as HBoxContainer
 	_assert_node(done, "MoveDone", "HBoxContainer", &"ToyRowEight")
@@ -203,7 +203,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 	var screen := await _screen()
 	_show(screen, 1, 1, 0)
 	await get_tree().process_frame
-	assert_str(screen.progress_label.text).is_equal("Step 1 of 8")
+	assert_str(screen.progress_label.text).is_equal("Step 1 of 9")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.move.title")
 	_assert_node(screen.how, "HowKeys", "HBoxContainer", &"ToyRowTwentyFour")
 	assert_int(screen.how.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
@@ -263,16 +263,16 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 
 func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -> void:
 	# No lesson shows either since the tutorial deals no task (#900, LE3 (a)): the screen keeps
-	# both, drawn here on lesson 4 (the map) with a step the test builds after its own.
+	# both, drawn here on lesson 5 (the map) with a step the test builds after its own.
 	var screen := await _screen()
 	var howto := TutorialStep.new()
 	howto.title_key = &"tutorial.step.howto.title"
 	howto.how_key = &"tutorial.step.howto.how"
 	howto.keys = [TutorialStep.HOWTO_GLYPH]
 	var built := _lessons_with_step_after_the_map(howto)
-	_show(screen, 4, 2, 3, built)
+	_show(screen, 5, 2, 4, built)
 	await get_tree().process_frame
-	assert_str(screen.progress_label.text).is_equal("Step 4 of 8")
+	assert_str(screen.progress_label.text).is_equal("Step 5 of 9")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.howto.title")
 	var key := screen.how.get_node("Key") as PanelContainer
 	_assert_node(key, "Key", "PanelContainer", &"ToyKeyRound")
@@ -290,6 +290,7 @@ func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -
 				"MoveDone",
 				"PickUpDone",
 				"HandBeltDone",
+				"ThrowDone",
 				"MapNow",
 				"Downed",
 				"Death",
@@ -298,20 +299,20 @@ func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -
 			]
 		)
 	)
-	# A step with neither how nor keys (as lesson 4 had, the engineer's answer on PR #722): the
+	# A step with neither how nor keys (as the map lesson had, the engineer's answer on PR #722): the
 	# title only.
 	var bare := TutorialStep.new()
 	bare.title_key = &"tutorial.step.deliver.title"
-	_show(screen, 4, 2, 3, _lessons_with_step_after_the_map(bare))
+	_show(screen, 5, 2, 4, _lessons_with_step_after_the_map(bare))
 	assert_str(screen.title_label.text).is_equal("tutorial.step.deliver.title")
 	assert_bool(screen.how.visible).is_false()
 	assert_str(screen.how_text()).is_empty()
-	# Lesson 8's Esc is a wide keycap.
-	_show(screen, 8, 1, 7)
+	# Lesson 9's Esc is a wide keycap.
+	_show(screen, 9, 1, 8)
 	await get_tree().process_frame
 	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(96, 0))
-	# None current (lesson 7 waiting for the respawn): no step, the list stays.
-	_show(screen, 0, 0, 6)
+	# None current (lesson 8 waiting for the respawn): no step, the list stays.
+	_show(screen, 0, 0, 7)
 	assert_bool(screen.step.visible).is_false()
 	assert_bool(screen.list.visible).is_true()
 
@@ -339,7 +340,7 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 	_show(screen, 2, 1, 1)
 	TranslationServer.set_locale("uk")
 	screen.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
-	assert_str(screen.progress_label.text).is_equal("Крок 2 з 8")
+	assert_str(screen.progress_label.text).is_equal("Крок 2 з 9")
 	assert_str(screen.how_text()).is_equal("Наведи приціл на пакунок і натисни E")
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
@@ -376,7 +377,7 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 
 func test_the_step_goes_under_the_spectate_plate() -> void:
 	var screen := await _screen()
-	_show(screen, 6, 1, 5)
+	_show(screen, 7, 1, 6)
 	var spectate := Control.new()
 	spectate.position = Vector2(0, 40)
 	spectate.size = Vector2(300, 90)

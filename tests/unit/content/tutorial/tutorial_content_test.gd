@@ -21,9 +21,10 @@ func test_the_lessons_load_with_no_problem() -> void:
 	)
 
 
-func test_the_eight_lessons_detect_the_actions_of_the_design() -> void:
-	# §1's table with lesson 4 and lesson 5's «?» step gone (§9.3, LD2 (a), LD7 (a)), one row per
-	# step: title, how, keys, then the parts (D29 (a), D31 (a), D36 (a)).
+func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
+	# §1's table with lesson 4 and lesson 5's «?» step gone (§9.3, LD2 (a), LD7 (a)) and the throw
+	# after Hand and belt (#901, LD3 (a)), one row per step: title, how, keys, then the parts (D29
+	# (a), D31 (a), D36 (a)).
 	var expected := [
 		(
 			"move | move.title | - | move_forward move_left move_back move_right sprint jump crouch"
@@ -38,6 +39,7 @@ func test_the_eight_lessons_detect_the_actions_of_the_design() -> void:
 			+ " | trigger EventSeen ItemPlaced cause=put_down item=held"
 		),
 		"hand_belt | hand_belt.title | press | swap | trigger EventSeen Swapped peer=own",
+		"throw | throw.title | throw.how | throw | trigger EventSeen ItemThrown peer=own",
 		"map | map.title | press | map | trigger ClientSeen map_opened",
 		(
 			"downed | downed.title | downed.how | interact | on_start RequestStage"
@@ -58,7 +60,7 @@ func test_the_eight_lessons_detect_the_actions_of_the_design() -> void:
 		for step: TutorialStep in lesson.steps:
 			rows.append(_row(lesson, step))
 	assert_array(rows).is_equal(expected)
-	assert_str(String(_lessons().lessons[3].list_action)).is_equal("map")
+	assert_str(String(_lessons().lessons[4].list_action)).is_equal("map")
 
 
 func test_every_key_is_in_the_deck_and_every_action_in_the_input_map() -> void:
@@ -79,7 +81,7 @@ func test_every_key_is_in_the_deck_and_every_action_in_the_input_map() -> void:
 	assert_array(found).is_empty()
 
 
-func test_only_lessons_5_and_6_ask_for_a_stage() -> void:
+func test_only_lessons_6_and_7_ask_for_a_stage() -> void:
 	var asking: Array[int] = []
 	var lessons := _lessons().lessons
 	for i in lessons.size():
@@ -87,7 +89,7 @@ func test_only_lessons_5_and_6_ask_for_a_stage() -> void:
 			for action: TutorialAction in step.on_start:
 				if action is RequestStage:
 					asking.append(i + 1)
-	assert_array(asking).is_equal([5, 6])
+	assert_array(asking).is_equal([6, 7])
 
 
 func test_no_stage_request_follows_the_spectate_switch() -> void:
