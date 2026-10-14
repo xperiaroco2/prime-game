@@ -5,15 +5,19 @@ extends RefCounted
 ## sentence; this client owns the table from the id to a key of the UI copy deck (§4.7.26) and
 ## words it with tr, so two players of one lobby each read it in their own language. Pure: no node.
 ##
-## The deck (ui-0.4.0) has a key for `players_few` only. `players_many`, `markers`,
-## `markers_exact` (#797), `colours`, `no_layout`, `no_task_types` (#803), `short_axis` (#807) and
+## The deck (ui-0.6.0) has a key for `players_few`, `players_many`, `markers`, `no_layout` and
+## `no_task_types` (#718). `markers_exact` (#797), `colours`, `short_axis` (#807) and
 ## `photo_spot_near` (#781) have none: no key is invented here, so they show plain(), a neutral
 ## line of the id and its arguments, until the UI track's deck adds theirs (a gap the PR lists). A
-## start held back must still say why.
+## start held back must still say why. No key needs a plural form: each argument is a placeholder.
 
 ## Shortfall id (HostText's) -> its deck key.
 const SHORTFALL_KEYS: Dictionary[StringName, String] = {
 	&"players_few": "lobby.need_more",
+	&"players_many": "lobby.too_many",
+	&"markers": "lobby.need_markers",
+	&"no_layout": "lobby.no_layout",
+	&"no_task_types": "lobby.no_task_types",
 }
 ## Shortfall id -> the argument its key's plural form follows (tr_n's n); absent: no plural.
 const PLURAL_BY: Dictionary[StringName, StringName] = {

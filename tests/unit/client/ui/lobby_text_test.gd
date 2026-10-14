@@ -75,18 +75,31 @@ func test_short_says_what_the_host_says_holds_the_start_back() -> void:
 	assert_int(LobbyText.of(model, mode, NOW).status).is_equal(LobbyText.Status.WAITING)
 
 
-func test_short_shows_an_id_the_deck_lacks_as_the_neutral_line_one_line_each() -> void:
+func test_short_words_every_demand_by_its_key_and_a_gap_as_the_neutral_line_one_line_each() -> void:
 	var model := _handoff_lobby()
 	var markers := {
 		"id": &"markers",
 		"ids": PackedStringArray(["crew"]),
 		"numbers": {&"need": 5, &"have": 3},
 	}
-	_host_says(model, [_players_few(1), markers, {"id": &"no_layout"}])
+	_host_says(
+		model,
+		[
+			_players_few(1),
+			markers,
+			{"id": &"no_layout"},
+			{"id": &"no_task_types"},
+			{"id": &"players_many", "numbers": {&"count": 1, &"min": 2, &"max": 10}},
+			{"id": &"colours", "ids": PackedStringArray(["circle"]), "numbers": {&"need": 3}},
+		]
+	)
 	var shown := LobbyText.of(model, _mode, NOW)
 	assert_int(shown.status).is_equal(LobbyText.Status.SHORT)
 	assert_str(LobbyText.status_text(shown)).is_equal(
-		"1 more player to start\nmarkers crew have=3 need=5\nno_layout"
+		(
+			"1 more player to start\nNot enough spawn points on the map: 3 of 5\nMap unavailable\n"
+			+ "No tasks left for this map\nToo many players: up to 10\ncolours circle need=3"
+		)
 	)
 
 
