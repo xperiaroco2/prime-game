@@ -5719,11 +5719,12 @@ there would not follow from the commands.
   (§3.2). Provisional numbers (#302 comments 6085904317, 6096074314): 5 m/s, the project's physics gravity (9.8
   m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable, but its door may be locked, so instead of
   TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
-  no throw from a standable spot near the roof rests on it (on the greybox's flat roof at 6.4 m: 5.5 m/s; the art's
-  House, #523, has a pitched roof over the attic, its eaves at about 8.3 m, so 9 m/s from the balcony's floor
-  reaches it and 7.5 no longer does; the tops of the balcony's 1 m railings decide
-  it, since a 1 m jump may reach them and the eye then stands 1 m higher), less one step. At 5 m/s the highest arc
-  from there tops out at 7.08 m, below the 7.35 m a 0.15 m item needs to clear the roof's parapet.
+  no throw from a standable spot near the roof rests on it, less one step: 5.5 m/s on the greybox House's flat roof
+  at 6.4 m, where the tops of the balcony's 1 m railings decided it (a 1 m jump may reach them and the eye then
+  stands 1 m higher; at 5 m/s the highest arc from there topped out at 7.08 m, below the 7.35 m a 0.15 m item needed
+  to clear the roof's parapet). The art's House (#523) has a pitched roof over the attic, its eaves at about 8.3 m:
+  from the balcony's floor 9 m/s rests 140 of house_roof_throw_test's 38 880 throws on it and 7.5 m/s none, so the
+  rule's 5 m/s keeps a wider margin there.
   **Tests:** `tests/integration/levels/house_roof_throw_test.gd` flies 648 throws from each spot of
   `house_throws.gd` at the rule's own numbers against House's host collision world and fails on any rest on the
   roof (a later speed, gravity, radius, eye height or level change that reaches it turns it red; seen red at 6 m/s);
@@ -7730,6 +7731,10 @@ assets/
 - Data only: binaries and the `.import` files Godot writes beside them, no scripts. The engineer owns `assets/`
   (§1). Scenes in `client/` and `levels/` instance them (the avatar a character, the level its environment); an
   asset never refers back to them.
+  One kind of text file is data too: an art set's own materials, its shader and the `.tres` that use it, at the
+  paths its scenes reference, copied as the art ships them (the House's `house_kit/kit_set.gdshader` and
+  `kit_set.tres`, `house_props/prop_fine.gdshader` with `prop_fine_high.tres` and `prop_fine_low.tres`, #523);
+  never GDScript.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).
