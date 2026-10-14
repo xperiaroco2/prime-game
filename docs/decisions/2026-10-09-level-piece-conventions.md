@@ -91,7 +91,7 @@ its design doc's point (house-map §6), and drops the art's own copy of the devi
 checks each scene (a new one joins its `SCENES`), `tests/integration/levels/house_stations_test.gd` the House's
 placements.
 
-The photo task's stations (#783, proposed with them) add two cases. A device used from behind (the camera on its
+The photo task's stations (#783, proposed with them) add three cases. A device used from behind (the camera on its
 tripod, whose shooter stands behind the lens) turns its `Body` inside the scene so that +Z stays the user's side: the
 lens looks along -Z and the use spot still lies at z > 0. A station with no device (the photo spot, a display kind
 the camera frames) is only its look on the floor and its marker at the root: no `Body`, no `Collision`. A device on a
