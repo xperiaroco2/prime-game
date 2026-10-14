@@ -1351,7 +1351,16 @@ with no file at all, the process is unknown and the session is flagged):
 - a run of its own finished more than M minutes ago (default 30; a stopped or killed run starts no turn and does not
   count); or
 - a notification has waited undelivered in its queue that long, after the session's last turn (before it, only when a
-  permission card waits): an `enqueue` record that no `remove`, `dequeue` or delivering user record took out.
+  permission card waits): an `enqueue` record that no `remove`, `dequeue` or delivering user record took out. A
+  notification that needs no turn does not count: an artifact watch that dropped or ended (`<task-type>`
+  `artifact-watch-lifecycle`) or auto-replies paused by an interrupt (`artifact-auto-react`). On 2026-10-14 a dropped
+  watch alone had the art manager flagged for six hours (#1044).
+
+A session that handed over to a fresh one in its last turn (since the human's last prompt) takes no more turns. Its
+handover is the comment titled "Handover to a fresh manager session" posted by hand (`## ` heading) or by
+`wave --title`, or a For-you asking to close this session and paste the kickoff (English or Ukrainian). Of such a
+session's queued notifications only an unstopped result of its own workflow counts; a timer or a background command
+left behind does not. Its line adds when it handed over.
 
 One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
 call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
