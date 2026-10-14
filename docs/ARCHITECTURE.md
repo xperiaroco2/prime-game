@@ -7225,7 +7225,7 @@ second amendment of 2026-10-14): the pose at the claim's last physics step, stan
 keeps it on a living player in any phase only when the claim does not also crouch (the crouch wins), ignores it on a
 downed claim, and clears it at every placement, knockdown and respawn. Each listener's `WorldSounds` plays no step
 of a sneaking pose whose measured step speed is at or below `crouch_speed_mps` plus
-`FootstepCadence.SNEAK_SPEED_MARGIN_MPS` (0.2, "not a decision"), so a claimed sneak at a walk is heard.
+`FootstepCadence.SNEAK_SPEED_MARGIN_MPS` (0.2, kept as built: the engineer's answer 1a on PR #1007), so a claimed sneak at a walk is heard.
 Settings: none of its own (the crouch walk's speed; the action `sneak` on the left Alt only, `Controls.UNLISTED`
 until the deck has `control.sneak`, #150).
 Why not a part: as for sprint.
