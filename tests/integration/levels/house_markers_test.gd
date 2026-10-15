@@ -44,10 +44,9 @@ func test_the_markers_are_the_engineer_s_counts() -> void:
 	var layout := _read(_base_mode()).layout
 	assert_int(layout.count(&"round_player")).is_equal(10)
 	assert_int(layout.count(&"package")).is_equal(10)
-	# Today's colour Delivery deals on the greybox alone (DE9), so the House's ten circles went
-	# (#831), all but the study's Circle10: the study has its own owner (#783, PR #1058), and the
-	# follow-up #1059 removes it, this count then 0.
-	assert_int(layout.count(&"circle")).is_equal(1)
+	# Today's colour Delivery deals on the greybox alone (DE9), so the House has no circles (#831,
+	# #1059).
+	assert_int(layout.count(&"circle")).is_equal(0)
 	assert_int(layout.count(&"knife")).is_equal(4)
 	assert_int(layout.count(&"respawn")).is_equal(4)
 	# #651's provisional points (#302 comment 6085904317): the yard and the garden on the ground

@@ -7524,7 +7524,7 @@ default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.4
 look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
 Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
 `core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
-`parasol.tres` (provisional, the engineer approves them in the PR); the House's circles removed and its drop-offs'
+`parasol.tres` (provisional, the engineer approves them in the PR); the House's circles removed (the study's last in #1059) and its drop-offs'
 furniture in #831 (D4). Tests (fixtures, never the House's data, §9.6):
 `tests/unit/tasks/delivery_by_meaning_deal_test.gd`, `delivery_by_meaning_check_test.gd` (the on-rest check, DE7),
 `delivery_by_meaning_demands_test.gd`, `delivery_by_meaning_mode_check_test.gd`, `delivery_by_meaning_filter_test.gd`
