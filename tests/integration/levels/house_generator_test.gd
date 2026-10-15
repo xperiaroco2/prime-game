@@ -418,13 +418,16 @@ func _hidden_spot(station: StationState) -> Vector3:
 	return best
 
 
-## A standing player's eye at `feet`, as StationInSight reads it (Items.eye_of).
+## A standing player's eye at `feet`, as StationInSight reads it: Items.eye_of itself, on a
+## player placed there.
 func _eye(feet: Vector3) -> Vector3:
-	var ground := _world.stand_floor_below(Items.lifted(feet))
-	var base := feet
-	if ground != WorldQuery.NO_FLOOR:
-		base.y = ground.y
-	return base + Vector3.UP * _game.mode.player_rules.eye_height_of(false)
+	var ctx := MatchContext.new(_game)
+	ctx.state = _game.state
+	ctx.mode = _game.mode
+	ctx.world = _world
+	var player := PlayerState.new(0, "")
+	player.position = feet
+	return Items.eye_of(ctx, player)
 
 
 ## Whether a standing player's capsule (the mode's PlayerRules) with its feet at `feet` meets no
