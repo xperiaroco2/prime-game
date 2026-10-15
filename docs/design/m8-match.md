@@ -49,15 +49,17 @@
 - **Points follow the work** (#1040, the engineer's later answer of 2026-10-15): deliver all 5 delivery items alone
   and you earn 5 points; one point per *task* would make players split the items one each just to farm points. It
   replaces the earlier "one point per task per player" for completion. Aliens may sabotage too (#1040).
+- **Points come from work and from mischief only:** task sabotage earns nothing; mischief that provokes the
+  neighbours does (#1040, 2026-10-15). An alien who does mischief for points helps the humans; hide-then-deliver earns
+  only the delivery; an outed human still earns from mischief, which needs no trust.
 - **Completion:** a completed task advances the aliens' goal whoever did it, so a human who does the work earns its
   points and brings the aliens closer to winning: a risk-reward trade that also clears him of suspicion (#1031,
-  #1040). How shared steps are credited (the generator's switches, the photo's sitter and shooter, the car's holder
-  and fitter) is open; the earlier answer was that every player who took part earns.
-- **Sabotage credit:** open between two variants (#1040): a sabotage pays only once it has really cost the other
-  side time, or sabotages are made universal (e.g. a light room: cutting the House's lights once is one sabotage).
+  #1040). **Shared steps:** each player earns a point for his own step (his switch, holding the car, sitting for the
+  photo) (#1040).
 - **A completed task is locked:** it cannot be undone or farmed (#1040).
-- **The scoring must stop abuse:** if sabotage pays, aliens will try sabotaging just for the points; the balance has
-  to prevent it (#1040). The neighbours' anger (§5) is part of the answer: mischief helps the humans whoever does it.
+- **The scoring must stop abuse:** if sabotage paid, aliens would sabotage just for the points (#1040); that is why
+  only work and mischief pay.
+- **A killed alien tells everyone who killed him,** so a kill outs the killer (#1040).
 - **What points buy:** a mutation, a global sabotage, or a weapon (§7); calming the neighbours (§5) and stalling the
   cops (§5) also cost points (#1031, #1040).
 - **No cap on re-sabotaging one task for now:** the aliens outnumber the humans, so two of them kill a camper; the
@@ -69,13 +71,14 @@ Designed in the chat from research round 2 and the engineer's idea of calling th
 2026-10-15). Two layers, kept apart so each makes sense in the story:
 
 1. **Task sabotage** (hide a delivery item, switch the generator off) slows the aliens against the timer and earns
-   its point. The neighbours do not care about it.
+   nothing (§4). The neighbours do not care about it.
 2. **Mischief the neighbours notice** raises the **neighbours' anger** meter. Mischief stations are open knowledge
    and anyone may use them; an alien who does calls the cops on his own party.
    - **Ongoing mischief** (the engineer's examples: music turned up, the barbecue on fire, the bins knocked over, the
-     street's lights cut): while it is not dealt with, anger keeps rising a little. The aliens get a marker ("the
-     neighbours complain about the rubbish") and go and fix it (an extinguisher, pick the rubbish up). **Fixing stops
-     the rise; anger already gained stays.**
+     street's lights cut): while it is not dealt with, anger keeps rising a little. The aliens see the meter rise
+     and must search for what raises it (#1031, 2026-10-15; the reading "they do not know what raises it" is to be
+     confirmed, and whether the type of problem is hinted without its place), then fix it (an extinguisher, pick the
+     rubbish up). **Fixing stops the rise; anger already gained stays.**
    - **One-off big mischief**, harder and in several steps (the engineer's example: fireworks fetched from storage,
      carried to the attic or roof and lit: an instant +10% that stays).
    - **Calming the neighbours:** for points, or by an action about as hard as the fireworks (the engineer's example:
@@ -94,6 +97,22 @@ Designed in the chat from research round 2 and the engineer's idea of calling th
   siren, "busted: the party is over" (#1031).
 - **An average match lasts about 10 minutes** (GDD §2). Open: a finale beyond the cops' minute (research round 2: a
   shorter respawn in the last minutes, a capped overtime).
+
+## 6a. The tasks get harder
+
+- **The party is hard on its own** (GDD §1, #1093): aliens who understand nothing and make many mistakes lose even
+  without humans; the humans tip the balance and hide in honest mistakes.
+- **Harder steps:** find something, look something up, remember something (#1033). Today the House holds only about 3
+  to 4 minutes of work for 6 or more aliens (#1089).
+
+## 6b. What the balance model showed (#1089)
+
+A coarse simulation with placeholder numbers, parked until the mechanics mature; structural lessons only:
+- the House needs more work, and it must scale with the player count (about 3x at 8 to 10 players);
+- a kill is priced by a fair fight (the attacker often loses), not by being outed;
+- the side that talks wins, by a wide margin: the humans need tools against the aliens' talk;
+- covert spoiling (the wrong herb on a burger) is the humans' best answer to a talking team;
+- searching for mischief, rather than a marker that shows where, makes the cops a real path.
 
 ## 7. Weapons (direction, deferred)
 
@@ -120,10 +139,10 @@ From #1040, not yet rules:
 
 ## 9. Open
 
-- Sabotage credit: the cost-in-time rule or universal sabotages (§4); sabotages tied to each task, global ones, or
-  both; how sabotage is counted now that points follow the work, and whether "never both on the same unit" stays.
-- Points: the unit of work per chain (an item, a switch, a burger, a photo, a car part) and how shared steps are
-  credited (§4).
+- Sabotages tied to each task, global ones, or both; the humans' tools against the aliens' talk (§6b).
+- Points: the unit of work per chain (an item, a switch, a burger, a photo, a car part) (§4).
+- How the aliens learn what raises the anger: no hint, or the type of problem without its place (§5).
+- Filling 10 minutes: more work that scales with the lobby, a stream of guests' requests, or both (§6a).
 - The defaults for the number of humans (§2); the anger threshold, rises, jumps and the cops' minute (§5): the balance
   model #1089.
 - A finale beyond the cops' minute (§6).
