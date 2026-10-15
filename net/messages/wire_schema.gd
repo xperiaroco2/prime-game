@@ -48,9 +48,9 @@ extends RefCounted
 ## the Rejected reason `moving` (the knockdown rework's KE5, KE12).
 ## 31 since #990 added the `sneaking` flag to MoveClaim's and MoveClaimReliable's flags (16) and the
 ## snapshot avatar's (8).
-## 32 since #775 raised SettingsChanged's shortfalls from 32 to 64 entries (the base mode now demands
-## 29 spawn tags, and a text per demanded tag is a shortfall; WireBudget sizes it as one subject).
-## No row changed otherwise.
+## 32 since #775 raised SettingsChanged's shortfalls from 32 to 64 entries (the base mode now
+## demands 29 spawn tags, and a text per demanded tag is a shortfall; WireBudget sizes it as one
+## subject). No row changed otherwise.
 const VERSION := 32
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and

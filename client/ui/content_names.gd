@@ -26,8 +26,9 @@ const ROLE_EXCEPTIONS: Dictionary[StringName, String] = {
 ## approves it in #800's PR). The photo task (id `photo`, #784) reads as the deck's
 ## `room.photo_zone` ("Photo zone"), the one photo key the deck has, until the UI track adds
 ## `task.photo` (a placeholder, not a decision: the engineer approves it in #784's PR). Cooking (id
-## `cooking`, #775) reads as the deck's `room.kitchen` ("Kitchen"), the nearest key the deck has, until
-## the UI track adds `task.cooking` (a placeholder, not a decision: the engineer approves it in #775's PR).
+## `cooking`, #775) reads as the deck's `room.kitchen` ("Kitchen"), the nearest key the deck has,
+## until the UI track adds `task.cooking` (a placeholder, not a decision: the engineer approves it
+## in #775's PR).
 const TASK_EXCEPTIONS: Dictionary[StringName, String] = {
 	&"colour_delivery": "task.delivery",
 	&"generator": "task.switches",

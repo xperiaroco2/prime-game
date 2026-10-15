@@ -79,7 +79,9 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 		var text: Dictionary = texts[i]
 		assert_int((text["ids"] as PackedStringArray).size()).is_equal(1)
 		assert_int((text["numbers"] as Dictionary).size()).is_equal(2)
-	assert_int(((texts[5] as Dictionary)["numbers"] as Dictionary).size()).is_equal(WireSchema.MAX_TEXT_NUMBERS)
+	assert_int(((texts[5] as Dictionary)["numbers"] as Dictionary).size()).is_equal(
+		WireSchema.MAX_TEXT_NUMBERS
+	)
 	assert_int((changed.fields["needed_markers"] as Dictionary).size()).is_equal(3)
 	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
 
@@ -128,7 +130,11 @@ func test_the_longest_shortfall_of_each_kind_is_a_host_text_the_wire_takes() -> 
 	assert_int(demanded.size()).is_equal(needed.markers.size() + needed.colours.size())
 	for text: HostText in demanded:
 		assert_int(text.ids.size()).override_failure_message(str(text)).is_equal(1)
-		assert_array(text.numbers.keys()).override_failure_message(str(text)).contains_exactly_in_any_order([&"need", &"have"])
+		(
+			assert_array(text.numbers.keys())
+			. override_failure_message(str(text))
+			. contains_exactly_in_any_order([&"need", &"have"])
+		)
 	var schema := WireSchema.game(false)
 	var fields: Dictionary = {}
 	for message: WireMessage in WireBudget.worst_cases(mode):
