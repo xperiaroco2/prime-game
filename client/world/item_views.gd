@@ -151,6 +151,10 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		# flight at a phase change stays hidden until its ItemPlaced.
 		view.show_look(false)
 		return
+	if item.fitted:
+		# Fitted to a car (PartFitted): locked at the car, drawn nowhere (RE12, #811).
+		view.show_look(false)
+		return
 	if item.holder == ClientModel.NO_HOLDER:
 		view.global_transform = Transform3D(Basis.IDENTITY, _rest_point(view.item_id, item))
 		view.show_look(true)

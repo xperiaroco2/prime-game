@@ -43,8 +43,8 @@ class Item:
 	var colour := Color.WHITE
 	var delivered := false
 	## A car repair part fitted to the car (PartFitted, #808): locked at the car's use spot, held by
-	## nobody and never taken again. `rests()` ignores `fitted` for now, so a view still draws it at
-	## the car: the car repair client issue (R7) hides it (the car repair ADR's RE12).
+	## nobody and never taken again: it rests nowhere (rests() is false), so no view draws it and no
+	## crosshair names it (the car repair ADR's RE12, #811).
 	var fitted := false
 	## Cooking (#776): the station it lies on, a place's plate or the grill (IngredientPlaced,
 	## GrillLoaded), -1 for none; whether it is locked there (a right ingredient or the grill's
@@ -64,10 +64,10 @@ class Item:
 	var flight_gravity := Vector3.ZERO
 	var flight_tick := 0
 
-	## Lies in the world at `position`: nobody carries it and it is not in flight (a delivered
-	## package rests in its circle).
+	## Lies in the world at `position`: nobody carries it, it is not in flight and not fitted to a
+	## car (a delivered package rests in its circle).
 	func rests() -> bool:
-		return holder == NO_HOLDER and not flying
+		return holder == NO_HOLDER and not flying and not fitted
 
 
 ## One task as its TaskState tells it (E30): the task screen's row.
@@ -109,6 +109,9 @@ class Station:
 	## holds.
 	var up := false
 	var lift_tick := -1
+	## The host tick of the last hold's start (the last LiftChanged with `up`), kept by its stop, so
+	## a view knows how high the car got before it dropped (#811); -1 before the first.
+	var rise_tick := -1
 	## The car repair's picture (#807): the part kind id the car needs now, as its last PartNeeded
 	## told it; empty for none.
 	var part := &""
@@ -513,6 +516,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			if panel != null:
 				panel.up = fields["up"]
 				panel.lift_tick = fields["tick"]
+				if panel.up:
+					panel.rise_tick = panel.lift_tick
 		&"PartNeeded":
 			var shown: Station = stations.get(fields["station"] as int)
 			if shown != null:
