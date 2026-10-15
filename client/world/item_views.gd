@@ -239,7 +239,7 @@ func _show_own_hand() -> void:
 	if hand == null or not model.is_alive(model.own_peer) or flights.hides_hand(hand_id):
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
-		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind))
+		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind), hand_id)
 
 
 ## The own arc's sweep (the throwing ADR's TE5 (a)): a sphere of `radius` from `from` towards `to`

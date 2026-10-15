@@ -13,6 +13,8 @@ const TWO_HANDED := Vector3(0.0, -0.7, -1.0)
 
 var _shown_kind: StringName = &""
 var _shown_colour: Color
+var _shown_id := -1
+var _picture: Texture2D
 var _view: ItemView
 
 
@@ -21,12 +23,15 @@ func _init() -> void:
 
 
 ## Shows an item of `kind` in `colour` (a package's circle colour), held with both hands when
-## `two_handed`; an empty kind shows nothing.
-func show_item(kind: StringName, colour: Color, two_handed := false) -> void:
-	if kind == _shown_kind and colour == _shown_colour:
+## `two_handed`; an empty kind shows nothing. `id`, the item's, tells two photos of one kind apart
+## (#787): another item rebuilds the view and drops the picture.
+func show_item(kind: StringName, colour: Color, two_handed := false, id := -1) -> void:
+	if kind == _shown_kind and colour == _shown_colour and id == _shown_id:
 		return
 	_shown_kind = kind
 	_shown_colour = colour
+	_shown_id = id
+	_picture = null
 	if _view != null:
 		_view.queue_free()
 		_view = null
@@ -42,3 +47,21 @@ func show_item(kind: StringName, colour: Color, two_handed := false) -> void:
 ## The kind shown, or empty.
 func shown_kind() -> StringName:
 	return _shown_kind
+
+
+## The item id shown (-1 for none, or one shown without its id).
+func shown_id() -> int:
+	return _shown_id
+
+
+## Shows `texture` on a photo in the hand (#787: the shot's picture; null the grey blank), kept
+## until another item is shown.
+func set_picture(texture: Texture2D) -> void:
+	_picture = texture
+	if _view != null:
+		_view.set_picture(texture)
+
+
+## The hand item's view, or null.
+func view() -> ItemView:
+	return _view

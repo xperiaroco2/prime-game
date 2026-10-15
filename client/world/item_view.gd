@@ -13,7 +13,8 @@ extends Node3D
 ## hidden by the level like the item (no `no_depth_test`, the M4 ADR's §3 item 5).
 
 ## The look's sizes in metres, by kind id; Cooking's kinds take CookingLooks' (#776); any other
-## kind gets UNKNOWN_SIZE and its name as a label.
+## kind gets UNKNOWN_SIZE and its name as a label. The photo task's film and photo take
+## PhotoLooks' (#787).
 const SIZES: Dictionary[StringName, Vector3] = {
 	&"knife": Vector3(0.05, 0.04, 0.32),
 	&"package": Vector3(0.45, 0.45, 0.45),
@@ -48,6 +49,8 @@ static func make(
 
 ## The look's size in metres for `item_kind`.
 static func size_of(item_kind: StringName) -> Vector3:
+	if PhotoLooks.has(item_kind):
+		return PhotoLooks.size_of(item_kind)
 	if CookingLooks.has(item_kind):
 		return CookingLooks.size_of(item_kind)
 	return SIZES.get(item_kind, UNKNOWN_SIZE)
@@ -82,6 +85,9 @@ func _build(colour: Color, label_text: String) -> void:
 	_look = Node3D.new()
 	_look.name = "Look"
 	add_child(_look)
+	if PhotoLooks.has(kind):
+		_look.add_child(PhotoLooks.build(kind))
+		return
 	if CookingLooks.has(kind):
 		_look.add_child(CookingLooks.build(kind))
 		return
@@ -124,3 +130,15 @@ func set_layer(value: int) -> void:
 
 func layer() -> int:
 	return _layer
+
+
+## Shows `texture`, a shot's picture, on a photo's look (#787); null shows the grey blank. Nothing
+## for any other kind.
+func set_picture(texture: Texture2D) -> void:
+	PhotoLooks.set_picture(_look, texture)
+
+
+## The texture a photo's look shows, or null.
+func picture() -> Texture2D:
+	var mesh := PhotoLooks.picture_of(_look)
+	return (mesh.material_override as StandardMaterial3D).albedo_texture if mesh != null else null
