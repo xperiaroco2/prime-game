@@ -1480,7 +1480,7 @@ Each `ClientModel.Item` holds its holder and whether it is
 `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
 (the swapper's two items change places), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
 the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravity` and `flight_tick`, #644) and
-`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying) is what
+`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying, not fitted: #811) is what
 `ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
 it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
 `belt_item(peer)` read them for every player, the own one included, whose avatar arrives only while it is knocked down (KE5). `TaskState`
@@ -5530,8 +5530,8 @@ The local player's controller (#46, `client/player/`):
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9), 4 `movers` (`PhysicsLayers.MOVERS`: client-only
   moving bodies, today the car repair's car, §4.7.56). The living collide with the world and the movers (#811), the
   downed with the world only (a raise ray passes through the movers); the dead are on no layer; a living player
-  finds the
-  other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other players are
+  finds the other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other
+  players are
   `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
