@@ -407,9 +407,9 @@ class _Parser:
         return made
 
     def aim(self, args: list[str]) -> dict[str, object]:
-        """The kind ('' for `aim off`), the target (item or station) and the route's waypoints of an aim."""
+        """An aim's kind ('' for `aim off`); a station's also its target and its route's waypoints."""
         if args == ["off"]:
-            return {"kind": "", "target": "", "via": []}
+            return {"kind": ""}
         via: list[list[float]] = []
         if len(args) == 4 and args[0] == "station" and args[2] == "via":
             if args[3] not in self.routes:
@@ -417,7 +417,9 @@ class _Parser:
             via = self.routes[args[3]]
             args = args[:2]
         if len(args) == 2 and args[0] in ("item", "station") and ID_RE.fullmatch(args[1]):
-            return {"kind": args[1], "target": args[0], "via": via}
+            if args[0] == "item":
+                return {"kind": args[1]}
+            return {"kind": args[1], "target": "station", "via": via}
         raise self.fail(
             "an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`), `aim station <kind>"
             " [via <route>]` (a station kind's id, such as `aim station camera`) or `aim off`"
