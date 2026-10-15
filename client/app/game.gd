@@ -657,8 +657,9 @@ func _welcomed_model() -> ClientModel:
 ## (ItemWorld), the own raise's progress at the estimated host tick `tick`, the raise cue's key and
 ## whether anyone may hear the own player (#489, #497).
 func _hud_local(tick: float) -> HudText.Local:
-	var local := _items.hud_local()
-	local.raising = _life.raise_shown(tick)
+	var local := _items.hud_local(tick)
+	# The raise bar shows the own raise, else the own fit at the car (#811): never both at once.
+	local.raising = maxf(local.raising, _life.raise_shown(tick))
 	local.raise_key = _life.raise_cue()
 	local.mic = _sender.live()
 	if _player != null and not _player_dead():
