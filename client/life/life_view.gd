@@ -549,7 +549,9 @@ func _hold_as_seen(peer: int) -> void:
 	else:
 		var kind := mode.find_item_kind(hand.kind)
 		var two_handed := kind != null and kind.is_two_handed()
-		_spectate_hand.show_item(hand.kind, hand.colour, two_handed, model.hand_item(peer))
+		_spectate_hand.show_item(
+			hand.kind, hand.colour, two_handed, model.hand_item(peer), hand.parts
+		)
 		_spectate_hand.set_picture(items.picture_for(hand) if items != null else null)
 	if items == null:
 		return

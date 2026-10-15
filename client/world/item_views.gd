@@ -128,16 +128,20 @@ func _physics_process(delta: float) -> void:
 	for id: int in model.items:
 		var item := model.items[id]
 		var view: ItemView = _views.get(id)
-		if view != null and (view.kind != item.kind or _built_for.get(id) != item):
-			# The item changed kind (ItemChanged, cooking ADR CE4), or its id was freed and reused
-			# within one frame (ItemVanished, then ItemSpawned, CE3; the model holds a new Item, of the
-			# same kind too): the old view's look is not this item's.
+		if (
+			view != null
+			and (view.kind != item.kind or view.parts != item.parts or _built_for.get(id) != item)
+		):
+			# The item changed kind (ItemChanged, cooking ADR CE4) or got its burger's parts
+			# (BurgerPlated after its ItemSpawned, #1101), or its id was freed and reused within one
+			# frame (ItemVanished, then ItemSpawned, CE3; the model holds a new Item, of the same kind
+			# too): the old view's look is not this item's.
 			view.queue_free()
 			_views.erase(id)
 			_built_for.erase(id)
 			view = null
 		if view == null:
-			view = ItemView.make(id, item.kind, item.colour, mode)
+			view = ItemView.make(id, item.kind, item.colour, mode, item.parts)
 			view.add_to_group(SightHider.GROUP)
 			_views[id] = view
 			_built_for[id] = item
@@ -201,15 +205,16 @@ func _rest_point(id: int, item: ClientModel.Item) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, item.position)
 
 
-## A plate's ingredient gets its green (right, locked) or red outline; the grill's patty and every
-## other item none (#776). Set only when it changes.
+## A plate's ingredient gets the filled slot's outline, the same whatever it is (#1101: nothing is
+## right or wrong before a serve); the grill's patty and every other item none (#776). Set only
+## when it changes.
 func _outline(view: ItemView, item: ClientModel.Item) -> void:
 	var want: Material = null
 	if item.on_station >= 0 and model.stations.has(item.on_station):
 		var kind := model.stations[item.on_station].kind
 		var type := CookingUse.type_of(mode, kind)
 		if CookingUse.role_of(type, kind) == CookingUse.Role.PLACE:
-			want = CookingLooks.outline(item.locked)
+			want = CookingLooks.outline()
 	# get_meta with a null default still errors on a missing key, and a null set_meta erases it.
 	var had: Material = view.get_meta(&"outline") as Material if view.has_meta(&"outline") else null
 	if had != want:
@@ -250,7 +255,9 @@ func _show_own_hand() -> void:
 	if hand == null or not model.is_alive(model.own_peer) or flights.hides_hand(hand_id):
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
-		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind), hand_id)
+		player.hand_view().show_item(
+			hand.kind, hand.colour, _two_handed(hand.kind), hand_id, hand.parts
+		)
 		player.hand_view().set_picture(picture_for(hand))
 
 

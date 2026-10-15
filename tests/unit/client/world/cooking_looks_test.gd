@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## Cooking's looks (ARCHITECTURE §4.7.55, #776; the cooking ADR's §5.1): the 21 kinds of the base
-## mode (C6's ids) each get a look of their own through ItemView, with no label and nothing drawn
-## over the level; the five icons are distinct white silhouettes on discs; the plate's outline is an
+## Cooking's looks (ARCHITECTURE §4.7.55, #776; the cooking ADR's §5.1): the 22 kinds of the base
+## mode (C6's ids, the burger of #1101) each get a look of their own through ItemView, with no label
+## and nothing drawn over the level; a plated burger shows its parts; the five icons are distinct
+## white silhouettes on discs; the plate's outline is one neutral filled-slot colour (#1101), an
 ## inverted hull, depth-tested at the level's render priority.
 
 const KINDS: Array[StringName] = [
@@ -26,6 +27,7 @@ const KINDS: Array[StringName] = [
 	&"box_patty_light",
 	&"box_patty_red",
 	&"box_patty_deep_red",
+	&"burger",
 ]
 const MODE := "res://content/modes/base_mode.tres"
 
@@ -89,27 +91,48 @@ func test_the_five_icons_are_white_silhouettes_on_discs_of_their_own() -> void:
 
 
 func test_the_outline_is_a_depth_tested_inverted_hull() -> void:
-	for right: bool in [true, false]:
-		var material := CookingLooks.outline(right)
-		assert_bool(material.grow).is_true()
-		assert_float(material.grow_amount).is_greater(0.0)
-		assert_float(material.grow_amount).is_less(0.05)
-		assert_int(material.cull_mode).is_equal(BaseMaterial3D.CULL_FRONT)
-		assert_int(material.shading_mode).is_equal(BaseMaterial3D.SHADING_MODE_UNSHADED)
-		assert_bool(material.no_depth_test).is_false()
-		assert_int(material.render_priority).is_equal(0)
-	assert_bool(CookingLooks.outline(true).albedo_color.g > 0.5).is_true()
-	assert_bool(CookingLooks.outline(false).albedo_color.r > 0.5).is_true()
+	var material := CookingLooks.outline()
+	assert_bool(material.grow).is_true()
+	assert_float(material.grow_amount).is_greater(0.0)
+	assert_float(material.grow_amount).is_less(0.05)
+	assert_int(material.cull_mode).is_equal(BaseMaterial3D.CULL_FRONT)
+	assert_int(material.shading_mode).is_equal(BaseMaterial3D.SHADING_MODE_UNSHADED)
+	assert_bool(material.no_depth_test).is_false()
+	assert_int(material.render_priority).is_equal(0)
+	assert_object(CookingLooks.outline()).is_same(material)
 	var look := CookingLooks.build(&"bun_dark")
-	CookingLooks.set_outline(look, CookingLooks.outline(false))
+	CookingLooks.set_outline(look, material)
 	for node: Node in look.find_children("*", "GeometryInstance3D", true, false):
-		assert_object((node as GeometryInstance3D).material_overlay).is_same(
-			CookingLooks.outline(false)
-		)
+		assert_object((node as GeometryInstance3D).material_overlay).is_same(material)
 	CookingLooks.set_outline(look, null)
 	for node: Node in look.find_children("*", "GeometryInstance3D", true, false):
 		assert_object((node as GeometryInstance3D).material_overlay).is_null()
 	look.free()
+
+
+func test_the_filled_outline_is_neither_the_old_green_nor_red() -> void:
+	# #1101: the outline says only that a slot is filled. The old right green had g > 0.5 with low
+	# red, the wrong red r > 0.5 with low green; the filled colour is pale, all channels high.
+	var colour := CookingLooks.outline().albedo_color
+	assert_float(minf(colour.r, minf(colour.g, colour.b))).is_greater(0.5)
+
+
+func test_a_plated_burger_shows_its_parts_stacked() -> void:
+	var parts := PackedStringArray(["bun_dark", "patty_red", "mint"])
+	var view: ItemView = auto_free(ItemView.make(1, &"burger", Color.WHITE, null, parts))
+	var burger := view.look().get_child(0)
+	var names: Array[String] = []
+	var heights: Array[float] = []
+	for child: Node in burger.get_children():
+		names.append(String(child.name))
+		heights.append((child as Node3D).position.y)
+	assert_array(names).contains_exactly(["BunDark", "PattyRed", "Mint"])
+	assert_bool(heights[0] < heights[1] and heights[1] < heights[2]).is_true()
+	# A part with no look (a fixture's kind) or none given is drawn as BURGER_PARTS'.
+	var plain := CookingLooks.burger(PackedStringArray(["bun_a"]))
+	assert_str(String(plain.get_child(0).name)).is_equal("BunWhite")
+	assert_str(String(plain.get_child(2).name)).is_equal("Basil")
+	plain.free()
 
 
 ## Every item kind of a Cooking in the base mode has a look (vacuous until C6, #775, lands).
@@ -122,6 +145,7 @@ func test_every_kind_of_the_base_modes_cooking_has_a_look() -> void:
 		kinds.append_array(type.herbs)
 		kinds.append_array(type.boxes)
 		kinds.append(type.burnt)
+		kinds.append(type.burger)
 		for kind: ItemKind in kinds:
 			(
 				assert_bool(CookingLooks.has(kind.id))

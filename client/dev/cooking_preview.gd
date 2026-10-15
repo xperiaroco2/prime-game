@@ -1,13 +1,13 @@
 extends Node3D
-## A preview of Cooking's client view (#776, the cooking ADR's §8 C7) for `tools\run.cmd shot`:
-## the level's real station scenes (`levels/stations/`) driven by CookingViews and ItemViews from a
-## fake ClientModel: the order board with two numbered rows, the herb board's dealt pairs, the five
-## beds' plants, a done plate (three right ingredients, green outlines) beside a plate with a right
-## bun and a wrong (red-outlined) bun beside it, a third place unused (bare counter), and the grill
-## with a patty on it and its ring part filled. With `wall`, a wall stands between the camera and
-## the counters: no outline, ring, row or plant may show through it (the M4 render checklist).
-## The Cooking is built here with C6's kind ids (#775: `content/` has none yet) and preview-only
-## fry and burn seconds; dev only, nothing here reaches the game.
+## A preview of Cooking's client view (#776, the cooking ADR's §8 C7) for `tools\run.cmd shot`: the
+## level's real station scenes (`levels/stations/`) driven by CookingViews and ItemViews from a fake
+## ClientModel: the order board with two numbered rows, the herb board's dealt pairs, the five beds'
+## plants, a full plate (three ingredients) beside a plate with a bun and a herb, each with the one
+## filled-slot outline (#1101: nothing says right or wrong before a serve), a third place unused
+## (bare counter), and the grill with a patty on it and its ring part filled. With `wall`, a wall
+## stands between the camera and the counters: no outline, ring, row or plant may show through it
+## (the M4 render checklist). The Cooking is built here with C6's kind ids (#775: `content/` has
+## none yet) and preview-only fry and burn seconds; dev only, nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const SCENES := "res://levels/stations/%s.tscn"
@@ -81,20 +81,20 @@ func _ready() -> void:
 	camera.current = true
 
 
-## The plates and the grill: place 1 done (its bun, fried patty and herb), place 2 with its right
-## bun and a wrong one beside it, the grill's patty a third of the way to fried.
+## The plates and the grill: place 1 full (a bun, a fried patty and a herb), place 2 with a bun
+## and a herb, the grill's patty a third of the way to fried.
 func _fill(model: ClientModel, mode: GameMode) -> void:
 	var type := CookingUse.types_of(mode)[0]
 	var puts := [
-		[50, BUNS[0], 0, true],
-		[51, FRIED[1], 0, true],
-		[52, &"mint", 0, true],
-		[53, BUNS[1], 1, true],
-		[54, BUNS[2], 1, false],
+		[50, BUNS[0], 0],
+		[51, FRIED[1], 0],
+		[52, &"mint", 0],
+		[53, BUNS[1], 1],
+		[54, &"dill", 1],
 	]
 	for put: Array in puts:
 		_hold(model, put[0] as int, put[1] as StringName)
-		var fields := {"item": put[0], "station": FIRST_PLACE + (put[2] as int), "right": put[3]}
+		var fields := {"item": put[0], "station": FIRST_PLACE + (put[2] as int)}
 		model.fold(&"IngredientPlaced", fields)
 	_hold(model, 60, RAW[2])
 	var fried := NOW + roundi(type.fried_ticks() * 2 / 3.0)
@@ -131,7 +131,7 @@ func _mode() -> GameMode:
 	var mode := base.duplicate() as GameMode
 	var type := Cooking.new()
 	type.id = &"cooking"
-	type.order_board = _station(&"order_board", true)
+	type.order_board = _station(&"order_board", false)
 	type.herb_board = _station(&"herb_board", true)
 	type.grill = _station(&"grill", false)
 	type.herb_bed = _station(&"herb_bed", false)

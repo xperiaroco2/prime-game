@@ -28,8 +28,10 @@ extends RefCounted
 ## - the Generator (#801, G6): SwitchChanged's click at the switch's station, ButtonPressed's at the
 ##   generator's, each the place its StationPlaced already told everyone; the hum while it charges
 ##   is StationHums', not an event's;
-## - Cooking (#776, the cooking ADR's CD14 (a)): IngredientPlaced's chime (a right ingredient),
-##   buzz (a wrong one) or, for the third right one, the burger's done sound at its place;
+## - Cooking (#776, the cooking ADR's CD14 (a), amended by #1101): IngredientPlaced's put click
+##   at its place (never right or wrong: a burger is checked only when served), BurgerPlated's
+##   chime at the place (the burger made), BurgerServed's done sound (right) or buzz (wrong) at the
+##   order board of the client's own copy of the mode (`mode`; none: silent);
 ##   GrillLoaded's put click at the grill; ItemChanged's ding (a patty fried) or hiss (burnt) where
 ##   the patty lies, told by the new kind in the client's own copy of the mode (`mode`). A take is
 ##   the ItemPickedUp that follows its ItemSpawned (a pick-up's click); the sizzle while a patty
@@ -166,13 +168,18 @@ static func source(
 				return null
 			var id := SWITCH_CLICK if event_name == &"SwitchChanged" else BUTTON_CLICK
 			return Sound.new(id, panel.position, PANEL_AIM_M)
-		&"IngredientPlaced", &"GrillLoaded":
+		&"IngredientPlaced", &"GrillLoaded", &"BurgerPlated":
 			var station: ClientModel.Station = model.stations.get(fields["station"] as int)
 			if station == null:
 				return null
-			return Sound.new(
-				_put_sound(event_name, fields, station), station.position, COUNTER_AIM_M
-			)
+			var put := CHIME if event_name == &"BurgerPlated" else PUT_DOWN
+			return Sound.new(put, station.position, COUNTER_AIM_M)
+		&"BurgerServed":
+			var board := _order_board(model, mode, fields["station"] as int)
+			if board == null:
+				return null
+			var served := BURGER_DONE if (fields["right"] as bool) else BUZZ
+			return Sound.new(served, board.position, COUNTER_AIM_M)
 		&"ItemChanged":
 			var changed: ClientModel.Item = model.items.get(fields["item"] as int)
 			var id := _cooked_sound(mode, fields["kind"] as StringName)
@@ -209,6 +216,17 @@ static func _put_sound(
 	if not fields["right"]:
 		return BUZZ
 	return BURGER_DONE if station.done else CHIME
+
+
+## The order board of the Cooking whose place is station `place_id` in `model`, where a serve
+## sounds; null for an unknown place, no mode or no board placed.
+static func _order_board(model: ClientModel, mode: GameMode, place_id: int) -> ClientModel.Station:
+	var place: ClientModel.Station = model.stations.get(place_id)
+	if place == null:
+		return null
+	var type := CookingUse.type_of(mode, place.kind)
+	var boards := CookingUse.stations_of(model, type, CookingUse.Role.ORDER_BOARD)
+	return model.stations[boards[0]] if not boards.is_empty() else null
 
 
 ## The sound of an item turning into kind `kind_id`: a ding for a fried patty of a Cooking of

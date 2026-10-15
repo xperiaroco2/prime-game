@@ -1,6 +1,6 @@
 class_name CookingLooks
 extends RefCounted
-## The looks of Cooking's 21 item kinds and its five icons (ARCHITECTURE §4.7.55, #776), after the
+## The looks of Cooking's 22 item kinds and its five icons (ARCHITECTURE §4.7.55, #776), after the
 ## cooking ADR's §5.1 drafts the engineer took: the buns told apart by colour and seeds, the patties
 ## by hue (raw, fried under a striped crust, one burnt), the herbs by silhouette, the boxes by what
 ## they give, the icons (a sun, a moon, a star, a drop, a heart) by shape alone, white on a disc of
@@ -8,7 +8,9 @@ extends RefCounted
 ## and colours are looks, never game numbers. Keyed on the base mode's kind ids (C6, #775); any
 ## other kind (a fixture's) gets ItemView's labelled box. Every look's origin is its resting point,
 ## the bottom of its look. The outline of an ingredient on a plate is an inverted hull: a
-## `material_overlay` grown outward with its front faces culled, depth-tested like the level.
+## `material_overlay` grown outward with its front faces culled, depth-tested like the level, one
+## neutral colour that says only that the slot is filled, never right or wrong (#1101: a burger is
+## checked when it is served). The plated burger (#1101) is its three parts stacked as on the plate.
 
 ## The icons' count, in the order of OrderPosted's icon index.
 const ICON_COUNT := 5
@@ -16,8 +18,16 @@ const ICON_COUNT := 5
 const ICON_PIXELS := 64
 ## How far an outline's hull grows past its item, in metres.
 const OUTLINE_GROW_M := 0.012
-const RIGHT_COLOUR := Color(0.2, 0.9, 0.3)
-const WRONG_COLOUR := Color(0.95, 0.15, 0.15)
+## The filled slot's outline colour (#1101): neither the old right green nor the wrong red. A
+## look, "not a decision".
+const FILLED_COLOUR := Color(0.96, 0.92, 0.72)
+## The plated burger's kind id (the base mode's, #1101) and how high each part sits in it (bun,
+## patty, herb; the plate's stack, CookingViews.STACK_M, from the bun's bottom).
+const BURGER := &"burger"
+const BURGER_STACK_M: Array[float] = [0.0, 0.04, 0.07]
+const BURGER_SIZE := Vector3(0.12, 0.27, 0.12)
+## The parts a burger is drawn with before BurgerPlated names its own, or for a part with no look.
+const BURGER_PARTS: Array[StringName] = [&"bun_white", &"patty_light", &"basil"]
 const BUN_SIZE := Vector3(0.12, 0.07, 0.12)
 const PATTY_SIZE := Vector3(0.11, 0.03, 0.11)
 const HERB_SIZE := Vector3(0.1, 0.2, 0.1)
@@ -75,12 +85,14 @@ const ICON_COLOURS: Array[Color] = [
 ]
 
 static var _icons: Array[Texture2D] = []
-static var _outlines: Dictionary[bool, StandardMaterial3D] = {}
+static var _outline: StandardMaterial3D
 
 
 ## Whether `kind` has a cooking look.
 static func has(kind: StringName) -> bool:
-	return BUNS.has(kind) or PATTIES.has(kind) or HERBS.has(kind) or BOXES.has(kind)
+	return (
+		BUNS.has(kind) or PATTIES.has(kind) or HERBS.has(kind) or BOXES.has(kind) or kind == BURGER
+	)
 
 
 ## The look's size in metres for a cooking kind; Vector3.ZERO for any other.
@@ -93,6 +105,8 @@ static func size_of(kind: StringName) -> Vector3:
 		return HERB_SIZE
 	if BOXES.has(kind):
 		return BOX_SIZE
+	if kind == BURGER:
+		return BURGER_SIZE
 	return Vector3.ZERO
 
 
@@ -106,7 +120,23 @@ static func build(kind: StringName) -> Node3D:
 		return _herb(kind)
 	if BOXES.has(kind):
 		return _box(kind)
+	if kind == BURGER:
+		return burger(PackedStringArray())
 	return null
+
+
+## A new look of a plated burger of `parts` (BurgerPlated's bun, patty and herb kind ids): each
+## part's look stacked as on the plate, a part with no look (or none given) drawn as BURGER_PARTS'.
+static func burger(parts: PackedStringArray) -> Node3D:
+	var root := _root(BURGER)
+	for slot in BURGER_PARTS.size():
+		var part := StringName(parts[slot]) if slot < parts.size() else &""
+		var look := build(part) if has(part) and part != BURGER else null
+		if look == null:
+			look = build(BURGER_PARTS[slot])
+		look.position = Vector3.UP * BURGER_STACK_M[slot]
+		root.add_child(look)
+	return root
 
 
 ## Icon `index`'s texture (0 the sun to 4 the heart), made once; null out of range.
@@ -119,18 +149,18 @@ static func icon(index: int) -> Texture2D:
 	return _icons[index]
 
 
-## The outline material, green for a right ingredient and red for a wrong one: an inverted hull,
-## unshaded, depth-tested, at the level's render priority.
-static func outline(right: bool) -> StandardMaterial3D:
-	if not _outlines.has(right):
+## The filled slot's outline material (#1101), the same for every ingredient on a plate: an
+## inverted hull, unshaded, depth-tested, at the level's render priority.
+static func outline() -> StandardMaterial3D:
+	if _outline == null:
 		var material := StandardMaterial3D.new()
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material.cull_mode = BaseMaterial3D.CULL_FRONT
 		material.grow = true
 		material.grow_amount = OUTLINE_GROW_M
-		material.albedo_color = RIGHT_COLOUR if right else WRONG_COLOUR
-		_outlines[right] = material
-	return _outlines[right]
+		material.albedo_color = FILLED_COLOUR
+		_outline = material
+	return _outline
 
 
 ## Sets `material` (null clears it) as the overlay of every mesh under `look`.

@@ -2,7 +2,9 @@ extends GdUnitTestSuite
 ## ClientModel's folds of Cooking's events (#776, the cooking ADR's §8 C7): OrderPosted and
 ## HerbsDealt on the places and the herbs, IngredientPlaced and GrillLoaded taking the item out of
 ## the putter's hand (the host sends no ItemPlaced for either), and a pickup, a put down or a throw
-## clearing them again. Nothing kept names who put anything (the ADR's §3, "Who did it").
+## clearing them again. Since #1101 every put lies locked on its slot with nothing right or wrong
+## known, BurgerPlated gives the burger its parts and place, and only a right BurgerServed
+## finishes a place. Nothing kept names who put anything (the ADR's §3, "Who did it").
 
 const C := preload("res://tests/fixtures/client/fixture_cooking_client.gd")
 
@@ -27,40 +29,68 @@ func test_an_order_for_an_unknown_station_is_ignored() -> void:
 	assert_bool(_model.stations.has(99)).is_false()
 
 
-func test_a_right_ingredient_leaves_the_hand_and_lies_locked_on_its_place() -> void:
+func test_a_put_ingredient_leaves_the_hand_and_lies_locked_on_its_place() -> void:
 	C.hold(_model, 50, &"bun_a")
 	assert_int(_model.hand_item(C.OWN)).is_equal(50)
-	C.put(_model, 50, 0, true)
+	C.put(_model, 50, 0)
 	var item := _model.items[50]
 	assert_int(_model.hand_item(C.OWN)).is_equal(-1)
 	assert_int(item.holder).is_equal(ClientModel.NO_HOLDER)
 	assert_int(item.on_station).is_equal(C.FIRST_PLACE)
 	assert_bool(item.locked).is_true()
 	assert_vector(item.position).is_equal(FixtureCookingModes.PLACE_SPOTS[0])
-	assert_int(_model.stations[C.FIRST_PLACE].right_count).is_equal(1)
+	assert_array(Array(_model.plated_on(C.FIRST_PLACE))).contains_exactly([50])
 	assert_bool(_model.stations[C.FIRST_PLACE].done).is_false()
 
 
-func test_a_wrong_ingredient_lies_on_its_place_unlocked_and_a_pickup_takes_it_back() -> void:
+func test_a_put_that_does_not_match_the_order_lies_the_same_way() -> void:
+	# The old rule laid a wrong ingredient unlocked; since #1101 nothing tells a put right or wrong.
 	C.hold(_model, 51, &"bun_b")
-	C.put(_model, 51, 0, false)
+	C.put(_model, 51, 0)
 	var item := _model.items[51]
 	assert_int(item.on_station).is_equal(C.FIRST_PLACE)
-	assert_bool(item.locked).is_false()
-	assert_int(_model.stations[C.FIRST_PLACE].right_count).is_equal(0)
-	C.fold(_model, ItemPickedUpEvent.new(C.OWN, 51))
-	assert_int(item.on_station).is_equal(-1)
-	assert_int(_model.hand_item(C.OWN)).is_equal(51)
+	assert_bool(item.locked).is_true()
+	assert_array(Array(_model.plated_on(C.FIRST_PLACE))).contains_exactly([51])
 
 
-func test_the_third_right_ingredient_finishes_the_place() -> void:
+func test_a_full_plate_does_not_finish_the_place() -> void:
 	var kinds: Array[StringName] = [&"bun_a", &"fried_a", &"herb_a"]
 	for i in kinds.size():
 		C.hold(_model, 60 + i, kinds[i])
-		C.put(_model, 60 + i, 1, true)
-	assert_int(_model.stations[C.FIRST_PLACE + 1].right_count).is_equal(ClientModel.ORDER_SLOTS)
+		C.put(_model, 60 + i, 1)
+	assert_int(_model.plated_on(C.FIRST_PLACE + 1).size()).is_equal(ClientModel.ORDER_SLOTS)
+	assert_bool(_model.stations[C.FIRST_PLACE + 1].done).is_false()
+
+
+func test_burger_plated_empties_the_plate_and_gives_the_burger_its_parts_and_place() -> void:
+	var kinds: Array[StringName] = [&"bun_b", &"fried_a", &"herb_c"]
+	for i in kinds.size():
+		C.hold(_model, 60 + i, kinds[i])
+		C.put(_model, 60 + i, 1)
+	C.plate_burger(_model, 63, 1, [60, 61, 62], kinds)
+	var burger := _model.items[63]
+	assert_int(_model.plated_on(C.FIRST_PLACE + 1).size()).is_equal(0)
+	assert_int(_model.hand_item(C.OWN)).is_equal(63)
+	assert_array(Array(burger.parts)).contains_exactly(["bun_b", "fried_a", "herb_c"])
+	assert_int(burger.place).is_equal(C.FIRST_PLACE + 1)
+	assert_bool(_model.stations[C.FIRST_PLACE + 1].done).is_false()
+
+
+func test_a_wrong_serve_leaves_the_place_open_and_a_right_one_finishes_it() -> void:
+	C.plate_burger(_model, 63, 1, [])
+	C.serve(_model, 63, 1, false)
+	assert_bool(_model.items.has(63)).is_false()
+	assert_bool(_model.stations[C.FIRST_PLACE + 1].done).is_false()
+	C.plate_burger(_model, 64, 1, [])
+	C.serve(_model, 64, 1, true)
+	assert_bool(_model.items.has(64)).is_false()
 	assert_bool(_model.stations[C.FIRST_PLACE + 1].done).is_true()
 	assert_bool(_model.stations[C.FIRST_PLACE].done).is_false()
+
+
+func test_a_serve_for_an_unknown_station_is_ignored() -> void:
+	C.fold(_model, BurgerServedEvent.new(99, true))
+	assert_bool(_model.stations.has(99)).is_false()
 
 
 func test_a_grill_load_locks_the_patty_and_its_take_off_empties_the_grill() -> void:
@@ -92,13 +122,15 @@ func test_a_take_off_onto_the_belt_also_empties_the_grill() -> void:
 	assert_bool(_model.items[71].belted).is_true()
 
 
-func test_a_put_down_or_a_throw_clears_a_red_item() -> void:
+func test_a_put_down_or_a_throw_clears_a_stationed_item() -> void:
 	C.hold(_model, 80, &"herb_b")
-	C.put(_model, 80, 0, false)
+	C.put(_model, 80, 0)
 	C.fold(_model, ItemPickedUpEvent.new(C.OWN, 80))
-	C.put(_model, 80, 0, false)
+	assert_int(_model.items[80].on_station).is_equal(-1)
+	C.put(_model, 80, 0)
 	C.fold(_model, ItemPlacedEvent.new(80, Vector3(1, 0, 1), Items.PUT_DOWN))
 	assert_int(_model.items[80].on_station).is_equal(-1)
+	assert_bool(_model.items[80].locked).is_false()
 
 
 func test_a_mid_round_spawn_at_a_box_and_a_reused_id_are_new_items() -> void:
@@ -123,8 +155,8 @@ func test_no_kept_field_names_who_put_anything() -> void:
 	var other := C.dealt(2)
 	C.hold(_model, 50, &"bun_a", C.OWN)
 	C.hold(other, 50, &"bun_a", C.OTHER)
-	C.put(_model, 50, 0, true)
-	C.put(other, 50, 0, true)
+	C.put(_model, 50, 0)
+	C.put(other, 50, 0)
 	C.hold(_model, 51, &"raw_a", C.OWN)
 	C.hold(other, 51, &"raw_a", C.OTHER)
 	C.grill(_model, 51, 1200, 1300)

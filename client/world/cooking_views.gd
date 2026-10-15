@@ -25,11 +25,9 @@ const RING_SEGMENTS := 24
 const RING_RADIUS_M := 0.195
 const RING_FRYING := Color(1.0, 0.8, 0.15)
 const RING_BURNING := Color(0.9, 0.22, 0.1)
-## Where a plate's ingredients stand above the plate's origin, by slot (bun, patty, herb), and how
-## far beside it a wrong one lies: looks, "not a decision".
+## Where a plate's ingredients stand above the plate's origin, by slot (bun, patty, herb): looks,
+## "not a decision".
 const STACK_M: Array[float] = [0.01, 0.05, 0.08]
-const BESIDE_M := 0.2
-const BESIDE_STEP_M := 0.12
 ## Above the grate's origin, where the patty lies: a look.
 const GRATE_TOP_M := 0.02
 ## Unbound (tests, previews): the plate or grate this high above the station's floor point.
@@ -105,9 +103,10 @@ static func ring_fill(type: Cooking, station: ClientModel.Station, now: int) -> 
 	return 0.0
 
 
-## Where item `id`, lying on a place or the grill, is drawn: on the plate (a right one stacked by
-## its slot, a wrong one beside it) or on the grate; null for an item on no cooking station. The
-## crosshair aims there (TargetChoice's aim_of); the host's sight check stays on its position.
+## Where item `id`, lying on a place or the grill, is drawn: on the plate, stacked by its slot
+## (every put is locked on its slot since #1101), or on the grate; null for an item on no cooking
+## station. The crosshair aims there (TargetChoice's aim_of); the host's sight check stays on its
+## position.
 func point_of(id: int) -> Variant:
 	var item: ClientModel.Item = model.items.get(id) if model != null else null
 	if item == null or item.on_station < 0 or not model.stations.has(item.on_station):
@@ -117,7 +116,6 @@ func point_of(id: int) -> Variant:
 	var role := CookingUse.role_of(type, station.kind)
 	var scene := _scene_of(item.on_station)
 	var base := station.position + Vector3.UP * COUNTER_M
-	var turn := Basis.IDENTITY
 	if role == CookingUse.Role.GRILL:
 		var grate := scene.root.get_node_or_null(^"Grate") as Node3D if scene != null else null
 		base = grate.global_position if grate != null else base
@@ -127,12 +125,8 @@ func point_of(id: int) -> Variant:
 	var plate := scene.part("Plate") if scene != null else null
 	if plate != null:
 		base = plate.global_position
-		turn = scene.root.global_basis.orthonormalized()
 	var slot := maxi(0, CookingUse.slot_of(type, item.kind))
-	if item.locked:
-		return base + Vector3.UP * STACK_M[slot]
-	var beside := Vector3(BESIDE_M, 0.0, (slot - 1) * BESIDE_STEP_M)
-	return base + turn * beside + Vector3.UP * STACK_M[0]
+	return base + Vector3.UP * STACK_M[slot]
 
 
 ## The station whose scene the ray hit: `body` a bound scene's `Collision`, or the beds' shared

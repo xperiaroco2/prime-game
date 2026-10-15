@@ -1,12 +1,12 @@
 extends GdUnitTestSuite
-## Cooking's station scenes driven from the own ClientModel (ARCHITECTURE §4.7.55, #776; the
-## cooking ADR's §3, CD12 (a), CD14 (i), CE15): the level's real scenes (`levels/stations/`) under a
-## fixture level, the stations of FixtureCookingModes placed at their use spots. Five beds under one
+## Cooking's station scenes driven from the own ClientModel (ARCHITECTURE §4.7.55, #776; the cooking
+## ADR's §3, CD12 (a), CD14 (i), CE15): the level's real scenes (`levels/stations/`) under a fixture
+## level, the stations of FixtureCookingModes placed at their use spots. Five beds under one
 ## `herb_beds.tscn` bind to five distinct `Plant`s; the order board shows a row per place with an
 ## order, numbered as its plate; the herb board shows the dealt code; each bed its herb; the plate's
-## ingredients are drawn on the plate (a wrong one beside it) with their outline; the grill's ring
-## fills from GrillLoaded's ticks. Every driven part sits under a wrapper in SightHider's group and
-## nothing is drawn over the level.
+## ingredients are stacked on the plate by slot with one filled-slot outline (#1101); the grill's
+## ring fills from GrillLoaded's ticks. Every driven part sits under a wrapper in SightHider's group
+## and nothing is drawn over the level.
 
 const SCENES := "res://levels/stations/%s.tscn"
 const OWN := FixtureCookingClient.OWN
@@ -137,37 +137,33 @@ func test_the_plates_ingredients_are_drawn_on_the_plate_with_their_outline() -> 
 	items.station_point = _views.point_of
 	add_child(items)
 	FixtureCookingClient.hold(_model, 1, &"bun_a")
-	FixtureCookingClient.put(_model, 1, 0, true)
+	FixtureCookingClient.put(_model, 1, 0)
 	FixtureCookingClient.hold(_model, 2, &"herb_b")
-	FixtureCookingClient.put(_model, 2, 0, false)
+	FixtureCookingClient.put(_model, 2, 0)
 	await _frames()
 	var plate := _views.scene_of(FIRST_PLACE).find_child("Plate", true, false) as Node3D
-	var right: Vector3 = _views.point_of(1)
-	var wrong: Vector3 = _views.point_of(2)
-	(
-		assert_float(
-			Vector2(right.x, right.z).distance_to(
-				Vector2(plate.global_position.x, plate.global_position.z)
-			)
-		)
-		. is_less(0.01)
-	)
-	assert_float(right.y).is_greater_equal(plate.global_position.y)
-	assert_float(wrong.distance_to(plate.global_position)).is_greater(0.1)
-	assert_float(wrong.distance_to(plate.global_position)).is_less(0.4)
-	var right_view := items.view_of(1)
-	assert_bool(right_view.global_position.is_equal_approx(right)).is_true()
-	assert_bool(right_view.is_look_shown()).is_true()
-	assert_bool(right_view.is_in_group(SightHider.GROUP)).is_true()
-	var box := right_view.look().find_children("*", "GeometryInstance3D", true, false)[0]
-	assert_object((box as GeometryInstance3D).material_overlay).is_same(CookingLooks.outline(true))
-	var red := items.view_of(2).look().find_children("*", "GeometryInstance3D", true, false)[0]
-	assert_object((red as GeometryInstance3D).material_overlay).is_same(CookingLooks.outline(false))
-	# Taken back, the wrong herb leaves the plate and its outline.
+	var plate_xz := Vector2(plate.global_position.x, plate.global_position.z)
+	# Every put stacks on its slot over the plate (#1101: nothing lies beside it as wrong).
+	var bun: Vector3 = _views.point_of(1)
+	var herb: Vector3 = _views.point_of(2)
+	for at: Vector3 in [bun, herb]:
+		assert_float(Vector2(at.x, at.z).distance_to(plate_xz)).is_less(0.01)
+	assert_float(bun.y).is_greater_equal(plate.global_position.y)
+	assert_float(herb.y).is_greater(bun.y)
+	var bun_view := items.view_of(1)
+	assert_bool(bun_view.global_position.is_equal_approx(bun)).is_true()
+	assert_bool(bun_view.is_look_shown()).is_true()
+	assert_bool(bun_view.is_in_group(SightHider.GROUP)).is_true()
+	# One filled-slot outline for both, though herb_b is not the order's herb (#1101).
+	var box := bun_view.look().find_children("*", "GeometryInstance3D", true, false)[0]
+	assert_object((box as GeometryInstance3D).material_overlay).is_same(CookingLooks.outline())
+	var leaf := items.view_of(2).look().find_children("*", "GeometryInstance3D", true, false)[0]
+	assert_object((leaf as GeometryInstance3D).material_overlay).is_same(CookingLooks.outline())
+	# Off the plate (the client folds any pickup), the herb loses its outline.
 	FixtureCookingClient.fold(_model, ItemPickedUpEvent.new(OWN, 2))
 	await _frames()
 	assert_object(_views.point_of(2)).is_null()
-	assert_object((red as GeometryInstance3D).material_overlay).is_null()
+	assert_object((leaf as GeometryInstance3D).material_overlay).is_null()
 
 
 func test_the_grills_ring_fills_to_fried_and_then_to_burnt() -> void:
@@ -271,7 +267,7 @@ func test_no_driven_part_nor_plate_item_draws_through_walls_or_over_the_level() 
 	assert_int(drawn).is_greater(CookingViews.RING_SEGMENTS)
 
 
-## ItemViews over the model with a right bun and a wrong herb on the first place and a raw patty
+## ItemViews over the model with a bun and a herb on the first place and a raw patty
 ## on the grill, drawn at CookingViews.point_of.
 func _loaded_items() -> ItemViews:
 	var items := auto_free(ItemViews.new()) as ItemViews
@@ -281,9 +277,9 @@ func _loaded_items() -> ItemViews:
 	add_child(items)
 	var type := FixtureCookingModes.type_of(_mode)
 	FixtureCookingClient.hold(_model, 1, &"bun_a")
-	FixtureCookingClient.put(_model, 1, 0, true)
+	FixtureCookingClient.put(_model, 1, 0)
 	FixtureCookingClient.hold(_model, 2, &"herb_b")
-	FixtureCookingClient.put(_model, 2, 0, false)
+	FixtureCookingClient.put(_model, 2, 0)
 	FixtureCookingClient.hold(_model, 3, &"raw_a")
 	FixtureCookingClient.grill(_model, 3, 100 + type.fried_ticks(), 100 + type.burnt_ticks())
 	return items

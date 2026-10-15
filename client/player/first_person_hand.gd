@@ -20,6 +20,7 @@ const CLOSE_TURN := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
 var _shown_kind: StringName = &""
 var _shown_colour: Color
 var _shown_id := -1
+var _shown_parts := PackedStringArray()
 var _picture: Texture2D
 var _view: ItemView
 var _two_handed := false
@@ -32,13 +33,22 @@ func _init() -> void:
 
 ## Shows an item of `kind` in `colour` (a package's circle colour), held with both hands when
 ## `two_handed`; an empty kind shows nothing. `id`, the item's, tells two photos of one kind apart
-## (#787): another item rebuilds the view and drops the picture.
-func show_item(kind: StringName, colour: Color, two_handed := false, id := -1) -> void:
-	if kind == _shown_kind and colour == _shown_colour and id == _shown_id:
+## (#787): another item rebuilds the view and drops the picture. `parts`: a plated burger's part
+## kinds (#1101).
+func show_item(
+	kind: StringName, colour: Color, two_handed := false, id := -1, parts := PackedStringArray()
+) -> void:
+	if (
+		kind == _shown_kind
+		and colour == _shown_colour
+		and id == _shown_id
+		and parts == _shown_parts
+	):
 		return
 	_shown_kind = kind
 	_shown_colour = colour
 	_shown_id = id
+	_shown_parts = parts
 	_picture = null
 	_two_handed = two_handed
 	_close = false
@@ -47,7 +57,7 @@ func show_item(kind: StringName, colour: Color, two_handed := false, id := -1) -
 		_view = null
 	if kind.is_empty():
 		return
-	_view = ItemView.make(-1, kind, colour)
+	_view = ItemView.make(-1, kind, colour, null, parts)
 	_view.name = "HandItem"
 	_hold()
 	PhotoLayers.assign(_view, PhotoLayers.LIVE_AVATAR)
