@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The record invariant's wiring in ScenarioInvariants (the photo ADR §8, #781): check_event reads
 ## the camera's lens from the station and the mode's PhotoTask, the life states and the accepted
 ## positions from the match, and accepts a real shot's record, while a record altered after the
-## fact (a dead player, a player named twice, a row far from the lens, a station that is no camera)
+## fact (a dead player, a player named twice, a row far from the lens, a row a metre off its
+## player or a metre beyond the range (no claim's step of slack, #788), a station that is no camera)
 ## is caught. P9 (#788) plants the record builder's bug over House's shots.
 
 const P1 := 1
@@ -64,6 +65,32 @@ func test_a_row_beyond_the_range_from_the_cameras_lens_is_caught() -> void:
 	_shot()
 	var reach := FixturePhotoModes.RANGE_M + PhotoTask.RECORD_MARGIN_M + _step()
 	var far := FixturePhotoModes.CAMERA_AT + Vector3(0, 0, reach + 1.0)
+	_game.state.player(P2).position = far
+	var moved: Dictionary = _event.record[0].duplicate()
+	moved["position"] = far
+	var forged := ShotTakenEvent.new(_event.station, _event.film, _event.shot, [moved])
+	assert_str(_problems(forged)).contains("from the lens")
+
+
+func test_a_row_a_metre_off_the_players_position_now_is_caught() -> void:
+	# The check runs in the shot's own call, so a row must stand where its player stands now: a
+	# claim's step of slack (LeakCheck's) would let a builder's misplaced row through (#788).
+	_shot()
+	var moved: Dictionary = _event.record[0].duplicate()
+	moved["position"] = (moved["position"] as Vector3) + Vector3(1.0, 0, 0)
+	var forged := ShotTakenEvent.new(_event.station, _event.film, _event.shot, [moved])
+	assert_str(_problems(forged)).contains("a step away")
+
+
+func test_a_row_a_metre_beyond_the_range_is_caught_where_its_player_stands() -> void:
+	# Within a claim's step of the range, which LeakCheck allows: here the bound is the range and
+	# the margin alone (#788), so a builder that drops its distance test fails on the House.
+	_shot()
+	var reach := FixturePhotoModes.RANGE_M + PhotoTask.RECORD_MARGIN_M
+	var lens := FixturePhotoModes.CAMERA_AT + Vector3.UP * _game.mode.player_rules.eye_height_m
+	var far := lens + Vector3(0, 0, reach + 1.0)
+	far.y = FixturePhotoModes.CAMERA_AT.y
+	assert_float(reach + 1.0).is_less(reach + _step())
 	_game.state.player(P2).position = far
 	var moved: Dictionary = _event.record[0].duplicate()
 	moved["position"] = far
