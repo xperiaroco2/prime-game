@@ -27,7 +27,13 @@ extends RefCounted
 ##   hang beyond the hearing range silent, and the muffle ray applies as to every sound.
 ## - the Generator (#801, G6): SwitchChanged's click at the switch's station, ButtonPressed's at the
 ##   generator's, each the place its StationPlaced already told everyone; the hum while it charges
-##   is StationHums', not an event's.
+##   is StationHums', not an event's;
+## - Cooking (#776, the cooking ADR's CD14 (a)): IngredientPlaced's chime (a right ingredient),
+##   buzz (a wrong one) or, for the third right one, the burger's done sound at its place;
+##   GrillLoaded's put click at the grill; ItemChanged's ding (a patty fried) or hiss (burnt) where
+##   the patty lies, told by the new kind in the client's own copy of the mode (`mode`). A take is
+##   the ItemPickedUp that follows its ItemSpawned (a pick-up's click); the sizzle while a patty
+##   fries is StationHums', not an event's. No sound says who put what (the ADR's §3).
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -65,6 +71,17 @@ const BUTTON_CLICK := &"button_click"
 ## A switch and the button sit on a panel at about a chest's height above their station's marker on
 ## the floor: the ray aims there, as a swing aims at a chest. A placeholder, "not a decision".
 const PANEL_AIM_M := SWING_AIM_M
+## Cooking's sounds (#776, CD14 (a)): a right ingredient on a plate, a wrong one, a burger done, a
+## patty fried, a patty burnt, and the grill's sizzle loop (StationHums).
+const CHIME := &"chime"
+const BUZZ := &"buzz"
+const BURGER_DONE := &"burger_done"
+const DING := &"ding"
+const HISS := &"hiss"
+const SIZZLE := &"sizzle"
+## A plate and the grill's grate sit on a counter at about a chest's height above their station's
+## marker on the floor: the ray aims there, as at a panel. A placeholder, "not a decision".
+const COUNTER_AIM_M := PANEL_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -84,6 +101,8 @@ class Sound:
 ## `listener`, or null: a silent event, an unknown place, or too far. `position_of` gives a peer's
 ## position (a Vector3), or null when the client draws no such player. `lens_m`: how far above a
 ## camera's marker its lens is (the client's own copy of the mode's eye height, as PhotoTask's).
+## `mode`: the client's own copy of the mode (which kinds are Cooking's fried and burnt patties);
+## null leaves ItemChanged silent.
 static func choose(
 	event_name: StringName,
 	fields: Dictionary,
@@ -91,9 +110,10 @@ static func choose(
 	position_of: Callable,
 	listener: Vector3,
 	hearing_m := HEARING_RANGE_M,
-	lens_m := 0.0
+	lens_m := 0.0,
+	mode: GameMode = null
 ) -> Sound:
-	var sound := source(event_name, fields, model, position_of, lens_m)
+	var sound := source(event_name, fields, model, position_of, lens_m, mode)
 	if sound == null or not audible(sound.position, listener, hearing_m):
 		return null
 	return sound
@@ -106,7 +126,8 @@ static func source(
 	fields: Dictionary,
 	model: ClientModel,
 	position_of: Callable,
-	lens_m := 0.0
+	lens_m := 0.0,
+	mode: GameMode = null
 ) -> Sound:
 	match event_name:
 		&"Swung":
@@ -136,7 +157,46 @@ static func source(
 				return null
 			var id := SWITCH_CLICK if event_name == &"SwitchChanged" else BUTTON_CLICK
 			return Sound.new(id, panel.position, PANEL_AIM_M)
+		&"IngredientPlaced", &"GrillLoaded":
+			var station: ClientModel.Station = model.stations.get(fields["station"] as int)
+			if station == null:
+				return null
+			return Sound.new(
+				_put_sound(event_name, fields, station), station.position, COUNTER_AIM_M
+			)
+		&"ItemChanged":
+			var changed: ClientModel.Item = model.items.get(fields["item"] as int)
+			var id := _cooked_sound(mode, fields["kind"] as StringName)
+			if changed == null or id == &"":
+				return null
+			return Sound.new(id, changed.position, COUNTER_AIM_M)
 	return null
+
+
+## A cooking put's sound (already folded into `station`): the grill's click, a wrong ingredient's
+## buzz, the third right one's done sound, else a right one's chime.
+static func _put_sound(
+	event_name: StringName, fields: Dictionary, station: ClientModel.Station
+) -> StringName:
+	if event_name == &"GrillLoaded":
+		return PUT_DOWN
+	if not fields["right"]:
+		return BUZZ
+	return BURGER_DONE if station.done else CHIME
+
+
+## The sound of an item turning into kind `kind_id`: a ding for a fried patty of a Cooking of
+## `mode`, a hiss for its burnt patty; empty for any other change, or no mode.
+static func _cooked_sound(mode: GameMode, kind_id: StringName) -> StringName:
+	if mode == null:
+		return &""
+	for type: Cooking in CookingUse.types_of(mode):
+		if type.burnt != null and type.burnt.id == kind_id:
+			return HISS
+		for fried: ItemKind in type.fried_patties:
+			if fried != null and fried.id == kind_id:
+				return DING
+	return &""
 
 
 ## The footstep of feet at `at` within `hearing_m` of `listener`, or null when too far (#525): the

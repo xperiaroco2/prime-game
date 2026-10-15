@@ -8,6 +8,10 @@ extends Node3D
 ## SoundChooser.HEARING_RANGE_M of the ears (its `max_distance` the same), and one ray from the ears
 ## to SoundChooser.PANEL_AIM_M above the station every MUFFLE_EVERY_S lowers and dulls it behind the
 ## level (Muffle). Its stream is WorldSounds.hum_blip() until the engineer's file arrives.
+## Cooking's grill sizzles the same way (#776, the cooking ADR's CD14 (a)) while a patty on it fries
+## or burns (CookingViews.ring_phase FRYING or BURNING at the estimated host tick: GrillLoaded's
+## ticks extrapolated, as the ring), and stops when it is burnt or taken off; its stream is
+## WorldSounds.sizzle_blip().
 
 ## How often the muffle ray is cast for each hum playing (the ears move, unlike a one-shot's).
 const MUFFLE_EVERY_S := 0.1
@@ -19,6 +23,8 @@ var model: ClientModel
 var mode: GameMode
 ## The ears' position (WorldSounds.ears): called with no arguments, a Vector3, or null for none.
 var ears := Callable()
+## The estimated host tick now (AvatarViews.host_tick), for the grill's sizzle; unset: the model's.
+var host_tick := Callable()
 
 ## The hums playing, by station id, and each one's muffle.
 var _hums: Dictionary[int, AudioStreamPlayer3D] = {}
@@ -27,6 +33,7 @@ var _since_ray := 0.0
 var _started := 0
 var _rays := 0
 var _stream: AudioStreamWAV = null
+var _sizzle: AudioStreamWAV = null
 
 
 func _process(delta: float) -> void:
@@ -47,19 +54,41 @@ func _process(delta: float) -> void:
 			_muffle(id, heard_from as Vector3, MUFFLE_EVERY_S)
 
 
-## The station ids that hum now (counting, not full, a generator kind, in the round and within the
-## hearing range of `heard_from`), each with its position.
+## The station ids that hum or sizzle now (a generator counting and not full, a grill whose patty
+## fries or burns; in the round and within the hearing range of `heard_from`), each with its
+## position.
 func _due(heard_from: Variant) -> Dictionary[int, Vector3]:
 	var due: Dictionary[int, Vector3] = {}
 	if model == null or mode == null or not heard_from is Vector3 or not GameFlow.in_round(model):
 		return due
+	var now := _now()
 	for id: int in model.stations:
 		var station: ClientModel.Station = model.stations[id]
-		if not station.counting or station.done or not StationUse.is_generator(mode, station.kind):
+		if not _sounds(station, now):
 			continue
 		if SoundChooser.audible(station.position, heard_from as Vector3):
 			due[id] = station.position
 	return due
+
+
+## Whether `station` hums or sizzles at host tick `now`.
+func _sounds(station: ClientModel.Station, now: int) -> bool:
+	if _is_grill(station):
+		var phase := CookingViews.ring_phase(station, now)
+		return phase == CookingViews.Ring.FRYING or phase == CookingViews.Ring.BURNING
+	return station.counting and not station.done and StationUse.is_generator(mode, station.kind)
+
+
+## Whether `station` is a Cooking's grill of the mode.
+func _is_grill(station: ClientModel.Station) -> bool:
+	var type := CookingUse.type_of(mode, station.kind)
+	return type != null and CookingUse.role_of(type, station.kind) == CookingUse.Role.GRILL
+
+
+func _now() -> int:
+	if host_tick.is_valid():
+		return host_tick.call() as int
+	return model.host_tick_now.call() as int if model.host_tick_now.is_valid() else 0
 
 
 ## Stops every hum (the session ended or the level went).
@@ -89,11 +118,17 @@ func hum_of(id: int) -> AudioStreamPlayer3D:
 
 
 func _start(id: int, at: Vector3) -> void:
-	if _stream == null:
-		_stream = WorldSounds.hum_blip()
 	var hum := AudioStreamPlayer3D.new()
-	hum.name = "Hum%d" % id
-	hum.stream = _stream
+	if _is_grill(model.stations[id]):
+		if _sizzle == null:
+			_sizzle = WorldSounds.sizzle_blip()
+		hum.name = "Sizzle%d" % id
+		hum.stream = _sizzle
+	else:
+		if _stream == null:
+			_stream = WorldSounds.hum_blip()
+		hum.name = "Hum%d" % id
+		hum.stream = _stream
 	hum.max_distance = SoundChooser.HEARING_RANGE_M
 	hum.bus = AudioBuses.EFFECTS
 	hum.volume_db = HUM_DB

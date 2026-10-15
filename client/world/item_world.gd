@@ -71,9 +71,11 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	cooking.host_tick = views.host_tick
 	hums.model = _model
 	hums.mode = game_mode
+	hums.host_tick = views.host_tick
 	interactions.setup(client, game_mode)
 	sounds.model = _model
 	sounds.avatars = views
+	sounds.mode = game_mode
 	# A photo camera's lens stands the eye height above its marker, as PhotoTask's.
 	var lens_m := game_mode.player_rules.eye_height_m if game_mode.player_rules != null else 0.0
 	sounds.lens_m = lens_m
@@ -105,6 +107,7 @@ func reset() -> void:
 	hums.clear()
 	hums.model = null
 	sounds.model = null
+	sounds.mode = null
 	flashes.clear()
 	flashes.model = null
 	interactions.setup(null, _mode)
