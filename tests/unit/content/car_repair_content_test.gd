@@ -80,7 +80,7 @@ func test_the_car_and_the_panel_hold_the_station() -> void:
 func test_each_bin_gives_its_part_behind_the_take_cooldown() -> void:
 	var repair := _repair(_mode())
 	assert_int(repair.bins.size()).is_equal(3)
-	for i in repair.bins.size():
+	for i: int in repair.bins.size():
 		var bin := repair.bins[i]
 		assert_bool(bin.display).override_failure_message(bin.id).is_false()
 		assert_int(bin.actions.size()).override_failure_message(bin.id).is_equal(1)
