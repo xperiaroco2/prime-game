@@ -25,9 +25,14 @@ const RING_SEGMENTS := 24
 const RING_RADIUS_M := 0.195
 const RING_FRYING := Color(1.0, 0.8, 0.15)
 const RING_BURNING := Color(0.9, 0.22, 0.1)
-## Where a plate's ingredients stand above the plate's origin, by slot (bun, patty, herb): looks,
-## "not a decision".
-const STACK_M: Array[float] = [0.01, 0.05, 0.08]
+## Where a plate's ingredients stand above the plate's origin, by slot (bun, patty, herb), each on
+## the one below as in a plated burger (CookingLooks.BURGER_STACK_M), so the bun never hides the
+## patty: looks, "not a decision".
+const STACK_M: Array[float] = [
+	0.01,
+	0.01 + CookingLooks.BUN_TOP_M,
+	0.01 + CookingLooks.BUN_TOP_M + CookingLooks.PATTY_TALL_M,
+]
 ## Above the grate's origin, where the patty lies: a look.
 const GRATE_TOP_M := 0.02
 ## Unbound (tests, previews): the plate or grate this high above the station's floor point.

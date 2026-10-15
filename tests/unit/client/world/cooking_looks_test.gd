@@ -135,6 +135,26 @@ func test_a_plated_burger_shows_its_parts_stacked() -> void:
 	plain.free()
 
 
+## The bun never hides the patty (#1101: the cook reads a burger's parts by eye): in a plated
+## burger and on a plate, the patty sits on top of every bun's dome and the herb on the patty.
+func test_no_bun_hides_the_patty_on_a_burger_or_a_plate() -> void:
+	for bun: StringName in CookingLooks.BUNS:
+		var look := CookingLooks.build(bun)
+		var top := _top_of(look)
+		look.free()
+		assert_float(top).is_less_equal(CookingLooks.BUN_TOP_M + 0.001)
+	var patty := CookingLooks.build(&"patty_red")
+	var patty_top := _top_of(patty)
+	patty.free()
+	assert_float(patty_top).is_less_equal(CookingLooks.PATTY_TALL_M + 0.001)
+	var stack := CookingLooks.BURGER_STACK_M
+	assert_float(stack[1] - stack[0]).is_greater_equal(CookingLooks.BUN_TOP_M)
+	assert_float(stack[2] - stack[1]).is_greater_equal(CookingLooks.PATTY_TALL_M)
+	var plate := CookingViews.STACK_M
+	assert_float(plate[1] - plate[0]).is_greater_equal(CookingLooks.BUN_TOP_M)
+	assert_float(plate[2] - plate[1]).is_greater_equal(CookingLooks.PATTY_TALL_M)
+
+
 ## Every item kind of a Cooking in the base mode has a look (vacuous until C6, #775, lands).
 func test_every_kind_of_the_base_modes_cooking_has_a_look() -> void:
 	for type: Cooking in CookingUse.types_of(load(MODE) as GameMode):
@@ -164,3 +184,19 @@ func _counts(image: Image, colour: Color) -> int:
 			if c.a > 0.99 and off < 0.02:
 				found += 1
 	return found
+
+
+## The highest point of any mesh under `look`, in `look`'s own space (the looks are built in
+## code, so each child's transform is its local one, not yet in a tree).
+func _top_of(look: Node3D) -> float:
+	var top := -INF
+	for child: Node in look.find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
+		var to_look := Transform3D.IDENTITY
+		var node: Node = mesh
+		while node != look:
+			to_look = (node as Node3D).transform * to_look
+			node = node.get_parent()
+		var box := to_look * mesh.get_aabb()
+		top = maxf(top, box.end.y)
+	return top

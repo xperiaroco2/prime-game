@@ -21,11 +21,18 @@ const OUTLINE_GROW_M := 0.012
 ## The filled slot's outline colour (#1101): neither the old right green nor the wrong red. A
 ## look, "not a decision".
 const FILLED_COLOUR := Color(0.96, 0.92, 0.72)
+## The top of a bun's dome above its bottom: its base is 0.4 and its dome 1.2 of BUN_SIZE.y. A part
+## stacked on a bun sits this high, so the bun never hides it (#1101: the cook reads the burger's
+## parts by eye).
+const BUN_TOP_M := 0.112
+## How tall a patty is (PATTY_SIZE.y): the herb sits this high above it.
+const PATTY_TALL_M := 0.03
 ## The plated burger's kind id (the base mode's, #1101) and how high each part sits in it (bun,
-## patty, herb; the plate's stack, CookingViews.STACK_M, from the bun's bottom).
+## patty, herb, each on the one below; the plate's stack, CookingViews.STACK_M, from the bun's
+## bottom).
 const BURGER := &"burger"
-const BURGER_STACK_M: Array[float] = [0.0, 0.04, 0.07]
-const BURGER_SIZE := Vector3(0.12, 0.27, 0.12)
+const BURGER_STACK_M: Array[float] = [0.0, BUN_TOP_M, BUN_TOP_M + PATTY_TALL_M]
+const BURGER_SIZE := Vector3(0.12, 0.35, 0.12)
 ## The parts a burger is drawn with before BurgerPlated names its own, or for a part with no look.
 const BURGER_PARTS: Array[StringName] = [&"bun_white", &"patty_light", &"basil"]
 const BUN_SIZE := Vector3(0.12, 0.07, 0.12)
