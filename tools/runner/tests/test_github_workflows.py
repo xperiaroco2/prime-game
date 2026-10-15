@@ -420,9 +420,11 @@ class CiScriptsTest(unittest.TestCase):
                     self.assertEqual(done.returncode, rc, done.stdout + done.stderr)
                     self.assertIn(f"the parts of verify --full: {result}", done.stdout)
 
-    def changes(self, files: dict[str, str], event: str = "pull_request", broken: bool = False) -> tuple[str, str]:
+    def changes(
+        self, files: dict[str, str], event: str = "pull_request", broken: bool = False, base_list: str | None = None
+    ) -> tuple[str, str]:
         """Runs the `changes` job's step in a scratch repository whose head commit writes `files` (a path: its text,
-        "" to delete it) on a base holding the real list; returns its design_only output and its stdout."""
+        "" to delete it) on a base holding the real list (or base_list); returns its design_only output and stdout."""
         steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["changes"]["steps"]
         script = next(step["run"] for step in steps if step.get("id") == "diff")
         bash = git_bash()
@@ -446,7 +448,7 @@ class CiScriptsTest(unittest.TestCase):
             git("init", "-q", "-b", "main")
             git("config", "core.autocrlf", "false")
             git("config", "commit.gpgsign", "false")
-            write(design_only.LIST, design_only.PATHS.read_text(encoding="utf-8"))
+            write(design_only.LIST, design_only.PATHS.read_text(encoding="utf-8") if base_list is None else base_list)
             write("core/a.gd", "x\n")
             write("docs/GDD.md", "x\n")
             git("add", ".")
@@ -490,6 +492,14 @@ class CiScriptsTest(unittest.TestCase):
             with self.subTest(name=name):
                 got, _out = self.changes({name: "changed\n", "docs/GDD.md": "y\n"})
                 self.assertEqual(got, "true" if design_only.on_list(name, pats) else "false")
+
+    def test_the_changes_job_trims_the_list_as_the_runner_does(self) -> None:
+        # #1123: a stray space or a CRLF on a pattern, or an indented comment, reads the same in bash and in the runner.
+        text = "  # an indented comment\r\n\r\n  docs/GDD.md \r\n\tdocs/design/ideas/*.md\t\n"
+        self.assertEqual(design_only.patterns_of(text), ("docs/GDD.md", "docs/design/ideas/*.md"))
+        self.assertEqual(self.changes({"docs/GDD.md": "y\n"}, base_list=text)[0], "true")
+        self.assertEqual(self.changes({"docs/design/ideas/a.md": "y\n"}, base_list=text)[0], "true")
+        self.assertEqual(self.changes({"core/a.gd": "y\n"}, base_list=text)[0], "false")
 
     def test_the_changes_job_is_false_unless_a_pull_request_changes_only_listed_paths(self) -> None:
         self.assertEqual(self.changes({"docs/GDD.md": "y\n"})[0], "true")

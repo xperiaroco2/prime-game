@@ -55,7 +55,8 @@ jobs:
           fi
           if [ -n "$changed" ]; then
             design_only=true
-            mapfile -t patterns < <(grep -v -e '^#' -e '^[[:space:]]*$' .github/design-only-paths.txt || true)
+            # Each line trimmed, blank and `#` lines dropped: as design_only.patterns() reads the file.
+            mapfile -t patterns < <(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' .github/design-only-paths.txt | grep -v -e '^#' -e '^$' || true)
             if [ "${#patterns[@]}" -eq 0 ]; then
               echo "no pattern in .github/design-only-paths.txt"
               design_only=false

@@ -32,7 +32,13 @@ def patterns(path: Path | None = None) -> tuple[str, ...]:
         text = (path or PATHS).read_text(encoding="utf-8")
     except OSError:
         return ()
-    return tuple(line.strip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#"))
+    return patterns_of(text)
+
+
+def patterns_of(text: str) -> tuple[str, ...]:
+    """The patterns of a list's text: each line trimmed (CI's bash trims it the same way), blank and `#` lines dropped."""
+    lines = (line.strip() for line in text.splitlines())
+    return tuple(line for line in lines if line and not line.startswith("#"))
 
 
 def on_list(name: str, pats: Iterable[str]) -> bool:
