@@ -65,11 +65,11 @@ func _repacked(scene: PackedScene, not_editable: String) -> SceneState:
 	return packed.get_state()
 
 
-## "<node path>: <property>" for each property `before` sets that `after` does not.
-func _dropped(before: SceneState, after: SceneState) -> Array[String]:
-	var kept := _properties(after)
+## "<node path>: <property>" for each property `original` sets that `resaved` does not.
+func _dropped(original: SceneState, resaved: SceneState) -> Array[String]:
+	var kept := _properties(resaved)
 	var dropped: Array[String] = []
-	for key: String in _properties(before):
+	for key: String in _properties(original):
 		if not kept.has(key):
 			dropped.append(key)
 	return dropped
