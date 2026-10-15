@@ -3,7 +3,7 @@ extends Node3D
 ## The own player's item keys (ARCHITECTURE §4.7, Interactions; the M4 ADR's §2, D6; M4-8), while
 ## the own player is living in the round:
 ## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair, or
-##   Interact(station, item -1) for the station it offers there (#801, §4.7.53);
+##   Interact(station, item -1) for the station it offers there (#801, §4.7.54);
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
 ##   that captures the mouse is not a use;

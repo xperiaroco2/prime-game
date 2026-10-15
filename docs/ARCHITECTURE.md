@@ -2501,7 +2501,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   unchanged. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()` (and, since #645,
   `Throw(facing)` on G; and, since #801, `Interact(station, item -1)` on E at a Generator's station,
-  §4.7.53); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
+  §4.7.54); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
   `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
@@ -2606,7 +2606,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.10 Built in M4-8 (#144), items, hands, the HUD and the task screen
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
-  `ItemInteractions` and `WorldSounds` (since #801 also `StationViews` and `StationHums`, §4.7.53) and gives the HUD what the model does not hold (`hud_local()`: the predicted
+  `ItemInteractions` and `WorldSounds` (since #801 also `StationViews` and `StationHums`, §4.7.54) and gives the HUD what the model does not hold (`hud_local()`: the predicted
   stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
   greybox look by its kind's id (D7 (a)), a labelled box for an unknown kind, its origin the resting point;
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
@@ -2620,7 +2620,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   by meaning's drop-offs) and draws the circles in their colours; nothing of the client draws through walls since the
   destination marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by
   what it is. Since #801 it draws only Delivery's circles and the fallback cylinder of a kind no type holds
-  (`CircleViews.draws`, §4.7.53): a zone is `ZoneViews`' (§4.7.51), the Generator's stations are their level
+  (`CircleViews.draws`, §4.7.54): a zone is `ZoneViews`' (§4.7.51), the Generator's stations are their level
   scenes, and another task's station kind waits for its own client issue.
   Delivery by meaning's looks (DE11 of its ADR, #830; greybox placeholders until the art): `CircleViews.is_drop_off`
   tells a drop-off from a circle by which of the client's own Delivery types lists its kind (a `DeliveryByMeaning`'s
@@ -4452,7 +4452,7 @@ material, the ragdolls' colours).
 The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
 ZD11 (b) and ZE8, as the engineer answered them on #302).
 - **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
-  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out (since #801 it draws only Delivery's circles, §4.7.53).
+  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out (since #801 it draws only Delivery's circles, §4.7.54).
 - **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
   `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
   start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
@@ -7093,7 +7093,7 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
 Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
-#799), its client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.53 (#801, G6),
+#799), its client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.54 (#801, G6),
 its data in #800 (G5): the base mode deals it on the House alone.
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most

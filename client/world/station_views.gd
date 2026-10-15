@@ -1,7 +1,7 @@
 class_name StationViews
 extends Node3D
 ## The Generator's station scenes in the level, driven from the own ClientModel (#801, ARCHITECTURE
-## §4.7.53; the Generator ADR's GD4, GE11, GE14; the level-piece ADR's "Station scenes"). The level
+## §4.7.54; the Generator ADR's GD4, GE11, GE14; the level-piece ADR's "Station scenes"). The level
 ## holds a scene per device (`levels/stations/switch.tscn`, `generator.tscn`), found by its
 ## `UseSpot` in the `spawn_<tag>` group of its kind; a placed station binds to the scene of its kind
 ## whose use spot is nearest in 3D, within BIND_TOLERANCE_M (the host snaps the marker there).

@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## CircleViews leaves a Generator's stations to the level's station scenes (#801, ARCHITECTURE
-## §4.7.53; G6: only Delivery's circles): no cylinder for the generator or a switch, while a
+## §4.7.54; G6: only Delivery's circles): no cylinder for the generator or a switch, while a
 ## station of a kind no task type
 ## holds still gets the fallback cylinder.
 

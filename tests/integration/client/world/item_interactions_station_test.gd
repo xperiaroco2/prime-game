@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## E on a Generator's station against a fixture world (ARCHITECTURE §4.7.53, #801): the real
+## E on a Generator's station against a fixture world (ARCHITECTURE §4.7.54, #801): the real
 ## PlayerController on a floor, looking through its own camera at a station's use spot or its
 ## device (a box the level's ray hits, named by `station_of_body` as StationViews does). E sends
 ## Interact(station, item -1); the host decides everything. No target once the charge is done, none

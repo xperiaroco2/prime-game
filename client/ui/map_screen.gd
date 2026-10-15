@@ -17,7 +17,7 @@ extends Control
 ## and clock, and the own place the game passes in (HudText.Local); zones are level data (the M4
 ## ADR's §3 item 4 as revised by #253). Styled only through the shared theme's Toy variations.
 ##
-## A Generator's row (#801, G6; §4.7.53) shows its charge as a bar (`Charge`, MapBar) in place of
+## A Generator's row (#801, G6; §4.7.54) shows its charge as a bar (`Charge`, MapBar) in place of
 ## the counter: fed only by its generator station's ZoneProgress (ZoneViews.ticks_at at the host
 ## tick while the round plays, frozen at the last event's ticks after it), struck once full.
 

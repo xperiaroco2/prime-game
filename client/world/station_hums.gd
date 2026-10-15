@@ -1,6 +1,6 @@
 class_name StationHums
 extends Node3D
-## The Generator's hum while it charges (#801, G6; ARCHITECTURE §4.7.53): one looping
+## The Generator's hum while it charges (#801, G6; ARCHITECTURE §4.7.54): one looping
 ## AudioStreamPlayer3D at each generator station the own ClientModel says is counting and not yet
 ## full, while the round plays (GameFlow.in_round: the hum stops with the round, a win or End).
 ## Only a Generator's generator kind hums (StationUse.is_generator): a zone held also counts, and

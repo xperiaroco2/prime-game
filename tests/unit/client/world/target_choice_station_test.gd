@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## TargetChoice over stations (client/world/target_choice.gd; #801, ARCHITECTURE §4.7.53), pure: a
+## TargetChoice over stations (client/world/target_choice.gd; #801, ARCHITECTURE §4.7.54), pure: a
 ## station StationUse offers is named only where the ray meets its device (the level's ray hit
 ## its scene at `blocked_at`) or its use spot, while the feet stand in its cylinder less the hint's
 ## margin; the nearest along the ray wins, an item on a tie. The Generator fixture: the generator's

@@ -11,7 +11,7 @@ extends RefCounted
 ## host's OnGround, InReach and (in ItemInteractions) InSight; the host checks everything again
 ## (§7.1); this only decides what to offer.
 ##
-## Stations (#801, §4.7.53): choose_target() weighs the item against the stations StationUse
+## Stations (#801, §4.7.54): choose_target() weighs the item against the stations StationUse
 ## offers. A station is a candidate only where the ray meets its device (the station scene's own
 ## collision, hit at `blocked_at`: ItemInteractions asks StationViews whose it is) or its use spot
 ## (a sphere of STATION_AIM_RADIUS_M a little above the floor point StationPlaced gives, entered no

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## StationUse (client/world/station_use.gd; #801, ARCHITECTURE §4.7.53): which placed stations E
+## StationUse (client/world/station_use.gd; #801, ARCHITECTURE §4.7.54): which placed stations E
 ## offers, from the own ClientModel and the client's own copy of the mode only. A Generator's
 ## generator and switches until the charge is done; never with a two-handed item in the hand
 ## (HandNotTwoHanded); never a station of a type this client draws no view for; never by a

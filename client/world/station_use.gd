@@ -1,7 +1,7 @@
 class_name StationUse
 extends RefCounted
 ## Which placed stations the own player may use with E, and which kinds are a Generator's (#801,
-## ARCHITECTURE §4.7.53), pure: from the own ClientModel and the client's own copy of the mode,
+## ARCHITECTURE §4.7.54), pure: from the own ClientModel and the client's own copy of the mode,
 ## never `core/` state. The host checks everything again (§7.1); this only decides what to offer.
 ##
 ## A station is offered when its kind has an Interact rule (not a `display` kind), the own hand

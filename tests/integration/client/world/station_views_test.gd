@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## StationViews (#801, ARCHITECTURE §4.7.53) on the real station scenes (`levels/stations/`) under
+## StationViews (#801, ARCHITECTURE §4.7.54) on the real station scenes (`levels/stations/`) under
 ## a fixture level, fed only the events a client receives (FixtureGeneratorClient): the switches'
 ## on and off parts, the fixed look of a scene no station binds (GE14), the generator's bars from
 ## the fixed count up and its glow (GD4), the button's press, one wrapper per scene across deals,
