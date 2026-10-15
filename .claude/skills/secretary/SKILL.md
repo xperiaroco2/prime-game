@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: The engineer's secretary for prime-game - gathers from every track's sessions and the three repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue every 30 to 60 minutes, says in one chat line what changed, and relays his answers to the session that asked. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
+description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue every 30 to 60 minutes, says in one chat line what changed, and relays his answers to the session that asked. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -58,12 +58,13 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
 1. **The inbox issue:** `gh issue list --state open --search "\"Engineer's inbox\" in:title" --json number,title`,
    the one titled exactly "Engineer's inbox"; read its body (your last digest). None: tell the engineer the two
    commands of AGENT_WORKFLOW §7.2 ("Set up") in the chat, one PowerShell block each, and digest into the chat only.
-2. **GitHub:** `tools\run.cmd inbox` (all three repos in one call; `--since` 72 hours by default): open PRs' unanswered
+2. **GitHub:** `tools\run.cmd inbox` (all four repos in one call; `--since` 72 hours by default): open PRs' unanswered
    "Needs the engineer" items, the gate's exceptions (merges only he makes) and each thread's latest "For you:" block
    by his account, with how many comments came after it. An "Unavailable:" line goes into the footer.
 3. **Sessions:** `list_sessions` (limit 30). For each session other than yours that is running or active since your
-   last digest, in `D:\prime-game`, `D:\prime-game-ui` or `D:\prime-game-art`: `list_events` with a small limit (6;
-   page back with `before_uuid` only when its last "For you:" or "Для вас:" block is cut). When many changed,
+   last digest, in `D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art` or `D:\prime-game-design` (#1124):
+   `list_events` with a small limit (6; page back with `before_uuid` only when its last "For you:" or "Для вас:" block
+   is cut). When many changed,
    `search_session_transcripts` for "Для вас:" and "For you:" first. Take each session's last block and the day's
    news in one line (merged, finished, stopped), not its whole story.
 4. **Approvals (a heuristic; §7.2's probe):** a session with `isRunning` true whose last event is a call with no

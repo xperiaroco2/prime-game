@@ -32,7 +32,7 @@ def meta_line(minutes: float, text: str) -> dict:
 
 
 class TrackFixture:
-    """A config folder with the transcripts of three checkouts and a worktree; each call below is 1% of the week.
+    """A config folder with the transcripts of the checkouts (the design one is missing) and a worktree; each call below is 1% of the week.
 
     D--prime-game                     g1: a skill's isMeta line naming meta, a tool result, then a kickoff with
                                       "Track: Game": game; a call before --since and one after --until (left out), one
@@ -196,7 +196,8 @@ class TracksTest(unittest.TestCase):
                                    "1 session: plain), against the weekly counter (get_usage), which also counts the "
                                    "account's sessions elsewhere")  # fmt: skip
         self.assertEqual(lines[5], "checkouts read: main D--prime-game with 1 worktree; ui D--prime-game-ui; art "
-                                   "D--prime-game-art")  # fmt: skip
+                                   "D--prime-game-art; design (prime-game-design) not on this machine, its spend "
+                                   "unknown here")  # fmt: skip
         self.assertEqual(len(lines), 6)  # --compact: the lines alone
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
         self.assertEqual(record["budgets"], {"game": 26, "meta": 12, "ui": 20})
@@ -208,9 +209,11 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(lines[1], "meta: 2.0% (2.1 to 1.8%) this week; list $46 in 2 sessions")
         self.assertEqual(lines[2], "sound: 0.0% (0.0 to 0.0%) this week; list $0.00 in 0 sessions")
         every = self.run_main("all", labels=()).splitlines()
-        self.assertEqual([line.split(":")[0] for line in every[1:-2]], ["game", "ui", "art", "meta", "untracked"])
+        self.assertEqual([line.split(":")[0] for line in every[1:-2]],
+                         ["game", "ui", "art", "meta", "design", "untracked"])  # fmt: skip
         self.assertTrue(every[1].startswith("game: 5.0% "), every[1])  # without its label, lab's kickoff names game
-        self.assertTrue(every[5].startswith("untracked: 1.0% "), every[5])
+        self.assertTrue(every[5].startswith("design: not on this machine "), every[5])  # #1124: no design checkout
+        self.assertTrue(every[6].startswith("untracked: 1.0% "), every[6])
         table = self.run_main("all", compact=False)
         self.assertIn("| meta | lab | D--prime-game | --session | 1 | $23 | 1.00% |", table)
 
@@ -273,6 +276,8 @@ class OtherLayoutTest(unittest.TestCase):
     D--prime-game-ui                       u1: no Track line: ui 1%.
     D--prime-game-ui--claude-worktrees-12  u2: no Track line: ui 1%, and a workflow run wf_ui-1 (1%).
     E--games-prime-game-art                a1: no Track line: art 1%.
+    F--prime-game-design                   z1: no Track line: design 1% (#1124: the design repo, D:\prime-game-design
+                                           on the engineer's machine).
     D--prime-game-ui-old, D--prime-game-uix: another checkout's name: never read.
     """
 
@@ -291,6 +296,7 @@ class OtherLayoutTest(unittest.TestCase):
         write_lines(wt / "u2.jsonl", [kickoff(100, "ui work"), assistant(101, "u2", ONE)])
         write_lines(wt / "u2" / "subagents" / "workflows" / "wf_ui-1" / "agent-x.jsonl", [assistant(110, "x1", ONE)])
         write_lines(p / "E--games-prime-game-art" / "a1.jsonl", [kickoff(100, "art"), assistant(101, "a1", ONE)])
+        write_lines(p / "F--prime-game-design" / "z1.jsonl", [kickoff(100, "research"), assistant(101, "z1", ONE)])
         for name in ("D--prime-game-ui-old", "D--prime-game-uix"):
             write_lines(p / name / "o.jsonl", [kickoff(100, "Track: ui"), assistant(101, f"{name}-o", ONE)])
 
@@ -311,19 +317,22 @@ class OtherLayoutTest(unittest.TestCase):
             ("prime-game", None, ["C--prime-game"]),
             ("prime-game-ui", "ui", ["D--prime-game-ui", "D--prime-game-ui--claude-worktrees-12"]),
             ("prime-game-art", "art", ["E--games-prime-game-art"]),
+            ("prime-game-design", "design", ["F--prime-game-design"]),
         ])
 
     def test_the_track_lines_count_them_and_name_the_checkouts_read(self) -> None:
         lines = self.tracks("all")
-        self.assertEqual([line.split(";")[0] for line in lines[1:4]], [
+        self.assertEqual([line.split(";")[0] for line in lines[1:5]], [
             "ui: 3.0% (3.2 to 2.7%) this week", "art: 1.0% (1.1 to 0.9%) this week",
-            "meta: 1.0% (1.1 to 0.9%) this week",
+            "meta: 1.0% (1.1 to 0.9%) this week", "design: 1.0% (1.1 to 0.9%) this week",
         ])
-        self.assertTrue(lines[4].startswith("every session of the 3 checkouts read: 5.0% "), lines[4])
-        self.assertEqual(lines[5], "checkouts read: main C--prime-game; ui D--prime-game-ui with 1 worktree; art "
-                                   "E--games-prime-game-art")  # fmt: skip
+        self.assertTrue(lines[5].startswith("every session of the 4 checkouts read: 6.0% "), lines[5])
+        self.assertEqual(lines[6], "checkouts read: main C--prime-game; ui D--prime-game-ui with 1 worktree; art "
+                                   "E--games-prime-game-art; design F--prime-game-design")  # fmt: skip
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
-        self.assertEqual([len(c["folders"]) for c in record["checkouts"]], [1, 2, 1])
+        self.assertEqual([len(c["folders"]) for c in record["checkouts"]], [1, 2, 1, 1])
+        got = {s["id"]: (s["track"], s["source"]) for s in record["sessions"]}
+        self.assertEqual(got["z1"], ("design", "checkout"))  # #1124: the design checkout's default
 
     def test_a_run_of_a_checkout_elsewhere(self) -> None:
         buf = io.StringIO()
@@ -341,9 +350,10 @@ class OtherLayoutTest(unittest.TestCase):
         lines = self.tracks("ui", "art", budgets=(20, 10))
         self.assertEqual(lines[2], "art: not on this machine (no transcripts of a prime-game-art checkout here: its "
                                    "spend is unknown, not 0); its budget 10%")  # fmt: skip
-        self.assertTrue(lines[3].startswith("every session of the 2 checkouts read: 4.0% "), lines[3])
+        self.assertTrue(lines[3].startswith("every session of the 3 checkouts read: 5.0% "), lines[3])
         self.assertEqual(lines[4], "checkouts read: main C--prime-game; ui D--prime-game-ui with 1 worktree; art "
-                                   "(prime-game-art) not on this machine, its spend unknown here")  # fmt: skip
+                                   "(prime-game-art) not on this machine, its spend unknown here; design "
+                                   "F--prime-game-design")  # fmt: skip
         self.assertIn("art: not on this machine", "\n".join(self.tracks("all")))
         # The tables (no --compact) give it no "0 agents" idle line either (#586 review).
         buf = io.StringIO()

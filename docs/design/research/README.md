@@ -5,6 +5,12 @@ again (the engineer, 2026-10-15, #1078). These are **research, not decisions**: 
 recommendation for the engineer, and only what he chose is a rule (in `docs/GDD.md`, an ADR or the issue named
 below). Never copy names, designs or plots from the games studied into the game.
 
+**The archive of 2026-10-15.** New rounds live in the design track's private repo, xperiaroco2/prime-game-design
+(checkout `D:\prime-game-design`, its `research/` and `research/README.md`), committed there with no checks (the
+engineer's decision, [#1095 comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169);
+#1124). The rounds below stay here as they are; what the engineer decides from any round still lands in this repo, in
+`docs/GDD.md` and `docs/design/`.
+
 ## Round 1, 2026-10-15 (M8: aliens vs humans)
 Four web researchers in parallel, one topic each, from the M8 plan (#1039) and the engineer's answers of the same day.
 

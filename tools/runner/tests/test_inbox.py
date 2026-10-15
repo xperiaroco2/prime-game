@@ -209,11 +209,11 @@ class MainTest(unittest.TestCase):
 
         rc, out, _ = self.run_main(gh)
         self.assertEqual(rc, 0)
-        self.assertEqual(len(calls), 6)
+        self.assertEqual(len(calls), 8)  # four repos (#1124: the design repo's too), two calls each
         self.assertEqual([c[3] for c in calls if c[0] == "pr"], list(inbox.REPOS))
-        self.assertIn("repos/xperiaroco2/prime-game-art/issues/comments?since=2026-10-06T00:00:00Z", calls[-1][1])
+        self.assertIn("repos/xperiaroco2/prime-game-design/issues/comments?since=2026-10-06T00:00:00Z", calls[-1][1])
         self.assertEqual(out.count("### Merges only the engineer makes"), 1)
-        self.assertEqual(out.count("### For you (each thread's latest"), 3)
+        self.assertEqual(out.count("### For you (each thread's latest"), 4)
         self.assertIn("1. #302, 2026-10-06T12:00:00Z: https://github.com/o/r/issues/302#issuecomment-1", out)
         self.assertIn("   2. Answer PR #474's question 1", out)
         self.assertNotIn("\n\n\n", out)

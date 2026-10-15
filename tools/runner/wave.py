@@ -138,7 +138,7 @@ CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUES
 HANDOVER_CONTEXT = 500_000
 HANDOVER_HOURS = 12.0
 STOP_CONTEXT = HANDOVER_CONTEXT // 2
-# The central rules every track's manager follows (#511); the UI and art repos' CLAUDE.md files point to it.
+# The central rules every track's manager follows (#511); the UI, art and design repos' CLAUDE.md files point to it.
 MANAGER_RULES = "docs/MANAGERS.md"
 # The instructions (#930): root CLAUDE.md (a manager's workflow agents get its session's copy, not the file: seen in
 # #930's own run; core/CLAUDE.md and the like load from disk in the agent's folder), the managers' rules, the rules and

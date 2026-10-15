@@ -188,18 +188,18 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
 
 A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
 with `--since <the weekly reset>` (the moment the counter last restarted: after a reset by hand, #677, that time) reads
-every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui and -art checkouts wherever they sit on
-this machine, each with its worktrees: track_checkouts), whether or not it ran a workflow: its own transcript, its
+every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui, -art and -design checkouts wherever
+they sit on this machine, each with its worktrees: track_checkouts), whether or not it ran a workflow: its own transcript, its
 hand-run subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in
 flight or one that began before the reset counts in part), each message id once across every file.
 A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
 never filters), a `Track: <name>` line in its first user message (the kickoff, the key also `Трек:`, the name in
-English; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the
-engineer's reserve). Per named track it prints the % of the week (week_percent, with the bracket), and with `--budget
+English; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art: art, -design: design,
+#1124), else UNTRACKED (the engineer's reserve). Per named track it prints the % of the week (week_percent, with the bracket), and with `--budget
 PCT ...` (one per name, in order) the budget and the plan to date (budget x days since --since / 7, at most the budget);
 then every session's total for the weekly counter, with the untracked share and its largest sessions (a kickoff's Track:
-line left out or translated), and the checkouts read: a -ui or -art checkout with no transcript folder here is `not on
-this machine`, its track's line too when no session here has that track (its spend is unknown, never 0). It writes
+line left out or translated), and the checkouts read: a -ui, -art or -design checkout with no transcript folder here is
+`not on this machine`, its track's line too when no session here has that track (its spend is unknown, never 0). It writes
 tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 
 Code reads per agent role (#468, its before and after numbers). A code read is a read of a repository file that is
@@ -263,8 +263,8 @@ worse than the Opus runs' and the $ per run is lower. The verdicts are advice: t
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
-UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
-once) and answered, those working now (a started key with no result), the newest write to its journal or agent
+UI, art and design managers' runs too) and prints, finished or in flight and with no window: its agents started (a
+retried key once) and answered, those working now (a started key with no result), the newest write to its journal or agent
 transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
 the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
 no file. An ID that names no run fails with the checkouts read (track_checkouts: each one's folders, or not on this
@@ -679,9 +679,10 @@ HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
 # `metrics --track` (#409, P1 of the design docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md): the
 # checkouts whose transcript folders it reads, each with its worktrees, as suffixes of the main checkout's folder name
-# (prime-game, prime-game-ui, prime-game-art: the -ui and -art checkouts in any folder, #586), each with the track of a
-# session there that neither a --session label nor a kickoff's Track: line names (None: untracked).
-TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
+# (prime-game, prime-game-ui, prime-game-art, prime-game-design: the -ui, -art and -design checkouts in any folder, #586;
+# the design repo since #1124), each with the track of a session there that neither a --session label nor a kickoff's
+# Track: line names (None: untracked).
+TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"), ("-design", "design"))
 # A transcript folder of a session started in a worktree: <the checkout's key>--claude-worktrees-<name>.
 WORKTREE_KEY = "--claude-worktrees-"
 # A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
@@ -5277,9 +5278,9 @@ def compact_lines(
 
 def track_checkouts(main: Path, base: Path | None = None) -> list[dict]:
     """Each TRACK_CHECKOUTS checkout with its transcript folders on this machine (its worktrees' included; none: the
-    checkout is not on this machine) and its default track. The main checkout's by its path; the -ui and -art ones
-    (#586) also by their folder name wherever they sit (C:\\prime-game with D:\\prime-game-ui): each folder under
-    projects/ whose checkout key (its name before WORKTREE_KEY) ends with `-` and the checkout's name encoded
+    checkout is not on this machine) and its default track. The main checkout's by its path; the -ui, -art and -design
+    ones (#586, #1124) also by their folder name wherever they sit (C:\\prime-game with D:\\prime-game-ui): each
+    folder under projects/ whose checkout key (its name before WORKTREE_KEY) ends with `-` and the checkout's name encoded
     (D--prime-game-ui, E--games-prime-game-ui). The encoding is lossy: a checkout in a folder named my-prime-game-ui
     counts too. `base`: the config folder (default agents_check.config_dir())."""
     projects = (base or agents_check.config_dir()) / "projects"
@@ -5665,7 +5666,7 @@ def run_lines(r: dict) -> list[str]:
 def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
               now: float | None = None) -> int:  # fmt: skip
     """`metrics --run ID ...`: each named workflow run's spend so far, in flight or finished (#534: the manager's
-    check after a large launch's first phase), from the transcripts of the three track checkouts found on this
+    check after a large launch's first phase), from the transcripts of the track checkouts found on this
     machine (track_checkouts) and their worktrees. Each run's first line names its folder; a run found nowhere fails
     with the checkouts read, one not on this machine named so (#586)."""
     checkouts = track_checkouts(checkout or main_checkout(), base)
