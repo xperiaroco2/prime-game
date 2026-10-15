@@ -37,4 +37,5 @@ Add a row per real misrecognition you resolved, in this table (not in root `CLAU
 | "хаоса" | "House" (the map: "немає хаоса" = "the House is not there") |
 | "поїзд" | "пояс" (the belt: "траву можна на поїзд" = a herb may go on the belt, #682 CD3) |
 | "старілка" | "тарілка" (the plate: "старілка не може прийняти сиру котлету", #682 CD8) |
+| "кішки" | "кишки" (guts: "не буде там кішки, розчленьонка" = no guts, no dismemberment, #1076) |
 | "топ-кін ефіцієнції" | "token efficiency" (the meta track's name: "AI продуктивіті топ-кін ефіцієнції" = AI productivity and token efficiency, #170 and #302) |
