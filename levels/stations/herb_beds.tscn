@@ -1,0 +1,126 @@
+[gd_scene format=3 uid="uid://pumcai433a1b"]
+
+[ext_resource type="PackedScene" uid="uid://cqqpkyvn44hr" path="res://levels/kit/house_props/herb_bed.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="BoxShape3D" id="BedShape"]
+size = Vector3(1.2, 0.4, 3)
+
+[node name="HerbBeds" type="Node3D" unique_id=164912665]
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=384686701]
+
+[node name="Bed1" type="CollisionShape3D" parent="Collision" unique_id=353410404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 0.2, 0)
+shape = SubResource("BedShape")
+
+[node name="Bed2" type="CollisionShape3D" parent="Collision" unique_id=323501851]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7, 0.2, 0)
+shape = SubResource("BedShape")
+
+[node name="Bed3" type="CollisionShape3D" parent="Collision" unique_id=1537261555]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("BedShape")
+
+[node name="Bed4" type="CollisionShape3D" parent="Collision" unique_id=212435092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 0.2, 0)
+shape = SubResource("BedShape")
+
+[node name="Bed5" type="CollisionShape3D" parent="Collision" unique_id=1667581417]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 0.2, 0)
+shape = SubResource("BedShape")
+
+[node name="Bed1" type="Node3D" parent="." unique_id=34881575]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 0, 0)
+
+[node name="Body" parent="Bed1" unique_id=918815928 instance=ExtResource("1_body")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+
+[node name="herb_bed" parent="Bed1/Body" index="0" unique_id=1568582839]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_bed_col0" parent="Bed1/Body" index="1" unique_id=94922553]
+collision_layer = 0
+
+[node name="Plant" type="Marker3D" parent="Bed1" unique_id=1962261603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.9)
+
+[node name="UseSpot" type="Marker3D" parent="Bed1" unique_id=55524674 groups=["spawn_herb_bed"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[node name="Bed2" type="Node3D" parent="." unique_id=1738719007]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7, 0, 0)
+
+[node name="Body" parent="Bed2" unique_id=1212138731 instance=ExtResource("1_body")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+
+[node name="herb_bed" parent="Bed2/Body" index="0" unique_id=1568582839]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_bed_col0" parent="Bed2/Body" index="1" unique_id=94922553]
+collision_layer = 0
+
+[node name="Plant" type="Marker3D" parent="Bed2" unique_id=940855396]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.9)
+
+[node name="UseSpot" type="Marker3D" parent="Bed2" unique_id=475020985 groups=["spawn_herb_bed"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[node name="Bed3" type="Node3D" parent="." unique_id=1043521335]
+
+[node name="Body" parent="Bed3" unique_id=187749354 instance=ExtResource("1_body")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+
+[node name="herb_bed" parent="Bed3/Body" index="0" unique_id=1568582839]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_bed_col0" parent="Bed3/Body" index="1" unique_id=94922553]
+collision_layer = 0
+
+[node name="Plant" type="Marker3D" parent="Bed3" unique_id=10178624]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.9)
+
+[node name="UseSpot" type="Marker3D" parent="Bed3" unique_id=1670508339 groups=["spawn_herb_bed"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[node name="Bed4" type="Node3D" parent="." unique_id=1236496318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 0, 0)
+
+[node name="Body" parent="Bed4" unique_id=561119970 instance=ExtResource("1_body")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+
+[node name="herb_bed" parent="Bed4/Body" index="0" unique_id=1568582839]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_bed_col0" parent="Bed4/Body" index="1" unique_id=94922553]
+collision_layer = 0
+
+[node name="Plant" type="Marker3D" parent="Bed4" unique_id=1870823981]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.9)
+
+[node name="UseSpot" type="Marker3D" parent="Bed4" unique_id=92751405 groups=["spawn_herb_bed"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[node name="Bed5" type="Node3D" parent="." unique_id=812896977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 0, 0)
+
+[node name="Body" parent="Bed5" unique_id=1590661663 instance=ExtResource("1_body")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0, 0)
+
+[node name="herb_bed" parent="Bed5/Body" index="0" unique_id=1568582839]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_bed_col0" parent="Bed5/Body" index="1" unique_id=94922553]
+collision_layer = 0
+
+[node name="Plant" type="Marker3D" parent="Bed5" unique_id=178506257]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.9)
+
+[node name="UseSpot" type="Marker3D" parent="Bed5" unique_id=982413607 groups=["spawn_herb_bed"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[editable path="Bed1/Body"]
+[editable path="Bed2/Body"]
+[editable path="Bed3/Body"]
+[editable path="Bed4/Body"]
+[editable path="Bed5/Body"]

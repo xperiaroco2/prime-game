@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://ym1r25wy2bv4"]
+
+[ext_resource type="PackedScene" uid="uid://btpwa5ephxh32" path="res://levels/kit/house_props/bun_shelf.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="BoxShape3D" id="ShelfShape"]
+size = Vector3(2, 2, 0.5)
+
+[node name="BunShelf" type="Node3D" unique_id=2089643474]
+
+[node name="Body" parent="." unique_id=1370607482 instance=ExtResource("1_body")]
+
+[node name="bun_shelf" parent="Body" index="0" unique_id=1238466190]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="bun_shelf_col0" parent="Body" index="1" unique_id=895366144]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1616546831]
+
+[node name="Shelf" type="CollisionShape3D" parent="Collision" unique_id=1651312460]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("ShelfShape")
+
+[node name="Boxes" type="Node3D" parent="." unique_id=956462647]
+
+[node name="WhiteBuns" type="Marker3D" parent="Boxes" unique_id=905730623 groups=["spawn_box_bun_white"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 0, 0.6)
+
+[node name="SesameBuns" type="Marker3D" parent="Boxes" unique_id=568716 groups=["spawn_box_bun_sesame"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.6)
+
+[node name="DarkBuns" type="Marker3D" parent="Boxes" unique_id=289183665 groups=["spawn_box_bun_dark"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0, 0.6)
+
+[editable path="Body"]

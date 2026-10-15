@@ -1,0 +1,104 @@
+[gd_scene format=3 uid="uid://xrfk11ugewhi"]
+
+[ext_resource type="PackedScene" uid="uid://baioa5mr4n4lm" path="res://levels/kit/house_props/order_board.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="BoxShape3D" id="PostShape"]
+size = Vector3(0.07, 2.1, 0.5)
+
+[sub_resource type="BoxShape3D" id="PanelShape"]
+size = Vector3(1.6, 1, 0.06)
+
+[node name="OrderBoard" type="Node3D" unique_id=657423052]
+
+[node name="Body" parent="." unique_id=1946807352 instance=ExtResource("1_body")]
+
+[node name="order_board" parent="Body" index="0" unique_id=1357736650]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="order_board_col0" parent="Body" index="1" unique_id=285285855]
+collision_layer = 0
+
+[node name="order_board_col1" parent="Body" index="2" unique_id=1711680841]
+collision_layer = 0
+
+[node name="order_board_col2" parent="Body" index="3" unique_id=2131721459]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1228005096]
+
+[node name="PostLeft" type="CollisionShape3D" parent="Collision" unique_id=685888966]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.835, 1.05, 0)
+shape = SubResource("PostShape")
+
+[node name="PostRight" type="CollisionShape3D" parent="Collision" unique_id=854827988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.835, 1.05, 0)
+shape = SubResource("PostShape")
+
+[node name="Panel" type="CollisionShape3D" parent="Collision" unique_id=425390771]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.54, 0)
+shape = SubResource("PanelShape")
+
+[node name="Rows" type="Node3D" parent="." unique_id=128268207]
+
+[node name="Row1" type="Node3D" parent="Rows" unique_id=422803448]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.84, 0.04)
+visible = false
+
+[node name="Number" type="Label3D" parent="Rows/Row1" unique_id=2018961235]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0, 0)
+text = "1"
+font_size = 48
+outline_size = 8
+
+[node name="Bun" type="Marker3D" parent="Rows/Row1" unique_id=1113801758]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0, 0)
+
+[node name="Patty" type="Marker3D" parent="Rows/Row1" unique_id=1537060675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Rows/Row1" unique_id=668235320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
+
+[node name="Row2" type="Node3D" parent="Rows" unique_id=771678648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.54, 0.04)
+visible = false
+
+[node name="Number" type="Label3D" parent="Rows/Row2" unique_id=1241382238]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0, 0)
+text = "2"
+font_size = 48
+outline_size = 8
+
+[node name="Bun" type="Marker3D" parent="Rows/Row2" unique_id=640166886]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0, 0)
+
+[node name="Patty" type="Marker3D" parent="Rows/Row2" unique_id=1004074861]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Rows/Row2" unique_id=141362454]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
+
+[node name="Row3" type="Node3D" parent="Rows" unique_id=1241739144]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.24, 0.04)
+visible = false
+
+[node name="Number" type="Label3D" parent="Rows/Row3" unique_id=777237218]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0, 0)
+text = "3"
+font_size = 48
+outline_size = 8
+
+[node name="Bun" type="Marker3D" parent="Rows/Row3" unique_id=1098023509]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0, 0)
+
+[node name="Patty" type="Marker3D" parent="Rows/Row3" unique_id=781388929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Rows/Row3" unique_id=578225734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0, 0)
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=207553854 groups=["spawn_order_board"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.8)
+
+[editable path="Body"]

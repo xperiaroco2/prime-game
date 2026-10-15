@@ -5,7 +5,9 @@ extends GdUnitTestSuite
 ## its collision its own primitive shapes on layer 1 (the art body's hint colliders off), one
 ## use-spot Marker3D in its spawn group on the floor in front of the device, where a player
 ## stands clear of the device, and the named nodes the client drives with their default looks
-## (the switch's active look, off; GD5's fixed look hidden; the generator's bars and glow dark).
+## (the switch's active look, off; GD5's fixed look hidden; the generator's bars and glow dark), and
+## the cooking task's one-spot devices (#774, C5: the order board, the herb board, the grill, the
+## place), whose driven parts cooking_stations_test.gd checks.
 ## The convention: the level piece ADR's "Station scenes"
 ## (docs/decisions/2026-10-09-level-piece-conventions.md).
 
@@ -20,6 +22,12 @@ const PHOTO_BOARD := "res://levels/stations/photo_board.tscn"
 ## The car repair's lift panel (#809, R5); the car, the parts shelf and the part picture, whose
 ## use spots and collision differ, are car_repair_stations_test.gd's.
 const LIFT_PANEL := "res://levels/stations/lift_panel.tscn"
+## The cooking task's devices with one use spot (#774, C5); its herb beds (five spots) and its box
+## shelves (item markers, no use spot) are cooking_stations_test.gd's.
+const ORDER_BOARD := "res://levels/stations/order_board.tscn"
+const HERB_BOARD := "res://levels/stations/herb_board.tscn"
+const GRILL := "res://levels/stations/grill.tscn"
+const PLACE := "res://levels/stations/place.tscn"
 ## Each station scene and its use spot's tag (provisional, "not a decision").
 const SCENES := {
 	SWITCH: &"switch",
@@ -29,6 +37,10 @@ const SCENES := {
 	PRINTER: &"printer",
 	PHOTO_BOARD: &"photo_board",
 	LIFT_PANEL: &"lift_panel",
+	ORDER_BOARD: &"order_board",
+	HERB_BOARD: &"herb_board",
+	GRILL: &"grill",
+	PLACE: &"place",
 }
 ## The other markers a scene holds besides its use spot: the printer's tray (`spawn_photo`).
 const OTHER_TAGS := {PRINTER: [&"photo"]}
