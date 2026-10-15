@@ -12,6 +12,8 @@
   [game modes define the phases](2026-09-29-game-modes-define-the-phases.md),
   [match loop, intents and events](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md)
+- **Amended 2026-10-15 (#1073):** the engineer is the project lead and the game designer; a change to these pillars
+  is his decision alone and needs no agreement with the designer, who may help now and then.
 - **Amended 2026-10-08 (#591):** the pillar "Macro skill over micro skill" allows rare one-shot moments that are hard
   to abuse ([below](#amendment-2026-10-08-rare-one-shot-moments-591)).
 - **Amended 2026-10-10 (#682, the cooking ADR's CE21; the engineer's comment 6096157421 on PR #701):** beside a

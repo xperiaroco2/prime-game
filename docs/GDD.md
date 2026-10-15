@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Owner** | The engineer (#518; the designer is optional and may contribute through PRs to the engineer). Agents never fill in or change design content here without the engineer's word. |
-| **Status** | Decided rules beside open questions (2026-10-13, #925). Decided: §1's pillars, §3's base mode, what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14, and each rule whose section cites the engineer's word (§3's knockdown and crouch, §8's task types, §13's House, §15's tutorial). The rest are open questions; examples inside a question are prompts for the designer, not proposals. (Was, at M0: "Skeleton (M0): sections and open questions only.") |
+| **Owner** | The engineer, the project lead and game designer (#518, #1073; the designer is optional and may contribute through PRs to the engineer). Agents never fill in or change design content here without the engineer's word. |
+| **Status** | Decided rules beside open questions (2026-10-13, #925). Decided: §1's pillars, §3's base mode, what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14, and each rule whose section cites the engineer's word (§3's knockdown and crouch, §8's task types, §13's House, §15's tutorial). The rest are open questions; examples inside a question are prompts for the engineer, not proposals. (Was, at M0: "Skeleton (M0): sections and open questions only.") |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |
 
@@ -15,7 +15,7 @@ governed by game rules. The differentiator is a rich, varied set of mechanics: r
 task types and information tools.
 
 The brief's "social deduction game in the spirit of Lockdown Protocol and Among Us" predates the pillars below,
-where deduction is not central: the designer rewords it with the pitch (open question below).
+where deduction is not central: the engineer rewords it with the pitch (open question below).
 
 ### Pillars
 Decided in [vision revision 1](decisions/2026-10-01-vision-revision-1.md) (#126), from the meeting with the designer
@@ -37,9 +37,9 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
   it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
 
 Open questions:
-- What is the one-sentence pitch in the designer's own words?
+- What is the one-sentence pitch in the engineer's own words?
 - Which feeling should a match leave: tension, comedy, detective work, chaos? In what proportion? (Proposed as
-  answered by the pillars: cringe-fun comedy and chaos, action over detective work; the designer confirms or
+  answered by the pillars: cringe-fun comedy and chaos, action over detective work; the engineer confirms or
   rewrites it.)
 - What does this game do that Lockdown Protocol and Among Us do not?
 

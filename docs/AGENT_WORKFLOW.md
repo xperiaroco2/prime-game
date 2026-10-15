@@ -1012,6 +1012,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
     edits engine code: a missing primitive becomes an `engine-request` issue with a precise spec, and the agent
     continues with data (`content/CLAUDE.md`, `levels/CLAUDE.md`).
   - A scene with someone else's open PR is still never edited (`gh pr list --state open --json number,author,files`).
+- **The engineer is the project lead and the game designer** (his word of 2026-10-15, #1073): game design, narrative,
+  taste and the pillars are his decisions alone, never "agreed with the designer"; the designer may still help now and
+  then, as above.
 - The gate of `merge <pr> --base main` (§7.1) refuses a PR not authored by the engineer's account, or run outside the
   engineer's sessions, so the designer's PRs reach the engineer. A PR into `main` that changes the content area merges
   through it once its body has "Approved by the engineer: <GitHub link>", as an ADR does (the engineer's answer (b) on
