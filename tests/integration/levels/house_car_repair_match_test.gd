@@ -312,6 +312,11 @@ func test_a_package_carrier_takes_parts_onto_the_belt_and_is_refused_two_handed(
 	# At the panel the package in the hand is refused first (HandNotTwoHanded).
 	_refused(carrier, task_state.panel, &"two_handed")
 	assert_int(_game.view_of(carrier).events_named(&"LiftChanged").size()).is_equal(0)
+	# Under the raised car too (ADR §4): the package in the hand is refused before any part check.
+	_hold(_peer(HOLDER))
+	_wait_up()
+	_refused(carrier, task_state.car, &"two_handed")
+	assert_int(_game.view_of(carrier).events_named(&"FitChanged").size()).is_equal(0)
 	_assert_quiet()
 	_assert_replays()
 
