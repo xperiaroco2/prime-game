@@ -40,6 +40,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.refs.outputs.matrix }}
+      halves: ${{ steps.refs.outputs.halves }}
       list: ${{ steps.refs.outputs.list }}
     env:
       GH_TOKEN: ${{ github.token }}
@@ -48,7 +49,7 @@ jobs:
       # Each ref is resolved to a commit once, so its three jobs test the same commit. The newest release branch is
       # the last by version order (release/m10 after release/m9); none: the run's own ref alone. A ref name is
       # letters, digits and . _ / - only (so it goes into the JSON as it is); `slug` is the ref with / as -, for
-      # the artifact names.
+      # the artifact names. `halves` is each ref twice, with `half` 1 and 2: the flaky job's matrix (#1065).
       - name: The run's ref and the newest release branch
         id: refs
         run: |
@@ -93,18 +94,28 @@ jobs:
             fi
           fi
           matrix=$(IFS=,; echo "{\"include\":[${entries[*]}]}")
+          halves=()
+          for entry in "${entries[@]}"; do
+            for half in 1 2; do
+              halves+=("${entry%\}},\"half\":$half}")
+            done
+          done
           joined=$(printf ', %s' "${list[@]}")
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "halves=$(IFS=,; echo "{\"include\":[${halves[*]}]}")" >> "$GITHUB_OUTPUT"
           echo "list=${joined:2}" >> "$GITHUB_OUTPUT"
           echo "Refs of the night: ${joined:2}." | tee -a "$GITHUB_STEP_SUMMARY"
           echo "Matrix: $matrix"
 
+  # One job per half of the suites (gdunit.half_of, as CI's verify --part test-1 and test-2, #980), each on its own
+  # runner in 2 shards: the art House's suites outgrew one job's two real-time shards (#1065: nightly run
+  # 38689352624, both shards killed at 645 s in all three runs; about 1400 s of suites a run, 600 s and 800 s a half).
   flaky:
-    name: flaky on ${{ matrix.ref }} (GdUnit4 three times)
+    name: flaky on ${{ matrix.ref }}, half ${{ matrix.half }} (GdUnit4 three times)
     needs: refs
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.refs.outputs.halves) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -128,16 +139,18 @@ jobs:
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
 
       # The newest per-suite GdUnit4 seconds (CI's or an earlier night's), by which the shards of each run are
-      # balanced (tools/runner/gdunit.py, #182); the job saves its own at the end for the next night. A new key every
-      # run, the ref's slug in it so two refs never reserve one key. An earlier night's first: it runs every suite, so
-      # its file is fresh for all of them, where a CI half's file (#980) keeps only its own half's times fresh.
+      # balanced (tools/runner/gdunit.py, #182); the job saves its own at the end of a green job for the next night.
+      # A new key every run, the half and the ref's slug in it so no two jobs reserve one key. An earlier night's
+      # file of the same half first (its suites in real time, as this job runs them), then CI's of that half (#980:
+      # `test-<half>`, saved by every green CI run), then any.
       - name: Restore the GdUnit4 suite times
         uses: actions/cache@v6
         with:
           path: tools/out/logs/gdunit-times.json
-          key: gdunit-times-nightly-${{ matrix.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: gdunit-times-nightly-half${{ matrix.half }}-${{ matrix.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            gdunit-times-nightly-
+            gdunit-times-nightly-half${{ matrix.half }}-
+            gdunit-times-test-${{ matrix.half }}-
             gdunit-times-
 
       # Every run is kept (tools/out/gdunit-runs/run-<i>/) and compared per suite and per test (summary.json, .md).
@@ -146,9 +159,11 @@ jobs:
       # Each run in 2 processes at once, as CI shards its suite (#817): one process outgrew the runner's 600 s
       # timeout per run when the suite grew (run 38120577422 of 2026-10-11, 3 x 600 s). PRIME_TEST_SHARDS is
       # read by `test` since #182 (--repeat since #817); a ref whose runner is older ignores it and runs one process.
+      # PRIME_TEST_HALF (#1065) makes the run the job's half; a ref whose runner is older ignores it and runs all.
       - name: GdUnit4 three times
         env:
           PRIME_TEST_SHARDS: "2"
+          PRIME_TEST_HALF: ${{ matrix.half }}
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh test --repeat 3
 
       - name: Job summary
@@ -162,7 +177,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: nightly-flaky-${{ matrix.slug }}
+          name: nightly-flaky-half${{ matrix.half }}-${{ matrix.slug }}
           path: |
             tools/out/gdunit-runs
             tools/out/logs
@@ -336,7 +351,8 @@ jobs:
             printf 'Refs: %s. Workflow commit %s on %s (%s).\n\n' \
               "${REFS:-none (the job \`refs\` failed)}" "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME"
             printf '%s\n\n' "$jobs"
-            printf 'Reports: the artifacts of the run, one per job and ref (`nightly-<job>-<ref, / as ->`); the flaky '
-            printf 'job writes its per-suite comparison and perf its numbers to the run summary.\n'
+            printf 'Reports: the artifacts of the run, one per job and ref (`nightly-<job>-<ref, / as ->`; the flaky '
+            printf 'job one per half too, `nightly-flaky-half<n>-<ref>`); the flaky job writes its per-suite '
+            printf 'comparison and perf its numbers to the run summary.\n'
           } > comment.md
           gh issue comment "$number" --body-file comment.md

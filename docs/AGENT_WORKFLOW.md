@@ -1670,7 +1670,9 @@ project settings in a worktree's editor (`ProjectSettings.save()`) copies both k
 half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
 or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>` and `gdunit.main(paths)` stay one
 process unless `--shards K`; `test --repeat N` takes the same count for each of its runs since #817, its shards at
-the run's clock. The shards are balanced by the last per-suite times
+the run's clock. `PRIME_TEST_HALF=1` or `2` (#1065) is read by `test --repeat` alone (plain `test` ignores it):
+without paths it runs one half of the suites (`gdunit.half_of`, as `verify --part test-1`/`test-2`), the nightly
+`flaky` job's split. The shards are balanced by the last per-suite times
 (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
 checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
 shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
@@ -1903,7 +1905,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 
 | What | Where and when | Report |
 |---|---|---|
-| `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, free Linux runners, once per ref of the night: the latest `main` commit and the newest remote `release/*` branch (#272); 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`, optionally one ref alone) | The run's summary page and an artifact per ref, `nightly-flaky-<ref>` (`/` as `-`: `nightly-flaky-main`, `nightly-flaky-release-m5`); on a failure a comment with the run link on the "Night jobs" issue naming each job's ref |
+| `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, free Linux runners, once per ref of the night and half of the suites (#1065): the latest `main` commit and the newest remote `release/*` branch (#272); 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`, optionally one ref alone) | The run's summary page and an artifact per ref and half, `nightly-flaky-half<n>-<ref>` (`/` as `-`: `nightly-flaky-half1-main`, `nightly-flaky-half2-release-m5`); on a failure a comment with the run link on the "Night jobs" issue naming each job's ref |
 | `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the same ref's last successful night's report | The same run, per ref | The run's summary page and artifact `nightly-perf-<ref>`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, decisions vs docs, coverage, flaky, dead code) | The engineer's PC: the Desktop scheduled task `night-audit` (23:30 local) starts it in a detached worktree at `origin/main`; by hand, for a missed night, a manager runs it as a workflow (the skill's "Scheduled, and as a workflow") | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
@@ -1913,12 +1915,15 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   Each run takes as many processes as `test` would (§11.19: `--shards K`, else one for named paths, else
   `PRIME_TEST_SHARDS`, else half the CPUs; `<paths> --fixed-fps --shards K` runs every shard at fixed fps),
   because one real-time process outgrew the runner's `TIMEOUT` of 600 s per process when the suite grew past about 300 suites (#817: nightly run 38120577422, all three runs of
-  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times of an earlier night (else
-  CI's halves save, #980), to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
-  `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variable and runs one process
-  per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
-  1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when the suite outgrows two
-  shards, raise the job's count.
+  `flaky on main` timed out). Since #1065 the job is one job per half of the suites (`gdunit.half_of`, the split of
+  CI's `test-1` and `test-2`), each on its own runner with `PRIME_TEST_HALF=<n>`: `test --repeat` without paths runs
+  only that half (nightly run 38689352624: the art House's suites, about 1400 s a run, made one job's two shards hit
+  645 s in all three runs). Each sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times of an
+  earlier night of its half (else CI's `test-<n>` save, #980, else any), to balance the shards (a suite CI times at
+  fixed fps alone counts its seconds there x `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variables and runs every suite in one
+  process per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
+  1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when a half outgrows two
+  shards, raise the job's count. Only a green job saves its times (the cache's post step).
   Each run's report goes to `tools/out/gdunit-runs/run-<i>/` (the shards' merged `results.xml`) and its log to
   `tools/out/logs/test-run<i>.log` (sharded: also `test-run<i>-shard<j>.log`);
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
@@ -1967,8 +1972,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 - A comment on the "Night jobs" issue from the nightly workflow: open its run link. The summary page shows "GdUnit4,
   3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
   the engineer's approval), **failed in every run** (a regression on that ref: fix first), and the suites with a
-  failure, once per ref (the job's name holds it). The artifact `nightly-flaky-<ref>` holds each run's HTML report,
-  `summary.json` and the logs. A failure on a release ref alone is the release's own (fix it on `release/m<k>`).
+  failure, once per ref (the job's name holds it). The artifact `nightly-flaky-half<n>-<ref>` holds each run's HTML
+  report of that half, `summary.json` and the logs. A failure on a release ref alone is the release's own (fix it on `release/m<k>`).
 - The perf job's section of the summary page: its numbers with the wire budgets' headroom, and the metrics that
   moved by more than the threshold against the last night. A jump in the host step or the bytes per peer after a
   merge is worth an issue (timings on a shared runner are noisy: look for a move that stays); the artifact

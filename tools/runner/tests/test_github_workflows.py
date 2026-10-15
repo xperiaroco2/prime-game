@@ -215,7 +215,7 @@ class GithubWorkflowsTest(unittest.TestCase):
         refs = jobs["refs"]
         self.assertNotIn("permissions", refs, "the workflow's contents: read is enough")
         self.assertNotIn("needs", refs)
-        self.assertEqual(set(refs["outputs"]), {"matrix", "list"})
+        self.assertEqual(set(refs["outputs"]), {"matrix", "halves", "list"})
         self.assertEqual(refs["env"]["INPUT_REF"], "${{ inputs.ref }}")
         script = "".join(step.get("run", "") for step in refs["steps"])
         self.assertIn("matching-refs/heads/release/", script)
@@ -237,7 +237,9 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
             # #272: once per ref of the night, each ref's own commit, its artifacts named with the ref.
             self.assertEqual(job["needs"], "refs", name)
-            self.assertEqual(job["strategy"]["matrix"], "${{ fromJSON(needs.refs.outputs.matrix) }}", name)
+            # The flaky job once per ref and half of the suites (#1065), the others once per ref.
+            matrix = "halves" if name == "flaky" else "matrix"
+            self.assertEqual(job["strategy"]["matrix"], f"${{{{ fromJSON(needs.refs.outputs.{matrix}) }}}}", name)
             self.assertIs(job["strategy"]["fail-fast"], False, f"{name}: one ref's failure keeps the other's run")
             self.assertIn("${{ matrix.ref }}", job["name"], name)
             self.assertEqual(job["steps"][0]["with"]["ref"], "${{ matrix.sha }}", name)
@@ -324,11 +326,15 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
         self.assertEqual(
             settings["restore-keys"],
-            "gdunit-times-nightly-\ngdunit-times-\n",
-            "an earlier night's times first (every suite fresh), CI's as the seed (#980)",
+            "gdunit-times-nightly-half${{ matrix.half }}-\ngdunit-times-test-${{ matrix.half }}-\ngdunit-times-\n",
+            "an earlier night's times of the half first (real-time), then CI's of that half (#980), then any",
         )
+        self.assertIn("test-1", verify.PARTS, "CI's halves save under gdunit-times-test-<half>-")
         self.assertIn("${{ github.run_id }}", settings["key"])
         self.assertIn("${{ matrix.slug }}", settings["key"], "two refs of a night never reserve one key")
+        self.assertTrue(settings["key"].startswith("gdunit-times-nightly-half${{ matrix.half }}-"), "nor two halves")
+        # #1065: each job runs its half of the suites, as CI's test-1 and test-2 (gdunit.half_of).
+        self.assertEqual(steps[run]["env"][gdunit.HALF_VAR], "${{ matrix.half }}")
         self.assertLess(cache[0], run)
         calls = steps[next(i for i, s in enumerate(steps) if s.get("name") == "The ref's runner has the job's options")]
         self.assertEqual(calls["with"]["calls"], "test --repeat", "an older ref's runner must still pass its check")
@@ -437,8 +443,18 @@ class NightlyScriptsTest(unittest.TestCase):
                 "stdout": res.stdout,
                 "outputs": outputs,
                 "matrix": json.loads(outputs["matrix"])["include"] if "matrix" in outputs else None,
+                "halves": json.loads(outputs["halves"])["include"] if "halves" in outputs else None,
                 "calls": calls.read_text(encoding="utf-8"),
             }
+
+    def test_the_flaky_jobs_matrix_is_each_ref_once_per_half_of_the_suites(self) -> None:
+        # #1065: the flaky job runs a job per half (gdunit.HALF_IDS, as CI's test-1 and test-2), each with its ref.
+        for case in ({}, {"releases": f"release/m10 {'10' * 20}\n"}, {"input_ref": "release/m5", "sha": "b" * 40}):
+            got = self.refs(**case)
+            self.assertEqual(got["code"], 0, got["stdout"])
+            expected = [{**entry, "half": half} for entry in got["matrix"] for half in gdunit.HALF_IDS]
+            self.assertEqual(got["halves"], expected, case)
+        self.assertIsNone(self.refs(fail=True)["halves"])
 
     def test_without_a_release_branch_the_runs_ref_runs_alone(self) -> None:
         got = self.refs()

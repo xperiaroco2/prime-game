@@ -107,7 +107,9 @@ def build_parser() -> argparse.ArgumentParser:
         "(--shards), the frame-bound suites at fixed fps in shards of their own, as in verify; with paths, one "
         "process in real time (--fixed-fps or --real-time chooses the clock). A run is judged by the exit code and "
         "results.xml (reports: tools/out/gdunit/), never by the console; orphan nodes fail it. --repeat N: N runs in "
-        "a row with a per-suite comparison (a flaky hunt), each run in --shards processes, all real-time.",
+        "a row with a per-suite comparison (a flaky hunt), each run in --shards processes, all real-time; "
+        "PRIME_TEST_HALF=1 or 2 makes it one half of the suites, as verify --part test-1 or test-2 (the nightly flaky "
+        "job, a job per half).",
     )
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
     p.add_argument(

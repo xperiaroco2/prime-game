@@ -217,15 +217,23 @@ class ShardedRepeatTest(unittest.TestCase):
     RED = results_xml({"tests/unit/a_test": {"test_x": FAIL}})
 
     def run_repeat(
-        self, runs: list[tuple[bool | None, str]], env: dict[str, str] | None = None, **kwargs: Any
+        self,
+        runs: list[tuple[bool | None, str]],
+        env: dict[str, str] | None = None,
+        scripts: tuple[str, ...] = (),
+        **kwargs: Any,
     ) -> tuple[int, list[Any], list[str], str]:
         """`runs`: per run what run_shards returns (True failed, None too few suites) and the merged results.xml;
-        the xml "timeout" marks shard 2 of a failed run as timed out."""
+        the xml "timeout" marks shard 2 of a failed run as timed out. `scripts`: test scripts under tests/ to write."""
         shard_calls: list[Any] = []
         godot_calls: list[str] = []
+        self.godot_args: list[list[str]] = []
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "tests" / "unit").mkdir(parents=True)
+            for script in scripts:
+                (root / "tests" / script).parent.mkdir(parents=True, exist_ok=True)
+                (root / "tests" / script).write_text("extends GdUnitTestSuite\n", encoding="utf-8")
             report_dir = root / "tools" / "out" / "gdunit"
             runs_dir = root / "tools" / "out" / "gdunit-runs"
             logs = root / "tools" / "out" / "logs"
@@ -252,6 +260,7 @@ class ShardedRepeatTest(unittest.TestCase):
 
             def fake_godot(args: list[str], *, timeout: float, log: str, echo: bool = False) -> common.Result:
                 godot_calls.append(log)
+                self.godot_args.append(args)
                 (report_dir / "report_1").mkdir(parents=True, exist_ok=True)
                 (report_dir / "report_1" / "results.xml").write_text(self.GREEN, encoding="utf-8")
                 return common.Result(0, "", False, 1.0)
@@ -271,11 +280,13 @@ class ShardedRepeatTest(unittest.TestCase):
                 contextlib.redirect_stdout(out),
                 contextlib.redirect_stderr(out),
             ):
-                if not env:
-                    gdunit.os.environ.pop(gdunit.SHARDS_VAR, None)
+                for var in (gdunit.SHARDS_VAR, gdunit.HALF_VAR):
+                    if var not in (env or {}):
+                        gdunit.os.environ.pop(var, None)
                 rc = gdunit.repeat(len(runs), run_import=False, **kwargs)
             kept = sorted(p.relative_to(root / "tools" / "out").as_posix() for p in (root / "tools" / "out").rglob("*") if p.is_file())
             self.summary = json.loads((runs_dir / "summary.json").read_text(encoding="utf-8"))
+            self.markdown = (runs_dir / "summary.md").read_text(encoding="utf-8")
         self.godot_calls = godot_calls
         return rc, shard_calls, kept, out.getvalue()
 
@@ -292,6 +303,46 @@ class ShardedRepeatTest(unittest.TestCase):
         self.assertEqual(self.run_repeat([(False, self.GREEN)], shards=3)[1][0][1], 3)
         self.assertEqual(self.run_repeat([(False, self.GREEN)], env={gdunit.SHARDS_VAR: "3"})[1][0][1], 3)
         self.assertEqual(self.run_repeat([(False, self.GREEN)], env={gdunit.SHARDS_VAR: "3"}, shards=4)[1][0][1], 4)
+
+    # #1065: the nightly flaky job runs one half of the suites per job (PRIME_TEST_HALF), as CI's test-1 and test-2.
+    HALVES = ("integration/client/life/a_test.gd", "integration/client/player/b_test.gd", "unit/c_test.gd")
+
+    def test_the_half_in_the_environment_runs_only_that_halfs_scripts_in_every_run(self) -> None:
+        life, player, unit = (f"res://tests/{script}" for script in self.HALVES)
+        for half, scripts in (("1", [life, player]), ("2", [unit])):
+            rc, calls, _, printed = self.run_repeat(
+                [(False, self.GREEN)] * 2, env={gdunit.HALF_VAR: half, gdunit.SHARDS_VAR: "2"}, scripts=self.HALVES
+            )
+            self.assertEqual(rc, 0, printed)
+            self.assertEqual([call[0] for call in calls], [scripts, scripts], half)
+            self.assertIn(f"test: half {half} of 2 of a run without paths", printed)
+            self.assertEqual(self.summary["half"], int(half))
+            self.assertTrue(self.markdown.startswith(f"## GdUnit4, 2 runs, half {half}\n"), self.markdown)
+
+    def test_without_a_half_every_suite_runs_and_the_summary_names_none(self) -> None:
+        rc, calls, _, printed = self.run_repeat([(False, self.GREEN)], env={gdunit.HALF_VAR: ""}, scripts=self.HALVES)
+        self.assertEqual((rc, calls[0][0]), (0, ["res://tests/integration", "res://tests/unit"]), printed)
+        self.assertNotIn("half", self.summary)
+        self.assertTrue(self.markdown.startswith("## GdUnit4, 1 runs\n"), self.markdown)
+
+    def test_a_half_in_one_process_names_only_its_scripts_to_godot(self) -> None:
+        rc, calls, _, printed = self.run_repeat([(False, self.GREEN)], shards=1, half=2, scripts=self.HALVES)
+        self.assertEqual((rc, calls), (0, []), printed)
+        selected = [arg for i, arg in enumerate(self.godot_args[0]) if self.godot_args[0][i - 1] == "-a"]
+        self.assertEqual(selected, ["res://tests/unit/c_test.gd"])
+
+    def test_named_paths_ignore_the_half_in_the_environment_and_refuse_a_given_one(self) -> None:
+        rc, _, _, printed = self.run_repeat([(False, self.GREEN)], env={gdunit.HALF_VAR: "1"}, paths=["tests/unit"])
+        self.assertEqual(rc, 0, printed)
+        self.assertIn(f"{gdunit.HALF_VAR}=1 ignored: named paths run as given", printed)
+        self.assertEqual(self.godot_calls, ["test-run1"])
+        with self.assertRaisesRegex(common.Failure, "give no paths"):
+            self.run_repeat([(False, self.GREEN)], paths=["tests/unit"], half=1)
+
+    def test_a_half_that_is_not_one_is_refused(self) -> None:
+        for value in ("3", "0", "one"):
+            with self.assertRaisesRegex(common.Failure, f"{gdunit.HALF_VAR} must be one of 1, 2, not '{value}'"):
+                self.run_repeat([(False, self.GREEN)], env={gdunit.HALF_VAR: value})
 
     def test_one_shard_or_named_paths_run_in_one_process_as_before(self) -> None:
         for kwargs in ({"shards": 1}, {"paths": ["tests/unit"]}):
