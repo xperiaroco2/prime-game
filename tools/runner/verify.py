@@ -5,8 +5,10 @@
 no test: every test runs on CI, whose job runs `verify --full`. Its record's "mode" is "fast", and its summary says so
 (FAST_LINE), so no tool takes it for a full run. `verify --changed` (#859, the agents' fast run; publish's in an
 agent's shell): its `lint` step is `lint --changed`, the gdformat and gdlint of the changed GDScript only, its summary
-row and record say so (step_note, step_detail); `--full` and CI never narrow it. The rest of this docstring is
-`verify --full` (exactly what CI runs, in parts: `verify --full --part <name>` runs doctor and only that part's steps
+row and record say so (step_note, step_detail); `--full` and CI never narrow it. A fast run of a design-only change
+(#1123: every changed path on .github/design-only-paths.txt, design_only.check) runs doctor and lint only
+(DESIGN_LANES): no `check`, as CI's `changes` job then skips the Godot parts; its summary says so (DESIGN_LINE) and its
+record has "design_only". The rest of this docstring is `verify --full` (exactly what CI runs, in parts: `verify --full --part <name>` runs doctor and only that part's steps
 of PARTS, and CI runs each part in a job of its own, #857; there `test` is two steps, test-1 and test-2, a half of
 the suites each in a part of its own, #980, and the network runs two parts, network-1 and network-2, #1013).
 
@@ -57,7 +59,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots, suspend
+from . import bots, check, design_only, doctor, gdunit, hostjoin, launch, lint, signalling, slots, suspend
 from .common import (
     FAILURE_CAP,
     IS_CI,
@@ -177,6 +179,11 @@ FAST_LANES: dict[str, tuple[str, ...]] = {"python": ("lint",), "godot": ("check"
 FAST_ORDER = ("doctor", "lint", "check")
 # The fast run's summary line; metrics.FAST_RUN reads its start, so a fast run's total is never a full run's.
 FAST_LINE = "fast verify: lint and check; the tests run on CI (verify --full runs them here)"
+# A fast run of a design-only change (#1123, design_only.check): doctor and lint (the § references among its checks),
+# no Godot. Its line starts as FAST_LINE does, so metrics counts it as a fast run.
+DESIGN_LANES: dict[str, tuple[str, ...]] = {"python": ("lint",)}
+DESIGN_ORDER = ("doctor", "lint")
+DESIGN_LINE = "fast verify: lint only, a design-only change (#1123): no check, and CI skips its Godot parts"
 # A step that starts only once these steps of other lanes have ended (whatever their status): the runner tests that
 # start Godot after check, so a fresh CI checkout has imported the project (.godot/) before RealSessionTest is
 # discovered and no two Godot imports run at once; the first network run after them, so no other Godot run overlaps
@@ -1496,7 +1503,7 @@ def main(
 
 def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: str | None = None) -> int:
     """`verify`: without `full` the fast run (#605): doctor, lint and check (FAST_LANES), the clean-tree check, no slot
-    and no count check; with `full` (`verify --full`, CI's job) every step of LANES in a verify slot. With `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
+    and no count check, and for a design-only change (#1123) doctor and lint only (DESIGN_LANES); with `full` (`verify --full`, CI's job) every step of LANES in a verify slot. With `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
     are not run, the count check is left out, and the summary and the record say so. While the lanes run, `watch`
     (suspend.watch_in_background) calls back once the machine slept (#595): the lanes stop, each step that was running
     is red with suspend.message, the steps not started are not run, and the run counts as stopped early. With `part`
@@ -1507,6 +1514,11 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: 
     before = git_status()
     facts = git_facts(clean=not before)
     lanes, order = (LANES, STEP_ORDER) if full else (FAST_LANES, FAST_ORDER)
+    design = ""  # why the change is design-only (#1123), for a fast run that leaves check out
+    if not full:
+        is_design, why = design_only.check()
+        if is_design:
+            lanes, order, design = DESIGN_LANES, DESIGN_ORDER, why
     if part is not None:
         lanes = part_lanes(part)
         order = part_order(part)
@@ -1541,7 +1553,10 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: 
                 slot_line = taken.summary()
                 say(f"verify: {slot_line}")
             described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in lanes.items())
-            if not full:
+            if design:
+                say(f"verify: {DESIGN_LINE}")
+                say(f"verify: design-only: {design}")
+            elif not full:
                 say(f"verify: {FAST_LINE}")
             if part_line:
                 say(f"verify: {part_line}")
@@ -1627,7 +1642,10 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: 
         workers = f", selftest on {selftest_workers()} worker processes" if full else ""
         block.append("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in lanes if lane in walls)
                      + f"; {os.cpu_count()} CPUs{workers}")  # fmt: skip
-    if not full:
+    if design:
+        block.append(f"  {DESIGN_LINE}")
+        block.append(f"  design-only: {design}")
+    elif not full:
         block.append(f"  {FAST_LINE}")
     if part_line:
         block.append(f"  {part_line}")
@@ -1664,6 +1682,7 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: 
             "status": "FAILED" if failed else "passed",
             "mode": "full" if full else "fast",
             "part": part,
+            "design_only": bool(design),
             "seconds": round(seconds, 1),
             "steps": [step_record(s) for s in ordered],
             "lanes": {lane: round(walls[lane], 1) for lane in lanes if lane in walls},
