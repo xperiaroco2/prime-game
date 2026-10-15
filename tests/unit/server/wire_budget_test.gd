@@ -86,9 +86,23 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
 
 
+## Thirty demanded tags and thirty demanded palettes make 62 shortfalls, under the list's cap of
+## MAX_SHORTFALLS (64), so only the payload's byte cap can refuse them: the test holds that reason,
+## not the entry count (#775's review).
 func test_the_most_demanded_tags_refuse_the_settings_but_not_the_stations() -> void:
-	var problems := "\n".join(WireBudget.check(_demanding(_mode(10, 3, 1, 4), 32, 32)))
+	var mode := _demanding(_mode(10, 3, 1, 4), 30, 30)
+	var problems := "\n".join(WireBudget.check(mode))
+	var changed: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			changed = message
+	assert_object(changed).is_not_null()
+	if changed != null:
+		var shortfalls: Array = changed.fields["shortfalls"]
+		assert_int(shortfalls.size()).is_less_equal(WireSchema.MAX_SHORTFALLS)
 	assert_str(problems).contains("SettingsChanged (kind 37): ")
+	assert_str(problems).contains("over its cap of 8192")
+	assert_str(problems).not_contains("entries, at most")
 	assert_str(problems).not_contains("StationPlaced")
 	assert_str(problems).not_contains("ItemSpawned")
 
