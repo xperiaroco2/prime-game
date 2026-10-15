@@ -368,7 +368,9 @@ func _physics_process(_delta: float) -> void:
 		_raise_peer = 0
 		return
 	var alive := _own_life() == ClientModel.Life.ALIVE
-	_raise_peer = _cast_raise_target() if alive else 0
+	# None through the photo viewfinder's lens: the E that closes the view never raises (#1106).
+	var lens_up := view_camera.is_valid() and view_camera.call() != null
+	_raise_peer = _cast_raise_target() if alive and not lens_up else 0
 	match _own_life():
 		ClientModel.Life.DOWNED:
 			var angles := SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO)

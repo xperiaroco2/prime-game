@@ -13,6 +13,8 @@ const RESPAWN_S := 2.0
 const KNOCKDOWN_S := 60.0
 ## Physics frames the ragdoll gets to come to rest.
 const REST_FRAMES := 120
+## Physics frames a Raise the host started would take to show in the model.
+const ANSWER_FRAMES := 30
 
 var _pair: NetPair
 
@@ -166,6 +168,52 @@ func test_a_bone_of_a_skeleton_ragdoll_names_its_peer() -> void:
 	await _pair.frames(10)
 	var torso := ragdoll.bones()[2]
 	_pair.aim(player, torso.global_position)
+	await _pair.frames(2)
+	assert_int(life.raise_target()).is_equal(downed)
+	await _pair.stop()
+
+
+## #1106: E in the photo viewfinder closes the view (ItemInteractions) and never raises. With a
+## downed ragdoll in sight and in reach, the view up (a stand-in lens as LifeView's `view_camera`),
+## the hint names none, so the press that closes the view sends no Raise: the host starts none.
+func test_e_that_closes_the_viewfinder_sends_no_raise() -> void:
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var model := _pair.client.client().model
+	var downed := _pair.peer_of(_pair.host)
+	var player := _pair.client.player()
+	var life := _pair.client.life()
+	var avatars := _pair.client.avatars()
+	_pair.knock_down(_pair.host)
+	var drawn := func() -> bool:
+		return (
+			model.life_of(downed) == ClientModel.Life.DOWNED and avatars.ragdoll_of(downed) != null
+		)
+	assert_bool(await _until(drawn)).is_true()
+	await _pair.frames(REST_FRAMES)
+	var ragdoll := avatars.ragdoll_of(downed)
+	var point := ragdoll.held_point()
+	var hint := LifeView.raise_hint_reach_of(_pair.mode)
+	assert_bool(await _pair.walk_to(player, point + Vector3(hint - 0.5, 0.0, 0.0))).is_true()
+	await _pair.frames(10)
+	_pair.aim(player, ragdoll.global_position)
+	await _pair.frames(2)
+	assert_int(life.raise_target()).is_equal(downed)
+	# The view goes up: no raise target through its lens.
+	var lens := auto_free(Camera3D.new()) as Camera3D
+	add_child(lens)
+	var lens_up: Array[bool] = [true]
+	life.view_camera = func() -> Camera3D: return lens if lens_up[0] else null
+	await _pair.frames(2)
+	assert_int(life.raise_target()).is_equal(0)
+	# E: the viewfinder closes, and LifeView's press runs in the same frame.
+	lens_up[0] = false
+	life.press_raise()
+	await _pair.frames(ANSWER_FRAMES)
+	assert_int(model.raiser_of(downed)).is_equal(0)
+	life.release_raise()
+	# The view closed: the hint is back on the ragdoll.
+	_pair.aim(player, ragdoll.global_position)
 	await _pair.frames(2)
 	assert_int(life.raise_target()).is_equal(downed)
 	await _pair.stop()
