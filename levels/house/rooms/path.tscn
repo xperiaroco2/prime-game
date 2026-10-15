@@ -1,110 +1,98 @@
 [gd_scene format=3 uid="uid://yeg032vu86yo"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/porch_2x2.tscn" id="1"]
-
-[ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
+[ext_resource type="PackedScene" uid="uid://dj166twxw35ma" path="res://levels/kit/house_kit/porch_2x2.tscn" id="1"]
+[ext_resource type="Material" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
 
 [node name="Path" type="Node3D" unique_id=728501529]
 metadata/room_id = &"path"
 metadata/name_key = "room.path"
 metadata/size_m = Vector2i(2, 16)
 
-[node name="Name" type="Label3D" parent="."]
+[node name="Name" type="Label3D" parent="." unique_id=1740132526]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 2.4, 8)
 billboard = 1
 text = "Path"
 font_size = 72
 outline_size = 16
 
-[node name="Shell" type="Node3D" parent="."]
+[node name="Shell" type="Node3D" parent="." unique_id=105157213]
 
-[node name="porch_2x2_1" parent="Shell" instance=ExtResource("1")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+[node name="porch_2x2_1" parent="Shell" unique_id=1597498998 instance=ExtResource("1")]
 
-[node name="porch_2x2" parent="Shell/porch_2x2_1"]
-surface_material_override/1 = ExtResource("2")
+[node name="porch_2x2" parent="Shell/porch_2x2_1" index="0" unique_id=866963131]
 instance_shader_parameters/plan_at = Vector4(29, 0, 44, 0)
+surface_material_override/1 = ExtResource("2")
 
-[node name="Fixtures" type="Node3D" parent="."]
+[node name="Fixtures" type="Node3D" parent="." unique_id=105379839]
 
-[node name="path_porch_lamp_01" type="OmniLight3D" parent="Fixtures"]
+[node name="path_porch_lamp_01" type="OmniLight3D" parent="Fixtures" unique_id=816686248]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 2.2, 15.15)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.8
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "porch_lamp"
 metadata/glow = true
 
-[node name="path_path_light_01" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_01" type="OmniLight3D" parent="Fixtures" unique_id=2107339345]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 1.525)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_02" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_02" type="OmniLight3D" parent="Fixtures" unique_id=1629690]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 3.375)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_03" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_03" type="OmniLight3D" parent="Fixtures" unique_id=81114923]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 5.225)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_04" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_04" type="OmniLight3D" parent="Fixtures" unique_id=119721482]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 7.075)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_05" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_05" type="OmniLight3D" parent="Fixtures" unique_id=1629009033]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 8.925)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_06" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_06" type="OmniLight3D" parent="Fixtures" unique_id=1893995821]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 10.775)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_07" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_07" type="OmniLight3D" parent="Fixtures" unique_id=1517459339]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 12.625)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
-[node name="path_path_light_08" type="OmniLight3D" parent="Fixtures"]
+[node name="path_path_light_08" type="OmniLight3D" parent="Fixtures" unique_id=1323612926]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.5, 14.475)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.3
-shadow_enabled = false
-omni_range = 3
+omni_range = 3.0
 metadata/fixture = "path_light"
 metadata/glow = false
 
@@ -117,3 +105,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 16)
 
 [node name="Stations" type="Node3D" parent="." unique_id=328890934]
+
+[editable path="Shell/porch_2x2_1"]

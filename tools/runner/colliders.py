@@ -18,7 +18,8 @@ built from them would have no floors, walls or stairs. This step moves each hint
 `colliders` writes all four from the GLBs' content; a pointer file (no LFS content) is skipped with a line. `check`
 runs problems(): no scene under levels/ instances a wrapped GLB directly, and each GLB with content has exactly the
 files `colliders` would write. An override in a scene that reached into a GLB's collider (a door leaf's layer, a
-ground's surface tag) now names the wrapper's body: no step rewrites those.
+ground's surface tag) now names the wrapper's body: no step rewrites those. Each such override needs its instance's
+`[editable path]` entry, or a re-save drops it: `colliders` ends by adding the missing ones (editables.py, #1056).
 
 `colliders` owns every Skip Import entry (`nodes`) in the .import of an art GLB: it sets exactly the hint colliders'
 and drops any other, so a node skipped by hand in Advanced Import Settings does not last. A wrapper whose GLB lost
@@ -37,7 +38,7 @@ from array import array
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import lfs
+from . import editables, lfs
 from .common import ROOT, bad, ok, say
 
 ASSETS = "assets/environment"
@@ -558,4 +559,6 @@ def main(check_only: bool = False) -> int:
         say("colliders: FAILED")
         return 1
     ok(f"colliders: {len(planned.wrappers)} wrappers in {KIT}/ (git status shows what changed)")
+    for rel in editables.write():
+        ok(f"{rel}: added the [editable path] entries its overrides need (#1056)")
     return 0

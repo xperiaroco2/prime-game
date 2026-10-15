@@ -25,12 +25,11 @@
 [ext_resource type="PackedScene" uid="uid://ct28vy6al30f3" path="res://levels/kit/house_props/fridge.tscn" id="29"]
 [ext_resource type="PackedScene" uid="uid://c7t1v3hckl6na" path="res://levels/kit/house_props/store_shelving.tscn" id="30"]
 [ext_resource type="PackedScene" uid="uid://c83so4euyminu" path="res://assets/environment/house_props/sign_no_smoking.glb" id="31"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="kit_wall_int"]
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_end_int.tscn" id="kit_wall_end_int"]
-[ext_resource type="PackedScene" path="res://levels/stations/car.tscn" id="station_car"]
-[ext_resource type="PackedScene" path="res://levels/stations/lift_panel.tscn" id="station_lift_panel"]
-[ext_resource type="PackedScene" path="res://levels/stations/part_picture.tscn" id="station_part_picture"]
+[ext_resource type="PackedScene" uid="uid://d3w6ivjgyjv4" path="res://levels/kit/house_kit/wall_storey_end_int.tscn" id="kit_wall_end_int"]
+[ext_resource type="PackedScene" uid="uid://codcngcw54wgk" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="kit_wall_int"]
+[ext_resource type="PackedScene" uid="uid://c18ecphx83hk2" path="res://levels/stations/car.tscn" id="station_car"]
+[ext_resource type="PackedScene" uid="uid://dl7ivvbwgsaf3" path="res://levels/stations/lift_panel.tscn" id="station_lift_panel"]
+[ext_resource type="PackedScene" uid="uid://thtlqn1063yi" path="res://levels/stations/part_picture.tscn" id="station_part_picture"]
 
 [node name="Garage" type="Node3D" unique_id=1287531948]
 metadata/room_id = &"garage"
@@ -49,105 +48,105 @@ outline_size = 16
 [node name="wall_storey_2m_ext_1" parent="Shell" unique_id=52760269 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_1" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_1" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(56, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_1" parent="Shell" unique_id=42357653 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3, 0, 0)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_1" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_1" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(57, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_window_ext_1" parent="Shell" unique_id=293365190 instance=ExtResource("4")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5, 0, 0)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_1" index="0" unique_id=2140070682]
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_1" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(59, 0, 34, 180)
 surface_material_override/1 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_2" parent="Shell" unique_id=1304753526 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 7, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_2" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_2" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(61, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_3" parent="Shell" unique_id=80755753 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_3" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_3" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(63, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_2" parent="Shell" unique_id=21595025 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 0)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_2" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_2" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(64, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_door_ext_1" parent="Shell" unique_id=563628697 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 12, 0, 0)
 
-[node name="wall_storey_2m_door_ext" parent="Shell/wall_storey_2m_door_ext_1" index="0" unique_id=1073500477]
+[node name="wall_storey_2m_door_ext" parent="Shell/wall_storey_2m_door_ext_1" index="0" unique_id=2093857938]
 instance_shader_parameters/plan_at = Vector4(66, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_3" parent="Shell" unique_id=1922130065 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 13, 0, 0)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_3" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_3" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(67, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_window_ext_2" parent="Shell" unique_id=675887329 instance=ExtResource("4")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 15, 0, 0)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_2" index="0" unique_id=2140070682]
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_2" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(69, 0, 34, 180)
 surface_material_override/1 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_4" parent="Shell" unique_id=35301035 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 17, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_4" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_4" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(71, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_4" parent="Shell" unique_id=1435125220 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 18, 0, 0)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_4" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_4" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(72, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_5" parent="Shell" unique_id=1000008103 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_5" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_5" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(54, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_6" parent="Shell" unique_id=1943124787 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_6" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_6" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(56, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_7" parent="Shell" unique_id=2083609148 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_7" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_7" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(58, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="garage_door_8m_1" parent="Shell" unique_id=68601279 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 14)
 
-[node name="garage_door_8m" parent="Shell/garage_door_8m_1" index="0" unique_id=2058173800]
+[node name="garage_door_8m" parent="Shell/garage_door_8m_1" index="0" unique_id=1928651238]
 instance_shader_parameters/plan_at = Vector4(60, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -157,161 +156,161 @@ collision_layer = 0
 [node name="wall_storey_2m_ext_8" parent="Shell" unique_id=2013037448 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_8" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_8" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(68, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_9" parent="Shell" unique_id=614680323 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_9" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_9" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(70, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_10" parent="Shell" unique_id=1596196799 instance=ExtResource("1")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_10" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_10" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(54, 0, 34, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_5" parent="Shell" unique_id=1089346070 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 2)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_5" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_5" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(54, 0, 36, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_window_ext_3" parent="Shell" unique_id=589036503 instance=ExtResource("4")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 3)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_3" index="0" unique_id=2140070682]
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_3" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(54, 0, 37, 270)
 surface_material_override/1 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_11" parent="Shell" unique_id=395395726 instance=ExtResource("1")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 5)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_11" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_11" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(54, 0, 39, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_12" parent="Shell" unique_id=258344108 instance=ExtResource("1")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 7)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_12" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_12" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(54, 0, 41, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_door_ext_2" parent="Shell" unique_id=1937873605 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 9)
 
-[node name="wall_storey_2m_door_ext" parent="Shell/wall_storey_2m_door_ext_2" index="0" unique_id=1073500477]
+[node name="wall_storey_2m_door_ext" parent="Shell/wall_storey_2m_door_ext_2" index="0" unique_id=2093857938]
 instance_shader_parameters/plan_at = Vector4(54, 0, 43, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_13" parent="Shell" unique_id=781847358 instance=ExtResource("1")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 11)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_13" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_13" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(54, 0, 45, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_6" parent="Shell" unique_id=2056694755 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 13)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_6" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_6" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(54, 0, 47, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_14" parent="Shell" unique_id=47111789 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 2)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_14" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_14" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(72, 0, 36, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_7" parent="Shell" unique_id=70522261 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 3)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_7" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_7" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(72, 0, 37, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_window_ext_4" parent="Shell" unique_id=2028264650 instance=ExtResource("4")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 5)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_4" index="0" unique_id=2140070682]
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_4" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(72, 0, 39, 90)
 surface_material_override/1 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_15" parent="Shell" unique_id=1812094418 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 7)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_15" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_15" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(72, 0, 41, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_ext_8" parent="Shell" unique_id=1050308430 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 8)
 
-[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_8" index="0" unique_id=1629316421]
+[node name="wall_storey_1m_ext" parent="Shell/wall_storey_1m_ext_8" index="0" unique_id=2066047022]
 instance_shader_parameters/plan_at = Vector4(72, 0, 42, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_window_ext_5" parent="Shell" unique_id=490835801 instance=ExtResource("4")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 10)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_5" index="0" unique_id=2140070682]
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_5" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(72, 0, 44, 90)
 surface_material_override/1 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_16" parent="Shell" unique_id=889660708 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 12)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_16" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_16" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(72, 0, 46, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_ext_17" parent="Shell" unique_id=741627287 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 14)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_17" index="0" unique_id=1970957095]
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_17" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(72, 0, 48, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_corner_ext_1" parent="Shell" unique_id=23950975 instance=ExtResource("7")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_1" index="0" unique_id=2106563435]
+[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_1" index="0" unique_id=512043157]
 instance_shader_parameters/plan_at = Vector4(54, 0, 34, 180)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_corner_ext_2" parent="Shell" unique_id=1942364600 instance=ExtResource("7")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 14)
 
-[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_2" index="0" unique_id=2106563435]
+[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_2" index="0" unique_id=512043157]
 instance_shader_parameters/plan_at = Vector4(54, 0, 48, 270)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_corner_ext_3" parent="Shell" unique_id=824170490 instance=ExtResource("7")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 18, 0, 0)
 
-[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_3" index="0" unique_id=2106563435]
+[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_3" index="0" unique_id=512043157]
 instance_shader_parameters/plan_at = Vector4(72, 0, 34, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_corner_ext_4" parent="Shell" unique_id=1887969068 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 14)
 
-[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_4" index="0" unique_id=2106563435]
+[node name="wall_storey_corner_ext" parent="Shell/wall_storey_corner_ext_4" index="0" unique_id=512043157]
 instance_shader_parameters/plan_at = Vector4(72, 0, 48, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="floor_concrete_2x2_1" parent="Shell" unique_id=267411344 instance=ExtResource("8")]
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_1" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_1" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -319,7 +318,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_2" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_2" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -327,7 +326,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_3" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_3" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -335,7 +334,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_4" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_4" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -343,7 +342,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_5" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_5" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -351,7 +350,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_6" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_6" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -359,7 +358,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_7" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_7" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -367,7 +366,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_8" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_8" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -375,7 +374,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_9" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_9" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -383,7 +382,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_10" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_10" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -391,7 +390,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_11" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_11" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -399,7 +398,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_12" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_12" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -407,7 +406,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_13" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_13" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -415,7 +414,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_14" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_14" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -423,7 +422,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_15" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_15" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -431,7 +430,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_16" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_16" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -439,7 +438,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_17" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_17" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -447,7 +446,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_18" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_18" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -455,7 +454,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_19" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_19" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -463,7 +462,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_20" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_20" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -471,7 +470,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_21" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_21" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -479,7 +478,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_22" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_22" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -487,7 +486,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_23" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_23" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -495,7 +494,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_24" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_24" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -503,7 +502,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_25" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_25" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -511,7 +510,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_26" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_26" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -519,7 +518,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_27" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_27" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 38, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -527,7 +526,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_28" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_28" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -535,7 +534,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_29" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_29" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -543,7 +542,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_30" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_30" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -551,7 +550,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_31" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_31" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -559,7 +558,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_32" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_32" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -567,7 +566,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_33" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_33" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -575,7 +574,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_34" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_34" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -583,7 +582,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_35" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_35" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -591,7 +590,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 6)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_36" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_36" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 40, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -599,7 +598,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_37" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_37" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -607,7 +606,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_38" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_38" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -615,7 +614,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_39" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_39" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -623,7 +622,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_40" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_40" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -631,7 +630,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_41" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_41" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -639,7 +638,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_42" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_42" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -647,7 +646,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_43" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_43" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -655,7 +654,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_44" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_44" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -663,7 +662,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 8)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_45" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_45" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 42, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -671,7 +670,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_46" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_46" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -679,7 +678,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_47" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_47" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -687,7 +686,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_48" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_48" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -695,7 +694,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_49" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_49" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -703,7 +702,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_50" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_50" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -711,7 +710,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_51" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_51" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -719,7 +718,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_52" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_52" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -727,7 +726,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_53" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_53" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -735,7 +734,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 10)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_54" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_54" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 44, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -743,7 +742,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_55" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_55" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(54, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -751,7 +750,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_56" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_56" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(56, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -759,7 +758,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_57" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_57" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(58, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -767,7 +766,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_58" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_58" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(60, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -775,7 +774,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_59" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_59" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(62, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -783,7 +782,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_60" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_60" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(64, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -791,7 +790,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_61" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_61" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(66, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -799,7 +798,7 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_62" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_62" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(68, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -807,39 +806,39 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 12)
 metadata/surface = "concrete"
 
-[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_63" index="0" unique_id=2116226495]
+[node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_63" index="0" unique_id=1680921740]
 instance_shader_parameters/plan_at = Vector4(70, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_end_int_1" parent="Shell" instance=ExtResource("kit_wall_end_int")]
+[node name="wall_storey_end_int_1" parent="Shell" unique_id=418303422 instance=ExtResource("kit_wall_end_int")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
 metadata/blind = "LiftPanel"
 
-[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_1" index="0"]
+[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_1" index="0" unique_id=196295501]
 instance_shader_parameters/plan_at = Vector4(60, 0, 39, 270)
 surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_1" parent="Shell" instance=ExtResource("kit_wall_int")]
+[node name="wall_storey_2m_int_1" parent="Shell" unique_id=702236814 instance=ExtResource("kit_wall_int")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
 metadata/blind = "LiftPanel"
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0"]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(60, 0, 39, 270)
 surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_2" parent="Shell" instance=ExtResource("kit_wall_int")]
+[node name="wall_storey_2m_int_2" parent="Shell" unique_id=260063848 instance=ExtResource("kit_wall_int")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 7)
 metadata/blind = "LiftPanel"
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0"]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(60, 0, 41, 270)
 surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_end_int_2" parent="Shell" instance=ExtResource("kit_wall_end_int")]
+[node name="wall_storey_end_int_2" parent="Shell" unique_id=1042351500 instance=ExtResource("kit_wall_end_int")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 9)
 metadata/blind = "LiftPanel"
 
-[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_2" index="0"]
+[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_2" index="0" unique_id=196295501]
 instance_shader_parameters/plan_at = Vector4(60, 0, 43, 90)
 surface_material_override/0 = ExtResource("2")
 
@@ -849,21 +848,21 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 0, 11)
 metadata/prop = "tyre_rack"
 
-[node name="tyre_rack" parent="Dressing/tyre_rack_1" index="0" unique_id=1811272723]
+[node name="tyre_rack" parent="Dressing/tyre_rack_1" index="0" unique_id=1628357105]
 surface_material_override/0 = ExtResource("10")
 
 [node name="steel_cupboard_1" parent="Dressing" unique_id=672613889 instance=ExtResource("16")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0, 11.05)
 metadata/prop = "steel_cupboard"
 
-[node name="steel_cupboard" parent="Dressing/steel_cupboard_1" index="0" unique_id=1845217455]
+[node name="steel_cupboard" parent="Dressing/steel_cupboard_1" index="0" unique_id=863426219]
 surface_material_override/0 = ExtResource("10")
 
 [node name="steel_cupboard_2" parent="Dressing" unique_id=170993981 instance=ExtResource("16")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.85, 0, 11.05)
 metadata/prop = "steel_cupboard"
 
-[node name="steel_cupboard" parent="Dressing/steel_cupboard_2" index="0" unique_id=1845217455]
+[node name="steel_cupboard" parent="Dressing/steel_cupboard_2" index="0" unique_id=863426219]
 surface_material_override/0 = ExtResource("10")
 
 [node name="workbench_1" parent="Dressing" unique_id=1223740835 instance=ExtResource("18")]
@@ -871,105 +870,105 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.5, 0, 3)
 metadata/prop = "workbench"
 metadata/station = "Workbench"
 
-[node name="workbench" parent="Dressing/workbench_1" index="0" unique_id=1493081406]
+[node name="workbench" parent="Dressing/workbench_1" index="0" unique_id=1539082177]
 surface_material_override/0 = ExtResource("10")
 
 [node name="tool_chest_1" parent="Dressing" unique_id=1083994120 instance=ExtResource("19")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.6, 0, 0.45)
 metadata/prop = "tool_chest"
 
-[node name="tool_chest" parent="Dressing/tool_chest_1" index="0" unique_id=1711186750]
+[node name="tool_chest" parent="Dressing/tool_chest_1" index="0" unique_id=587274947]
 surface_material_override/0 = ExtResource("10")
 
 [node name="parts_shelving_1" parent="Dressing" unique_id=624803264 instance=ExtResource("20")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6, 0, 0.35)
 metadata/prop = "parts_shelving"
 
-[node name="parts_shelving" parent="Dressing/parts_shelving_1" index="0" unique_id=701617794]
+[node name="parts_shelving" parent="Dressing/parts_shelving_1" index="0" unique_id=629844714]
 surface_material_override/0 = ExtResource("10")
 
 [node name="parts_shelving_2" parent="Dressing" unique_id=525798096 instance=ExtResource("20")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.7, 0, 0.35)
 metadata/prop = "parts_shelving"
 
-[node name="parts_shelving" parent="Dressing/parts_shelving_2" index="0" unique_id=701617794]
+[node name="parts_shelving" parent="Dressing/parts_shelving_2" index="0" unique_id=629844714]
 surface_material_override/0 = ExtResource("10")
 
 [node name="drum_bund_b_1" parent="Dressing" unique_id=1629810600 instance=ExtResource("21")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.1, 0, 13.1)
 metadata/prop = "drum_bund_b"
 
-[node name="drum_bund_b" parent="Dressing/drum_bund_b_1" index="0" unique_id=324588668]
+[node name="drum_bund_b" parent="Dressing/drum_bund_b_1" index="0" unique_id=999953522]
 surface_material_override/0 = ExtResource("10")
 
 [node name="wall_hose_reel_1" parent="Dressing" unique_id=230169389 instance=ExtResource("22")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.9, 1.2, 11)
 metadata/prop = "wall_hose_reel"
 
-[node name="wall_hose_reel" parent="Dressing/wall_hose_reel_1" index="0" unique_id=1361916474]
+[node name="wall_hose_reel" parent="Dressing/wall_hose_reel_1" index="0" unique_id=1168062879]
 surface_material_override/0 = ExtResource("10")
 
 [node name="fire_point_1" parent="Dressing" unique_id=1713362293 instance=ExtResource("23")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 0, 0.1)
 metadata/prop = "fire_point"
 
-[node name="fire_point" parent="Dressing/fire_point_1" index="0" unique_id=1273291196]
+[node name="fire_point" parent="Dressing/fire_point_1" index="0" unique_id=1716418675]
 surface_material_override/0 = ExtResource("10")
 
 [node name="pegboard_tools_1" parent="Dressing" unique_id=1877397426 instance=ExtResource("24")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 1, 1.4)
 metadata/prop = "pegboard_tools"
 
-[node name="pegboard_tools" parent="Dressing/pegboard_tools_1" index="0" unique_id=980837745]
+[node name="pegboard_tools" parent="Dressing/pegboard_tools_1" index="0" unique_id=770568149]
 surface_material_override/0 = ExtResource("10")
 
 [node name="old_bicycle_1" parent="Dressing" unique_id=1905553287 instance=ExtResource("25")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.36, 0, 6.3)
 metadata/prop = "old_bicycle"
 
-[node name="old_bicycle" parent="Dressing/old_bicycle_1" index="0" unique_id=135621670]
+[node name="old_bicycle" parent="Dressing/old_bicycle_1" index="0" unique_id=1138054893]
 surface_material_override/0 = ExtResource("10")
 
 [node name="garden_tool_rack_1" parent="Dressing" unique_id=1310253164 instance=ExtResource("26")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 0.03, 8)
 metadata/prop = "garden_tool_rack"
 
-[node name="garden_tool_rack" parent="Dressing/garden_tool_rack_1" index="0" unique_id=193980117]
+[node name="garden_tool_rack" parent="Dressing/garden_tool_rack_1" index="0" unique_id=743038859]
 surface_material_override/0 = ExtResource("10")
 
 [node name="storage_boxes_1" parent="Dressing" unique_id=654519006 instance=ExtResource("27")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.6, 0, 0.33)
 metadata/prop = "storage_boxes"
 
-[node name="storage_boxes" parent="Dressing/storage_boxes_1" index="0" unique_id=48179593]
+[node name="storage_boxes" parent="Dressing/storage_boxes_1" index="0" unique_id=940321167]
 surface_material_override/0 = ExtResource("10")
 
 [node name="storage_boxes_2" parent="Dressing" unique_id=1527882186 instance=ExtResource("27")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 0, 0.33)
 metadata/prop = "storage_boxes"
 
-[node name="storage_boxes" parent="Dressing/storage_boxes_2" index="0" unique_id=48179593]
+[node name="storage_boxes" parent="Dressing/storage_boxes_2" index="0" unique_id=940321167]
 surface_material_override/0 = ExtResource("10")
 
 [node name="air_compressor_1" parent="Dressing" unique_id=2108387145 instance=ExtResource("28")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.7, 0, 6.5)
 metadata/prop = "air_compressor"
 
-[node name="air_compressor" parent="Dressing/air_compressor_1" index="0" unique_id=540321939]
+[node name="air_compressor" parent="Dressing/air_compressor_1" index="0" unique_id=990269606]
 surface_material_override/0 = ExtResource("10")
 
 [node name="fridge_1" parent="Dressing" unique_id=788910354 instance=ExtResource("29")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.55, 0, 8.8)
 metadata/prop = "fridge"
 
-[node name="fridge" parent="Dressing/fridge_1" index="0" unique_id=1294328895]
+[node name="fridge" parent="Dressing/fridge_1" index="0" unique_id=889734464]
 surface_material_override/0 = ExtResource("10")
 
 [node name="store_shelving_1" parent="Dressing" unique_id=1616471710 instance=ExtResource("30")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 15.38, 0, 13.65)
 metadata/prop = "store_shelving"
 
-[node name="store_shelving" parent="Dressing/store_shelving_1" index="0" unique_id=1840284622]
+[node name="store_shelving" parent="Dressing/store_shelving_1" index="0" unique_id=1834845067]
 surface_material_override/0 = ExtResource("10")
 
 [node name="Detail" type="Node3D" parent="." unique_id=544850516]
@@ -978,7 +977,7 @@ surface_material_override/0 = ExtResource("10")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 1.5, 0.1)
 metadata/prop = "sign_no_smoking"
 
-[node name="sign_no_smoking" parent="Detail/sign_no_smoking_1" index="0" unique_id=1363456323]
+[node name="sign_no_smoking" parent="Detail/sign_no_smoking_1" index="0" unique_id=52107722]
 surface_material_override/0 = ExtResource("10")
 
 [node name="Fixtures" type="Node3D" parent="." unique_id=1234954423]
@@ -1047,13 +1046,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, 0)
 [node name="Workbench" type="Marker3D" parent="Stations" unique_id=975041777 groups=["spawn_drop_workbench"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 3)
 
-[node name="CarLift" parent="Stations" instance=ExtResource("station_car")]
+[node name="CarLift" parent="Stations" unique_id=1901750427 instance=ExtResource("station_car")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 7)
 
-[node name="LiftPanel" parent="Stations" instance=ExtResource("station_lift_panel")]
+[node name="LiftPanel" parent="Stations" unique_id=1756813805 instance=ExtResource("station_lift_panel")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.75, 0, 7)
 
-[node name="PartPicture" parent="Stations" instance=ExtResource("station_part_picture")]
+[node name="PartPicture" parent="Stations" unique_id=851346100 instance=ExtResource("station_part_picture")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.9, 0, 6.5)
 
 [node name="Markers" type="Node3D" parent="." unique_id=1458442779]
