@@ -272,16 +272,16 @@ func _condition_names(rule: Rule) -> Array[String]:
 
 
 ## CE17: the beds' and the boxes' takes share one `Cooldown` key at 0.25 s.
-func _assert_take_cooldown(rule: Rule, owner: String) -> void:
+func _assert_take_cooldown(rule: Rule, holder: String) -> void:
 	var cooldown: Cooldown = null
 	for condition: Condition in rule.conditions:
 		if condition is Cooldown:
 			cooldown = condition as Cooldown
-	assert_object(cooldown).override_failure_message(owner).is_not_null()
+	assert_object(cooldown).override_failure_message(holder).is_not_null()
 	if cooldown == null:
 		return
-	assert_str(cooldown.key).override_failure_message(owner).is_equal("cooking_take")
-	assert_float(cooldown.seconds).override_failure_message(owner).is_equal(0.25)
+	assert_str(cooldown.key).override_failure_message(holder).is_equal("cooking_take")
+	assert_float(cooldown.seconds).override_failure_message(holder).is_equal(0.25)
 
 
 ## The layouts of the mode's levels as the host reads them, each in its own collision world
