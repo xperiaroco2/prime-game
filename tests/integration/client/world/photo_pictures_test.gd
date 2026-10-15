@@ -127,6 +127,30 @@ func test_a_puppet_with_the_character_is_posed_before_its_draw() -> void:
 	assert_float(view.global_position.distance_to(hand.origin)).is_less(0.2)
 
 
+## §3.3: the render never touches a live view's `visible` (SightHider alone sets it; a view shown
+## for the render frame would draw through a wall), neither a hidden one nor a shown one.
+func test_the_render_never_sets_a_live_views_visible() -> void:
+	var changes: Array[String] = []
+	var views: Array[MeshInstance3D] = []
+	for shown: bool in [false, true]:
+		var view: MeshInstance3D = auto_free(MeshInstance3D.new())
+		view.mesh = BoxMesh.new()
+		view.visible = shown
+		view.add_to_group(SightHider.GROUP)
+		add_child(view)
+		view.visibility_changed.connect(func() -> void: changes.append(view.name))
+		views.append(view)
+	_shoot(0, [C.row(C.OTHER, FixturePhotoModes.SPOT_AT)])
+	await _frames(1)
+	assert_object(_pictures.rendering()).is_not_null()
+	drawn_now.emit()
+	await _frames(1)
+	assert_bool(_pictures.has_picture(0)).is_true()
+	assert_array(changes).is_empty()
+	assert_bool(views[0].visible).is_false()
+	assert_bool(views[1].visible).is_true()
+
+
 func test_the_picture_is_read_with_the_flash_on_then_the_flash_is_released() -> void:
 	_shoot(0, [C.row(C.OTHER, FixturePhotoModes.SPOT_AT)])
 	await _frames(1)
