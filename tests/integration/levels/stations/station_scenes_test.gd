@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## The Generator's station scenes (#799, G4; the Generator ADR's GE11) and the photo task's
-## devices (#783, P4: the camera, the film box, the printer, the board): each scene is the device,
+## devices (#783, P4: the camera, the film box, the printer, the board) and the car repair's lift
+## panel (#809, R5): each scene is the device,
 ## its collision its own primitive shapes on layer 1 (the art body's hint colliders off), one
 ## use-spot Marker3D in its spawn group on the floor in front of the device, where a player
 ## stands clear of the device, and the named nodes the client drives with their default looks
@@ -16,6 +17,9 @@ const CAMERA := "res://levels/stations/camera.tscn"
 const FILM_BOX := "res://levels/stations/film_box.tscn"
 const PRINTER := "res://levels/stations/printer.tscn"
 const PHOTO_BOARD := "res://levels/stations/photo_board.tscn"
+## The car repair's lift panel (#809, R5); the car, the parts shelf and the part picture, whose
+## use spots and collision differ, are car_repair_stations_test.gd's.
+const LIFT_PANEL := "res://levels/stations/lift_panel.tscn"
 ## Each station scene and its use spot's tag (provisional, "not a decision").
 const SCENES := {
 	SWITCH: &"switch",
@@ -24,6 +28,7 @@ const SCENES := {
 	FILM_BOX: &"film_box",
 	PRINTER: &"printer",
 	PHOTO_BOARD: &"photo_board",
+	LIFT_PANEL: &"lift_panel",
 }
 ## The other markers a scene holds besides its use spot: the printer's tray (`spawn_photo`).
 const OTHER_TAGS := {PRINTER: [&"photo"]}

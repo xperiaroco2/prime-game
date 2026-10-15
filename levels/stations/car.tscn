@@ -1,0 +1,91 @@
+[gd_scene format=3 uid="uid://c18ecphx83hk2"]
+
+[ext_resource type="PackedScene" uid="uid://camuj3xoilg63" path="res://levels/kit/house_props/garage_car.tscn" id="1_car"]
+[ext_resource type="PackedScene" uid="uid://ccoxavy0f4pq7" path="res://levels/kit/house_props/lift_posts.tscn" id="2_posts"]
+[ext_resource type="PackedScene" uid="uid://clkni2xs37p8e" path="res://levels/kit/house_props/lift_arms.tscn" id="3_arms"]
+[ext_resource type="PackedScene" uid="uid://duut54scweq51" path="res://assets/environment/house_props/floor_lift_zone.glb" id="4_zone"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="5_prop"]
+
+[sub_resource type="BoxShape3D" id="PostShape"]
+size = Vector3(0.5, 2.8, 0.36)
+
+[sub_resource type="BoxShape3D" id="ControlShape"]
+size = Vector3(0.28, 0.75, 0.14)
+
+[sub_resource type="BoxShape3D" id="HullShape"]
+size = Vector3(1.78, 1.44, 4.1)
+
+[node name="Car" type="Node3D" unique_id=1339042012]
+
+[node name="Floor" parent="." unique_id=800747709 instance=ExtResource("4_zone")]
+
+[node name="floor_lift_zone" parent="Floor" index="0" unique_id=1460728807]
+surface_material_override/0 = ExtResource("5_prop")
+
+[node name="Posts" parent="." unique_id=2132171634 instance=ExtResource("2_posts")]
+
+[node name="lift_posts" parent="Posts" index="0" unique_id=682797618]
+surface_material_override/0 = ExtResource("5_prop")
+
+[node name="lift_posts_col0" parent="Posts" index="1" unique_id=249657719]
+collision_layer = 0
+
+[node name="lift_posts_col1" parent="Posts" index="2" unique_id=2045135329]
+collision_layer = 0
+
+[node name="lift_posts_col2" parent="Posts" index="3" unique_id=1626282075]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1123994466]
+
+[node name="PostLeft" type="CollisionShape3D" parent="Collision" unique_id=1356100042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.46, 1.4, 0)
+shape = SubResource("PostShape")
+
+[node name="PostRight" type="CollisionShape3D" parent="Collision" unique_id=395349812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.46, 1.4, 0)
+shape = SubResource("PostShape")
+
+[node name="Control" type="CollisionShape3D" parent="Collision" unique_id=1569600384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.55, 1.375, 0.23)
+shape = SubResource("ControlShape")
+
+[node name="Lift" type="AnimatableBody3D" parent="." unique_id=682300598]
+collision_layer = 8
+
+[node name="Body" parent="Lift" unique_id=229889394 instance=ExtResource("1_car")]
+
+[node name="garage_car" parent="Lift/Body" index="0" unique_id=34436523]
+surface_material_override/0 = ExtResource("5_prop")
+
+[node name="garage_car_col0" parent="Lift/Body" index="1" unique_id=810438472]
+collision_layer = 0
+
+[node name="garage_car_col1" parent="Lift/Body" index="2" unique_id=1195999198]
+collision_layer = 0
+
+[node name="Arms" parent="Lift" unique_id=553468695 instance=ExtResource("3_arms")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+
+[node name="lift_arms" parent="Lift/Arms" index="0" unique_id=54725215]
+surface_material_override/0 = ExtResource("5_prop")
+
+[node name="lift_arms_col0" parent="Lift/Arms" index="1" unique_id=1581165197]
+collision_layer = 0
+
+[node name="lift_arms_col1" parent="Lift/Arms" index="2" unique_id=691640859]
+collision_layer = 0
+
+[node name="Hull" type="CollisionShape3D" parent="Lift" unique_id=1833526924]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.88, 0)
+shape = SubResource("HullShape")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1781605265 groups=["spawn_car"]]
+
+[node name="CarEnd" type="Marker3D" parent="." unique_id=629479697 groups=["spawn_car_end"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2.3)
+
+[editable path="Floor"]
+[editable path="Posts"]
+[editable path="Lift/Body"]
+[editable path="Lift/Arms"]
