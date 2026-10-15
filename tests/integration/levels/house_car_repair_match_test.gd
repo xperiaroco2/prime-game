@@ -419,8 +419,38 @@ func test_the_holder_s_claim_into_the_box_then_a_swap_ends_with_it_dead_once() -
 	assert_vector(player.position).is_equal_approx(into, Vector3.ONE * NEAR)
 	assert_int(player.life).is_equal(PlayerState.Life.ALIVE)
 	# The action in the same tick: the hold stops first, the Swap runs for a living actor, then
-	# the drop kills the holder (RE17).
+	# the drop kills the holder (RE17). Applied, not refused: a refused or skipped Swap would leave
+	# the holder dead all the same, by ChannelTicks' re-check of the hold from the box.
+	var seen := FixtureModes.rejections(_game, holder).size()
+	var claim_tick := _game.ticked_through() + 1
+	var from := _game.emitted().size()
 	_send(Intents.SWAP, holder)
+	_tick()
+	var refused := FixtureModes.rejections(_game, holder).slice(seen)
+	assert_array(refused).override_failure_message("the Swap: %s" % [refused]).is_empty()
+	# What the holder was sent: the drop, then its Swap, then its Died, all on the claim's tick.
+	var order: Array[String] = []
+	var body := Vector3.INF
+	for emitted: EmittedEvent in _game.emitted().slice(from):
+		if not emitted.recipients.has(holder):
+			continue
+		var step := ""
+		var lift := emitted.event as LiftChangedEvent
+		var swapped := emitted.event as SwappedEvent
+		var died := emitted.event as DiedEvent
+		if lift != null:
+			step = "LiftChanged(%s)" % lift.up
+		elif swapped != null and swapped.peer == holder:
+			step = "Swapped"
+		elif died != null and died.peer == holder:
+			step = "Died"
+			body = died.position
+		if not step.is_empty():
+			order.append("%s on %d" % [step, emitted.tick])
+	var want: Array[String] = []
+	for step: String in ["LiftChanged(false)", "Swapped", "Died"]:
+		want.append("%s on %d" % [step, claim_tick])
+	assert_array(order).is_equal(want)
 	_ticks(Ticks.RATE)
 	assert_int(player.life).is_equal(PlayerState.Life.DEAD)
 	for peer: int in _game.state.present_peers():
@@ -440,8 +470,16 @@ func test_the_holder_s_claim_into_the_box_then_a_swap_ends_with_it_dead_once() -
 		assert_int(knocked_after).is_equal(0)
 		var lifts := _game.view_of(peer).events_named(&"LiftChanged")
 		assert_int(lifts.size()).is_equal(2)
+	# The part, swapped onto the belt, dropped at the body as for every death (ADR §4).
 	if part != null:
 		assert_int(part.where).is_equal(ItemState.Where.GROUND)
+		assert_vector(part.position).is_equal_approx(body, Vector3.ONE * NEAR)
+		var at_death := 0
+		for event: MatchEvent in _game.view_of(holder).events_named(&"ItemPlaced"):
+			var placed := event as ItemPlacedEvent
+			if placed.item == part.id and placed.cause == Items.DEATH:
+				at_death += 1
+		assert_int(at_death).is_equal(1)
 	assert_object(Channels.of_actor(_game.state, holder)).is_null()
 	_assert_quiet()
 	_assert_replays()
