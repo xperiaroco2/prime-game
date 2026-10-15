@@ -126,11 +126,13 @@ func press_interact() -> int:
 
 
 ## E released (#776): a hold on a box shorter than HOLD_SECONDS taps it, Interact(station -1,
-## item); the sequence number sent, or -1 when nothing was sent.
+## item), if the keys still listen and the crosshair is still on that box (it can leave the box in
+## the frame E is released, before hold_step() runs); the sequence number sent, or -1 when nothing
+## was sent.
 func release_interact() -> int:
 	var box := _held
 	_held = -1
-	if box < 0 or not _acts() or not model.items.has(box):
+	if box < 0 or not listening or not _acts() or _target != box or not model.items.has(box):
 		return -1
 	return session.send_intent(Intents.INTERACT, {"station": -1, "item": box})
 

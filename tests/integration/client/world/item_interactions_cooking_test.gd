@@ -4,8 +4,9 @@ extends GdUnitTestSuite
 ## FixtureCookingModes. A tap (E released before ItemInteractions.HOLD_SECONDS) sends
 ## Interact(station -1, item box), which takes an ingredient out; a hold reaching HOLD_SECONDS sends
 ## PickUp(box) once and nothing on the release. The box is the one aimed at when E went down; the
-## hold is dropped, sending nothing, when the keys stop listening (the Esc menu) or the crosshair
-## leaves the box. An item that is no box is still picked up on the press.
+## hold is dropped, sending nothing, when the keys stop listening (the Esc menu), the crosshair
+## leaves the box (also in the frame E is released) or the box vanishes. An item that is no box is
+## still picked up on the press.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
@@ -88,6 +89,30 @@ func test_looking_away_from_the_box_drops_the_hold_and_sends_nothing() -> void:
 	_keys.press_interact()
 	await _look_at(Vector3(0, 6, -1.4))
 	assert_int(_keys.target()).is_equal(-1)
+	assert_int(_keys.hold_step(ItemInteractions.HOLD_SECONDS)).is_equal(-1)
+	assert_int(_keys.release_interact()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
+	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(0)
+
+
+func test_a_release_after_the_crosshair_left_the_box_sends_nothing() -> void:
+	await _look_at(AT)
+	_keys.press_interact()
+	await _look_at(Vector3(0, 6, -1.4))
+	# Released in the frame the aim left: no hold_step() ran in between.
+	assert_int(_keys.release_interact()).is_equal(-1)
+	assert_int(_keys.held_box()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
+	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(0)
+
+
+func test_a_box_that_vanishes_mid_hold_is_neither_tapped_nor_picked_up() -> void:
+	await _look_at(AT)
+	_keys.press_interact()
+	_model.fold(&"ItemVanished", {"item": BOX})
+	await get_tree().physics_frame
 	assert_int(_keys.hold_step(ItemInteractions.HOLD_SECONDS)).is_equal(-1)
 	assert_int(_keys.release_interact()).is_equal(-1)
 	_harness.pump()
