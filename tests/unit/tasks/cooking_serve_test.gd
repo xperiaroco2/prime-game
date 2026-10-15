@@ -249,6 +249,48 @@ func test_a_burger_matching_another_place_s_order_is_wrong() -> void:
 	assert_int(FixtureCookingModes.state_of(_game).done_count()).is_equal(0)
 
 
+## A burger left lying vanishes in its vanish_seconds like any item, and its record goes at the
+## next plating: a record serves only its own burger, never an item given its id later.
+func test_a_burger_left_lying_vanishes_and_its_record_goes() -> void:
+	var type := FixtureCookingModes.type_of(_game.mode)
+	type.burger.actions = [FixtureItemModes.put_down_rule(1.0)]
+	FixtureCookingModes.plate(_game, P1, 0)
+	var burger := FixtureCookingModes.take_burger(_game, P1, 0)
+	var lost := burger.id
+	FixtureItemModes.put_down(_game, P1, Vector3.FORWARD)
+	FixtureModes.run_ticks(_game, 1)
+	assert_object(FixtureCookingModes.held(_game, P1)).is_null()
+	assert_bool(_game.state.items.has(lost)).is_true()
+	FixtureModes.run_ticks(_game, Ticks.from_seconds(FixtureCookingModes.VANISH) + 1)
+	assert_bool(_game.state.items.has(lost)).is_false()
+	var vanished: Array = []
+	for dict: Dictionary in FixtureCookingModes.dicts(_game, P2, &"ItemVanished"):
+		vanished.append(dict["item"])
+	assert_array(vanished).contains([lost])
+	var burgers := FixtureCookingModes.state_of(_game).burgers
+	assert_bool(burgers.has(lost)).is_true()
+	FixtureCookingModes.plate(_game, P1, 0)
+	var next := FixtureCookingModes.take_burger(_game, P1, 0)
+	assert_int(next.id).is_not_equal(lost)
+	assert_array(burgers.keys()).is_equal([next.id])
+
+
+## A record bound to another burger (a vanished one's, left on a reused id) serves nothing: the
+## board refuses the burger in hand `unavailable` and keeps it.
+func test_a_burger_on_another_burger_s_record_is_refused_unavailable() -> void:
+	FixtureCookingModes.plate(_game, P1, 0)
+	var first := FixtureCookingModes.take_burger(_game, P1, 0)
+	FixtureCookingModes.plate(_game, P2, 1)
+	var second := FixtureCookingModes.take_burger(_game, P2, 1)
+	var burgers := FixtureCookingModes.state_of(_game).burgers
+	burgers[second.id] = burgers[first.id]
+	FixtureCookingModes.serve(_game, P2)
+	assert_array(FixtureModes.rejections(_game, P2)).is_equal([&"unavailable"])
+	assert_object(FixtureCookingModes.held(_game, P2)).is_same(second)
+	assert_array(_game.view_of(P2).events_named(&"BurgerServed")).is_empty()
+	assert_bool(_order(0).done).is_false()
+
+
 func _order(index: int) -> Cooking.Order:
 	return FixtureCookingModes.state_of(_game).orders[index]
 

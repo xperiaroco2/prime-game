@@ -55,10 +55,12 @@ class Order:
 
 ## A plated burger (the amendment of 2026-10-15): the order it was plated for (its index in
 ## State.orders: the place it was taken from) and the kinds on its three slots. Host-only:
-## BurgerPlated names the kinds, never whether they are right.
+## BurgerPlated names the kinds, never whether they are right. `item` is the burger's own
+## ItemState: a record serves only that item, never another given its id once it vanished.
 class Burger:
 	extends RefCounted
 
+	var item: ItemState
 	var order := -1
 	var bun: ItemKind
 	var patty: ItemKind
@@ -417,6 +419,7 @@ func _take_burger(ctx: MatchContext, task_state: State, index: int, station: Sta
 	if item == null:
 		ctx.error("Cooking: no burger made at place %d" % station.id)
 		return
+	made.item = item
 	task_state.burgers[item.id] = made
 	ctx.emit(BurgerPlatedEvent.new(item.id, station.id, made.bun.id, made.patty.id, made.herb.id))
 
@@ -427,7 +430,7 @@ func _serve(ctx: MatchContext, task: MatchTask) -> void:
 	var task_state := task.state as State
 	var hand := Items.held_by(ctx.state, ctx.actor)
 	var made: Burger = task_state.burgers.get(hand.id if hand != null else -1)
-	if made == null:
+	if made == null or made.item != hand:
 		ctx.error("Cooking: player %d served no plated burger" % ctx.actor)
 		return
 	task_state.burgers.erase(hand.id)
@@ -474,12 +477,12 @@ static func _clear_plate(ctx: MatchContext, order: Order) -> void:
 	order.herb_item = -1
 
 
-## The burger entries whose item is gone or is a burger no more (it vanished, left lying, and its
-## id may be reused) are dropped.
-func _drop_stale(ctx: MatchContext, task_state: State) -> void:
+## The burger entries whose burger is gone (it vanished, left lying, and its id may be reused by
+## another item) are dropped.
+static func _drop_stale(ctx: MatchContext, task_state: State) -> void:
 	for item_id: int in task_state.burgers.keys():
-		var item: ItemState = ctx.state.items.get(item_id)
-		if item == null or item.kind != burger:
+		var made: Burger = task_state.burgers[item_id]
+		if ctx.state.items.get(item_id) != made.item:
 			task_state.burgers.erase(item_id)
 
 
@@ -524,7 +527,7 @@ func _serve_problem(task_state: State, hand: ItemState) -> StringName:
 	if hand.kind != burger:
 		return StationUsable.WRONG_ITEM
 	var made: Burger = task_state.burgers.get(hand.id)
-	if made == null or task_state.orders[made.order].done:
+	if made == null or made.item != hand or task_state.orders[made.order].done:
 		return StationUsable.UNAVAILABLE
 	return &""
 
