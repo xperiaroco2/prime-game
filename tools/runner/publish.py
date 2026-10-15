@@ -12,6 +12,9 @@ PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker an
 In an agent's shell (AGENT_ENV set, as for hostjoin's windows) its verify is `verify --changed` (#859): the lint
 step lints the changed GDScript only; a human's publish lints every file, and CI's `verify --full` always does.
 
+A design-only change (#1123, design_only.check: every changed path on .github/design-only-paths.txt) verifies with
+doctor and lint only, no Godot check, as verify's fast run does for it.
+
 Its verify is quiet unless `--verbose` (#572): its red steps' failure lines and its summary; the whole output in
 tools/out/logs/verify-output.log. Publish's own lines are few and print as before.
 """

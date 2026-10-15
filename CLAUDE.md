@@ -80,7 +80,7 @@ A code diff → `code-reviewer`, plus `netcode-security-reviewer` if `core/ serv
 
 ## Definition of done (AGENT_WORKFLOW §4.2)
 1. `verify` (lint and check) green, its tail pasted; CI (the full suite) green on the PR; red → stop and report.
-2. Fresh-context review as routed above; fix findings or list them in the PR.
+2. Fresh-context review as routed above (none for a design-only diff, §4.2); fix findings or list them in the PR.
 3. Docs updated if durable knowledge changed; intervention and credit entries if any.
 4. Engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; others ask once: "Publish now?". Then
    `publish`, the PR, the handoff comment.
