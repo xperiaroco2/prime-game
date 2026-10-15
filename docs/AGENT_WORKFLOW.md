@@ -1670,8 +1670,9 @@ project settings in a worktree's editor (`ProjectSettings.save()`) copies both k
 half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
 or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>` and `gdunit.main(paths)` stay one
 process unless `--shards K`; `test --repeat N` takes the same count for each of its runs since #817, its shards at
-the run's clock. `PRIME_TEST_HALF=1` or `2` (#1065) makes a run without paths one half of the suites
-(`gdunit.half_of`, as `verify --part test-1`/`test-2`): the nightly `flaky` job's split. The shards are balanced by the last per-suite times
+the run's clock. `PRIME_TEST_HALF=1` or `2` (#1065) is read by `test --repeat` alone (plain `test` ignores it):
+without paths it runs one half of the suites (`gdunit.half_of`, as `verify --part test-1`/`test-2`), the nightly
+`flaky` job's split. The shards are balanced by the last per-suite times
 (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
 checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
 shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
@@ -1918,8 +1919,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   CI's `test-1` and `test-2`), each on its own runner with `PRIME_TEST_HALF=<n>`: `test --repeat` without paths runs
   only that half (nightly run 38689352624: the art House's suites, about 1400 s a run, made one job's two shards hit
   645 s in all three runs). Each sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times of an
-  earlier night of its half (else CI's `test-<n>` save, #980, else any), to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
-  `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variables and runs every suite in one
+  earlier night of its half (else CI's `test-<n>` save, #980, else any), to balance the shards (a suite CI times at
+  fixed fps alone counts its seconds there x `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variables and runs every suite in one
   process per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
   1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when a half outgrows two
   shards, raise the job's count. Only a green job saves its times (the cache's post step).
@@ -1971,8 +1972,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 - A comment on the "Night jobs" issue from the nightly workflow: open its run link. The summary page shows "GdUnit4,
   3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
   the engineer's approval), **failed in every run** (a regression on that ref: fix first), and the suites with a
-  failure, once per ref (the job's name holds it). The artifact `nightly-flaky-half<n>-<ref>` holds each run's HTML report of that half,
-  `summary.json` and the logs. A failure on a release ref alone is the release's own (fix it on `release/m<k>`).
+  failure, once per ref (the job's name holds it). The artifact `nightly-flaky-half<n>-<ref>` holds each run's HTML
+  report of that half, `summary.json` and the logs. A failure on a release ref alone is the release's own (fix it on `release/m<k>`).
 - The perf job's section of the summary page: its numbers with the wire budgets' headroom, and the metrics that
   moved by more than the threshold against the last night. A jump in the host step or the bytes per peer after a
   merge is worth an issue (timings on a shared runner are noisy: look for a move that stays); the artifact
