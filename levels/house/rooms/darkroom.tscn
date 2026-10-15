@@ -10,7 +10,7 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/slab_yard_2x2.tscn" id="5"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/photo_board.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://bkuf0uulqcy17" path="res://levels/stations/photo_board.tscn" id="station_photo_board"]
 
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="7"]
 
@@ -620,14 +620,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(16, 0, 42, 0)
 
 [node name="Dressing" type="Node3D" parent="."]
-
-[node name="photo_board_1" parent="Dressing" instance=ExtResource("6")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8, 0, 7.2)
-metadata/prop = "photo_board"
-metadata/station = "PhotoBoard"
-
-[node name="photo_board" parent="Dressing/photo_board_1"]
-surface_material_override/0 = ExtResource("7")
 
 [node name="tray_table_1" parent="Dressing" instance=ExtResource("8")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)
@@ -1344,5 +1336,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
 
 [node name="Stations" type="Node3D" parent="." unique_id=240459047]
 
-[node name="PhotoBoard" type="Marker3D" parent="Stations" unique_id=1841733633]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 6)
+[node name="PhotoBoard" parent="Stations" instance=ExtResource("station_photo_board")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8, 0, 7.2)

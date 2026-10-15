@@ -1,0 +1,88 @@
+[gd_scene format=3 uid="uid://blnaiwsyiieoy"]
+
+[ext_resource type="PackedScene" uid="uid://ngabk2oqwj07" path="res://levels/kit/house_props/photo_printer.tscn" id="1_body"]
+[ext_resource type="PackedScene" uid="uid://b2qnu565xwq55" path="res://levels/kit/house_props/desk.tscn" id="2_desk"]
+[ext_resource type="PackedScene" uid="uid://dnx80ht7lj0wk" path="res://levels/kit/house_props/computer_set.tscn" id="3_computer"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="4_prop"]
+
+[sub_resource type="BoxShape3D" id="DeskShape"]
+size = Vector3(1.38, 0.72, 0.74)
+
+[sub_resource type="BoxShape3D" id="PrinterFrontShape"]
+size = Vector3(0.5, 0.18, 0.34)
+
+[sub_resource type="BoxShape3D" id="PrinterBackShape"]
+size = Vector3(0.34, 0.12, 0.2)
+
+[sub_resource type="BoxShape3D" id="MonitorShape"]
+size = Vector3(0.56, 0.42, 0.08)
+
+[sub_resource type="BoxShape3D" id="KeyboardShape"]
+size = Vector3(0.6, 0.07, 0.44)
+
+[node name="Printer" type="Node3D" unique_id=756220376]
+
+[node name="Desk" parent="." unique_id=938701012 instance=ExtResource("2_desk")]
+
+[node name="desk_col0" parent="Desk" index="1" unique_id=717128153]
+collision_layer = 0
+
+[node name="Computer" parent="." unique_id=365207071 instance=ExtResource("3_computer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.75, -0.05)
+
+[node name="computer_set" parent="Computer" index="0" unique_id=837895587]
+surface_material_override/0 = ExtResource("4_prop")
+
+[node name="computer_set_col0" parent="Computer" index="1" unique_id=1731917372]
+collision_layer = 0
+
+[node name="computer_set_col1" parent="Computer" index="2" unique_id=272484010]
+collision_layer = 0
+
+[node name="Body" parent="." unique_id=119445568 instance=ExtResource("1_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.75, -0.1)
+
+[node name="photo_printer" parent="Body" index="0" unique_id=1206161150]
+surface_material_override/0 = ExtResource("4_prop")
+
+[node name="photo_printer_photo" parent="Body" index="1" unique_id=661290001]
+visible = false
+surface_material_override/0 = ExtResource("4_prop")
+
+[node name="photo_printer_col0" parent="Body" index="2" unique_id=799350746]
+collision_layer = 0
+
+[node name="photo_printer_col1" parent="Body" index="3" unique_id=1487023948]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=162805090]
+
+[node name="Desk" type="CollisionShape3D" parent="Collision" unique_id=154136213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
+shape = SubResource("DeskShape")
+
+[node name="PrinterFront" type="CollisionShape3D" parent="Collision" unique_id=333547052]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.84, -0.07)
+shape = SubResource("PrinterFrontShape")
+
+[node name="PrinterBack" type="CollisionShape3D" parent="Collision" unique_id=1415562787]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.99, -0.2)
+shape = SubResource("PrinterBackShape")
+
+[node name="Monitor" type="CollisionShape3D" parent="Collision" unique_id=329341446]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.96, -0.27)
+shape = SubResource("MonitorShape")
+
+[node name="Keyboard" type="CollisionShape3D" parent="Collision" unique_id=1679695996]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.785, -0.02)
+shape = SubResource("KeyboardShape")
+
+[node name="Tray" type="Marker3D" parent="." unique_id=37023817 groups=["spawn_photo"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.94, 0)
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1561718327 groups=["spawn_printer"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.9)
+
+[editable path="Desk"]
+[editable path="Computer"]
+[editable path="Body"]

@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://cjc0u0tn28m6v"]
+
+[ext_resource type="PackedScene" uid="uid://bxhtu5qpcbnh6" path="res://levels/kit/house_props/tripod_camera_zones.tscn" id="1_body"]
+
+[sub_resource type="BoxShape3D" id="TripodShape"]
+size = Vector3(0.38, 1.4, 0.44)
+
+[node name="Camera" type="Node3D" unique_id=1804597816]
+
+[node name="Body" parent="." unique_id=10642620 instance=ExtResource("1_body")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="tripod_camera_col0" parent="Body" index="1" unique_id=1494616387]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=287042351]
+
+[node name="Tripod" type="CollisionShape3D" parent="Collision" unique_id=1575347513]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("TripodShape")
+
+[node name="FilmSlot" type="Marker3D" parent="." unique_id=3441765]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.32, 0.16)
+
+[node name="FramesLeft" type="Label3D" parent="." unique_id=673355343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, 0.25)
+visible = false
+pixel_size = 0.002
+font_size = 48
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1847462201 groups=["spawn_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.8)
+
+[editable path="Body"]
