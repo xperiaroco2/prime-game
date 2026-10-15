@@ -232,3 +232,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.04, 8)
 
 [node name="Zone02" type="Marker3D" parent="Markers" unique_id=929376803 groups=["spawn_zone"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.5, 23)
+
+[editable path="Shell/outdoor_stairs_2"]

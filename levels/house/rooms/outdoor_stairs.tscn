@@ -82,3 +82,6 @@ metadata/glow = true
 [node name="Doors" type="Node3D" parent="." unique_id=306461664]
 
 [node name="Stations" type="Node3D" parent="." unique_id=643328103]
+
+[editable path="Shell/outdoor_stairs_1"]
+[editable path="Shell/outdoor_stairs"]

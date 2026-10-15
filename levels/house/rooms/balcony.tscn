@@ -243,3 +243,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 3)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 0)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1647527966]
+
+[editable path="Shell/floor_boards_2x2_1"]
+[editable path="Shell/floor_boards_2x2_2"]
+[editable path="Shell/floor_boards_2x2_3"]
+[editable path="Shell/floor_boards_2x2_4"]
+[editable path="Shell/floor_boards_2x2_5"]
+[editable path="Shell/floor_boards_2x1_1"]
+[editable path="Shell/floor_boards_2x1_2"]
+[editable path="Shell/floor_boards_2x1_3"]
+[editable path="Shell/floor_boards_2x1_4"]
+[editable path="Shell/floor_boards_2x1_5"]
+[editable path="Dressing/small_table_1"]

@@ -117,3 +117,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 16)
 
 [node name="Stations" type="Node3D" parent="." unique_id=328890934]
+
+[editable path="Shell/porch_2x2_1"]
