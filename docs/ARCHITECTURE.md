@@ -1793,6 +1793,10 @@ peer 1003 at (24.0, 0.0, 55.0), 45.311 m from the lens ..., beyond 12.001 m`), a
 **#773 (cooking C4)** added `GrillLoaded` and `IngredientPlaced` to both `TASK_EVENTS` lists; no bot plays Cooking
 (CE22, §9.7), so their plant waits for the House's (C8). What stands in: `cooking_events_name_no_player_test` (neither
 names a player) and `cooking_role_swap_test` (planted "a place refuses dissidents", both failed, reverted).
+**#777 (cooking C8)** planted it on the House with no bot, `tests/integration/levels/house_cooking_test.gd` (§9.7):
+`IngredientPlacedEvent.audience()` as `Audience.only(1)` failed the burger's test on `ScenarioInvariants`
+(`IngredientPlaced reached [1], not every present player [1, 1002, 1003]`); reverted. The other cooking events' plants
+wait for the bots that play Cooking (CE22): the House tests run `ScenarioInvariants` over every one they emit.
 **#808 (car repair R4)** added `FitChanged` and `PartFitted` to both `TASK_EVENTS` lists; no bot plays the House
 (§9.7), so their plant waits for its bots. What stands in: `car_repair_events_name_no_player_test` (`PartFitted` names
 no player; `FitChanged` names only the fitter, RD15 (a)).
@@ -8043,6 +8047,21 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   film out, the print in the study, the hang in the darkroom) completes a subtask, the shot's record naming the
   subject alone, every present player's view holding each photo event once. Seen failing with the leak plant on
   `ShotTaken` and on the other three photo events and with the record plant (§4.6.4.1); each reverted.
+  Cooking (the [cooking ADR](decisions/2026-10-10-cooking-task.md), CD15, CE22) has no bot scenario either. What
+  stands in for its scenarios is `tests/integration/levels/house_cooking_test.gd` (#777, C8), built as
+  `house_photo_test.gd`: the shipped base mode on the House in the host's real world, three players with forced roles,
+  Cooking isolated in the setup's `ChangeSettings` (`tasks` 1, every other task type banned, `burgers` 3 so every
+  place is a station), `ScenarioInvariants` on every call and tick, players moving only by accepted claims (the climb
+  from storage by the pantry stairs). Every station and box marker reads without errors and the deal fills them; a
+  player on each used device's spot passes `AtStation` and `StationInSight` (the grill and each place refuse
+  `empty_hand`, each bed gives its herb of the round), the two boards refuse `nothing_to_do` (CE6); a burger from
+  players' commands (a bun and a raw patty from the boxes in storage, the patty fried on the grill, the order's herb
+  from its bed, all three on the order's place) is done and the round goes on; a box carrier takes a herb and the
+  grill's patty onto the belt (the herb put down at the feet first) and is refused `two_handed` at a place, so the
+  base mode's own rules keep CD3 (b); behind the grill's body and each place's counter, inside the cylinder, a use is
+  refused `blocked`. The burger's and the carrier's matches replay from their command logs (the same events to the
+  same recipients on the same ticks, no `diagnostics`). Seen failing with the leak plant on `IngredientPlaced`
+  (§4.6.4.1); reverted.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
