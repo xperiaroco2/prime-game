@@ -5,6 +5,15 @@ extends GdUnitTestSuite
 ## its scene's file name; text() follows the language now.
 
 const MODES := "res://content/modes"
+## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
+## meanwhile: the photo task's film and photo (#784). No deck key fits either and none is invented
+## (`strings.csv` is the UI track's, byte for byte), so the UI track is asked for `item.film` and
+## `item.photo`. Self-expiring: the test fails once the deck carries the key, and the entry goes.
+## An exception the engineer approves in #784's PR, not a decision.
+const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
+	&"film": "Film",
+	&"photo": "Photo",
+}
 
 var _locale := ""
 
@@ -28,7 +37,11 @@ func test_every_shipped_role_item_and_task_has_a_deck_key() -> void:
 		for role: GameRole in mode.roles:
 			_assert_keyed(ContentNames.role(role.id, mode), "%s: role %s" % [file, role.id])
 		for kind: ItemKind in mode.item_kinds:
-			_assert_keyed(ContentNames.item(kind.id, mode), "%s: item %s" % [file, kind.id])
+			var what := "%s: item %s" % [file, kind.id]
+			if ITEMS_NOT_IN_DECK_YET.has(kind.id):
+				_assert_not_in_deck_yet(kind.id, mode, what)
+				continue
+			_assert_keyed(ContentNames.item(kind.id, mode), what)
 		for type: TaskType in mode.task_types:
 			_assert_keyed(ContentNames.task(type.id, mode), "%s: task %s" % [file, type.id])
 	assert_int(modes).is_greater_equal(2)
@@ -109,6 +122,17 @@ func test_what_the_deck_does_not_name() -> void:
 
 
 ## `key` is a deck key with text in English and Ukrainian.
+## An item kind of ITEMS_NOT_IN_DECK_YET: still no `item.<id>` in the deck (once it lands, remove
+## the entry) and the kind shows its display name.
+func _assert_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> void:
+	var key := ContentNames.ITEM_PREFIX + String(id)
+	var landed := "%s: the deck has %s now: remove it from ITEMS_NOT_IN_DECK_YET" % [what, key]
+	assert_bool(ContentNames.has_key(key)).override_failure_message(landed).is_false()
+	assert_str(ContentNames.item(id, mode)).override_failure_message(what).is_equal(
+		ITEMS_NOT_IN_DECK_YET[id]
+	)
+
+
 func _assert_keyed(key: String, what: String) -> void:
 	for locale: String in ["en", "uk"]:
 		var translation := load("res://client/i18n/strings.%s.translation" % locale) as Translation
