@@ -6421,7 +6421,7 @@ phase classes come in the task each row names.
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)); since #770 `Interact` may name an item on the ground too, routed to its kind's `target_actions` (a cooking box) | | packages and knives on the ground |
-| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each) |
+| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
 | Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
@@ -7031,8 +7031,8 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `switches`): the players turn every active switch on, then press the generator's button, and its charge runs for
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
-Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its data, its station scenes and the House's
-markers are later issues (no shipped mode deals it yet).
+Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
+#799), its data is a later issue (no shipped mode deals it yet).
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
 `switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to
@@ -7066,14 +7066,25 @@ on, the charge's ticks, whether it runs, done, and the window's bookkeeping, in 
 Visible to: everyone, all of it. No event names a player (the ADR's row 18), and nothing reads a role (§9.2).
 Status: `core/` built in #797 (Generator G2): `core/tasks/generator.gd`, `core/events/switch_changed_event.gd`,
 `core/events/button_pressed_event.gd`, the exact demands (`Demands.exact`, `markers_exact`), wire kinds 70 and 71
-(protocol 18), `ClientModel.Station`'s `on` and `presses`.
+(protocol 18), `ClientModel.Station`'s `on` and `presses`. The station scenes in #799 (Generator G4, GE11; provisional
+until the engineer approves them): `levels/stations/switch.tscn` (the active look, off and on, and GD5's fixed look)
+and `generator.tscn` (the button, four bars, the glow), each the art prop as its body, its own primitive collision
+and a use spot in `spawn_switch` or `spawn_generator`, instanced in the House's storage, boiler room, pump room,
+switch room and generator hall in place of the plain markers, their use spots at house-map §6's points (the
+convention: the [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes");
+read as plain points until G5's type snaps their tags.
 Tests: `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
 table), `generator_progress_events_test.gd` (the window, the order, the ticks), `generator_check_test.gd` (GE10,
 `use_emits`, the leak lists, no event naming a player), `generator_role_swap_test.gd` (planted "the button refuses
 dissidents", both failed, reverted), `generator_demands_test.gd` (the exact demands through `LayoutCheck` and the
 fit check), `tests/unit/content/demands_test.gd`, `tests/unit/client/net/client_model_test.gd`,
 `tests/unit/client/ui/host_text_view_test.gd`, and over the wire `tests/integration/server/host_session_generator_test.gd`
-(each client's decoded events equal `view_of`); fixtures `tests/fixtures/tasks/fixture_generator_modes.gd`.
+(each client's decoded events equal `view_of`); fixtures `tests/fixtures/tasks/fixture_generator_modes.gd`. The
+scenes: `tests/integration/levels/stations/station_scenes_test.gd` (one use spot on the floor in front, layer-1
+collision only from the scene's primitive shapes, a player on the use spot clear of the device, the default looks)
+and `tests/integration/levels/house_stations_test.gd` (the use spots read and snapped in the host's world at §6's
+points, a player on each clear of walls, no other marker at a use spot's (x, z), no art copy of a device left; a
+switch moved 0.5 m failed it).
 
 #### 9.5.20 Cooking (task type)
 What it does: one shared task (#682) whose subtasks are its N burgers, N the subtasks setting: each place shows an
@@ -7456,6 +7467,7 @@ levels/
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with its players' and items' markers
+  stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the

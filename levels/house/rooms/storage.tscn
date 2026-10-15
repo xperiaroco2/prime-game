@@ -26,8 +26,6 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/delivery_box_stack.tscn" id="13"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/wall_switch.tscn" id="14"]
-
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/car_parts_shelf.tscn" id="15"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/bread_rack.tscn" id="16"]
@@ -113,6 +111,8 @@
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/fluorescent_tube.glb" id="56"]
 
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/cage_lamp.glb" id="57"]
+
+[ext_resource type="PackedScene" path="res://levels/stations/switch.tscn" id="station_scene"]
 
 [node name="Storage" type="Node3D" unique_id=467302885]
 metadata/room_id = &"storage"
@@ -1155,20 +1155,6 @@ metadata/prop = "delivery_box_stack"
 metadata/station = "Boxes"
 
 [node name="delivery_box_stack" parent="Dressing/delivery_box_stack_3"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="wall_switch_1" parent="Dressing" instance=ExtResource("14")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 0, 14)
-metadata/prop = "wall_switch"
-metadata/station = "SwitchA"
-
-[node name="wall_switch" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="wall_switch_off" parent="Dressing/wall_switch_1"]
-surface_material_override/0 = ExtResource("10")
-
-[node name="wall_switch_on" parent="Dressing/wall_switch_1"]
 surface_material_override/0 = ExtResource("10")
 
 [node name="car_parts_shelf_1" parent="Dressing" instance=ExtResource("15")]
@@ -2363,8 +2349,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 8)
 [node name="Boxes" type="Marker3D" parent="Stations" unique_id=268338674]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 11)
 
-[node name="SwitchA" type="Marker3D" parent="Stations" unique_id=1634146548]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 14)
+[node name="SwitchA" parent="Stations" instance=ExtResource("station_scene")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.6, 0, 14)
 
 [node name="PartsShelf" type="Marker3D" parent="Stations" unique_id=1616311837]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0, 14)

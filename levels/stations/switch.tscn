@@ -1,0 +1,195 @@
+[gd_scene format=3 uid="uid://63kfyu6anlv2"]
+
+[ext_resource type="PackedScene" uid="uid://db83w60d7tlgd" path="res://levels/kit/house_props/wall_switch.tscn" id="1_panel"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="3_lever"]
+[ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="4_dark"]
+[ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="5_green"]
+[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="6_white"]
+[ext_resource type="Material" uid="uid://ed3wjf1x0byn" path="res://levels/kit/greybox_station_clear.tres" id="7_clear"]
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="8_yellow"]
+
+[sub_resource type="BoxShape3D" id="PanelShape"]
+size = Vector3(0.4, 0.55, 0.25)
+
+[sub_resource type="BoxShape3D" id="PostShape"]
+size = Vector3(0.08, 1.05, 0.07)
+
+[sub_resource type="BoxMesh" id="ActiveLever"]
+material = ExtResource("3_lever")
+size = Vector3(0.12, 0.03, 0.1)
+
+[sub_resource type="BoxMesh" id="LampDark"]
+material = ExtResource("4_dark")
+size = Vector3(0.2, 0.05, 0.02)
+
+[sub_resource type="BoxMesh" id="LampGreen"]
+material = ExtResource("5_green")
+size = Vector3(0.2, 0.05, 0.02)
+
+[sub_resource type="BoxMesh" id="FixedLever"]
+material = ExtResource("3_lever")
+size = Vector3(0.12, 0.03, 0.08)
+
+[sub_resource type="BoxMesh" id="LampWhite"]
+material = ExtResource("6_white")
+size = Vector3(0.2, 0.05, 0.02)
+
+[sub_resource type="BoxMesh" id="Cover"]
+material = ExtResource("7_clear")
+size = Vector3(0.3, 0.45, 0.09)
+
+[sub_resource type="BoxMesh" id="BlockBlack"]
+material = ExtResource("4_dark")
+size = Vector3(0.05, 0.05, 0.05)
+
+[sub_resource type="BoxMesh" id="BlockBlackV"]
+material = ExtResource("4_dark")
+size = Vector3(0.05, 0.075, 0.05)
+
+[sub_resource type="BoxMesh" id="BarYellowH"]
+material = ExtResource("8_yellow")
+size = Vector3(0.125, 0.05, 0.05)
+
+[sub_resource type="BoxMesh" id="BarYellowV"]
+material = ExtResource("8_yellow")
+size = Vector3(0.05, 0.1875, 0.05)
+
+[node name="Switch" type="Node3D" unique_id=836496456]
+
+[node name="Body" parent="." unique_id=1752352752 instance=ExtResource("1_panel")]
+
+[node name="wall_switch" parent="Body" index="0" unique_id=645776492]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="wall_switch_off" parent="Body" index="1" unique_id=551616240]
+visible = false
+
+[node name="wall_switch_on" parent="Body" index="2" unique_id=929436531]
+visible = false
+
+[node name="wall_switch_col0" parent="Body" index="3" unique_id=711803072]
+collision_layer = 0
+
+[node name="wall_switch_col1" parent="Body" index="4" unique_id=1567256662]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=295272901]
+
+[node name="Panel" type="CollisionShape3D" parent="Collision" unique_id=1331959344]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.325, 0.05)
+shape = SubResource("PanelShape")
+
+[node name="Post" type="CollisionShape3D" parent="Collision" unique_id=561892769]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.525, -0.04)
+shape = SubResource("PostShape")
+
+[node name="Active" type="Node3D" parent="." unique_id=236878947]
+
+[node name="Off" type="Node3D" parent="Active" unique_id=708515048]
+
+[node name="Lever" type="MeshInstance3D" parent="Active/Off" unique_id=972167976]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.24, 0.125)
+mesh = SubResource("ActiveLever")
+
+[node name="Lamp" type="MeshInstance3D" parent="Active/Off" unique_id=708464911]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.49, 0.085)
+mesh = SubResource("LampDark")
+
+[node name="On" type="Node3D" parent="Active" unique_id=1226248830]
+visible = false
+
+[node name="Lever" type="MeshInstance3D" parent="Active/On" unique_id=635236744]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.125)
+mesh = SubResource("ActiveLever")
+
+[node name="Lamp" type="MeshInstance3D" parent="Active/On" unique_id=692360468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.49, 0.085)
+mesh = SubResource("LampGreen")
+
+[node name="Fixed" type="Node3D" parent="." unique_id=820566913]
+visible = false
+
+[node name="Lever" type="MeshInstance3D" parent="Fixed" unique_id=259495314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.12)
+mesh = SubResource("FixedLever")
+
+[node name="Lamp" type="MeshInstance3D" parent="Fixed" unique_id=1525467954]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.49, 0.085)
+mesh = SubResource("LampWhite")
+
+[node name="Cover" type="MeshInstance3D" parent="Fixed" unique_id=424114017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.325, 0.12)
+mesh = SubResource("Cover")
+
+[node name="Frame" type="Node3D" parent="Fixed" unique_id=1039292374]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.325, 0.1)
+
+[node name="Corner1" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1117844918]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.175, -0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Corner2" type="MeshInstance3D" parent="Fixed/Frame" unique_id=293285347]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.175, 0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Corner3" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1022732755]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.175, -0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Corner4" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1277869490]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.175, 0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Middle1" type="MeshInstance3D" parent="Fixed/Frame" unique_id=582223332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Middle2" type="MeshInstance3D" parent="Fixed/Frame" unique_id=157570295]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+mesh = SubResource("BlockBlack")
+
+[node name="Middle3" type="MeshInstance3D" parent="Fixed/Frame" unique_id=103552650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.175, 0, 0)
+mesh = SubResource("BlockBlackV")
+
+[node name="Middle4" type="MeshInstance3D" parent="Fixed/Frame" unique_id=681977923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.175, 0, 0)
+mesh = SubResource("BlockBlackV")
+
+[node name="Bar1" type="MeshInstance3D" parent="Fixed/Frame" unique_id=725916925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0875, -0.25, 0)
+mesh = SubResource("BarYellowH")
+
+[node name="Bar2" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1127422323]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0875, 0.25, 0)
+mesh = SubResource("BarYellowH")
+
+[node name="Bar3" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1855460064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0875, -0.25, 0)
+mesh = SubResource("BarYellowH")
+
+[node name="Bar4" type="MeshInstance3D" parent="Fixed/Frame" unique_id=878321796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0875, 0.25, 0)
+mesh = SubResource("BarYellowH")
+
+[node name="Bar5" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1736358450]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.175, -0.13125, 0)
+mesh = SubResource("BarYellowV")
+
+[node name="Bar6" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1259407537]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.175, 0.13125, 0)
+mesh = SubResource("BarYellowV")
+
+[node name="Bar7" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1861745949]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.175, -0.13125, 0)
+mesh = SubResource("BarYellowV")
+
+[node name="Bar8" type="MeshInstance3D" parent="Fixed/Frame" unique_id=1592903722]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.175, 0.13125, 0)
+mesh = SubResource("BarYellowV")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1453824888 groups=["spawn_switch"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.4)
+
+[editable path="Body"]

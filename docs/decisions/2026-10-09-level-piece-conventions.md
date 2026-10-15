@@ -4,6 +4,8 @@
   engineer merges its PR (the content area: `levels/` and the skill `new-level-piece`).)
 - **Amended 2026-10-09 (#658):** greybox role materials in `levels/kit/` and a `Name` label per room, after the
   first playtest found one grey unreadable ("Looks and collision" below).
+- **Amended 2026-10-15 (#799, proposed: the engineer approves it in its PR):** station scenes, the device a player
+  uses where it stands ("Station scenes" below), set by the Generator's switch and generator for the stations after it.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer. He approved the level-design track's recommendations in chat on 2026-10-09 ("з усім
   рекомендаціями згоден") and reviews their written form here.
@@ -62,6 +64,32 @@ Replacing a room is replacing one instance in the map.
   role: walls, a floor per zone, stairs and door frames, with a floating `Label3D` name per room (#658: a single
   grey hid the doors and the structure in the first playtest). The kit's GLBs then replace the greybox inside the
   same piece, and the map does not change.
+
+### Station scenes
+A station a player uses where it stands (the [Generator ADR](2026-10-10-generator-task.md)'s GE11: the switch and the
+generator, #799; the photo, cooking and car repair stations follow) is a scene that is the device: the client finds
+it by its use spot's position and drives its named nodes; no script in `levels/`. Each station scene:
+- lives in `levels/stations/<device>.tscn`, its root a plain `Node3D` at the device's **floor point**, its front
+  facing local **+Z** (the art props' convention);
+- shows the device as `Body`: the art's kit wrapper (`levels/kit/house_props/<stem>.tscn`) with
+  `[editable path="Body"]` (an override inside an instance needs it, or `normalize` drops it), its mesh in the
+  room's material, the art's own state meshes (`*_off`, `*_on`) hidden and the wrapper's collider bodies at
+  `collision_layer = 0`; with no art prop, greybox boxes in `levels/kit/` materials;
+- collides through its own `Collision`: one `StaticBody3D` on layer 1 with primitive `CollisionShape3D`s
+  (`BoxShape3D` and the like) in the scene, never a GLB's hull, so it stays the same when the art re-imports and
+  in CI's stand-ins (no LFS content there);
+- holds one `UseSpot` `Marker3D` in its `spawn_<tag>` group on the floor (y = 0) in front of the device (x = 0,
+  z > 0), where a standing player clears the device's collision: the host snaps it and places the station there;
+- names the parts the client drives, outside `Body`, each with its default `visible` (the client sets only
+  `visible`; a moving part is its own `MeshInstance3D`): the switch's `Active/Off` (shown), `Active/On` and
+  `Fixed` (hidden), the generator's `Button`, `Bars/Bar1` to `Bar4` and `Glow` (hidden); their looks in
+  `levels/kit/greybox_station_*.tres` materials until the art track draws them (placeholders, "not a decision").
+
+A room places the scene under `Stations/<Name>` in place of the old marker, turned so that the use spot lands on
+its design doc's point (house-map §6), and drops the art's own copy of the device from `Dressing` (the prop with
+`metadata/station = "<Name>"`), or two devices stand there. `tests/integration/levels/stations/station_scenes_test.gd`
+checks each scene (a new one joins its `SCENES`), `tests/integration/levels/house_stations_test.gd` the House's
+placements.
 
 ### A check
 A test reads the map scene and its design doc's room table and fails when a room's position or size differs, so the

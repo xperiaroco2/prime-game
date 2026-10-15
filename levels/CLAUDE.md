@@ -30,12 +30,13 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle`, `spawn_zone`; House only, provisional (Delivery by meaning DE10, #826): `spawn_drop_dining_table`,
-  `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one marker each, none on the greybox). A marker in two such groups is a load error. The host reads them in scene-tree
-  order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a
-  scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on
-  those, no station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of
-  different tags at one (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may
-  stand below y = 0 there.
+  `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one marker each, none on the greybox;
+  House only, "not a decision" (GE11, #799): `spawn_switch`, `spawn_generator`, the use spots of station scenes).
+  A marker in two such groups is a load error. The host reads them in scene-tree order. The bot scenarios snap
+  station markers only on the levels they play (the lobby, the first map, any map a scenario names:
+  `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no
+  station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of different
+  tags at one (x, z). The other maps (House) are read as placed (GE12, #798): a station marker may stand below 0.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -52,10 +53,13 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
     its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
     are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
-- A map needs `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays on it: the
-  zone task lists the House alone in its `maps` (TaskType.maps, the Generator ADR's GD13 (b), #804), so the
-  greybox, a test bench only (#767), has none. House's three (the yard, the garden, the landing) are #651's
-  placeholders until the engineer moves them (#681 moved the generator hall's up to the yard).
+- `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays: its `maps` list the House
+  alone (GD13 (b), #804), the greybox (a test bench, #767) has none; House's three (the yard, the garden, the
+  landing) are #651's placeholders until the engineer moves them.
+- **Station scenes** (a device used where it stands: #799's switch and generator; photo, cooking, car repair follow):
+  read the [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at
+  the device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
+  `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
@@ -78,13 +82,9 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - The designer's agent edits only the content area and the shared logs, as listed in `content/CLAUDE.md`.
 
 ## Working next to the Godot editor
-A human may have this project open in the Godot editor while the agent works. The editor does not merge
-changes: whichever copy is saved last wins. Remind the human of the convention:
-1. Before asking the agent for anything: Scene → **Save All Scenes** («Зберегти всі сцени», Ctrl+Shift+Alt+S).
-2. When Godot says files changed on disk («Файли були змінені за межами Godot»), choose **Reload from disk**, which
-   the Ukrainian editor labels **«Джерело отримання»**. Never click **«Ігнорувати зовнішні зміни»**: the editor would
-   later save its old copy over the agent's work.
-3. Nobody edits a scene by hand while the agent is working on it.
+The editor does not merge changes (the copy saved last wins): remind the human of `docs/AGENT_WORKFLOW.md` §11.2:
+**Save All Scenes** first, then **Reload from disk** («Джерело отримання», never «Ігнорувати зовнішні зміни»), and
+no hand edit of a scene while the agent works on it.
 
 ## Assets
 - Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`). They land
