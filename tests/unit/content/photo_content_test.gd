@@ -104,8 +104,8 @@ func test_the_photos_setting_and_every_type_in_every_match() -> void:
 	assert_array([photos.default_value, photos.min_value, photos.max_value]).is_equal([3, 1, 5])
 	# §6.1's label (PD8).
 	assert_str(photos.display_name).is_equal("Photos (Photography)")
-	# `tasks` (GD7 (i)): every type that plays on the map, every match: the House's three
-	# (Delivery, the Generator and the photo task); the greybox deals its Delivery by colours alone.
+	# `tasks` (GD7 (i)): every type that plays on the map, every match: the House's four (Delivery,
+	# the Generator, the photo task and Cooking); the greybox deals its Delivery by colours alone.
 	var tasks := mode.find_setting(&"tasks")
 	var most := 0
 	for path: String in mode.maps:

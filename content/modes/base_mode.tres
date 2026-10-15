@@ -449,9 +449,9 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 3
+default_value = 4
 min_value = 1
-max_value = 3
+max_value = 4
 
 [sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")

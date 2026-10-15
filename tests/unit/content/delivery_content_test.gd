@@ -16,7 +16,7 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([3, 1, 3])
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([4, 1, 4])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
