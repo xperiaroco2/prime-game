@@ -4601,7 +4601,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   stands upright in the rig at the pose its item shows in, never the rest pose (the art's arms-out bind pose, which
   the clips lower): the hand and belt at the idle clip's first frame, the carry with `Carry_Upper`'s first frame on
   the carry layer's bones (the art's carry leans the chest forward, so a socket fitted at idle tipped the package).
-  A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+  A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own
+  albedo: the body colour of #551 (§4.7.50) stays on the character.
 - The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
@@ -4639,8 +4640,12 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
 - Tests: `tests/unit/client/player/avatar_clips_test.gd` (the table, every clip in the import contract with its loop:
   seen failing on the old contract; the velocity guards on AvatarClips and on AvatarViews' clip code: seen failing on
   planted reads), `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an
-  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off; the sockets on their bones at the idle pose,
-  upright at their fitting poses: the carry socket seen failing fitted at idle, #1050),
+  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off; the sockets on
+  their bones, upright at their fitting poses: the carry socket seen failing fitted at idle; the measured points'
+  signs in the art's bone frames, #1050), `character_rig_art_test.gd` on the art (where each socket lands: the hand
+  at the right middle knuckle, the belt beyond the left hip joint, the carry in front of the chest between the
+  palms: seen failing on a flipped hand point and a mirrored belt point; without the LFS art, as in CI, it checks
+  only that the GLB is a pointer),
   `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
   sockets; the clip per drawn move, a claimed sprint standing still is `Idle`: seen failing on a planted
   `pose.velocity`; a placement's jump; the carry layer; the one-shots per cause after the delay; a knocked-down
