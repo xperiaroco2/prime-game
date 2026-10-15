@@ -4595,8 +4595,13 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   in the physics step (base clips cross-faded, a time scale, the carry layer filtered to `Torso` and every bone below
   it, a one-shot), with no root motion (the clips are in place; the body's code moves the body, the collision capsule
   is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
-  the hand, belt and carry points where the placeholder had them at the idle clip's first frame, never the rest pose
-  (the art's arms-out bind pose, which the clips lower; placeholders until a `shot`). A tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+  the hand, belt and carry points, each a point in its bone's own frame measured on the art from close-up shots (#1050):
+  the hand's at the right palm (a one-handed item's bottom in the fist), the belt's on the outside of the left hip at
+  the waist, the carry's the bottom of a two-handed item held between both palms in front of the chest. Each socket
+  stands upright in the rig at the pose its item shows in, never the rest pose (the art's arms-out bind pose, which
+  the clips lower): the hand and belt at the idle clip's first frame, the carry with `Carry_Upper`'s first frame on
+  the carry layer's bones (the art's carry leans the chest forward, so a socket fitted at idle tipped the package).
+  A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
 - The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
@@ -4634,7 +4639,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
 - Tests: `tests/unit/client/player/avatar_clips_test.gd` (the table, every clip in the import contract with its loop:
   seen failing on the old contract; the velocity guards on AvatarClips and on AvatarViews' clip code: seen failing on
   planted reads), `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an
-  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off),
+  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off; the sockets on their bones at the idle pose,
+  upright at their fitting poses: the carry socket seen failing fitted at idle, #1050),
   `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
   sockets; the clip per drawn move, a claimed sprint standing still is `Idle`: seen failing on a planted
   `pose.velocity`; a placement's jump; the carry layer; the one-shots per cause after the delay; a knocked-down
