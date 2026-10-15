@@ -280,6 +280,9 @@ func _puppet(row: Dictionary) -> RemotePlayerBody:
 		var walk := rules.walk_speed_mps if rules != null else 0.0
 		var sprint := rules.sprint_speed_mps if rules != null else 0.0
 		body.apply_plan(AvatarClips.plan(state, walk, sprint))
+		# Drawn this frame, before any physics step would run the tree: posed now, or the art's
+		# arms-out rest (and the sockets' items with it) would be the picture.
+		body.character().pose_now()
 	if row.get("downed", false) as bool:
 		var radius := rules.capsule_radius_m if rules != null else 0.0
 		var flat := Basis(Vector3.UP, pose.yaw) * Basis(Vector3.RIGHT, -PI / 2.0)

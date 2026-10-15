@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 signal drawn_now
 
 const C := preload("res://tests/fixtures/client/fixture_photo_client.gd")
+const RigFixture := preload("res://tests/integration/client/player/character_fixture.gd")
 const FILM := 20
 const OTHER_FILM := 21
 
@@ -103,6 +104,27 @@ func test_the_held_item_goes_into_the_picture_with_its_puppet() -> void:
 	var views := puppet.find_children("*", "ItemView", true, false)
 	assert_int(views.size()).is_equal(1)
 	assert_int(PhotoLayers.layers_of(views[0])).is_equal(PhotoLayers.PHOTO)
+
+
+## With the avatars' character (the game's case) the puppet is drawn in its clip at once, its hand
+## item at the posed hand: the render is set up and drawn in one frame, before any physics step
+## would run the rig's tree, so `_process` is called by hand here with no physics step after it.
+func test_a_puppet_with_the_character_is_posed_before_its_draw() -> void:
+	var scene := RigFixture.scene(AvatarClips.all_clips(), RigFixture.BONES, true)
+	var avatars: AvatarViews = auto_free(AvatarViews.new())
+	avatars.character = CharacterSet.from_scene(scene, RigFixture.ragdoll())
+	_pictures.avatars = avatars
+	C.hold(_model, 40, &"film", C.OTHER)
+	_shoot(0, [C.row(C.OTHER, FixturePhotoModes.SPOT_AT, Vector3.FORWARD, false, 40)])
+	_pictures._process(0.0)
+	var rig := _pictures.puppets()[0].character()
+	assert_object(rig).is_not_null()
+	var wrist := rig.skeleton.find_bone(&"Wrist.R")
+	var rest := rig.skeleton.get_bone_global_rest(wrist).origin
+	assert_float(rest.distance_to(rig.skeleton.get_bone_global_pose(wrist).origin)).is_greater(0.3)
+	var view := rig.socket(&"Hand").find_children("*", "ItemView", true, false)[0] as Node3D
+	var hand := rig.skeleton.global_transform * rig.skeleton.get_bone_global_pose(wrist)
+	assert_float(view.global_position.distance_to(hand.origin)).is_less(0.2)
 
 
 func test_the_picture_is_read_with_the_flash_on_then_the_flash_is_released() -> void:
