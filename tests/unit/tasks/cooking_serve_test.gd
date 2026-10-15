@@ -188,8 +188,6 @@ func test_a_right_serve_clears_a_refilled_plate() -> void:
 	assert_bool(order.done).is_true()
 
 
-## A burger is checked against the order of the place it was plated on (decision 1 of the plan):
-## place 1's right burger completes order 1 only.
 ## Nothing about correctness before the serve (the amendment's rule 3): a right plate on place 0
 ## (by P1) and a wrong one on place 1 (by P2, so both start with empty hands), each filled and
 ## taken, reach both peers as the same events by name, and none of them carries a `right` field;
@@ -222,12 +220,33 @@ func test_no_event_tells_right_or_wrong_before_the_serve() -> void:
 	assert_array(_game.view_of(P2).events_named(&"BurgerServed")).is_empty()
 
 
+## A burger is checked against the order of the place it was plated on (decision 1 of the plan):
+## place 1's right burger completes order 1 only.
 func test_a_burger_serves_its_own_place_s_order() -> void:
 	FixtureCookingModes.cook(_game, P1, 1)
 	assert_bool(_order(1).done).is_true()
 	assert_bool(_order(0).done).is_false()
 	var served := {"station": _place(1), "right": true}
 	assert_array(FixtureCookingModes.dicts(_game, P2, &"BurgerServed")).is_equal([served])
+
+
+## A burger made on place 1 with order 0's parts is wrong, though order 0 is open and it matches
+## order 0: it is checked against its own place's order only, never any open one.
+func test_a_burger_matching_another_place_s_order_is_wrong() -> void:
+	var other := _order(0)
+	var own := _order(1)
+	var kinds: Array[StringName] = [other.bun.id, other.raw_patty.id, other.herb.id]
+	var mine: Array[StringName] = [own.bun.id, own.raw_patty.id, own.herb.id]
+	assert_array(kinds).is_not_equal(mine)
+	for kind_id: StringName in kinds:
+		FixtureCookingModes.put(_game, P1, 1, kind_id)
+	FixtureCookingModes.take_burger(_game, P1, 1)
+	FixtureCookingModes.serve(_game, P1)
+	var served := {"station": _place(1), "right": false}
+	assert_array(FixtureCookingModes.dicts(_game, P2, &"BurgerServed")).is_equal([served])
+	assert_bool(other.done).is_false()
+	assert_bool(own.done).is_false()
+	assert_int(FixtureCookingModes.state_of(_game).done_count()).is_equal(0)
 
 
 func _order(index: int) -> Cooking.Order:
