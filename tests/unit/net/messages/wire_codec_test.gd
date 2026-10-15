@@ -233,6 +233,42 @@ func test_the_encoder_refuses_counts_over_their_maxima_and_payloads_over_the_cap
 	_assert_refused(WireMessage.new(&"SettingsChanged", fields))
 
 
+## SettingsChanged's spawn tags (#810, protocol 34): needed_markers and map_markers hold
+## MAX_MARKERS (64) entries each and round-trip; one more is refused by the encoder and by the
+## decoder. needed_colours and palettes stay at MAX_ENTRIES (32). A changed cap is a protocol
+## change.
+func test_settings_changed_holds_the_most_spawn_tags_and_refuses_one_more() -> void:
+	assert_int(WireSchema.MAX_MARKERS).is_equal(64)
+	var fields := _settings_changed_fields()
+	for field: String in ["needed_markers", "map_markers"]:
+		fields[field] = _tags(WireSchema.MAX_MARKERS)
+	var decoded := _round_trip(WireMessage.new(&"SettingsChanged", fields))
+	assert_object(decoded).is_not_null()
+	if decoded == null:
+		return
+	for field: String in ["needed_markers", "map_markers"]:
+		assert_bool(Samples.same(decoded.fields[field], fields[field])).is_true()
+		var over := fields.duplicate()
+		over[field] = _tags(WireSchema.MAX_MARKERS + 1)
+		_assert_refused(WireMessage.new(&"SettingsChanged", over))
+		# The decoder: the full map's count byte raised by one. The payloads with this map full and
+		# empty agree up to that byte.
+		var empty := fields.duplicate()
+		empty[field] = _tags(0)
+		var full_payload := _schema.encode(WireMessage.new(&"SettingsChanged", fields))
+		var empty_payload := _schema.encode(WireMessage.new(&"SettingsChanged", empty))
+		var at := 0
+		while at < empty_payload.size() and full_payload[at] == empty_payload[at]:
+			at += 1
+		assert_int(full_payload[at]).is_equal(WireSchema.MAX_MARKERS)
+		full_payload[at] = WireSchema.MAX_MARKERS + 1
+		_assert_rejected(37, full_payload, "%s: 65 entries, at most 64" % field)
+	for field: String in ["needed_colours", "palettes"]:
+		var over := fields.duplicate()
+		over[field] = _tags(WireSchema.MAX_ENTRIES + 1)
+		_assert_refused(WireMessage.new(&"SettingsChanged", over))
+
+
 ## Host text is ids and whole numbers only (#548): a sentence, a third subject or a fifth
 ## argument is refused on both ends, and the longest text round-trips in the decoder's types.
 func test_host_text_holds_ids_and_numbers_within_their_maxima() -> void:
@@ -508,6 +544,14 @@ func _numbers(count: int) -> Dictionary[StringName, int]:
 	var found: Dictionary[StringName, int] = {}
 	for i: int in count:
 		found[StringName("n%031d" % i)] = WireField.S32_MIN
+	return found
+
+
+## `count` short spawn tags (`tag_00` ...), each with a count of 1.
+func _tags(count: int) -> Dictionary[StringName, int]:
+	var found: Dictionary[StringName, int] = {}
+	for i: int in count:
+		found[StringName("tag_%02d" % i)] = 1
 	return found
 
 
