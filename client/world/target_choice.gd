@@ -214,14 +214,16 @@ static func along_ray(
 ## Where the crosshair aims at item `id`: the middle of its look where it lies; for an item lying
 ## on a cooking station (a wrong ingredient on a plate, #776) the point `aim_of` (CookingViews.
 ## aim_of: id -> Vector3, or null) gives where the plate draws it, never its floor point (the use
-## spot the host measures reach from); null when it is drawn nowhere aimable.
+## spot the host measures reach from); a photo on the printer's tray or taken down on the board at
+## where PhotoViews draws it (#787); null when it is drawn nowhere aimable (the film in a camera).
 static func aim_at(model: ClientModel, id: int, aim_of: Callable = Callable()) -> Variant:
 	var item: ClientModel.Item = model.items.get(id)
 	if item == null:
 		return null
+	var aim: Variant = aim_of.call(id) if aim_of.is_valid() else null
 	if item.on_station < 0:
-		return ItemView.centre_of(item.kind, item.position)
-	return aim_of.call(id) if aim_of.is_valid() else null
+		return aim if aim is Vector3 else ItemView.centre_of(item.kind, item.position)
+	return aim
 
 
 ## How far along the ray from `origin` along the unit `direction` it enters the sphere of `radius`

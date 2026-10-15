@@ -41,7 +41,9 @@ var avatars: AvatarViews
 var player: PlayerController
 ## The items in flight and their arcs.
 var flights := ItemFlights.new()
-## Where an item lying on a cooking station is drawn (CookingViews.point_of, #776): a Vector3, or
+## Where a resting item is drawn instead of its own position (ItemWorld's drawn_point): on a
+## cooking station (CookingViews.point_of, #776) a Vector3; the film in a photo camera, a photo on
+## the tray (a Vector3) or on the board (a Transform3D: upright) by PhotoViews.drawn_point (#787);
 ## null to draw it at its own position. Unset: at its own position.
 var station_point := Callable()
 
@@ -159,7 +161,7 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		view.show_look(false)
 		return
 	if item.holder == ClientModel.NO_HOLDER:
-		view.global_transform = Transform3D(Basis.IDENTITY, _rest_point(view.item_id, item))
+		view.global_transform = _rest_point(view.item_id, item)
 		view.show_look(true)
 		return
 	var own := item.holder == model.own_peer
@@ -181,13 +183,16 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 	_place_at_body(view, item, body)
 
 
-## Where a resting item is drawn: on its plate or grill (`station_point`), else where it lies.
-func _rest_point(id: int, item: ClientModel.Item) -> Vector3:
-	if item.on_station >= 0 and station_point.is_valid():
+## Where a resting item is drawn: on its plate or grill, in its camera, on the tray or the board
+## (`station_point`), else where it lies.
+func _rest_point(id: int, item: ClientModel.Item) -> Transform3D:
+	if station_point.is_valid():
 		var at: Variant = station_point.call(id)
 		if at is Vector3:
+			return Transform3D(Basis.IDENTITY, at as Vector3)
+		if at is Transform3D:
 			return at
-	return item.position
+	return Transform3D(Basis.IDENTITY, item.position)
 
 
 ## A plate's ingredient gets its green (right, locked) or red outline; the grill's patty and every
