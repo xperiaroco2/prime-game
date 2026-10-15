@@ -1753,11 +1753,15 @@ player [1, 1002, 1003]`); reverted.
 **#779 (cooking C10)** added `ItemVanished` to both lists; no scenario plays a vanishing item kind yet (the base mode has none), so its plant waits for the first that does.
 **#771 (cooking C2)** added `ItemChanged` to both lists; its plant waits for the scenarios that play Cooking (CE22). `ScenarioBot._learn` folds a pick-up straight onto the belt (`belted` the item itself: the two-handed item stays `held`), pinned by `scenario_runner_test.gd`'s `test_a_take_straight_onto_the_belt_keeps_the_hand_item_held`, seen failing without the fold.
 **#797 (Generator G2)** added `SwitchChanged` and `ButtonPressed` to both `TASK_EVENTS` lists; no bot plays the
-Generator (the House is not played by bots, §9.7), so no leak plant was made for it: that plant is G7's (#802, on the
-House). What stands in until then is not a plant that the leak test caught: `generator_check_test` (both lists name
-every event the Generator emits), `generator_rules_test` (every present player, downed and dead included, receives the
-same `SwitchChanged`, `ButtonPressed` and `ZoneProgress`, so an audience-narrowing change fails there) and the wire test
-`host_session_generator_test` (each client's decoded events equal `view_of`).
+Generator (the House is not played by bots, §9.7), so no leak plant was made for it then. Beside it stand
+`generator_check_test` (both lists name every event the Generator emits), `generator_rules_test` (every present
+player, downed and dead included, receives the same `SwitchChanged`, `ButtonPressed` and `ZoneProgress`, so an
+audience-narrowing change fails there) and the wire test `host_session_generator_test` (each client's decoded events
+equal `view_of`). **#802 (Generator G7)** planted it on the House with no bot,
+`tests/integration/levels/house_generator_test.gd` (the House in the host's real world, `ScenarioInvariants` per call
+and per tick, §9.7): `SwitchChangedEvent.audience()` as `Audience.only` of the player who switched; the two tests that
+switch failed on `ScenarioInvariants` (`SwitchChanged reached [1003], not every present player [1, 1002, 1003]`);
+reverted. `LeakCheck` checks the same events once bots play a map with the Generator.
 **#772 (cooking C3)** added `OrderPosted` and `HerbsDealt` to both `TASK_EVENTS` lists; no bot plays Cooking (CE22,
 §9.7), so their plant waits for the House's scenarios. `cooking_check_test` holds both lists to every event
 `Cooking.emits()` names, and `cooking_events_name_no_player_test` keeps both events free of a player field.
@@ -7107,7 +7111,10 @@ scenes: `tests/integration/levels/stations/station_scenes_test.gd` (one use spot
 collision only from the scene's primitive shapes, a player on the use spot clear of the device, the default looks)
 and `tests/integration/levels/house_stations_test.gd` (the use spots read and snapped in the host's world at §6's
 points, a player on each clear of walls, no other marker at a use spot's (x, z), no art copy of a device left; a
-switch moved 0.5 m failed it).
+switch moved 0.5 m failed it). A match on the House (#802, Generator G7; no bot plays it, §9.7):
+`tests/integration/levels/house_generator_test.gd` (the shipped base mode in the host's world, `ScenarioInvariants`
+per call and tick: a use from each use spot, a full charge then `unavailable`, `blocked` and `out_of_reach` in the
+House's geometry, the markers the deal left with no station, and the leak plant of §4.6.4.1).
 
 #### 9.5.20 Cooking (task type)
 What it does: one shared task (#682) whose subtasks are its N burgers, N the subtasks setting: each place shows an
@@ -7780,6 +7787,21 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   Seen failing with `ZoneProgress` declared to the crew alone, to the zone's first player alone (the leak plant,
   §4.6.4.1), and with a downed player counted (`_anyone_inside` reading `DEAD` for not alive); each reverted.
   `ZoneProgress` over the wire and a freeze in a zone: `host_session_zone_test.gd` (§4.6.5.3).
+  The Generator (§9.5.19) has no bot scenario (GD7, GD13: it plays on the House alone). What stands in for its
+  scenarios is `tests/integration/levels/house_generator_test.gd` (#802, G7), built as `house_zone_test.gd`: the shipped
+  base mode on the House in the host's real world, three players with forced roles, the `switches` setting sent in the
+  setup's `ChangeSettings`, `ScenarioInvariants` on every call and tick. The five markers read without errors and each
+  holds a station; with four active switches a player on each use spot (a dissident among them) uses its station and
+  the button starts the charge; a full charge from scripted commands (60 s of host ticks, everyone claiming), after
+  which a press and a switch are refused `unavailable` and the round goes on (Delivery is not done); with two active
+  switches the two markers the deal left hold no station (GE14). The refusals in the House's own geometry: behind the
+  generator's body, inside its cylinder, `blocked`; in plain sight 2.5 m from it `out_of_reach`. At GD6's 2 m no
+  standing spot of another room lies inside a switch's cylinder (a one-off probe of #802, not kept in the repo, found
+  the nearest 3 m from switch A, in the darkroom; 3.35 m from B, in the darkroom; 3.45 m from D, in the hall; none
+  within 4 m of C; the generator's cylinder was not probed for one), so a player in the
+  darkroom behind the storage's wall is refused `out_of_reach`; with the switch cylinder widened to 3.5 m in a copy
+  of the mode (a test value, not a decision), the same player is refused `blocked` by the wall. Seen failing with the
+  leak plant (§4.6.4.1) and with `StationInSight` always passing (both `blocked` tests); each reverted.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
