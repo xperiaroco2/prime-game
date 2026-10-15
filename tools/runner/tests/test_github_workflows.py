@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, gdunit, verify
+from runner import cli, design_only, gdunit, verify
 from runner.common import git_bash
 
 try:
@@ -133,12 +133,37 @@ class GithubWorkflowsTest(unittest.TestCase):
         # The ruleset main-2 requires the context `verify`: the aggregate job keeps that name (#857).
         jobs = load(GITHUB / "workflows" / "ci.yml")["jobs"]
         job = jobs["verify"]
-        self.assertEqual((job["name"], job["needs"], job["if"]), ("verify", "part", "always()"))
+        self.assertEqual((job["name"], job["needs"], job["if"]), ("verify", ["changes", "part"], "always()"))
         self.assertNotIn("strategy", job)
-        self.assertEqual([step.get("env") for step in job["steps"]], [{"RESULT": "${{ needs.part.result }}"}])
+        env = {"RESULT": "${{ needs.part.result }}", "DESIGN_ONLY": "${{ needs.changes.outputs.design_only }}"}
+        self.assertEqual([step.get("env") for step in job["steps"]], [env])
         self.assertEqual(jobs["python-min"]["name"], "runner on the minimum Python")
         names = [j.get("name") for key, j in jobs.items() if key != "verify"]
         self.assertNotIn("verify", names, "one check named verify, the aggregate")
+
+    def test_a_design_only_pull_request_skips_the_parts_and_is_linted_on_the_minimum_python(self) -> None:
+        # #1123: the `changes` job reads the whole history (the merge base) without LFS and sets design_only; the parts
+        # skip only on its `true` (a red `changes` leaves it empty: they run), and python-min, a required check, runs
+        # whatever `changes` ended in and lints a design-only pull request, as the part that lints is skipped.
+        jobs = load(GITHUB / "workflows" / "ci.yml")["jobs"]
+        changes = jobs["changes"]
+        self.assertEqual(changes["outputs"], {"design_only": "${{ steps.diff.outputs.design_only }}"})
+        checkout = {"uses": "actions/checkout@v7", "with": {"lfs": False, "fetch-depth": 0}}
+        self.assertEqual(changes["steps"][0], checkout)
+        diff = next(step for step in changes["steps"] if step.get("id") == "diff")
+        self.assertIn(design_only.LIST, diff["run"], "CI reads the runner's list")
+        self.assertIn('git -c core.quotePath=false diff --name-only --no-renames "$BASE...$HEAD"', diff["run"])
+        self.assertEqual(diff["env"]["BASE"], "${{ github.event.pull_request.base.sha }}")
+        self.assertEqual(diff["env"]["HEAD"], "${{ github.event.pull_request.head.sha }}")
+        part = jobs["part"]
+        self.assertEqual(part["needs"], "changes")
+        self.assertEqual(part["if"], "${{ !cancelled() && needs.changes.outputs.design_only != 'true' }}")
+        python_min = jobs["python-min"]
+        self.assertEqual((python_min["needs"], python_min["if"]), ("changes", "${{ !cancelled() }}"))
+        lint = [step for step in python_min["steps"] if step.get("run") == "tools/run.sh lint"]
+        self.assertEqual(len(lint), 1)
+        self.assertEqual(lint[0]["if"], "needs.changes.outputs.design_only == 'true'")
+        self.assertIs(cli.build_parser().parse_args(["lint"]).changed, False, "CI lints every file")
 
     def test_every_workflow_verify_runs_the_full_suite(self) -> None:
         # #605: a plain `verify` runs only doctor, lint and check; CI is where every test runs, so each workflow's
@@ -372,26 +397,112 @@ class CiScriptsTest(unittest.TestCase):
 
     def test_the_aggregate_is_green_only_when_every_part_succeeded(self) -> None:
         # #857: needs.part.result of a matrix: success only when every part succeeded; a red, cancelled or skipped
-        # part (or an empty result) fails the required check.
+        # part (or an empty result) fails the required check. #1123: skipped is green for a design-only pull request.
         steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
         bash = git_bash()
         self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the workflow's scripts")
+        cases = [("success", "", 0), ("failure", "", 1), ("cancelled", "", 1), ("skipped", "", 1), ("", "", 1)]
+        cases += [("skipped", "true", 0), ("success", "true", 0), ("failure", "true", 1), ("skipped", "false", 1)]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "step.sh"
             path.write_bytes(steps[0]["run"].encode("utf-8"))
-            for result, rc in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
-                with self.subTest(result=result):
+            for result, design, rc in cases:
+                with self.subTest(result=result, design=design):
                     done = subprocess.run(
                         [str(bash), "--noprofile", "--norc", "-eo", "pipefail", path.as_posix()],
                         cwd=tmp,
                         capture_output=True,
                         text=True,
                         encoding="utf-8",
-                        env={**os.environ, "RESULT": result},
+                        env={**os.environ, "RESULT": result, "DESIGN_ONLY": design},
                         timeout=60,
                     )
                     self.assertEqual(done.returncode, rc, done.stdout + done.stderr)
                     self.assertIn(f"the parts of verify --full: {result}", done.stdout)
+
+    def changes(self, files: dict[str, str], event: str = "pull_request", broken: bool = False) -> tuple[str, str]:
+        """Runs the `changes` job's step in a scratch repository whose head commit writes `files` (a path: its text,
+        "" to delete it) on a base holding the real list; returns its design_only output and its stdout."""
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["changes"]["steps"]
+        script = next(step["run"] for step in steps if step.get("id") == "diff")
+        bash = git_bash()
+        self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the workflow's scripts")
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e",
+                   "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e"}  # fmt: skip
+
+            def git(*args: str) -> str:
+                done = subprocess.run(
+                    ["git", *args], cwd=where, capture_output=True, text=True, encoding="utf-8", env=env, timeout=60
+                )
+                self.assertEqual(done.returncode, 0, done.stderr)
+                return done.stdout.strip()
+
+            def write(name: str, text: str) -> None:
+                (where / name).parent.mkdir(parents=True, exist_ok=True)
+                (where / name).write_bytes(text.encode("utf-8"))
+
+            git("init", "-q", "-b", "main")
+            git("config", "core.autocrlf", "false")
+            git("config", "commit.gpgsign", "false")
+            write(design_only.LIST, design_only.PATHS.read_text(encoding="utf-8"))
+            write("core/a.gd", "x\n")
+            write("docs/GDD.md", "x\n")
+            git("add", ".")
+            git("commit", "-q", "-m", "base")
+            base = git("rev-parse", "HEAD")
+            for name, text in files.items():
+                if text:
+                    write(name, text)
+                else:
+                    git("rm", "-q", name)
+            git("add", ".")
+            git("commit", "-q", "--allow-empty", "-m", "head")
+            head = "0" * 40 if broken else git("rev-parse", "HEAD")
+            output = where / "output"
+            output.write_bytes(b"")
+            path = where / "step.sh"
+            path.write_bytes(script.encode("utf-8"))
+            done = subprocess.run(
+                [str(bash), "--noprofile", "--norc", "-eo", "pipefail", path.as_posix()],
+                cwd=where,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                env={**env, "EVENT": event, "BASE": base, "HEAD": head, "GITHUB_OUTPUT": output.as_posix()},
+                timeout=60,
+            )
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            lines = output.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1, lines)
+            self.assertTrue(lines[0].startswith("design_only="), lines)
+            return lines[0].split("=", 1)[1], done.stdout
+
+    def test_the_changes_job_agrees_with_the_runners_list(self) -> None:
+        # #1123: the bash and design_only.on_list read one file and agree on every path of the runner's own tests.
+        from runner.tests.test_design_only import OFF, ON
+
+        pats = design_only.patterns()
+        for name in ON + OFF:
+            if name == design_only.LIST:
+                continue  # a test of its own below
+            with self.subTest(name=name):
+                got, _out = self.changes({name: "changed\n", "docs/GDD.md": "y\n"})
+                self.assertEqual(got, "true" if design_only.on_list(name, pats) else "false")
+
+    def test_the_changes_job_is_false_unless_a_pull_request_changes_only_listed_paths(self) -> None:
+        self.assertEqual(self.changes({"docs/GDD.md": "y\n"})[0], "true")
+        self.assertEqual(self.changes({"docs/design/ideas/да.md": "y\n"})[0], "true", "a non-ASCII path, unquoted")
+        got, out = self.changes({"docs/GDD.md": "y\n", "core/a.gd": ""})
+        self.assertEqual(got, "false", "a deleted file counts")
+        self.assertIn("not on the design-only list: core/a.gd", out)
+        listed = design_only.PATHS.read_text(encoding="utf-8") + "core/*\n"
+        self.assertEqual(self.changes({design_only.LIST: listed, "docs/GDD.md": "y\n"})[0], "false", "the list")
+        self.assertEqual(self.changes({"docs/GDD.md": "y\n"}, event="push")[0], "false")
+        self.assertEqual(self.changes({"docs/GDD.md": "y\n"}, event="workflow_dispatch")[0], "false")
+        self.assertEqual(self.changes({})[0], "false", "no change")
+        self.assertEqual(self.changes({"docs/GDD.md": "y\n"}, broken=True)[0], "false", "a failed diff")
 
 
 @unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
