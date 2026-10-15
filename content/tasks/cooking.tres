@@ -1,0 +1,163 @@
+[gd_resource type="Resource" script_class="Cooking" format=3 uid="uid://bskk65yf4ugiw"]
+
+[ext_resource type="Script" uid="uid://bq1nika2ys5ti" path="res://core/tasks/cooking.gd" id="1_cooking"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="11_cooldown"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="12_item_kind"]
+[ext_resource type="Resource" uid="uid://dm2onoiilvgig" path="res://content/items/bun_white.tres" id="13_bun_white"]
+[ext_resource type="Resource" uid="uid://b5q6mvgpwmryp" path="res://content/items/bun_sesame.tres" id="14_bun_sesame"]
+[ext_resource type="Resource" uid="uid://cp5ppf7kf7586" path="res://content/items/bun_dark.tres" id="15_bun_dark"]
+[ext_resource type="Resource" uid="uid://lm2w26ed3r74" path="res://content/items/patty_light_raw.tres" id="16_patty_light_raw"]
+[ext_resource type="Resource" uid="uid://c0ax3ac3sw6sx" path="res://content/items/patty_red_raw.tres" id="17_patty_red_raw"]
+[ext_resource type="Resource" uid="uid://ct6wpa7a8umjm" path="res://content/items/patty_deep_red_raw.tres" id="18_patty_deep_red_raw"]
+[ext_resource type="Resource" uid="uid://dplc27j6dbd38" path="res://content/items/patty_light.tres" id="19_patty_light"]
+[ext_resource type="Resource" uid="uid://dfva6li603a4s" path="res://content/items/patty_red.tres" id="20_patty_red"]
+[ext_resource type="Resource" uid="uid://c8fpy01iid0js" path="res://content/items/patty_deep_red.tres" id="21_patty_deep_red"]
+[ext_resource type="Resource" uid="uid://ml31lyf6vbn6" path="res://content/items/patty_burnt.tres" id="22_patty_burnt"]
+[ext_resource type="Resource" uid="uid://cfrka82gybgp3" path="res://content/items/basil.tres" id="23_basil"]
+[ext_resource type="Resource" uid="uid://cbfhwyut73shr" path="res://content/items/dill.tres" id="24_dill"]
+[ext_resource type="Resource" uid="uid://dpdvdvgxfx86h" path="res://content/items/rosemary.tres" id="25_rosemary"]
+[ext_resource type="Resource" uid="uid://bvdbn2ka1c8iy" path="res://content/items/chives.tres" id="26_chives"]
+[ext_resource type="Resource" uid="uid://dad4i1uxaap72" path="res://content/items/mint.tres" id="27_mint"]
+[ext_resource type="Resource" uid="uid://dkubrb5ybri1k" path="res://content/items/box_bun_white.tres" id="28_box_bun_white"]
+[ext_resource type="Resource" uid="uid://b7pw65k88bdbx" path="res://content/items/box_bun_sesame.tres" id="29_box_bun_sesame"]
+[ext_resource type="Resource" uid="uid://dfqqvmlwybnfs" path="res://content/items/box_bun_dark.tres" id="30_box_bun_dark"]
+[ext_resource type="Resource" uid="uid://dvjwtg2w1e1qn" path="res://content/items/box_patty_light.tres" id="31_box_patty_light"]
+[ext_resource type="Resource" uid="uid://b40ke8e2mmpr1" path="res://content/items/box_patty_red.tres" id="32_box_patty_red"]
+[ext_resource type="Resource" uid="uid://3km0bk25j57h" path="res://content/items/box_patty_deep_red.tres" id="33_box_patty_deep_red"]
+
+[sub_resource type="Resource" id="Grill_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Grill_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Grill_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Grill_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_grill"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Grill_at_station"), SubResource("Grill_in_sight"), SubResource("Grill_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Grill_use")])
+
+[sub_resource type="Resource" id="StationKind_grill"]
+script = ExtResource("2_station")
+id = &"grill"
+spawn_tag = &"grill"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_grill")])
+
+[sub_resource type="Resource" id="HerbBed_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="HerbBed_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="HerbBed_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="HerbBed_cooldown"]
+script = ExtResource("11_cooldown")
+key = &"cooking_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="HerbBed_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_herb_bed"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("HerbBed_at_station"), SubResource("HerbBed_in_sight"), SubResource("HerbBed_usable"), SubResource("HerbBed_cooldown")])
+effects = Array[ExtResource("5_effect")]([SubResource("HerbBed_use")])
+
+[sub_resource type="Resource" id="StationKind_herb_bed"]
+script = ExtResource("2_station")
+id = &"herb_bed"
+spawn_tag = &"herb_bed"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_herb_bed")])
+
+[sub_resource type="Resource" id="StationKind_herb_board"]
+script = ExtResource("2_station")
+id = &"herb_board"
+spawn_tag = &"herb_board"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+display = true
+
+[sub_resource type="Resource" id="StationKind_order_board"]
+script = ExtResource("2_station")
+id = &"order_board"
+spawn_tag = &"order_board"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+display = true
+
+[sub_resource type="Resource" id="Place_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Place_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Place_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Place_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Place_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_place"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Place_one_handed"), SubResource("Place_at_station"), SubResource("Place_in_sight"), SubResource("Place_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Place_use")])
+
+[sub_resource type="Resource" id="StationKind_place"]
+script = ExtResource("2_station")
+id = &"place"
+spawn_tag = &"place"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_place")])
+
+[resource]
+script = ExtResource("1_cooking")
+order_board = SubResource("StationKind_order_board")
+herb_board = SubResource("StationKind_herb_board")
+grill = SubResource("StationKind_grill")
+herb_bed = SubResource("StationKind_herb_bed")
+place = SubResource("StationKind_place")
+buns = Array[ExtResource("12_item_kind")]([ExtResource("13_bun_white"), ExtResource("14_bun_sesame"), ExtResource("15_bun_dark")])
+raw_patties = Array[ExtResource("12_item_kind")]([ExtResource("16_patty_light_raw"), ExtResource("17_patty_red_raw"), ExtResource("18_patty_deep_red_raw")])
+fried_patties = Array[ExtResource("12_item_kind")]([ExtResource("19_patty_light"), ExtResource("20_patty_red"), ExtResource("21_patty_deep_red")])
+burnt = ExtResource("22_patty_burnt")
+herbs = Array[ExtResource("12_item_kind")]([ExtResource("23_basil"), ExtResource("24_dill"), ExtResource("25_rosemary"), ExtResource("26_chives"), ExtResource("27_mint")])
+boxes = Array[ExtResource("12_item_kind")]([ExtResource("28_box_bun_white"), ExtResource("29_box_bun_sesame"), ExtResource("30_box_bun_dark"), ExtResource("31_box_patty_light"), ExtResource("32_box_patty_red"), ExtResource("33_box_patty_deep_red")])
+fry_seconds = 10.0
+burn_seconds = 5.0
+id = &"cooking"
+display_name = "Cooking"
+description = "Make every order on the kitchen board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+maps = PackedStringArray("res://levels/house/house.tscn")
+subtasks_setting = &"burgers"
