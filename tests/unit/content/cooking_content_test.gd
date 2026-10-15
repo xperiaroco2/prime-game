@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## Cooking in `content/` (ARCHITECTURE §9.5.20; the cooking ADR, C6, #775): the task type with
-## the engineer's words (§5.1) and numbers, its five station kinds and their rules (the boards
-## `display`, CE6; CD16's 2 m; CE17's `Cooldown` on the beds and the boxes; no busy-hands condition
-## on the grill and the beds, CD3 (b); `HandNotTwoHanded` on the place), the 21 item kinds (CE18:
-## all listed in the mode, only the boxes tagged, the placeholder `vanish_seconds` and `max_items`),
+## the engineer's words (§5.1) and numbers, its five station kinds and their rules (the herb board
+## `display`, CE6; the order board's serve, #1101; CD16's 2 m; CE17's `Cooldown` on the beds and
+## the boxes; no busy-hands condition on the grill, the beds and the order board, CD3 (b);
+## `HandNotTwoHanded` on the place), the 22 item kinds (CE18: all listed in the mode, only the boxes
+## tagged, the placeholder `vanish_seconds` and `max_items`; the burger of #1101),
 ## the shipped base mode's `burgers` setting (0 to 3, default 1, CD1), `tasks` at every type a map
 ## plays, Round's `VanishTicks` and `Interact` from the living, and the House's fit with Cooking
 ## and the greybox's without it (CD15, G8). Every map is read as the host reads it, in its own
@@ -57,7 +58,7 @@ func test_cooking_has_the_engineers_values() -> void:
 	assert_str(cooking.description).is_equal(
 		(
 			"Make every order on the kitchen board: put its bun, a fried patty and the herb from"
-			+ " the greenhouse board on its plate."
+			+ " the greenhouse board on its plate, then carry the burger to the board and serve it."
 		)
 	)
 	assert_float(cooking.fry_seconds).is_equal(10.0)
@@ -73,12 +74,12 @@ func test_cooking_has_the_engineers_values() -> void:
 	)
 
 
-func test_the_boards_are_displays_with_no_rule() -> void:
+func test_the_herb_board_is_a_display_with_no_rule() -> void:
+	# The order board was a display too until #1101 made it where a burger is served.
 	var cooking := _cooking(_mode())
-	for kind: StationKind in [cooking.order_board, cooking.herb_board]:
-		assert_bool(kind.display).override_failure_message(kind.id).is_true()
-		assert_array(kind.actions).override_failure_message(kind.id).is_empty()
-	for kind: StationKind in [cooking.grill, cooking.herb_bed, cooking.place]:
+	assert_bool(cooking.herb_board.display).is_true()
+	assert_array(cooking.herb_board.actions).is_empty()
+	for kind: StationKind in [cooking.order_board, cooking.grill, cooking.herb_bed, cooking.place]:
 		assert_bool(kind.display).override_failure_message(kind.id).is_false()
 
 
@@ -88,8 +89,9 @@ func test_each_used_station_kind_has_its_interact_rule() -> void:
 		&"grill": ["AtStation", "StationInSight", "StationUsable"],
 		&"herb_bed": ["AtStation", "StationInSight", "StationUsable", "Cooldown"],
 		&"place": ["HandNotTwoHanded", "AtStation", "StationInSight", "StationUsable"],
+		&"order_board": ["AtStation", "StationInSight", "StationUsable"],
 	}
-	for kind: StationKind in [cooking.grill, cooking.herb_bed, cooking.place]:
+	for kind: StationKind in [cooking.grill, cooking.herb_bed, cooking.place, cooking.order_board]:
 		assert_int(kind.actions.size()).override_failure_message(kind.id).is_equal(1)
 		var rule := kind.actions[0]
 		assert_str(rule.trigger).is_equal("Interact")
@@ -101,7 +103,7 @@ func test_each_used_station_kind_has_its_interact_rule() -> void:
 	_assert_take_cooldown(cooking.herb_bed.actions[0], "herb_bed")
 
 
-func test_the_21_item_kinds_have_their_names_and_numbers() -> void:
+func test_the_22_item_kinds_have_their_names_and_numbers() -> void:
 	var cooking := _cooking(_mode())
 	assert_dict(_names(cooking.buns)).is_equal(BUNS)
 	assert_dict(_names(cooking.raw_patties)).is_equal(RAW_PATTIES)
@@ -127,6 +129,14 @@ func test_the_21_item_kinds_have_their_names_and_numbers() -> void:
 			128 if given.has(kind.id) else 0
 		)
 		assert_array(kind.target_actions).override_failure_message(kind.id).is_empty()
+	# The plated burger (#1101): one-handed, untagged, uncapped, vanishes after 60 s when left lying
+	# (placeholders, "not a decision").
+	var burger := cooking.burger
+	assert_str(burger.id).is_equal("burger")
+	assert_str(burger.display_name).is_equal("Burger")
+	assert_array([burger.hands, burger.vanish_seconds, burger.max_items]).is_equal([1, 60, 0])
+	assert_str(burger.spawn_tag).is_empty()
+	assert_array(burger.target_actions).is_empty()
 
 
 func test_each_box_is_two_handed_tagged_and_gives_its_kind() -> void:
@@ -152,13 +162,13 @@ func test_each_box_is_two_handed_tagged_and_gives_its_kind() -> void:
 			assert_str(give.kind.id).override_failure_message(box.id).is_equal(expected[0])
 
 
-func test_the_mode_lists_all_21_kinds() -> void:
+func test_the_mode_lists_all_22_kinds() -> void:
 	var mode := _mode()
 	var cooking := _cooking(mode)
 	var listed := _ids(mode.item_kinds)
-	var all: Array[ItemKind] = cooking.ingredients()
+	var all: Array[ItemKind] = cooking.kinds()
 	all.append_array(cooking.boxes)
-	assert_int(all.size()).is_equal(21)
+	assert_int(all.size()).is_equal(22)
 	for kind: ItemKind in all:
 		assert_bool(listed.has(kind.id)).override_failure_message(String(kind.id)).is_true()
 

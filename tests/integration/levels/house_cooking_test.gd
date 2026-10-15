@@ -13,11 +13,17 @@ extends GdUnitTestSuite
 ## - Every station and box marker reads without errors; the deal places the boards, the grill, a
 ##   bed per herb and the three places on their markers and each box on a marker of its own tag.
 ## - A player on each used device's spot passes AtStation and StationInSight: the grill and each
-##   place refuse `empty_hand` (StationUsable), each bed gives its herb of the round; the two
-##   boards, display kinds, refuse `nothing_to_do` before any of that (CE6).
+##   place refuse `empty_hand` (StationUsable), each bed gives its herb of the round, the order
+##   board refuses `empty_hand`, and `wrong_item` for a herb (it takes a burger, #1101); the herb
+##   board, a display kind, refuses `nothing_to_do` before any of that (CE6).
 ## - A burger from players' commands: a bun and a raw patty from the boxes in storage, the patty
 ##   fried on the grill in the chill zone, the order's herb from its bed in the greenhouse, all
-##   three on the order's place in the kitchen: the burger is done, and the round goes on.
+##   three on the order's place in the kitchen: nothing says right or wrong, the order is not
+##   done. The plate is taken (a burger in the hand, BurgerPlated) and served at the order
+##   board in the kitchen: the burger is done, and the round goes on (the amendment of
+##   2026-10-15, #1101: a burger is checked when it is served).
+## - A wrong burger (another bun than the order's) served at the board is thrown away, the order
+##   not done and its plate empty, again.
 ## - A box carrier (CD3 (b)): a herb from a bed goes onto the belt, the grill's patty too, the herb
 ##   put down at the feet first; then a place refuses `two_handed`. The grill's rule has no
 ##   busy-hands condition: the base mode's own rules keep CD3 (b).
@@ -130,11 +136,12 @@ func test_a_player_on_each_use_spot_passes_at_station_and_station_in_sight() -> 
 	_start()
 	var task_state := _state()
 	var peer := _peer(CREW)
-	# Empty-handed, the grill's and each place's refusal comes from StationUsable, after AtStation
-	# and StationInSight passed.
+	# Empty-handed, the grill's, each place's and the order board's refusal comes from
+	# StationUsable, after AtStation and StationInSight passed.
 	_refused(peer, task_state.grill, &"empty_hand")
 	for order: Cooking.Order in task_state.orders:
 		_refused(peer, order.station, &"empty_hand")
+	_refused(peer, task_state.order_board, &"empty_hand")
 	# Each bed gives its herb of the round (into the hand; the hand's herb to the belt, then to
 	# the feet).
 	for i in task_state.beds.size():
@@ -144,9 +151,11 @@ func test_a_player_on_each_use_spot_passes_at_station_and_station_in_sight() -> 
 		assert_object(held).is_not_null()
 		if held != null:
 			assert_str(String(held.kind.id)).is_equal(String(task_state.bed_herbs[i].id))
-	# The boards are display kinds: nothing to do there, before any condition (CE6).
+	# The herb board is a display kind: nothing to do there, before any condition (CE6). The order
+	# board is no display kind since #1101: with a herb in hand it refuses `wrong_item`, after the
+	# conditions (a burger is what it takes).
 	_refused(peer, task_state.herb_board, &"nothing_to_do")
-	_refused(peer, task_state.order_board, &"nothing_to_do")
+	_refused(peer, task_state.order_board, &"wrong_item")
 	_assert_quiet()
 
 
@@ -189,19 +198,99 @@ func test_a_burger_from_players_commands_is_done() -> void:
 	assert_object(herb).is_not_null()
 	_walk(cook, [_station(order.station).position])
 	_use(cook, order.station)
+	# The plate is full: nothing says right or wrong, nothing is done (#1101).
+	assert_bool(order.done).is_false()
+	assert_bool(_station(order.station).done).is_false()
+	assert_int(task_state.done_count()).is_equal(0)
+	for peer: int in _game.state.present_peers():
+		var placed := _game.view_of(peer).events_named(&"IngredientPlaced")
+		assert_int(placed.size()).is_equal(3)
+		for event: MatchEvent in placed:
+			assert_bool(event.to_dict().has("right")).is_false()
+		assert_bool(_game.view_of(peer).events_named(&"BurgerServed").is_empty()).is_true()
+	# Taking the full plate makes the burger (its three items vanish); it is served at the order
+	# board, checked there: the order and the place are done.
+	_use(cook, order.station)
+	var burger := Items.held_by(_game.state, cook)
+	assert_object(burger).is_not_null()
+	if burger == null:
+		return
+	assert_object(burger.kind).is_same(_type().burger)
+	assert_bool(order.done).is_false()
+	_walk(cook, [_station(task_state.order_board).position])
+	_use(cook, task_state.order_board)
 	assert_bool(order.done).is_true()
 	assert_bool(_station(order.station).done).is_true()
 	assert_int(task_state.done_count()).is_equal(1)
+	assert_bool(_game.state.items.has(burger.id)).is_false()
 	assert_str(_game.phase_id()).is_equal("round")
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
 		assert_int(view.events_named(&"GrillLoaded").size()).is_equal(1)
 		assert_int(view.events_named(&"ItemChanged").size()).is_equal(1)
-		var placed := view.events_named(&"IngredientPlaced")
-		assert_int(placed.size()).is_equal(3)
-		for event: MatchEvent in placed:
+		assert_int(view.events_named(&"IngredientPlaced").size()).is_equal(3)
+		assert_int(view.events_named(&"BurgerPlated").size()).is_equal(1)
+		var served := view.events_named(&"BurgerServed")
+		assert_int(served.size()).is_equal(1)
+		for event: MatchEvent in served:
 			assert_bool(event.to_dict()["right"]).is_true()
 		assert_bool(view.events_named(&"TaskProgress").is_empty()).is_false()
+	_assert_clean()
+	_assert_replays()
+
+
+func test_a_wrong_burger_served_at_the_board_is_thrown_away() -> void:
+	_start()
+	var task_state := _state()
+	var order := task_state.orders[0]
+	var cook := _peer(CREW)
+	var wrong_bun: ItemKind = null
+	for bun: ItemKind in _type().buns:
+		if bun != order.bun:
+			wrong_bun = bun
+			break
+	assert_object(wrong_bun).is_not_null()
+	if wrong_bun == null:
+		return
+	# The same walk as the right burger's, with another bun than the order's.
+	_take(cook, _box_giving(wrong_bun))
+	_take(cook, _box_giving(order.raw_patty))
+	_walk(cook, [_station(task_state.grill).position])
+	_use(cook, task_state.grill)
+	_fry()
+	_use(cook, task_state.grill)
+	_walk(cook, [_station(order.station).position])
+	_use(cook, order.station)
+	_send(Intents.SWAP, cook)
+	_tick()
+	_use(cook, order.station)
+	_walk(cook, [_station(_bed_of(order.herb)).position])
+	_use(cook, _bed_of(order.herb))
+	_walk(cook, [_station(order.station).position])
+	_use(cook, order.station)
+	# Plated and taken, nothing yet said or done; served: thrown away, the plate empty again.
+	_use(cook, order.station)
+	var burger := Items.held_by(_game.state, cook)
+	assert_object(burger).is_not_null()
+	if burger == null:
+		return
+	assert_object(burger.kind).is_same(_type().burger)
+	assert_int(task_state.done_count()).is_equal(0)
+	_walk(cook, [_station(task_state.order_board).position])
+	_use(cook, task_state.order_board)
+	assert_bool(order.done).is_false()
+	assert_bool(_station(order.station).done).is_false()
+	assert_int(task_state.done_count()).is_equal(0)
+	assert_bool(_game.state.items.has(burger.id)).is_false()
+	assert_int(order.bun_item).is_equal(-1)
+	assert_int(order.patty_item).is_equal(-1)
+	assert_int(order.herb_item).is_equal(-1)
+	assert_str(_game.phase_id()).is_equal("round")
+	for peer: int in _game.state.present_peers():
+		var served := _game.view_of(peer).events_named(&"BurgerServed")
+		assert_int(served.size()).is_equal(1)
+		for event: MatchEvent in served:
+			assert_bool(event.to_dict()["right"]).is_false()
 	_assert_clean()
 	_assert_replays()
 

@@ -487,17 +487,22 @@ greenhouse, where a board decodes the order's herb icon.
   A player with an ingredient in the hand presses E on the plate and the ingredient goes on it (a patty on a bun goes
   into the bun). The order of the layers does not matter. Only E puts an ingredient on: one put down or dropped near
   the plate lies on the floor.
-- Each ingredient is checked against that place's order at once. A raw or burnt patty is refused outright and stays
-  in the hand; any other wrong one shows a red outline and can be taken back; a right one shows a green outline and
-  can no longer be taken.
-- A burger is done on the spot, once its bun, patty and herb are all green on its place.
+- Nothing is checked on the plate (the engineer's answers on #1101, 2026-10-15). A plate has a slot for a bun, one
+  for a patty and one for a herb: any bun, fried patty or herb goes on its free slot and stays there; a second one
+  for a filled slot is refused, and so are a raw or burnt patty and anything that is no ingredient. The plate shows
+  only which slots are filled, never right or wrong.
+- E on a full plate takes the burger: one item in one hand, drawn with its bun, patty and herb. The cook carries it
+  to the kitchen's order board and serves it with E there; only then is it checked against its place's order. A
+  right burger is done; a wrong one is thrown away and made again whole, and the cook learns only "wrong", not
+  which part: he works it out from the burger and the order, and the herb, shown on the order only as its icon, is
+  the part to look up on the greenhouse's board. A burger left lying vanishes like an ingredient.
 - Sabotage: a dissident may take a box and hide it; the others must search for it (the same play as hiding a
-  package). Beyond that, the rules above already let anyone take items, burn a patty or put a wrong ingredient on a
-  plate.
+  package). Beyond that, the rules above already let anyone take items, burn a patty, put a wrong ingredient on a
+  plate or take a burger and serve it wrong.
 - A dissident plays the same character as an engineer (role `crew`), under the same rules, and only living players
   do subtasks (#79; vision revision 1, V4).
 - Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, a hiss when it burns, a
-  chime for green and a buzz for red, a sound when a burger is done. A ring over the grill fills to fried and then to
+  chime when a burger is taken off its plate, a sound when a served burger is right and a buzz when it is wrong. A ring over the grill fills to fried and then to
   burnt.
 
 **Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
@@ -507,7 +512,8 @@ deals today (the engineer's read-back answer on the Generator,
 new mechanics come with M7 on the House, and bots playing them comes later, with the map.
 
 **Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
-board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+board: put its bun, a fried patty and the herb from the greenhouse board on its plate." Since #1101 (proposed, to be
+approved in its PR): "..., then carry the burger to the board and serve it."
 
 **Words and looks** (he gave the buns and the patties, asked for the rest "so it all looks nice", and took the drafts
 as drafted on 2026-10-10; the whole table is the ADR's §5.1): the name "Cooking" and the lobby label "Burgers
@@ -518,11 +524,12 @@ basil, dill, rosemary, chives and mint.
 
 **Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
 goes and looks (the open-knowledge pillar, §1); which herb grows on which bed is seen at the beds. The code is shown
-only on the herb board, but a green herb on a plate also tells anyone looking which herb that order's icon means.
-What lies on a plate, red or green, is seen at the plate; the burgers done show on the task screen's Cooking row.
+only on the herb board, but a right burger served also tells anyone who saw its herb which herb that order's icon
+means. What lies on a plate is seen at the plate, never whether it is right; a serve's right or wrong is heard at
+the order board; the burgers done show on the task screen's Cooking row.
 
 **Numbers** (to tune): 1 burger by default, at most 3; 3 buns, 3 patties, 5 herbs; fry 10 s, then 5 s before it
-burns. Placeholders: an ingredient vanishes after lying 60 s; a player uses a station from within 2 m.
+burns. Placeholders: an ingredient or a burger vanishes after lying 60 s; a player uses a station from within 2 m.
 
 **Engine parts** ([the cooking ADR](decisions/2026-10-10-cooking-task.md) §1, §8): a Cooking task type whose deal
 hangs the orders, draws the round's herb code and shuffles the herbs over the beds, with its places, grill, beds and
@@ -530,7 +537,7 @@ boards as stations; the Generator's station-use intent (`Interact`) also naming 
 that makes a new ingredient on every take, making room in the hands as the rules say; ingredients that vanish when
 left lying; a patty whose kind changes on the grill; items held by the grill and the plates; a task type
 that plays only on the maps its data lists (the Generator's part; Cooking: the House); station scenes in `levels/stations/` in place
-of the House's markers; the client's boards, beds, plates with their outlines, grill and sounds. The issues follow
+of the House's markers; the client's boards, beds, plates with their filled-slot outlines, burgers, grill and sounds. The issues follow
 from the ADR's split.
 
 Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned

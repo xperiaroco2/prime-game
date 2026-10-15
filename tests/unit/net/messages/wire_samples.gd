@@ -160,7 +160,20 @@ static func events() -> Dictionary[String, Array]:
 		GrillLoadedEvent.new(0xFFFE, 0xFFFE, 0xFFFFFFFD, 0xFFFFFFFE),
 	]
 	found["IngredientPlacedEvent"] = [
-		IngredientPlacedEvent.new(7, 4, true), IngredientPlacedEvent.new(0xFFFE, 0xFFFE, false)
+		IngredientPlacedEvent.new(7, 4), IngredientPlacedEvent.new(0xFFFE, 0xFFFE)
+	]
+	found["BurgerPlatedEvent"] = [
+		BurgerPlatedEvent.new(9, 4, &"bun_white", &"patty_beef", &"herb_mint"),
+		BurgerPlatedEvent.new(
+			0xFFFE,
+			0xFFFE,
+			StringName("b".repeat(32)),
+			StringName("p".repeat(32)),
+			StringName("h".repeat(32))
+		),
+	]
+	found["BurgerServedEvent"] = [
+		BurgerServedEvent.new(4, true), BurgerServedEvent.new(0xFFFE, false)
 	]
 	found["FitChangedEvent"] = [
 		FitChangedEvent.new(1, 2, 40),

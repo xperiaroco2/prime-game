@@ -47,11 +47,16 @@ class Item:
 	## crosshair names it (the car repair ADR's RE12, #811).
 	var fitted := false
 	## Cooking (#776): the station it lies on, a place's plate or the grill (IngredientPlaced,
-	## GrillLoaded), -1 for none; whether it is locked there (a right ingredient or the grill's
-	## patty: no PickUp takes it). A wrong (red) ingredient lies on its place unlocked. A pickup, a
-	## put down or a throw clears both. Nothing records who put it there (the ADR's §3).
+	## GrillLoaded), -1 for none; whether it is locked there (every plated ingredient and the
+	## grill's patty: no PickUp takes it; since #1101 nothing on a plate is right or wrong before
+	## its burger is served). A pickup, a put down or a throw clears both. Nothing records who put
+	## it there (the ADR's §3).
 	var on_station := -1
 	var locked := false
+	## A plated burger (BurgerPlated, #1101): the kind ids on its slots (bun, patty, herb; empty for
+	## any other item) and the place it was plated on (-1 for none), whose order it serves.
+	var parts := PackedStringArray()
+	var place := -1
 	## In flight (§7.1.16): from its ItemThrown until its ItemPlaced (cause `thrown`) or
 	## PackageDelivered. The launch exactly as the event carries it, so a client draws the arc
 	## from the same vectors the host's flight uses (37e): the thrower, the origin, velocity and
@@ -127,12 +132,12 @@ class Station:
 	## The parts fitted to the car, as the PartFitted events decoded for it told it.
 	var fitted := 0
 	## Cooking's place (#776): its order as OrderPosted told it (the bun and the fried patty kind
-	## ids, the herb's icon index; empty and -1 before), and the right ingredients on it so far
-	## (IngredientPlaced `right`): `done` at ORDER_SLOTS. The order's herb is never sent.
+	## ids, the herb's icon index; empty and -1 before); `done` once a right burger plated on it is
+	## served (BurgerServed, #1101). The order's herb is never sent; what lies on its plate is the
+	## items whose `on_station` it is (plated_on).
 	var bun := &""
 	var patty := &""
 	var icon := -1
-	var right_count := 0
 	## Cooking's grill (#776): its patty and the host ticks it turns fried and burnt at, as the
 	## last GrillLoaded told it; -1 when empty (the patty's ItemPickedUp empties it).
 	var grill_item := -1
@@ -159,7 +164,8 @@ class Shot:
 	var record: Array[Dictionary] = []
 
 
-## The right ingredients that finish a cooking place's burger: a bun, a patty and a herb (#776).
+## The slots of a cooking place's plate: a bun, a patty and a herb (#776); full, E takes the
+## burger (#1101).
 const ORDER_SLOTS := 3
 
 ## Its own peer id once welcomed; 0 before.
@@ -490,6 +496,15 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			herb_beds = beds.duplicate()
 		&"IngredientPlaced", &"GrillLoaded":
 			_fold_cooking_put(event_name, fields)
+		&"BurgerPlated":
+			var burger: Item = items.get(fields["item"] as int)
+			if burger != null:
+				burger.parts = PackedStringArray([fields["bun"], fields["patty"], fields["herb"]])
+				burger.place = fields["station"]
+		&"BurgerServed":
+			var served: Station = stations.get(fields["station"] as int)
+			if served != null and fields["right"] as bool:
+				served.done = true
 		&"FilmLoaded", &"ShotTaken":
 			_fold_camera(event_name, fields)
 			if event_name == &"ShotTaken":
@@ -614,33 +629,36 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 
 
 ## A put on a cooking place's plate (IngredientPlaced) or on the grill (GrillLoaded, #776): the
-## host sends no ItemPlaced for either (Items.lay_on_station, lock_at), so the item leaves the
-## putter's hand here and lies at the station, locked unless a wrong ingredient. Who put it is
+## host sends no ItemPlaced for either (Items.lock_at), so the item leaves the putter's hand here
+## and lies at the station, locked. Right or wrong is never known here (#1101). Who put it is
 ## never kept (the ADR's §3).
 func _fold_cooking_put(event_name: StringName, fields: Dictionary) -> void:
 	var station_id: int = fields["station"]
 	var station: Station = stations.get(station_id)
 	var item_id: int = fields["item"]
 	var item: Item = items.get(item_id)
-	var grill := event_name == &"GrillLoaded"
-	var right: bool = grill or fields["right"]
 	if item != null:
 		item.holder = NO_HOLDER
 		item.belted = false
 		item.flying = false
 		item.on_station = station_id
-		item.locked = right
+		item.locked = true
 		if station != null:
 			item.position = station.position
-	if station == null:
-		return
-	if grill:
+	if station != null and event_name == &"GrillLoaded":
 		station.grill_item = item_id
 		station.fried_tick = fields["fried"]
 		station.burnt_tick = fields["burnt"]
-	elif right:
-		station.right_count += 1
-		station.done = station.right_count >= ORDER_SLOTS
+
+
+## The ids of the items on station `station_id` (a cooking place's plate), ascending.
+func plated_on(station_id: int) -> PackedInt32Array:
+	var found := PackedInt32Array()
+	for item_id: int in items:
+		if items[item_id].on_station == station_id:
+			found.append(item_id)
+	found.sort()
+	return found
 
 
 ## A film loaded into the photo camera (FilmLoaded) or a shot on it (ShotTaken, #786): the host

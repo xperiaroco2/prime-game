@@ -4,9 +4,14 @@ extends RefCounted
 ## §4.7.55), pure: from the own ClientModel and the client's own copy of the mode, never `core/`
 ## state. It mirrors the host's Cooking.use_problem() on what the client knows and leaves the rest
 ## to the host (§7.1); it only decides what to offer:
-## - the boards: never (display kinds with no rule, CE6; StationUse already stops a `display` kind);
-## - a place: not done, and the own hand holds one of the type's buns, fried patties or herbs (a
-##   raw or burnt patty, a knife or empty hands: the host's `wrong_item` or `empty_hand`);
+## - the herb board: never (a display kind with no rule, CE6; StationUse already stops it);
+## - the order board (#1101): the own hand holds a plated burger whose place is not done (the serve;
+##   any other hand: the host's `empty_hand`, `wrong_item` or `unavailable`);
+## - a place: not done, and either its plate is full (E takes the burger, #1101) or the own hand
+##   holds one of the type's buns, fried patties or herbs whose slot on the plate is free (a raw or
+##   burnt patty, a knife, empty hands or a filled slot: the host's `wrong_item`, `empty_hand` or
+##   `unavailable`). Nothing here compares a plate to its order: the host checks a burger only when
+##   it is served.
 ## - the grill: empty, with a raw patty in the hand; occupied, always (the take-off is a take,
 ##   CD3 (b));
 ## - a bed: always (its herb's cap is the host's to judge, CE3).
@@ -58,8 +63,10 @@ static func usable(model: ClientModel, type: Cooking, id: int) -> bool:
 	var hand: ClientModel.Item = model.items.get(model.hand_item(model.own_peer))
 	var held := hand.kind if hand != null else &""
 	match role_of(type, station.kind):
+		Role.ORDER_BOARD:
+			return _serves(model, type, hand)
 		Role.PLACE:
-			return not station.done and takes(type, held)
+			return not station.done and _plates(model, type, id, held)
 		Role.GRILL:
 			return station.grill_item >= 0 or _has(type.raw_patties, held)
 		Role.BED:
@@ -67,7 +74,30 @@ static func usable(model: ClientModel, type: Cooking, id: int) -> bool:
 	return false
 
 
-## Whether a place takes an item of kind `kind_id` at all, right or wrong: a bun, a fried patty or
+## Whether a place (not done) takes E with `held` in hand: a full plate always (the take), else
+## an ingredient whose slot is free.
+static func _plates(model: ClientModel, type: Cooking, id: int, held: StringName) -> bool:
+	var plated := model.plated_on(id)
+	if plated.size() >= ClientModel.ORDER_SLOTS:
+		return true
+	if not takes(type, held):
+		return false
+	var slot := slot_of(type, held)
+	for item_id: int in plated:
+		if slot_of(type, model.items[item_id].kind) == slot:
+			return false
+	return true
+
+
+## Whether `hand` is a plated burger of `type` whose place's order is not done (the serve).
+static func _serves(model: ClientModel, type: Cooking, hand: ClientModel.Item) -> bool:
+	if hand == null or type.burger == null or hand.kind != type.burger.id:
+		return false
+	var place: ClientModel.Station = model.stations.get(hand.place)
+	return place != null and not place.done
+
+
+## Whether a place takes an item of kind `kind_id` at all: a bun, a fried patty or
 ## a herb of `type` (the host's Cooking._takes).
 static func takes(type: Cooking, kind_id: StringName) -> bool:
 	return (

@@ -1,14 +1,16 @@
 extends GdUnitTestSuite
 ## TargetChoice over Cooking (client/world/target_choice.gd; #776, the cooking ADR's §8 C7), pure:
-## a board is never named; a place only for what it takes; a locked item (a right ingredient, the
-## grill's patty) is never picked; a wrong one on a plate is aimed at where the plate draws it
-## (`aim_of`), never at its floor point, and loses to the place when the hand holds what the place
-## takes. FixtureCookingClient: place 0's floor point at (0, 0, 30).
+## the herb board is never named, the order board only with a plated burger in hand (#1101); a
+## place only for what it takes; a locked item (every plated ingredient since #1101, the grill's
+## patty) is never picked; an unlocked item on a station (no Cooking put lays one since #1101, but
+## TargetChoice keeps the rule for any station) is aimed at where the station draws it (`aim_of`),
+## never at its floor point, and loses to the station when the hand holds what it takes.
+## FixtureCookingClient: place 0's floor point at (0, 0, 30).
 
 const C := preload("res://tests/fixtures/client/fixture_cooking_client.gd")
 const FEET := Vector3(0, 0, 29.5)
 const EYE := Vector3(0, 1.6, 29.5)
-## Where the plate draws a wrong item of place 0 (a stand-in for CookingViews.aim_of).
+## Where the plate draws an item of place 0 (a stand-in for CookingViews.aim_of).
 const ON_PLATE := Vector3(0, 0.9, 30.4)
 const NO_DEVICE := -1
 
@@ -21,15 +23,18 @@ func before_test() -> void:
 	_model = C.dealt(2, _mode)
 
 
-func test_a_board_is_never_named_at_its_device_or_its_spot() -> void:
-	var feet := FixtureCookingModes.ORDER_BOARD_AT + Vector3(0, 0, -0.5)
-	var eye := feet + Vector3.UP * 1.6
-	var spot := TargetChoice.aim_point(_model.stations[C.ORDER_BOARD])
-	var look := (spot - eye).normalized()
-	var target := TargetChoice.choose_target(
-		_model, _mode, eye, look, 1.0, feet, _reach(), C.ORDER_BOARD
-	)
-	assert_int(target.kind).is_equal(TargetChoice.Target.Kind.NONE)
+func test_a_board_is_not_named_at_its_device_or_its_spot_without_a_burger() -> void:
+	assert_int(_at_board(C.ORDER_BOARD).kind).is_equal(TargetChoice.Target.Kind.NONE)
+	C.hold(_model, 49, &"bun_a")
+	assert_int(_at_board(C.ORDER_BOARD).kind).is_equal(TargetChoice.Target.Kind.NONE)
+
+
+func test_the_order_board_is_named_with_a_plated_burger_and_the_herb_board_never() -> void:
+	C.plate_burger(_model, 49, 0, [])
+	var target := _at_board(C.ORDER_BOARD)
+	assert_bool(target.is_station()).is_true()
+	assert_int(target.id).is_equal(C.ORDER_BOARD)
+	assert_int(_at_board(C.HERB_BOARD).kind).is_equal(TargetChoice.Target.Kind.NONE)
 
 
 func test_a_place_is_named_with_a_bun_in_the_hand_and_not_with_a_raw_patty() -> void:
@@ -42,15 +47,16 @@ func test_a_place_is_named_with_a_bun_in_the_hand_and_not_with_a_raw_patty() -> 
 
 
 func test_a_locked_item_on_a_plate_is_never_picked() -> void:
-	C.hold(_model, 52, &"bun_a")
-	C.put(_model, 52, 0, true)
+	C.hold(_model, 52, &"bun_b")
+	C.put(_model, 52, 0)
 	var look := (ON_PLATE - EYE).normalized()
 	assert_int(_choose(look)).is_equal(-1)
 
 
-func test_a_wrong_item_is_aimed_on_the_plate_and_not_at_its_floor_point() -> void:
+func test_an_unlocked_item_is_aimed_on_the_plate_and_not_at_its_floor_point() -> void:
 	C.hold(_model, 53, &"bun_b")
-	C.put(_model, 53, 0, false)
+	C.put(_model, 53, 0)
+	_model.items[53].locked = false
 	var at_plate := (ON_PLATE - EYE).normalized()
 	var target := TargetChoice.choose_target(
 		_model, _mode, EYE, at_plate, TargetChoice.RAY_M, FEET, _reach(), NO_DEVICE, _aim
@@ -64,9 +70,10 @@ func test_a_wrong_item_is_aimed_on_the_plate_and_not_at_its_floor_point() -> voi
 	assert_int(TargetChoice.along_ray(_model, EYE, at_plate, TargetChoice.RAY_M)).is_equal(-1)
 
 
-func test_the_place_wins_over_a_wrong_item_when_the_hand_holds_what_it_takes() -> void:
+func test_the_place_wins_over_an_unlocked_item_when_the_hand_holds_what_it_takes() -> void:
 	C.hold(_model, 54, &"bun_b")
-	C.put(_model, 54, 0, false)
+	C.put(_model, 54, 0)
+	_model.items[54].locked = false
 	C.hold(_model, 55, &"fried_a")
 	var at_plate := (ON_PLATE - EYE).normalized()
 	# The ray meets the counter (the place's device) just behind the plate item.
@@ -103,6 +110,15 @@ func _reach() -> float:
 
 func _choose(look: Vector3) -> int:
 	return TargetChoice.choose(_model, EYE, look, TargetChoice.RAY_M, FEET, _reach(), _aim)
+
+
+## What is named looking at board `id`'s aim point from half a metre in front of it, the ray
+## ending at its device.
+func _at_board(id: int) -> TargetChoice.Target:
+	var feet := _model.stations[id].position + Vector3(0, 0, -0.5)
+	var eye := feet + Vector3.UP * 1.6
+	var look := (TargetChoice.aim_point(_model.stations[id]) - eye).normalized()
+	return TargetChoice.choose_target(_model, _mode, eye, look, 1.0, feet, _reach(), id)
 
 
 func _at_place() -> TargetChoice.Target:

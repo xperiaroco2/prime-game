@@ -769,7 +769,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `OrderPosted` | a place's station, the bun's kind, the fried patty's kind and the index of the herb's icon (#772; the cooking ADR, CE8, CE9) | everyone: tasks are shared, and it names no player; it carries the icon, never the herb (CE9 (a)) | Cooking's deal (§9.5.20), one per place in station order, after its `StationPlaced`s and the boxes' `ItemSpawned`s |
 | `HerbsDealt` | the herb's kind per icon (the code) and per herb bed in station order (#772; CE8, CE9, CD13 (b)) | everyone, as `OrderPosted`; an honest client draws the code only on the herb board and a bed's herb only on its bed | Cooking's deal, once, after its `OrderPosted`s; none when its subtasks setting is 0 |
 | `GrillLoaded` | the grill's station, the patty's item, and the host ticks it turns fried and burnt at (#773; the cooking ADR's §2.4, CE5, CE10) | everyone: it names no player | Cooking's grill took a raw patty (§9.5.20); taking it off is `Items.give`'s `ItemPickedUp`, and no event marks the grill empty |
-| `IngredientPlaced` | the ingredient's item, the place's station, and whether it was right (#773; the ADR's §2.5, CE5) | everyone: it names no player | an ingredient went onto a place (§9.5.20), first: before it is locked there (right) or laid there (wrong, resting `on_station`), and before the subtask's `TaskState` (CE13) |
+| `IngredientPlaced` | the ingredient's item, the place's station (#773; since #1101 never whether it is right: the cooking ADR's amendment of 2026-10-15) | everyone: it names no player | an ingredient went onto a place's free slot (§9.5.20), first: before it is locked there |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
 | `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress`. The Generator's charge shares it (#797, the Generator ADR's GE7 and GE8; §9.5.19): its station is the generator's; at 0 in the deal, after the `StationPlaced`s; a start or stop by a use, after its `SwitchChanged` or `ButtonPressed`, with `tick` the tick before (the charge counted through it), or held to its window's end; the full charge in its own tick, before the `TaskState`s and `TaskProgress` |
@@ -782,6 +782,8 @@ wire schemas of the events and the snapshot are §4.3.
 | `FilmLoaded` | the camera's station, the film's item (#781, the photo ADR §2.2, §3.1) | everyone: it names no player (PD13), and items and stations are public | an accepted `Interact` at an empty camera: the actor's fresh film lies on the camera (`item_rested` on_station, no `ItemPlaced`) |
 | `ShotTaken` | the camera's station, the film's item, the shot's id (u16, wrapping), the record: up to 15 rows of `peer`, `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (#781, §3.3) | everyone: the rows hold what every player's snapshots show anyway, the recipient's own pose included (§5); it names no shooter and never says whether a person counted (PE5) | an accepted `Interact` at a loaded camera with frames left (§9.5.22) |
 | `PhotoPrinted` | the photo's item, the shot it shows (#782, the photo ADR §2.6, PE8) | everyone: it names no player and never says whether a person is in the shot (PE5); every shot was public already | an accepted `Interact` at the printer: per shot of the actor's exposed film, in shot order, after the photo's `ItemSpawned` on the tray; the film's `ItemVanished` follows the last (§9.5.22) |
+| `BurgerPlated` | the burger's item, the place's station, the kinds of its bun, patty and herb (#1101, the cooking ADR's amendment) | everyone: it names no player and only what everyone saw on the plate, never whether it is right | a full plate was taken as a burger (§9.5.20), last: after the plated items' `ItemVanished` and the burger's `ItemSpawned` and `ItemPickedUp` |
+| `BurgerServed` | the burger's place's station, and whether the burger was right (#1101) | everyone: it names no player and no part | a burger was served at the order board (§9.5.20), first: before the burger's `ItemVanished` and, right, before the leftovers' `ItemVanished` and the subtask's `TaskState` (CE13) |
 | `PhotoHung` | the photo's item, the board's station, whether it counted (#782, the photo ADR §2.7, PE9) | everyone: it names no player; the board shows what hangs on it and the count is the public task state | an accepted `Interact` at the board: counted, the photo is locked there for good and `TaskState`, `TaskProgress` follow; not, it lies there (`item_rested` on_station, no `ItemPlaced`) for `PickUp` |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
@@ -810,7 +812,7 @@ reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for 
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
 in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`. #779: `ItemVanished`. #797 (Generator G2): `SwitchChanged` and
 `ButtonPressed`, and the Generator's `ZoneProgress`. #771: `ItemChanged`, and
-`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`. #781 (photo P2): `FilmLoaded` and `ShotTaken`. #773 (cooking C4): `GrillLoaded` and `IngredientPlaced`. #808 (car repair R4): `FitChanged` and `PartFitted`. #782 (photo P3): `PhotoPrinted` and `PhotoHung`.
+`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`. #781 (photo P2): `FilmLoaded` and `ShotTaken`. #773 (cooking C4): `GrillLoaded` and `IngredientPlaced`. #808 (car repair R4): `FitChanged` and `PartFitted`. #782 (photo P3): `PhotoPrinted` and `PhotoHung`. #1101 (cooking, checked when served): `BurgerPlated` and `BurgerServed`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -969,11 +971,13 @@ directive has no row, because it reaches no peer.
 | 77 | `FilmLoaded` | `station: station`, `item: item` (audience *everyone*, #781; the [photo ADR](decisions/2026-10-10-photo-task.md) §3.1) | 4; 4 |
 | 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
 | 79 | `GrillLoaded` | `station: station`, `item: item`, `fried: tick`, `burnt: tick` (audience *everyone*, #773; the cooking ADR, CE10) | 12; 12 |
-| 80 | `IngredientPlaced` | `item: item`, `station: station`, `right: bool` (audience *everyone*, #773; CE5) | 5; 5 |
+| 80 | `IngredientPlaced` | `item: item`, `station: station` (audience *everyone*, #773; `right` dropped by #1101) | 4; 4 |
 | 81 | `FitChanged` | `station: station`, `fitter: peer` (optional, behind a `has_fitter` flag; absent, the fitter is 0: the fit stopped), `tick: tick` (audience *everyone*, #808; the car repair ADR's RE10, RD15 (a)) | 7 to 11; 11 |
 | 82 | `PartFitted` | `station: station`, `item: item` (audience *everyone*, #808; RE10, RE12) | 4; 4 |
 | 83 | `PhotoPrinted` | `item: item`, `shot: u16` (audience *everyone*, #782; the photo ADR §2.6) | 4; 4 |
 | 84 | `PhotoHung` | `item: item`, `station: station`, `counted: bool` (audience *everyone*, #782; the photo ADR §2.7) | 5; 5 |
+| 85 | `BurgerPlated` | `item: item`, `station: station`, `bun: id`, `patty: id`, `herb: id` (audience *everyone*, #1101; the cooking ADR's amendment) | 10 to 103; 103 |
+| 86 | `BurgerServed` | `station: station`, `right: bool` (audience *everyone*, #1101) | 3; 3 |
 
 #### 4.3.5 State and voice
 
@@ -1013,7 +1017,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109: whichever lands second takes its base's plus one at its rebase; a skipped number is harmless, the versions only have to match). M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1797,6 +1801,9 @@ names a player) and `cooking_role_swap_test` (planted "a place refuses dissident
 `IngredientPlacedEvent.audience()` as `Audience.only(1)` failed the burger's test on `ScenarioInvariants`
 (`IngredientPlaced reached [1], not every present player [1, 1002, 1003]`); reverted. The other cooking events' plants
 wait for the bots that play Cooking (CE22): the House tests run `ScenarioInvariants` over every one they emit.
+**#1101 (cooking, checked when served)** added `BurgerPlated` and `BurgerServed` to both `TASK_EVENTS` lists; what
+stands in for a bot: `cooking_serve_test`'s "no event tells right or wrong before the serve" (planted: a `right` field
+back in `IngredientPlaced`'s dict, failed, reverted) and `cooking_events_name_no_player_test`.
 **#808 (car repair R4)** added `FitChanged` and `PartFitted` to both `TASK_EVENTS` lists; no bot plays the House
 (§9.7), so their plant waits for its bots. What stands in: `car_repair_events_name_no_player_test` (`PartFitted` names
 no player; `FitChanged` names only the fitter, RD15 (a)).
@@ -1978,10 +1985,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
 and 25 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
-`ButtonPressed`), 75 and 76 (#807: `LiftChanged`, `PartNeeded`), 77 and 78 (#781: `FilmLoaded`, `ShotTaken`), 79 and 80 (#773: `GrillLoaded`, `IngredientPlaced`), 81 and 82 (#808: `FitChanged`, `PartFitted`), 83 and 84 (#782: `PhotoPrinted`, `PhotoHung`) sent the wrong way, one drawn
-per packet, and unassigned kinds (0, 19, 20, 23, 26, 31, 85, 86,
+`ButtonPressed`), 75 and 76 (#807: `LiftChanged`, `PartNeeded`), 77 and 78 (#781: `FilmLoaded`, `ShotTaken`), 79 and 80 (#773: `GrillLoaded`, `IngredientPlaced`), 81 and 82 (#808: `FitChanged`, `PartFitted`), 83 and 84 (#782: `PhotoPrinted`, `PhotoHung`), 85 and 86 (#1101: `BurgerPlated`, `BurgerServed`) sent the wrong way, one drawn
+per packet, and unassigned kinds (0, 19, 20, 23, 26, 31, 87, 88,
 95, 97, 111,
-113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74, 75 became 77 when #807 took 75 and 76, 77 became 79 when #781 took 77 and 78, 79 became 81 when #773 took 79 and 80, 81 became 83 when #808 took 81 and 82, 83 became 85 when #782 took 83 and 84). Kind 15, `NextStage` (#599): the hostile
+113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74, 75 became 77 when #807 took 75 and 76, 77 became 79 when #781 took 77 and 78, 79 became 81 when #773 took 79 and 80, 81 became 83 when #808 took 81 and 82, 83 became 85 when #782 took 83 and 84, 85 became 87 when #1101 took 85 and 86). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
 that every intent is in a phase of `ACCEPTS` or in that list;
@@ -4728,18 +4735,24 @@ unchanged.
 
 #### 4.7.55 Built in #776 (cooking C7), Cooking's client view
 The client side of Cooking (the [cooking ADR](decisions/2026-10-10-cooking-task.md)'s §8 C7, CD4, CD12, CD14,
-CE6, CE15), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged.
+CE6, CE15), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged. #1101 (the
+ADR's amendment of 2026-10-15: a burger is checked when it is served) moved it to the new rule, as this section
+reads now.
 - **The fold.** `ClientModel` folds `OrderPosted` (a place's `bun`, `patty`, `icon`), `HerbsDealt` (`herb_code`,
   `herb_beds`), `IngredientPlaced` and `GrillLoaded`: the host sends no `ItemPlaced` for a put on a plate or the
-  grill, so the fold takes the item out of the hand and lays it at the station (`Item.on_station`, `locked` unless a
-  wrong ingredient; a place's `right_count`, `done` at `ORDER_SLOTS`; the grill's `grill_item`, `fried_tick`,
-  `burnt_tick`). A pick-up, a put-down, a throw or a vanish clears them, the patty's `ItemPickedUp` empties the
-  grill. Nothing records who put what (the ADR's §3).
-- **What E offers.** `CookingUse` (pure, behind `StationUse.usable`): never a board (a `display` kind); a place
-  not done while the hand holds one of its type's buns, fried patties or herbs; the grill empty with a raw patty in
+  grill, so the fold takes the item out of the hand and lays it at the station (`Item.on_station`, a plated one
+  always `locked`, `ClientModel.plated_on(station)` lists them; the grill's `grill_item`, `fried_tick`,
+  `burnt_tick`). `BurgerPlated` gives the burger item its `parts` (bun, patty, herb kinds) and its `place`;
+  `BurgerServed` right marks that place `done` (nothing else: wrong changes no state). A pick-up, a put-down, a
+  throw or a vanish clears them, the patty's `ItemPickedUp` empties the grill. Nothing records who put what (the
+  ADR's §3), and nothing on the client knows whether a plate is right before the serve.
+- **What E offers.** `CookingUse` (pure, behind `StationUse.usable`): never the herb board (a `display` kind); the
+  order board only while the hand holds a burger whose `place` is not done; a place not done when its plate is full
+  (the take), or while the hand holds one of its type's buns, fried patties or herbs whose slot is free; the grill
+  empty with a raw patty in
   the hand, occupied always (the take-off); a bed always. `TargetChoice` skips a locked item, aims at an
-  on-station item only where it is drawn (`aim_of`, never its floor point) and lets an offered place win over a
-  wrong item lying on it. A box (an item kind with an Interact rule among its `target_actions`): `ItemInteractions`
+  on-station item only where it is drawn (`aim_of`, never its floor point) and lets an offered station win over an
+  unlocked item lying on it (none lies on a plate since #1101; the clause stays generic). A box (an item kind with an Interact rule among its `target_actions`): `ItemInteractions`
   sends `Interact(-1, box)` when E is released within `HOLD_SECONDS` 0.4 s and `PickUp(box)` once when held that
   long; the box is captured at the press, and leaving it, the Esc menu or the own life leaving ALIVE drops the press.
   The device ray names a bed by its shape: `ItemWorld.station_of_hit(body, shape)` asks `StationViews`, then
@@ -4751,15 +4764,18 @@ CE6, CE15), from the own `ClientModel` and the client's own copy of the mode onl
   board's `Pairs/PairN` (icon and herb), each bed's `Plant` (its herb's look), a place's `Plate` and `Number`
   (its row on the board; an unused place stays a bare counter) and the grill's ring: 24 segments under its `Ring`,
   filling yellow to fried and red to burnt from `GrillLoaded`'s ticks at the estimated host tick (CD14 (i)).
-  `ItemViews` draws an on-station item at `CookingViews.point_of` (a right one stacked on the plate by its slot, a
-  wrong one beside it, the patty on the grate), with an inverted-hull outline on a plate (`CookingLooks.outline`:
-  `grow`, `CULL_FRONT`, unshaded; green locked, red wrong); its view stays in `SightHider.GROUP`. Every part is
+  `ItemViews` draws an on-station item at `CookingViews.point_of` (every plated one stacked on the plate by its
+  slot, the patty on the grate), with an inverted-hull outline on a plate (`CookingLooks.outline`: `grow`,
+  `CULL_FRONT`, unshaded; one neutral filled-slot colour, never right or wrong, #1101); its view stays in
+  `SightHider.GROUP`. Every part is
   depth-tested, none drawn over the level (`client/dev/cooking_wall_preview.tscn`).
-- **The looks.** `CookingLooks` builds the 21 item kinds' placeholder looks and the five icons (sun, moon, star,
-  drop, heart, the ADR's §5.1) in code, keyed on C6's kind ids; `ItemView` asks it first, so the hand, the loose view
-  and the pick sphere share one size. A kind with no look keeps the labelled box (`ContentNames`).
-- **The sounds.** `SoundChooser` (given the mode): `IngredientPlaced`'s chime, buzz or, for the third right one, the
-  burger's done sound at the place; `GrillLoaded`'s put click at the grill; `ItemChanged`'s ding to a fried patty,
+- **The looks.** `CookingLooks` builds the 22 item kinds' placeholder looks (the burger since #1101: its three
+  parts stacked as on the plate, each on the one below so the bun never hides the patty, from `Item.parts`; `ItemViews` rebuilds a view when its parts arrive, the own hand
+  too) and the five icons (sun, moon, star, drop, heart, the ADR's §5.1) in code, keyed on C6's kind ids; `ItemView`
+  asks it first, so the hand, the loose view and the pick sphere share one size. A kind with no look keeps the labelled box (`ContentNames`).
+- **The sounds.** `SoundChooser` (given the mode): `IngredientPlaced`'s put click at the place (no chime or buzz,
+  which would tell right or wrong, #1101); `BurgerPlated`'s chime at the place; `BurgerServed`'s done sound (right)
+  or buzz (wrong) at the order board; `GrillLoaded`'s put click at the grill; `ItemChanged`'s ding to a fried patty,
   hiss to the burnt one; each aimed `COUNTER_AIM_M` above, cut and muffled like every world sound, on
   `WorldSounds.cooking_blip()` placeholders. `StationHums` sizzles the grill (`sizzle_blip()`) while its ring
   fries (CD14 (a); it stops at fried, where the ding plays), in the round.
@@ -7392,15 +7408,17 @@ House's geometry, the markers the deal left with no station, and the leak plant 
 #### 9.5.20 Cooking (task type)
 What it does: one shared task (#682) whose subtasks are its N burgers, N the subtasks setting: each place shows an
 order (a bun, a patty and a herb shown as an icon); the players take buns and raw patties from boxes, fry the patty on
-the grill, pick the herb the herb board's code names from its bed and fill the place. Nobody owns it: any living
-player of any role takes, fries and fills. Designed in the [cooking ADR](decisions/2026-10-10-cooking-task.md) (the ADR's §8,
+the grill, pick the herb the herb board's code names from its bed and fill the place, take the plated burger and
+serve it at the order board, where alone it is checked (#1101, the ADR's amendment of 2026-10-15). Nobody owns it:
+any living player of any role takes, fries, fills and serves. Designed in the [cooking ADR](decisions/2026-10-10-cooking-task.md) (the ADR's §8,
 the split); C3 (#772) built its data, deal, board events, demands and checks, C4 (#773) the uses of the grill, the
 beds and the places and the grill's tick, C5 (#774) its station scenes in the House; the client's boards are
 C7's. C6 (#775) put it in the shipped base mode on the House alone (provisional data the engineer approves):
 `content/tasks/cooking.tres` (the cooking ADR §5.1's name "Cooking" and the GDD's description, `fry_seconds` 10, `burn_seconds` 5, `maps` the
-House alone, CD16's 2 m radii and heights, the boards `display`, CE17's `Cooldown` key `cooking_take` at 0.25 s on
+House alone, CD16's 2 m radii and heights, the herb board `display` (the order board too until #1101 gave it the
+serve rule), CE17's `Cooldown` key `cooking_take` at 0.25 s on
 the beds and the boxes, `HandNotTwoHanded` on the place alone), its 21 item kinds in `content/items/` (the cooking ADR §5.1's names;
-the 15 ingredients `vanish_seconds` 60, the 11 a take gives `max_items` 128, placeholders; the six boxes two-handed,
+since #1101 22 with `burger.tres`, one-handed, `vanish_seconds` 60, no cap; the 15 ingredients `vanish_seconds` 60, the 11 a take gives `max_items` 128, placeholders; the six boxes two-handed,
 each tagged with its id and holding its take rule, CE7), all listed in the mode's `item_kinds` (CE18), the `burgers`
 setting (1, 0 to 3, "Burgers (Cooking)") and VanishTicks in Round (§9.5.1). Until the copy deck has `task.cooking`
 and the 21 `item.<id>` keys the client names the task by the deck's `room.kitchen` ("Kitchen",
@@ -7408,8 +7426,9 @@ and the 21 `item.<id>` keys the client names the task by the deck's `room.kitche
 (`content/howto/tasks/cooking.tres`) shows three word frames of existing keys, placeholders the engineer approves.
 Tests (C6): `tests/unit/content/cooking_content_test.gd` (the data, the rules, the 21 kinds, the setting, Round, and
 the fit of House with it and of the greybox without it).
-Settings (CE14): five `StationKind`s, `order_board` and `herb_board` (`display` kinds), `grill`, `herb_bed` and
-`place` (each with an `Interact` rule ending in `UseStation`); the lists `buns`, `raw_patties`, `fried_patties` (in
+Settings (CE14): five `StationKind`s, `herb_board` (a `display` kind), `order_board`, `grill`, `herb_bed` and
+`place` (each with an `Interact` rule ending in `UseStation`; the order board's since #1101); the `burger` item
+kind (#1101); the lists `buns`, `raw_patties`, `fried_patties` (in
 the raw ones' order), `burnt`, `herbs` (at most 255) and `boxes` (two-handed item kinds on tags of their own, each
 giving one bun or raw patty kind by its `target_actions`' `GiveItem`); `subtasks_setting`; `fry_seconds` and
 `burn_seconds` (`ZoneTask`'s bounds; the first counted from the patty going on, the second from its turning fried,
@@ -7432,10 +7451,14 @@ as the ADR's 200 and 100 ticks); the RNG purposes
   `empty_hand` or `wrong_item` for anything else, CD7 (a)); occupied, it gives its patty, whatever its kind
   (`Items.give`, which makes room: the belt, or the feet; a box carrier's onto the belt, CD3 (b), CD5 (b)). A bed
   gives a new item of its herb of the round at the bed (`GiveItem.give_new`; at the cap with none loose `unavailable`
-  before anything is paid, CE3). A place takes a bun, a fried patty or a herb (else `wrong_item`: a knife, a raw or
-  burnt patty, CD8 (b); its rule's `HandNotTwoHanded` refuses `two_handed` first): right (the order's, its slot
-  empty) it is locked there; wrong it lies at the place (`on_station`) for `PickUp`; `IngredientPlaced` first either
-  way (CE13); the third right one makes the place done (`unavailable` after) and the subtask done. The grill's and
+  before anything is paid, CE3). A place (#1101) takes a bun, a fried patty or a herb on its free slot, locked
+  there whatever the order asks, `IngredientPlaced` (else `wrong_item`: a knife, a raw or burnt patty, CD8 (b);
+  `unavailable` for a filled slot or a done place; its rule's `HandNotTwoHanded` refuses `two_handed` first). E on a
+  full place takes the burger: the three items vanish (`ItemVanished`, ascending id), a `burger` item is spawned and
+  given to the actor (`GiveItem.give_new`), then `BurgerPlated` with its kinds; `State.burgers` keeps its order, bound to the burger's own item (never another item given that id after it vanished).
+  The order board serves the held burger (`empty_hand`, `wrong_item` for no burger, `unavailable` for a done order):
+  `BurgerServed(station, right)` against its place's order, the burger vanishes; right, what was put on that place
+  since vanishes, the order and the place are done and the subtask done (CE13); wrong, nothing more. The grill's and
   the beds' rules have no `HandNotTwoHanded` (a take beside a box, CD3 (b)); a bed's rule holds a `Cooldown`
   (CE17's flood guard, `too_soon`), which `Cooking.check` demands. No use reads a role.
 - Tick (`TaskTicks`, Round): the grill's patty turns fried at its fried tick and burnt at its burnt tick
@@ -7443,28 +7466,35 @@ as the ADR's 200 and 100 ticks); the RNG purposes
 
 Produces: `StationPlaced` per station in id order, `ItemSpawned` per box, `OrderPosted` per place in station order,
 then `HerbsDealt` (all everyone) in the deal, then the task's `TaskState` and `TaskProgress`; then `item_rested`
-(spawn) per box. On a use: `GrillLoaded`, `IngredientPlaced`, `ItemSpawned`, `ItemVanished` (the cap), `ItemPlaced`
+(spawn) per box. On a use: `GrillLoaded`, `IngredientPlaced`, `BurgerPlated`, `BurgerServed`, `ItemSpawned`,
+`ItemVanished` (the cap, a take, a serve), `ItemPlaced`
 (room made), `ItemPickedUp`, `TaskState` and `TaskProgress`; in the tick `ItemChanged` (all everyone). Its task state
 (`Cooking.State`, CE12 (a)): the boards', grill's and beds' stations, each bed's herb,
 the code, the orders (`Cooking.Order`: its place, bun, raw patty, herb, the items locked on its slots, done) and the
-grill's patty with its fried and burnt ticks, in `MatchState`. Visible to: everyone; an order carries its fried
-patty and its herb's icon, never the herb (CE9 (a)); no event names a player, and nothing reads a role (§9.2).
+grill's patty with its fried and burnt ticks, the plated burgers by item id (`Cooking.Burger`: its order and
+kinds, #1101), in `MatchState`. Visible to: everyone; an order carries its fried patty and its herb's icon, never
+the herb (CE9 (a)); no event names a player, nothing tells right or wrong before a serve (#1101), and nothing reads
+a role (§9.2).
 Status: `core/` built in #772 (cooking C3): `core/tasks/cooking.gd`, `core/events/order_posted_event.gd`,
 `core/events/herbs_dealt_event.gd`, wire kinds 73 and 74 (protocol 22), `WireBudget`'s `HerbsDealt`; the uses and the tick in
 #773 (cooking C4): `core/events/grill_loaded_event.gd`, `core/events/ingredient_placed_event.gd`, wire kinds 79 and
-80 (protocol 26).
+80 (protocol 26); the burger checked when served in #1101: `core/events/burger_plated_event.gd`,
+`core/events/burger_served_event.gd`, wire kinds 85 and 86, kind 80 without `right` (protocol 35).
 Tests: `tests/unit/tasks/cooking_deal_test.gd`, `cooking_check_test.gd` (CE14, `emits`, the leak lists),
 `cooking_demands_test.gd` (the exact demands through `LayoutCheck` and the fit check),
 `tests/unit/events/cooking_events_name_no_player_test.gd`, `tests/unit/server/wire_budget_test.gd` and the wire
 schema tests; `cooking_grill_test.gd`, `cooking_beds_test.gd`, `cooking_places_test.gd`, `cooking_edges_test.gd` (the
-§4 rows beside other parts: a downed player, a raise, the clock's last tick, the round's end) and
+§4 rows beside other parts: a downed player, a raise, the clock's last tick, the round's end), `cooking_serve_test.gd`
+(#1101: the take, the serve right and wrong, the board's refusals, a refilled plate cleared, nothing tells right or
+wrong before the serve) and
 `cooking_role_swap_test.gd` (§7); fixtures `tests/fixtures/tasks/fixture_cooking_modes.gd`. Over the wire (#778, cooking
 C9, the ADR's §7 and CE22): `tests/integration/server/host_session_cooking_test.gd` on
 `tests/fixtures/tasks/fixture_wire_cooking.gd` (a fixture mode dealing a fixture Cooking on its one map, whose path is
 the mode's `maps`, a key of the harness's `game_layouts` and the type's `TaskType.maps`): two clients take from the
 boxes (onto the belt beside a package, a full belt's bun down at the feet), fry a patty, put a right and a wrong
 ingredient on a place, finish the burger and leave what lay to vanish, and what each decoded equals its
-`Match.view_of` (planted: `IngredientPlaced`'s wire row without `right`, failed, reverted); and the flood guard and
+`Match.view_of` (planted: `IngredientPlaced`'s wire row without `right`, failed, reverted; since #1101 they plate
+and serve a wrong burger, then a right one); and the flood guard and
 the cap against one peer's burst of takes (§4.6.5.3).
 The station scenes, C5 built in #774 (provisional until the engineer approves them; the convention: the
 [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes"):
@@ -7483,8 +7513,9 @@ Tests: `tests/integration/levels/stations/station_scenes_test.gd` (the conventio
 `cooking_stations_test.gd` (the rows, pairs, grate, ring, plate and number, the five beds with a clear use spot
 each, the shelves' box markers on the floor) and `tests/integration/levels/house_cooking_stations_test.gd` (the
 markers read once each at §6's points, one box per kind, the places numbered in level order, a player clear on each
-used device's spot on a whole floor, the boxes on storage's floor, no shared (x, z), no art copy left, none on
-another map).
+used device's spot on a whole floor, a player walking up to the order board within its reach and seeing it
+(#1101: its marker, between the board and the counters, is too tight to stand on), the boxes on storage's floor, no
+shared (x, z), no art copy left, none on another map).
 
 #### 9.5.21 Car repair (task type)
 What it does: one shared task (#688) whose subtasks are the N parts the car needs, N the subtasks setting: one player
@@ -8196,10 +8227,13 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   place is a station), `ScenarioInvariants` on every call and tick, players moving only by accepted claims (the climb
   from storage by the pantry stairs). Every station and box marker reads without errors and the deal fills them; a
   player on each used device's spot passes `AtStation` and `StationInSight` (the grill and each place refuse
-  `empty_hand`, each bed gives its herb of the round), the two boards refuse `nothing_to_do` (CE6); a burger from
+  `empty_hand`, each bed gives its herb of the round, the order board refuses `empty_hand` and, with a herb,
+  `wrong_item`), the herb board, a display kind, refuses `nothing_to_do` (CE6); a burger from
   players' commands (a bun and a raw patty from the boxes in storage, the patty fried on the grill, the order's herb
-  from its bed, all three on the order's place) is done and the round goes on; a box carrier takes a herb and the
-  grill's patty onto the belt (the herb put down at the feet first) and is refused `two_handed` at a place, so the
+  from its bed, all three on the order's place) is plated with nothing said of right or wrong, taken, and served at the
+  order board (#1101: checked there), where it is done and the round goes on, while another bun than the order's is
+  thrown away and the order stays undone; a box carrier takes a herb and the grill's patty onto the belt (the herb
+  put down at the feet first) and is refused `two_handed` at a place, so the
   base mode's own rules keep CD3 (b); behind the grill's body and each place's counter, inside the cylinder, a use is
   refused `blocked`. The burger's and the carrier's matches replay from their command logs (the same events to the
   same recipients on the same ticks, no `diagnostics`). Seen failing with the leak plant on `IngredientPlaced`
@@ -8218,7 +8252,7 @@ costs outside it.
 | Car repair (#688): hold the lift, fit the part, on the House map (designed in the [car repair ADR](decisions/2026-10-10-car-repair-task.md), proposed; being built: R1, the channels on stations and `HoldStation` (#805), R2, `LifeRules.kill` and the kill queue (#806), R3, the task type's deal, lift and drop (#807, §9.5.21), R4, the fit and the parts (#808), and R9, the wire test without bots (#813, §9.5.21, §4.6.5.3), are in; the engineer answered all its questions on 2026-10-10, the drafted words included, and approved it for the MVP only: a more interesting mechanic will replace it later) | a task type `.tres` (four station kinds, the car, the lift panel and one bin per part kind, each with its `Interact` rule, and the needed part's picture on a garage wall, a display kind; the list of part item kinds; the fit's and the rise's seconds; the car footprint's half-width and clearance; its own subtasks setting), one item kind per part kind, the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays car repair; unit, House and wire tests stand in, the ADR's §7), the mode's task types | on top of the Generator's `Interact` parts (#679, G1) and the cooking design's `GiveItem` and `Items.give` (#682, C1, C2; a take beside a two-handed item goes onto the belt, the engineer's rule for every take): one task type, `CarRepair`, whose deal draws the needed parts and whose hold hooks raise and drop the car and fit a part; one effect, `HoldStation`, a channel on a station (timed for the fit, with no end for the lift). The channel primitive gains a station as its subject, a channel with no end and a mark for a stop at the phase's end; `LifeRules` gains `kill`, a death with no knockdown, for the drop, with a queue of kills (`kill_later`, `settle_kills`) that `Match` drains after each command's dispatch and each tick system and `Channels.advance` after each channel's step (a change to `Match`'s step, ADR RE17); `FitCheck.shortfalls` appends a new `TaskType.layout_problems` (RE14); the mode check gains the `kills()` and `LifeTicks` rule (RE6); `LifeRules.damage` stops a channel only when its effect's `hit_stops` is set | four, all to everyone: `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`; a drop's deaths are `Died`, as every death | no new intent: `Interact` starts a hold, `StopRaise` (already "stop my channel") ends it. Outside `core/`: the wire rows and two protocol bumps; a client-only collision layer for the moving car, since the host's world reads layer 1 only (§4.5.9) and the host does not check movement through walls (§7.1.9); a House integration test of a drop that kills only the players under the car (bots do not play House, §9.7). It depends on two mechanics designed elsewhere: a crouch for every player (#727, the [crouch ADR](decisions/2026-10-10-crouch.md); the fitter works crouched, the raised car too low to stand under) and the reworked knockdown (#728) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), its answers given on #302, §7.1.16; the flying state, the arc and `FlightTicks` built in #642; the intent, `ThrowItem`, `OverFloor` and `ItemThrown` in #643; the base mode's rule in #646) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2): `HoldsItem`, `OverFloor`, `ThrowItem`; its numbers are the engineer's (TD1) | three: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact, and the `OverFloor` condition (`no_floor`), so no throw leaves its item in the air | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
-| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built so far: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1; C3, #772, `Cooking`'s data, deal, demands and checks, `OrderPosted` and `HerbsDealt`, §9.5.20; C4, #773, the grill, the beds and the places, the grill's tick, `GrillLoaded` and `IngredientPlaced`, §9.5.20; C9, #778, the wire test, §9.5.20, §4.6.5.3; C7, #776, the client's view, §4.7.55; C6, #775, the data in the base mode on House, §9.5.20, §9.5.1) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 21 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule), the 15 ingredients vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | six, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded` and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: six wire rows and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
+| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built so far: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1; C3, #772, `Cooking`'s data, deal, demands and checks, `OrderPosted` and `HerbsDealt`, §9.5.20; C4, #773, the grill, the beds and the places, the grill's tick, `GrillLoaded` and `IngredientPlaced`, §9.5.20; C9, #778, the wire test, §9.5.20, §4.6.5.3; C7, #776, the client's view, §4.7.55; C6, #775, the data in the base mode on House, §9.5.20, §9.5.1; #1101, a burger checked when it is served at the order board, `BurgerPlated` and `BurgerServed`, the ADR's amendment of 2026-10-15, §9.5.20, §4.7.55) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 22 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule, and the plated burger, #1101), the 15 ingredients and the burger vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | eight, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded`, `BurgerPlated`, `BurgerServed` (#1101) and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: eight wire rows (two since #1101) and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
 
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
 world by id, and owners for fixed interactables (a marker kind in `levels/`, such as a meeting button) and for

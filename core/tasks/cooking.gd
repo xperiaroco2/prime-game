@@ -4,7 +4,9 @@ extends TaskType
 ## one shared task whose subtasks are its N burgers, N the subtasks setting. Nobody owns it: any
 ## living player of any role takes from a box, picks a herb, uses the grill and fills a place.
 ## C3 (#772) built the data, the deal and the board events; C4 (#773) the uses of the grill, the
-## beds and the places (use_problem, use_station) and the grill's tick (tick, through TaskTicks).
+## beds and the places (use_problem, use_station) and the grill's tick (tick, through TaskTicks);
+## #1101 (the ADR's amendment of 2026-10-15) the plated burger and its serving at the order board:
+## a burger is checked only when it is served, never on the plate.
 ##
 ## The deal (DealTasks calls deal() when the draw picks it, on a map its `maps` lists; ADR §2.1,
 ## CE8): with N = 0 nothing at all is placed (no station, no box, no order, no HerbsDealt) and the
@@ -32,8 +34,9 @@ const MAX_SECONDS := ZoneTask.MAX_SECONDS
 const MAX_HERBS := 255
 
 
-## One burger (ADR CE12 (a)): its place, its order, the right items locked on its three slots and
-## whether it is done. Red (wrong) ingredients are not tracked: they lie on the ground.
+## One burger (ADR CE12 (a)): its place, its order, the items locked on its three slots and
+## whether it is done. A slot takes any ingredient of its group (any bun, fried patty or herb):
+## nothing is compared with the order before the burger is served (the amendment of 2026-10-15).
 class Order:
 	extends RefCounted
 
@@ -43,16 +46,30 @@ class Order:
 	## The order's patty, raw: its fried kind (Cooking.fried_of) is the one the place takes.
 	var raw_patty: ItemKind
 	var herb: ItemKind
-	## The right items on the slots, by item id (-1: the slot is empty).
+	## The items on the slots, by item id (-1: the slot is empty), right or wrong.
 	var bun_item := -1
 	var patty_item := -1
 	var herb_item := -1
 	var done := false
 
 
+## A plated burger (the amendment of 2026-10-15): the order it was plated for (its index in
+## State.orders: the place it was taken from) and the kinds on its three slots. Host-only:
+## BurgerPlated names the kinds, never whether they are right. `item` is the burger's own
+## ItemState: a record serves only that item, never another given its id once it vanished.
+class Burger:
+	extends RefCounted
+
+	var item: ItemState
+	var order := -1
+	var bun: ItemKind
+	var patty: ItemKind
+	var herb: ItemKind
+
+
 ## Cooking's state (§9.1, ADR CE12 (a)): the boards' and the grill's station ids, the beds' with
-## each bed's herb of the round, the code, the orders in place order, and the grill's patty with
-## its fried and burnt ticks. Only Cooking reads and writes it.
+## each bed's herb of the round, the code, the orders in place order, the grill's patty with its
+## fried and burnt ticks, and the plated burgers by item id. Only Cooking reads and writes it.
 class State:
 	extends TaskState
 
@@ -72,6 +89,9 @@ class State:
 	var grill_item := -1
 	var fried_tick := -1
 	var burnt_tick := -1
+	## The plated burgers not served yet, by item id (#1101). An entry whose burger vanished (left
+	## lying) is dropped at the next plating; a served one at once.
+	var burgers: Dictionary[int, Burger] = {}
 
 	func done_count() -> int:
 		var count := 0
@@ -84,8 +104,9 @@ class State:
 		return orders.size()
 
 
-## The station kinds (CE6 (a)): the two boards are display kinds with no rule; the grill, the bed
-## and the place each have an Interact rule ending in UseStation.
+## The station kinds (CE6 (a)): the herb board is a display kind with no rule; the order board
+## (where a burger is served, the amendment of 2026-10-15), the grill, the bed and the place each
+## have an Interact rule ending in UseStation.
 @export var order_board: StationKind
 @export var herb_board: StationKind
 @export var grill: StationKind
@@ -98,6 +119,8 @@ class State:
 @export var fried_patties: Array[ItemKind] = []
 @export var burnt: ItemKind
 @export var herbs: Array[ItemKind] = []
+## The plated burger (#1101): one-handed, made when a full plate is taken; it vanishes left lying.
+@export var burger: ItemKind
 ## The box kinds (CE7 (a)), each two-handed, on markers of its own spawn tag, each with
 ## `target_actions` giving one bun or raw patty kind (GiveItem).
 @export var boxes: Array[ItemKind] = []
@@ -139,7 +162,7 @@ func fried_of(raw: ItemKind) -> ItemKind:
 
 
 ## Every ingredient kind, in the lists' order: the buns, the raw and the fried patties, the burnt
-## one and the herbs (the 15 that vanish when left lying, CD6 (c)).
+## one and the herbs (the 15 that vanish when left lying, CD6 (c)). Not the burger: see kinds().
 func ingredients() -> Array[ItemKind]:
 	var found: Array[ItemKind] = []
 	found.append_array(buns)
@@ -148,6 +171,15 @@ func ingredients() -> Array[ItemKind]:
 	if burnt != null:
 		found.append(burnt)
 	found.append_array(herbs)
+	return found
+
+
+## Every one-handed kind it names: the ingredients, then the burger (each vanishes left lying and
+## is listed in the mode, CD6 (c), CE18).
+func kinds() -> Array[ItemKind]:
+	var found := ingredients()
+	if burger != null:
+		found.append(burger)
 	return found
 
 
@@ -218,15 +250,21 @@ func has_tick() -> bool:
 ##   `empty_hand`, anything but a raw patty `wrong_item` (CD7 (a)); occupied, nothing: taking its
 ##   patty off is a take, which makes its own room (CD3 (b), CD5 (b));
 ## - a bed: `unavailable` only when its herb is at its cap with none loose (CE3, GiveItem's);
-## - a place: `unavailable` once its burger is done, `empty_hand`, or `wrong_item` for a hand item
-##   that is none of the buns, the fried patties and the herbs (a knife, a raw or burnt patty, CD8
-##   (b)); its rule's HandNotTwoHanded refuses `two_handed` before.
+## - a place: `unavailable` once its burger is done; full (three slots filled), nothing: taking the
+##   plated burger is a take, which makes its own room; else `empty_hand`, `wrong_item` for a hand
+##   item that is none of the buns, the fried patties and the herbs (a knife, a raw or burnt patty,
+##   CD8 (b)), and `unavailable` when the hand item's slot is filled already; its rule's
+##   HandNotTwoHanded refuses `two_handed` before. Never a word of right or wrong (#1101);
+## - the order board (a serve, #1101): `empty_hand`, `wrong_item` for anything but a burger, and
+##   `unavailable` for a burger whose order is done already (or that no plating made).
 ## Any other station of the task, or no task, `unavailable`.
 func use_problem(ctx: MatchContext, task: MatchTask, station: StationState) -> StringName:
 	if task == null:
 		return StationUsable.UNAVAILABLE
 	var task_state := task.state as State
 	var hand := Items.held_by(ctx.state, ctx.actor)
+	if station.id == task_state.order_board:
+		return _serve_problem(task_state, hand)
 	if station.id == task_state.grill:
 		return _grill_problem(task_state, hand)
 	var bed := task_state.beds.find(station.id)
@@ -251,16 +289,22 @@ func use_reasons() -> Array[StringName]:
 ##   onto the belt), and the grill is empty;
 ## - a bed: a new item of the bed's herb of the round, spawned at the bed and given to the actor
 ##   (GiveItem.give_new: the cap, ItemSpawned, Items.give);
-## - a place: the hand item goes on. Right (the order's bun, fried patty or herb, its slot still
-##   empty): locked there, the slot filled; wrong (anything else the place takes, or a second one
-##   for a filled slot): it lies on the ground at the place (Items.lay_on_station, `on_station`),
-##   where PickUp takes it back. IngredientPlaced either way, first (CE13); the third right one
-##   makes the place done (StationState.done), then Tasks.subtask_done (CE13; the detail: the
-##   order's index and the place).
+## - a place (the amendment of 2026-10-15): not full, the hand item goes on its free slot, locked
+##   there (Items.lock_at), with IngredientPlaced, whatever the order asks; full, the plated burger
+##   is taken: the three items vanish (ItemVanished each, ascending id), a new burger item is
+##   spawned and given to the actor (GiveItem.give_new: ItemSpawned, Items.give), then BurgerPlated
+##   names its kinds;
+## - the order board, a serve: the held burger is checked against its place's order, BurgerServed
+##   (right or wrong, nothing more), and it vanishes. Right: the leftovers on its place vanish, the
+##   order and the place are done (StationState.done), then Tasks.subtask_done (CE13; the detail:
+##   the order's index and the place). Wrong: thrown away, the burger is made again whole.
 func use_station(ctx: MatchContext, task: MatchTask, station: StationState) -> void:
 	if task == null:
 		return  # StationUsable refused it.
 	var task_state := task.state as State
+	if station.id == task_state.order_board:
+		_serve(ctx, task)
+		return
 	if station.id == task_state.grill:
 		_use_grill(ctx, task_state, station)
 		return
@@ -279,6 +323,8 @@ func use_emits() -> Array[Script]:
 	return [
 		GrillLoadedEvent,
 		IngredientPlacedEvent,
+		BurgerPlatedEvent,
+		BurgerServedEvent,
 		ItemSpawnedEvent,
 		ItemVanishedEvent,
 		ItemPlacedEvent,
@@ -337,29 +383,107 @@ func _use_grill(ctx: MatchContext, task_state: State, station: StationState) -> 
 func _use_place(ctx: MatchContext, task: MatchTask, index: int, station: StationState) -> void:
 	var task_state := task.state as State
 	var order := task_state.orders[index]
+	if _full(order):
+		_take_burger(ctx, task_state, index, station)
+		return
 	var hand := Items.held_by(ctx.state, ctx.actor)
 	if hand == null:
 		ctx.error("Cooking: player %d put nothing on place %d" % [ctx.actor, station.id])
 		return
-	var right := true
-	if hand.kind == order.bun and order.bun_item < 0:
+	if buns.has(hand.kind):
 		order.bun_item = hand.id
-	elif hand.kind == fried_of(order.raw_patty) and order.patty_item < 0:
+	elif fried_patties.has(hand.kind):
 		order.patty_item = hand.id
-	elif hand.kind == order.herb and order.herb_item < 0:
-		order.herb_item = hand.id
 	else:
-		right = false
-	ctx.emit(IngredientPlacedEvent.new(hand.id, station.id, right))
-	if not right:
-		Items.lay_on_station(ctx, hand, station.position)
-		return
+		order.herb_item = hand.id
 	Items.lock_at(ctx, hand, station.position)
-	if order.bun_item < 0 or order.patty_item < 0 or order.herb_item < 0:
+	ctx.emit(IngredientPlacedEvent.new(hand.id, station.id))
+
+
+## The full plate of order `index` is taken (#1101): its three items vanish, a burger of their
+## kinds goes to the actor, then BurgerPlated. Every id in use (give_new null; the three just
+## vanished free three, so only a broken state): a rule error, logged, and nothing is recorded.
+func _take_burger(ctx: MatchContext, task_state: State, index: int, station: StationState) -> void:
+	var order := task_state.orders[index]
+	var made := Burger.new()
+	made.order = index
+	made.bun = _kind_of(ctx, order.bun_item)
+	made.patty = _kind_of(ctx, order.patty_item)
+	made.herb = _kind_of(ctx, order.herb_item)
+	_clear_plate(ctx, order)
+	_drop_stale(ctx, task_state)
+	if made.bun == null or made.patty == null or made.herb == null:
+		ctx.error("Cooking: place %d's plate lost an item" % station.id)
 		return
+	var item := GiveItem.give_new(ctx, burger, station.position)
+	if item == null:
+		ctx.error("Cooking: no burger made at place %d" % station.id)
+		return
+	made.item = item
+	task_state.burgers[item.id] = made
+	ctx.emit(BurgerPlatedEvent.new(item.id, station.id, made.bun.id, made.patty.id, made.herb.id))
+
+
+## The actor's burger is served (#1101): checked against its order, BurgerServed, the burger
+## vanishes; right, the order's leftovers vanish and the subtask is done.
+func _serve(ctx: MatchContext, task: MatchTask) -> void:
+	var task_state := task.state as State
+	var hand := Items.held_by(ctx.state, ctx.actor)
+	var made: Burger = task_state.burgers.get(hand.id if hand != null else -1)
+	if made == null or made.item != hand:
+		ctx.error("Cooking: player %d served no plated burger" % ctx.actor)
+		return
+	task_state.burgers.erase(hand.id)
+	var order := task_state.orders[made.order]
+	var right := (
+		made.bun == order.bun
+		and made.patty == fried_of(order.raw_patty)
+		and made.herb == order.herb
+	)
+	ctx.emit(BurgerServedEvent.new(order.station, right))
+	Items.vanish(ctx, hand)
+	if not right:
+		return
+	_clear_plate(ctx, order)
 	order.done = true
-	station.done = true
-	Tasks.subtask_done(ctx, task, {"subtask": index, "station": station.id})
+	var place_state: StationState = ctx.state.stations.get(order.station)
+	if place_state != null:
+		place_state.done = true
+	Tasks.subtask_done(ctx, task, {"subtask": made.order, "station": order.station})
+
+
+## Whether all three of `order`'s slots are filled.
+static func _full(order: Order) -> bool:
+	return order.bun_item >= 0 and order.patty_item >= 0 and order.herb_item >= 0
+
+
+## The kind of item `item_id`, or null when there is none.
+static func _kind_of(ctx: MatchContext, item_id: int) -> ItemKind:
+	var item: ItemState = ctx.state.items.get(item_id)
+	return item.kind if item != null else null
+
+
+## Every item on `order`'s slots vanishes, in ascending id (ItemVanished each), and the slots are
+## empty.
+static func _clear_plate(ctx: MatchContext, order: Order) -> void:
+	var ids := PackedInt32Array([order.bun_item, order.patty_item, order.herb_item])
+	ids.sort()
+	for item_id: int in ids:
+		var item: ItemState = ctx.state.items.get(item_id)
+		if item != null:
+			Items.vanish(ctx, item)
+	order.bun_item = -1
+	order.patty_item = -1
+	order.herb_item = -1
+
+
+## The burger entries whose burger is gone (it vanished, left lying, and its id may be reused by
+## another item) are dropped.
+static func _drop_stale(ctx: MatchContext, task_state: State) -> void:
+	for item_id: int in task_state.burgers.keys():
+		var made: Burger = task_state.burgers[item_id]
+		if ctx.state.items.get(item_id) != made.item:
+			task_state.burgers.erase(item_id)
 
 
 ## The grill's refusal (use_problem()): none when occupied, the take-off being a take.
@@ -375,14 +499,36 @@ func _grill_problem(task_state: State, hand: ItemState) -> StringName:
 	return &""
 
 
-## A place's refusal (use_problem()); `order` null: the station is no place of the task.
+## A place's refusal (use_problem()); `order` null: the station is no place of the task. A full
+## plate refuses nothing: its take makes its own room (Items.give).
 func _place_problem(order: Order, hand: ItemState) -> StringName:
 	if order == null or order.done:
 		return StationUsable.UNAVAILABLE
+	if _full(order):
+		return &""
 	if hand == null:
 		return StationUsable.EMPTY_HAND
 	if not _takes(hand.kind):
 		return StationUsable.WRONG_ITEM
+	var slot := order.bun_item
+	if fried_patties.has(hand.kind):
+		slot = order.patty_item
+	elif herbs.has(hand.kind):
+		slot = order.herb_item
+	if slot >= 0:
+		return StationUsable.UNAVAILABLE
+	return &""
+
+
+## The order board's refusal (use_problem()): only a plated burger of an order not done is served.
+func _serve_problem(task_state: State, hand: ItemState) -> StringName:
+	if hand == null:
+		return StationUsable.EMPTY_HAND
+	if hand.kind != burger:
+		return StationUsable.WRONG_ITEM
+	var made: Burger = task_state.burgers.get(hand.id)
+	if made == null or made.item != hand or task_state.orders[made.order].done:
+		return StationUsable.UNAVAILABLE
 	return &""
 
 
@@ -400,7 +546,7 @@ static func _order_at(task_state: State, station_id: int) -> Order:
 	return null
 
 
-## Whether a place takes `kind` at all (right or wrong): a bun, a fried patty or a herb.
+## Whether a place takes `kind` at all (whatever the order): a bun, a fried patty or a herb.
 func _takes(kind: ItemKind) -> bool:
 	return buns.has(kind) or fried_patties.has(kind) or herbs.has(kind)
 
@@ -433,6 +579,8 @@ func emits() -> Array[Script]:
 		HerbsDealtEvent,
 		GrillLoadedEvent,
 		IngredientPlacedEvent,
+		BurgerPlatedEvent,
+		BurgerServedEvent,
 		ItemChangedEvent,
 		ItemVanishedEvent,
 		TaskStateEvent,
@@ -440,12 +588,14 @@ func emits() -> Array[Script]:
 	]
 
 
-## CE14: every station kind set (the boards display kinds, the others with an Interact rule ending
-## in UseStation; their spawn tags distinct across the mode is ModeCheck's, ZE3); the lists; every
+## CE14: every station kind set (the herb board a display kind, the others with an Interact rule
+## ending in UseStation, the order board's since #1101; their spawn tags distinct across the mode
+## is ModeCheck's, ZE3); the lists and the burger; every
 ## kind distinct, listed in the mode, one-handed but the boxes, which are two-handed and placed on
 ## tags of their own; each box giving one bun or raw patty kind, and each of those given by a box;
 ## at most MAX_HERBS herbs; the seconds within bounds; non-empty RNG purposes; the cap on every
-## given kind (CE3) and `vanish_seconds` on every ingredient (CD6 (c)). The subtasks setting, from
+## given kind (CE3) and `vanish_seconds` on every ingredient and the burger (CD6 (c)). The subtasks
+## setting, from
 ## at least 0, is TaskType.check's (G0).
 func check(mode: GameMode) -> PackedStringArray:
 	var found := super(mode)
@@ -466,15 +616,12 @@ func check(mode: GameMode) -> PackedStringArray:
 	)
 	if boxes_rng.is_empty() or orders_rng.is_empty() or code_rng.is_empty() or beds_rng.is_empty():
 		found.append("Cooking %s has an empty RNG purpose" % id)
-	for kind: ItemKind in ingredients():
+	for kind: ItemKind in kinds():
 		if kind != null and not kind.vanishes():
-			(
-				found
-				. append(
-					(
-						"Cooking %s: ingredient kind %s sets no vanish_seconds: left lying, it would stay"
-						% [id, kind.id]
-					)
+			found.append(
+				(
+					"Cooking %s: %s kind %s sets no vanish_seconds: left lying, it would stay"
+					% [id, _noun(kind), kind.id]
 				)
 			)
 	return found
@@ -492,7 +639,7 @@ func _check_station_kinds(found: PackedStringArray) -> void:
 		var kind: StationKind = named[property]
 		if kind == null:
 			found.append("Cooking %s has no %s station kind" % [id, property])
-		elif property.ends_with("_board"):
+		elif property == "herb_board":
 			if not kind.display:
 				found.append("Cooking %s: station kind %s is not a display kind" % [id, kind.id])
 		elif kind.display:
@@ -526,8 +673,10 @@ func _check_lists(found: PackedStringArray) -> void:
 		)
 	if burnt == null:
 		found.append("Cooking %s has no burnt item kind" % id)
+	if burger == null:
+		found.append("Cooking %s has no burger item kind" % id)
 	var seen: Array[ItemKind] = []
-	var every: Array[ItemKind] = ingredients()
+	var every: Array[ItemKind] = kinds()
 	every.append_array(boxes)
 	for kind: ItemKind in every:
 		if kind == null:
@@ -540,13 +689,13 @@ func _check_lists(found: PackedStringArray) -> void:
 			if not kind.is_two_handed():
 				found.append("Cooking %s: box kind %s is not two-handed" % [id, kind.id])
 		elif kind.is_two_handed():
-			found.append("Cooking %s: ingredient kind %s is two-handed" % [id, kind.id])
+			found.append("Cooking %s: %s kind %s is two-handed" % [id, _noun(kind), kind.id])
 
 
 ## A kind it names that the mode does not list is refused (CE18): the client resolves kind ids,
 ## WireBudget sizes them and ModeCheck walks their rules through the mode's `item_kinds`.
 func _check_listed(mode: GameMode, found: PackedStringArray) -> void:
-	var every: Array[ItemKind] = ingredients()
+	var every: Array[ItemKind] = kinds()
 	every.append_array(boxes)
 	for kind: ItemKind in every:
 		if kind != null and mode.find_item_kind(kind.id) != kind:
@@ -653,9 +802,9 @@ static func _ends_in_use(kind: StationKind) -> bool:
 	return false
 
 
-static func _ids(kinds: Array[ItemKind]) -> PackedStringArray:
+static func _ids(listed: Array[ItemKind]) -> PackedStringArray:
 	var found := PackedStringArray()
-	for kind: ItemKind in kinds:
+	for kind: ItemKind in listed:
 		found.append(String(kind.id))
 	return found
 
@@ -717,3 +866,8 @@ func _place_boxes(ctx: MatchContext) -> Array[ItemState]:
 			break
 		placed.append(item)
 	return placed
+
+
+## How check() names `kind` in a finding: the burger, or an ingredient.
+func _noun(kind: ItemKind) -> String:
+	return "burger" if kind == burger else "ingredient"

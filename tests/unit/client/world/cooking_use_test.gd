@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## CookingUse (client/world/cooking_use.gd; #776, the cooking ADR's §8 C7) through StationUse:
 ## which of Cooking's stations E offers, from the own ClientModel and the client's own copy of the
-## mode only. Never a board; a place while not done and the hand holds a bun, a fried patty or a
-## herb; the grill empty with a raw patty, occupied always; a bed always.
+## mode only. Never the herb board; the order board with a plated burger of an open place in hand
+## (#1101); a place while not done, its plate full (the take) or the hand holding a bun, a fried
+## patty or a herb for a free slot; the grill empty with a raw patty, occupied always; a bed always.
 
 const C := preload("res://tests/fixtures/client/fixture_cooking_client.gd")
 
@@ -27,7 +28,7 @@ func test_the_roles_of_the_five_kinds() -> void:
 	assert_object(CookingUse.type_of(_mode, &"knife")).is_null()
 
 
-func test_the_boards_are_never_offered_whatever_the_hand_holds() -> void:
+func test_the_boards_are_not_offered_without_a_burger_in_hand() -> void:
 	for kind: StringName in [&"", &"bun_a", &"raw_a"]:
 		if kind != &"":
 			C.hold(_model, 40 + kind.length(), kind)
@@ -35,12 +36,38 @@ func test_the_boards_are_never_offered_whatever_the_hand_holds() -> void:
 		assert_bool(StationUse.usable(_model, _mode, C.HERB_BOARD)).is_false()
 
 
-func test_a_board_given_a_rule_is_still_never_offered() -> void:
-	# The display flag off and a use rule on: CookingUse itself refuses a board (CE6).
+func test_the_herb_board_given_a_rule_is_still_never_offered() -> void:
+	# The display flag off and a use rule on: CookingUse itself refuses the herb board (CE6).
 	var type := FixtureCookingModes.type_of(_mode)
-	type.order_board.display = false
-	type.order_board.actions = [FixtureStationModes.use_rule()]
-	C.hold(_model, 41, &"bun_a")
+	type.herb_board.display = false
+	type.herb_board.actions = [FixtureStationModes.use_rule()]
+	C.plate_burger(_model, 41, 0, [])
+	assert_bool(StationUse.usable(_model, _mode, C.HERB_BOARD)).is_false()
+
+
+func test_the_order_board_is_offered_for_a_burger_of_an_open_place() -> void:
+	C.plate_burger(_model, 41, 1, [])
+	assert_bool(StationUse.usable(_model, _mode, C.ORDER_BOARD)).is_true()
+	C.serve(_model, 41, 1, false)
+	assert_bool(StationUse.usable(_model, _mode, C.ORDER_BOARD)).is_false()
+	C.plate_burger(_model, 42, 1, [])
+	assert_bool(StationUse.usable(_model, _mode, C.ORDER_BOARD)).is_true()
+
+
+func test_the_order_board_is_not_offered_for_a_burger_of_a_done_place() -> void:
+	# Two burgers plated on place 0: once the first is served right, the second has no order left
+	# (the host's `unavailable`).
+	C.plate_burger(_model, 41, 0, [])
+	C.fold(_model, ItemPlacedEvent.new(41, Vector3.ZERO, Items.PUT_DOWN))
+	C.plate_burger(_model, 42, 0, [])
+	C.serve(_model, 42, 0, true)
+	C.fold(_model, ItemPickedUpEvent.new(C.OWN, 41))
+	assert_bool(StationUse.usable(_model, _mode, C.ORDER_BOARD)).is_false()
+
+
+func test_the_order_board_is_not_offered_for_a_burger_never_plated() -> void:
+	# A burger the client saw no BurgerPlated for has no place: the host would refuse it.
+	C.hold(_model, 43, &"burger")
 	assert_bool(StationUse.usable(_model, _mode, C.ORDER_BOARD)).is_false()
 
 
@@ -53,8 +80,32 @@ func test_a_place_is_offered_for_a_bun_a_fried_patty_or_a_herb() -> void:
 			. override_failure_message("a place refused %s" % kind)
 			. is_true()
 		)
-		C.put(_model, id, 1, false)
+		C.fold(_model, ItemPlacedEvent.new(id, Vector3.ZERO, Items.PUT_DOWN))
 		id += 1
+
+
+func test_a_filled_slot_is_not_offered_and_the_other_slots_are() -> void:
+	# Nothing is compared to the order (#1101): a bun_b on an order for bun_a still fills the slot.
+	C.hold(_model, 50, &"bun_b")
+	C.put(_model, 50, 0)
+	C.hold(_model, 51, &"bun_a")
+	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_false()
+	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE + 1)).is_true()
+	C.fold(_model, ItemPlacedEvent.new(51, Vector3.ZERO, Items.PUT_DOWN))
+	for kind: StringName in [&"fried_b", &"herb_c"]:
+		C.hold(_model, 52, kind)
+		assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_true()
+		C.fold(_model, ItemPlacedEvent.new(52, Vector3.ZERO, Items.PUT_DOWN))
+
+
+func test_a_full_plate_is_offered_whatever_the_one_handed_hand_holds() -> void:
+	var kinds: Array[StringName] = [&"bun_b", &"fried_b", &"herb_c"]
+	for i in kinds.size():
+		C.hold(_model, 60 + i, kinds[i])
+		C.put(_model, 60 + i, 0)
+	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_true()
+	C.hold(_model, 63, &"knife")
+	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_true()
 
 
 func test_a_place_is_not_offered_for_a_raw_or_burnt_patty_a_knife_or_empty_hands() -> void:
@@ -75,7 +126,10 @@ func test_a_done_place_is_not_offered() -> void:
 	var kinds: Array[StringName] = [&"bun_a", &"fried_a", &"herb_a"]
 	for i in kinds.size():
 		C.hold(_model, 60 + i, kinds[i])
-		C.put(_model, 60 + i, 0, true)
+		C.put(_model, 60 + i, 0)
+	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_true()
+	C.plate_burger(_model, 63, 0, [60, 61, 62])
+	C.serve(_model, 63, 0, true)
 	C.hold(_model, 63, &"bun_b")
 	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE)).is_false()
 	assert_bool(StationUse.usable(_model, _mode, C.FIRST_PLACE + 1)).is_true()

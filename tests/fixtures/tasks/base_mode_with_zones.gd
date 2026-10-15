@@ -55,7 +55,7 @@ func _init() -> void:
 		else:
 			types.append(type)
 		if type is Cooking:
-			kinds_out.append_array((type as Cooking).ingredients())
+			kinds_out.append_array((type as Cooking).kinds())
 			kinds_out.append_array((type as Cooking).boxes)
 	types.append(load(ZONE_TASK) as TaskType)
 	task_types = types

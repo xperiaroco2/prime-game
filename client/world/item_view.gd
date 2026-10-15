@@ -27,6 +27,8 @@ const LABEL_ABOVE := 0.15
 
 var item_id := -1
 var kind: StringName
+## A plated burger's part kind ids (ClientModel.Item.parts, #1101); empty for any other item.
+var parts := PackedStringArray()
 
 var _look: Node3D
 var _layer := PhotoLayers.GROUND
@@ -35,14 +37,20 @@ var _layer := PhotoLayers.GROUND
 ## A view of item `id` of `kind`; `colour` is a package's circle colour (white for other items),
 ## which only the `package` look takes: a labelled box is never tinted by it (DE11 of the
 ## delivery-by-meaning ADR). The label is the kind's name through ContentNames: its deck key's
-## text, else `game_mode`'s display name for it, else its id.
+## text, else `game_mode`'s display name for it, else its id. `burger_parts`: a plated burger's
+## parts (#1101), drawn by CookingLooks.burger.
 static func make(
-	id: int, item_kind: StringName, colour: Color, game_mode: GameMode = null
+	id: int,
+	item_kind: StringName,
+	colour: Color,
+	game_mode: GameMode = null,
+	burger_parts := PackedStringArray()
 ) -> ItemView:
 	var view := ItemView.new()
 	view.name = "Item%d" % id
 	view.item_id = id
 	view.kind = item_kind
+	view.parts = burger_parts
 	view._build(colour, ContentNames.text(ContentNames.item(item_kind, game_mode)))
 	return view
 
@@ -87,6 +95,9 @@ func _build(colour: Color, label_text: String) -> void:
 	add_child(_look)
 	if PhotoLooks.has(kind):
 		_look.add_child(PhotoLooks.build(kind))
+		return
+	if not parts.is_empty():
+		_look.add_child(CookingLooks.burger(parts))
 		return
 	if CookingLooks.has(kind):
 		_look.add_child(CookingLooks.build(kind))

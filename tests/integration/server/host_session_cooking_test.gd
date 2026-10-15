@@ -4,9 +4,11 @@ extends GdUnitTestSuite
 ## LoopbackHub, the codec in between, on FixtureWireCooking's mode, which deals its Cooking on
 ## its one map KITCHEN. Two clients take from the boxes (one with a package in the hands, so the
 ## bun goes onto the belt, and a second take puts the belt's bun down at its feet), load the grill
-## and take the patty off fried, put right and wrong ingredients on the order's place, pick the
-## herb and finish the burger; what lay is left until it vanishes. What each client decoded equals
-## its Match.view_of. And CE17's flood guard and CE3's cap against one peer's burst of
+## and take the patty off fried, plate a burger with a wrong bun, take it and serve it at the order
+## board (wrong: thrown away), then plate the right one and serve it (right: done; the cooking ADR's
+## amendment of 2026-10-15, #1101); what lay is left until it vanishes. No IngredientPlaced carries
+## a word of right or wrong. What each client decoded equals its Match.view_of. And CE17's flood
+## guard and CE3's cap against one peer's burst of
 ## Interact(item), which ChaosRun's idle-baseline comparison cannot hold (§4.6.5.3).
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
@@ -21,6 +23,8 @@ const EVENTS: Array[StringName] = [
 	&"GrillLoaded",
 	&"ItemChanged",
 	&"IngredientPlaced",
+	&"BurgerPlated",
+	&"BurgerServed",
 	&"ItemVanished",
 	&"TaskState",
 	&"TaskProgress",
@@ -57,27 +61,20 @@ func test_a_burger_and_its_leftovers_reach_every_client_as_its_view() -> void:
 	assert_int(first_bun.where).is_equal(ItemState.Where.GROUND)
 	# A two-handed hand item at the place: refused, to the sender alone.
 	_use(second, place)
-	# The order's bun (right), the other bun (wrong: it lies red at the place).
-	_take(_h.own, game, order.bun.id)
-	_use(_h.own, place)
-	_take(_h.own, game, _other_bun(game, order.bun).id)
-	var red_bun := FixtureCookingModes.held(game, _h.peer_of(_h.own))
-	assert_object(red_bun).is_not_null()
-	_use(_h.own, place)
-	assert_int(red_bun.where).is_equal(ItemState.Where.GROUND)
-	# The patty: on the grill, fried, off and onto the place; the herb from its bed.
-	_take(_h.own, game, order.raw_patty.id)
-	_use(_h.own, task_state.grill)
-	_h.pump_seconds(FixtureCookingModes.FRY_SECONDS + 0.2)
-	_use(_h.own, task_state.grill)
-	_use(_h.own, place)
-	_use(_h.own, FixtureCookingModes.bed_of(game, order.herb.id))
-	_use(_h.own, place)
+	# A burger with the other bun (wrong), taken and served: thrown away, nothing done.
+	_plate(game, _other_bun(game, order.bun), order)
+	var wrong := FixtureCookingModes.held(game, _h.peer_of(_h.own))
+	assert_str(wrong.kind.id).is_equal("burger")
+	_use(_h.own, task_state.order_board)
+	assert_bool(game.state.items.has(wrong.id)).is_false()
+	assert_bool(order.done).is_false()
+	# Made again whole, right: served, done.
+	_plate(game, order.bun, order)
+	_use(_h.own, task_state.order_board)
 	assert_bool(order.done).is_true()
-	# What lies loose (the bun at the feet, the red bun) vanishes.
+	# What lies loose (the bun at the feet) vanishes.
 	_h.pump_seconds(FixtureWireCooking.VANISH_SECONDS + 0.5)
 	assert_bool(game.state.items.has(first_bun.id)).is_false()
-	assert_bool(game.state.items.has(red_bun.id)).is_false()
 	for client: ClientSession in _h.clients:
 		for event_name: StringName in EVENTS:
 			(
@@ -85,7 +82,9 @@ func test_a_burger_and_its_leftovers_reach_every_client_as_its_view() -> void:
 				. override_failure_message("no %s decoded" % event_name)
 				. is_not_empty()
 			)
-		assert_array(_rights(client)).is_equal([true, false, true, true])
+		assert_array(_served(client)).is_equal([false, true])
+		for placed: WireMessage in client.view.events_named(&"IngredientPlaced"):
+			assert_array(placed.fields.keys()).is_equal(["item", "station"])
 		assert_bool(_belted_seen(client)).is_true()
 		assert_array(_h.mismatches(client)).is_empty()
 	var refused := second.view.events_named(&"Rejected")
@@ -159,6 +158,22 @@ func _take(client: ClientSession, game: Match, kind_id: StringName) -> void:
 	_h.pump_seconds(AFTER_TAKE_S)
 
 
+## The own client fills the order's place with `bun`, the order's patty (on the grill, fried, off)
+## and its herb (from its bed), then takes the plated burger.
+func _plate(game: Match, bun: ItemKind, order: Cooking.Order) -> void:
+	var task_state := FixtureCookingModes.state_of(game)
+	_take(_h.own, game, bun.id)
+	_use(_h.own, order.station)
+	_take(_h.own, game, order.raw_patty.id)
+	_use(_h.own, task_state.grill)
+	_h.pump_seconds(FixtureCookingModes.FRY_SECONDS + 0.2)
+	_use(_h.own, task_state.grill)
+	_use(_h.own, order.station)
+	_use(_h.own, FixtureCookingModes.bed_of(game, order.herb.id))
+	_use(_h.own, order.station)
+	_use(_h.own, order.station)
+
+
 ## `client` uses `station` (Interact naming it).
 func _use(client: ClientSession, station: int) -> void:
 	client.send_intent(Intents.INTERACT, {"station": station, "item": -1})
@@ -187,10 +202,10 @@ static func _count_of(game: Match, kind_id: StringName) -> int:
 	return count
 
 
-## The `right` of each IngredientPlaced `client` decoded, in order.
-static func _rights(client: ClientSession) -> Array[bool]:
+## The `right` of each BurgerServed `client` decoded, in order.
+static func _served(client: ClientSession) -> Array[bool]:
 	var found: Array[bool] = []
-	for event: WireMessage in client.view.events_named(&"IngredientPlaced"):
+	for event: WireMessage in client.view.events_named(&"BurgerServed"):
 		found.append(event.fields["right"] as bool)
 	return found
 
