@@ -7535,7 +7535,9 @@ carries them over the wire), `tests/unit/client/ui/lobby_panel_maps_test.gd` and
 `tests/unit/content/delivery_content_test.gd` (each Delivery's `maps`: one map of the base mode each, the two apart,
 neither the tutorial's); the House's markers (DE12: one marker per drop-off, no item marker inside one; ZE9's
 spacing against the drop-offs) in `tests/integration/levels/house_markers_test.gd`; an item put on each drop-off's
-furniture rests inside its cylinder (#831) in `tests/integration/levels/house_drop_offs_test.gd`; both tasks
+furniture rests inside its cylinder (#831) in `tests/integration/levels/house_drop_offs_test.gd`; items delivered
+through a Match in the host's world on each drop-off's floor and furniture top, not past a wall (D5, #832) in
+`tests/integration/levels/house_delivery_test.gd` (§9.7); both tasks
 dealt and the round won on the House in `tests/integration/levels/house_zone_test.gd` and `tests/unit/content/zone_base_mode_test.gd`. No bot
 plays it: the scenarios and the leak test play the greybox's Delivery by colours (§9.7).
 
@@ -7823,7 +7825,17 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   Delivery by meaning (#828, §9.5.25) has no bot scenario either: it plays on the House alone (DD9 (c)). The greybox,
   where every scenario, the chaos bots and `bots` play, keeps today's Delivery by colours (`colour_delivery`, §9.5.4),
   so no scenario changed; the House's Delivery is tested without bots: its unit tests on fixture modes, its markers in
-  `house_markers_test.gd`, and both tasks dealt and the crew's win on the House in `house_zone_test.gd` (below).
+  `house_markers_test.gd`, both tasks dealt and the crew's win on the House in `house_zone_test.gd` (below), and the
+  ADR's §7 House tests (D5, #832) in `tests/integration/levels/house_delivery_test.gd`: the shipped base mode on the
+  House (one task, the Generator banned: the mode deals both) in the host's real world (`HostWorldQuery.for_mode`,
+  `MarkerReader.read_levels`), `ScenarioInvariants`
+  checking every call and tick, the carrier placed at each spot. Two items put down on the floor inside each
+  drop-off near its rim are delivered (the drop-off done with the second), one put on its furniture's top too (the
+  highest top a player can put it on: the table or the bench, D4's), and one put down in the room past the wall
+  nearest the drop-off at eye height is not, then is once carried back. Horizontal rays from each marker, above its
+  furniture (1 to 1.9 m), reach no point of its cylinder past a wall: hidden both ways, so a cylinder may end inside
+  a wall, never past it. Every drop-off and storage
+  marker reads without an error, each on a floor. Every spot is found in the host's world, none written down.
   The zone task has no bot scenario since #804 (GD13 (b) of the [Generator
   ADR](decisions/2026-10-10-generator-task.md): the zone task plays on the House alone, which bots do not play). The
   three that played the greybox's zones from #649 (M7-Z3; `crew_works_every_zone`, `zone_paused_by_a_knockdown`,
