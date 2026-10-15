@@ -8227,10 +8227,13 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   place is a station), `ScenarioInvariants` on every call and tick, players moving only by accepted claims (the climb
   from storage by the pantry stairs). Every station and box marker reads without errors and the deal fills them; a
   player on each used device's spot passes `AtStation` and `StationInSight` (the grill and each place refuse
-  `empty_hand`, each bed gives its herb of the round), the two boards refuse `nothing_to_do` (CE6); a burger from
+  `empty_hand`, each bed gives its herb of the round, the order board refuses `empty_hand` and, with a herb,
+  `wrong_item`), the herb board, a display kind, refuses `nothing_to_do` (CE6); a burger from
   players' commands (a bun and a raw patty from the boxes in storage, the patty fried on the grill, the order's herb
-  from its bed, all three on the order's place) is done and the round goes on; a box carrier takes a herb and the
-  grill's patty onto the belt (the herb put down at the feet first) and is refused `two_handed` at a place, so the
+  from its bed, all three on the order's place) is plated with nothing said of right or wrong, taken, and served at the
+  order board (#1101: checked there), where it is done and the round goes on, while another bun than the order's is
+  thrown away and the order stays undone; a box carrier takes a herb and the grill's patty onto the belt (the herb
+  put down at the feet first) and is refused `two_handed` at a place, so the
   base mode's own rules keep CD3 (b); behind the grill's body and each place's counter, inside the cylinder, a use is
   refused `blocked`. The burger's and the carrier's matches replay from their command logs (the same events to the
   same recipients on the same ticks, no `diagnostics`). Seen failing with the leak plant on `IngredientPlaced`
