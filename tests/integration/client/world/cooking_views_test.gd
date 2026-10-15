@@ -177,15 +177,14 @@ func test_the_grills_ring_fills_to_fried_and_then_to_burnt() -> void:
 	var fried := 100 + type.fried_ticks()
 	FixtureCookingClient.hold(_model, 3, &"raw_a")
 	FixtureCookingClient.grill(_model, 3, fried, 100 + type.burnt_ticks())
-	_now = 100 + type.fried_ticks() / 2
+	_now = 100 + roundi(type.fried_ticks() / 2.0)
 	await _frames()
 	assert_bool(ring.visible).is_true()
 	var lit := 0
 	for segment: Node in ring.get_node("Segments").get_children():
 		lit += 1 if (segment as Node3D).visible else 0
-	assert_int(lit).is_between(
-		CookingViews.RING_SEGMENTS / 2 - 1, CookingViews.RING_SEGMENTS / 2 + 1
-	)
+	var half := roundi(CookingViews.RING_SEGMENTS / 2.0)
+	assert_int(lit).is_between(half - 1, half + 1)
 	var grill := _model.stations[GRILL]
 	assert_int(CookingViews.ring_phase(grill, _now)).is_equal(CookingViews.Ring.FRYING)
 	assert_int(CookingViews.ring_phase(grill, fried)).is_equal(CookingViews.Ring.BURNING)
@@ -244,7 +243,7 @@ func test_a_downed_eye_behind_a_kitchen_wall_sees_no_driven_part_nor_what_lies_o
 
 func test_no_driven_part_nor_plate_item_draws_through_walls_or_over_the_level() -> void:
 	var items := _loaded_items()
-	_now = 100 + FixtureCookingModes.type_of(_mode).fried_ticks() / 2
+	_now = 100 + roundi(FixtureCookingModes.type_of(_mode).fried_ticks() / 2.0)
 	await _frames()
 	var roots: Array[Node] = []
 	for root: Node3D in _views.scene_roots():

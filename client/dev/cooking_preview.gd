@@ -97,7 +97,7 @@ func _fill(model: ClientModel, mode: GameMode) -> void:
 		var fields := {"item": put[0], "station": FIRST_PLACE + (put[2] as int), "right": put[3]}
 		model.fold(&"IngredientPlaced", fields)
 	_hold(model, 60, RAW[2])
-	var fried := NOW + type.fried_ticks() * 2 / 3
+	var fried := NOW + roundi(type.fried_ticks() * 2 / 3.0)
 	var burnt := fried + type.burnt_ticks() - type.fried_ticks()
 	model.fold(&"GrillLoaded", {"station": GRILL, "item": 60, "fried": fried, "burnt": burnt})
 

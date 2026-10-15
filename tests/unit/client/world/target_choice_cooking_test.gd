@@ -92,7 +92,9 @@ func test_a_box_on_the_ground_is_picked_as_any_item() -> void:
 
 
 func _aim(id: int) -> Variant:
-	return ON_PLATE if _model.items[id].on_station == C.FIRST_PLACE else null
+	if _model.items[id].on_station == C.FIRST_PLACE:
+		return ON_PLATE
+	return null
 
 
 func _reach() -> float:
