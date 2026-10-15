@@ -4,9 +4,10 @@ extends Node3D
 ## ClientModel: the order board with two numbered rows, the herb board's dealt pairs, the five beds'
 ## plants, a full plate (three ingredients) beside a plate with a bun and a herb, each with the one
 ## filled-slot outline (#1101: nothing says right or wrong before a serve), a third place unused
-## (bare counter), and the grill with a patty on it and its ring part filled. With `wall`, a wall
-## stands between the camera and the counters: no outline, ring, row or plant may show through it
-## (the M4 render checklist). The Cooking is built here with C6's kind ids (#775: `content/` has
+## (bare counter) with a plated burger lying in front of it (#1101: its three parts), and the
+## grill with a patty on it and its ring part filled. With `wall`, a wall stands between the
+## camera and the counters: no outline, ring, row or plant may show through it (the M4 render
+## checklist). The Cooking is built here with C6's kind ids (#775: `content/` has
 ## none yet) and preview-only fry and burn seconds; dev only, nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
@@ -100,6 +101,11 @@ func _fill(model: ClientModel, mode: GameMode) -> void:
 	var fried := NOW + roundi(type.fried_ticks() * 2 / 3.0)
 	var burnt := fried + type.burnt_ticks() - type.fried_ticks()
 	model.fold(&"GrillLoaded", {"station": GRILL, "item": 60, "fried": fried, "burnt": burnt})
+	var burger := {"item": 70, "kind": &"burger", "position": PLACES[2] + Vector3(0, 0, 0.6)}
+	model.fold(&"ItemSpawned", burger)
+	var parts := {"bun": BUNS[2], "patty": FRIED[0], "herb": &"basil"}
+	parts.merge({"item": 70, "station": FIRST_PLACE})
+	model.fold(&"BurgerPlated", parts)
 
 
 func _hold(model: ClientModel, id: int, kind: StringName) -> void:
