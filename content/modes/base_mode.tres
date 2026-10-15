@@ -95,6 +95,10 @@
 [ext_resource type="Resource" uid="uid://3km0bk25j57h" path="res://content/items/box_patty_deep_red.tres" id="146_box_patty_deep_red"]
 [ext_resource type="Resource" uid="uid://bskk65yf4ugiw" path="res://content/tasks/cooking.tres" id="147_cooking"]
 [ext_resource type="Script" uid="uid://bvsxi1qwayc3r" path="res://core/items/vanish_ticks.gd" id="148_vanish_ticks"]
+[ext_resource type="Resource" uid="uid://b53tfrt3wkulc" path="res://content/items/car_part_green.tres" id="149_car_part_green"]
+[ext_resource type="Resource" uid="uid://11faqcnvulib" path="res://content/items/car_part_blue.tres" id="150_car_part_blue"]
+[ext_resource type="Resource" uid="uid://dmc12myfiiknd" path="res://content/items/car_part_yellow.tres" id="151_car_part_yellow"]
+[ext_resource type="Resource" uid="uid://cskedtsbutfj1" path="res://content/tasks/car_repair.tres" id="152_car_repair"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -449,9 +453,9 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 4
+default_value = 5
 min_value = 1
-max_value = 4
+max_value = 5
 
 [sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")
@@ -487,6 +491,14 @@ script = ExtResource("2_setting")
 id = &"burgers"
 display_name = "Burgers (Cooking)"
 default_value = 1
+max_value = 3
+
+[sub_resource type="Resource" id="Setting_car_parts"]
+script = ExtResource("2_setting")
+id = &"car_parts"
+display_name = "Parts to fit"
+default_value = 2
+min_value = 1
 max_value = 3
 
 [sub_resource type="Resource" id="Setting_dissidents"]
@@ -605,16 +617,16 @@ actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResour
 script = ExtResource("1_mode")
 min_players = 1
 max_players = 10
-settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_photos"), SubResource("Setting_burgers"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_photos"), SubResource("Setting_burgers"), SubResource("Setting_car_parts"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("126_film"), ExtResource("127_photo")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("126_film"), ExtResource("127_photo"), ExtResource("149_car_part_green"), ExtResource("150_car_part_blue"), ExtResource("151_car_part_yellow")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
-task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"

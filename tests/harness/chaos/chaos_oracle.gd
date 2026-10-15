@@ -199,9 +199,10 @@ static func _rule(
 ## neither, is `bad_args`; an id that names nothing, or a display station (CE6), is `nothing_to_do`;
 ## a target that exists but has no Interact rule where the host looks for one is `nothing_to_do`
 ## too (Match._find_action: a placed station tries its kind's actions, then the actor's role's and
-## the mode's; an item only its kind's target_actions). In the base mode only the Generator's and
-## Cooking's station kinds and Cooking's boxes have one (§9.5.19, §9.5.20), and both play on the
-## House alone (GD7, CD15), so on the greybox every accepted Interact gets this. A target with the
+## the mode's; an item only its kind's target_actions). In the base mode only the Generator's,
+## Cooking's and car repair's station kinds and Cooking's boxes have one (§9.5.19, §9.5.20,
+## §9.5.21), and all three play on the House alone (GD7, CD15, #810), so on the greybox every
+## accepted Interact gets this. A target with the
 ## rule is "?" (its conditions are the mode's, and the chaos run never meets one). `mode` null:
 ## only the target kind's rules.
 static func _interact(

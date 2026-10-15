@@ -37,14 +37,16 @@ func test_after_two_shows_or_a_completion_the_loading_shows_the_tip() -> void:
 	var seen := HowtoProgress.new()
 	seen.note_loading_shown(&"delivery")
 	seen.note_loading_shown(&"delivery")
-	# The House deals the Generator (#800), the photo task (#784) and Cooking (#775) too: their
-	# cards count the same way.
+	# The House deals the Generator (#800), the photo task (#784), Cooking (#775) and car repair
+	# (#810) too: their cards count the same way.
 	seen.note_loading_shown(&"generator")
 	seen.note_loading_shown(&"generator")
 	seen.note_loading_shown(&"photo")
 	seen.note_loading_shown(&"photo")
 	seen.note_loading_shown(&"cooking")
 	seen.note_loading_shown(&"cooking")
+	seen.note_loading_shown(&"car_repair")
+	seen.note_loading_shown(&"car_repair")
 	var game := await _round_game(PORT + 1, seen)
 	assert_array(_loading_states).is_equal([&"load"])
 	assert_int(game.howto.loading_shown(&"delivery")).is_equal(2)
@@ -57,6 +59,7 @@ func test_after_two_shows_or_a_completion_the_loading_shows_the_tip() -> void:
 	model.fold(&"TaskState", {"task": 2, "type": &"generator", "done": 4, "total": 4})
 	model.fold(&"TaskState", {"task": 3, "type": &"photo", "done": 3, "total": 3})
 	model.fold(&"TaskState", {"task": 4, "type": &"cooking", "done": 1, "total": 1})
+	model.fold(&"TaskState", {"task": 5, "type": &"car_repair", "done": 2, "total": 2})
 	veteran.follow(model)
 	game = await _round_game(PORT + 2, veteran)
 	assert_array(_loading_states).is_equal([&"load"])
@@ -75,8 +78,8 @@ func test_a_task_finished_in_the_round_completes_its_type_for_the_next_loading()
 	assert_str(String(task.type)).is_equal("delivery")
 	assert_bool(game.howto.completed(&"delivery")).is_false()
 	# The round's task reaches its total in the model the game reads, as its TaskState would.
-	# The House deals the Generator (#800), the photo task (#784) and Cooking (#775) beside it:
-	# their tasks reach their totals too.
+	# The House deals the Generator (#800), the photo task (#784), Cooking (#775) and car repair
+	# (#810) beside it: their tasks reach their totals too.
 	for task_id: int in model.tasks.keys():
 		var each: ClientModel.Task = model.tasks[task_id]
 		model.fold(
@@ -101,7 +104,7 @@ func test_a_banned_task_type_shows_no_card() -> void:
 	# With every type banned the lobby cannot start: the card is picked from the dealable types.
 	var model := game.client().model
 	model.id_sets[&"banned_task_types"] = PackedStringArray(
-		["delivery", "generator", "photo", "cooking"]
+		["delivery", "generator", "photo", "cooking", "car_repair"]
 	)
 	assert_array(HowtoCards.dealable(game.mode, model)).is_empty()
 	game.ui.show_screen(S.LOADING)

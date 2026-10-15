@@ -6,11 +6,11 @@ extends GdUnitTestSuite
 
 const MODES := "res://content/modes"
 ## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
-## meanwhile: the photo task's film and photo (#784) and Cooking's 21 kinds (#775, the cooking
-## ADR's §5.1 names). No deck key fits any and none is invented (`strings.csv` is the UI track's,
-## byte for byte), so the UI track is asked for `item.<id>` of each. Self-expiring: the test fails
-## once the deck carries the key, and the entry goes. An exception the engineer approves in #784's
-## and #775's PRs, not a decision.
+## meanwhile: the photo task's film and photo (#784), Cooking's 21 kinds (#775, the cooking
+## ADR's §5.1 names) and car repair's three parts (#810). No deck key fits any and none is invented
+## (`strings.csv` is the UI track's, byte for byte), so the UI track is asked for `item.<id>` of
+## each. Self-expiring: the test fails once the deck carries the key, and the entry goes. An
+## exception the engineer approves in #784's, #775's and #810's PRs, not a decision.
 const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"film": "Film",
 	&"photo": "Photo",
@@ -35,6 +35,18 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"box_patty_light": "Box of light patties",
 	&"box_patty_red": "Box of red patties",
 	&"box_patty_deep_red": "Box of deep red patties",
+	&"car_part_green": "Green part",
+	&"car_part_blue": "Blue part",
+	&"car_part_yellow": "Yellow part",
+}
+## Shipped task types the deck has no key for yet and ContentNames.TASK_EXCEPTIONS does not map,
+## each with the display name it shows meanwhile: car repair (#810), which runs beside client work
+## and so left `client/` alone (a TASK_EXCEPTIONS entry to the deck's `room.garage` would be the
+## nearest key, as Cooking reads as `room.kitchen`). Self-expiring like the items above: the test
+## fails once the deck has `task.<id>` or TASK_EXCEPTIONS maps the id. An exception the engineer
+## approves in #810's PR, not a decision.
+const TASKS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
+	&"car_repair": "Repair the car",
 }
 
 var _locale := ""
@@ -65,7 +77,11 @@ func test_every_shipped_role_item_and_task_has_a_deck_key() -> void:
 				continue
 			_assert_keyed(ContentNames.item(kind.id, mode), what)
 		for type: TaskType in mode.task_types:
-			_assert_keyed(ContentNames.task(type.id, mode), "%s: task %s" % [file, type.id])
+			var task := "%s: task %s" % [file, type.id]
+			if TASKS_NOT_IN_DECK_YET.has(type.id):
+				_assert_task_not_in_deck_yet(type.id, mode, task)
+				continue
+			_assert_keyed(ContentNames.task(type.id, mode), task)
 	assert_int(modes).is_greater_equal(2)
 
 
@@ -158,6 +174,19 @@ func _assert_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> vo
 	assert_bool(ContentNames.has_key(key)).override_failure_message(landed).is_false()
 	assert_str(ContentNames.item(id, mode)).override_failure_message(what).is_equal(
 		ITEMS_NOT_IN_DECK_YET[id]
+	)
+
+
+## A task type of TASKS_NOT_IN_DECK_YET: still no `task.<id>` in the deck and no TASK_EXCEPTIONS
+## entry (once either lands, remove the entry), and the type shows its display name.
+func _assert_task_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> void:
+	var key := ContentNames.TASK_PREFIX + String(id)
+	var landed := "%s: the deck has %s now: remove it from TASKS_NOT_IN_DECK_YET" % [what, key]
+	assert_bool(ContentNames.has_key(key)).override_failure_message(landed).is_false()
+	var mapped := "%s: TASK_EXCEPTIONS maps it now: remove it from TASKS_NOT_IN_DECK_YET" % what
+	assert_bool(ContentNames.TASK_EXCEPTIONS.has(id)).override_failure_message(mapped).is_false()
+	assert_str(ContentNames.task(id, mode)).override_failure_message(what).is_equal(
+		TASKS_NOT_IN_DECK_YET[id]
 	)
 
 

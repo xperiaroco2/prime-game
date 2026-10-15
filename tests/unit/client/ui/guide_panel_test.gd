@@ -54,6 +54,8 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 				"Photo room.photo_zone",
 				# Cooking's card on the House (#775), under the deck's Kitchen until the deck names it.
 				"Cooking room.kitchen",
+				# Car repair's placeholder card on the House (#810), under the deck's Garage.
+				"CarRepair room.garage",
 			]
 		)
 	)
