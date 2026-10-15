@@ -103,6 +103,7 @@ func enter(id: int) -> bool:
 
 
 ## Whether the view may open at camera station `id`: the own player alive with a body in the tree,
+## no two-handed item in the hand (the shot's HandNotTwoHanded; E there only takes the film out),
 ## the camera holding a film and framing a placed photo spot, the feet in its cylinder. The line of
 ## sight is the target's (ItemInteractions) and, from then on, each physics step's (holds()).
 func can_enter(id: int) -> bool:
@@ -111,6 +112,8 @@ func can_enter(id: int) -> bool:
 	if model.life_of(model.own_peer) != ClientModel.Life.ALIVE:
 		return false
 	if not PhotoUse.is_loaded_camera(model, mode, id) or PhotoUse.frame_of(model, mode, id) == null:
+		return false
+	if not StationUse.hand_allows_at(model, mode, id):
 		return false
 	return TargetChoice.stands_at(model.stations[id], mode, player.global_position)
 

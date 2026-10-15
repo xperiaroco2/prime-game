@@ -7,7 +7,8 @@ extends RefCounted
 ## only decides what to offer:
 ## - the photo spot: never (a `display` kind with no rule; StationUse already stops it, CE6);
 ## - the camera holding a film: always (a tap opens the viewfinder, a hold takes the film out with
-##   PickUp, which no done task refuses: the photo ADR's §2.4);
+##   PickUp, which no done task and no two-handed hand item refuses: the photo ADR's §2.4; with a
+##   two-handed item in the hand the viewfinder does not open, StationUse.hand_allows_at());
 ## - the empty camera: the task not done and the own hand or belt carrying a fresh film (no shot
 ##   yet: the photo ADR's §2.2, `no_film` and `film_exposed`);
 ## - the film box: always (it gives once the task is done too, PD12; its cap is the host's);

@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## the camera holding a film always (the view, the take-out), the empty camera only with a fresh
 ## film carried, the box always, the printer only with a film with a shot, the board only with a
 ## photo, none of the last three or the empty camera once the task is done, and never the photo
-## spot (a display kind, CE6) or anything with a two-handed item in the hand. Plus the frames left
+## spot (a display kind, CE6); with a two-handed item in the hand only the box and the loaded camera
+## (its take-out, a take: the photo ADR's §2.4), and no viewfinder there. Plus the frames left
 ## and the camera's frame as the host's PhotoFrame builds it.
 
 const P := preload("res://tests/fixtures/client/fixture_photo_client.gd")
@@ -84,6 +85,16 @@ func test_a_two_handed_item_in_the_hand_offers_no_camera_printer_or_board() -> v
 	assert_bool(_usable(P.CAMERA)).is_false()
 	# The box's rule has no HandNotTwoHanded: a take is a take (CD3 (b)).
 	assert_bool(_usable(P.BOX)).is_true()
+
+
+func test_a_two_handed_item_in_the_hand_still_offers_the_loaded_camera_s_take_out() -> void:
+	P.load_film(_model, FILM)
+	P.hold(_model, 41, &"package")
+	assert_bool(_usable(P.CAMERA)).is_true()
+	# Only the shot is refused (HandNotTwoHanded): the viewfinder asks this.
+	assert_bool(StationUse.hand_allows_at(_model, _mode, P.CAMERA)).is_false()
+	P.fold(_model, ItemPlacedEvent.new(41, Vector3(0, 0, 3), Items.PUT_DOWN))
+	assert_bool(StationUse.hand_allows_at(_model, _mode, P.CAMERA)).is_true()
 
 
 func test_another_players_film_offers_nothing() -> void:

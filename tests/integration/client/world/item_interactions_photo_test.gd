@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## camera at the camera station of FixturePhotoModes, the photo spot further along -Z. E at an empty
 ## camera with a fresh film carried sends Interact(camera, item -1), the load. At a camera holding a
 ## film a tap opens the viewfinder (nothing sent) and a hold of HOLD_SECONDS sends PickUp of the
-## film, cooking's gesture. In the view the shot sends Interact(camera, item -1) while the film has
+## film, cooking's gesture, also with a two-handed item in the hand (a take, the ADR's §2.4; no view
+## opens then). In the view the shot sends Interact(camera, item -1) while the film has
 ## frames left; the lens is current at the frame's pose, the player held, its hand hidden, the
 ## frames left shown. It opens only from inside the camera's cylinder with the floor point in sight
 ## (none from afar, none through a wall) and closes on E, a hit, a knockdown, the film taken out or
@@ -15,6 +16,7 @@ const Harness := preload("res://tests/unit/client/net/client_session_harness.gd"
 const CAMERA := 30
 const SPOT := 31
 const FILM := 40
+const PACKAGE := 41
 ## The camera's floor point 0.7 m ahead of the feet: inside its 1 m cylinder less the margin.
 const CAMERA_AT := Vector3(0, 0, -0.7)
 const SPOT_AT := Vector3(0, 0, -8)
@@ -143,6 +145,26 @@ func test_a_hold_at_a_loaded_camera_takes_the_film_out_once_and_opens_no_view() 
 	assert_int(_keys.hold_step(ItemInteractions.HOLD_SECONDS)).is_equal(-1)
 	assert_int(_keys.release_interact()).is_equal(-1)
 	assert_bool(_keys.viewing()).is_false()
+	_harness.pump()
+	var sent := _harness.sent_named(Intents.PICK_UP)
+	assert_int(sent.size()).is_equal(1)
+	assert_int(sent[0].fields["item"] as int).is_equal(FILM)
+	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
+
+
+func test_with_a_two_handed_item_a_hold_takes_the_film_out_and_a_tap_opens_no_view() -> void:
+	_load()
+	_fold(ItemSpawnedEvent.new(PACKAGE, &"package", Vector3(0, 0, 5)))
+	_fold(ItemPickedUpEvent.new(_model.own_peer, PACKAGE))
+	await _look_at_camera()
+	assert_int(_keys.station_target()).is_equal(CAMERA)
+	# The tap: the shot is refused with a two-handed item (HandNotTwoHanded), so no view opens.
+	_keys.press_interact()
+	assert_int(_keys.release_interact()).is_equal(-1)
+	assert_bool(_keys.viewing()).is_false()
+	# The hold: the take-out is a take, which a two-handed item does not refuse (the ADR's §2.4).
+	_keys.press_interact()
+	assert_int(_keys.hold_step(ItemInteractions.HOLD_SECONDS)).is_greater(0)
 	_harness.pump()
 	var sent := _harness.sent_named(Intents.PICK_UP)
 	assert_int(sent.size()).is_equal(1)
