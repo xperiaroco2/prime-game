@@ -1,0 +1,203 @@
+[gd_resource type="Resource" script_class="CarRepair" format=3 uid="uid://cskedtsbutfj1"]
+
+[ext_resource type="Script" uid="uid://b0retmeve270v" path="res://core/tasks/car_repair.gd" id="1_car_repair"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://v8nbcqr305rv" path="res://core/channel/channel_free.gd" id="9_channel_free"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="10_usable"]
+[ext_resource type="Script" uid="uid://cgks8q2efrbjw" path="res://core/tasks/hold_station.gd" id="11_hold"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="12_cooldown"]
+[ext_resource type="Script" uid="uid://b10tnmbnqauwo" path="res://core/items/give_item.gd" id="13_give"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="14_item_kind"]
+[ext_resource type="Resource" uid="uid://b53tfrt3wkulc" path="res://content/items/car_part_green.tres" id="15_green"]
+[ext_resource type="Resource" uid="uid://11faqcnvulib" path="res://content/items/car_part_blue.tres" id="16_blue"]
+[ext_resource type="Resource" uid="uid://dmc12myfiiknd" path="res://content/items/car_part_yellow.tres" id="17_yellow"]
+
+[sub_resource type="Resource" id="Bin1_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Bin1_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Bin1_cooldown"]
+script = ExtResource("12_cooldown")
+key = &"car_part_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="Bin1_give"]
+script = ExtResource("13_give")
+kind = ExtResource("15_green")
+
+[sub_resource type="Resource" id="Rule_take_part_bin_1"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Bin1_at_station"), SubResource("Bin1_in_sight"), SubResource("Bin1_cooldown")])
+effects = Array[ExtResource("5_effect")]([SubResource("Bin1_give")])
+
+[sub_resource type="Resource" id="StationKind_part_bin_1"]
+script = ExtResource("2_station")
+id = &"part_bin_1"
+spawn_tag = &"part_bin_1"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_take_part_bin_1")])
+
+[sub_resource type="Resource" id="Bin2_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Bin2_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Bin2_cooldown"]
+script = ExtResource("12_cooldown")
+key = &"car_part_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="Bin2_give"]
+script = ExtResource("13_give")
+kind = ExtResource("16_blue")
+
+[sub_resource type="Resource" id="Rule_take_part_bin_2"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Bin2_at_station"), SubResource("Bin2_in_sight"), SubResource("Bin2_cooldown")])
+effects = Array[ExtResource("5_effect")]([SubResource("Bin2_give")])
+
+[sub_resource type="Resource" id="StationKind_part_bin_2"]
+script = ExtResource("2_station")
+id = &"part_bin_2"
+spawn_tag = &"part_bin_2"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_take_part_bin_2")])
+
+[sub_resource type="Resource" id="Bin3_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Bin3_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Bin3_cooldown"]
+script = ExtResource("12_cooldown")
+key = &"car_part_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="Bin3_give"]
+script = ExtResource("13_give")
+kind = ExtResource("17_yellow")
+
+[sub_resource type="Resource" id="Rule_take_part_bin_3"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Bin3_at_station"), SubResource("Bin3_in_sight"), SubResource("Bin3_cooldown")])
+effects = Array[ExtResource("5_effect")]([SubResource("Bin3_give")])
+
+[sub_resource type="Resource" id="StationKind_part_bin_3"]
+script = ExtResource("2_station")
+id = &"part_bin_3"
+spawn_tag = &"part_bin_3"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_take_part_bin_3")])
+
+[sub_resource type="Resource" id="Car_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Car_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Car_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Car_channel_free"]
+script = ExtResource("9_channel_free")
+
+[sub_resource type="Resource" id="Car_usable"]
+script = ExtResource("10_usable")
+
+[sub_resource type="Resource" id="Car_hold"]
+script = ExtResource("11_hold")
+seconds = 5.0
+
+[sub_resource type="Resource" id="Rule_use_car"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Car_one_handed"), SubResource("Car_at_station"), SubResource("Car_in_sight"), SubResource("Car_channel_free"), SubResource("Car_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Car_hold")])
+
+[sub_resource type="Resource" id="StationKind_car"]
+script = ExtResource("2_station")
+id = &"car"
+spawn_tag = &"car"
+radius_m = 0.9
+height_m = 1.4
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_car")])
+
+[sub_resource type="Resource" id="Panel_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Panel_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Panel_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Panel_channel_free"]
+script = ExtResource("9_channel_free")
+
+[sub_resource type="Resource" id="Panel_usable"]
+script = ExtResource("10_usable")
+
+[sub_resource type="Resource" id="Panel_hold"]
+script = ExtResource("11_hold")
+endless = true
+hit_stops = false
+
+[sub_resource type="Resource" id="Rule_use_lift_panel"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Panel_one_handed"), SubResource("Panel_at_station"), SubResource("Panel_in_sight"), SubResource("Panel_channel_free"), SubResource("Panel_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Panel_hold")])
+
+[sub_resource type="Resource" id="StationKind_lift_panel"]
+script = ExtResource("2_station")
+id = &"lift_panel"
+spawn_tag = &"lift_panel"
+radius_m = 1.5
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_lift_panel")])
+
+[sub_resource type="Resource" id="StationKind_part_picture"]
+script = ExtResource("2_station")
+id = &"part_picture"
+spawn_tag = &"part_picture"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+display = true
+
+[resource]
+script = ExtResource("1_car_repair")
+car = SubResource("StationKind_car")
+lift_panel = SubResource("StationKind_lift_panel")
+bins = Array[ExtResource("2_station")]([SubResource("StationKind_part_bin_1"), SubResource("StationKind_part_bin_2"), SubResource("StationKind_part_bin_3")])
+picture = SubResource("StationKind_part_picture")
+parts = Array[ExtResource("14_item_kind")]([ExtResource("15_green"), ExtResource("16_blue"), ExtResource("17_yellow")])
+rise_seconds = 2.0
+half_width_m = 1.0
+clearance_m = 1.4
+id = &"car_repair"
+display_name = "Repair the car"
+description = "Take the part shown on the garage wall from the shelf in storage, then fit it under the car while someone holds the lift."
+maps = PackedStringArray("res://levels/house/house.tscn")
+subtasks_setting = &"car_parts"
