@@ -465,7 +465,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(27, 6.4, 28, 0)
 
 [node name="floor_boards_2x2_1" parent="Shell" instance=ExtResource("6")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "wood"
 
 [node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1"]
@@ -3772,8 +3771,6 @@ surface_material_override/0 = ExtResource("30")
 [node name="attic_bare_bulb_01" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.7, 3.333)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -3781,8 +3778,6 @@ metadata/glow = true
 [node name="attic_bare_bulb_02" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 2.7, 3.333)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -3790,8 +3785,6 @@ metadata/glow = true
 [node name="attic_bare_bulb_03" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.7, 10)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -3799,8 +3792,6 @@ metadata/glow = true
 [node name="attic_bare_bulb_04" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 2.7, 10)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -3808,8 +3799,6 @@ metadata/glow = true
 [node name="attic_bare_bulb_05" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.7, 16.667)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -3818,7 +3807,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.3, 0.9, 10)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.5
-shadow_enabled = false
 omni_range = 3.5
 metadata/fixture = "table_lamp"
 metadata/glow = true
@@ -3827,7 +3815,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.7, 0.9, 10)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.5
-shadow_enabled = false
 omni_range = 3.5
 metadata/fixture = "table_lamp"
 metadata/glow = true
@@ -3835,8 +3822,6 @@ metadata/glow = true
 [node name="attic_bare_bulb_dormer" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 4.357, 17.8)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true

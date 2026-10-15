@@ -216,7 +216,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(42, 3.2, 24, 90)
 
 [node name="floor_boards_2x2_1" parent="Shell" instance=ExtResource("7")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "wood"
 
 [node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1"]
@@ -719,8 +718,6 @@ metadata/prop = "floor_lamp"
 [node name="study_pendant_shade_01" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.3, 4)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "pendant_shade"
 metadata/glow = true
@@ -729,7 +726,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.9, 4)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.5
-shadow_enabled = false
 omni_range = 3.5
 metadata/fixture = "table_lamp"
 metadata/glow = true

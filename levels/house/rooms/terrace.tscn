@@ -37,7 +37,6 @@ outline_size = 16
 [node name="Shell" type="Node3D" parent="."]
 
 [node name="floor_concrete_2x2_1" parent="Shell" instance=ExtResource("1")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "concrete"
 
 [node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_1"]
@@ -454,8 +453,6 @@ metadata/prop = "porch_lamp"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.6, 4)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.35
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "string_lights"
 metadata/glow = false
 
@@ -463,8 +460,6 @@ metadata/glow = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 2.6, 4)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.35
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "string_lights"
 metadata/glow = false
 
@@ -472,7 +467,6 @@ metadata/glow = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.63, 2, 0.15)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "lantern"
 metadata/glow = true
@@ -481,7 +475,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.59, 2, 0.15)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "lantern"
 metadata/glow = true
@@ -490,7 +483,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.85, 2, 7.85)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "lantern"
 metadata/glow = true
@@ -499,7 +491,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.89, 2, 7.85)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "lantern"
 metadata/glow = true
@@ -508,8 +499,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 2.2, 5.63)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.8
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "porch_lamp"
 metadata/glow = true
 

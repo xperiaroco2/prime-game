@@ -231,7 +231,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(42, 0, 24, 90)
 
 [node name="floor_boards_2x2_1" parent="Shell" instance=ExtResource("10")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "wood"
 
 [node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1"]
@@ -714,7 +713,6 @@ metadata/prop = "wall_sconce"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.3, 3)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 1.6
-shadow_enabled = false
 omni_range = 8
 metadata/fixture = "chandelier"
 metadata/glow = true
@@ -723,7 +721,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.85, 1.9, 0.15)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true
@@ -732,7 +729,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.9, 5.85)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true

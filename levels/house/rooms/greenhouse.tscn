@@ -248,7 +248,6 @@ surface_material_override/2 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(74, 0, 18, 90)
 
 [node name="floor_concrete_2x2_1" parent="Shell" instance=ExtResource("5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "concrete"
 
 [node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_1"]
@@ -768,8 +767,6 @@ metadata/prop = "bare_bulb"
 [node name="greenhouse_bare_bulb_01" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.667, 2.7, 3)
 light_color = Color(0.82, 1, 0.9, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -777,8 +774,6 @@ metadata/glow = true
 [node name="greenhouse_bare_bulb_02" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.7, 3)
 light_color = Color(0.82, 1, 0.9, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -786,8 +781,6 @@ metadata/glow = true
 [node name="greenhouse_bare_bulb_03" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.333, 2.7, 3)
 light_color = Color(0.82, 1, 0.9, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -795,8 +788,6 @@ metadata/glow = true
 [node name="greenhouse_bare_bulb_04" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.667, 2.7, 9)
 light_color = Color(0.82, 1, 0.9, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "bare_bulb"
 metadata/glow = true
@@ -805,8 +796,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.6, 9)
 light_color = Color(0.82, 1, 0.9, 1)
 light_energy = 0.35
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "string_lights"
 metadata/glow = false
 
@@ -814,8 +803,6 @@ metadata/glow = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.333, 2.6, 9)
 light_color = Color(0.82, 1, 0.9, 1)
 light_energy = 0.35
-shadow_enabled = false
-omni_range = 5
 metadata/fixture = "string_lights"
 metadata/glow = false
 

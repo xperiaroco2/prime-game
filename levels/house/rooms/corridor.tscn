@@ -178,7 +178,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(40, -3.2, 30, 90)
 
 [node name="floor_concrete_2x2_1" parent="Shell" instance=ExtResource("5")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "concrete"
 
 [node name="floor_concrete_2x2" parent="Shell/floor_concrete_2x2_1"]
@@ -581,7 +580,6 @@ metadata/prop = "cage_lamp"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.667, 2.7, 1)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.9
-shadow_enabled = false
 omni_range = 5.5
 metadata/fixture = "cage_lamp"
 metadata/glow = true
@@ -590,7 +588,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.7, 1)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.9
-shadow_enabled = false
 omni_range = 5.5
 metadata/fixture = "cage_lamp"
 metadata/glow = true
@@ -599,7 +596,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.333, 2.7, 1)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.9
-shadow_enabled = false
 omni_range = 5.5
 metadata/fixture = "cage_lamp"
 metadata/glow = true
@@ -608,7 +604,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.667, 2.7, 3)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.9
-shadow_enabled = false
 omni_range = 5.5
 metadata/fixture = "cage_lamp"
 metadata/glow = true

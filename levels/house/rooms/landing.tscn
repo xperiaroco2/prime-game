@@ -289,7 +289,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(34, 3.2, 44, 90)
 
 [node name="floor_boards_2x2_1" parent="Shell" instance=ExtResource("8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 metadata/surface = "wood"
 
 [node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1"]
@@ -1164,8 +1163,6 @@ metadata/prop = "pendant_shade"
 [node name="landing_pendant_shade_01" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.3, 5)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "pendant_shade"
 metadata/glow = true
@@ -1173,8 +1170,6 @@ metadata/glow = true
 [node name="landing_pendant_shade_02" type="OmniLight3D" parent="Fixtures"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.3, 15)
 light_color = Color(1, 0.85, 0.68, 1)
-light_energy = 1
-shadow_enabled = false
 omni_range = 6
 metadata/fixture = "pendant_shade"
 metadata/glow = true
@@ -1183,7 +1178,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.85, 1.9, 0.5)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true
@@ -1192,7 +1186,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.85, 1.9, 13)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true
@@ -1201,7 +1194,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1.9, 19.85)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true
@@ -1210,7 +1202,6 @@ metadata/glow = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 1.9, 7)
 light_color = Color(1, 0.85, 0.68, 1)
 light_energy = 0.6
-shadow_enabled = false
 omni_range = 4.5
 metadata/fixture = "wall_sconce"
 metadata/glow = true
