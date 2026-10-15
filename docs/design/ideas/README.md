@@ -8,3 +8,4 @@ batches. The research's own proposals stay in [`../research/`](../research/READM
 | Batch | Contents |
 |---|---|
 | [Brainstorm 1, 2026-10-15](2026-10-15-brainstorm-1.md) | 26 ideas (harder tasks, mischief, tools against the aliens' talk, gadgets, party events, death comedy) and the engineer's own ideas of the day |
+| [Ideas batch 2, 2026-10-15](2026-10-15-brainstorm-2.md) | The map from the House to the estate: mesh, purpose per place, secrets, the estate's places, the cipher, the safe, the pool, cocktails, alien food, voice-first, the drone respawn |

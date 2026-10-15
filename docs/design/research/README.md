@@ -59,3 +59,21 @@ The engineer named LOCKDOWN Protocol the closest mechanics reference; four repor
 | [Suburban block maps](2026-10-15-suburban-block-maps.md) | Streets of houses as levels, real suburb sizes, how lots link (front, side, back, over, under), roof sightlines, three block archetypes |
 | [Scattered points, cameras, secrets](2026-10-15-scattered-points-cameras-secrets.md) | "Known kind, unknown place" spawn pools, surveillance cameras and their counterplay, secrets per area |
 | [Map scale and prototyping](2026-10-15-map-scale-and-prototyping.md) | Square metres per player, travel times, scaling a map with the player count, paper and greybox prototyping, landmark missions |
+
+## Round 6, 2026-10-15 (M8.2: the dacha)
+The engineer asked to rebuild the map so every place has a purpose, maybe as a dacha (a country plot of small buildings, three levels); method: no place without a mechanic, no mechanic without a place.
+
+| Report | Covers |
+|---|---|
+| [The dacha as a level](2026-10-15-dacha-as-a-level.md) | Real dacha plots and buildings, sizes, slopes and terraces, the dacha weekend as a source of tasks and mischief |
+| [Compact compound maps](2026-10-15-compact-compound-maps.md) | Farmsteads, compounds and camps in games: building counts, gaps, links, terraces, sightlines, silhouettes |
+| [A purpose for every place](2026-10-15-every-place-a-mechanic.md) | How games make each space earn its place, a purpose checklist, the pairs method and the cut rule, the dacha worked example |
+
+## Round 7, 2026-10-15 (M8.2: the estate)
+The engineer then chose an estate over the dacha: an alien lord's manor with grounds bounded by tall hedges, garden rooms, a hedge maze, an orangery, secret passages.
+
+| Report | Covers |
+|---|---|
+| [The estate as a level](2026-10-15-estate-as-a-level.md) | Real country houses and their rooms, servants' passages, formal gardens, mazes, terraces and the ha-ha with real sizes; manors in games; scale and sightlines |
+| [Secrets found in play](2026-10-15-secrets-found-in-play.md) | How multiplayer games keep secret doors and passages a joy: drawn per match, unlocked in the match, known places with a random key; against open knowledge |
+| [Voice puzzles and the respawn](2026-10-15-voice-puzzles-and-respawn.md) | Codebook and glyph puzzles, safes, drinks, cleaning tasks; how a respawn is staged without a big prop |
