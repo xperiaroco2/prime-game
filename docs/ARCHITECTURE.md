@@ -4770,7 +4770,7 @@ reads now.
   `SightHider.GROUP`. Every part is
   depth-tested, none drawn over the level (`client/dev/cooking_wall_preview.tscn`).
 - **The looks.** `CookingLooks` builds the 22 item kinds' placeholder looks (the burger since #1101: its three
-  parts stacked as on the plate, from `Item.parts`; `ItemViews` rebuilds a view when its parts arrive, the own hand
+  parts stacked as on the plate, each on the one below so the bun never hides the patty, from `Item.parts`; `ItemViews` rebuilds a view when its parts arrive, the own hand
   too) and the five icons (sun, moon, star, drop, heart, the ADR's §5.1) in code, keyed on C6's kind ids; `ItemView`
   asks it first, so the hand, the loose view and the pick sphere share one size. A kind with no look keeps the labelled box (`ContentNames`).
 - **The sounds.** `SoundChooser` (given the mode): `IngredientPlaced`'s put click at the place (no chime or buzz,
@@ -7455,7 +7455,7 @@ as the ADR's 200 and 100 ticks); the RNG purposes
   there whatever the order asks, `IngredientPlaced` (else `wrong_item`: a knife, a raw or burnt patty, CD8 (b);
   `unavailable` for a filled slot or a done place; its rule's `HandNotTwoHanded` refuses `two_handed` first). E on a
   full place takes the burger: the three items vanish (`ItemVanished`, ascending id), a `burger` item is spawned and
-  given to the actor (`GiveItem.give_new`), then `BurgerPlated` with its kinds; `State.burgers` keeps its order.
+  given to the actor (`GiveItem.give_new`), then `BurgerPlated` with its kinds; `State.burgers` keeps its order, bound to the burger's own item (never another item given that id after it vanished).
   The order board serves the held burger (`empty_hand`, `wrong_item` for no burger, `unavailable` for a done order):
   `BurgerServed(station, right)` against its place's order, the burger vanishes; right, what was put on that place
   since vanishes, the order and the place are done and the subtask done (CE13); wrong, nothing more. The grill's and
