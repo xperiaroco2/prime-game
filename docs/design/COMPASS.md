@@ -57,10 +57,12 @@ Each idea answers these (GDD §1 is the source; numbers are placeholders until a
 4. **Check it:** holes, fairness, balance, the numbers as placeholders. The careful thinking belongs here, not in
    step 1, where it turns ideas cautious.
 5. **Record:** his words on the issue in English, marked as translated, idea or decided; a decision into the GDD or
-   `docs/design/` on his word; ideas into `docs/design/ideas/`; research into `docs/design/research/`.
+   `docs/design/` on his word; ideas into `ideas/` and research into `research/` of the private design repo
+   prime-game-design (`D:\prime-game-design`; #1124).
 
 ## 6. Where things are
 - Decided: [GDD](../GDD.md), [m8-match.md](m8-match.md); the M8 issues #1031 (story and roles), #1032 (respawn),
   #1033 (tasks), #1035 (the map), #1040 (points and weapons).
-- Ideas and research: [ideas/](ideas/README.md), [research/](research/README.md).
+- Ideas, research and references: the design repo prime-game-design (`D:\prime-game-design`); the rounds of
+  2026-10-15 stay here as the archive, [ideas/](ideas/README.md) and [research/](research/README.md).
 - The track's plan and handovers: #1095.
