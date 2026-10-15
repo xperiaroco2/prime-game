@@ -106,6 +106,15 @@ client-only layer 4 (`movers`), carrying the art bodies that move with it, with 
 on layer 1; its use spot lies under the device (RE16's exception), so the frame stays clear of it and the host snaps
 it to the room's floor.
 
+The cooking task's stations (#774, proposed with them) add three more. A row of like devices used one by one (the
+greenhouse's five herb beds) is one scene: its root at the middle device's floor point, one node per device
+(`Bed1` to `Bed5`), each holding its own `Body`, its driven nodes (`Plant`) and its `UseSpot` in front of it, all
+those spots in the one group; one `Collision` body holds a shape per device. A station whose items are picked up
+(the bun shelf, the freezer: the cooking boxes are items on the ground, the cooking ADR's CE1) has no `UseSpot`: its
+markers are the items' spawn points (`Boxes/*`, one group per box kind), on the floor in front of the device. A
+device a room uses more than once with a number (the kitchen's places) keeps its number on a hidden `Label3D`
+(`Number`) the room sets per instance (`[editable path]` and a `text` override).
+
 ### A check
 A test reads the map scene and its design doc's room table and fails when a room's position or size differs, so the
 doc and the map never disagree silently. It comes with the first map scene, in that task's PR.

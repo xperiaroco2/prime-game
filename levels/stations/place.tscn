@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://cai4k5r3dvqha"]
+
+[ext_resource type="PackedScene" uid="uid://kctyc7q68yww" path="res://levels/kit/house_props/kitchen_counter.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="3_white"]
+
+[sub_resource type="BoxShape3D" id="CounterShape"]
+size = Vector3(1, 0.9, 0.6)
+
+[sub_resource type="CylinderMesh" id="PlateMesh"]
+material = ExtResource("3_white")
+top_radius = 0.14
+bottom_radius = 0.12
+height = 0.02
+
+[node name="Place" type="Node3D" unique_id=1743555330]
+
+[node name="Body" parent="." unique_id=1393018618 instance=ExtResource("1_body")]
+
+[node name="kitchen_counter" parent="Body" index="0" unique_id=778186290]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="kitchen_counter_col0" parent="Body" index="1" unique_id=2052941349]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=787120791]
+
+[node name="Counter" type="CollisionShape3D" parent="Collision" unique_id=377126355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("CounterShape")
+
+[node name="Plate" type="MeshInstance3D" parent="." unique_id=157375638]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.91, 0.05)
+visible = false
+mesh = SubResource("PlateMesh")
+
+[node name="Number" type="Label3D" parent="." unique_id=286427196]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0.31)
+visible = false
+text = "1"
+font_size = 48
+outline_size = 8
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=21917590 groups=["spawn_place"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.8)
+
+[editable path="Body"]

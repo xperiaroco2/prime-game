@@ -155,12 +155,15 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
 | Generator | Switch C | -1 | 52, 48 | Pump room |
 | Generator | Switch D | -1 | 48.5, 19.5 | Switch room |
-| Burgers | Order board; assembly | 0 | 39, 37 | Kitchen |
-| Burgers | Buns | -1 | 17, 22 | Storage |
-| Burgers | Raw meat (freezer) | -1 | 23, 21 | Storage |
-| Burgers | Grill | 0 | 8, 50 | Chill zone |
-| Burgers | Herb board (icon -> herb, new each round) | 0 | 62, 15.5 | Greenhouse |
-| Burgers | Herb beds | 0 | 67, 11 | Greenhouse |
+| Burgers | Order board (display only, #774: the board's use spot, 0.8 m south of it, across the places) | 0 | 39, 36.55 | Kitchen |
+| Burgers | Place 1 (assembly, #774: a counter in the row of three, its use spot 0.8 m south) | 0 | 38, 37.8 | Kitchen |
+| Burgers | Place 2 | 0 | 39, 37.8 | Kitchen |
+| Burgers | Place 3 | 0 | 40, 37.8 | Kitchen |
+| Burgers | Buns (#774: three box markers on the floor in front of the bun shelf; the point is the middle one) | -1 | 16, 21.35 | Storage |
+| Burgers | Raw meat (freezer, #774: three box markers on the floor in front of it; the point is the middle one) | -1 | 23, 19.25 | Storage |
+| Burgers | Grill (#774: its use spot, 0.85 m east of the grill) | 0 | 8.85, 50 | Chill zone |
+| Burgers | Herb board (icon -> herb, new each round; #774: its use spot, 0.8 m north of the board) | 0 | 62, 14.7 | Greenhouse |
+| Burgers | Herb beds (#774: five beds, a use spot 2 m south of each; the point is the middle bed's) | 0 | 67, 12.1 | Greenhouse |
 | Photo | Photo spot | 0 | 9, 11 | Photo zone |
 | Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | 13.3, 11 | Photo zone |
 | Photo | A film at the round's start, beside the camera (#687) | 0 | 12.5, 11.8 | Photo zone |
@@ -192,6 +195,16 @@ through the opening between the gazebo's posts; the first film lies on the grass
 of new films stands free on storage's floor, west of the darkroom's door (kept clear: a box there shut the darkroom
 off); the printer's desk stays where the art put it, its use spot 0.9 m west of it (the art's chair there is gone);
 the board's use spot is 1.2 m in front of it.
+
+The cooking stations (#774, proposed for the engineer's approval; each point is the use spot of its station scene,
+or the middle box marker): the kitchen's three places are three counters in a row, 1 m apart, in place of the art's
+2.4 m assembly island (one island cannot be three places), each use spot 0.8 m south of its counter; the order board
+stays where the art put it, north of them and facing them, its use spot between board and counters (a display kind:
+nobody uses it); the grill stands in the chill zone with its front to the east, its use spot 0.85 m east of it; the
+herb board stays where the art put it, facing north, its use spot 0.8 m in front of it; the five herb beds keep the
+art's row, each use spot 2 m south of its bed, in the greenhouse's open middle; storage's bun boxes lie on the floor
+0.6 m in front of the bun shelf and the patty boxes 0.75 m in front of the freezer (the art's shelf boards are full of
+its own crates); the art's second bun shelf stays as dressing.
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the

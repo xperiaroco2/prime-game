@@ -1,0 +1,97 @@
+[gd_scene format=3 uid="uid://dpoatswnrvle7"]
+
+[ext_resource type="PackedScene" uid="uid://cxcfvgdftnia3" path="res://levels/kit/house_props/herb_board.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="BoxShape3D" id="PostShape"]
+size = Vector3(0.07, 2.2, 0.5)
+
+[sub_resource type="BoxShape3D" id="PanelShape"]
+size = Vector3(1.8, 1.4, 0.06)
+
+[node name="HerbBoard" type="Node3D" unique_id=123725400]
+
+[node name="Body" parent="." unique_id=1562819079 instance=ExtResource("1_body")]
+
+[node name="herb_board" parent="Body" index="0" unique_id=2108269199]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="herb_board_col0" parent="Body" index="1" unique_id=1555484034]
+collision_layer = 0
+
+[node name="herb_board_col1" parent="Body" index="2" unique_id=733084948]
+collision_layer = 0
+
+[node name="herb_board_col2" parent="Body" index="3" unique_id=850963630]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=823291260]
+
+[node name="PostLeft" type="CollisionShape3D" parent="Collision" unique_id=1974532799]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.935, 1.1, 0)
+shape = SubResource("PostShape")
+
+[node name="PostRight" type="CollisionShape3D" parent="Collision" unique_id=1594204275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.935, 1.1, 0)
+shape = SubResource("PostShape")
+
+[node name="Panel" type="CollisionShape3D" parent="Collision" unique_id=1241568715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.44, 0)
+shape = SubResource("PanelShape")
+
+[node name="Pairs" type="Node3D" parent="." unique_id=942227484]
+
+[node name="Pair1" type="Node3D" parent="Pairs" unique_id=572152541]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.94, 0.04)
+visible = false
+
+[node name="Icon" type="Marker3D" parent="Pairs/Pair1" unique_id=1183570718]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Pairs/Pair1" unique_id=1154902673]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 0)
+
+[node name="Pair2" type="Node3D" parent="Pairs" unique_id=437926341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0.04)
+visible = false
+
+[node name="Icon" type="Marker3D" parent="Pairs/Pair2" unique_id=968614586]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Pairs/Pair2" unique_id=1175929656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 0)
+
+[node name="Pair3" type="Node3D" parent="Pairs" unique_id=132244753]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, 0.04)
+visible = false
+
+[node name="Icon" type="Marker3D" parent="Pairs/Pair3" unique_id=359973884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Pairs/Pair3" unique_id=396596220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 0)
+
+[node name="Pair4" type="Node3D" parent="Pairs" unique_id=619920924]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0.04)
+visible = false
+
+[node name="Icon" type="Marker3D" parent="Pairs/Pair4" unique_id=1457839461]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Pairs/Pair4" unique_id=1904780281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 0)
+
+[node name="Pair5" type="Node3D" parent="Pairs" unique_id=1530847809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.82, 0.04)
+visible = false
+
+[node name="Icon" type="Marker3D" parent="Pairs/Pair5" unique_id=824429903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0, 0)
+
+[node name="Herb" type="Marker3D" parent="Pairs/Pair5" unique_id=1055660843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0, 0)
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=714126546 groups=["spawn_herb_board"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.8)
+
+[editable path="Body"]

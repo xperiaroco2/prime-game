@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://ccutayn1le1i5"]
+
+[ext_resource type="PackedScene" uid="uid://c6exd2odovasn" path="res://levels/kit/house_props/meat_freezer.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="BoxShape3D" id="FreezerShape"]
+size = Vector3(1.8, 0.9, 0.8)
+
+[node name="Freezer" type="Node3D" unique_id=1292526138]
+
+[node name="Body" parent="." unique_id=505942126 instance=ExtResource("1_body")]
+
+[node name="meat_freezer" parent="Body" index="0" unique_id=2081635951]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="meat_freezer_lid" parent="Body" index="1" unique_id=2036305258]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="meat_freezer_col0" parent="Body" index="2" unique_id=1354172496]
+collision_layer = 0
+
+[node name="meat_freezer_col1" parent="Body" index="3" unique_id=665860294]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=2134910190]
+
+[node name="Freezer" type="CollisionShape3D" parent="Collision" unique_id=1428056941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("FreezerShape")
+
+[node name="Boxes" type="Node3D" parent="." unique_id=99121900]
+
+[node name="LightPatties" type="Marker3D" parent="Boxes" unique_id=530655277 groups=["spawn_box_patty_light"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0, 0.75)
+
+[node name="RedPatties" type="Marker3D" parent="Boxes" unique_id=1139918066 groups=["spawn_box_patty_red"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.75)
+
+[node name="DeepRedPatties" type="Marker3D" parent="Boxes" unique_id=660076340 groups=["spawn_box_patty_deep_red"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 0.75)
+
+[editable path="Body"]

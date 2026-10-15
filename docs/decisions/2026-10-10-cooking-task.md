@@ -22,7 +22,7 @@
   decided here, each revertible in its issue.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing is built now" above is history. On main: C1 to C4 and C9 to C11 (#770 to #773, #778 to #780); the rest
+  "nothing is built now" above is history. On main: C1 to C5 and C9 to C11 (#770 to #774, #778 to #780); the rest
   of §8 is open.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules, CD1 to CD16, CD15 as his read-back of the Generator's GD7, and the drafts,
@@ -115,7 +115,7 @@ the reliable-intent bucket bounds each peer at 100, refilled at 20 a second (§4
 | 21 | A dissident plays by the same rules; only the living do subtasks | no condition reads a role, so no public event can tell one (§9.2); `Interact` accepted from the living only (the phase's allowlist, as G5 sets it) | by design; the role-swap test C4 |
 | 22 | Who sees the order board and the herb board | every client receives `OrderPosted` and `HerbsDealt`; an honest one draws them only on their boards and beds in the world (CE9; CD12) | C3, C7 |
 | 23 | Sounds | client sounds on the public events, within 12 m (CD14) | the range exists (`client/world/sound_chooser.gd`, `client/world/world_sounds.gd`); C7 |
-| 24 | The stations on House | station scenes in `levels/stations/` in place of the markers `OrderBoard` (kitchen), `Buns` and `Meat` (storage), `Grill` (chill zone), `HerbBoard` and `HerbBeds` (greenhouse) (CE15) | the markers exist (plain `Marker3D`s under `Stations`, no group); the scenes C5 |
+| 24 | The stations on House | station scenes in `levels/stations/` in place of the markers `OrderBoard` (kitchen), `Buns` and `Meat` (storage), `Grill` (chill zone), `HerbBoard` and `HerbBeds` (greenhouse) (CE15) | the scenes, C5 (#774), in place of the markers |
 | 25 | Tested without bots on House (ARCHITECTURE §9.7) | unit tests from fixtures (C1 to C4, C10, C11); integration tests on House in the host's real world (C8), which also check every event they emit against `ScenarioInvariants`, hold the leak plant and replay the match from its command log; the real wire in `HostSession` tests on a fixture map (C9); no bot plays Cooking (CD15, §7) | missing |
 | 26 | A take with full hands puts the hand item down at the taker's feet (CD5 (b) and its spot, the engineer's) | `Items.give`: the hand item goes to the empty belt, or is put down at the taker's feet (`ItemPlaced`, cause `put_down`, CE19), then the new item goes into the hand; for a box's take, a bed's and the grill's | missing: C2 |
 | 27 | An ingredient left lying vanishes after a while (CD6 (c)) | `ItemKind.vanish_seconds` (60, a placeholder, "not a decision") on the 15 ingredient kinds; the tick an item last came to rest, in `ItemState`; the tick system `VanishTicks`, listed in Round, removes each such item that has lain that long, with a public `ItemVanished(item)` (CE3) | missing: C10 |
