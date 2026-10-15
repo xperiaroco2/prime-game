@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## The mouse from the lobby into the round (#517): a host and a joined client, two Game roots each
 ## in a SubViewport over a LoopbackHub on a simulated clock (as game_loop_test.gd), each with a
 ## pointer that remembers what the game asked of it (headless Godot keeps no mouse mode). The lobby
-## and the round capture the mouse, Loading keeps it, the end screen and the menu free it; a screen
-## change closes an open Esc menu (#726), and a window without the focus is never captured by one.
+## and the round capture the mouse, Loading keeps it, the end screen and the menu free it, and the
+## item keys read it from that pointer (#1114: the left button uses and shoots only while it is
+## captured); a screen change closes an open Esc menu (#726), and a window without the focus is
+## never captured by one.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7380
@@ -69,10 +71,13 @@ func test_the_mouse_stays_captured_from_the_lobby_through_loading_into_the_round
 		assert_array(_pointer(game).asked).not_contains([false])
 		assert_bool(_pointer(game).captured()).is_true()
 		assert_bool(game.player().reads_device_input).is_true()
+		# The item keys see the pointer captured (headless Input's mouse mode never is).
+		assert_bool(_keys_captured(game)).is_true()
 	# The end screen frees it; the host's ReturnToLobby (before End's own return) captures it again.
 	assert_bool(await _until(_all_on.bind(games, S.END, 2))).is_true()
 	for game: Game in games:
 		assert_bool(_pointer(game).captured()).is_false()
+		assert_bool(_keys_captured(game)).is_false()
 	host.return_to_lobby()
 	assert_bool(await _until(_all_on.bind(games, S.LOBBY, 2))).is_true()
 	for game: Game in games:
@@ -118,6 +123,11 @@ func test_the_match_closes_an_open_esc_menu_and_a_window_without_the_focus_stays
 
 func _pointer(game: Game) -> RecordingPointer:
 	return game.pointer as RecordingPointer
+
+
+## Whether `game`'s item keys read the mouse as captured.
+func _keys_captured(game: Game) -> bool:
+	return game.items().interactions.mouse_captured.call() as bool
 
 
 func _game(args: Array[String]) -> Game:

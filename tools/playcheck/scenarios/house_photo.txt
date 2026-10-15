@@ -4,9 +4,10 @@
 # waypoints through the doors and down the basement stairs, found by trial, then the box's use
 # spot) until the HUD names the box under the crosshair, takes a film (E), walks back up and
 # through the ground floor to the photo camera, loads the film (E) and taps E again: the
-# viewfinder opens, its counter of frames left in the corner (shot). Taking a shot is not here yet:
-# `hold use` did not reach the viewfinder's shot (no ShotTaken in 30 s, #1105's PR), and the
-# pictures (P8, #787) are not on main.
+# viewfinder opens, its counter of frames left in the corner (shot). Then the left button (`use`,
+# held: it has no key to press) takes a shot: the host's ShotTaken, and the counter one frame down
+# (shot). The shot reads the game's pointer, which a playcheck window keeps without touching the
+# real mouse (#1114). The pictures (P8, #787) are not on main yet.
 # The waypoints are x,z in metres on the House's floor; the Yard's spawns lie around x 24-38,
 # z 52-55, so the first one is reached straight from any of them.
 players 1
@@ -47,3 +48,9 @@ press interact
 wait shown photo.counter on
 frames 30
 shot viewfinder
+# The left button held in the view: the shot, the host's ShotTaken; the counter one frame down.
+hold use
+wait event ShotTaken
+release use
+frames 30
+shot after_shot

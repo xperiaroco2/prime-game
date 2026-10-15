@@ -46,6 +46,11 @@ var reads_device_input := true
 var listening := true
 ## Whether a throw still waits for the host's answer (ItemWorld gives ItemViews.is_predicting).
 var predicting := Callable()
+## Whether the mouse is captured, which `use` and the shot need (the click that captures it acts
+## on nothing): Input's mouse mode unless replaced. Game gives its MousePointer's, so a pointer
+## that never touches Input (a playcheck window's, #1114) still lets the left button act; tests
+## replace it too, as headless Godot keeps no mouse mode (CAPTURED reads back as VISIBLE).
+var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 
 ## Which station a collider of the level belongs to (StationViews.station_of_body, given by
 ## ItemWorld), -1 for none; unset: only the use spot names a station.
@@ -376,7 +381,7 @@ func _physics_process(_delta: float) -> void:
 func _process(delta: float) -> void:
 	if model == null or player == null or not reads_device_input:
 		return
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured := mouse_captured.call() as bool
 	var was_captured := _was_captured
 	_was_captured = captured
 	# Knocked down, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
