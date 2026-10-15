@@ -72,6 +72,14 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 	assert_str(str(placed.fields["kind"])).is_equal(_id(100))
 	var changed: WireMessage = found[&"SettingsChanged"]
 	assert_int((changed.fields["shortfalls"] as Array).size()).is_equal(3 + 2 + 2)
+	# The three tags and two palettes are sized as the text Demands makes (one subject, `need` and
+	# `have`), the other two as the longest host text.
+	var texts: Array = changed.fields["shortfalls"]
+	for i: int in 5:
+		var text: Dictionary = texts[i]
+		assert_int((text["ids"] as PackedStringArray).size()).is_equal(1)
+		assert_int((text["numbers"] as Dictionary).size()).is_equal(2)
+	assert_int(((texts[5] as Dictionary)["numbers"] as Dictionary).size()).is_equal(WireSchema.MAX_TEXT_NUMBERS)
 	assert_int((changed.fields["needed_markers"] as Dictionary).size()).is_equal(3)
 	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
 

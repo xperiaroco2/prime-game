@@ -179,7 +179,7 @@ func test_the_burgers_setting_and_every_type_in_every_match() -> void:
 	var most := 0
 	for path: String in mode.maps:
 		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
-	assert_int(most).is_equal(3)
+	assert_int(most).is_equal(4)
 	assert_array([tasks.default_value, tasks.max_value]).is_equal([most, most])
 	assert_bool(DealTasks.pool_of(mode, PackedStringArray(), HOUSE).has(_cooking(mode))).is_true()
 	assert_int(DealTasks.pool_of(mode, PackedStringArray(), GREYBOX).size()).is_equal(1)

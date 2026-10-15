@@ -110,7 +110,7 @@ func test_the_photos_setting_and_every_type_in_every_match() -> void:
 	var most := 0
 	for path: String in mode.maps:
 		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
-	assert_int(most).is_equal(3)
+	assert_int(most).is_equal(4)
 	assert_array([tasks.default_value, tasks.max_value]).is_equal([most, most])
 	var on_house: Array[StringName] = []
 	for type: TaskType in DealTasks.pool_of(mode, PackedStringArray(), HOUSE):
