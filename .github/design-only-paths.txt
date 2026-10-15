@@ -1,0 +1,13 @@
+# The design-only paths (#1123): a pull request whose every changed path matches one of these patterns skips the Godot
+# parts of CI's verify (.github/workflows/ci.yml, the `changes` job), and a local fast `verify` of such a change skips
+# `check` (tools/runner/design_only.py). Both read this one file: CI matches in plain bash ([[ $path == $pattern ]]),
+# the runner with fnmatch.fnmatchcase, and in both every `*` matches any characters, `/` included.
+#
+# Only Markdown that no test, no Godot run and no runner code reads. Never docs/design/house-map.md: the level tests
+# read it (tests/unit/levels/house_map_test.gd and suites under tests/integration/levels/). A path on no line here runs
+# everything, and so does a change to this file, which is on no line.
+docs/GDD.md
+docs/design/COMPASS.md
+docs/design/m8-match.md
+docs/design/ideas/*.md
+docs/design/research/*.md
