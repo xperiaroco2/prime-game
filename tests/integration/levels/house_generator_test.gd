@@ -319,11 +319,11 @@ func _hold(peers: Array[int], ticks: int) -> void:
 
 ## `peer` stands at `at` and names `station` in an Interact; one tick runs. Accepted: no refusal.
 func _use(peer: int, station: StationState, at: Vector3) -> void:
-	var before := FixtureModes.rejections(_game, peer).size()
+	var seen := FixtureModes.rejections(_game, peer).size()
 	FixtureItemModes.stand(_game, peer, at)
 	_send(Intents.INTERACT, peer, {"station": station.id})
 	_tick()
-	var refused := FixtureModes.rejections(_game, peer).slice(before)
+	var refused := FixtureModes.rejections(_game, peer).slice(seen)
 	(
 		assert_array(refused)
 		. override_failure_message("station %d: %s" % [station.id, refused])
@@ -334,12 +334,12 @@ func _use(peer: int, station: StationState, at: Vector3) -> void:
 ## `peer` stands at `at` and names `station` in an Interact: refused with `reason`, and no switch
 ## or button event goes out.
 func _refused(peer: int, station: StationState, at: Vector3, reason: StringName) -> void:
-	var before := FixtureModes.rejections(_game, peer).size()
+	var seen := FixtureModes.rejections(_game, peer).size()
 	var used := _station_events()
 	FixtureItemModes.stand(_game, peer, at)
 	_send(Intents.INTERACT, peer, {"station": station.id})
 	_tick()
-	var refused := FixtureModes.rejections(_game, peer).slice(before)
+	var refused := FixtureModes.rejections(_game, peer).slice(seen)
 	assert_array(refused).is_equal([reason])
 	assert_int(_station_events()).is_equal(used)
 	assert_array(Array(_problems)).is_empty()
