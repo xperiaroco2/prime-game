@@ -4753,7 +4753,7 @@ CE6, CE15), from the own `ClientModel` and the client's own copy of the mode onl
   burger's done sound at the place; `GrillLoaded`'s put click at the grill; `ItemChanged`'s ding to a fried patty,
   hiss to the burnt one; each aimed `COUNTER_AIM_M` above, cut and muffled like every world sound, on
   `WorldSounds.cooking_blip()` placeholders. `StationHums` sizzles the grill (`sizzle_blip()`) while its ring
-  fries or burns, in the round.
+  fries (CD14 (a); it stops at fried, where the ding plays), in the round.
 - **Tests.** `tests/unit/client/net/client_model_cooking_test.gd`, `tests/unit/client/world/cooking_use_test.gd`,
   `target_choice_cooking_test.gd`, `cooking_looks_test.gd`, `cooking_sounds_test.gd`,
   `tests/integration/client/world/item_interactions_cooking_test.gd`, `cooking_views_test.gd` (the real

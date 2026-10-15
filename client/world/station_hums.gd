@@ -9,9 +9,9 @@ extends Node3D
 ## to SoundChooser.PANEL_AIM_M above the station every MUFFLE_EVERY_S lowers and dulls it behind the
 ## level (Muffle). Its stream is WorldSounds.hum_blip() until the engineer's file arrives.
 ## Cooking's grill sizzles the same way (#776, the cooking ADR's CD14 (a)) while a patty on it fries
-## or burns (CookingViews.ring_phase FRYING or BURNING at the estimated host tick: GrillLoaded's
-## ticks extrapolated, as the ring), and stops when it is burnt or taken off; its stream is
-## WorldSounds.sizzle_blip().
+## (CookingViews.ring_phase FRYING at the estimated host tick: GrillLoaded's ticks extrapolated, as
+## the ring), and stops once it is fried (the ding; the hiss marks the burn) or taken off; its
+## stream is WorldSounds.sizzle_blip().
 
 ## How often the muffle ray is cast for each hum playing (the ears move, unlike a one-shot's).
 const MUFFLE_EVERY_S := 0.1
@@ -55,8 +55,7 @@ func _process(delta: float) -> void:
 
 
 ## The station ids that hum or sizzle now (a generator counting and not full, a grill whose patty
-## fries or burns; in the round and within the hearing range of `heard_from`), each with its
-## position.
+## fries; in the round and within the hearing range of `heard_from`), each with its position.
 func _due(heard_from: Variant) -> Dictionary[int, Vector3]:
 	var due: Dictionary[int, Vector3] = {}
 	if model == null or mode == null or not heard_from is Vector3 or not GameFlow.in_round(model):
@@ -74,8 +73,7 @@ func _due(heard_from: Variant) -> Dictionary[int, Vector3]:
 ## Whether `station` hums or sizzles at host tick `now`.
 func _sounds(station: ClientModel.Station, now: int) -> bool:
 	if _is_grill(station):
-		var phase := CookingViews.ring_phase(station, now)
-		return phase == CookingViews.Ring.FRYING or phase == CookingViews.Ring.BURNING
+		return CookingViews.ring_phase(station, now) == CookingViews.Ring.FRYING
 	return station.counting and not station.done and StationUse.is_generator(mode, station.kind)
 
 
