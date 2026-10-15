@@ -48,6 +48,9 @@ const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 const STATION_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.SWITCH_CLICK: 0.05,
 	SoundChooser.BUTTON_CLICK: 0.1,
+	# The car repair's (#811, RD14): the lift's crash coming down, a part fitted.
+	SoundChooser.LIFT_CRASH: 0.5,
+	SoundChooser.PART_FITTED: 0.15,
 }
 ## The hum's placeholder loop (#801, G6): its length in seconds, a whole number of its waves so
 ## the loop has no seam. A placeholder, "not a decision".
@@ -226,6 +229,14 @@ static func station_blip(id: StringName) -> AudioStreamWAV:
 			value = noise * exp(-t / 0.002)
 			if t >= 0.02:
 				value += 0.6 * noise * exp(-(t - 0.02) / 0.002)
+		elif id == SoundChooser.LIFT_CRASH:
+			# A heavy thud and a metal rattle.
+			value = sin(TAU * 55.0 * t) * exp(-t / 0.08) + 0.7 * noise * exp(-t / 0.12)
+		elif id == SoundChooser.PART_FITTED:
+			# Two ratchet clicks and a bright clink.
+			value = noise * exp(-t / 0.003) + sin(TAU * 1400.0 * t) * 0.5 * exp(-t / 0.04)
+			if t >= 0.05:
+				value += 0.8 * noise * exp(-(t - 0.05) / 0.003)
 		else:
 			value = sin(TAU * 90.0 * t) * exp(-t / 0.025) + 0.4 * noise * exp(-t / 0.004)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))

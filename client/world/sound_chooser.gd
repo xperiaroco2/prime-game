@@ -82,6 +82,13 @@ const SIZZLE := &"sizzle"
 ## A plate and the grill's grate sit on a counter at about a chest's height above their station's
 ## marker on the floor: the ray aims there, as at a panel. A placeholder, "not a decision".
 const COUNTER_AIM_M := PANEL_AIM_M
+## The car repair's sounds (#811, the car repair ADR's RD14): the lift coming down, at its car,
+## only in the round (the phase end's stop lowers the car without a crash, RE4); a part fitted, at
+## the car. FitChanged makes no sound; a part taken from a bin is ItemPickedUp's pick-up.
+const LIFT_CRASH := &"lift_crash"
+const PART_FITTED := &"part_fitted"
+## Where at the car its sounds aim: about its middle.
+const CAR_AIM_M := SWING_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -170,7 +177,24 @@ static func source(
 			if changed == null or id == &"":
 				return null
 			return Sound.new(id, changed.position, COUNTER_AIM_M)
+		&"LiftChanged":
+			if fields["up"] as bool or model.phase != &"round":
+				return null
+			var car := _car_of(model, mode, fields["station"] as int)
+			return Sound.new(LIFT_CRASH, car.position, CAR_AIM_M) if car != null else null
+		&"PartFitted":
+			var fitted: ClientModel.Station = model.stations.get(fields["station"] as int)
+			return Sound.new(PART_FITTED, fitted.position, CAR_AIM_M) if fitted != null else null
 	return null
+
+
+## The car of the car repair whose station `id` is (its lift panel), or null; null without a mode.
+static func _car_of(model: ClientModel, mode: GameMode, id: int) -> ClientModel.Station:
+	var station: ClientModel.Station = model.stations.get(id)
+	if station == null or mode == null:
+		return null
+	var type := CarRepairUse.type_of(mode, station.kind)
+	return CarRepairUse.station_of(model, type, CarRepairUse.Role.CAR) if type != null else null
 
 
 ## A cooking put's sound (already folded into `station`): the grill's click, a wrong ingredient's
