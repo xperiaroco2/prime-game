@@ -564,8 +564,9 @@ func _input(event: InputEvent) -> void:
 		return
 	# Then the open overlay on top, only that one (#488 rule 2): a card, the map, the host's
 	# question, the Esc menu (its Resume), the main menu's open panel (#493). A key capture in
-	# Settings > Controls took its Esc in its own _input already.
-	if ui.overlays.close_top() != &"":
+	# Settings > Controls took its Esc in its own _input already. Then the photo camera's
+	# viewfinder, which closes before the Esc menu opens (#786).
+	if ui.overlays.close_top() != &"" or _items.viewfinder.leave():
 		get_viewport().set_input_as_handled()
 		return
 	# None open: the Esc menu, over a session only.
@@ -709,6 +710,7 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items
+	_life.view_camera = _items.viewfinder.live_camera
 	_setup_voice()
 
 

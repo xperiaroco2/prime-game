@@ -5,7 +5,8 @@ extends Node3D
 ## keys and the crosshair's target (ItemInteractions; the throw key's arc, #645) and the world
 ## sounds (WorldSounds; the photo task's shutter, print and hang, #785) and the photo camera's
 ## flash (PhotoFlashes, #785) and the Generator's station scenes in the level (StationViews, #801)
-## and its hum while it charges (StationHums, #801),
+## and its hum while it charges (StationHums, #801) and the photo camera's viewfinder
+## (PhotoViewfinder, #786),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -19,6 +20,7 @@ var flashes := PhotoFlashes.new()
 var stations := StationViews.new()
 var hums := StationHums.new()
 var cooking := CookingViews.new()
+var viewfinder := PhotoViewfinder.new()
 
 var _model: ClientModel
 var _mode: GameMode
@@ -37,7 +39,7 @@ func _init() -> void:
 	hums.name = "StationHums"
 	cooking.name = "CookingViews"
 	for each: Node3D in [
-		items, circles, zones, interactions, sounds, flashes, stations, hums, cooking
+		items, circles, zones, interactions, sounds, flashes, stations, hums, cooking, viewfinder
 	]:
 		add_child(each)
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
@@ -47,6 +49,7 @@ func _init() -> void:
 	interactions.station_of_body = stations.station_of_body
 	interactions.station_of_hit = station_of_hit
 	interactions.aim_of = cooking.point_of
+	interactions.viewfinder = viewfinder
 	items.station_point = cooking.point_of
 	hums.ears = sounds.ears
 	items.sound_due.connect(sounds.on_event)
@@ -73,6 +76,8 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
 	interactions.setup(client, game_mode)
+	viewfinder.model = _model
+	viewfinder.mode = game_mode
 	sounds.model = _model
 	sounds.avatars = views
 	sounds.mode = game_mode
@@ -89,6 +94,7 @@ func set_player(player: PlayerController) -> void:
 	_player = player
 	items.player = player
 	interactions.player = player
+	viewfinder.player = player
 	sounds.player = player
 
 
@@ -110,6 +116,7 @@ func reset() -> void:
 	sounds.mode = null
 	flashes.clear()
 	flashes.model = null
+	viewfinder.clear()
 	interactions.setup(null, _mode)
 	interactions.player = null
 	items.player = null
@@ -125,6 +132,7 @@ func hud_local() -> HudText.Local:
 		local.stamina = _player.stamina.get_stamina()
 	local.aim = interactions.target()
 	local.aim_station = interactions.station_target()
+	local.viewing = viewfinder.active()
 	return local
 
 
@@ -136,6 +144,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 		return
 	items.on_event(event_name, fields)
 	flashes.on_event(event_name, fields)
+	viewfinder.on_event(event_name, fields)
 	if event_name == &"ItemThrown":
 		return
 	if event_name == &"ItemPlaced" and fields.get("cause", &"") == Items.THROWN:

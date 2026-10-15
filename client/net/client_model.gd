@@ -132,6 +132,12 @@ class Station:
 	var grill_item := -1
 	var fried_tick := -1
 	var burnt_tick := -1
+	## The photo camera (#786, photo P7): the film loaded in it, as FilmLoaded told it, and the
+	## shots on that film so far (ShotTaken's film and count only); -1 and 0 when empty (the film's
+	## ItemPickedUp, ItemPlaced or ItemVanished empties it, as the host's PE17). The frames left are
+	## the type's `frames_per_film` less `shots` (PhotoUse.frames_left).
+	var film := -1
+	var shots := 0
 
 
 ## The right ingredients that finish a cooking place's burger: a bun, a patty and a herb (#776).
@@ -183,6 +189,10 @@ var tasks: Dictionary[int, Task] = {}
 ## board) and per bed, in bed station order. Empty before the deal.
 var herb_code := PackedStringArray()
 var herb_beds := PackedStringArray()
+## The photo task's films (#786): film item id -> the shots taken on it, as the ShotTaken events
+## told them; a fresh film (no shot) has no entry. Kept wherever the film goes (it keeps its shots,
+## the photo ADR's §2.8), dropped at its ItemVanished (printed, or the cap).
+var film_shots: Dictionary[int, int] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
@@ -386,6 +396,7 @@ func clear_match() -> void:
 	stations.clear()
 	herb_code = PackedStringArray()
 	herb_beds = PackedStringArray()
+	film_shots.clear()
 	bodies.clear()
 	lives.clear()
 	raises.clear()
@@ -452,6 +463,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			herb_beds = beds.duplicate()
 		&"IngredientPlaced", &"GrillLoaded":
 			_fold_cooking_put(event_name, fields)
+		&"FilmLoaded", &"ShotTaken":
+			_fold_camera(event_name, fields)
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
 			_unstation(fields["item"] as int)
@@ -467,6 +480,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			# reuse the id for a new item.
 			_unstation(fields["item"] as int)
 			items.erase(fields["item"] as int)
+			film_shots.erase(fields["item"] as int)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:
@@ -592,8 +606,34 @@ func _fold_cooking_put(event_name: StringName, fields: Dictionary) -> void:
 		station.done = station.right_count >= ORDER_SLOTS
 
 
-## Clears what a cooking put left on item `item_id` (#776): it lies on no station any more, and a
-## grill holding it is empty (no event marks the grill empty but the patty's ItemPickedUp).
+## A film loaded into the photo camera (FilmLoaded) or a shot on it (ShotTaken, #786): the host
+## sends no ItemPlaced for the load (Items.lay_on_station), so the film leaves the loader's hand or
+## belt here and lies at the camera, unlocked (PickUp takes it out). A shot counts on its film and
+## names the camera's film again. Nothing records who loaded or shot (PD13); the record is P8's.
+func _fold_camera(event_name: StringName, fields: Dictionary) -> void:
+	var station_id: int = fields["station"]
+	var camera: Station = stations.get(station_id)
+	var film_id: int = fields["item"] if event_name == &"FilmLoaded" else fields["film"]
+	if event_name == &"ShotTaken":
+		film_shots[film_id] = film_shots.get(film_id, 0) + 1
+	else:
+		var film: Item = items.get(film_id)
+		if film != null:
+			film.holder = NO_HOLDER
+			film.belted = false
+			film.flying = false
+			film.on_station = station_id
+			film.locked = false
+			if camera != null:
+				film.position = camera.position
+	if camera != null:
+		camera.film = film_id
+		camera.shots = film_shots.get(film_id, 0)
+
+
+## Clears what a cooking put or a load left on item `item_id` (#776, #786): it lies on no station
+## any more, and a grill or a photo camera holding it is empty (no event marks either empty but the
+## item's own ItemPickedUp, ItemPlaced or ItemVanished).
 func _unstation(item_id: int) -> void:
 	if item_id < 0:
 		return
@@ -606,6 +646,9 @@ func _unstation(item_id: int) -> void:
 			station.grill_item = -1
 			station.fried_tick = -1
 			station.burnt_tick = -1
+		if station.film == item_id:
+			station.film = -1
+			station.shots = 0
 
 
 ## Whether no item routed to the station is still undelivered (DE7 of the delivery-by-meaning

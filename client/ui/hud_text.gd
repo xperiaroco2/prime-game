@@ -37,6 +37,9 @@ class Local:
 	## The station the crosshair is on that E would use (ItemInteractions.station_target(), #801);
 	## -1 for none. Never both this and `aim`.
 	var aim_station := -1
+	## Whether the photo camera's viewfinder is up (PhotoViewfinder.active(), #786): no crosshair
+	## and no Aim over the lens.
+	var viewing := false
 	## Whether anyone may hear the own player now (VoiceSender.live()).
 	var mic := false
 	## The own raise's progress (LifeView.raise_shown()), 0 to 1; negative for none.

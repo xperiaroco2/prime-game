@@ -5,12 +5,15 @@ extends RefCounted
 ## never `core/` state. The host checks everything again (§7.1); this only decides what to offer.
 ##
 ## A station is offered when its kind has an Interact rule (not a `display` kind), the own hand
-## holds no two-handed item where that rule has HandNotTwoHanded, and its task type says it can
-## still be used. Only the task types this client draws a station view for answer that (today the
+## holds no two-handed item where that rule has HandNotTwoHanded (but for a photo camera holding a
+## film: taking it out is a PickUp, a take, which a two-handed item does not refuse, the photo
+## ADR's §2.4; only its viewfinder asks hand_allows_at()), and its task type says it can still be
+## used. Only the task types this client draws a station view for answer that (today the
 ## Generator, #801: neither its generator nor a switch once the charge is done, the host's
-## StationUsable; Cooking, #776: CookingUse); a kind of any other type is never offered until
-## its client issue adds its row here (photo P7 #786, car repair R7 #811). The other conditions of
-## a rule (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client
+## StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse); a kind of any other
+## type is never offered until its client issue adds its row here (car repair R7 #811). The other
+## conditions of a rule (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one
+## this client
 ## does not know is left to the host. A fixed switch is no station at all (GE14), so it is never
 ## offered, and nothing here reads a switch's `on`: the hint never names a switch's state.
 
@@ -85,17 +88,35 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	if kind == null or kind.display:
 		return false
 	var rule := rule_of(kind)
-	if rule == null or not _hand_allows(model, mode, rule):
+	if rule == null:
+		return false
+	# The take-out is a take (the photo ADR's §2.4): a two-handed item refuses only the shot.
+	if PhotoUse.is_loaded_camera(model, mode, id):
+		return true
+	if not _hand_allows(model, mode, rule):
 		return false
 	var cooking := CookingUse.type_of(mode, station.kind)
 	if cooking != null:
 		return CookingUse.usable(model, cooking, id)
+	var photo := PhotoUse.type_of(mode, station.kind)
+	if photo != null:
+		return PhotoUse.usable(model, photo, id)
 	var type := generator_of(mode, station.kind)
 	if type == null:
 		return false
 	# The charge done: neither the generator nor a switch can be used any more (StationUsable).
 	var charged: ClientModel.Station = model.stations.get(generator_station(model, type))
 	return charged == null or not charged.done
+
+
+## Whether the own hand passes the HandNotTwoHanded of station `id`'s Interact rule, if it has one
+## (the photo camera's shot, #786); false for no such station or rule.
+static func hand_allows_at(model: ClientModel, mode: GameMode, id: int) -> bool:
+	var station: ClientModel.Station = model.stations.get(id) if model != null else null
+	if station == null:
+		return false
+	var rule := rule_of(kind_of(mode, station.kind))
+	return rule != null and _hand_allows(model, mode, rule)
 
 
 ## Whether the own hand passes `rule`'s HandNotTwoHanded, if it has one.
