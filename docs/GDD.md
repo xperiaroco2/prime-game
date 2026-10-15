@@ -91,7 +91,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   are scattered and players are placed.
 - **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
   match clock starts (the engineer, #213).
-- **Round:** everyone works on the shared tasks (Delivery); the dissidents sabotage by hiding packages and run out
+- **Round:** everyone works on the shared tasks (the House's task types: §8); the dissidents sabotage by hiding packages and run out
   the clock. A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
   ([vision revision 1](decisions/2026-10-01-vision-revision-1.md)). The first win condition met ends it: every task
   done (the Engineers, id `crew`), every engineer has left the match (dissidents), time up with a task left
@@ -252,6 +252,13 @@ Open questions, for the engineer (built as today until he answers):
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
 
+**The base mode's task list** (`content/modes/base_mode.tres` and the task types' `maps`; #1088, after the M7 task
+chains #676): the mode lists six task types. On the House, the map players always play, it deals Delivery (#683),
+the Generator (#800), Photography (#784), Cooking (#775) and Repairing the car (#810). On the greybox, a test bench
+only, it deals the colour-matched Delivery alone. The lobby's `tasks` is 5 (1 to 5), the number of different task
+types a match deals, drawn at random from the map's types; the host may ban types with `banned_task_types`. The zone
+task is not in the mode's list (see below).
+
 ### Delivery (#683)
 The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md), Tasks; `docs/ARCHITECTURE.md`
 §9.5.4), reworked by the engineer on 2026-10-10 (#683 and its comments; his answers on PR #713, comments
@@ -396,8 +403,9 @@ Open questions: none. The engineer answered every one on 2026-10-10 (the ADR's �
 
 ### Zone task (#36)
 **Out of the base mode** (2026-10-11, #837; the engineer's answer on
-[#842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)): the base mode deals Delivery alone,
-its `tasks` 1 (1 to 1), so the ZD8 line below is history. The code, its tests (on fixture modes) and the House's
+[#842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)): the base mode lists no zone task
+(its House task types are in "The base mode's task list" above; its `tasks` was 1 (1 to 1) then, and is 5 (1 to 5)
+now), so the ZD8 line below is history. The code, its tests (on fixture modes) and the House's
 zones stay; the task may come back with a name and a how-to card, by his word.
 
 A second task type from #36: stand in a zone for N seconds. Tasks are shared and only living players do subtasks
@@ -414,8 +422,8 @@ ADR](decisions/2026-10-09-m7-zone-task.md) (#302, comment 6085059719) and gave i
   marker through walls (ZD11 (b)).
 - Only where living players stand matters: a hit that does not knock down, carrying or using stops nothing; a
   knockdown does (ZD9 (a)).
-- Every match deals both Delivery and the zone task (ZD8 (a)): the lobby's `tasks` is 2 (1 to 2); the host may ban
-  one type and lower `tasks` to 1. Since 2026-10-11 the base mode deals no zone task, "only from the mode, now"
+- History (ZD8 (a)): every match was to deal both Delivery and the zone task, the lobby's `tasks` 2 (1 to 2); the
+  host could ban one type and lower `tasks` to 1. Since 2026-10-11 the base mode deals no zone task, "only from the mode, now"
   ([the engineer's answer on #842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)):
   its code, its tests on fixture modes and the House's zones stay, and it may come back by his word.
 - The numbers (ZD7): 10 s in a zone (data, not a lobby setting), radius 1.5 m, height 2.5 m, one zone per subtask
