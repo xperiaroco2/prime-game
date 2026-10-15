@@ -527,7 +527,8 @@ def record_times(reports: list[Path], key: str = SUITES_KEY) -> None:
 
 def read_times(key: str = SUITES_KEY) -> tuple[dict[str, float], str]:
     """The last per-suite times under `key` and where they came from: this checkout's TIMES, else (a fresh worktree)
-    the newest TIMES of another checkout of this clone (read only), else none (then every suite counts the same)."""
+    the TIMES of the other checkouts of this clone (read only) merged by suite, the newest file's time winning (a
+    newer file of one suite never hides an older one of 400, #1069), else none (then every suite counts the same)."""
     own = _load_times(TIMES, key)
     if own:
         return own, TIMES.relative_to(ROOT).as_posix()
@@ -539,10 +540,16 @@ def read_times(key: str = SUITES_KEY) -> tuple[dict[str, float], str]:
             candidate = folder / TIMES.relative_to(ROOT)
             if folder.resolve() != ROOT.resolve() and candidate.is_file():
                 others.append((candidate.stat().st_mtime, candidate))
-    for _mtime, candidate in sorted(others, reverse=True):
+    merged: dict[str, float] = {}
+    used: list[Path] = []
+    for _mtime, candidate in sorted(others):  # oldest first, so the newest time of a suite wins (#1069)
         times = _load_times(candidate, key)
         if times:
-            return times, f"{candidate.as_posix()} (this checkout has no times yet)"
+            merged.update(times)
+            used.append(candidate)
+    if used:
+        names = used[0].as_posix() if len(used) == 1 else f"{len(used)} other checkouts merged by suite"
+        return merged, f"{names} (this checkout has no times yet)"
     return {}, "no times yet: every suite counts the same"
 
 

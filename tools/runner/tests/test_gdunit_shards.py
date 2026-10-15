@@ -243,6 +243,25 @@ class ShardRunTest(Fixture):
         self.siblings = ""
         self.assertEqual(gdunit.read_times(), ({}, "no times yet: every suite counts the same"))
 
+    def test_a_newer_times_file_of_one_suite_does_not_hide_an_older_of_many(self) -> None:
+        old_suites = {f"res://tests/unit/s{i}_test.gd": float(i + 1) for i in range(400)}
+        old = self.root / "older"
+        new = self.root / "newer"
+        for folder, suites, mtime in ((old, old_suites, 1_000_000), (new, {"res://tests/unit/s0_test.gd": 9.0}, 2_000_000)):
+            (folder / "tools" / "out" / "logs").mkdir(parents=True)
+            path = folder / "tools" / "out" / "logs" / "gdunit-times.json"
+            path.write_text(json.dumps({"suites": suites}), encoding="utf-8")
+            os.utime(path, (mtime, mtime))
+        self.siblings = (
+            f"worktree {self.root.as_posix()}\nHEAD 1\n\nworktree {new.as_posix()}\nHEAD 2\n\n"
+            f"worktree {old.as_posix()}\nHEAD 3\n"
+        )
+        times, source = gdunit.read_times()
+        self.assertEqual(len(times), 400)
+        self.assertEqual(times["res://tests/unit/s0_test.gd"], 9.0)  # the newest time of a suite both files have
+        self.assertEqual(times["res://tests/unit/s399_test.gd"], 400.0)
+        self.assertIn("merged by suite", source)
+
 
 class HistoryRecordTest(Fixture):
     """What a run leaves for verify's history record (#273): each process's exit and seconds, the failing tests."""
