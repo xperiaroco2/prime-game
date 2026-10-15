@@ -330,8 +330,8 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
-| `design-manager` | engineer | The design track's manager: brainstorms with the engineer through `docs/design/COMPASS.md`, runs small research workflows, records his decisions and hands over to a fresh design session (§7.3) |
-| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
+| `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `D:\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `D:\prime-game` is sent there |
+| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the four repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -567,19 +567,31 @@ share, where the secretary's cost belongs. Its first digest also checks that `li
 
 ### 7.3 The design manager session
 
-(#1120; the engineer's yes on [#1095](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817).)
-Game design is a track of its own, `design`, beside game, UI, art and meta: the engineer, the project lead and the
-game designer, works through one manager session at a time, which keeps the design context across sessions and hands
-over like any manager (`docs/MANAGERS.md`).
+(#1120; the engineer's yes on [#1095](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817);
+its own repo since #1124.) Game design is a track of its own, `design`, beside game, UI, art and meta: the engineer,
+the project lead and the game designer, works through one manager session at a time, which keeps the design context
+across sessions and hands over like any manager (`docs/MANAGERS.md`).
 
-- **Who:** one session of the engineer's in `D:\prime-game`, Opus, bypass, effort high, on the skill `design-manager`
-  (`.claude/skills/design-manager/SKILL.md`), started by its kickoff (`Track: design`, plan issue #1095).
-- **Its lens:** `docs/design/COMPASS.md`, read whole at each start: the tone (described without other works' names:
-  the repo is public; the names are in the engineer's personal memory), the tone test, the pillars' checklist and how
-  an idea moves.
-- **Powers:** it researches (small workflows after his yes), proposes and records; it never decides content; its docs
-  PRs merge only on his word for that PR, through the gate.
-- **Budget:** the `design` line of `.claude/skills/orchestrate-stage/budget.md`.
+- **Where:** the private repo **xperiaroco2/prime-game-design**, checkout `D:\prime-game-design` (the engineer's
+  decisions, [#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331):
+  the design "lives its own life", and [comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169):
+  a separate repo). Its research, references, idea batches and brainstorms are committed straight to its `main`, with no
+  checks; its root `CLAUDE.md` holds its rules, its `design-research` workflow and `design-reader` and `design-writer`
+  agents its research. Its manager follows `docs/MANAGERS.md` like the UI and art managers (§8's pointer, design
+  variant). What stays here: the decided rules (`docs/GDD.md`, `docs/design/`, with `docs/design/COMPASS.md`, which
+  the design repo reads by path), each landing through a docs PR on the design-only fast path (§4.2, #1123), and the
+  archive of 2026-10-15 (`docs/design/research/`, `docs/design/ideas/`).
+- **Who:** one session of the engineer's in `D:\prime-game-design`, Opus, bypass, effort high, on that repo's skill
+  `design-manager`, started by its kickoff (`Track: design`, plan issue #1095). This repo's
+  `.claude/skills/design-manager/SKILL.md` is only a pointer there.
+- **Its lens:** `docs/design/COMPASS.md` (`D:\prime-game\docs\design\COMPASS.md` from the design repo), read
+  whole at each start: the tone (described without other works' names: the repo is public; the names are in the
+  engineer's personal memory), the tone test, the pillars' checklist and how an idea moves.
+- **Powers:** it researches (workflows of up to 12 agents a launch after his yes, #1095 comment 6200108169), proposes
+  and records; it never decides content; its docs PRs here merge only on his word for that PR, through the gate.
+- **Budget:** the `design` line of `.claude/skills/orchestrate-stage/budget.md`. `tools\run.cmd metrics --track
+  design` (run in `D:\prime-game`) counts the design repo's sessions with the main checkout's (its sessions' default
+  track is `design`), and `metrics --run`, `wave --stalled` and the secretary's `inbox` read that repo too (#1124).
 
 ## 8. Permissions, guards and hooks
 
@@ -1376,7 +1388,7 @@ manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill
 `--stalled [--minutes M]` (#731, `wave_stall.py`) looks at the other sessions instead of this one. On 2026-10-09 a
 manager's guarded cleanup command (a branch delete outside a task branch) became a permission card at 22:06Z. Claude
 Code held every task notification of that session behind it, four finished runs and the keep-alive timer, until the
-engineer allowed the call at 07:29Z. It reads every transcript of the three track checkouts and their worktrees
+engineer allowed the call at 07:29Z. It reads every transcript of the track checkouts (main, -ui, -art, -design) and their worktrees
 written in the last 24 hours, except the caller's own. It flags a session whose process is alive when it has had no
 turn since either (a session no file in `~/.claude/sessions` names is closed, Claude Code removes the file at exit;
 with no file at all, the process is unknown and the session is flagged):
@@ -1772,7 +1784,7 @@ from `check`, the engine API dump that `doctor` generates into `tools/out/godot-
 
 ### 11.23 `inbox [--since T] [--repo OWNER/NAME ...]` [applied] (#485)
 The secretary's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
-(`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
+(`xperiaroco2/prime-game`, `-ui`, `-art`, `-design`) one `gh pr list --state open` with bodies and files and one `gh api
 repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
 500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items
 without "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's

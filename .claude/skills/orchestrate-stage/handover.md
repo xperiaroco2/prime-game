@@ -94,6 +94,6 @@ effort and which of these tools you lack: AskUserQuestion, PushNotification, the
 tools.
 ```
 
-The UI and art managers work in their own repos (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or
-`wave`. Their `CLAUDE.md` files point to [docs/MANAGERS.md](../../../docs/MANAGERS.md) instead of copying these rules
-(#511; the block each adds is on its issue there).
+The UI, art and design managers work in their own repos (`D:\prime-game-ui`, `D:\prime-game-art`,
+`D:\prime-game-design`), without this skill or `wave`. They follow [docs/MANAGERS.md](../../../docs/MANAGERS.md)
+instead of copying these rules (#511; the block each adds is MANAGERS §8's; design since #1124).

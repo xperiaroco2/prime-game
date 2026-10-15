@@ -1,10 +1,10 @@
 # Manager rules for every track
 
 The one place for the rules every track's manager session follows: game and meta (`D:\prime-game`, the
-`orchestrate-stage` skill and `wave`), design (`D:\prime-game`, the `design-manager` skill, AGENT_WORKFLOW §7.3),
-UI (`D:\prime-game-ui`) and art (`D:\prime-game-art`). The UI and art repos'
-`CLAUDE.md` files point here instead of copying these rules, so a change is made once, in this file
-([#511](https://github.com/xperiaroco2/prime-game/issues/511)). Approved by the engineer:
+`orchestrate-stage` skill and `wave`), UI (`D:\prime-game-ui`), art (`D:\prime-game-art`) and design
+(`D:\prime-game-design`, the private design repo's own `design-manager` skill, AGENT_WORKFLOW §7.3, #1124). The UI,
+art and design repos' `CLAUDE.md` files point here instead of copying these rules, so a change is made once, in this
+file ([#511](https://github.com/xperiaroco2/prime-game/issues/511)). Approved by the engineer:
 [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (the paste,
 no "ultracode", 500k, one set of rules), on top of
 [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550) (thresholds
@@ -19,7 +19,8 @@ carries a rule out (its tools, its plan issue, its workflows) stays in its own r
 
 **How you talk to the engineer** (dictation, plain explanations, a command for a human in the chat, memory, the
 dictation glossary, launching a workflow): `D:\prime-game\docs\HUMAN_SESSIONS.md`, read at your start with this file
-and again after a compaction (#836). This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files do not carry it.
+and again after a compaction (#836). This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files
+do not carry it; the design repo's skill reads it at its start.
 
 ## 1. The session: mode and effort
 - A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, with
@@ -33,8 +34,8 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
 - One message, as the engineer wrote it (his language kept). It names the scope, the plan issue for reports, the
   order, the budget as a percentage of the week, the approved agent count per workflow, and a `Track: <game | ui |
   art | meta | design>` line in English (`metrics --track` reads it). Game and meta: the `orchestrate-stage` skill's
-  §10 template (its `kickoff-template.md`); design: the `design-manager` skill's §6, which names no stage or agent
-  count (its budget is in `budget.md`, its workflows each ask first).
+  §10 template (its `kickoff-template.md`); design: the design repo's `design-manager` skill's §6, which names no
+  stage or agent count (its budget is in `budget.md`, its workflows each ask first).
 - **No "ultracode"** in a manager's kickoff. The keyword is only the opt-in for workflows, and its "token cost is not a
   constraint" guidance works against the token efficiency track. The kickoff says **"one task = one issue-task
   workflow"** (UI and art: one task = one workflow of your repo), with the approved agent count: that explicit request
@@ -127,9 +128,9 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
 
   A kickoff that still says "ultracode" loses the word (§2); every other word stays his.
 - **Then** your message ends with one "For you:" item: close this session, open a new one in the track's checkout
-  (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), set bypass and effort high, and paste the kickoff. The
-  item carries the kickoff itself, in a fenced `text` block, and the comment's link, so he copies it from the chat.
-  Send a PushNotification, arm no timer, launch nothing more, and stop.
+  (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`, `D:\prime-game-design`), set bypass and effort
+  high, and paste the kickoff. The item carries the kickoff itself, in a fenced `text` block, and the comment's
+  link, so he copies it from the chat. Send a PushNotification, arm no timer, launch nothing more, and stop.
 - The successor takes the comment as its starting state, relaunches the stopped runs fresh and takes the stage's yes
   as given: it restates the order and goes on. Before any launch or merge it checks that no other manager of its
   track is live.
@@ -144,11 +145,11 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
   no AskUserQuestion and takes no other session's `send_message`. By day he must raise its mode and effort by hand,
   no less work than a paste; at night it is limited and has little to do without him. Hence the paste by default.
 
-## 8. The pointer in the UI and art repos
+## 8. The pointer in the UI, art and design repos
 Each repo's `CLAUDE.md` carries this block in place of its own copy of these rules (a pointer, not an `@` import: an
 import outside the working directory needs a one-time approval and then loads in every session of that repo, its
-workflow agents included; this repo's docs are linked, never imported, AGENT_WORKFLOW §3). `<track>` is `ui` or `art`;
-the last line differs per repo:
+workflow agents included; this repo's docs are linked, never imported, AGENT_WORKFLOW §3). `<track>` is `ui`, `art` or
+`design`; the last line differs per repo:
 
 ```markdown
 ## Manager rules (one set for every prime-game track)
@@ -159,7 +160,8 @@ mode and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-al
 handover comment with the ready kickoff the engineer pastes, and every launch's estimate with the check after a large
 launch's first phase (§9); where this file differs on those, it wins.
 Track: <track>. <UI: Plan issue: xperiaroco2/prime-game#150; the context: `node tools/manager/context.js`. | Art: Plan
-issue: the current stage's `plan:` issue in this repo; the context: the app's context usage.>
+issue: the current stage's `plan:` issue in this repo; the context: the app's context usage. | Design: Plan issue:
+xperiaroco2/prime-game#1095; the context: the app's context usage.>
 ```
 
 ## 9. Every launch: the estimate, and a check after the first phase
@@ -184,8 +186,8 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
   spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
   $ by phase, and its cache re-writes after an idle gap when it has one (#558: an agent polling a render or a `wait`
   past 5 minutes writes its whole context again each time), and each agent's average and peak context per API call
-  (#584: one at 150k average or 300k peak is marked heavy). UI and art run it in prime-game's main checkout
-  (`cd D:\prime-game`); it reads all three checkouts' transcripts. The first phase within 1.5 times its share of the
+  (#584: one at 150k average or 300k peak is marked heavy). UI, art and design run it in prime-game's main checkout
+  (`cd D:\prime-game`); it reads all four checkouts' transcripts. The first phase within 1.5 times its share of the
   estimate (1.5: #534's reading, until the engineer confirms it): go on, and the plan-issue comment gives both numbers.
   Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left, go on and
   report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.

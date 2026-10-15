@@ -76,7 +76,7 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
 ## Routing
 A code diff → `code-reviewer`, plus `netcode-security-reviewer` if `core/ server/ net/ voice/ tests/harness/` or
 `client/` (not `client/ui/`) changed; `.gd/.tscn/.tres` → `godot-api-checker`; tests, only failures back →
-`test-runner`. Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`); a design kickoff: `design-manager`.
+`test-runner`. Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`); a design kickoff: `design-manager` (its skill is in `D:\prime-game-design`).
 
 ## Definition of done (AGENT_WORKFLOW §4.2)
 1. `verify` (lint and check) green, its tail pasted; CI (the full suite) green on the PR; red → stop and report
