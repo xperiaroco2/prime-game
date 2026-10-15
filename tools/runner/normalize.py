@@ -101,8 +101,9 @@ def main(files: list[str]) -> int:
             _file(path).write_bytes(contents[path])
             saved.remove(path)
             problems.append(
-                f"{path}: the re-save dropped {', '.join(sorted(dropped))}. A misspelled property, or one set to its "
-                "default value. The file is restored unchanged: fix or remove those lines, then normalize again."
+                f"{path}: the re-save dropped {', '.join(sorted(dropped))}. A misspelled property, one set to its "
+                "default value, or an override inside an instance with no [editable path] entry (`colliders` adds "
+                "those). The file is restored unchanged: fix or remove those lines, then normalize again."
             )
     for line in problems:
         bad(line)
