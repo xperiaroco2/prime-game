@@ -31,9 +31,9 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `spawn_zone`; House only, provisional (DE10, #826): `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
   `spawn_drop_garden`, `spawn_drop_workbench`, one each at its furniture (#831); House only, "not a decision":
   `spawn_switch`, `spawn_generator`, `spawn_camera`, `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`,
-  `spawn_photo_board`, `spawn_film`, `spawn_photo`, `spawn_car`, `_car_end`, `_lift_panel`, `_part_bin_<n>`,
-  `_part_picture`. A marker in two such groups is a load error. The host reads them in scene-tree order. The bot
-  scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
+  `spawn_photo_board`, `spawn_film`, `spawn_photo`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
+  `spawn_part_bin_<n>`, `spawn_part_picture`). A marker in two such groups is a load error. The host reads them in
+  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
   `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no
   station marker (`circle` or `zone`, #681) below that floor and no two markers of different tags at one (x, z). The
   other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
@@ -60,6 +60,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at the
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
+  The car breaks the layer-1 rule: only its layer-4 `Lift` collides; players and plates pass it until R7 (RE8).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
@@ -96,5 +97,4 @@ no hand edit of a scene while the agent works on it.
 
 ## Checking the work
 - Hand-written `.tscn` files follow `.claude/rules/godot-resources.md`; `verify` must be green.
-- Headless runs cannot see a level. Each new or changed piece gets a `shot` screenshot (once `shot` exists) in the
-  PR, and the engineer checks the look and feel in a playtest.
+- Headless runs cannot see a level: a new or changed piece gets a `shot` in the PR; the engineer playtests the feel.
