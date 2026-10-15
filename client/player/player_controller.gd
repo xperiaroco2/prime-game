@@ -273,17 +273,19 @@ func look_level() -> void:
 		session.set_facing(look_vector())
 
 
-## Switches the body to `value`'s: the living and the downed collide with the level only (the
-## living push each other apart in `_push_apart`, not through collisions); the downed are on the
-## downed layer, which no push looks at (Q6), and keep the standing capsule of the living (they
-## hold still, KE4), showing nothing (the own ragdoll is AvatarViews'). The dead: no layer. Any
-## change stops the body; into the living it takes the crouched capsule first and stands where it
-## finds room (the crouch ADR's step 7), out of it the standing one.
+## Switches the body to `value`'s: the living collide with the level and the movers (the car
+## repair's car, RE8 (a), #811; they push each other apart in `_push_apart`, not through
+## collisions); the downed collide with the level only, are on the downed layer, which no push
+## looks at (Q6), and keep the standing capsule of the living (they hold still, KE4), showing
+## nothing (the own ragdoll is AvatarViews'). The dead: no layer. Any change stops the body; into
+## the living it takes the crouched capsule first and stands where it finds room (the crouch ADR's
+## step 7), out of it the standing one.
 func set_life(value: ClientModel.Life) -> void:
 	life = value
 	collision_mask = PhysicsLayers.WORLD
 	match life:
 		ClientModel.Life.ALIVE:
+			collision_mask = PhysicsLayers.WORLD | PhysicsLayers.MOVERS
 			collision_layer = PhysicsLayers.LIVING
 		ClientModel.Life.DOWNED:
 			collision_layer = PhysicsLayers.DOWNED
@@ -825,6 +827,7 @@ func _horizontal_wish() -> Vector3:
 	return wish.limit_length(1.0)
 
 
-## What the body collides with, and the movers whether or not its mask has them yet (R7).
+## What the body collides with, and the movers: the living's mask has them (#811), the downed's
+## does not, yet a placement into the living already looks for room clear of them.
 func _solid() -> int:
 	return collision_mask | PhysicsLayers.MOVERS

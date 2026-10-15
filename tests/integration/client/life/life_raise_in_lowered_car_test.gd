@@ -15,10 +15,9 @@ extends GdUnitTestSuite
 ## hint offers the body inside the car (the raise ray passes through `movers`). Its crouch assert
 ## checks the hold the suite keeps through the revive, not KE6's.
 ##
-## Neither the car (R5) nor the `movers` layer (R7) is built yet, so the suite builds a stand-in:
-## a box on layer 4 in both Games' worlds (each machine has its own copy, as R7 drives it), and it
-## adds layer 4 to each living player's collision_mask every frame (set_life() resets the mask to
-## the world alone; R7 is to add `movers` there). The box is the car's footprint (RD2's
+## The suite builds a stand-in for the car: a box on layer 4 in both Games' worlds (each machine
+## has its own copy, as CarRepairViews drives the real one, #811), which every living player's
+## collision_mask holds (set_life(), #811). The box is the car's footprint (RD2's
 ## placeholders: half-width 1.0 m, half-length 2.3 m) from LOWERED_UNDERSIDE_M to CAR_TOP_M:
 ## a placeholder of the lowered car's body, not a decision. The match plays crouch_room (the
 ## crouch plays, so the raised player can crouch, KE6), an open floor where nothing else pushes.
@@ -26,10 +25,10 @@ extends GdUnitTestSuite
 ## (no launch: the host's world has no car, so a launch there rests the body on the floor inside
 ## the footprint, which is where the knockdown leaves it here). It holds the crouch through the
 ## revive, so the Correction places a crouched player (KE6 gives it under a car whose layer is on
-## the mask; R7 decides when the mask gets it).
+## the mask).
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
-## Layer 4, `movers` in the car repair ADR's RE8 (a); on the living's mask only from R7 on.
+## Layer 4, `movers` in the car repair ADR's RE8 (a); on the living's mask (#811).
 const MOVERS := PhysicsLayers.MOVERS
 ## The lowered car's stand-in: the footprint (RD2's 2.0 m wide, 4.6 m long, long axis along z),
 ## its underside above the floor and below the raised clearance (1.4 m), its top above the
@@ -188,17 +187,12 @@ func _build_car(game: Game, at: Vector3) -> void:
 	car.global_position = at + Vector3.UP * (LOWERED_UNDERSIDE_M + height * 0.5)
 
 
-## Physics frames, each first giving every living player the `movers` layer as R7 will.
+## Physics frames; every living player's mask holds `movers` by itself (set_life(), #811).
 func _frames(count: int) -> void:
-	for i: int in count:
-		for game: Game in [_pair.host, _pair.client]:
-			var player := game.player()
-			if player != null and player.is_living():
-				player.collision_mask |= MOVERS
-		await _pair.frames(1)
+	await _pair.frames(count)
 
 
-## NetPair.walk_to() with the `movers` layer on the walker's mask.
+## NetPair.walk_to() through this suite's frames.
 func _walk_to(player: PlayerController, target: Vector3) -> bool:
 	for i: int in NetPair.MAX_WALK_FRAMES:
 		var to := target - player.global_position
