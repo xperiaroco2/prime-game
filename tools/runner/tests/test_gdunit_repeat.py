@@ -216,6 +216,9 @@ class ShardedRepeatTest(unittest.TestCase):
     GREEN = results_xml({"tests/unit/a_test": {"test_x": PASS}})
     RED = results_xml({"tests/unit/a_test": {"test_x": FAIL}})
 
+    def setUp(self) -> None:
+        self.addCleanup(gdunit.take_last_run)  # the stub's _remember must not outlive its test (#1085)
+
     def run_repeat(
         self,
         runs: list[tuple[bool | None, str]],

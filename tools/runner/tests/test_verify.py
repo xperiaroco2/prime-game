@@ -890,6 +890,12 @@ class HistoryDetailTest(unittest.TestCase):
     """What the history record keeps of a red step (#273): `test`'s processes and failing tests, every red step's
     first failure line; a green step keeps its four fields (and `test` its processes)."""
 
+    def setUp(self) -> None:
+        # What an earlier test left in gdunit.LAST_RUN (a worker runs many tests) is neither seen nor restored (#1085).
+        patch = mock.patch.object(verify.gdunit, "LAST_RUN", None)
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def test_the_test_steps_processes_and_failing_tests_reach_the_record_through_the_lane(self) -> None:
         detail = {"shards": [{"shard": 1, "rc": 0, "seconds": 80.0},
                              {"shard": 2, "rc": 3221225477, "seconds": 12.5, "results": False}],
