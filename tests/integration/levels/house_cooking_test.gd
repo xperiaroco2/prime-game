@@ -173,14 +173,14 @@ func test_a_burger_from_players_commands_is_done() -> void:
 	_fry()
 	_use(cook, task_state.grill)
 	assert_int(task_state.grill_item).is_equal(-1)
-	assert_int(Items.held_by(_game.state, cook).id).is_equal(patty.id)
+	assert_int(_id(Items.held_by(_game.state, cook))).is_equal(patty.id)
 	assert_object(patty.kind).is_same(_type().fried_of(order.raw_patty))
 	# The kitchen: the patty on the order's place, then the bun from the belt.
 	_walk(cook, [_station(order.station).position])
 	_use(cook, order.station)
 	_send(Intents.SWAP, cook)
 	_tick()
-	assert_int(Items.held_by(_game.state, cook).id).is_equal(bun.id)
+	assert_int(_id(Items.held_by(_game.state, cook))).is_equal(bun.id)
 	_use(cook, order.station)
 	# The greenhouse: the order's herb from its bed; back to the place.
 	_walk(cook, [_station(_bed_of(order.herb)).position])
@@ -226,19 +226,22 @@ func test_a_box_carrier_takes_onto_the_belt_and_is_refused_two_handed_at_a_place
 	if herb == null:
 		return
 	assert_object(herb.kind).is_same(task_state.bed_herbs[0])
-	assert_int(Items.held_by(_game.state, carrier).id).is_equal(box.id)
+	assert_int(_id(Items.held_by(_game.state, carrier))).is_equal(box.id)
 	# Another player (a dissident: nothing reads a role) loads the grill; the carrier waits there.
 	_walk(carrier, [_station(task_state.grill).position])
 	_take(griller, _box_giving(type.raw_patties[0]))
 	var patty := Items.held_by(_game.state, griller)
+	assert_object(patty).is_not_null()
+	if patty == null:
+		return
 	_walk(griller, [_station(task_state.grill).position])
 	_use(griller, task_state.grill)
 	_fry()
 	# The carrier takes the patty off: onto the belt, the belt's herb put down at its feet first.
 	var placed := _game.view_of(carrier).events_named(&"ItemPlaced").size()
 	_use(carrier, task_state.grill)
-	assert_int(Items.belted_by(_game.state, carrier).id).is_equal(patty.id)
-	assert_int(Items.held_by(_game.state, carrier).id).is_equal(box.id)
+	assert_int(_id(Items.belted_by(_game.state, carrier))).is_equal(patty.id)
+	assert_int(_id(Items.held_by(_game.state, carrier))).is_equal(box.id)
 	assert_int(_game.view_of(carrier).events_named(&"ItemPlaced").size()).is_equal(placed + 1)
 	assert_int(herb.where).is_equal(ItemState.Where.GROUND)
 	assert_float(_flat(herb.position - _game.state.player(carrier).position).length()).is_less(
@@ -513,7 +516,7 @@ func _beside(item: ItemState) -> Vector3:
 
 
 ## `peer` walks beside `box` and takes from it (Interact naming the box); one tick runs. Accepted:
-## no refusal, and the given item is in the hand (empty hands, or a one-handed hand item).
+## no refusal (the tests then read what is in hand).
 func _take(peer: int, box: ItemState) -> void:
 	assert_object(box).is_not_null()
 	if box == null:
@@ -524,6 +527,11 @@ func _take(peer: int, box: ItemState) -> void:
 	_tick()
 	var refused := FixtureModes.rejections(_game, peer).slice(seen)
 	assert_array(refused).override_failure_message("box %d: %s" % [box.id, refused]).is_empty()
+
+
+## The id of `item`, or -2 for none: an assert on it fails instead of crashing on a null.
+func _id(item: ItemState) -> int:
+	return -2 if item == null else item.id
 
 
 ## The ticks run until the grill's patty has turned fried, and no further (before its burnt tick).
