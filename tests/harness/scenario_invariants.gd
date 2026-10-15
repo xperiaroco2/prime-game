@@ -38,11 +38,12 @@ extends RefCounted
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
 ## - The record invariant (the photo ADR §8, #781): every row of a ShotTaken names a present peer
-##   ALIVE or knocked down at the shot, once, within record_step of its accepted position at the
-##   end of the tick before or now, and within the mode's PhotoTask range_m plus
-##   PhotoTask.RECORD_MARGIN_M plus that step of the lens (the camera station's position raised by
-##   the eye height). Written apart from PhotoTask's record builder (record_problems), so a
-##   builder that gives a row to a player standing elsewhere fails here though view_of agrees.
+##   ALIVE or knocked down at the shot, once, at its accepted position now (the shot's own call),
+##   and within the mode's PhotoTask range_m plus PhotoTask.RECORD_MARGIN_M of the lens (the camera
+##   station's position raised by the eye height): no claim's step of slack (record_step), which
+##   only LeakCheck, seeing positions at the ends of ticks, needs (#788). Written apart from
+##   PhotoTask's record builder (record_problems), so a builder that gives a row to a player
+##   standing elsewhere fails here though view_of agrees.
 
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
@@ -89,8 +90,6 @@ var _game: Match
 var _scenario: BotScenario
 var _peers: ScenarioPeers
 var _seeds: Array[int] = []
-## Each present player's accepted position at the end of the last tick (the record invariant).
-var _accepted: Dictionary[int, Vector3] = {}
 ## keys() for a numbers map of `_keys_for` entries (-1: not built yet).
 var _keys := PackedStringArray()
 var _keys_for := -1
@@ -235,7 +234,6 @@ func check_tick() -> PackedStringArray:
 		for other: int in avatars:
 			if _life_of(other) == PlayerState.Life.DEAD:
 				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
-	_accepted = _positions_now()
 	return found
 
 
@@ -314,7 +312,7 @@ static func record_problems(
 
 ## The record invariant over a ShotTaken just emitted: the lens from the camera station and the
 ## mode's eye height, the range from the mode's PhotoTask whose camera kind it is, the life states
-## now, the positions at the end of the last tick and now.
+## and the positions now.
 func _check_record(shot: ShotTakenEvent) -> PackedStringArray:
 	var state := _game.state
 	var station: StationState = state.stations.get(shot.station)
@@ -330,8 +328,12 @@ func _check_record(shot: ShotTakenEvent) -> PackedStringArray:
 		var life := _life_of(peer)
 		if life == PlayerState.Life.ALIVE or life == PlayerState.Life.DOWNED:
 			living.append(peer)
-	var accepted: Array[Dictionary] = [_accepted, _positions_now()]
-	return record_problems(shot.record, lens, task.range_m, record_step(rules), living, accepted)
+	# The check runs in the shot's own Match call (check_call), so the positions now are those the
+	# record was taken from, with no claim's step of slack: LeakCheck needs that step, as it sees the
+	# positions only at the ends of ticks; here it would widen the lens's bound by some 70 m, more
+	# than the House, and a row for a player standing anywhere on it would pass (#788).
+	var accepted: Array[Dictionary] = [_positions_now()]
+	return record_problems(shot.record, lens, task.range_m, 0.0, living, accepted)
 
 
 ## Each present player's accepted position now.
