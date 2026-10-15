@@ -46,11 +46,13 @@
 
 ## 4. Points
 
-- **One point per task per player**, either for completing it or for sabotaging it, never both; aliens may sabotage
-  too (#1040).
-- **Completion:** every player who took part earns the task's point when it completes (#1040). A completed task
-  advances the aliens' goal whoever did it, so a human who helps earns a point and brings the aliens closer to
-  winning: his trade-off (#1031).
+- **Points follow the work** (#1040, the engineer's later answer of 2026-10-15): deliver all 5 delivery items alone
+  and you earn 5 points; one point per *task* would make players split the items one each just to farm points. It
+  replaces the earlier "one point per task per player" for completion. Aliens may sabotage too (#1040).
+- **Completion:** a completed task advances the aliens' goal whoever did it, so a human who does the work earns its
+  points and brings the aliens closer to winning: a risk-reward trade that also clears him of suspicion (#1031,
+  #1040). How shared steps are credited (the generator's switches, the photo's sitter and shooter, the car's holder
+  and fitter) is open; the earlier answer was that every player who took part earns.
 - **Sabotage credit:** open between two variants (#1040): a sabotage pays only once it has really cost the other
   side time, or sabotages are made universal (e.g. a light room: cutting the House's lights once is one sabotage).
 - **A completed task is locked:** it cannot be undone or farmed (#1040).
@@ -119,7 +121,9 @@ From #1040, not yet rules:
 ## 9. Open
 
 - Sabotage credit: the cost-in-time rule or universal sabotages (§4); sabotages tied to each task, global ones, or
-  both.
+  both; how sabotage is counted now that points follow the work, and whether "never both on the same unit" stays.
+- Points: the unit of work per chain (an item, a switch, a burger, a photo, a car part) and how shared steps are
+  credited (§4).
 - The defaults for the number of humans (§2); the anger threshold, rises, jumps and the cops' minute (§5): the balance
   model #1089.
 - A finale beyond the cops' minute (§6).
