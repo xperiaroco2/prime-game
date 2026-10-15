@@ -4769,14 +4769,16 @@ The client side of the photo camera (the [photo ADR](decisions/2026-10-10-photo-
   dropped at its `ItemVanished`). The film's `ItemPickedUp`, `ItemPlaced` or `ItemVanished` empties the camera.
   Nothing records who loaded or shot (PD13); P8 (#787) draws its pictures and counter from this state.
 - **What E offers.** `PhotoUse` (pure, behind `StationUse.usable`): never the photo spot (a `display` kind, CE6);
-  the camera holding a film always (the take-out is never refused, the photo ADR's §2.4), an empty one while the
+  the camera holding a film always, a two-handed item in the hand too (the take-out is a take, which neither a done
+  task nor a two-handed item refuses, the photo ADR's §2.4), an empty one while the
   task is not done and the own hand or belt carries a fresh film; the box always; the printer while a film with a
-  shot is carried; the board while a photo is carried; the hand rule stays `StationUse`'s. The loaded film is
+  shot is carried; the board while a photo is carried; the hand rule stays `StationUse`'s, and for the loaded camera
+  only the viewfinder asks it (`StationUse.hand_allows_at`: the shot is refused `two_handed`). The loaded film is
   never an item target (it lies on the camera, where `TargetChoice.aim_at` names no point). E at an empty camera sends
   `Interact(camera, item -1)`, the load; at a loaded camera cooking's gesture (§4.7.55, `HOLD_SECONDS`): a tap
   opens the viewfinder (nothing sent), a hold sends `PickUp` of the film once, within PickUp's hint reach of it.
-- **The viewfinder.** `PhotoViewfinder` (in `ItemWorld`) opens only while the own player is alive, the camera
-  holds a film and frames a placed photo spot, the feet stand in its cylinder less the hint's margin
+- **The viewfinder.** `PhotoViewfinder` (in `ItemWorld`) opens only while the own player is alive with no
+  two-handed item in the hand, the camera holds a film and frames a placed photo spot, the feet stand in its cylinder less the hint's margin
   (`TargetChoice.stands_at`, the host's AtStation) and, cast in each physics step (priority 7, after
   `ItemInteractions`), the line from the own eye to the camera's lifted floor point is clear (StationInSight): no
   view from afar or through a window shows more than standing there (the M4 render checklist, items 3 and 5). It
