@@ -21,6 +21,9 @@ const WRONG_COLOUR := Color(0.95, 0.15, 0.15)
 const BUN_SIZE := Vector3(0.12, 0.07, 0.12)
 const PATTY_SIZE := Vector3(0.11, 0.03, 0.11)
 const HERB_SIZE := Vector3(0.1, 0.2, 0.1)
+## The radius of a herb's stem and of its thin leaves (dill, rosemary, chives): thick enough to read
+## on the herb board (CD13's code) at play distance. A look, "not a decision".
+const HERB_STROKE_M := 0.009
 const BOX_SIZE := Vector3(0.42, 0.26, 0.32)
 ## Each bun's top, base and dot (seeds, flour) colours.
 const BUNS: Dictionary[StringName, Array] = {
@@ -180,7 +183,9 @@ static func _herb(kind: StringName) -> Node3D:
 	var leaf_colour: Color = HERBS[kind]
 	var stem_colour := STEM_COLOUR if kind == &"rosemary" else leaf_colour.darkened(0.3)
 	var stem_high := HERB_SIZE.y * (0.8 if kind == &"rosemary" else 0.5)
-	_add(root, "Stem", _cylinder(0.005, stem_high), stem_colour, Vector3.UP * stem_high * 0.5)
+	_add(
+		root, "Stem", _cylinder(HERB_STROKE_M, stem_high), stem_colour, Vector3.UP * stem_high * 0.5
+	)
 	for i in 5:
 		var angle := TAU * i / 5.0
 		var out := Vector3(cos(angle), 0, sin(angle))
@@ -192,14 +197,14 @@ static func _herb(kind: StringName) -> Node3D:
 			&"mint":
 				leaf = _sphere(0.022, 0.014)
 			&"dill":
-				leaf = _cylinder(0.003, HERB_SIZE.y * 0.6)
+				leaf = _cylinder(HERB_STROKE_M, HERB_SIZE.y * 0.6)
 				at = Vector3.UP * HERB_SIZE.y * 0.6 + out * 0.02
 			&"rosemary":
 				leaf = BoxMesh.new()
-				(leaf as BoxMesh).size = Vector3(0.004, 0.004, 0.03)
+				(leaf as BoxMesh).size = Vector3(HERB_STROKE_M * 2.0, HERB_STROKE_M * 2.0, 0.05)
 				at = Vector3.UP * HERB_SIZE.y * (0.3 + 0.1 * i)
 			_:
-				leaf = _cylinder(0.004, HERB_SIZE.y * 0.9)
+				leaf = _cylinder(HERB_STROKE_M, HERB_SIZE.y * 0.9)
 				at = Vector3.UP * HERB_SIZE.y * 0.45 + out * 0.012
 		var part := _add(root, "Leaf%d" % i, leaf, leaf_colour, at)
 		part.rotation.y = angle
