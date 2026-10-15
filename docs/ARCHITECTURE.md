@@ -1807,6 +1807,11 @@ back in `IngredientPlaced`'s dict, failed, reverted) and `cooking_events_name_no
 **#808 (car repair R4)** added `FitChanged` and `PartFitted` to both `TASK_EVENTS` lists; no bot plays the House
 (§9.7), so their plant waits for its bots. What stands in: `car_repair_events_name_no_player_test` (`PartFitted` names
 no player; `FitChanged` names only the fitter, RD15 (a)).
+**#812 (car repair R8)** planted it on the House with no bot, `tests/integration/levels/house_car_repair_match_test.gd`
+(§9.7): `FitChangedEvent.audience()` as `Audience.only(fitter)` failed the full repair's and the drop's tests on
+`ScenarioInvariants` (`FitChanged reached [1003], not every present player [1, 1002, 1003, 1004]`), and the drop's own
+check of every player's `FitChanged` stream; reverted. The other car repair events' plants wait for the bots that play
+the House: its tests run `ScenarioInvariants` over every one they emit.
 **#782 (photo P3)** added `PhotoPrinted` and `PhotoHung` to both `TASK_EVENTS` lists (`photo_check_test` holds that
 both name every event `PhotoTask.emits()` returns); no bot plays the photo task (PE18), so their plant waited for the
 House's: #788 (P9) declared `FilmLoaded`, `PhotoPrinted` and `PhotoHung` to peer 1 alone, and `house_photo_test`
@@ -6176,7 +6181,8 @@ reads, do not move.
   height alone asks for the crouch (KD3 (a), the engineer's, which also answers the car repair ADR's RD1). A crouched
   player may hold the lift (KD8), so the car repair ADR's "no view of who is under the car" test (its RE15, in R8)
   runs from the panel's use spot at every eye height from `crouch_eye_height_m` to `eye_height_m` (every 0.1 m, both
-  ends), and the level's walls block that whole band; whichever of R8 and 727a lands second widens it. Prevents: a
+  ends), and the level's walls block that whole band; R8 (#812) landed after 727a and runs that band from every point
+  of the panel's cylinder where a player fits and sees the panel (`house_car_repair_match_test`, §9.7). Prevents: a
   dissident crouching at the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
   numbers, `crouch_maps` (removed by #991); #790, built), 727b (the local crouch; #791, built), 727c (others'
@@ -6194,7 +6200,7 @@ reads, do not move.
   numbers and the House alone (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem`, run on every
   tick's snapshots by `check_tick`. The House is not played by bots (§9.7), and the greybox carries no new mechanic
   (the engineer's answer (a) on #790): the wire is tested through the host session harness on a fixture mode instead,
-  as cooking C9 did. The car repair's RE15 eye band (R8, not built) is widened when R8 lands.
+  as cooking C9 did. The car repair's RE15 eye band runs in R8's House test (#812), which landed second.
 - **Tests:** `tests/unit/movement/movement_rule_crouch_test.gd` (kept where it plays, ignored on an unlisted map, in
   the lobby and from the downed, cleared by placement and by a phase off the map, the walk bound and the sprint
   charge), `tests/unit/content/player_rules_test.gd` (bounds, `crouch_maps`, the helpers), `strike_test.gd`,
@@ -7611,7 +7617,9 @@ cap, `car_parts`, `tasks` at the House's five, Round's `Interact` and `StopRaise
 each tag and the greybox asked for none); `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
 `tests/integration/levels/house_car_repair_test.gd` (#809: the use spots at §6's points, the car's on the garage
 floor, RE15 from the use spot and the rim of its cylinder at every eye of the crouch band, planted without the
-partition: failed, reverted; the voice distance, no marker in the footprint, players clear);
+partition: failed, reverted; the voice distance, no marker in the footprint, players clear),
+`house_car_repair_match_test.gd` (#812, car repair R8: the House's match in the host's real world, §9.7; planted
+`FitChanged` to its fitter alone: failed, reverted, §4.6.4.1);
 `tests/unit/tasks/car_repair_deal_test.gd` (the stations, the draw with no repeat, N = 0, an exact-count map,
 the fit check's `short_axis`), `car_repair_lift_test.gd` (every stop, the box, the downed and the invulnerable, a busy
 second press, RD11, the rise, the phase's end), `car_repair_fit_test.gd` (#808: the fit's start and completion, the
@@ -8238,6 +8246,28 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   refused `blocked`. The burger's and the carrier's matches replay from their command logs (the same events to the
   same recipients on the same ticks, no `diagnostics`). Seen failing with the leak plant on `IngredientPlaced`
   (§4.6.4.1); reverted.
+  The car repair (the [car repair ADR](decisions/2026-10-10-car-repair-task.md), RD13, §7) has no bot scenario either.
+  What stands in for its scenarios is `tests/integration/levels/house_car_repair_match_test.gd` (#812, R8), built as
+  `house_cooking_test.gd`: the shipped base mode on the House in the host's real world, four players with forced
+  roles, the car repair isolated in the setup's `ChangeSettings` (`tasks` 1, every other task type banned, `car_parts`
+  3; Delivery beside it for the package carrier, whose packages are the House's two-handed items), `ScenarioInvariants`
+  on every call and tick, players moving only by accepted claims, each client's clock one client tick per host tick
+  (an idle player stores no credit, which the fit's `AtStation` refuses, RE2). The deal puts each station on its marker
+  and the car's use spot on the garage floor (RE16); no spawn or respawn marker lies in the car's box by
+  `CarRepair.in_box` (RE7); the data's `clearance_m` lies between the crouched and the standing capsule (RD1) and
+  `car.tscn`'s lowered layer-4 body between the floor and it; RE15 from every floor point of the panel's cylinder
+  where a player fits and sees the panel, at every eye of the crouch band (0.1 m, both ends: R8 landed after 727a), to
+  the box's grid from the data's `half_width_m` and `clearance_m`, all blocked; the voice distance (RD2) from the
+  dealt kinds' radii. A part from each bin, each take making room as `Items.give` does (the first part on the belt,
+  the second at the feet, the third in the hand); a package carrier's two takes onto the belt (the first put down at
+  the feet), then `two_handed` at the panel and under the raised car (RD17). A full repair from players' commands (the
+  holder at the panel, the fitter fetching each needed part from storage); the holder letting go mid-fit kills only
+  the fitter under the car, not a bystander beside it or one past its far end; the chaos run's class-5 case (the
+  holder's claim from the panel into the box, then a `Swap` in the same tick, applied: on that tick the holder gets
+  `LiftChanged(false)`, `Swapped`, then its `Died`, RE17; dead once, no `KnockedDown` after its `Died`, its part at
+  the body with one `ItemPlaced(death)`; seen failing with `Items.swap` planted to skip its move, reverted). The
+  carrier's, the repair's, the drop's and the class-5 matches replay from their command logs. Seen failing with the
+  leak plant on `FitChanged` (§4.6.4.1); reverted.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
