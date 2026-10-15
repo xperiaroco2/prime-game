@@ -190,6 +190,20 @@ func test_a_hold_beyond_the_film_s_reach_takes_nothing_out() -> void:
 	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(0)
 
 
+func test_a_release_after_the_crosshair_left_the_camera_opens_no_view() -> void:
+	_load()
+	await _look_at_camera()
+	_keys.press_interact()
+	assert_int(_keys.held_camera()).is_equal(CAMERA)
+	_player.look(PI, 0.0)
+	await _frames(2)
+	assert_int(_keys.station_target()).is_equal(-1)
+	assert_int(_keys.release_interact()).is_equal(-1)
+	assert_bool(_keys.viewing()).is_false()
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
+
+
 func test_the_shot_sends_interact_at_the_camera_until_no_frame_is_left() -> void:
 	await _open_view()
 	assert_int(_keys.shoot()).is_greater(0)
