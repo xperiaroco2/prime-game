@@ -3033,8 +3033,9 @@ presses `interact` the moment the hint shows, with no settle step (`items.txt`, 
 see them as just pressed; holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
-that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
-stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
+that only remembers, so the real mouse is never captured. The item keys read the game's pointer
+(`ItemInteractions.mouse_captured`, which `Game` gives `pointer.captured`, #1114), so `hold use` (the left button has
+no key to press) uses the hand item and takes the viewfinder's shot (`house_photo`); spectate cycling, which reads Input's mouse mode, stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
@@ -4794,13 +4795,17 @@ The client side of the photo camera (the [photo ADR](decisions/2026-10-10-photo-
   layer 0, under `GameUi`'s) mask the screen outside `photo_rect`, and a digits-only label shows the frames left in
   the photo's corner (its size and inset are looks, "not a decision"). `PlayerController.held` holds the movement
   keys and the look (a click still captures the mouse), the first-person hand is hidden, the HUD's crosshair too
-  (`HudText.Local.viewing`). The primary button sends the shot, `Interact(camera, item -1)`, while frames are left;
-  no other item key acts.
+  (`HudText.Local.viewing`). The primary button sends the shot, `Interact(camera, item -1)`, while frames are left and
+  the mouse is captured (the click that captures it takes none; `ItemInteractions.mouse_captured`, the game's
+  `MousePointer`, #1114); no other item key acts.
 - **Tests.** `tests/unit/client/net/client_model_photo_test.gd` (fixture `tests/fixtures/client/
   fixture_photo_client.gd`), `tests/unit/client/world/photo_use_test.gd`, `photo_viewfinder_test.gd` (the frame's
   corners project onto the mask's corners on wide, square and narrow screens), `target_choice_photo_test.gd`,
   `tests/unit/client/ui/game_ui_viewfinder_test.gd`, `tests/integration/client/world/item_interactions_photo_test.gd`
   (the load, the tap, the hold, the shot and every exit; none from outside the cylinder or through a wall),
+  `item_interactions_shot_network_test.gd` (#1114: the left button through `Input.parse_input_event` in the view,
+  against a `HostSession` on `FixtureWirePhoto`: the host's `ShotTaken` and the counter one down; the capturing click
+  takes none), `tests/integration/client/app/pointer_flow_test.gd` (the item keys read `Game`'s pointer),
   `tests/integration/client/player/player_controller_held_test.gd`,
   `tests/integration/client/life/life_view_camera_test.gd`.
 
