@@ -155,12 +155,15 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
 | Generator | Switch C | -1 | 52, 48 | Pump room |
 | Generator | Switch D | -1 | 48.5, 19.5 | Switch room |
-| Burgers | Order board; assembly | 0 | 39, 37 | Kitchen |
-| Burgers | Buns | -1 | 17, 22 | Storage |
-| Burgers | Raw meat (freezer) | -1 | 23, 21 | Storage |
-| Burgers | Grill | 0 | 8, 50 | Chill zone |
-| Burgers | Herb board (icon -> herb, new each round) | 0 | 62, 15.5 | Greenhouse |
-| Burgers | Herb beds | 0 | 67, 11 | Greenhouse |
+| Burgers | Order board (display only, #774: the board's use spot, 0.8 m south of it, across the places) | 0 | 39, 36.55 | Kitchen |
+| Burgers | Place 1 (assembly, #774: a counter in the row of three, its use spot 0.8 m south) | 0 | 38, 37.8 | Kitchen |
+| Burgers | Place 2 | 0 | 39, 37.8 | Kitchen |
+| Burgers | Place 3 | 0 | 40, 37.8 | Kitchen |
+| Burgers | Buns (#774: three box markers on the floor in front of the bun shelf; the point is the middle one) | -1 | 16, 21.35 | Storage |
+| Burgers | Raw meat (freezer, #774: three box markers on the floor in front of it; the point is the middle one) | -1 | 23, 19.25 | Storage |
+| Burgers | Grill (#774: its use spot, 0.85 m east of the grill) | 0 | 8.85, 50 | Chill zone |
+| Burgers | Herb board (icon -> herb, new each round; #774: its use spot, 0.8 m north of the board) | 0 | 62, 14.7 | Greenhouse |
+| Burgers | Herb beds (#774: five beds, a use spot 2 m south of each; the point is the middle bed's) | 0 | 67, 12.1 | Greenhouse |
 | Photo | Photo spot | 0 | 9, 11 | Photo zone |
 | Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | 13.3, 11 | Photo zone |
 | Photo | A film at the round's start, beside the camera (#687) | 0 | 12.5, 11.8 | Photo zone |

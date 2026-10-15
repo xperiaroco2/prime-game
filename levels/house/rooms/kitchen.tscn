@@ -20,11 +20,7 @@
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_lino_2x2.tscn" id="10"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/assembly_island.tscn" id="11"]
-
 [ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="12"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/order_board.tscn" id="13"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/kitchen_counter.tscn" id="14"]
 
@@ -79,6 +75,10 @@
 [ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_sconce.glb" id="39"]
 
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/floor_lamp.tscn" id="40"]
+
+[ext_resource type="PackedScene" uid="uid://xrfk11ugewhi" path="res://levels/stations/order_board.tscn" id="station_order_board"]
+
+[ext_resource type="PackedScene" uid="uid://cai4k5r3dvqha" path="res://levels/stations/place.tscn" id="station_place"]
 
 [node name="Kitchen" type="Node3D" unique_id=1802981680]
 metadata/room_id = &"kitchen"
@@ -452,22 +452,6 @@ surface_material_override/0 = ExtResource("2")
 instance_shader_parameters/plan_at = Vector4(40, 0, 42, 0)
 
 [node name="Dressing" type="Node3D" parent="."]
-
-[node name="assembly_island_1" parent="Dressing" instance=ExtResource("11")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 7)
-metadata/prop = "assembly_island"
-metadata/station = "OrderBoard"
-
-[node name="assembly_island" parent="Dressing/assembly_island_1"]
-surface_material_override/0 = ExtResource("12")
-
-[node name="order_board_1" parent="Dressing" instance=ExtResource("13")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5.75)
-metadata/prop = "order_board"
-metadata/station = "OrderBoard"
-
-[node name="order_board" parent="Dressing/order_board_1"]
-surface_material_override/0 = ExtResource("12")
 
 [node name="kitchen_counter_1" parent="Dressing" instance=ExtResource("14")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.62, 0, 0.42)
@@ -888,10 +872,29 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1691908018]
 
-[node name="OrderBoard" type="Marker3D" parent="Stations" unique_id=291536346]
+[node name="OrderBoard" parent="Stations" instance=ExtResource("station_order_board")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5.75)
+
+[node name="Place1" parent="Stations" instance=ExtResource("station_place")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 7)
+
+[node name="Place2" parent="Stations" instance=ExtResource("station_place")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 7)
+
+[node name="Number" parent="Stations/Place2"]
+text = "2"
+
+[node name="Place3" parent="Stations" instance=ExtResource("station_place")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 7)
+
+[node name="Number" parent="Stations/Place3"]
+text = "3"
 
 [node name="Markers" type="Node3D" parent="." unique_id=715396516]
 
 [node name="Knife1" type="Marker3D" parent="Markers" unique_id=1447406457 groups=["spawn_knife"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 12.5)
+
+[editable path="Stations/Place2"]
+
+[editable path="Stations/Place3"]

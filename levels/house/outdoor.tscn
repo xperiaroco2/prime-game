@@ -51,7 +51,6 @@
 [ext_resource type="PackedScene" path="res://levels/kit/house_garden/bush_hydrangea.tscn" id="49"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_garden/bush_lavender.tscn" id="50"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_garden/bush_currant.tscn" id="51"]
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/bbq_grill.tscn" id="52"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/music_speaker.tscn" id="53"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/fire_pit_zones.tscn" id="54"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/deckchair_zones.tscn" id="55"]
@@ -2840,15 +2839,6 @@ transform = Transform3D(0, 0, 1.15, 0, 1.15, 0, -1.15, 0, 0, 54.889, 0, 22.121)
 
 [node name="bush_hydrangea_8" parent="Dressing" instance=ExtResource("49")]
 transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 49.571, 0, 18.389)
-
-[node name="bbq_grill_1" parent="Dressing" instance=ExtResource("52")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8, 0, 50)
-
-[node name="bbq_grill" parent="Dressing/bbq_grill_1"]
-surface_material_override/0 = ExtResource("32")
-
-[node name="bbq_grill_lid" parent="Dressing/bbq_grill_1"]
-surface_material_override/0 = ExtResource("32")
 
 [node name="music_speaker_1" parent="Dressing" instance=ExtResource("53")]
 transform = Transform3D(-0.0905, 0, -0.9959, 0, 1, 0, 0.9959, 0, -0.0905, 12, 0, 55)
