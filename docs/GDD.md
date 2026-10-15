@@ -15,7 +15,10 @@ governed by game rules. The differentiator is a rich, varied set of mechanics: r
 task types and information tools.
 
 The brief's "social deduction game in the spirit of Lockdown Protocol and Among Us" predates the pillars below,
-where deduction is not central: the engineer rewords it with the pitch (open question below).
+where deduction is not central: the engineer reworded it with the pitch.
+
+**Pitch** (the engineer, 2026-10-15, #1076): *aliens throw the best party on Earth, but disguised humans who hate
+their party hide among them, and it all turns into chaos.* Working title: **My Alien Prime Friends**.
 
 ### Pillars
 Decided in [vision revision 1](decisions/2026-10-01-vision-revision-1.md) (#126), from the meeting with the designer
@@ -33,6 +36,9 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Randomness is part of the fun** (#1076). Lucky breaks and funny fails make the stories, and randomness always
   leaves a chance to react: a random respawn may land you next to everyone, then a few seconds of invulnerability let
   you run, a chase starts and you may find a weapon on the way and fight back, so it is fun even if they get you.
+- **Full of references, as parody** (#1076). Nods and easter eggs that players recognise from the games and shows
+  they love, done as parody and allusion; never another work's names, logos, characters or assets. How games do it
+  and where the legal line runs is open research.
 - **Cringe-fun vibe**, and an audience that is not only guys. Teens and adults (15 and 16 year olds included): an
   adult, funny tone in which violence stays comic, with no guts and no dismemberment (the engineer, 2026-10-15,
   #1076).
@@ -45,7 +51,7 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
   it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
 
 Open questions:
-- What is the one-sentence pitch in the engineer's own words?
+- What is the one-sentence pitch in the engineer's own words? (Answered above, 2026-10-15.)
 - Which feeling should a match leave: tension, comedy, detective work, chaos? In what proportion? (Proposed as
   answered by the pillars: cringe-fun comedy and chaos, action over detective work; the engineer confirms or
   rewrites it.)
