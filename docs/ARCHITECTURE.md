@@ -8258,13 +8258,16 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `car.tscn`'s lowered layer-4 body between the floor and it; RE15 from every floor point of the panel's cylinder
   where a player fits and sees the panel, at every eye of the crouch band (0.1 m, both ends: R8 landed after 727a), to
   the box's grid from the data's `half_width_m` and `clearance_m`, all blocked; the voice distance (RD2) from the
-  dealt kinds' radii. A part from each bin; a package carrier's two takes onto the belt (the first put down at the
-  feet), then `two_handed` at the panel (RD17). A full repair from players' commands (the holder at the panel, the
-  fitter fetching each needed part from storage); the holder letting go mid-fit kills only the fitter under the car,
-  not a bystander beside it or one past its far end; the chaos run's class-5 case (the holder's claim from the panel
-  into the box, then a `Swap` in the same tick: the holder dead once, no `KnockedDown` after its `Died`, its part at
-  its body). The carrier's, the repair's, the drop's and the class-5 matches replay from their command logs. Seen
-  failing with the leak plant on `FitChanged` (§4.6.4.1); reverted.
+  dealt kinds' radii. A part from each bin, each take making room as `Items.give` does (the first part on the belt,
+  the second at the feet, the third in the hand); a package carrier's two takes onto the belt (the first put down at
+  the feet), then `two_handed` at the panel and under the raised car (RD17). A full repair from players' commands (the
+  holder at the panel, the fitter fetching each needed part from storage); the holder letting go mid-fit kills only
+  the fitter under the car, not a bystander beside it or one past its far end; the chaos run's class-5 case (the
+  holder's claim from the panel into the box, then a `Swap` in the same tick, applied: on that tick the holder gets
+  `LiftChanged(false)`, `Swapped`, then its `Died`, RE17; dead once, no `KnockedDown` after its `Died`, its part at
+  the body with one `ItemPlaced(death)`; seen failing with `Items.swap` planted to skip its move, reverted). The
+  carrier's, the repair's, the drop's and the class-5 matches replay from their command logs. Seen failing with the
+  leak plant on `FitChanged` (§4.6.4.1); reverted.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
