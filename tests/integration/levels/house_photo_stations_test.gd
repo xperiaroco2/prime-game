@@ -161,10 +161,8 @@ func test_the_shooter_sees_a_subject_on_the_mark_and_not_through_the_backdrop() 
 	var spot := layout.positions(&"photo_spot")[0]
 	var lens := camera + Vector3.UP * eye
 	var towards := Vector3(camera.x - spot.x, 0, camera.z - spot.z).normalized()
-	# A subject on the mark's near half, in front of the art's pose screen at its centre: across,
-	# near, far edge. The far half stands behind that screen (outdoor.tscn's pose_screen_1, #1042's
-	# file for now), as does the frame's aim at the mark's centre: the PR asks the engineer to move
-	# or drop the screen, then these probes reach the far half and the aim (photo task ADR PE3).
+	# A subject on the mark's near half: across, near, far edge. (The art's pose screen and tripod
+	# are gone from outdoor.tscn, #1066; the frame's aim has its own test below.)
 	var side := towards.cross(Vector3.UP)
 	for at: Vector3 in [
 		spot + towards * 0.6,
@@ -181,6 +179,27 @@ func test_the_shooter_sees_a_subject_on_the_mark_and_not_through_the_backdrop() 
 	# The check can fail: 2 m beyond the mark's centre, behind the art's pose screen and its backdrop.
 	var hidden := spot - towards * 2.0 + Vector3.UP * eye
 	assert_bool(world.line_of_sight(lens, hidden)).is_false()
+
+
+func test_the_lens_has_a_clear_line_to_the_aim_point() -> void:
+	# The frame's aim is the spot raised by the eye height, its lens the camera's (photo task ADR
+	# PE3, PhotoTask); the art's pose screen and tripod once stood on that line (#1066).
+	var level := LevelWorld.build(MAP)
+	var world := _world(level)
+	var layout := MarkerReader.read_scene(MAP, world, STATION_TAGS).layout
+	var eye := (load(BASE_MODE) as GameMode).player_rules.eye_height_m
+	var lens := layout.positions(&"camera")[0] + Vector3.UP * eye
+	var aim := layout.positions(&"photo_spot")[0] + Vector3.UP * eye
+	(
+		assert_bool(world.line_of_sight(lens, aim))
+		. override_failure_message(
+			"a level collider stands between the lens %s and the aim %s" % [lens, aim]
+		)
+		. is_true()
+	)
+	# The check can fail: the same line from the far side of the backdrop meets it.
+	var towards := (lens - aim) * Vector3(1, 0, 1)
+	assert_bool(world.line_of_sight(aim - towards.normalized() * 2.0, lens)).is_false()
 
 
 func test_the_first_film_lies_on_the_floor_beside_the_camera() -> void:

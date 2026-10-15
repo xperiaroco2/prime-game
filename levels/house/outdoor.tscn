@@ -61,9 +61,7 @@
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/lantern_zones.tscn" id="59"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/picnic_table.tscn" id="60"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/firewood_stack.tscn" id="61"]
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/pose_screen.tscn" id="62"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/photo_backdrop_zones.tscn" id="63"]
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/tripod_camera_zones.tscn" id="64"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/string_lights_gazebo.tscn" id="65"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_props/planter_pot.tscn" id="66"]
 [ext_resource type="PackedScene" path="res://levels/kit/house_kit/gazebo_sector_open.tscn" id="67"]
@@ -2934,17 +2932,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.2, 0, 57.2)
 [node name="bush_3" parent="Dressing" instance=ExtResource("48")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8, 0, 47.8)
 
-[node name="pose_screen_1" parent="Dressing" instance=ExtResource("62")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 9, 0.15, 11)
-
-[node name="pose_screen" parent="Dressing/pose_screen_1"]
-surface_material_override/0 = ExtResource("32")
-
 [node name="photo_backdrop_1" parent="Dressing" instance=ExtResource("63")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 7.6, 0.15, 11)
-
-[node name="tripod_camera_1" parent="Dressing" instance=ExtResource("64")]
-transform = Transform3D(-0.6097, 0, -0.7926, 0, 1, 0, 0.7926, 0, -0.6097, 10.9, 0.15, 12)
 
 [node name="string_lights_gazebo_1" parent="Dressing" instance=ExtResource("65")]
 transform = Transform3D(-0.866, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866, 10.1605, 2.45, 8.99)
