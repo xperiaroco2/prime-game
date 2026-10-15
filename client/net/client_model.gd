@@ -63,6 +63,9 @@ class Item:
 	var flight_velocity := Vector3.ZERO
 	var flight_gravity := Vector3.ZERO
 	var flight_tick := 0
+	## A printed photo (#787, photo P8): the shot whose picture it shows, as PhotoPrinted named it; -1
+	## for any other item.
+	var shot := -1
 
 	## Lies in the world at `position`: nobody carries it, it is not in flight and not fitted to a
 	## car (a delivered package rests in its circle).
@@ -141,6 +144,19 @@ class Station:
 	## the type's `frames_per_film` less `shots` (PhotoUse.frames_left).
 	var film := -1
 	var shots := 0
+	## The photo board (#787): the photos hung on it by slot, as PhotoHung told it; -1 a free slot
+	## (an uncounted photo taken down leaves its slot free), no trailing free slots.
+	var hung := PackedInt32Array()
+
+
+## A shot as ShotTaken told it (#787, photo P8): its camera, its film and the record, the avatar
+## rows a picture is drawn from (peer, position, facing, downed, crouched, held_item, belt_item).
+## Nothing in it names the shooter (PD13) or says whether a person is in the frame (PE5).
+class Shot:
+	extends RefCounted
+	var station := -1
+	var film := -1
+	var record: Array[Dictionary] = []
 
 
 ## The right ingredients that finish a cooking place's burger: a bun, a patty and a herb (#776).
@@ -196,6 +212,12 @@ var herb_beds := PackedStringArray()
 ## told them; a fresh film (no shot) has no entry. Kept wherever the film goes (it keeps its shots,
 ## the photo ADR's §2.8), dropped at its ItemVanished (printed, or the cap).
 var film_shots: Dictionary[int, int] = {}
+## The shots whose pictures may still be shown (#787, photo P8), by shot id: each ShotTaken's
+## record, kept while a film lists the shot or a photo shows it, as the host's PhotoTask._prune.
+var shots: Dictionary[int, Shot] = {}
+## The shots each film still lists, by film item id, in shot order (a print moves them to its
+## photos); film_shots keeps the frames used, which a print never lowers.
+var film_pictures: Dictionary[int, PackedInt32Array] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
@@ -400,6 +422,8 @@ func clear_match() -> void:
 	herb_code = PackedStringArray()
 	herb_beds = PackedStringArray()
 	film_shots.clear()
+	shots.clear()
+	film_pictures.clear()
 	bodies.clear()
 	lives.clear()
 	raises.clear()
@@ -468,6 +492,12 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			_fold_cooking_put(event_name, fields)
 		&"FilmLoaded", &"ShotTaken":
 			_fold_camera(event_name, fields)
+			if event_name == &"ShotTaken":
+				_fold_shot(fields)
+			_prune_shots()
+		&"PhotoPrinted", &"PhotoHung":
+			_fold_photo(event_name, fields)
+			_prune_shots()
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
 			_unstation(fields["item"] as int)
@@ -483,6 +513,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			# reuse the id for a new item.
 			_unstation(fields["item"] as int)
 			items.erase(fields["item"] as int)
+			film_pictures.erase(fields["item"] as int)
+			_prune_shots()
 			film_shots.erase(fields["item"] as int)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
@@ -654,6 +686,11 @@ func _unstation(item_id: int) -> void:
 		if station.film == item_id:
 			station.film = -1
 			station.shots = 0
+		var slot := station.hung.find(item_id)
+		if slot >= 0:
+			station.hung[slot] = -1
+			while not station.hung.is_empty() and station.hung[station.hung.size() - 1] < 0:
+				station.hung.resize(station.hung.size() - 1)
 
 
 ## Whether no item routed to the station is still undelivered (DE7 of the delivery-by-meaning
@@ -758,3 +795,86 @@ func _enter(next: StringName) -> void:
 	var in_lobby := after != null and after.level == PhaseSpec.Level.LOBBY
 	if in_lobby and (before == null or before.level != PhaseSpec.Level.LOBBY):
 		clear_match()
+
+
+## A ShotTaken's record (#787, photo P8): the shot's picture is rendered from it, and stays while
+## a film lists the shot or a photo shows it. A shot id seen again is a new shot.
+func _fold_shot(fields: Dictionary) -> void:
+	var shot_id: int = fields["shot"]
+	var film_id: int = fields["film"]
+	var shot := Shot.new()
+	shot.station = fields["station"]
+	shot.film = film_id
+	for row: Dictionary in fields.get("record", []) as Array:
+		shot.record.append(row.duplicate(true))
+	_unlist_shot(shot_id)
+	shots[shot_id] = shot
+	var listed: PackedInt32Array = film_pictures.get(film_id, PackedInt32Array())
+	listed.append(shot_id)
+	film_pictures[film_id] = listed
+
+
+## A printed photo shows its shot (PhotoPrinted), which leaves its film's list; a hung photo
+## (PhotoHung) leaves the hand or belt for the board's next free slot: locked there when counted,
+## else lying on it for a PickUp to take down. The host sends no ItemPlaced for a hang.
+func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
+	var photo: Item = items.get(fields["item"] as int)
+	if event_name == &"PhotoPrinted":
+		var shot_id: int = fields["shot"]
+		_unlist_shot(shot_id)
+		if photo != null:
+			photo.shot = shot_id
+		return
+	var board: Station = stations.get(fields["station"] as int)
+	if photo == null:
+		return
+	photo.holder = NO_HOLDER
+	photo.belted = false
+	photo.flying = false
+	photo.on_station = fields["station"]
+	photo.locked = fields["counted"]
+	if board == null:
+		return
+	photo.position = board.position
+	var slot := hang_slot(board)
+	if slot == board.hung.size():
+		board.hung.append(fields["item"] as int)
+	else:
+		board.hung[slot] = fields["item"]
+
+
+## The slot of `board` the next hung photo takes: the lowest free one (a taken-down uncounted
+## photo's), else a new one after the last. Counted photos never move.
+static func hang_slot(board: Station) -> int:
+	var free := board.hung.find(-1)
+	return free if free >= 0 else board.hung.size()
+
+
+## Takes `shot_id` off every film's list.
+func _unlist_shot(shot_id: int) -> void:
+	for film_id: int in film_pictures.keys():
+		var listed := film_pictures[film_id]
+		var at := listed.find(shot_id)
+		if at < 0:
+			continue
+		listed.remove_at(at)
+		if listed.is_empty():
+			film_pictures.erase(film_id)
+		else:
+			film_pictures[film_id] = listed
+
+
+## Drops every shot no film lists and no photo shows (the host's PhotoTask._prune, mirrored).
+func _prune_shots() -> void:
+	if shots.is_empty():
+		return
+	var kept := {}
+	for listed: PackedInt32Array in film_pictures.values():
+		for shot_id: int in listed:
+			kept[shot_id] = true
+	for item: Item in items.values():
+		if item.shot >= 0:
+			kept[item.shot] = true
+	for shot_id: int in shots.keys():
+		if not kept.has(shot_id):
+			shots.erase(shot_id)
