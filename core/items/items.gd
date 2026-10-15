@@ -14,8 +14,9 @@ extends RefCounted
 ##   the belt, a full belt's item first down at the feet.
 ## - change_kind(): an item becomes another kind, in place (the cooking ADR, CE4): ItemChanged.
 ## - lock_at(), lay_on_station(): an item goes onto a station (the cooking ADR, CE5): locked at
-##   the station's spot (a patty on the grill, a right ingredient), or lying there, interactive,
-##   with item_rested (`on_station`; a wrong ingredient). The station's own event announces both.
+##   the station's spot (a patty on the grill, an ingredient on a plate), or lying there,
+##   interactive, with item_rested (`on_station`; a wrong ingredient at a place until #1101, no
+##   caller since). The station's own event announces both.
 ## - swap(): the hand and belt items change places.
 ## - place(): an item comes to rest at a spot (a put-down, a pickup's swap, a dead player's items
 ##   at its body: the life rule, 2g, after player_died): ItemPlaced, then item_rested.
@@ -32,7 +33,7 @@ extends RefCounted
 ##   a spot, out of any hand, belt or flight, its rest tick this tick. Every move that leaves an
 ##   item lying goes through it: place() (a put-down, a swap's rest, a death's or a leave's drop,
 ##   a throw's landing, give()'s put-down at the feet), spawn() (a deal's spawn) and
-##   lay_on_station() (a wrong ingredient at a place). Emits nothing.
+##   lay_on_station() (no caller since #1101). Emits nothing.
 ## - spawn(): a new item of a kind lying at a spot (MatchState.add_item, then lay()); the deals
 ##   emit ItemSpawned and raise item_rested themselves.
 ## - lock(): an item at rest becomes locked where it is (a delivered package): not interactive,
@@ -64,8 +65,8 @@ const LEAVE := &"leave"
 const SPAWN := &"spawn"
 ## The end of a thrown item's flight (FlightTicks, §7.1.16).
 const THROWN := &"thrown"
-## item_rested only: the item was laid on a station, interactive (a wrong ingredient at a place,
-## the cooking ADR CE5); the station's own event (IngredientPlaced) announces it.
+## item_rested only: the item was laid on a station, interactive (the cooking ADR CE5's wrong
+## ingredient at a place until #1101); the station's own event announces it.
 const ON_STATION := &"on_station"
 
 
@@ -199,8 +200,9 @@ static func lock_at(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 
 
 ## `item` lies on the ground at `at`, a station's spot, interactive (the cooking ADR, CE5: a wrong
-## ingredient at a place, which PickUp takes back), its rest tick this tick (lay()); raises
-## item_rested with the cause `on_station`. No ItemPlaced: the station's event (IngredientPlaced)
+## ingredient at a place, which PickUp takes back; no caller since #1101 checks a burger when it
+## is served, kept with its test for a station that lays an item so), its rest tick this tick
+## (lay()); raises item_rested with the cause `on_station`. No ItemPlaced: the station's event
 ## says where it went. No item is a rule error, logged, and nothing moves.
 static func lay_on_station(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 	if item == null:
