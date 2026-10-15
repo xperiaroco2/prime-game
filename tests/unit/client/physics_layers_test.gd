@@ -8,6 +8,7 @@ func test_layer_names_match_the_bits() -> void:
 		PhysicsLayers.WORLD: "world",
 		PhysicsLayers.LIVING: "living_players",
 		PhysicsLayers.DOWNED: "downed",
+		PhysicsLayers.MOVERS: "movers",
 	}
 	for bit: int in names:
 		var layer := 1 + roundi(log(float(bit)) / log(2.0))

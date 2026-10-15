@@ -48,6 +48,9 @@ const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 const STATION_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.SWITCH_CLICK: 0.05,
 	SoundChooser.BUTTON_CLICK: 0.1,
+	# The car repair's (#811, RD14): the lift's crash coming down, a part fitted.
+	SoundChooser.LIFT_CRASH: 0.5,
+	SoundChooser.PART_FITTED: 0.15,
 }
 ## The hum's placeholder loop (#801, G6): its length in seconds, a whole number of its waves so
 ## the loop has no seam. A placeholder, "not a decision".
@@ -88,6 +91,12 @@ var mode: GameMode
 var _played := 0
 var _rays := 0
 var _muffled := 0
+## The lift crashes chosen in this batch of events, played at the next physics frame (#811). The
+## host's phase end stops a hold, whose LiftChanged comes down, before its PhaseChanged (Match:
+## Channels.stop_all, then _enter_phase), so a crash that a PhaseChanged follows in the same batch
+## is the phase end's, which drops no car and kills nobody (RE4, RD16 (c)): at the next physics
+## frame the model has left the round, and the crash is dropped.
+var _held_crashes: Array[SoundChooser.Sound] = []
 var _steps := 0
 ## Where each player's feet were in the last physics frame, and its cadence; the own player's
 ## under 0 (no peer is 0).
@@ -129,7 +138,24 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	)
 	if sound == null:
 		return
+	if sound.id == SoundChooser.LIFT_CRASH:
+		_held_crashes.append(sound)
+		return
 	_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
+
+
+## Plays the lift crashes held from the last batch of events while the round still runs (#811);
+## each physics frame calls it first.
+func play_held() -> void:
+	if _held_crashes.is_empty():
+		return
+	var held := _held_crashes
+	_held_crashes = []
+	var heard_from: Variant = _heard_from()
+	if model == null or model.phase != &"round" or not heard_from is Vector3:
+		return
+	for sound: SoundChooser.Sound in held:
+		_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
 
 
 ## How many sounds were started, steps included (tests).
@@ -226,6 +252,14 @@ static func station_blip(id: StringName) -> AudioStreamWAV:
 			value = noise * exp(-t / 0.002)
 			if t >= 0.02:
 				value += 0.6 * noise * exp(-(t - 0.02) / 0.002)
+		elif id == SoundChooser.LIFT_CRASH:
+			# A heavy thud and a metal rattle.
+			value = sin(TAU * 55.0 * t) * exp(-t / 0.08) + 0.7 * noise * exp(-t / 0.12)
+		elif id == SoundChooser.PART_FITTED:
+			# Two ratchet clicks and a bright clink.
+			value = noise * exp(-t / 0.003) + sin(TAU * 1400.0 * t) * 0.5 * exp(-t / 0.04)
+			if t >= 0.05:
+				value += 0.8 * noise * exp(-(t - 0.05) / 0.003)
 		else:
 			value = sin(TAU * 90.0 * t) * exp(-t / 0.025) + 0.4 * noise * exp(-t / 0.004)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
@@ -332,6 +366,7 @@ func position_of(peer: int) -> Variant:
 
 
 func _physics_process(delta: float) -> void:
+	play_held()
 	var walking: Dictionary[int, Vector3] = {}
 	if player != null and player.is_inside_tree() and player.is_living():
 		walking[0] = player.global_position

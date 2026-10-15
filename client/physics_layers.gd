@@ -15,6 +15,7 @@ const LIVING := 1 << 1
 ## layer.
 const DOWNED := 1 << 2
 ## Movers (the car repair ADR's RE8 (a)): the car, an AnimatableBody3D only the clients' worlds
-## hold. A living player's controller walks out of one it is placed inside (KD15 (b2)); R7 puts the
-## layer on the living's collision mask.
+## hold, driven by CarRepairViews (#811). A living player's controller collides with it (its
+## collision_mask has the layer, #811) and walks out of one it is placed inside (KD15 (b2)); the
+## downed and the ragdolls do not collide with it. The item crosshair's first ray stops at it.
 const MOVERS := 1 << 3

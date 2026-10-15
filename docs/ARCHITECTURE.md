@@ -1480,7 +1480,7 @@ Each `ClientModel.Item` holds its holder and whether it is
 `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
 (the swapper's two items change places), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
 the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravity` and `flight_tick`, #644) and
-`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying) is what
+`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying, not fitted: #811) is what
 `ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
 it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
 `belt_item(peer)` read them for every player, the own one included, whose avatar arrives only while it is knocked down (KE5). `TaskState`
@@ -4688,8 +4688,8 @@ unchanged.
 - **What E offers.** `StationUse` (pure) offers a placed station whose kind has an Interact rule, whose hand rule
   (HandNotTwoHanded) holds, and whose task type this client draws: today only a Generator's generator and switch,
   neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Cooking's are
-  `CookingUse`'s (§4.7.55), the photo task's `PhotoUse`'s (§4.7.56); other kinds with an Interact rule (car
-  repair) are offered once their client issues add them.
+  `CookingUse`'s (§4.7.55), the photo task's `PhotoUse`'s (§4.7.56), car repair's `CarRepairUse`'s (§4.7.57); every
+  kind with an Interact rule is offered.
 - **The target.** `TargetChoice.choose_target` weighs the item against the offered stations: a station counts where
   the camera's ray hits its device (`StationViews.station_of_body` names the scene's `Collision`) or enters its use
   spot's sphere (`STATION_AIM_RADIUS_M` 0.4 m, its middle 0.4 m above the floor point; looks, "not a decision"),
@@ -4803,6 +4803,55 @@ The client side of the photo camera (the [photo ADR](decisions/2026-10-10-photo-
   (the load, the tap, the hold, the shot and every exit; none from outside the cylinder or through a wall),
   `tests/integration/client/player/player_controller_held_test.gd`,
   `tests/integration/client/life/life_view_camera_test.gd`.
+
+#### 4.7.57 Built in #811 (car repair R7), Car repair's view
+The client side of the car repair (the [car repair ADR](decisions/2026-10-10-car-repair-task.md)'s §8 R7, RE8,
+RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged.
+- **The fold.** `ClientModel.Station.rise_tick` keeps the last hold's start through its stop (how high the car got
+  before it dropped); a fitted part (`Item.fitted`, PartFitted) rests nowhere (`rests()` false), so `ItemViews` draws
+  it nowhere and no crosshair names it (RE12).
+- **The car's body.** The living player's `collision_mask` holds layer 4, `movers` (`PhysicsLayers.MOVERS`, §7),
+  the downed's does not. `CarRepairViews` (in `ItemWorld`) moves the car scene's `Lift` (an `AnimatableBody3D`,
+  `sync_to_physics`) in its `_physics_process`: its rest height plus `CarRepairUse.lift_fraction` of the rise that puts
+  its lowest box `clearance_m` above the use spot's floor (read from the scene once, so the data sets the height the
+  crouch must pass, RE8). Up over the client's copy of `rise_seconds` from `LiftChanged`'s tick at the estimated host
+  tick; down over `DROP_SECONDS` 0.25 s from the stop (a look: the host's world has no car). The car is not hidden by
+  `SightHider` (its height is public).
+- **What E offers.** `CarRepairUse` (pure, behind `StationUse.usable`): the panel while the task is not done and the
+  car not up (`up`); the car fully up at the estimated host tick (none: never), nobody fitting, the hand holding the
+  part `PartNeeded` names; a bin always; never the picture (a display kind). E sends `Interact`; on a kind whose
+  Interact rule holds the station (`StationUse.holds`: a `HoldStation` effect, the panel and the car) `ItemInteractions`
+  keeps the hold and sends `StopRaise` once on E released or the Esc menu, wherever the crosshair is; the own life
+  leaving ALIVE drops it silently (the host stops the hold itself). The device ray's mask holds `movers`: the `Lift`
+  and the scenes' `Collision` name their stations, a shelf hit names the bound bin nearest across the floor
+  (`station_near_hit`, turned shelves included).
+- **The scenes.** Each placed station binds to the scene whose use spot (`spawn_<tag>`) is nearest within 0.5 m (the
+  shelf's `BinN`s, the car, the panel, the picture). Under `StationViews.StationSight` wrappers in `SightHider.GROUP`:
+  the panel's `Light`, shown from `up` alone, and the wall's `Picture` quad, wearing the bound bin plate's own material
+  for the part `PartNeeded` names (RD3: the same picture; a placeholder colour for an unbound bin) and hidden when none
+  is needed. Nothing at the panel (its lamp, its hint, the HUD of a player there) reads `FitChanged` or `PartFitted`
+  (RE16).
+- **The fitter.** Drawn crouched by its own crouch (RD1 (b): snapshots' `pose.crouched`, no override). The own fitter's
+  progress from `FitChanged`'s tick fills the raise bar (`ItemWorld.fit_shown`, `HudText.Local.raising`); a player
+  that fits nothing sees none.
+- **The sounds.** `SoundChooser`: `LIFT_CRASH` at the car on `LiftChanged(up = false)` in the round only (the phase's
+  end lowers it without a kill; the host sends that stop's `LiftChanged` before its `PhaseChanged`, so `WorldSounds`
+  holds a crash to its next physics frame and plays it only if the round still runs), `PART_FITTED` at the car, each
+  `CAR_AIM_M` above, cut at 12 m and muffled; `FitChanged` is silent (RD14 (a)). `StationHums` runs the lift's motor
+  at the car while it rises (a hum placeholder at a lower pitch). Placeholders, not decisions.
+- **Tests.** `tests/unit/client/world/car_repair_use_test.gd`, `tests/unit/client/physics_layers_test.gd`,
+  `tests/unit/client/net/client_model_test.gd`, `tests/integration/client/world/car_repair_views_test.gd` (the real
+  `levels/stations/` scenes), `item_interactions_car_repair_test.gd`, `car_repair_sounds_test.gd`,
+  `car_repair_panel_blind_test.gd` (planted: the lamp reading the fitter, failed, reverted), `car_lift_walk_test.gd`
+  (RE8 on NetPair with the real car: a jump at the lowered car and a standing walk at the raised one stay out, a
+  crouched walk goes under and out, no Correction; the drop on a crouched player at the end prints its push on an
+  `RE8 edge:` line; planted: `movers` off the living mask, failed, reverted),
+  `tests/integration/client/world/item_world_car_repair_test.gd` (the own fit in the raise bar, and a raise),
+  `tests/integration/client/player/player_controller_downed_test.gd`; fixture
+  `tests/fixtures/client/fixture_car_repair_client.gd`. `shot` previews: `client/dev/car_repair_preview.tscn` (fully
+  up, the lamp lit, a picture per part beside the shelf), `car_repair_half_preview.tscn`,
+  `car_repair_lowered_preview.tscn` and `car_repair_crouch_preview.tscn` (the crouched eye under the raised car), on a
+  CarRepair built in `car_repair_preview.gd` until R6 (#810).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -5482,9 +5531,11 @@ The local player's controller (#46, `client/player/`):
   works in the lobby and on every map (the crouch ADR's amendment, #991: no per-map gate since `crouch_plays` and
   `crouch_maps` went), and `release_keys()` lets go of Ctrl with the other keys under the Esc menu.
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
-  2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
-  only; the dead are on no layer; a living player finds the
-  other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other players are
+  2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9), 4 `movers` (`PhysicsLayers.MOVERS`: client-only
+  moving bodies, today the car repair's car, §4.7.57). The living collide with the world and the movers (#811), the
+  downed with the world only (a raise ray passes through the movers); the dead are on no layer; a living player
+  finds the other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other
+  players are
   `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
@@ -7438,7 +7489,9 @@ its lowest point 0.16 m, under the 1.4 m `clearance_m`; the posts' frame on laye
 car), `lift_panel.tscn` (a hidden lamp), `parts_shelf.tscn` (three bins, each a use spot and a colour plate, RD2's
 placeholders) and `part_picture.tscn` (a hidden plate on the garage's east wall), instanced in the garage and in
 storage in place of the markers and the art's copies; a kit partition 1 m east of the panel's use spot hides the space
-under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional.
+under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client, R7 in #811: §4.7.57
+(`ClientModel.Station`'s `rise_tick`, `Item.rests()` false when fitted, the `movers` mask, `CarRepairUse`,
+`CarRepairViews`, the hold's `StopRaise`).
 Tests: `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
 `tests/integration/levels/house_car_repair_test.gd` (#809: the use spots at §6's points, the car's on the garage
 floor, RE15 from the use spot and the rim of its cylinder at every eye of the crouch band, planted without the

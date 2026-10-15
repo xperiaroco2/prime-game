@@ -23,16 +23,18 @@ func after_test() -> void:
 
 
 func test_downed_is_on_the_downed_layer_and_collides_with_the_level_only() -> void:
-	# The living collide with the level only too: they push each other instead (the push suite).
+	# The living collide with the level and the movers (the car repair's car, RE8 (a), #811), never
+	# with each other: they push each other instead (the push suite).
+	var living := PhysicsLayers.WORLD | PhysicsLayers.MOVERS
 	var player := _world.add_player(Vector3.ZERO)
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.LIVING)
-	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
+	assert_int(player.collision_mask).is_equal(living)
 	player.life = ClientModel.Life.DOWNED
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.DOWNED)
 	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
 	player.life = ClientModel.Life.ALIVE
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.LIVING)
-	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
+	assert_int(player.collision_mask).is_equal(living)
 
 
 func test_downed_holds_still_however_it_is_driven() -> void:

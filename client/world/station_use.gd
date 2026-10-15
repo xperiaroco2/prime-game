@@ -10,12 +10,12 @@ extends RefCounted
 ## ADR's §2.4; only its viewfinder asks hand_allows_at()), and its task type says it can still be
 ## used. Only the task types this client draws a station view for answer that (today the
 ## Generator, #801: neither its generator nor a switch once the charge is done, the host's
-## StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse); a kind of any other
-## type is never offered until its client issue adds its row here (car repair R7 #811). The other
-## conditions of a rule (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one
-## this client
-## does not know is left to the host. A fixed switch is no station at all (GE14), so it is never
-## offered, and nothing here reads a switch's `on`: the hint never names a switch's state.
+## StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair, #811:
+## CarRepairUse); a kind of any other type is never offered until its client issue adds its row
+## here. The other conditions of a rule (AtStation, StationInSight) are TargetChoice's and
+## ItemInteractions'; one this client does not know is left to the host. A fixed switch is no
+## station at all (GE14), so it is never offered, and nothing here reads a switch's `on`: the hint
+## never names a switch's state.
 
 
 ## The station kind `kind_id` of one of `mode`'s task types, or null.
@@ -79,6 +79,22 @@ static func rule_of(kind: StationKind) -> Rule:
 	return null
 
 
+## The HoldStation that `kind`'s Interact rule ends in (a hold or a timed channel on the station,
+## #808), or null.
+static func hold_of(kind: StationKind) -> HoldStation:
+	var rule := rule_of(kind)
+	if rule == null or rule.effects.is_empty():
+		return null
+	return rule.effects[rule.effects.size() - 1] as HoldStation
+
+
+## Whether E on station kind `kind_id` of `mode` starts a channel that E released ends: its
+## Interact rule ends in a HoldStation, so the client sends StopRaise at the release (the car
+## repair ADR's RE5, #811).
+static func holds(mode: GameMode, kind_id: StringName) -> bool:
+	return hold_of(kind_of(mode, kind_id)) != null
+
+
 ## Whether E offers station `id` of `model` to the own player now (see the class doc).
 static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	var station: ClientModel.Station = model.stations.get(id) if model != null else null
@@ -101,6 +117,9 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	var photo := PhotoUse.type_of(mode, station.kind)
 	if photo != null:
 		return PhotoUse.usable(model, photo, id)
+	var car_repair := CarRepairUse.type_of(mode, station.kind)
+	if car_repair != null:
+		return CarRepairUse.usable(model, car_repair, id)
 	var type := generator_of(mode, station.kind)
 	if type == null:
 		return false

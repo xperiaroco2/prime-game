@@ -704,15 +704,22 @@ func test_the_lift_folds_up_and_its_tick_and_the_picture_its_needed_part() -> vo
 	var shown := _model.stations[5]
 	assert_bool(panel.up).is_false()
 	assert_int(panel.lift_tick).is_equal(-1)
+	assert_int(panel.rise_tick).is_equal(-1)
 	assert_str(String(shown.part)).is_empty()
 	_fold(PartNeededEvent.new(5, &"spark_plug"))
 	assert_str(String(shown.part)).is_equal("spark_plug")
 	_fold(LiftChangedEvent.new(2, true, 40))
 	assert_bool(panel.up).is_true()
 	assert_int(panel.lift_tick).is_equal(40)
+	assert_int(panel.rise_tick).is_equal(40)
+	# The stop keeps the rise's start (#811: the view drops the car from the height it reached).
 	_fold(LiftChangedEvent.new(2, false, 55))
 	assert_bool(panel.up).is_false()
 	assert_int(panel.lift_tick).is_equal(55)
+	assert_int(panel.rise_tick).is_equal(40)
+	_fold(LiftChangedEvent.new(2, true, 70))
+	assert_int(panel.rise_tick).is_equal(70)
+	_fold(LiftChangedEvent.new(2, false, 75))
 	_fold(PartNeededEvent.new(5, &""))
 	assert_str(String(shown.part)).is_empty()
 	# A station the model does not know changes nothing and is not added.
@@ -748,6 +755,8 @@ func test_the_car_folds_its_fitter_and_a_fitted_part_leaves_the_hand() -> void:
 	assert_bool(part.fitted).is_true()
 	assert_int(part.holder).is_equal(ClientModel.NO_HOLDER)
 	assert_vector(part.position).is_equal(car_at)
+	# Locked at the car, it rests nowhere: no view draws it, no crosshair names it (RE12, #811).
+	assert_bool(part.rests()).is_false()
 	# A station the model does not know changes nothing and is not added.
 	_fold(FitChangedEvent.new(9, OWN, 60))
 	_fold(PartFittedEvent.new(9, 4))

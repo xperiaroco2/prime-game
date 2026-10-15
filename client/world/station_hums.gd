@@ -11,12 +11,15 @@ extends Node3D
 ## Cooking's grill sizzles the same way (#776, the cooking ADR's CD14 (a)) while a patty on it fries
 ## (CookingViews.ring_phase FRYING at the estimated host tick: GrillLoaded's ticks extrapolated, as
 ## the ring), and stops once it is fried (the ding; the hiss marks the burn) or taken off; its
-## stream is WorldSounds.sizzle_blip().
+## stream is WorldSounds.sizzle_blip(). The car repair's lift motor runs the same way (#811,
+## RD14), at the car while its car rises (CarRepairUse.rising), keyed by the lift panel's id.
 
 ## How often the muffle ray is cast for each hum playing (the ears move, unlike a one-shot's).
 const MUFFLE_EVERY_S := 0.1
 ## How much quieter than a click the hum plays: a placeholder, "not a decision".
 const HUM_DB := -6.0
+## The lift motor's pitch on the hum's placeholder (#811): a placeholder, "not a decision".
+const MOTOR_PITCH := 0.6
 
 var model: ClientModel
 ## The client's own copy of the mode: which station kinds are a Generator's generator.
@@ -63,6 +66,11 @@ func _due(heard_from: Variant) -> Dictionary[int, Vector3]:
 	var now := _now()
 	for id: int in model.stations:
 		var station: ClientModel.Station = model.stations[id]
+		var motor_at: Variant = _motor_at(station, now)
+		if motor_at is Vector3:
+			if SoundChooser.audible(motor_at as Vector3, heard_from as Vector3):
+				due[id] = motor_at as Vector3
+			continue
 		if not _sounds(station, now):
 			continue
 		if SoundChooser.audible(station.position, heard_from as Vector3):
@@ -75,6 +83,20 @@ func _sounds(station: ClientModel.Station, now: int) -> bool:
 	if _is_grill(station):
 		return CookingViews.ring_phase(station, now) == CookingViews.Ring.FRYING
 	return station.counting and not station.done and StationUse.is_generator(mode, station.kind)
+
+
+## Where the car repair's lift motor runs for `station` at host tick `now` (#811, RD14): at the
+## car, while `station` is its lift panel and the car rises (CarRepairUse.rising); else null.
+func _motor_at(station: ClientModel.Station, now: int) -> Variant:
+	var type := CarRepairUse.type_of(mode, station.kind)
+	if type == null or CarRepairUse.role_of(type, station.kind) != CarRepairUse.Role.PANEL:
+		return null
+	if not CarRepairUse.rising(station, float(now), type.rise_ticks()):
+		return null
+	var car := CarRepairUse.station_of(model, type, CarRepairUse.Role.CAR)
+	if car == null:
+		return null
+	return car.position
 
 
 ## Whether `station` is a Cooking's grill of the mode.
@@ -122,6 +144,13 @@ func _start(id: int, at: Vector3) -> void:
 			_sizzle = WorldSounds.sizzle_blip()
 		hum.name = "Sizzle%d" % id
 		hum.stream = _sizzle
+	elif _motor_at(model.stations[id], _now()) is Vector3:
+		if _stream == null:
+			_stream = WorldSounds.hum_blip()
+		# The lift's motor: the hum's placeholder, lower (a look, not a decision).
+		hum.name = "Motor%d" % id
+		hum.stream = _stream
+		hum.pitch_scale = MOTOR_PITCH
 	else:
 		if _stream == null:
 			_stream = WorldSounds.hum_blip()
