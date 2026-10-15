@@ -129,3 +129,15 @@ static func _carries(model: ClientModel, kind: ItemKind, film: Film) -> bool:
 		if film == Film.ANY_ITEM or (film == Film.EXPOSED) == shot:
 			return true
 	return false
+
+
+## Whether `kind_id` is the photo kind of one of `mode`'s photo tasks (#787: the primary button
+## holds a photo up close instead of sending Use).
+static func is_photo(mode: GameMode, kind_id: StringName) -> bool:
+	if mode == null or kind_id == &"":
+		return false
+	for type: TaskType in mode.task_types:
+		var photo := type as PhotoTask
+		if photo != null and photo.photo != null and photo.photo.id == kind_id:
+			return true
+	return false
