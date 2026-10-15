@@ -190,6 +190,38 @@ func test_a_right_serve_clears_a_refilled_plate() -> void:
 
 ## A burger is checked against the order of the place it was plated on (decision 1 of the plan):
 ## place 1's right burger completes order 1 only.
+## Nothing about correctness before the serve (the amendment's rule 3): a right plate on place 0
+## (by P1) and a wrong one on place 1 (by P2, so both start with empty hands), each filled and
+## taken, reach both peers as the same events by name, and none of them carries a `right` field;
+## only the serve tells, BurgerServed.
+func test_no_event_tells_right_or_wrong_before_the_serve() -> void:
+	var streams: Array[Array] = []
+	for wrong: bool in [false, true]:
+		var index := 1 if wrong else 0
+		var cook := P2 if wrong else P1
+		var order := _order(index)
+		var kinds: Array[StringName] = [order.bun.id, order.raw_patty.id, order.herb.id]
+		if wrong:
+			kinds[2] = _other(2, kinds[2])
+		var seen := {P1: _game.view_of(P1).events.size(), P2: _game.view_of(P2).events.size()}
+		for kind_id: StringName in kinds:
+			FixtureCookingModes.put(_game, cook, index, kind_id)
+		FixtureCookingModes.take_burger(_game, cook, index)
+		for peer: int in [P1, P2]:
+			var events: Array = _game.view_of(peer).events.slice(seen[peer] as int)
+			assert_array(events).is_not_empty()
+			for event: MatchEvent in events:
+				(
+					assert_bool(event.to_dict().has("right"))
+					. override_failure_message("%s tells right or wrong" % event.event_name())
+					. is_false()
+				)
+			streams.append(FixtureItemModes.names_after(_game, peer, seen[peer] as int))
+	assert_array(streams[2]).is_equal(streams[0])
+	assert_array(streams[3]).is_equal(streams[1])
+	assert_array(_game.view_of(P2).events_named(&"BurgerServed")).is_empty()
+
+
 func test_a_burger_serves_its_own_place_s_order() -> void:
 	FixtureCookingModes.cook(_game, P1, 1)
 	assert_bool(_order(1).done).is_true()
