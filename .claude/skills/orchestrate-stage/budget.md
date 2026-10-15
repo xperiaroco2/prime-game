@@ -29,8 +29,9 @@ art for the month from 2026-10-15 (below):
   [#1095 comment 6199371817](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817)) and art's
   20%. The other rows stay as he left them: "the project lives its own life, as it did"
   ([#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331)). So the
-  row adds up to more than 100%: each share is its track's limit, not a slice of the week, and the account's weekly
-  limit and the 93% stop (below) bind every track. When the month ends, the meta track's weekly proposal (below) asks him for the next budgets.
+  row adds up to more than 100%. Until he says how the shares combine (open, PR of #1124 "Needs the engineer"), read
+  each as its track's limit rather than a slice of the week; the account's weekly limit and the 93% stop (below) bind
+  every track. When the month ends, the meta track's weekly proposal (below) asks him for the next budgets.
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
   `main`), **design** (game design with the engineer, AGENT_WORKFLOW §7.3, plan #1095; the private repo
