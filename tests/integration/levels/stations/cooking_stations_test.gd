@@ -64,6 +64,7 @@ func test_the_herb_board_holds_five_icon_and_herb_pairs() -> void:
 		assert_object(pair).override_failure_message("no Pairs/Pair%d" % i).is_not_null()
 		if pair == null:
 			continue
+		assert_bool(pair.visible).override_failure_message("Pair%d shown" % i).is_false()
 		var icon := pair.get_node_or_null("Icon") as Marker3D
 		var herb := pair.get_node_or_null("Herb") as Marker3D
 		assert_object(icon).override_failure_message("Pair%d: no Icon" % i).is_not_null()
@@ -121,6 +122,8 @@ func test_the_herb_beds_hold_five_beds_each_with_its_use_spot_and_plant() -> voi
 		assert_object(bed).override_failure_message("no Bed%d" % i).is_not_null()
 		if bed == null:
 			continue
+		# A name lookup finds the bed, not a collision shape of the same name.
+		assert_object(root.find_child("Bed%d" % i, true, false)).is_same(bed)
 		var spot := bed.get_node_or_null("UseSpot") as Marker3D
 		assert_object(spot).override_failure_message("Bed%d: no UseSpot" % i).is_not_null()
 		(

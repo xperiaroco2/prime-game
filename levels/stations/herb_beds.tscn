@@ -10,23 +10,23 @@ size = Vector3(1.2, 0.4, 3)
 
 [node name="Collision" type="StaticBody3D" parent="." unique_id=384686701]
 
-[node name="Bed1" type="CollisionShape3D" parent="Collision" unique_id=353410404]
+[node name="Shape1" type="CollisionShape3D" parent="Collision" unique_id=353410404]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 0.2, 0)
 shape = SubResource("BedShape")
 
-[node name="Bed2" type="CollisionShape3D" parent="Collision" unique_id=323501851]
+[node name="Shape2" type="CollisionShape3D" parent="Collision" unique_id=323501851]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7, 0.2, 0)
 shape = SubResource("BedShape")
 
-[node name="Bed3" type="CollisionShape3D" parent="Collision" unique_id=1537261555]
+[node name="Shape3" type="CollisionShape3D" parent="Collision" unique_id=1537261555]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 shape = SubResource("BedShape")
 
-[node name="Bed4" type="CollisionShape3D" parent="Collision" unique_id=212435092]
+[node name="Shape4" type="CollisionShape3D" parent="Collision" unique_id=212435092]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 0.2, 0)
 shape = SubResource("BedShape")
 
-[node name="Bed5" type="CollisionShape3D" parent="Collision" unique_id=1667581417]
+[node name="Shape5" type="CollisionShape3D" parent="Collision" unique_id=1667581417]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 0.2, 0)
 shape = SubResource("BedShape")
 
