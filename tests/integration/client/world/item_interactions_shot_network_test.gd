@@ -84,7 +84,7 @@ func test_the_left_button_in_the_view_takes_the_shot_on_the_host() -> void:
 	assert_int(PhotoUse.frames_left(_shooter.model, _h.mode, _camera)).is_equal(frames - 1)
 
 
-func test_the_click_that_captures_the_mouse_takes_no_shot() -> void:
+func test_a_click_with_the_mouse_free_takes_no_shot() -> void:
 	_captured = false
 	await _open_view()
 	await _shoot()
@@ -92,6 +92,24 @@ func test_the_click_that_captures_the_mouse_takes_no_shot() -> void:
 	# Captured from then on, the next click shoots.
 	_captured = true
 	await _process_frames(2)
+	await _shoot()
+	assert_array(_shooter.view.events_named(&"ShotTaken")).has_size(1)
+
+
+## The real order: the controller captures the mouse on the click itself, before the item keys'
+## _process of that frame, so that click reads as captured now but was free a frame ago.
+func test_the_click_that_captures_the_mouse_takes_no_shot() -> void:
+	_captured = false
+	await _open_view()
+	_click(true)
+	_captured = true
+	await _process_frames(2)
+	_click(false)
+	await _process_frames(1)
+	_h.pump_seconds(AFTER_USE_S)
+	assert_array(_shooter.view.events_named(&"ShotTaken")).is_empty()
+	assert_array(_shooter.view.events_named(&"Rejected")).is_empty()
+	# The next click, the mouse already captured, shoots.
 	await _shoot()
 	assert_array(_shooter.view.events_named(&"ShotTaken")).has_size(1)
 
