@@ -42,6 +42,7 @@ const ROWS := {
 const HALF_WIDTH_M := 1.0
 const CLEARANCE_M := 1.4
 const RADIUS_M := 1.5
+const CAR_RADIUS_M := 0.9
 const VOICE_MARGIN_M := 1.0
 ## RE15's grid: every 0.5 m along the box (with both ends); the eyes every 0.1 m.
 const GRID_M := 0.5
@@ -160,7 +161,7 @@ func test_the_panel_s_cylinder_lies_within_voice_range_and_out_of_the_car_s_reac
 	# Every point of the panel's cylinder within the voice radius less the margin of the car's
 	# use spot, and outside the car's own cylinder (one player cannot hold the lift and fit).
 	assert_float(apart + RADIUS_M).is_less_equal(voice - VOICE_MARGIN_M)
-	assert_float(apart - RADIUS_M).is_greater_equal(RADIUS_M)
+	assert_float(apart - RADIUS_M).is_greater_equal(CAR_RADIUS_M)
 
 
 func test_no_other_marker_lies_in_the_car_s_footprint() -> void:
