@@ -35,11 +35,10 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `spawn_part_bin_<n>`, `spawn_part_picture`, `spawn_order_board`, `spawn_herb_board`, `spawn_grill`, `spawn_place`,
   `spawn_herb_bed`; `spawn_film`, `spawn_photo`; the cooking boxes' `spawn_box_bun_white`/`_sesame`/`_dark`,
   `spawn_box_patty_light`/`_red`/`_deep_red`). A marker in two such groups is a load error. The host reads them in
-  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map,
-  any map a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at
-  y = 0): on those, no station marker (`circle` or `zone`, #681) below that floor and no two markers of different
-  tags at one (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below
-  y = 0 there.
+  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any
+  map a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0):
+  on those, no station marker (`circle` or `zone`, #681) below that floor and no two markers of different tags at one
+  (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -58,7 +57,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays: its `maps` list the House
   alone (GD13 (b), #804), the greybox (a test bench, #767) has none; House's three (the yard, the garden, the
   landing) are #651's placeholders until the engineer moves them.
-- **Station scenes** (a device used where it stands: the Generator's, photo, car repair and cooking stations, #799, #783, #809, #774; RE16: the car's use spot under its `Lift`, layer 4 `movers`): read the
+- **Station scenes** (#799, #783, #809, #774; RE16: the car's use spot under its `Lift`, layer 4 `movers`): read the
   [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at the
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
