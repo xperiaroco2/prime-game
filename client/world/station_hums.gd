@@ -94,7 +94,9 @@ func _motor_at(station: ClientModel.Station, now: int) -> Variant:
 	if not CarRepairUse.rising(station, float(now), type.rise_ticks()):
 		return null
 	var car := CarRepairUse.station_of(model, type, CarRepairUse.Role.CAR)
-	return car.position if car != null else null
+	if car == null:
+		return null
+	return car.position
 
 
 ## Whether `station` is a Cooking's grill of the mode.

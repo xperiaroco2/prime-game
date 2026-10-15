@@ -73,7 +73,7 @@ func test_the_lift_rises_to_the_clearance_and_drops_after_a_stop() -> void:
 	_now = 100
 	await _frames()
 	assert_float(lift.position.y).is_less(0.1)
-	_now = 100 + _type.rise_ticks() / 2
+	_now = 100 + roundi(_type.rise_ticks() / 2.0)
 	await _frames()
 	var half := lift.position.y
 	assert_float(half).is_between(0.3, 0.95)

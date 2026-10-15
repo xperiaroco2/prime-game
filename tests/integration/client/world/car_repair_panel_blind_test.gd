@@ -55,7 +55,7 @@ func test_the_panel_shows_nothing_of_a_fit_while_the_lift_is_up() -> void:
 
 ## Folds a fit's events one by one and asserts after each that the panel looks as it did before.
 func _assert_blind() -> void:
-	var before := _panel_view()
+	var seen := _panel_view()
 	FixtureCarRepairClient.hold(_model, PART_ITEM, &"spark_plug", OTHER)
 	var steps: Array[MatchEvent] = [
 		FitChangedEvent.new(CAR, OTHER, _now),
@@ -68,8 +68,8 @@ func _assert_blind() -> void:
 		_now += 20
 		FixtureCarRepairClient.at_tick(_model, _now)
 		await _frames()
-		var after := "the panel changed after %s" % event.event_name()
-		assert_array(_panel_view()).override_failure_message(after).is_equal(before)
+		var message := "the panel changed after %s" % event.event_name()
+		assert_array(_panel_view()).override_failure_message(message).is_equal(seen)
 	assert_int(_model.stations[CAR].fitted).is_equal(1)
 
 

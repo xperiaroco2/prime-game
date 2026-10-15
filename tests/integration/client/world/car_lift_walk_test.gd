@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## car scene (`levels/stations/car.tscn`) in both Games' levels on NetPair's crouch_room, its Lift
 ## (layer 4, `movers`, which the own living player's mask holds) driven on the client by a
 ## test-local CarRepairViews from a ClientModel of FixtureCarRepairClient (for_scenes(): R5's
-## 1.4 m clearance), as ItemWorld's views drive it in a match. The host's world never holds the
-## Lift, so whatever the client's capsule does against it, the host sees only claims.
+## 1.4 m clearance), as ItemWorld's views drive it in a match. The host's Game holds the scene
+## too, but its rules never see the Lift (the server's LevelWorld and HostWorldQuery query the
+## world layer only), so whatever the client's capsule does against it, the host judges claims.
 ##
 ## Lowered: a jump at the car's end does not get on it or into it, and no Correction follows.
 ## Raised: a standing walk at it stops at its body; a crouched walk goes under it and out of the
@@ -113,8 +114,8 @@ func test_only_a_crouched_player_gets_under_the_raised_car() -> void:
 	var edge := _car.global_position - Vector3(0, 0, half_length + EDGE_M - WALK_STOP_M)
 	assert_bool(await _pair.walk_to(player, edge)).is_true()
 	await _frames(SETTLE_FRAMES)
-	var before := player.global_position
-	var outside := _car.global_position.z - before.z - half_length
+	var start := player.global_position
+	var outside := _car.global_position.z - start.z - half_length
 	assert_float(outside).is_between(0.0, rules.capsule_radius_m - CONTACT_M)
 	var before_corrections := session.corrections
 	FixtureCarRepairClient.lift(_model, false, _now)
@@ -122,7 +123,7 @@ func test_only_a_crouched_player_gets_under_the_raised_car() -> void:
 	var sink := 0.0
 	for i: int in Ticks.RATE * 2:
 		await _frames(1)
-		var moved := player.global_position - before
+		var moved := player.global_position - start
 		push = maxf(push, Vector2(moved.x, moved.z).length())
 		sink = maxf(sink, -moved.y)
 	await _frames(SETTLE_FRAMES)
