@@ -29,14 +29,17 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6): a `Marker3D` in exactly one persistent group `spawn_<tag>` (Groups
   dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`, `spawn_circle` (greybox only),
   `spawn_zone`; House only, provisional (DE10, #826): `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
-  `spawn_drop_garden`, `spawn_drop_workbench`, one each at its furniture (#831); House only, "not a decision":
-  `spawn_switch`, `spawn_generator`, `spawn_camera`, `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`,
-  `spawn_photo_board`, `spawn_film`, `spawn_photo`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
-  `spawn_part_bin_<n>`, `spawn_part_picture`). A marker in two such groups is a load error. The host reads them in
-  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
-  `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no
-  station marker (`circle` or `zone`, #681) below that floor and no two markers of different tags at one (x, z). The
-  other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
+  `spawn_drop_garden`, `spawn_drop_workbench`, one each at its furniture (#831); House only, "not a decision" (#799,
+  #783, #809, #774): use spots `spawn_switch`, `spawn_generator`, `spawn_camera`, `spawn_photo_spot`,
+  `spawn_film_box`, `spawn_printer`, `spawn_photo_board`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
+  `spawn_part_bin_<n>`, `spawn_part_picture`, `spawn_order_board`, `spawn_herb_board`, `spawn_grill`, `spawn_place`,
+  `spawn_herb_bed`; `spawn_film`, `spawn_photo`; the cooking boxes' `spawn_box_bun_white`/`_sesame`/`_dark`,
+  `spawn_box_patty_light`/`_red`/`_deep_red`). A marker in two such groups is a load error. The host reads them in
+  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map,
+  any map a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at
+  y = 0): on those, no station marker (`circle` or `zone`, #681) below that floor and no two markers of different
+  tags at one (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below
+  y = 0 there.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -44,10 +47,9 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   - sits on **flat floor**: a player counts only with its feet inside the cylinder, so a zone on a slope or a step
     never counts the player whose feet stand below the snapped marker;
   - keeps its whole cylinder **clear of walls and ceilings**: the host tests positions only, with no line of
-    sight, so a cylinder through a thin wall counts a player behind it, and one taller than its storey counts a
-    player upstairs. A `shot` of the station's room in the PR checks it; on House, `house_markers_test.gd` also
-    tests each zone's cylinder against the host's collision world (no wall, ceiling or furniture inside, flat floor
-    under it, #651);
+    sight, so a cylinder through a thin wall counts a player behind it, and one taller than its storey counts a player
+    upstairs. A `shot` of the station's room in the PR checks it; on House, `house_markers_test.gd` also tests each
+    zone's cylinder against the host's collision world (no wall, ceiling or furniture in it, a flat floor, #651);
   - keeps **ZE9's distances**, which `tests/unit/content/zone_content_test.gd` checks on every map of the base
     mode, read in the host's collision world (#681): any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least
     its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
@@ -56,7 +58,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays: its `maps` list the House
   alone (GD13 (b), #804), the greybox (a test bench, #767) has none; House's three (the yard, the garden, the
   landing) are #651's placeholders until the engineer moves them.
-- **Station scenes** (#799, #783, #809; RE16: the car's use spot under its `Lift`, layer 4 `movers`): read the
+- **Station scenes** (a device used where it stands: the Generator's, photo, car repair and cooking stations, #799, #783, #809, #774; RE16: the car's use spot under its `Lift`, layer 4 `movers`): read the
   [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at the
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
@@ -77,9 +79,8 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - The MVP's lobby and map: `lobby/lobby.tscn`, `greybox/greybox.tscn` (the base mode's paths; M2's, dressed in M4).
 
 ## The designer's agent never edits engine code
-- Interactables and task stations come from the engine. If a level needs one that does not exist, open an
-  `engine-request` issue with a precise spec (see `content/CLAUDE.md` for what the spec says) and continue with the
-  rest of the level.
+- Interactables and task stations come from the engine. A level that needs a missing one opens an `engine-request`
+  issue with a precise spec (`content/CLAUDE.md` says what it holds) and goes on with the rest of the level.
 - The designer's agent edits only the content area and the shared logs, as listed in `content/CLAUDE.md`.
 
 ## Working next to the Godot editor

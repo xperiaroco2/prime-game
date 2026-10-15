@@ -6480,7 +6480,7 @@ phase classes come in the task each row names.
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770) | inside its task type (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)); since #770 `Interact` may name an item on the ground too, routed to its kind's `target_actions` (a cooking box) | | packages and knives on the ground |
-| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799), the House's photo tags `camera`, `photo_spot`, `film_box`, `printer`, `photo_board` (use spots) and `photo` (the printer's tray), `film` (the first film; #783) |
+| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799), the House's photo tags `camera`, `photo_spot`, `film_box`, `printer`, `photo_board` (use spots) and `photo` (the printer's tray), `film` (the first film; #783), the House's cooking tags `order_board`, `herb_board`, `grill`, `place`, `herb_bed` (use spots) and the six `box_bun_*` and `box_patty_*` (the boxes; #774) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
 | Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
@@ -7165,7 +7165,8 @@ order (a bun, a patty and a herb shown as an icon); the players take buns and ra
 the grill, pick the herb the herb board's code names from its bed and fill the place. Nobody owns it: any living
 player of any role takes, fries and fills. Designed in the [cooking ADR](decisions/2026-10-10-cooking-task.md) (the ADR's §8,
 the split); C3 (#772) built its data, deal, board events, demands and checks, C4 (#773) the uses of the grill, the
-beds and the places and the grill's tick; the client's boards are C7's, and no shipped mode deals it yet (C6).
+beds and the places and the grill's tick, C5 (#774) its station scenes in the House; the client's boards are
+C7's, and no shipped mode deals it yet (C6).
 Settings (CE14): five `StationKind`s, `order_board` and `herb_board` (`display` kinds), `grill`, `herb_bed` and
 `place` (each with an `Interact` rule ending in `UseStation`); the lists `buns`, `raw_patties`, `fried_patties` (in
 the raw ones' order), `burnt`, `herbs` (at most 255) and `boxes` (two-handed item kinds on tags of their own, each
@@ -7224,6 +7225,25 @@ boxes (onto the belt beside a package, a full belt's bun down at the feet), fry 
 ingredient on a place, finish the burger and leave what lay to vanish, and what each decoded equals its
 `Match.view_of` (planted: `IngredientPlaced`'s wire row without `right`, failed, reverted); and the flood guard and
 the cap against one peer's burst of takes (§4.6.5.3).
+The station scenes, C5 built in #774 (provisional until the engineer approves them; the convention: the
+[level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes"):
+`levels/stations/order_board.tscn`
+(`spawn_order_board`; `Rows/Row1` to `Row3`, each a hidden `Number` `Label3D` and the `Bun`, `Patty` and `Herb`
+anchors where C7 draws an order), `herb_board.tscn` (`spawn_herb_board`; `Pairs/Pair1` to `Pair5`, an `Icon` and a
+`Herb` anchor each), `grill.tscn` (`spawn_grill`; the art's lid hidden, a `Grate` and the hidden `Ring` above it,
+CD14), `place.tscn` (a counter, `spawn_place`; the `Plate` and the `Number` hidden: an unused place is a bare counter,
+CE15), `herb_beds.tscn` (`Bed1` to `Bed5`, each holding its `Plant` and its use spot in `spawn_herb_bed`),
+`bun_shelf.tscn` and `freezer.tscn` (no use spot: the markers of the boxes, `spawn_box_bun_white`, `_sesame`,
+`_dark` and `spawn_box_patty_light`, `_red`, `_deep_red`, on the floor in front). The House's kitchen holds the board
+and the three places (numbered 1 to 3 in level order, CD1), storage the shelf and the freezer, the chill zone the
+grill, the greenhouse the herb board and the beds, each at house-map §6's point in place of a plain marker and of the
+art's copy of its device; no other map holds one (CD15). Read as plain points until C6's data snaps their tags.
+Tests: `tests/integration/levels/stations/station_scenes_test.gd` (the convention, for the four one-spot devices),
+`cooking_stations_test.gd` (the rows, pairs, grate, ring, plate and number, the five beds with a clear use spot
+each, the shelves' box markers on the floor) and `tests/integration/levels/house_cooking_stations_test.gd` (the
+markers read once each at §6's points, one box per kind, the places numbered in level order, a player clear on each
+used device's spot on a whole floor, the boxes on storage's floor, no shared (x, z), no art copy left, none on
+another map).
 
 #### 9.5.21 Car repair (task type)
 What it does: one shared task (#688) whose subtasks are the N parts the car needs, N the subtasks setting: one player
@@ -7577,6 +7597,9 @@ levels/
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
+  stations/order_board.tscn, herb_board.tscn, grill.tscn, place.tscn, herb_beds.tscn, bun_shelf.tscn, freezer.tscn
+                                   the cooking task's stations (#774), in House's kitchen, storage, chill zone and
+                                   greenhouse
   props/parasol_stand.tscn         the terrace table's empty parasol stand, the parasol's sign (#831): primitive
                                    meshes, primitive layer-1 colliders (no GLB); the House's other drop-offs stand
                                    at the art's furniture (§9.5.25)

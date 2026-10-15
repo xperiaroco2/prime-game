@@ -196,6 +196,16 @@ of new films stands free on storage's floor, west of the darkroom's door (kept c
 off); the printer's desk stays where the art put it, its use spot 0.9 m west of it (the art's chair there is gone);
 the board's use spot is 1.2 m in front of it.
 
+The cooking stations (#774, proposed for the engineer's approval; each point is the use spot of its station scene,
+or the middle box marker): the kitchen's three places are three counters in a row, 1 m apart, in place of the art's
+2.4 m assembly island (one island cannot be three places), each use spot 0.8 m south of its counter; the order board
+stays where the art put it, north of them and facing them, its use spot between board and counters (a display kind:
+nobody uses it); the grill stands in the chill zone with its front to the east, its use spot 0.85 m east of it; the
+herb board stays where the art put it, facing north, its use spot 0.8 m in front of it; the five herb beds keep the
+art's row, each use spot 2 m south of its bed, in the greenhouse's open middle; storage's bun boxes lie on the floor
+0.6 m in front of the bun shelf and the patty boxes 0.75 m in front of the freezer (the art's shelf boards are full of
+its own crates); the art's second bun shelf stays as dressing.
+
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the
 switches' spacing test is 12 m (the engineer, 2026-10-10, the
