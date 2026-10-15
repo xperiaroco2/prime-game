@@ -32,7 +32,7 @@ def meta_line(minutes: float, text: str) -> dict:
 
 
 class TrackFixture:
-    """A config folder with the transcripts of three checkouts and a worktree; each call below is 1% of the week.
+    """A config folder with the transcripts of the checkouts (the design one is missing) and a worktree; each call below is 1% of the week.
 
     D--prime-game                     g1: a skill's isMeta line naming meta, a tool result, then a kickoff with
                                       "Track: Game": game; a call before --since and one after --until (left out), one

@@ -1,6 +1,6 @@
 """`metrics --run ID ...` (#534): one workflow run's spend so far, in flight or finished, for the manager's check after
 a large launch's first phase (docs/MANAGERS.md §9), over small synthetic transcripts written here (never real ones) in
-the three track checkouts' folders (one not on this machine): the agents and who works now, a retried agent, a journal
+the track checkouts' folders (one not on this machine): the agents and who works now, a retried agent, a journal
 cut short, the dedup by message id, the % of the week by phase, the prefix match, the checkouts a failure names and the
 command line."""
 

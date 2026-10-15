@@ -1,7 +1,8 @@
 """`inbox [--since T] [--repo OWNER/NAME ...]`: the GitHub half of the secretary's digest (#485), read-only.
 
 The secretary session (.claude/skills/secretary/SKILL.md, docs/AGENT_WORKFLOW.md §7.2) runs it once a digest and
-reads the sessions' half itself. Per repo (default REPOS: the game's, the UI's, the art's and the design's, #1124), two gh calls:
+reads the sessions' half itself. Per repo (default REPOS: the game's, the UI's, the art's and the design's, #1124),
+two gh calls:
 - `gh pr list --state open` with bodies and files: each open PR's "Needs the engineer" items without "Answered: <GitHub
   link>" (merge.open_needs, the gate's own reading), and, in GATED only (the repo whose gate is merge.py's), the gate's
   exceptions of a ready PR into main by the engineer's account (merge.exception_reasons over gh's file list: a merge
