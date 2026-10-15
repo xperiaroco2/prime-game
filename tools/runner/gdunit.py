@@ -280,10 +280,6 @@ def selectors(paths: list[str] | None, tests_dir: Path) -> list[str]:
     ]
 
 
-def _args(paths: list[str] | None, tests_dir: Path, engine_args: Sequence[str] = ()) -> list[str]:
-    return _command(selectors(paths, tests_dir), REPORT_RES, engine_args)
-
-
 def _command(items: list[str], report_dir: str, engine_args: Sequence[str] = ()) -> list[str]:
     """GdUnit4's command line. `engine_args` (FIXED_FPS_ARGS) go before `-s`: GdUnitCmdTool's argument parser skips
     everything before its own script, so the engine reads them and GdUnit4 never sees them."""
