@@ -854,7 +854,7 @@ These maxima bound the decoder, not the payload: at the maxima some kinds exceed
 sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
 `PlayersPlaced`, and since #772 `HerbsDealt`, both lists as long as the mode's longest Cooking herbs, every case with
 empty lists when it has none), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
-spawn tag and station kind, plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
+spawn tag and demanded palette (a station kind no action demands a palette of has none, #784), plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
 
@@ -4367,7 +4367,10 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `text()` gives it in the language now. `HudText` (the HUD's role and slots), `RoleFacts`, `PregameScreen`,
   `MapScreen` (task rows, rooms) and `LobbyPanel` (the task chips, the map picker) ask it (the unshown
   `ItemInteractions.hint()` keeps the display name). The deck (`ui-0.4.0`) has no key for a map, the House's rooms or
-  the `tasks` count setting: they show as before (no key invented, the PR lists them).
+  the `tasks` count setting: they show as before (no key invented, the PR lists them). `TASK_EXCEPTIONS` names a
+  type the deck has no `task.<id>` for by the nearest key it has: `colour_delivery` as `task.delivery`, the Generator as
+  `task.switches` (§9.5.19) and the photo task as `room.photo_zone` (§9.5.22, #784); the photo task's Film and Photo
+  show their display names until the deck has `item.film` and `item.photo`.
 - **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
   `assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
   through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
@@ -6675,9 +6678,9 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 2 (1 to 2: every type a map plays, in every match, the Generator ADR's GD7 (i): the House's Delivery and Generator; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #800, #828, #79); `banned_task_types` (a set of task types, empty;
-  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays two types since #800: banning its Delivery leaves the Generator, and banning both House types (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
-  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  `tasks` 3 (1 to 3: every type a map plays, in every match, the Generator ADR's GD7 (i) and the photo ADR's PD14: the House's Delivery, Generator and photo task; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
+  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays three types since #784 (two since #800): banning one or two of them leaves the rest, and banning all three (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
+  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed hold still (§7.1.7) for
@@ -6700,8 +6703,8 @@ Settings:
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
-  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25).
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); Hold
+  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25), Film and Photo (the photo task's, #784, §9.5.22).
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
@@ -6727,7 +6730,7 @@ between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) 
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19).
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
 from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -7352,7 +7355,17 @@ the printer, and hang a printed photo on the board. Nobody owns it: any living p
 takes a film from the box, prints and hangs (`Interact(station)`, through each station kind's rule, §9.4.2
 `UseStation`; PD1). Designed in the [photo ADR](decisions/2026-10-10-photo-task.md) (§9 holds its split into P1 to
 P10); P2 (#781) builds the deal, the load and the shot, P3 (#782) the box, the printer, the board and the count; the
-client's picture is a later part. No shipped mode deals it yet.
+client's picture is a later part. The base mode deals it on the House alone since P5 (#784; provisional until the
+engineer approves it): `content/tasks/photo.tres` (§6.1's name "Photography" and description, `frames_per_film` 5,
+`fov_deg` 50, `aspect` 4:3, `range_m` 10, `maps` the House alone, `subtasks_setting` `photos`, the five kinds with
+PD9's 2 m radii and heights and their `Interact` rules, the box's `Cooldown` 0.25 s, placeholders) with
+`content/items/film.tres` and `content/items/photo.tres`, in the base mode with its `photos` setting (3, 1 to 5;
+§9.5.1). Until the copy deck has `task.photo`, `item.film` and `item.photo`, the client names the task by the deck's
+`room.photo_zone` ("Photo zone", `ContentNames.TASK_EXCEPTIONS`) and the two items by their display names, and its
+how-to card (`content/howto/tasks/photo.tres`) shows three frames of existing keys, placeholders the engineer
+approves. Tests: `tests/unit/content/photo_content_test.gd` (the data, the rules and the box's cooldown, the items,
+the setting and every House type in every match, Round's `Interact` from the living, the House's fit with the exact
+demands and the greybox asked for none, a clean layout check).
 Settings: `camera`, `photo_spot`, `film_box`, `printer`, `board` (`StationKind`s with different spawn tags; the photo
 spot a display kind with no rule, the aim; the four others each an `Interact` rule ending in `UseStation`, the box's
 paying a `Cooldown`), `film` and `photo` (one-handed item kinds the mode declares, their spawn tags none of a station
@@ -7476,8 +7489,8 @@ collision below the shooter's eye line; `FilmSlot`, where P8 draws the loaded fi
 computer and printer, `spawn_printer`, the `Tray` marker in `spawn_photo` on the printer) and `photo_board.tscn`
 (`spawn_photo_board`, `Slots/Slot1` to `Slot10` on its face); the House's photo zone holds the spot (the gazebo's
 centre, house-map §6), the camera 4.3 m east of it (beyond both reaches, PE12) and the first film's `spawn_film`
-marker, storage the box, the study the printer, the darkroom the board, each in place of a plain marker. Read as
-plain points until P5's data snaps their tags. Tests: `tests/integration/levels/stations/station_scenes_test.gd`
+marker, storage the box, the study the printer, the darkroom the board, each in place of a plain marker; since P5's
+data (#784) the base mode snaps their tags to the floor as station kinds. Tests: `tests/integration/levels/stations/station_scenes_test.gd`
 (the convention, for the four devices), `photo_stations_test.gd` (the camera's eye line clear, its slot and counter,
 the spot's mark, the printer's tray on its top, the board's slots on its face) and
 `tests/integration/levels/house_photo_stations_test.gd` (the markers read once each at §6's points, a player clear
@@ -7579,13 +7592,15 @@ content/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   items/wine.tres, oil.tres, gnome.tres, parasol.tres   the House's Delivery items (#828, §9.5.25)
+  items/film.tres, photo.tres      the photo task's items (#784, §9.5.22)
   tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
   tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   tasks/generator.tres             the Generator, with its generator and switch station kinds inside it (#800)
+  tasks/photo.tres                 the photo task, with its five station kinds inside it (#784)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
-  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
