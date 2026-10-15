@@ -20,6 +20,9 @@
 - **Amended 2026-10-15 (#1073):** the engineer is the project lead and the game designer; a change to these pillars
   is his decision alone and needs no agreement with the designer, who may help now and then
   (`docs/AGENT_WORKFLOW.md` §9).
+- **Amended 2026-10-15 (#1090):** the pillar "Macro skill over micro skill" becomes "Macro skill first, and skill may
+  matter a little": aim may matter for those who want it (guns for points, limited ammunition, the host's weapon
+  setting), while decisions and teamwork win more often (`docs/GDD.md` §1).
 
 ## Context
 The [MVP rules](2026-09-29-mvp-rules.md) were decided before the game had a vision of its own. Since then a vision
