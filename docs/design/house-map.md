@@ -167,10 +167,10 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Photo | Computer and printer (the desk at 40, 29; the point is its use spot, #783) | 1 | 39.1, 29 | Study |
 | Photo | Board for the printed photos | -1 | 22, 40 | Darkroom |
 | Photo | Box of new films (#687) | -1 | 19.5, 30.4 | Storage |
-| Car repair | Car parts shelf | -1 | 27, 32 | Storage |
-| Car repair | Car on the lift | 0 | 64, 41 | Garage |
-| Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
-| Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
+| Car repair | Car parts shelf: its middle bin's use spot, the bins 0.6 m apart along the shelf (bin 1 at 27.6, 32, bin 3 at 26.4, 32; three, RD2's placeholder; #809) | -1 | 27, 32 | Storage |
+| Car repair | Car on the lift: its use spot under the car, on the garage floor (`car_end` at 64, 38.7; #809) | 0 | 64, 41 | Garage |
+| Car repair | Lift control: its use spot, 5 m west of the car's (RD2's placeholder), behind a partition that hides the space under the car (no view of who is under the car, decided in #688; 57, 46 was the first proposal, 8.6 m from the car; #809) | 0 | 59, 41 | Garage |
+| Car repair | Picture of the needed part: its use spot, the frame on the garage's east wall at 71.9, 40.5 (on a garage wall, decided in #688; the point R5's, #809) | 0 | 70.7, 40.5 | Garage |
 | Zone task | A zone (placeholder until the engineer moves it, #651; up from the generator hall, #681) | 0 | 48, 37 | Yard, between the kitchen and the garage |
 | Zone task | A zone (placeholder, #651; 5 m south of its first point, 52, 20, which the art's garden dressing fills, #523) | 0 | 52, 25 | Garden |
 | Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |

@@ -8,15 +8,9 @@
 [ext_resource type="PackedScene" uid="uid://benuebnfmtjii" path="res://levels/kit/house_kit/garage_door_8m.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://b5lxfgx4mki5" path="res://levels/kit/house_kit/wall_storey_corner_ext.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://cixs6mgqu5egm" path="res://levels/kit/house_kit/floor_concrete_2x2.tscn" id="8"]
-[ext_resource type="PackedScene" uid="uid://ccoxavy0f4pq7" path="res://levels/kit/house_props/lift_posts.tscn" id="9"]
 [ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="10"]
-[ext_resource type="PackedScene" uid="uid://clkni2xs37p8e" path="res://levels/kit/house_props/lift_arms.tscn" id="11"]
-[ext_resource type="PackedScene" uid="uid://camuj3xoilg63" path="res://levels/kit/house_props/garage_car.tscn" id="12"]
-[ext_resource type="PackedScene" uid="uid://duut54scweq51" path="res://assets/environment/house_props/floor_lift_zone.glb" id="13"]
-[ext_resource type="PackedScene" uid="uid://d2r5bhwclo7xy" path="res://levels/kit/house_props/lift_panel.tscn" id="14"]
 [ext_resource type="PackedScene" uid="uid://cn43frw77n3r4" path="res://levels/kit/house_props/tyre_rack.tscn" id="15"]
 [ext_resource type="PackedScene" uid="uid://d4csayskoxpdc" path="res://levels/kit/house_props/steel_cupboard.tscn" id="16"]
-[ext_resource type="PackedScene" uid="uid://66edmvss8j3p" path="res://assets/environment/house_props/part_picture.glb" id="17"]
 [ext_resource type="PackedScene" uid="uid://cskc4ppjttfkh" path="res://levels/kit/house_props/workbench.tscn" id="18"]
 [ext_resource type="PackedScene" uid="uid://dcirnj0s08iv0" path="res://levels/kit/house_props/tool_chest.tscn" id="19"]
 [ext_resource type="PackedScene" uid="uid://rgmexteidkro" path="res://levels/kit/house_props/parts_shelving.tscn" id="20"]
@@ -31,6 +25,12 @@
 [ext_resource type="PackedScene" uid="uid://ct28vy6al30f3" path="res://levels/kit/house_props/fridge.tscn" id="29"]
 [ext_resource type="PackedScene" uid="uid://c7t1v3hckl6na" path="res://levels/kit/house_props/store_shelving.tscn" id="30"]
 [ext_resource type="PackedScene" uid="uid://c83so4euyminu" path="res://assets/environment/house_props/sign_no_smoking.glb" id="31"]
+
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="kit_wall_int"]
+[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_end_int.tscn" id="kit_wall_end_int"]
+[ext_resource type="PackedScene" path="res://levels/stations/car.tscn" id="station_car"]
+[ext_resource type="PackedScene" path="res://levels/stations/lift_panel.tscn" id="station_lift_panel"]
+[ext_resource type="PackedScene" path="res://levels/stations/part_picture.tscn" id="station_part_picture"]
 
 [node name="Garage" type="Node3D" unique_id=1287531948]
 metadata/room_id = &"garage"
@@ -811,52 +811,43 @@ metadata/surface = "concrete"
 instance_shader_parameters/plan_at = Vector4(70, 0, 46, 0)
 surface_material_override/0 = ExtResource("2")
 
+[node name="wall_storey_end_int_1" parent="Shell" instance=ExtResource("kit_wall_end_int")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
+metadata/blind = "LiftPanel"
+
+[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_1" index="0"]
+instance_shader_parameters/plan_at = Vector4(60, 0, 39, 270)
+surface_material_override/0 = ExtResource("2")
+
+[node name="wall_storey_2m_int_1" parent="Shell" instance=ExtResource("kit_wall_int")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 5)
+metadata/blind = "LiftPanel"
+
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0"]
+instance_shader_parameters/plan_at = Vector4(60, 0, 39, 270)
+surface_material_override/0 = ExtResource("2")
+
+[node name="wall_storey_2m_int_2" parent="Shell" instance=ExtResource("kit_wall_int")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 0, 7)
+metadata/blind = "LiftPanel"
+
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0"]
+instance_shader_parameters/plan_at = Vector4(60, 0, 41, 270)
+surface_material_override/0 = ExtResource("2")
+
+[node name="wall_storey_end_int_2" parent="Shell" instance=ExtResource("kit_wall_end_int")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 9)
+metadata/blind = "LiftPanel"
+
+[node name="wall_storey_end_int" parent="Shell/wall_storey_end_int_2" index="0"]
+instance_shader_parameters/plan_at = Vector4(60, 0, 43, 90)
+surface_material_override/0 = ExtResource("2")
+
 [node name="Dressing" type="Node3D" parent="." unique_id=26243369]
-
-[node name="lift_posts_1" parent="Dressing" unique_id=842427887 instance=ExtResource("9")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 7)
-metadata/prop = "lift_posts"
-metadata/station = "CarLift"
-
-[node name="lift_posts" parent="Dressing/lift_posts_1" index="0" unique_id=1497370798]
-surface_material_override/0 = ExtResource("10")
-
-[node name="lift_arms_1" parent="Dressing" unique_id=1354003899 instance=ExtResource("11")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0.04, 7)
-metadata/prop = "lift_arms"
-metadata/station = "CarLift"
-
-[node name="lift_arms" parent="Dressing/lift_arms_1" index="0" unique_id=1828962348]
-surface_material_override/0 = ExtResource("10")
-
-[node name="garage_car_1" parent="Dressing" unique_id=1879482874 instance=ExtResource("12")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 7)
-metadata/prop = "garage_car"
-metadata/station = "CarLift"
-
-[node name="garage_car" parent="Dressing/garage_car_1" index="0" unique_id=879905865]
-surface_material_override/0 = ExtResource("10")
-
-[node name="floor_lift_zone_1" parent="Dressing" unique_id=1423097529 instance=ExtResource("13")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 7)
-metadata/prop = "floor_lift_zone"
-metadata/station = "CarLift"
-
-[node name="floor_lift_zone" parent="Dressing/floor_lift_zone_1" index="0" unique_id=374617706]
-surface_material_override/0 = ExtResource("10")
-
-[node name="lift_panel_1" parent="Dressing" unique_id=1010152005 instance=ExtResource("14")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 11.6)
-metadata/prop = "lift_panel"
-metadata/station = "LiftPanel"
-
-[node name="lift_panel" parent="Dressing/lift_panel_1" index="0" unique_id=2138504298]
-surface_material_override/0 = ExtResource("10")
 
 [node name="tyre_rack_1" parent="Dressing" unique_id=565771133 instance=ExtResource("15")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9, 0, 11)
 metadata/prop = "tyre_rack"
-metadata/station = "LiftPanel"
 
 [node name="tyre_rack" parent="Dressing/tyre_rack_1" index="0" unique_id=1811272723]
 surface_material_override/0 = ExtResource("10")
@@ -873,13 +864,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.85, 0, 11.05)
 metadata/prop = "steel_cupboard"
 
 [node name="steel_cupboard" parent="Dressing/steel_cupboard_2" index="0" unique_id=1845217455]
-surface_material_override/0 = ExtResource("10")
-
-[node name="part_picture_1" parent="Dressing" unique_id=1502859223 instance=ExtResource("17")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.9, 1.3, 6.5)
-metadata/prop = "part_picture"
-
-[node name="part_picture" parent="Dressing/part_picture_1" index="0" unique_id=1500979551]
 surface_material_override/0 = ExtResource("10")
 
 [node name="workbench_1" parent="Dressing" unique_id=1223740835 instance=ExtResource("18")]
@@ -1063,11 +1047,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, 0)
 [node name="Workbench" type="Marker3D" parent="Stations" unique_id=975041777 groups=["spawn_drop_workbench"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 3)
 
-[node name="CarLift" type="Marker3D" parent="Stations" unique_id=776166982]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 7)
+[node name="CarLift" parent="Stations" instance=ExtResource("station_car")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 7)
 
-[node name="LiftPanel" type="Marker3D" parent="Stations" unique_id=867510474]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 12)
+[node name="LiftPanel" parent="Stations" instance=ExtResource("station_lift_panel")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.75, 0, 7)
+
+[node name="PartPicture" parent="Stations" instance=ExtResource("station_part_picture")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.9, 0, 6.5)
 
 [node name="Markers" type="Node3D" parent="." unique_id=1458442779]
 
@@ -1174,15 +1161,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 11.5)
 [editable path="Shell/floor_concrete_2x2_61"]
 [editable path="Shell/floor_concrete_2x2_62"]
 [editable path="Shell/floor_concrete_2x2_63"]
-[editable path="Dressing/lift_posts_1"]
-[editable path="Dressing/lift_arms_1"]
-[editable path="Dressing/garage_car_1"]
-[editable path="Dressing/floor_lift_zone_1"]
-[editable path="Dressing/lift_panel_1"]
+[editable path="Shell/wall_storey_end_int_1"]
+[editable path="Shell/wall_storey_2m_int_1"]
+[editable path="Shell/wall_storey_2m_int_2"]
+[editable path="Shell/wall_storey_end_int_2"]
 [editable path="Dressing/tyre_rack_1"]
 [editable path="Dressing/steel_cupboard_1"]
 [editable path="Dressing/steel_cupboard_2"]
-[editable path="Dressing/part_picture_1"]
 [editable path="Dressing/workbench_1"]
 [editable path="Dressing/tool_chest_1"]
 [editable path="Dressing/parts_shelving_1"]
