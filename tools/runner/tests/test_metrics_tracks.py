@@ -214,6 +214,11 @@ class TracksTest(unittest.TestCase):
         table = self.run_main("all", compact=False)
         self.assertIn("| meta | lab | D--prime-game | --session | 1 | $23 | 1.00% |", table)
 
+    def test_the_design_track_follows_the_four_before_other_names(self) -> None:
+        every = self.run_main("all", labels=("plain=design", "lab=audio")).splitlines()
+        names = [line.split(":")[0] for line in every[1:7]]
+        self.assertEqual(names, ["game", "ui", "art", "meta", "design", "audio"])  # #1120: design, not alphabetical
+
     def test_the_last_line_names_the_largest_untracked_sessions(self) -> None:
         none_left = self.run_main("game", labels=("plain=meta",)).splitlines()[-2]
         self.assertIn("(untracked 0.0%), against", none_left)

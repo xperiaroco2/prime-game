@@ -22,6 +22,10 @@ From the reset of 2026-10-13 10:00 UTC, the engineer's answer 1A to the weekly r
 |---|---|---|---|---|---|---|
 | % of the week | 34 | 6 | 20 | 12 | 5 | 16 |
 
+- **design** (game design with the engineer, AGENT_WORKFLOW §7.3; `D:\prime-game`, plan #1095): **unlimited for
+  now**, outside the table: the engineer works on this track alone, for months, until the game design is polished (his
+  word, [#1095 comment 6199371817](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817)).
+  Its spend still counts against the account's weekly limit and the 93% stop, like every track's.
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
   `main`). The engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until

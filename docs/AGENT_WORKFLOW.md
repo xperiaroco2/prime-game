@@ -324,6 +324,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
+| `design-manager` | engineer | The design track's manager: brainstorms with the engineer through `docs/design/COMPASS.md`, runs small research workflows, records his decisions and hands over to a fresh design session (§7.3) |
 | `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
@@ -357,6 +358,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | Docs, content data, routine fixes; the designer's default | medium |
 | Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it, with bypass, when he pastes the kickoff: `docs/MANAGERS.md` §1) |
 | The secretary session (§7.2) | medium, on Opus (the engineer's answer on #170, #485) |
+| The design manager (§7.3) | high, on Opus, like every manager |
 
 Rules for every workflow run:
 - **Size guideline `small` (fewer than 5 agents)** [applied: `workflowSizeGuideline` in shared settings].
@@ -556,6 +558,22 @@ share, where the secretary's cost belongs. Its first digest also checks that `li
 **The timer stops** after 3 hours without a word from the engineer in its chat (his answer (a) on
 [#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361), not a fixed day window or
 "пауза" alone): it costs nothing while he is away, one word restarts it, and "пауза" still stops it at once.
+
+### 7.3 The design manager session
+
+(#1120; the engineer's yes on [#1095](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817).)
+Game design is a track of its own, `design`, beside game, UI, art and meta: the engineer, the project lead and the
+game designer, works through one manager session at a time, which keeps the design context across sessions and hands
+over like any manager (`docs/MANAGERS.md`).
+
+- **Who:** one session of the engineer's in `D:\prime-game`, Opus, bypass, effort high, on the skill `design-manager`
+  (`.claude/skills/design-manager/SKILL.md`), started by its kickoff (`Track: design`, plan issue #1095).
+- **Its lens:** `docs/design/COMPASS.md`, read whole at each start: the tone (described without other works' names:
+  the repo is public; the names are in the engineer's personal memory), the tone test, the pillars' checklist and how
+  an idea moves.
+- **Powers:** it researches (small workflows after his yes), proposes and records; it never decides content; its docs
+  PRs merge only on his word for that PR, through the gate.
+- **Budget:** the `design` line of `.claude/skills/orchestrate-stage/budget.md`.
 
 ## 8. Permissions, guards and hooks
 
