@@ -30,6 +30,10 @@ const WALKS := {
 		Vector3(65, -3.2, 33)
 	],
 	"external stairs, yard to balcony": [Vector3(39, 0, 14.4), Vector3(39, 0, 21.6)],
+	# The art's attic stair (art #188, #1080): its foot at x 30 on the landing's east aisle, up
+	# west under the hatch (x 26.475 to 29.6, z 28.73 to 29.87) to the attic floor; the art's
+	# arrival point at its top is (25.7, 29.3).
+	"attic stair, landing to attic": [Vector3(31, 3.2, 29.3), Vector3(25.7, 3.2, 29.3)],
 }
 ## How high each walk ends: the level it leads to.
 const ENDS := {
@@ -37,6 +41,7 @@ const ENDS := {
 	"pantry stairs, storage to pantry": 0.0,
 	"outdoor stairs, passage to yard": 0.0,
 	"external stairs, yard to balcony": 3.2,
+	"attic stair, landing to attic": 6.4,
 }
 ## The kit's doors and gates on a walk, open as door openings (E4: their leaves have no collision),
 ## walked straight through on the ground floor (house-map.md §5: the yard's two openings to the
@@ -55,14 +60,6 @@ const OPENING_ENDS := {
 	"the greenhouse door, garden to greenhouse": 0.0,
 	"the garage's gate, driveway to garage": 0.0,
 }
-## The hatch ladder up to the attic (the art's `ladder_attic`, house-map.md §5): its foot
-## on the landing, its top at the hatch's far edge, in map coordinates. A ladder is no flight: at
-## about 68 degrees the player's capsule cannot walk it (#523 lists the climb for the engineer), so
-## it is checked as a link between the two floors, not walked.
-const LADDER_FOOT := Vector2(28, 28.32)
-const LADDER_TOP := Vector2(28, 29.7)
-const LANDING_Y := 3.2
-const ATTIC_Y := 6.4
 
 var _level: LevelWorld
 
@@ -125,33 +122,6 @@ func _walk(walk: String, corners: Array, end: float) -> void:
 		. override_failure_message("%s ends at %.2f, not at %.2f" % [walk, floor_y, end])
 		. is_equal_approx(end, 0.01)
 	)
-
-
-func test_the_attic_ladder_joins_the_landing_to_the_attic_floor() -> void:
-	var before_foot := LADDER_FOOT + Vector2(0, -0.5)
-	var beyond_top := LADDER_TOP + Vector2(0, 0.5)
-	assert_float(_floor_under(before_foot.x, before_foot.y, LANDING_Y)).is_equal_approx(
-		LANDING_Y, 0.01
-	)
-	assert_float(_floor_under(beyond_top.x, beyond_top.y, ATTIC_Y)).is_equal_approx(ATTIC_Y, 0.01)
-	# Along the ladder, seen from under the attic floor through the open hatch, it rises from the
-	# landing to the attic floor.
-	var last := LANDING_Y
-	for k in range(1, 10):
-		var at := LADDER_FOOT.lerp(LADDER_TOP, k / 10.0)
-		var ray := PhysicsRayQueryParameters3D.create(
-			Vector3(at.x, ATTIC_Y - 0.05, at.y),
-			Vector3(at.x, LANDING_Y, at.y),
-			LevelWorld.WORLD_LAYER
-		)
-		var hit := _level.space_state().intersect_ray(ray)
-		var rung: float = NAN if hit.is_empty() else (hit["position"] as Vector3).y
-		(
-			assert_bool(rung > last)
-			. override_failure_message("the ladder does not rise above %.2f at %s" % [last, at])
-			. is_true()
-		)
-		last = maxf(last, rung)
 
 
 ## The walk's points every SPACING metres along its corners.
