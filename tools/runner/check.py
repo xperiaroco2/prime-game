@@ -1,5 +1,5 @@
-"""`check`: headless import, warnings policy, UID lint, credits, the text colliders and the project-wide parse/load
-check."""
+"""`check`: headless import, warnings policy, UID lint, credits, the text colliders, the level scenes' editable paths
+(editables.py) and the project-wide parse/load check."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import colliders, common, credits, lfs, uids
+from . import colliders, common, credits, editables, lfs, uids
 from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, quiet, say, skip, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
@@ -413,6 +413,14 @@ def check_all(files: list[str] | None) -> int:
             bad(line)
     else:
         ok("colliders (every wrapped GLB's text colliders current; no level scene instances a wrapped GLB)")
+
+    editable_problems = editables.problems(ROOT)
+    if editable_problems:
+        failed = True
+        for line in editable_problems:
+            bad(line)
+    else:
+        ok("editable paths (every override inside an instance in a level scene survives a re-save, #1056)")
 
     if not project_check(files, lfs.ci_pointers()):
         failed = True
