@@ -139,11 +139,12 @@ static func _welcome(content: _Content) -> WireMessage:
 
 static func _settings_changed(content: _Content) -> WireMessage:
 	var shortfalls: Array[Dictionary] = []
-	# At most one per demanded spawn tag and station kind, plus the player count and
-	# `no_task_types` (FitCheck; a missing layout, `no_layout`, comes instead of the map's
-	# shortfalls), and the task types' own layout problems (TaskType.most_layout_problems, #807),
-	# each counted as the longest host text the wire takes (#548).
-	var texts := content.tags.size() + content.stations.size() + 2
+	# At most one per demanded spawn tag and demanded palette (Demands.shortfalls: a station kind
+	# no action demands a palette of has none, #784), plus the player count and `no_task_types`
+	# (FitCheck; a missing layout, `no_layout`, comes instead of the map's shortfalls), and the
+	# task types' own layout problems (TaskType.most_layout_problems, #807), each counted as the
+	# longest host text the wire takes (#548).
+	var texts := content.tags.size() + content.palettes.size() + 2
 	for type: TaskType in content.mode.task_types:
 		if type != null:
 			texts += type.most_layout_problems()
@@ -203,6 +204,9 @@ class _Content:
 	## The spawn tags and station kinds the map demands with every setting at its maximum.
 	var tags: Array[StringName] = []
 	var stations: Array[StringName] = []
+	## The station kinds the map demands a palette of with every setting at its maximum (a subset
+	## of `stations`): one shortfall each at most.
+	var palettes: Array[StringName] = []
 
 	func _init(of_mode: GameMode) -> void:
 		mode = of_mode
@@ -225,6 +229,7 @@ class _Content:
 		item = _longest(_ids(mode.item_kinds))
 		var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, largest, mode.max_players)
 		tags.assign(demands.markers.keys())
+		palettes.assign(demands.colours.keys())
 		# The station kinds the mode's task types place (TaskType.station_kinds, DE4): a kind with
 		# no palette still has an id on the wire. The palettes a map demands are kept too, for a
 		# demand that names a kind no task type holds.

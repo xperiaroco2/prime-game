@@ -272,3 +272,19 @@ func test_the_longest_short_axis_text_is_a_host_text_the_wire_takes() -> void:
 	assert_str(encoded.problem).is_empty()
 	assert_int(text.ids.size()).is_less_equal(WireSchema.MAX_TEXT_IDS)
 	assert_int(text.numbers.size()).is_less_equal(WireSchema.MAX_TEXT_NUMBERS)
+
+
+func test_station_kinds_with_no_demanded_palette_add_no_shortfall() -> void:
+	# Demands.shortfalls names a station kind only for a demanded palette (`colours`): kinds that
+	# demand none (the photo task's five, #784) size the station ids, never the shortfalls.
+	var mode := _mode(10, 3, 1, 1)
+	var kinds: Array[StationKind] = []
+	for i: int in WireSchema.MAX_SHORTFALLS - 1:
+		kinds.append(FixtureKindsType.kind(StringName(_id(100 + i)), &"spot"))
+	mode.task_types = [FixtureKindsType.of(&"kinds", kinds)]
+	var changed: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			changed = message
+	assert_int((changed.fields["shortfalls"] as Array).size()).is_equal(2)
+	assert_array(Array(WireBudget.check(mode))).is_empty()
