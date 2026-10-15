@@ -66,4 +66,5 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
      manager merges task PRs the same way), the content area changes only on the engineer's word
      (`docs/AGENT_WORKFLOW.md` §9), content and levels are judged through `shot` screenshots and playtests,
      save-first, one-time guard answers; the designer never uses worktrees and works at medium effort;
-   - they may reopen any decision that binds them: say so, and the agent opens an issue for both humans.
+   - they may reopen any decision that binds them: say so, and the agent opens an issue for the engineer, who
+     decides (#1073).

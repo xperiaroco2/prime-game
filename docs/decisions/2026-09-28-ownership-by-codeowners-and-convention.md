@@ -9,6 +9,8 @@
   open PR is never edited ([intervention](../interventions/2026-10-01-engineer-relayed-design-agreement.md),
   `docs/AGENT_WORKFLOW.md` §9).
 - **Amended 2026-10-08 (#518):** the designer becomes optional; the engineer owns the content area (below).
+- **Amended 2026-10-15 (#1073):** the engineer is the project lead and the game designer; the designer may help now and
+  then (`docs/AGENT_WORKFLOW.md` §9).
 
 ## Context
 KICKOFF §5.3: the designer's agent does not modify engine code; the engineer's agent does not change content without
