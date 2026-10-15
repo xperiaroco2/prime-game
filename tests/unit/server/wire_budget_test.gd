@@ -89,7 +89,7 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 ## Thirty demanded tags and thirty demanded palettes make 62 shortfalls, under the list's cap of
 ## MAX_SHORTFALLS (64), so only the payload's byte cap can refuse them: the test holds that reason,
 ## not the entry count (#775's review).
-func test_the_most_demanded_tags_refuse_the_settings_but_not_the_stations() -> void:
+func test_demanded_texts_over_the_byte_cap_refuse_the_settings_but_not_the_stations() -> void:
 	var mode := _demanding(_mode(10, 3, 1, 4), 30, 30)
 	var problems := "\n".join(WireBudget.check(mode))
 	var changed: WireMessage = null
