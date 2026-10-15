@@ -172,6 +172,24 @@ func test_with_a_two_handed_item_a_hold_takes_the_film_out_and_a_tap_opens_no_vi
 	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
 
 
+func test_a_hold_beyond_the_film_s_reach_takes_nothing_out() -> void:
+	# The fixture's PickUp reach outsizes the camera's cylinder: shorten it below the film's 0.7 m,
+	# so the feet stand at the camera but out of PickUp's reach of the film lying on it.
+	for rule: Rule in _mode.actions:
+		for condition: Condition in rule.conditions:
+			if rule.trigger == Intents.PICK_UP and condition is InReach:
+				(condition as InReach).reach_m = CAMERA_AT.length() * 0.8
+	_keys.setup(_harness.session, _mode)
+	_load()
+	await _look_at_camera()
+	assert_int(_keys.station_target()).is_equal(CAMERA)
+	_keys.press_interact()
+	assert_int(_keys.hold_step(ItemInteractions.HOLD_SECONDS)).is_equal(-1)
+	assert_int(_keys.held_camera()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(0)
+
+
 func test_the_shot_sends_interact_at_the_camera_until_no_frame_is_left() -> void:
 	await _open_view()
 	assert_int(_keys.shoot()).is_greater(0)
