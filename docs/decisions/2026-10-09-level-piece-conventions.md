@@ -98,6 +98,14 @@ the camera frames) is only its look on the floor and its marker at the root: no 
 stand (the printer) may hold the art's stand pieces beside its `Body` (the desk, the computer), their colliders off
 too, and every marker its device needs besides the use spot (the printer's tray).
 
+The car repair's stations (#809, proposed with them; the [car repair ADR](2026-10-10-car-repair-task.md)'s RE16) add
+three more. A device with several use spots (the parts shelf, one bin per part kind) gives each its own child
+(`Bin<n>`) with a `UseSpot` in its own tag's group. A frame on a room's wall (the part picture) has no `Collision`:
+the wall stops a player. And a device that moves (the car): its moving part is an `AnimatableBody3D` (`Lift`) on the
+client-only layer 4 (`movers`), carrying the art bodies that move with it, with only the static frame in `Collision`
+on layer 1; its use spot lies under the device (RE16's exception), so the frame stays clear of it and the host snaps
+it to the room's floor.
+
 ### A check
 A test reads the map scene and its design doc's room table and fails when a room's position or size differs, so the
 doc and the map never disagree silently. It comes with the first map scene, in that task's PR.

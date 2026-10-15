@@ -209,8 +209,8 @@ The panel's proposed point stands 8.6 m from the car (a straight line), beyond a
 hold the lift and fit a part; but that is beyond the voice range (8 m) from parts of the panel's reach, and the holder
 relies on voice. So the panel moves nearer: every point of its reach within the voice range less a margin of the car's
 use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2:
-5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
-(issue R5). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
+5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side:
+a full-height partition 1 m east of the panel's use spot, between it and the car (#809, provisional). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
 (later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
 player having a crouch (#727). He approved the car repair for the MVP only (PR #709, comment 6100556321): a much
 more interesting mechanic will replace it later. It plays on the House only, never on the greybox (#767).
