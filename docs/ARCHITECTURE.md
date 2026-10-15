@@ -6765,7 +6765,7 @@ Settings:
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
   and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` and `Interact` (#800) from the living, `GiveUp` from the
-  downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, VanishTicks (#775), TaskTicks; yes;
+  downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, FlightTicks, VanishTicks (#775), TaskTicks; yes;
   runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
@@ -7226,7 +7226,7 @@ player of any role takes, fries and fills. Designed in the [cooking ADR](decisio
 the split); C3 (#772) built its data, deal, board events, demands and checks, C4 (#773) the uses of the grill, the
 beds and the places and the grill's tick, C5 (#774) its station scenes in the House; the client's boards are
 C7's. C6 (#775) put it in the shipped base mode on the House alone (provisional data the engineer approves):
-`content/tasks/cooking.tres` (the cooking ADR §5.1's name "Cooking" and description, `fry_seconds` 10, `burn_seconds` 5, `maps` the
+`content/tasks/cooking.tres` (the cooking ADR §5.1's name "Cooking" and the GDD's description, `fry_seconds` 10, `burn_seconds` 5, `maps` the
 House alone, CD16's 2 m radii and heights, the boards `display`, CE17's `Cooldown` key `cooking_take` at 0.25 s on
 the beds and the boxes, `HandNotTwoHanded` on the place alone), its 21 item kinds in `content/items/` (the cooking ADR §5.1's names;
 the 15 ingredients `vanish_seconds` 60, the 11 a take gives `max_items` 128, placeholders; the six boxes two-handed,
