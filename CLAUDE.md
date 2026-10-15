@@ -1,9 +1,10 @@
 # prime-game
 
 A multiplayer social deduction game (first-person 3D, proximity voice) in Godot 4.7.2, statically typed GDScript.
-Humans: the **engineer** (the project lead and game designer: engine to content) and the optional **designer**;
-their Claude sessions cannot see each other: what an agent needs goes into the repo or GitHub. Agents:
-`docs/AGENT_WORKFLOW.md`; decisions: `docs/decisions/`; "KICKOFF §n": `docs/history/KICKOFF.md`.
+Humans: the **engineer** (the project lead and the game designer: engine to content) and the optional
+**designer** (an occasional helper); their Claude sessions cannot see each other: what an agent needs goes into the
+repo or GitHub. Agents: `docs/AGENT_WORKFLOW.md`; decisions: `docs/decisions/`; "KICKOFF §n":
+`docs/history/KICKOFF.md`.
 
 ## Hard rules
 - Humans write zero code; they hand-make only scene layout in the editor and imported third-party assets. You write
