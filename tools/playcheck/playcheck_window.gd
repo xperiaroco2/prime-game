@@ -16,7 +16,8 @@ extends SceneTree
 ## the mouse; `button` focuses a Button and presses ui_accept's key), and a mouse mode set anyway
 ## is set back and fails the run. With no mouse look, `aim item <kind>` turns the window's own
 ## local player (Game.player(), through PlayerController.look) toward the nearest resting item of
-## that kind its own ClientModel places, every frame until `aim off` (#276).
+## that kind its own ClientModel places, every frame until `aim off` (#276); `aim station <kind>`
+## toward the nearest placed station of that kind, after walking its route's waypoints (#1105).
 ##
 ## It writes its peer id to <peers>/peer-<n> once welcomed (the bots read it to name it); window 1
 ## reads the others' to send the setup (ForceRole names a peer). Prints PLAYCHECK at step <n> (line
@@ -27,6 +28,9 @@ extends SceneTree
 const Steps := preload("res://tools/playcheck/playcheck_steps.gd")
 const GAME_SCENE := "res://client/app/game.tscn"
 const PREFIX := "PLAYCHECK "
+## How near (metres, flat) the feet must come to a route's waypoint before the aim turns to the next
+## (a look, not a rule: the route's 0.5 m lattice and the capsule's room in a door).
+const WAYPOINT_M := 0.35
 const PLAN_ARG := "--plan="
 const WINDOW_ARG := "--window="
 
@@ -139,6 +143,11 @@ class GameView:
 			"hud.raising":
 				var bar := hud.raising_bar
 				found = ["%.2f" % bar.value, bar.is_visible_in_tree()]
+			"photo.counter":
+				var finder := game.items().viewfinder
+				found = [
+					finder.counter.text, finder.active() and finder.counter.is_visible_in_tree()
+				]
 			"hud.crosshair":
 				found = ["", hud.cross.is_visible_in_tree()]
 			"life.bleed":
@@ -221,6 +230,11 @@ var _out := ""
 var _held: Array[StringName] = []
 ## The item kind an `aim item` step turns the own player toward each frame; empty after `aim off`.
 var _aim_kind: StringName = &""
+## Whether the aim is at a station (`aim station`), not an item; the route's waypoints [x, z]
+## still to walk before it turns to the station (each dropped once the feet are within
+## WAYPOINT_M of it).
+var _aim_station := false
+var _waypoints: Array = []
 var _wrote_peer := false
 var _ended := false
 
@@ -315,6 +329,8 @@ func _act(step: Dictionary) -> void:
 			await _button(str(step.get("label", "")))
 		"aim":
 			_aim_kind = StringName(str(step.get("kind", "")))
+			_aim_station = str(step.get("target", "")) == "station"
+			_waypoints = (step.get("via", []) as Array).duplicate()
 			_aim()
 		"shot":
 			await _shot(str(step.get("path", "")))
@@ -368,8 +384,8 @@ func _button(text: String) -> void:
 	await _press(&"ui_accept")
 
 
-## While an `aim item <kind>` is in force: turns this window's own local player (Game.player(),
-## never another's body) to face the middle of the nearest item of that kind resting in its own
+## While an `aim item <kind>` or `aim station <kind>` is in force: turns this window's own local
+## player (Game.player(), never another's body) to face what _aim_target() names from its own
 ## ClientModel, through PlayerController.look as mouse motion would. Nothing to face (no player,
 ## no such item, or a dead player that look() ignores): it turns nothing, and the next wait times
 ## out with what the window saw.
@@ -381,13 +397,35 @@ func _aim() -> void:
 	if player == null or model == null or not player.is_inside_tree():
 		return
 	var eye := player.get_camera().global_position
-	var id := Steps.nearest_resting(model, _aim_kind, eye)
-	if id < 0:
+	var target := _aim_target(model, player.global_position, eye)
+	if not target.is_finite():
 		return
-	var item := model.items[id]
-	var target := ItemView.centre_of(item.kind, item.position)
 	var turn := Steps.aim_turn(player.look_vector(), eye, target)
 	player.look(turn.x, turn.y)
+
+
+## What the aim faces now (a non-finite vector: nothing): the next waypoint at eye height, dropping
+## each the feet at `feet` have reached; then the nearest station of the kind (its use spot's aim
+## sphere, TargetChoice) or the middle of the nearest resting item of the kind.
+func _aim_target(model: ClientModel, feet: Vector3, eye: Vector3) -> Vector3:
+	while not _waypoints.is_empty():
+		var point: Array = _waypoints[0]
+		var x: float = point[0]
+		var z: float = point[1]
+		var at := Vector3(x, eye.y, z)
+		if Vector2(at.x - feet.x, at.z - feet.z).length() > WAYPOINT_M:
+			return at
+		_waypoints.pop_front()
+	if _aim_station:
+		var id := Steps.nearest_station(model, _aim_kind, eye)
+		if id < 0:
+			return Vector3.INF
+		return model.stations[id].position + Vector3.UP * TargetChoice.STATION_AIM_LIFT_M
+	var item_id := Steps.nearest_resting(model, _aim_kind, eye)
+	if item_id < 0:
+		return Vector3.INF
+	var item := model.items[item_id]
+	return ItemView.centre_of(item.kind, item.position)
 
 
 func _has_action(action: StringName) -> bool:
@@ -466,6 +504,7 @@ func _fail_with_shot() -> void:
 		Input.action_release(action)
 	_held.clear()
 	_aim_kind = &""
+	_waypoints.clear()
 	var why := _steps.failure
 	var path := _out.path_join("failed-window-%d.png" % _window)
 	if not _out.is_empty() and await _shot(path):

@@ -11,7 +11,8 @@ extends RefCounted
 ## Every step but a wait or `frames` is an action the window performs in the frame advance()
 ## returns it (press, hold, release, button, aim, shot, the host's setup). From `aim item <kind>`
 ## until `aim off` the window turns its own player each frame by aim_turn() toward the item
-## nearest_resting() picks from its own ClientModel (#276).
+## nearest_resting() picks from its own ClientModel (#276), or from `aim station <kind>` toward
+## the station nearest_station() picks, after its route's waypoints (#1105).
 
 enum Status { RUNNING, DONE, FAILED }
 
@@ -276,6 +277,22 @@ static func nearest_resting(model: ClientModel, kind: StringName, from: Vector3)
 		if item.kind != kind or not item.rests() or item.delivered:
 			continue
 		var distance_sq := from.distance_squared_to(item.position)
+		if distance_sq < best_sq or (distance_sq == best_sq and id < best):
+			best = id
+			best_sq = distance_sq
+	return best
+
+
+## The id of the placed station of `kind` nearest to `from` in `model`, the window's own ClientModel
+## (station positions are public, StationPlaced); -1 when none is (#1105).
+static func nearest_station(model: ClientModel, kind: StringName, from: Vector3) -> int:
+	var best := -1
+	var best_sq := INF
+	for id: int in model.stations:
+		var station := model.stations[id]
+		if station.kind != kind:
+			continue
+		var distance_sq := from.distance_squared_to(station.position)
 		if distance_sq < best_sq or (distance_sq == best_sq and id < best):
 			best = id
 			best_sq = distance_sq
