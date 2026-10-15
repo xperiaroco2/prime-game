@@ -4,11 +4,12 @@ extends GameMode
 ## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
 ## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
 ## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator, the photo
-## task (#784) and Cooking (#775), their settings, Cooking's item kinds and Round's Interact
-## (#800) left out (the film and photo item kinds stay, unused). The engineer took the zone task
-## out of the shipped base mode on #842 (comment 6110558513: "only from the mode, now"), keeping
-## its code, its tests and the House's zones; this fixture is where they run. Loaded through
-## `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as its mode.
+## task (#784), Cooking (#775) and car repair (#810), their settings, Cooking's item kinds and
+## Round's Interact (#800) left out (the film, photo and car part item kinds stay, unused). The
+## engineer took the zone task out of the shipped base mode on #842 (comment 6110558513: "only
+## from the mode, now"), keeping its code, its tests and the House's zones; this fixture is where
+## they run. Loaded through `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as
+## its mode.
 
 const PATH := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -41,15 +42,15 @@ func _init() -> void:
 	zones.default_value = 1
 	zones.min_value = 1
 	zones.max_value = 1
-	# Without the Generator (#800), the photo task (#784) and Cooking (#775): the House would deal
-	# two of five types, and these tests are the zone task beside Delivery, as #649 made it. Their
-	# own tests load the shipped mode. Cooking's item kinds go too: its boxes' take is an Interact
-	# rule, which Round here no longer accepts.
+	# Without the Generator (#800), the photo task (#784), Cooking (#775) and car repair (#810):
+	# the House would deal two of six types, and these tests are the zone task beside Delivery, as
+	# #649 made it. Their own tests load the shipped mode. Cooking's item kinds go too: its boxes'
+	# take is an Interact rule, which Round here no longer accepts (the car parts have no rule).
 	var without: Array[StringName] = []
 	var types: Array[TaskType] = []
 	var kinds_out: Array[ItemKind] = []
 	for type: TaskType in base.task_types:
-		if type is Generator or type is PhotoTask or type is Cooking:
+		if type is Generator or type is PhotoTask or type is Cooking or type is CarRepair:
 			without.append(type.subtasks_setting)
 		else:
 			types.append(type)
@@ -79,7 +80,7 @@ static func mode() -> GameMode:
 	return load(PATH) as GameMode
 
 
-## Round's own copy without Interact, which only the Generator's and the photo task's station rules
+## Round's own copy without Interact, which only the task types' station rules left out above
 ## handle (the mode check refuses an accepted intent no rule handles); the shipped mode's phases
 ## stay as they are.
 func _without_interact() -> void:

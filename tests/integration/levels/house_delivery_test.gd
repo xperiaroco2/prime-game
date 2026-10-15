@@ -4,10 +4,10 @@ extends GdUnitTestSuite
 ## HostWorldQuery.for_mode, with the House's markers where MarkerReader.read_levels puts them, is
 ## driven by the commands server/ would send, and ScenarioInvariants checks every call and every
 ## tick (as in house_zone_test.gd). The match is the shipped base mode on the House with one task
-## (`tasks` 1) and the Generator, the photo task and Cooking banned (as the base mode deals all
-## four, delivering the packages would not end the round, and with one of them left in, the seed
-## alone would pick the one task), so its one task type is the Delivery by meaning: four routes, a
-## drop-off each.
+## (`tasks` 1) and the Generator, the photo task, Cooking and car repair banned (as the base mode
+## deals all five, delivering the packages would not end the round, and with one of them left in,
+## the seed alone would pick the one task), so its one task type is the Delivery by meaning: four
+## routes, a drop-off each.
 ## - On the floor: two items per drop-off, each put down on the floor inside its cylinder near the
 ##   rim, on two sides of it, are delivered; the drop-off is done with the second.
 ## - On the props' tops (D4, #831): an item put on the highest top inside each drop-off's
@@ -223,7 +223,9 @@ func _start(packages: int) -> void:
 	scenario.bots = BOTS
 	scenario.map = MAP
 	scenario.settings = {&"packages": packages, &"tasks": 1}
-	scenario.id_sets = {&"banned_task_types": PackedStringArray(["generator", "photo", "cooking"])}
+	scenario.id_sets = {
+		&"banned_task_types": PackedStringArray(["generator", "photo", "cooking", "car_repair"])
+	}
 	scenario.forced_roles = {DISSIDENT: &"dissident", CARRIER: &"crew", OTHER_CREW: &"crew"}
 	_peers = ScenarioPeers.core(BOTS)
 	_world = HostWorldQuery.for_mode(mode)

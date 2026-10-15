@@ -845,7 +845,7 @@ Little-endian; sizes in bytes.
 | `sized_opus` | 2 + n | a u16 length, then that many opaque bytes (a `VoiceBatch` frame's, M5-4b) | 0, or over the field's maximum (500) |
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
-snapshot's avatars at most 16: the viewer's own only while it is knocked down, KE5); a map of settings, spawn tags or station kinds at most 32; a
+snapshot's avatars at most 16: the viewer's own only while it is knocked down, KE5); a map of settings or station kinds at most 32, of spawn tags (`SettingsChanged`'s `needed_markers` and `map_markers`) at most 64 (32 until #810: the House demands 36 with car repair); a
 set of task types at most 16 ids; shortfalls at most 64 (32 until #775), and a host text's subject ids at most 2 and its arguments at
 most 4 (#548). The sizes below are the MVP's with 10 players, then the cap.
 These maxima bound the decoder, not the payload: at the maxima some kinds exceed their caps (`SettingsChanged`'s
@@ -854,7 +854,7 @@ These maxima bound the decoder, not the payload: at the maxima some kinds exceed
 sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
 `PlayersPlaced`, and since #772 `HerbsDealt`, both lists as long as the mode's longest Cooking herbs, every case with
 empty lists when it has none), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
-spawn tag and demanded palette (a station kind no action demands a palette of has none, #784), each sized as the one subject and two arguments `Demands.shortfalls` makes (#775: 29 tags in the base mode, so the longest host text, 257 bytes each, would have gone over the 8192 bytes of `SettingsChanged`), plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
+spawn tag and demanded palette (a station kind no action demands a palette of has none, #784), each sized as the one subject and two arguments `Demands.shortfalls` makes (#775: 29 tags in the base mode, so the longest host text, 257 bytes each, would have gone over the 8192 bytes of `SettingsChanged`; since #810 the subject is the mode's longest demanded tag or palette kind, the text id the longest of the three a shortfall uses and the arguments `need` and `have`, not ids as long as the wire takes: the House's 36 tags), plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
 
@@ -1013,7 +1013,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row. M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109: whichever lands second takes its base's plus one at its rebase; a skipped number is harmless, the versions only have to match). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -4860,7 +4860,7 @@ RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of t
   `tests/fixtures/client/fixture_car_repair_client.gd`. `shot` previews: `client/dev/car_repair_preview.tscn` (fully
   up, the lamp lit, a picture per part beside the shelf), `car_repair_half_preview.tscn`,
   `car_repair_lowered_preview.tscn` and `car_repair_crouch_preview.tscn` (the crouched eye under the raised car), on a
-  CarRepair built in `car_repair_preview.gd` until R6 (#810).
+  CarRepair built in `car_repair_preview.gd` (it does not read the shipped `content/tasks/car_repair.tres`, R6, #810).
 
 #### 4.7.58 Built in #787 (photo P8), the pictures, the camera's counter and the photo's look
 The client side of the photo's pictures (the [photo ADR](decisions/2026-10-10-photo-task.md)'s §3.3, PE15, §9 P8),
@@ -6903,9 +6903,9 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 4 (1 to 4: every type a map plays, in every match, the Generator ADR's GD7 (i) and the photo ADR's PD14: the House's Delivery, Generator, photo task and Cooking; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
-  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays four types since #775 (three since #784, two since #800): banning any but all of them leaves the rest, and banning all four (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
-  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  `tasks` 5 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the House's Delivery, Generator, photo task, Cooking and car repair; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
+  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays five types since #810 (four since #775, three since #784, two since #800): banning any but all of them leaves the rest, and banning all five (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
+  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `car_parts`, car repair's subtasks (the parts to fit), 2 (1 to 3, the car repair ADR's RD2, a placeholder, "not a decision"; its label "Parts to fit", RD12; #810); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed hold still (§7.1.7) for
@@ -6928,8 +6928,8 @@ Settings:
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
-  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25), Film and Photo (the photo task's, #784, §9.5.22).
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Hold
+  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25), Film and Photo (the photo task's, #784, §9.5.22), Cooking's 21 (#775, §9.5.20) and car repair's three parts (#810, §9.5.21).
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Cooking (`cooking`, the House's alone, §9.5.20, #775); car repair (`car_repair`, the House's alone, §9.5.21, #810); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
@@ -6957,6 +6957,7 @@ shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
 mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
 #775 (the cooking ADR's C6) added Cooking (§9.5.20), on the House alone, with its `burgers` setting, its 21 item kinds and VanishTicks in Round, `tasks` going to 4 (1 to 4); `FixtureBaseModeWithZones` leaves Cooking, its setting and its item kinds out too.
+#810 (the car repair ADR's R6) added car repair (§9.5.21), on the House alone, with its `car_parts` setting and its three part kinds, `tasks` going to 5 (1 to 5); `FixtureBaseModeWithZones` leaves car repair and its setting out too (its part kinds stay, unused: no rule names them).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
 from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -7491,8 +7492,18 @@ holds the lift at its panel while another takes the needed part from its bin and
 go drops the car on whoever lies under it. Nobody owns it: any living player of any role holds the lift, takes a part
 or fits it (`Interact(station)`, through each station kind's rule), and no condition reads a role. Designed in the
 [car repair ADR](decisions/2026-10-10-car-repair-task.md) (approved for the MVP only); built so far: R3 (#807), the
-deal, the lift and the drop, and R4 (#808), the fit, its refusals and the bins' belt rule; its data, its station
-scenes and the House's markers are later issues (no shipped mode deals it yet).
+deal, the lift and the drop, R4 (#808), the fit, its refusals and the bins' belt rule, R5 (#809), the station scenes
+on the House, R7 (#811), the client's view, and R6 (#810), its data: the shipped base mode deals it on the House alone.
+Data (R6, #810; provisional, the engineer approves it in #810's PR): `content/tasks/car_repair.tres` with RD12's
+words ("Repair the car", its description) and RD2's placeholders ("not a decision"): the car's rule
+(`HandNotTwoHanded`, `AtStation`, `StationInSight`, `ChannelFree`, `StationUsable`; a 5 s `HoldStation`) on a 0.9 m by
+1.4 m cylinder, the panel's (the same conditions; an endless `HoldStation` a hit does not stop) on 1.5 m by 2 m, three
+bins (`part_bin_1` to `_3`, 2 m by 2 m; `AtStation`, `StationInSight`, the 0.25 s `car_part_take` `Cooldown`, no
+busy-hands condition, RD17; `GiveItem` of its part), the display `part_picture`, a 2 s rise, the box's half-width
+1.0 m and clearance 1.4 m, `maps` the House; the parts `content/items/car_part_green.tres`, `_blue` and `_yellow`
+("Green part", "Blue part", "Yellow part": the bins' plate colours; one-handed, no spawn tag, `max_items` 32, no
+`vanish_seconds`), in the base mode's `item_kinds`; the setting `car_parts` ("Parts to fit", 1 to 3, default 2);
+the how-to card `content/howto/tasks/car_repair.tres` (deck keys only, a placeholder).
 Settings: `car`, `lift_panel` (station kinds; the car's `Interact` rule ends in a timed `HoldStation`, the panel's in
 an endless one), `bins` (one station kind per part, each with its own spawn tag and an `Interact` rule holding a
 `Cooldown` and ending in `GiveItem` of its part), `picture` (a display kind, never used), `parts` (the part item kinds,
@@ -7563,8 +7574,10 @@ placeholders) and `part_picture.tscn` (a hidden plate on the garage's east wall)
 storage in place of the markers and the art's copies; a kit partition 1 m east of the panel's use spot hides the space
 under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client, R7 in #811: §4.7.57
 (`ClientModel.Station`'s `rise_tick`, `Item.rests()` false when fitted, the `movers` mask, `CarRepairUse`,
-`CarRepairViews`, the hold's `StopRaise`).
-Tests: `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
+`CarRepairViews`, the hold's `StopRaise`). The data, R6 in #810: above.
+Tests: `tests/unit/content/car_repair_content_test.gd` (#810: the words and numbers, the rules, the parts and their
+cap, `car_parts`, `tasks` at the House's five, Round's `Interact` and `StopRaise`, the House's fit with one marker of
+each tag and the greybox asked for none); `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
 `tests/integration/levels/house_car_repair_test.gd` (#809: the use spots at §6's points, the car's on the garage
 floor, RE15 from the use spot and the rim of its cylinder at every eye of the crouch band, planted without the
 partition: failed, reverted; the voice distance, no marker in the footprint, players clear);
@@ -7835,14 +7848,18 @@ content/
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   items/wine.tres, oil.tres, gnome.tres, parasol.tres   the House's Delivery items (#828, §9.5.25)
   items/film.tres, photo.tres      the photo task's items (#784, §9.5.22)
+  items/bun_*.tres, patty_*.tres, basil.tres ... box_*.tres   Cooking's 21 items (#775, §9.5.20)
+  items/car_part_green.tres, car_part_blue.tres, car_part_yellow.tres   car repair's parts (#810, §9.5.21)
   tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
   tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   tasks/generator.tres             the Generator, with its generator and switch station kinds inside it (#800)
   tasks/photo.tres                 the photo task, with its five station kinds inside it (#784)
+  tasks/cooking.tres               Cooking, with its five station kinds inside it (#775)
+  tasks/car_repair.tres            car repair, with its car, lift panel, three bins and picture inside it (#810)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
-  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres, cooking.tres, car_repair.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/

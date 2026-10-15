@@ -61,7 +61,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at the
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
-  The car breaks the layer-1 rule: only its layer-4 `Lift` collides; players and plates pass it until R7 (RE8).
+  The car breaks the layer-1 rule: only its layer-4 `Lift` collides: the living hit it on `movers`, plates pass (RE8).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).

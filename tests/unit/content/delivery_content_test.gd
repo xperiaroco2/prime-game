@@ -16,7 +16,7 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([4, 1, 4])
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([5, 1, 5])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
@@ -64,9 +64,9 @@ func test_round_runs_life_channel_flight_vanish_task_ticks_and_the_mode_deals_de
 	# The two Deliveries, one per map (#828, DE15 (i)): the House's by meaning and the greybox's
 	# by colours, checked here; the zone task (#649) left the base mode on #842, and
 	# zone_base_mode_test.gd checks the fixture mode that still deals it.
-	# The Generator (#800), the photo task (#784) and Cooking (#775) play on the House beside its
-	# Delivery: five types, `tasks` 1 to 4.
-	assert_int(mode.task_types.size()).is_equal(5)
+	# The Generator (#800), the photo task (#784), Cooking (#775) and car repair (#810) play on the
+	# House beside its Delivery: six types, `tasks` 1 to 5.
+	assert_int(mode.task_types.size()).is_equal(6)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 

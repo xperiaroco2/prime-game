@@ -86,6 +86,47 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
 
 
+func test_a_demanded_text_is_sized_by_the_modes_own_tags_and_the_demand_ids() -> void:
+	# #810: the text Demands.shortfalls makes holds one of its three ids, one demanded tag or
+	# palette station kind of the mode, and `need` and `have`: the longest of each, never an id the
+	# content does not have (the House's 36 demanded tags with the car repair fit SettingsChanged).
+	var mode := _demanding(_mode(10, 3, 1, 4), 0, 0)
+	var row := mode.transitions[mode.transitions.size() - 1]
+	for tag: StringName in [&"spot", &"a_longer_tag", &"short"]:
+		row.actions.append(FixtureDemand.of(tag, mode.settings[0].id))
+	var changed: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			changed = message
+	assert_object(changed).is_not_null()
+	if changed == null:
+		return
+	var text: Dictionary = (changed.fields["shortfalls"] as Array)[0]
+	assert_str(str(text["id"])).is_equal(String(HostText.MARKERS_EXACT))
+	assert_array(Array(text["ids"] as PackedStringArray)).is_equal(["a_longer_tag"])
+	assert_array((text["numbers"] as Dictionary).keys()).is_equal([&"need", &"have"])
+
+
+func test_a_demanded_text_is_sized_by_a_palette_kind_longer_than_every_tag() -> void:
+	# #810's test review: a demanded palette's station kind is a subject of the text Demands makes
+	# (`colours`), so a mode whose palette kind is longer than every demanded tag sizes its
+	# shortfalls by that kind, or the encoder could refuse its real SettingsChanged at runtime.
+	var mode := _demanding(_mode(10, 3, 1, 4), 0, 0)
+	var row := mode.transitions[mode.transitions.size() - 1]
+	var kind := StationKind.new()
+	kind.id = &"a_long_palette_station_kind"
+	row.actions.append(FixtureDemand.of(&"spot", mode.settings[0].id, kind))
+	var changed: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			changed = message
+	assert_object(changed).is_not_null()
+	if changed == null:
+		return
+	var text: Dictionary = (changed.fields["shortfalls"] as Array)[0]
+	assert_array(Array(text["ids"] as PackedStringArray)).is_equal(["a_long_palette_station_kind"])
+
+
 ## Thirty demanded tags and thirty demanded palettes make 62 shortfalls, under the list's cap of
 ## MAX_SHORTFALLS (64), so only the payload's byte cap can refuse them: the test holds that reason,
 ## not the entry count (#775's review).

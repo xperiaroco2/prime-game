@@ -149,8 +149,9 @@ static func _settings_changed(content: _Content) -> WireMessage:
 	for type: TaskType in content.mode.task_types:
 		if type != null:
 			others += type.most_layout_problems()
+	var demanded := _demanded_text(content)
 	for i: int in content.tags.size() + content.palettes.size():
-		shortfalls.append(_demanded_text())
+		shortfalls.append(demanded)
 	for i: int in others:
 		shortfalls.append(_longest_text())
 	var fields := {
@@ -187,17 +188,27 @@ static func _longest_text() -> Dictionary:
 	return {"id": StringName(_wire_id("t", 0)), "ids": subjects, "numbers": numbers}
 
 
-## The shortfall Demands.shortfalls makes for a demanded tag or palette (`markers`, `markers_exact`,
-## `colours`): its one subject and the two arguments `need` and `have`, every id and name as long
-## as the wire takes, so a mode that demands many tags is not sized as if each text held the most
-## subjects and arguments a host text may (the 8192 bytes of SettingsChanged).
-static func _demanded_text() -> Dictionary:
-	var numbers: Dictionary[StringName, int] = {}
-	for i: int in 2:
-		numbers[StringName(_wire_id("n", i))] = WireField.S32_MIN
+## The longest shortfall Demands.shortfalls makes for a demanded tag or palette of `content`: the
+## longest of its three text ids (`markers`, `markers_exact`, `colours`), its one subject the
+## longest demanded tag or palette station kind of the mode, and its two arguments `need` and
+## `have` at their widest, so a mode that demands many tags is not sized as if each text held the
+## most subjects and arguments a host text may, nor ids the content does not have (the 8192 bytes
+## of SettingsChanged; #810: the House's 36 demanded tags with the car repair).
+static func _demanded_text(content: _Content) -> Dictionary:
+	var subjects := PackedStringArray()
+	for tag: StringName in content.tags:
+		subjects.append(String(tag))
+	for kind: StringName in content.palettes:
+		subjects.append(String(kind))
+	var text_ids := PackedStringArray(
+		[String(HostText.MARKERS), String(HostText.MARKERS_EXACT), String(HostText.COLOURS)]
+	)
+	var numbers: Dictionary[StringName, int] = {
+		&"need": WireField.S32_MIN, &"have": WireField.S32_MIN
+	}
 	return {
-		"id": StringName(_wire_id("t", 0)),
-		"ids": PackedStringArray([_wire_id("i", 0)]),
+		"id": StringName(_Content._longest(text_ids)),
+		"ids": PackedStringArray([_Content._longest(subjects)]),
 		"numbers": numbers,
 	}
 
