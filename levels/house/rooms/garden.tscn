@@ -6,9 +6,9 @@
 [ext_resource type="Material" path="res://assets/environment/house_kit/kit_set.tres" id="4"]
 
 [node name="Garden" type="Node3D" unique_id=247551859]
+metadata/size_m = Vector2i(32, 28)
 metadata/room_id = &"garden"
 metadata/name_key = "room.garden"
-metadata/size_m = Vector2i(32, 28)
 
 [node name="Name" type="Label3D" parent="." unique_id=1911928333]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 2.4, 14)
@@ -47,7 +47,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 26)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, -1.6, 26)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_landing" parent="Shell/outdoor_stairs_2" index="0" unique_id=1431775187]
+[node name="stairs_outdoor_landing" parent="Shell/outdoor_stairs_2" index="0" unique_id=144337382]
 instance_shader_parameters/plan_at = Vector4(62, -1.6, 28, 0)
 surface_material_override/0 = ExtResource("4")
 
