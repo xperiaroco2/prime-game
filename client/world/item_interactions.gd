@@ -2,7 +2,8 @@ class_name ItemInteractions
 extends Node3D
 ## The own player's item keys (ARCHITECTURE §4.7, Interactions; the M4 ADR's §2, D6; M4-8), while
 ## the own player is living in the round:
-## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair, or
+## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair (on a
+##   box, #776: a tap sends Interact(station -1, item), a hold of HOLD_SECONDS PickUp), or
 ##   Interact(station, item -1) for the station it offers there (#801, §4.7.54);
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
@@ -25,6 +26,9 @@ extends Node3D
 signal throw_sent(seq: int, eye: Vector3, look: Vector3)
 
 const PHYSICS_PRIORITY := 6
+## How long E is held on a box to pick it up rather than take from it (the cooking ADR's CD4 (a);
+## a placeholder, not a decision): a release before it is the tap.
+const HOLD_SECONDS := 0.4
 
 var model: ClientModel
 var session: ClientSession
@@ -42,6 +46,13 @@ var predicting := Callable()
 ## Which station a collider of the level belongs to (StationViews.station_of_body, given by
 ## ItemWorld), -1 for none; unset: only the use spot names a station.
 var station_of_body := Callable()
+## The same from the hit's collider and its shape index (body, shape) -> station id, -1 for none
+## (ItemWorld's, which also names a herb bed by its shape of the beds' shared body, #776); when
+## set it is asked instead of `station_of_body`.
+var station_of_hit := Callable()
+## Where the crosshair aims at an item lying on a cooking station (CookingViews.aim_of, #776):
+## id -> Vector3 or null (TargetChoice.aim_at); unset: such an item is never named.
+var aim_of := Callable()
 
 var _target := -1
 var _station := -1
@@ -50,6 +61,9 @@ var _reach_m := 0.0
 ## Whether the mouse was captured at the last _process: the click that captures it (the
 ## controller's _unhandled_input) still reads as just pressed, and must not use the item.
 var _was_captured := false
+## The box E went down on (#776, CD4 (a)), -1 for none, and how long E has been held on it.
+var _held := -1
+var _held_for := 0.0
 
 
 func _init() -> void:
@@ -95,6 +109,53 @@ func interact() -> int:
 	if _station >= 0 and _acts():
 		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
 	return pick_up()
+
+
+## E went down (#776): on a station target or an item that is no box, interact() at once; on a
+## box (CookingUse.is_box) it starts the hold on that box and sends nothing yet: the release before
+## HOLD_SECONDS taps it (release_interact()), the hold reaching it picks it up (hold_step()). The
+## sequence number sent, or -1 when nothing was sent.
+func press_interact() -> int:
+	_held = -1
+	var item: ClientModel.Item = model.items.get(_target) if model != null else null
+	if _station < 0 and item != null and _acts() and CookingUse.is_box(mode, item.kind):
+		_held = _target
+		_held_for = 0.0
+		return -1
+	return interact()
+
+
+## E released (#776): a hold on a box shorter than HOLD_SECONDS taps it, Interact(station -1,
+## item); the sequence number sent, or -1 when nothing was sent.
+func release_interact() -> int:
+	var box := _held
+	_held = -1
+	if box < 0 or not _acts() or not model.items.has(box):
+		return -1
+	return session.send_intent(Intents.INTERACT, {"station": -1, "item": box})
+
+
+## E still held for `delta` seconds (#776): once the hold on a box reaches HOLD_SECONDS, PickUp of
+## that box, once (the release then sends nothing). The hold is dropped, sending nothing, when the
+## keys stop listening (the Esc menu, the tutorial's invite), the own player cannot act, or the
+## crosshair leaves the box. The sequence number sent, or -1.
+func hold_step(delta: float) -> int:
+	if _held < 0:
+		return -1
+	if not listening or not _acts() or _target != _held:
+		_held = -1
+		return -1
+	_held_for += delta
+	if _held_for < HOLD_SECONDS:
+		return -1
+	var box := _held
+	_held = -1
+	return session.send_intent(Intents.PICK_UP, {"item": box})
+
+
+## The box E is held on now (#776), -1 for none.
+func held_box() -> int:
+	return _held
 
 
 ## E: PickUp(item) for the target; the sequence number sent, or -1 when nothing was sent.
@@ -173,15 +234,20 @@ func cast_target() -> TargetChoice.Target:
 	var device := -1
 	if not hit.is_empty():
 		blocked_at = eye.distance_to(hit["position"] as Vector3)
-		if station_of_body.is_valid():
+		if station_of_hit.is_valid():
+			device = station_of_hit.call(hit["collider"] as Object, hit["shape"] as int) as int
+		elif station_of_body.is_valid():
 			device = station_of_body.call(hit["collider"] as Object) as int
 	var picked := TargetChoice.choose_target(
-		model, mode, eye, look, blocked_at, player.global_position, _reach_m, device
+		model, mode, eye, look, blocked_at, player.global_position, _reach_m, device, aim_of
 	)
 	var seen := Vector3.ZERO
 	if picked.is_item():
 		var item := model.items[picked.id]
 		seen = ItemView.centre_of(item.kind, item.position)
+		# On a plate (#776): the host's InSight looks at where it lies, the place's use spot.
+		if item.on_station >= 0:
+			seen = Items.lifted(item.position)
 	elif picked.is_station():
 		seen = Items.lifted(model.stations[picked.id].position)
 	else:
@@ -198,16 +264,21 @@ func _physics_process(_delta: float) -> void:
 	_station = aimed.id if aimed.is_station() else -1
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if model == null or player == null or not reads_device_input:
 		return
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	var was_captured := _was_captured
 	_was_captured = captured
 	if not listening:
+		_held = -1
 		return
 	if Input.is_action_just_pressed(&"interact"):
-		interact()
+		press_interact()
+	elif _held >= 0 and not Input.is_action_pressed(&"interact"):
+		release_interact()
+	else:
+		hold_step(delta)
 	if Input.is_action_just_pressed(&"put_down"):
 		put_down()
 	if Input.is_action_just_pressed(&"swap"):
