@@ -102,9 +102,15 @@ static func hint_reach(reach_m: float, mode: GameMode) -> float:
 ## `eye` along `look` (a unit vector) reaches `blocked_at` metres before the level stops it. The
 ## host's third check, InSight, needs the physics space: ItemInteractions casts it afterwards.
 static func choose(
-	model: ClientModel, eye: Vector3, look: Vector3, blocked_at: float, feet: Vector3, reach: float
+	model: ClientModel,
+	eye: Vector3,
+	look: Vector3,
+	blocked_at: float,
+	feet: Vector3,
+	reach: float,
+	aim_of: Callable = Callable()
 ) -> int:
-	var picked := along_ray(model, eye, look, minf(blocked_at, RAY_M))
+	var picked := along_ray(model, eye, look, minf(blocked_at, RAY_M), aim_of)
 	if picked < 0:
 		return -1
 	return picked if feet.distance_to(model.items[picked].position) <= reach else -1
@@ -124,15 +130,23 @@ static func choose_target(
 	blocked_at: float,
 	feet: Vector3,
 	item_reach: float,
-	device_station: int
+	device_station: int,
+	aim_of: Callable = Callable()
 ) -> Target:
 	var best := Target.new()
 	var length := minf(blocked_at, RAY_M)
 	if item_reach > 0.0:
-		var picked := choose(model, eye, look, blocked_at, feet, item_reach)
+		var picked := choose(model, eye, look, blocked_at, feet, item_reach, aim_of)
+		var item: ClientModel.Item = model.items.get(picked)
+		# A wrong ingredient on a place the hand can use there: the put wins (#776).
+		if (
+			item != null
+			and item.on_station >= 0
+			and StationUse.usable(model, mode, item.on_station)
+		):
+			picked = -1
 		if picked >= 0:
-			var item := model.items[picked]
-			var centre := ItemView.centre_of(item.kind, item.position)
+			var centre: Vector3 = aim_at(model, picked, aim_of)
 			best = Target.new(Target.Kind.ITEM, picked, enters_at(eye, look, centre, PICK_RADIUS_M))
 	for id: int in model.stations:
 		var station := model.stations[id]
@@ -170,15 +184,20 @@ static func stands_at(station: ClientModel.Station, mode: GameMode, feet: Vector
 ## of, entering that sphere no farther than `length` metres; -1 for none. Of several, the one the
 ## crosshair is closest to wins (the smallest miss), then the nearer along the ray: a package a
 ## hand's width off the aim line never wins over a knife the crosshair is on.
-static func along_ray(model: ClientModel, eye: Vector3, look: Vector3, length: float) -> int:
+static func along_ray(
+	model: ClientModel, eye: Vector3, look: Vector3, length: float, aim_of: Callable = Callable()
+) -> int:
 	var best := -1
 	var best_miss := INF
 	var best_t := INF
 	for id: int in model.items:
 		var item := model.items[id]
-		if not item.rests() or item.delivered:
+		if not item.rests() or item.delivered or item.locked:
 			continue
-		var centre := ItemView.centre_of(item.kind, item.position)
+		var aim: Variant = aim_at(model, id, aim_of)
+		if aim == null:
+			continue
+		var centre: Vector3 = aim
 		var t := enters_at(eye, look, centre, PICK_RADIUS_M)
 		if t < 0.0 or t > length:
 			continue
@@ -190,6 +209,19 @@ static func along_ray(model: ClientModel, eye: Vector3, look: Vector3, length: f
 			best_miss = miss
 			best_t = t
 	return best
+
+
+## Where the crosshair aims at item `id`: the middle of its look where it lies; for an item lying
+## on a cooking station (a wrong ingredient on a plate, #776) the point `aim_of` (CookingViews.
+## aim_of: id -> Vector3, or null) gives where the plate draws it, never its floor point (the use
+## spot the host measures reach from); null when it is drawn nowhere aimable.
+static func aim_at(model: ClientModel, id: int, aim_of: Callable = Callable()) -> Variant:
+	var item: ClientModel.Item = model.items.get(id)
+	if item == null:
+		return null
+	if item.on_station < 0:
+		return ItemView.centre_of(item.kind, item.position)
+	return aim_of.call(id) if aim_of.is_valid() else null
 
 
 ## How far along the ray from `origin` along the unit `direction` it enters the sphere of `radius`
