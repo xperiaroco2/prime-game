@@ -30,7 +30,9 @@ extends Node3D
 ## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens
 ## (`lens_m` above its marker). So do the Generator's clicks (#801, G6): a switch thrown and the
 ## generator's button pressed (station_blip()); its hum while it charges is StationHums'
-## (hum_blip()).
+## (hum_blip()). So do Cooking's (#776, the cooking ADR's CD14 (a)): a right ingredient's chime, a
+## wrong one's buzz, a burger done, a patty fried and burnt (cooking_blip()); the grill's put is the
+## put-down's file, its sizzle while a patty fries StationHums' (sizzle_blip()).
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
@@ -50,6 +52,20 @@ const STATION_BLIP_SECONDS: Dictionary[StringName, float] = {
 ## The hum's placeholder loop (#801, G6): its length in seconds, a whole number of its waves so
 ## the loop has no seam. A placeholder, "not a decision".
 const HUM_SECONDS := 0.5
+## Cooking's placeholder blips (#776, CD14 (a)) and the length of each in seconds: placeholders,
+## "not a decision", until the engineer's CC0 files arrive with their credits.
+const COOKING_BLIP_SECONDS: Dictionary[StringName, float] = {
+	SoundChooser.CHIME: 0.35,
+	SoundChooser.BUZZ: 0.3,
+	SoundChooser.BURGER_DONE: 0.6,
+	SoundChooser.DING: 0.5,
+	SoundChooser.HISS: 0.6,
+}
+## The burger done's three rising notes (#776) and how long each starts after the last.
+const DONE_NOTES_HZ: Array[float] = [660.0, 880.0, 1320.0]
+const DONE_NOTE_SECONDS := 0.15
+## The sizzle's placeholder loop (#776): its length in seconds. A placeholder, "not a decision".
+const SIZZLE_SECONDS := 0.5
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -65,6 +81,9 @@ var sfx := SfxSet.new()
 ## How far above a photo camera's marker its lens is, where the shutter plays: the client's own
 ## copy of the mode's eye height (ItemWorld sets it).
 var lens_m := 0.0
+## The client's own copy of the mode: which kinds are Cooking's fried and burnt patties (ItemWorld
+## sets it).
+var mode: GameMode
 
 var _played := 0
 var _rays := 0
@@ -80,6 +99,8 @@ var _throw_blip: AudioStreamWAV = null
 var _photo_blips: Dictionary[StringName, AudioStreamWAV] = {}
 ## The Generator's clicks (station_blip()), each made once, by sound id.
 var _station_blips: Dictionary[StringName, AudioStreamWAV] = {}
+## Cooking's sounds (cooking_blip()), each made once, by sound id.
+var _cooking_blips: Dictionary[StringName, AudioStreamWAV] = {}
 
 
 ## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
@@ -103,7 +124,8 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 		position_of,
 		heard_from as Vector3,
 		SoundChooser.HEARING_RANGE_M,
-		lens_m
+		lens_m,
+		mode
 	)
 	if sound == null:
 		return
@@ -223,6 +245,57 @@ static func hum_blip() -> AudioStreamWAV:
 			+ 0.3 * sin(TAU * 200.0 * t)
 			+ 0.15 * signf(sin(TAU * 300.0 * t))
 		)
+		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.4 * 32767.0))
+	return _wav(data, true)
+
+
+## The placeholder of Cooking's sound `id` (#776, CD14 (a); built in code as station_blip() until
+## the engineer's files arrive), a 16-bit mono burst COOKING_BLIP_SECONDS long: the chime's two
+## bright tones, the buzz's low square, the burger done's three rising notes, the ding's bell, the
+## hiss's swelling noise. Null for an id with no blip.
+static func cooking_blip(id: StringName) -> AudioStreamWAV:
+	if not COOKING_BLIP_SECONDS.has(id):
+		return null
+	var seconds: float = COOKING_BLIP_SECONDS[id]
+	var count := int(MIX_RATE * seconds)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for i: int in count:
+		var t := float(i) / MIX_RATE
+		var fade := 1.0 - t / seconds
+		var value := 0.0
+		if id == SoundChooser.CHIME:
+			value = (0.6 * sin(TAU * 880.0 * t) + 0.4 * sin(TAU * 1320.0 * t)) * exp(-t / 0.1)
+		elif id == SoundChooser.BUZZ:
+			value = 0.7 * signf(sin(TAU * 110.0 * t)) * fade
+		elif id == SoundChooser.BURGER_DONE:
+			var note := mini(int(t / DONE_NOTE_SECONDS), DONE_NOTES_HZ.size() - 1)
+			var since := t - note * DONE_NOTE_SECONDS
+			value = sin(TAU * DONE_NOTES_HZ[note] * t) * exp(-since / 0.12)
+		elif id == SoundChooser.DING:
+			value = (0.8 * sin(TAU * 1500.0 * t) + 0.2 * sin(TAU * 3000.0 * t)) * exp(-t / 0.15)
+		else:
+			value = rng.randf_range(-1.0, 1.0) * minf(1.0, t / 0.1) * fade
+		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
+	return _wav(data, false)
+
+
+## The placeholder sizzle of a patty on the grill (#776): a looping crackle of noise with sparse
+## pops, SIZZLE_SECONDS long (noise has no wave to seam).
+static func sizzle_blip() -> AudioStreamWAV:
+	var count := int(MIX_RATE * SIZZLE_SECONDS)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2
+	var pop := 0.0
+	for i: int in count:
+		if rng.randf() < 0.002:
+			pop = 1.0
+		pop *= 0.995
+		var value := rng.randf_range(-1.0, 1.0) * (0.25 + 0.75 * pop)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.4 * 32767.0))
 	return _wav(data, true)
 
@@ -353,6 +426,10 @@ func _stream_of(id: StringName) -> AudioStream:
 		if not _station_blips.has(id):
 			_station_blips[id] = station_blip(id)
 		stream = _station_blips[id]
+	if stream == null and COOKING_BLIP_SECONDS.has(id):
+		if not _cooking_blips.has(id):
+			_cooking_blips[id] = cooking_blip(id)
+		stream = _cooking_blips[id]
 	return stream
 
 

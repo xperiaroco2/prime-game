@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://rlpnvduqocel"]
+
+[ext_resource type="Script" uid="uid://c5l18xachlijf" path="res://client/dev/cooking_preview.gd" id="1_preview"]
+
+[node name="CookingWallPreview" type="Node3D" unique_id=302802028]
+script = ExtResource("1_preview")
+wall = true

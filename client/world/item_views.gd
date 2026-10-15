@@ -41,6 +41,9 @@ var avatars: AvatarViews
 var player: PlayerController
 ## The items in flight and their arcs.
 var flights := ItemFlights.new()
+## Where an item lying on a cooking station is drawn (CookingViews.point_of, #776): a Vector3, or
+## null to draw it at its own position. Unset: at its own position.
+var station_point := Callable()
 
 var _views: Dictionary[int, ItemView] = {}
 ## The model's Item each view was built for: ItemSpawned makes a new one, so a reused id shows.
@@ -138,6 +141,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _place(view: ItemView, item: ClientModel.Item) -> void:
+	_outline(view, item)
 	var arc: ItemArc = flights.arcs.get(view.item_id)
 	if arc != null:
 		_place_in_flight(view, item, arc)
@@ -148,7 +152,7 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		view.show_look(false)
 		return
 	if item.holder == ClientModel.NO_HOLDER:
-		view.global_transform = Transform3D(Basis.IDENTITY, item.position)
+		view.global_transform = Transform3D(Basis.IDENTITY, _rest_point(view.item_id, item))
 		view.show_look(true)
 		return
 	var own := item.holder == model.own_peer
@@ -168,6 +172,31 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		view.show_look(false)
 		return
 	_place_at_body(view, item, body)
+
+
+## Where a resting item is drawn: on its plate or grill (`station_point`), else where it lies.
+func _rest_point(id: int, item: ClientModel.Item) -> Vector3:
+	if item.on_station >= 0 and station_point.is_valid():
+		var at: Variant = station_point.call(id)
+		if at is Vector3:
+			return at
+	return item.position
+
+
+## A plate's ingredient gets its green (right, locked) or red outline; the grill's patty and every
+## other item none (#776). Set only when it changes.
+func _outline(view: ItemView, item: ClientModel.Item) -> void:
+	var want: Material = null
+	if item.on_station >= 0 and model.stations.has(item.on_station):
+		var kind := model.stations[item.on_station].kind
+		var type := CookingUse.type_of(mode, kind)
+		if CookingUse.role_of(type, kind) == CookingUse.Role.PLACE:
+			want = CookingLooks.outline(item.locked)
+	# get_meta with a null default still errors on a missing key, and a null set_meta erases it.
+	var had: Material = view.get_meta(&"outline") as Material if view.has_meta(&"outline") else null
+	if had != want:
+		view.set_meta(&"outline", want)
+		CookingLooks.set_outline(view.look(), want)
 
 
 ## On its arc; before the launch is drawn, in the thrower's hand as its body is seen (another

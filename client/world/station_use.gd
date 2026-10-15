@@ -8,11 +8,11 @@ extends RefCounted
 ## holds no two-handed item where that rule has HandNotTwoHanded, and its task type says it can
 ## still be used. Only the task types this client draws a station view for answer that (today the
 ## Generator, #801: neither its generator nor a switch once the charge is done, the host's
-## StationUsable); a kind of any other type is never offered until its client issue adds its row
-## here (cooking C7 #776, photo P7 #786, car repair R7 #811). The other conditions of a rule
-## (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client does not
-## know is left to the host. A fixed switch is no station at all (GE14), so it is never offered,
-## and nothing here reads a switch's `on`: the hint never names a switch's state.
+## StationUsable; Cooking, #776: CookingUse); a kind of any other type is never offered until
+## its client issue adds its row here (photo P7 #786, car repair R7 #811). The other conditions of
+## a rule (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client
+## does not know is left to the host. A fixed switch is no station at all (GE14), so it is never
+## offered, and nothing here reads a switch's `on`: the hint never names a switch's state.
 
 
 ## The station kind `kind_id` of one of `mode`'s task types, or null.
@@ -87,6 +87,9 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	var rule := rule_of(kind)
 	if rule == null or not _hand_allows(model, mode, rule):
 		return false
+	var cooking := CookingUse.type_of(mode, station.kind)
+	if cooking != null:
+		return CookingUse.usable(model, cooking, id)
 	var type := generator_of(mode, station.kind)
 	if type == null:
 		return false

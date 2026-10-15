@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://xyrcaduskg11"]
+
+[ext_resource type="Script" uid="uid://c5l18xachlijf" path="res://client/dev/cooking_preview.gd" id="1_preview"]
+
+[node name="CookingPreview" type="Node3D" unique_id=398956190]
+script = ExtResource("1_preview")
