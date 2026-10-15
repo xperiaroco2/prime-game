@@ -259,9 +259,9 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	assert_int(zones.min_value).is_equal(1)
 	assert_int(zones.max_value).is_equal(1)
 	assert_object(base.find_setting(&"zones")).is_null()
-	# The shipped mode deals the House's three types: Delivery, the Generator (#800) and the photo
-	# task (#784).
-	assert_int(base.find_setting(&"tasks").max_value).is_equal(3)
+	# The shipped mode deals the House's four types: Delivery, the Generator (#800), the photo
+	# task (#784) and Cooking (#775).
+	assert_int(base.find_setting(&"tasks").max_value).is_equal(4)
 	# Its .tres holds the script and nothing else: a re-save that wrote the copied parts into it
 	# would freeze them, and the fixture would drift from the shipped mode unseen.
 	var text := FileAccess.get_file_as_string(FixtureBaseModeWithZones.PATH)

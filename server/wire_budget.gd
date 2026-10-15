@@ -140,15 +140,18 @@ static func _welcome(content: _Content) -> WireMessage:
 static func _settings_changed(content: _Content) -> WireMessage:
 	var shortfalls: Array[Dictionary] = []
 	# At most one per demanded spawn tag and demanded palette (Demands.shortfalls: a station kind
-	# no action demands a palette of has none, #784), plus the player count and `no_task_types`
+	# no action demands a palette of has none, #784), each a text of one subject and the two
+	# arguments `need` and `have` (_demanded_text), plus the player count and `no_task_types`
 	# (FitCheck; a missing layout, `no_layout`, comes instead of the map's shortfalls), and the
 	# task types' own layout problems (TaskType.most_layout_problems, #807), each counted as the
 	# longest host text the wire takes (#548).
-	var texts := content.tags.size() + content.palettes.size() + 2
+	var others := 2
 	for type: TaskType in content.mode.task_types:
 		if type != null:
-			texts += type.most_layout_problems()
-	for i: int in texts:
+			others += type.most_layout_problems()
+	for i: int in content.tags.size() + content.palettes.size():
+		shortfalls.append(_demanded_text())
+	for i: int in others:
 		shortfalls.append(_longest_text())
 	var fields := {
 		"settings": content.numbers,
@@ -182,6 +185,21 @@ static func _longest_text() -> Dictionary:
 	for i: int in WireSchema.MAX_TEXT_NUMBERS:
 		numbers[StringName(_wire_id("n", i))] = WireField.S32_MIN
 	return {"id": StringName(_wire_id("t", 0)), "ids": subjects, "numbers": numbers}
+
+
+## The shortfall Demands.shortfalls makes for a demanded tag or palette (`markers`, `markers_exact`,
+## `colours`): its one subject and the two arguments `need` and `have`, every id and name as long
+## as the wire takes, so a mode that demands many tags is not sized as if each text held the most
+## subjects and arguments a host text may (the 8192 bytes of SettingsChanged).
+static func _demanded_text() -> Dictionary:
+	var numbers: Dictionary[StringName, int] = {}
+	for i: int in 2:
+		numbers[StringName(_wire_id("n", i))] = WireField.S32_MIN
+	return {
+		"id": StringName(_wire_id("t", 0)),
+		"ids": PackedStringArray([_wire_id("i", 0)]),
+		"numbers": numbers,
+	}
 
 
 ## A wire id of WireField.ID_MAX characters: `prefix`, then `index` padded with zeros.

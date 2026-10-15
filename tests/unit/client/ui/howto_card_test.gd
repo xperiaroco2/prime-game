@@ -43,13 +43,19 @@ func test_a_card_needs_three_to_four_frames_each_a_picture_or_words() -> void:
 
 func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 	var model := Preview.fake_model(_mode, true)
-	# The House deals Delivery, the Generator (#800) and the photo task (#784).
-	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery", &"generator", &"photo"])
+	# The House deals Delivery, the Generator (#800), the photo task (#784) and Cooking (#775).
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal(
+		[&"delivery", &"generator", &"photo", &"cooking"]
+	)
 	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
-	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"generator", &"photo"])
-	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery", "generator", "photo"])
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"generator", &"photo", &"cooking"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(
+		["delivery", "generator", "photo", "cooking"]
+	)
 	assert_array(HowtoCards.dealable(_mode, model)).is_empty()
-	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"delivery", &"generator", &"photo"])
+	assert_array(HowtoCards.dealable(_mode, null)).is_equal(
+		[&"delivery", &"generator", &"photo", &"cooking"]
+	)
 
 
 func test_the_dealable_types_of_a_mode_with_zones_leave_out_the_banned_ones() -> void:
@@ -81,7 +87,9 @@ func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
 	# Another set setting (say a later "banned roles") that happens to name a task type.
 	model.id_sets[&"some_other_set"] = PackedStringArray(["delivery"])
-	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery", &"generator", &"photo"])
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal(
+		[&"delivery", &"generator", &"photo", &"cooking"]
+	)
 	assert_str(String(HowtoCards.deal_of(_mode).banned_setting)).is_equal("banned_task_types")
 	var no_deal := GameMode.new()
 	no_deal.task_types = _mode.task_types

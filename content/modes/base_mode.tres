@@ -72,6 +72,29 @@
 [ext_resource type="Resource" uid="uid://by2ejachdpkni" path="res://content/items/film.tres" id="126_film"]
 [ext_resource type="Resource" uid="uid://xt3gjdo6x3jy" path="res://content/items/photo.tres" id="127_photo"]
 [ext_resource type="Resource" uid="uid://cprpiofont4cq" path="res://content/tasks/photo.tres" id="128_photo_task"]
+[ext_resource type="Resource" uid="uid://dm2onoiilvgig" path="res://content/items/bun_white.tres" id="126_bun_white"]
+[ext_resource type="Resource" uid="uid://b5q6mvgpwmryp" path="res://content/items/bun_sesame.tres" id="127_bun_sesame"]
+[ext_resource type="Resource" uid="uid://cp5ppf7kf7586" path="res://content/items/bun_dark.tres" id="128_bun_dark"]
+[ext_resource type="Resource" uid="uid://lm2w26ed3r74" path="res://content/items/patty_light_raw.tres" id="129_patty_light_raw"]
+[ext_resource type="Resource" uid="uid://c0ax3ac3sw6sx" path="res://content/items/patty_red_raw.tres" id="130_patty_red_raw"]
+[ext_resource type="Resource" uid="uid://ct6wpa7a8umjm" path="res://content/items/patty_deep_red_raw.tres" id="131_patty_deep_red_raw"]
+[ext_resource type="Resource" uid="uid://dplc27j6dbd38" path="res://content/items/patty_light.tres" id="132_patty_light"]
+[ext_resource type="Resource" uid="uid://dfva6li603a4s" path="res://content/items/patty_red.tres" id="133_patty_red"]
+[ext_resource type="Resource" uid="uid://c8fpy01iid0js" path="res://content/items/patty_deep_red.tres" id="134_patty_deep_red"]
+[ext_resource type="Resource" uid="uid://ml31lyf6vbn6" path="res://content/items/patty_burnt.tres" id="135_patty_burnt"]
+[ext_resource type="Resource" uid="uid://cfrka82gybgp3" path="res://content/items/basil.tres" id="136_basil"]
+[ext_resource type="Resource" uid="uid://cbfhwyut73shr" path="res://content/items/dill.tres" id="137_dill"]
+[ext_resource type="Resource" uid="uid://dpdvdvgxfx86h" path="res://content/items/rosemary.tres" id="138_rosemary"]
+[ext_resource type="Resource" uid="uid://bvdbn2ka1c8iy" path="res://content/items/chives.tres" id="139_chives"]
+[ext_resource type="Resource" uid="uid://dad4i1uxaap72" path="res://content/items/mint.tres" id="140_mint"]
+[ext_resource type="Resource" uid="uid://dkubrb5ybri1k" path="res://content/items/box_bun_white.tres" id="141_box_bun_white"]
+[ext_resource type="Resource" uid="uid://b7pw65k88bdbx" path="res://content/items/box_bun_sesame.tres" id="142_box_bun_sesame"]
+[ext_resource type="Resource" uid="uid://dfqqvmlwybnfs" path="res://content/items/box_bun_dark.tres" id="143_box_bun_dark"]
+[ext_resource type="Resource" uid="uid://dvjwtg2w1e1qn" path="res://content/items/box_patty_light.tres" id="144_box_patty_light"]
+[ext_resource type="Resource" uid="uid://b40ke8e2mmpr1" path="res://content/items/box_patty_red.tres" id="145_box_patty_red"]
+[ext_resource type="Resource" uid="uid://3km0bk25j57h" path="res://content/items/box_patty_deep_red.tres" id="146_box_patty_deep_red"]
+[ext_resource type="Resource" uid="uid://bskk65yf4ugiw" path="res://content/tasks/cooking.tres" id="147_cooking"]
+[ext_resource type="Script" uid="uid://bvsxi1qwayc3r" path="res://core/items/vanish_ticks.gd" id="148_vanish_ticks"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -345,6 +368,9 @@ script = ExtResource("67_channel_ticks")
 [sub_resource type="Resource" id="FlightTicks_round"]
 script = ExtResource("80_flight_ticks")
 
+[sub_resource type="Resource" id="VanishTicks_round"]
+script = ExtResource("148_vanish_ticks")
+
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
 
@@ -357,7 +383,7 @@ script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("TaskTicks_round")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
 voice_rule = SubResource("Voice_round")
@@ -423,9 +449,9 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 3
+default_value = 4
 min_value = 1
-max_value = 3
+max_value = 4
 
 [sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")
@@ -456,6 +482,12 @@ display_name = "Photos (Photography)"
 default_value = 3
 min_value = 1
 max_value = 5
+[sub_resource type="Resource" id="Setting_burgers"]
+script = ExtResource("2_setting")
+id = &"burgers"
+display_name = "Burgers (Cooking)"
+default_value = 1
+max_value = 3
 
 [sub_resource type="Resource" id="Setting_dissidents"]
 script = ExtResource("2_setting")
@@ -573,16 +605,16 @@ actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResour
 script = ExtResource("1_mode")
 min_players = 1
 max_players = 10
-settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_photos"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_photos"), SubResource("Setting_burgers"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_film"), ExtResource("127_photo")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("126_film"), ExtResource("127_photo")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
-task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"

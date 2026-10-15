@@ -16,7 +16,7 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([3, 1, 3])
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([4, 1, 4])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
@@ -43,16 +43,18 @@ func test_the_circle_and_a_palette_for_the_most_packages() -> void:
 	assert_int(demands.palettes[&"circle"]).is_greater_equal(most)
 
 
-func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_delivery() -> void:
+func test_round_runs_life_channel_flight_vanish_task_ticks_and_the_mode_deals_delivery() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var round_spec := mode.find_phase(&"round")
-	assert_int(round_spec.tick_systems.size()).is_equal(4)
+	assert_int(round_spec.tick_systems.size()).is_equal(5)
 	assert_bool(round_spec.tick_systems[0] is LifeTicks).is_true()
 	# The raise's channel (M4-4).
 	assert_bool(round_spec.tick_systems[1] is ChannelTicks).is_true()
 	# The thrown items (#646; the throwing ADR: after ChannelTicks, before TaskTicks).
 	assert_bool(round_spec.tick_systems[2] is FlightTicks).is_true()
-	assert_bool(round_spec.tick_systems[3] is TaskTicks).is_true()
+	# Ingredients left lying (#775, the cooking ADR's CD6 (c)): before TaskTicks.
+	assert_bool(round_spec.tick_systems[3] is VanishTicks).is_true()
+	assert_bool(round_spec.tick_systems[4] is TaskTicks).is_true()
 	# LifeTicks holds the Round's Respawn (M4-3): a Respawn is optional to the mode check.
 	var respawn := (round_spec.tick_systems[0] as LifeTicks).respawn
 	assert_object(respawn).is_not_null()
@@ -62,9 +64,9 @@ func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_deli
 	# The two Deliveries, one per map (#828, DE15 (i)): the House's by meaning and the greybox's
 	# by colours, checked here; the zone task (#649) left the base mode on #842, and
 	# zone_base_mode_test.gd checks the fixture mode that still deals it.
-	# The Generator (#800) and the photo task (#784) play on the House beside its Delivery: four
-	# types, `tasks` 1 to 3.
-	assert_int(mode.task_types.size()).is_equal(4)
+	# The Generator (#800), the photo task (#784) and Cooking (#775) play on the House beside its
+	# Delivery: five types, `tasks` 1 to 4.
+	assert_int(mode.task_types.size()).is_equal(5)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 

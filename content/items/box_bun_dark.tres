@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://dfqqvmlwybnfs"]
+
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="3_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="4_effect"]
+[ext_resource type="Script" uid="uid://bndxirpvuq8fg" path="res://core/items/item_on_ground.gd" id="5_on_ground"]
+[ext_resource type="Script" uid="uid://c0rl135tmeci1" path="res://core/items/in_reach.gd" id="6_in_reach"]
+[ext_resource type="Script" uid="uid://wcwuqbtwovq5" path="res://core/items/in_sight.gd" id="7_in_sight"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="8_cooldown"]
+[ext_resource type="Script" uid="uid://b10tnmbnqauwo" path="res://core/items/give_item.gd" id="9_give"]
+[ext_resource type="Resource" uid="uid://cp5ppf7kf7586" path="res://content/items/bun_dark.tres" id="10_given"]
+
+[sub_resource type="Resource" id="Take_on_ground"]
+script = ExtResource("5_on_ground")
+
+[sub_resource type="Resource" id="Take_in_reach"]
+script = ExtResource("6_in_reach")
+reach_m = 2.0
+
+[sub_resource type="Resource" id="Take_in_sight"]
+script = ExtResource("7_in_sight")
+
+[sub_resource type="Resource" id="Take_cooldown"]
+script = ExtResource("8_cooldown")
+key = &"cooking_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="Take_give"]
+script = ExtResource("9_give")
+kind = ExtResource("10_given")
+
+[sub_resource type="Resource" id="Rule_take"]
+script = ExtResource("2_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("3_condition")]([SubResource("Take_on_ground"), SubResource("Take_in_reach"), SubResource("Take_in_sight"), SubResource("Take_cooldown")])
+effects = Array[ExtResource("4_effect")]([SubResource("Take_give")])
+
+[resource]
+script = ExtResource("1_kind")
+id = &"box_bun_dark"
+display_name = "Box of dark buns"
+spawn_tag = &"box_bun_dark"
+hands = 2
+target_actions = Array[ExtResource("2_rule")]([SubResource("Rule_take")])

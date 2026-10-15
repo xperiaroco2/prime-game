@@ -3,12 +3,12 @@ extends GameMode
 ## The base mode as release/m7's #649 made it, for the zone task's tests and scenarios: the
 ## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
 ## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
-## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator and the
-## photo task (#784), their settings and Round's Interact (#800) left out (the film and photo
-## item kinds stay, unused). The engineer took the zone task out of the shipped base mode on #842
-## (comment 6110558513: "only from the mode, now"), keeping its code, its tests and the House's
-## zones; this fixture is where they run. Loaded through `base_mode_with_zones.tres` (PATH), so a
-## bot scenario can name it as its mode.
+## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator, the photo
+## task (#784) and Cooking (#775), their settings, Cooking's item kinds and Round's Interact
+## (#800) left out (the film and photo item kinds stay, unused). The engineer took the zone task
+## out of the shipped base mode on #842 (comment 6110558513: "only from the mode, now"), keeping
+## its code, its tests and the House's zones; this fixture is where they run. Loaded through
+## `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as its mode.
 
 const PATH := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -41,18 +41,28 @@ func _init() -> void:
 	zones.default_value = 1
 	zones.min_value = 1
 	zones.max_value = 1
-	# Without the Generator (#800) and the photo task (#784): the House would deal two of four
-	# types, and these tests are the zone task beside Delivery, as #649 made it. Their own tests
-	# load the shipped mode.
+	# Without the Generator (#800), the photo task (#784) and Cooking (#775): the House would deal
+	# two of five types, and these tests are the zone task beside Delivery, as #649 made it. Their
+	# own tests load the shipped mode. Cooking's item kinds go too: its boxes' take is an Interact
+	# rule, which Round here no longer accepts.
 	var without: Array[StringName] = []
 	var types: Array[TaskType] = []
+	var kinds_out: Array[ItemKind] = []
 	for type: TaskType in base.task_types:
-		if type is Generator or type is PhotoTask:
+		if type is Generator or type is PhotoTask or type is Cooking:
 			without.append(type.subtasks_setting)
 		else:
 			types.append(type)
+		if type is Cooking:
+			kinds_out.append_array((type as Cooking).ingredients())
+			kinds_out.append_array((type as Cooking).boxes)
 	types.append(load(ZONE_TASK) as TaskType)
 	task_types = types
+	var kinds: Array[ItemKind] = []
+	for kind: ItemKind in base.item_kinds:
+		if not kinds_out.has(kind):
+			kinds.append(kind)
+	item_kinds = kinds
 	_without_interact()
 	var with_zones: Array[SettingSpec] = []
 	for spec: SettingSpec in base.settings:

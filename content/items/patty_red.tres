@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://dfva6li603a4s"]
+
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_4f3k4"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+
+[resource]
+script = ExtResource("1_kind")
+id = &"patty_red"
+display_name = "Red patty"
+hands = 1
+vanish_seconds = 60

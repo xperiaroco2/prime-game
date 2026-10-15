@@ -7,12 +7,13 @@ extends GdUnitTestSuite
 ## invariants, every task event, SwitchChanged and ButtonPressed among them, reaching every present
 ## player and no one else; no seed, no return key, the voice and the snapshots). The match is the
 ## shipped base mode on the House, set up as a scenario's setup would be: forced roles, then
-## ChangeSettings with the `switches` setting and the map; it deals Delivery and the Generator.
+## ChangeSettings with the `switches` setting and the map; it deals Delivery, the Generator, the
+## photo task and Cooking.
 ## - The five markers read without errors, and the deal places a station on each of them.
 ## - With four active switches a player on each use spot uses its station (AtStation and
 ##   StationInSight pass), a dissident among them, and the button starts the charge.
 ## - A full charge from scripted commands: every switch on, the button, 60 s; then a press and a
-##   switch are refused `unavailable`, and the round goes on (Delivery is not done).
+##   switch are refused `unavailable`, and the round goes on (the other tasks are not done).
 ## - Refusals in the House's own geometry: behind the generator's body inside its cylinder
 ##   `blocked`; in the darkroom behind the storage's wall, 3 m from switch A, `out_of_reach` at the
 ##   shipped 2 m radius (no other room lies inside a use cylinder), and `blocked` with the switch's
