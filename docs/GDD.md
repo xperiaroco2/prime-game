@@ -44,7 +44,7 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
   and where the legal line runs is open research.
 - **Cringe-fun vibe**, and an audience that is not only guys. Teens and adults (15 and 16 year olds included): an
   adult, funny tone in which violence stays comic, with no guts and no dismemberment (the engineer, 2026-10-15,
-  #1076).
+  #1076). How to think in this tone, with a test for every idea: [the design compass](design/COMPASS.md) (#1120).
 - **Macro skill first, and skill may matter a little.** Decisions, teamwork and communication win more often than aim:
   two players who are not into shooters can run the tasks and manage everything, or rush a shooter with knives from
   two sides, and a death costs only time because the player respawns. Aim is allowed to matter for those who want it:
