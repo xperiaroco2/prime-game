@@ -1,390 +1,363 @@
 [gd_scene format=3 uid="uid://c7oy43iwxnrak"]
 
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_ext.tscn" id="1"]
-
-[ext_resource type="ShaderMaterial" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_window_ext.tscn" id="3"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="4"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/wall_storey_2m_door_int.tscn" id="5"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/floor_lino_2x2.tscn" id="6"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/railing_balcony_post.tscn" id="7"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/railing_balcony_2m.tscn" id="8"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/stairs_outdoor_half.tscn" id="9"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/pantry_shelf.tscn" id="10"]
-
-[ext_resource type="ShaderMaterial" path="res://assets/environment/house_props/prop_fine_high.tres" id="11"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/broom_set.glb" id="12"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/step_stool.tscn" id="13"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/pantry_shelf_buns.tscn" id="14"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/drink_crates.tscn" id="15"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/art_burger.glb" id="16"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/open_box.tscn" id="17"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/veg_rack.tscn" id="18"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/wine_bottle_crate.tscn" id="19"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/crate.tscn" id="20"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_props/cardboard_box.tscn" id="21"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/parcels.glb" id="22"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_shelf.glb" id="23"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/wall_calendar.glb" id="24"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/basket.glb" id="25"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bottles.glb" id="26"]
-
-[ext_resource type="PackedScene" path="res://assets/environment/house_props/bare_bulb.glb" id="27"]
-
-[ext_resource type="PackedScene" path="res://levels/kit/house_kit/stairs_outdoor_landing.tscn" id="28"]
+[ext_resource type="PackedScene" uid="uid://lrp3gcmeg372" path="res://levels/kit/house_kit/wall_storey_2m_ext.tscn" id="1"]
+[ext_resource type="Material" path="res://assets/environment/house_kit/kit_set.tres" id="2"]
+[ext_resource type="PackedScene" uid="uid://dsbmyj1l8jpf3" path="res://levels/kit/house_kit/wall_storey_2m_window_ext.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://codcngcw54wgk" path="res://levels/kit/house_kit/wall_storey_2m_int.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://df7yarg3oyn2b" path="res://levels/kit/house_kit/wall_storey_2m_door_int.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://deqrr4otf5siu" path="res://levels/kit/house_kit/floor_lino_2x2.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://sdhjdhst42jf" path="res://levels/kit/house_kit/railing_balcony_post.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://cuulq5y6hp7rt" path="res://levels/kit/house_kit/railing_balcony_2m.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://d3kg2amaiqfhm" path="res://levels/kit/house_kit/stairs_outdoor_half.tscn" id="9"]
+[ext_resource type="PackedScene" uid="uid://dy6ydsflwchfg" path="res://levels/kit/house_props/pantry_shelf.tscn" id="10"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="11"]
+[ext_resource type="PackedScene" uid="uid://c2656tps4sksb" path="res://assets/environment/house_props/broom_set.glb" id="12"]
+[ext_resource type="PackedScene" uid="uid://cin7kv6xrd0ye" path="res://levels/kit/house_props/step_stool.tscn" id="13"]
+[ext_resource type="PackedScene" uid="uid://burg01knuksem" path="res://levels/kit/house_props/pantry_shelf_buns.tscn" id="14"]
+[ext_resource type="PackedScene" uid="uid://dkxo4yuansn3e" path="res://levels/kit/house_props/drink_crates.tscn" id="15"]
+[ext_resource type="PackedScene" uid="uid://wehuvbkj25bb" path="res://assets/environment/house_props/art_burger.glb" id="16"]
+[ext_resource type="PackedScene" uid="uid://yi0t8bjs5pie" path="res://levels/kit/house_props/open_box.tscn" id="17"]
+[ext_resource type="PackedScene" uid="uid://mocoi7eelsxe" path="res://levels/kit/house_props/veg_rack.tscn" id="18"]
+[ext_resource type="PackedScene" uid="uid://mjnj5gdlglof" path="res://levels/kit/house_props/wine_bottle_crate.tscn" id="19"]
+[ext_resource type="PackedScene" uid="uid://cr34g5smqh2g1" path="res://levels/kit/house_props/crate.tscn" id="20"]
+[ext_resource type="PackedScene" uid="uid://b04em8kr2sucw" path="res://levels/kit/house_props/cardboard_box.tscn" id="21"]
+[ext_resource type="PackedScene" uid="uid://b4ovw63y7by74" path="res://assets/environment/house_props/parcels.glb" id="22"]
+[ext_resource type="PackedScene" uid="uid://e8u35let6qs6" path="res://assets/environment/house_props/wall_shelf.glb" id="23"]
+[ext_resource type="PackedScene" uid="uid://cmv46gcnirfrf" path="res://assets/environment/house_props/wall_calendar.glb" id="24"]
+[ext_resource type="PackedScene" uid="uid://dd0q2frt0m7r7" path="res://assets/environment/house_props/basket.glb" id="25"]
+[ext_resource type="PackedScene" uid="uid://blyegra6oyhky" path="res://assets/environment/house_props/bottles.glb" id="26"]
+[ext_resource type="PackedScene" uid="uid://ujtym72gw6ap" path="res://assets/environment/house_props/bare_bulb.glb" id="27"]
+[ext_resource type="PackedScene" uid="uid://wq7j8reb38bd" path="res://levels/kit/house_kit/stairs_outdoor_landing.tscn" id="28"]
 
 [node name="Pantry" type="Node3D" unique_id=1898096782]
 metadata/room_id = &"pantry"
 metadata/name_key = "room.pantry"
 metadata/size_m = Vector2i(6, 6)
 
-[node name="Name" type="Label3D" parent="."]
+[node name="Name" type="Label3D" parent="." unique_id=1868624564]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 2.4, 3)
 billboard = 1
 text = "Pantry"
 font_size = 72
 outline_size = 16
 
-[node name="Shell" type="Node3D" parent="."]
+[node name="Shell" type="Node3D" parent="." unique_id=1283550106]
 
-[node name="wall_storey_2m_ext_1" parent="Shell" instance=ExtResource("1")]
+[node name="wall_storey_2m_ext_1" parent="Shell" unique_id=1313219815 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_1"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_1" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(26, 0, 24, 180)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_window_ext_1" parent="Shell" instance=ExtResource("3")]
+[node name="wall_storey_2m_window_ext_1" parent="Shell" unique_id=609058575 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4, 0, 0)
 
-[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_1"]
-surface_material_override/1 = ExtResource("2")
+[node name="wall_storey_2m_window_ext" parent="Shell/wall_storey_2m_window_ext_1" index="0" unique_id=1246453604]
 instance_shader_parameters/plan_at = Vector4(28, 0, 24, 180)
+surface_material_override/1 = ExtResource("2")
 
-[node name="wall_storey_2m_ext_2" parent="Shell" instance=ExtResource("1")]
+[node name="wall_storey_2m_ext_2" parent="Shell" unique_id=759268370 instance=ExtResource("1")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 6, 0, 0)
 
-[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_2"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_ext" parent="Shell/wall_storey_2m_ext_2" index="0" unique_id=1875457590]
 instance_shader_parameters/plan_at = Vector4(30, 0, 24, 180)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_1" parent="Shell" instance=ExtResource("4")]
+[node name="wall_storey_2m_int_1" parent="Shell" unique_id=2056446587 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(24, 0, 30, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_2" parent="Shell" instance=ExtResource("4")]
+[node name="wall_storey_2m_int_2" parent="Shell" unique_id=663955650 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(26, 0, 30, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_3" parent="Shell" instance=ExtResource("4")]
+[node name="wall_storey_2m_int_3" parent="Shell" unique_id=1598708644 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_3"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_3" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(28, 0, 30, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_4" parent="Shell" instance=ExtResource("4")]
+[node name="wall_storey_2m_int_4" parent="Shell" unique_id=1757709978 instance=ExtResource("4")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 2)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_4"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_4" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(30, 0, 26, 90)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_door_int_1" parent="Shell" instance=ExtResource("5")]
+[node name="wall_storey_2m_door_int_1" parent="Shell" unique_id=1727763338 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 4)
 
-[node name="wall_storey_2m_door_int" parent="Shell/wall_storey_2m_door_int_1"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_door_int" parent="Shell/wall_storey_2m_door_int_1" index="0" unique_id=1500600986]
 instance_shader_parameters/plan_at = Vector4(30, 0, 28, 90)
+surface_material_override/0 = ExtResource("2")
 
-[node name="wall_storey_2m_int_5" parent="Shell" instance=ExtResource("4")]
+[node name="wall_storey_2m_int_5" parent="Shell" unique_id=677991313 instance=ExtResource("4")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_5"]
-surface_material_override/0 = ExtResource("2")
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_5" index="0" unique_id=1216547244]
 instance_shader_parameters/plan_at = Vector4(30, 0, 30, 90)
+surface_material_override/0 = ExtResource("2")
 
-[node name="floor_lino_2x2_1" parent="Shell" instance=ExtResource("6")]
+[node name="floor_lino_2x2_1" parent="Shell" unique_id=1426948938 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 metadata/surface = "concrete"
 
-[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_1"]
-surface_material_override/0 = ExtResource("2")
+[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_1" index="0" unique_id=570564435]
 instance_shader_parameters/plan_at = Vector4(28, 0, 24, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="floor_lino_2x2_2" parent="Shell" instance=ExtResource("6")]
+[node name="floor_lino_2x2_2" parent="Shell" unique_id=1049998077 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 metadata/surface = "concrete"
 
-[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_2"]
-surface_material_override/0 = ExtResource("2")
+[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_2" index="0" unique_id=570564435]
 instance_shader_parameters/plan_at = Vector4(28, 0, 26, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="floor_lino_2x2_3" parent="Shell" instance=ExtResource("6")]
+[node name="floor_lino_2x2_3" parent="Shell" unique_id=1794756474 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_3"]
-surface_material_override/0 = ExtResource("2")
+[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_3" index="0" unique_id=570564435]
 instance_shader_parameters/plan_at = Vector4(24, 0, 28, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="floor_lino_2x2_4" parent="Shell" instance=ExtResource("6")]
+[node name="floor_lino_2x2_4" parent="Shell" unique_id=2020848163 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_4"]
-surface_material_override/0 = ExtResource("2")
+[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_4" index="0" unique_id=570564435]
 instance_shader_parameters/plan_at = Vector4(26, 0, 28, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="floor_lino_2x2_5" parent="Shell" instance=ExtResource("6")]
+[node name="floor_lino_2x2_5" parent="Shell" unique_id=808188092 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 metadata/surface = "concrete"
 
-[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_5"]
-surface_material_override/0 = ExtResource("2")
+[node name="floor_lino_2x2" parent="Shell/floor_lino_2x2_5" index="0" unique_id=570564435]
 instance_shader_parameters/plan_at = Vector4(28, 0, 28, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="railing_balcony_post_1" parent="Shell" instance=ExtResource("7")]
+[node name="railing_balcony_post_1" parent="Shell" unique_id=271627234 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
 
-[node name="railing_balcony_2m_1" parent="Shell" instance=ExtResource("8")]
+[node name="railing_balcony_2m_1" parent="Shell" unique_id=988942403 instance=ExtResource("8")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 4, 0, 0)
 
-[node name="railing_balcony_2m_2" parent="Shell" instance=ExtResource("8")]
+[node name="railing_balcony_2m_2" parent="Shell" unique_id=1910306024 instance=ExtResource("8")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 4, 0, 2)
 
-[node name="railing_balcony_post_2" parent="Shell" instance=ExtResource("7")]
+[node name="railing_balcony_post_2" parent="Shell" unique_id=75954938 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 
-[node name="railing_balcony_post_3" parent="Shell" instance=ExtResource("7")]
+[node name="railing_balcony_post_3" parent="Shell" unique_id=139939608 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 
-[node name="pantry_stairs" parent="Shell" instance=ExtResource("9")]
+[node name="pantry_stairs" parent="Shell" unique_id=1082857936 instance=ExtResource("9")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 4, -1.6, 1)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_half" parent="Shell/pantry_stairs"]
-surface_material_override/0 = ExtResource("2")
+[node name="stairs_outdoor_half" parent="Shell/pantry_stairs" index="0" unique_id=912224640]
 instance_shader_parameters/plan_at = Vector4(28, -1.6, 25, 270)
+surface_material_override/0 = ExtResource("2")
 
-[node name="railing_balcony_2m_3" parent="Shell" instance=ExtResource("8")]
+[node name="railing_balcony_2m_3" parent="Shell" unique_id=984746188 instance=ExtResource("8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 
-[node name="railing_balcony_post_4" parent="Shell" instance=ExtResource("7")]
+[node name="railing_balcony_post_4" parent="Shell" unique_id=225152798 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 
-[node name="pantry_stairs_1" parent="Shell" instance=ExtResource("9")]
+[node name="pantry_stairs_1" parent="Shell" unique_id=297363249 instance=ExtResource("9")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, -3.2, 4)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_half" parent="Shell/pantry_stairs_1"]
-surface_material_override/0 = ExtResource("2")
+[node name="stairs_outdoor_half" parent="Shell/pantry_stairs_1" index="0" unique_id=912224640]
 instance_shader_parameters/plan_at = Vector4(24, -3.2, 28, 90)
+surface_material_override/0 = ExtResource("2")
 
-[node name="pantry_stairs_2" parent="Shell" instance=ExtResource("28")]
+[node name="pantry_stairs_2" parent="Shell" unique_id=1603222339 instance=ExtResource("28")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, 0)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_landing" parent="Shell/pantry_stairs_2"]
-surface_material_override/0 = ExtResource("2")
+[node name="stairs_outdoor_landing" parent="Shell/pantry_stairs_2" index="0" unique_id=1431775187]
 instance_shader_parameters/plan_at = Vector4(24, -1.6, 24, 0)
+surface_material_override/0 = ExtResource("2")
 
-[node name="Dressing" type="Node3D" parent="."]
+[node name="Dressing" type="Node3D" parent="." unique_id=928139132]
 
-[node name="pantry_shelf_1" parent="Dressing" instance=ExtResource("10")]
+[node name="pantry_shelf_1" parent="Dressing" unique_id=1209484925 instance=ExtResource("10")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.75, 0, 0.325)
 metadata/prop = "pantry_shelf"
 
-[node name="pantry_shelf" parent="Dressing/pantry_shelf_1"]
+[node name="pantry_shelf" parent="Dressing/pantry_shelf_1" index="0" unique_id=1071422966]
 surface_material_override/0 = ExtResource("11")
 
-[node name="broom_set_1" parent="Dressing" instance=ExtResource("12")]
+[node name="broom_set_1" parent="Dressing" unique_id=551576720 instance=ExtResource("12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.62, 0, 0.31)
 metadata/prop = "broom_set"
 
-[node name="broom_set" parent="Dressing/broom_set_1"]
+[node name="broom_set" parent="Dressing/broom_set_1" index="0" unique_id=1431540071]
 surface_material_override/0 = ExtResource("11")
 
-[node name="step_stool_1" parent="Dressing" instance=ExtResource("13")]
+[node name="step_stool_1" parent="Dressing" unique_id=1961546288 instance=ExtResource("13")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.75, 0, 0.85)
 metadata/prop = "step_stool"
 
-[node name="step_stool" parent="Dressing/step_stool_1"]
+[node name="step_stool" parent="Dressing/step_stool_1" index="0" unique_id=645803061]
 surface_material_override/0 = ExtResource("11")
 
-[node name="pantry_shelf_2" parent="Dressing" instance=ExtResource("10")]
+[node name="pantry_shelf_2" parent="Dressing" unique_id=350290914 instance=ExtResource("10")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.675, 0, 1.3)
 metadata/prop = "pantry_shelf"
 
-[node name="pantry_shelf" parent="Dressing/pantry_shelf_2"]
+[node name="pantry_shelf" parent="Dressing/pantry_shelf_2" index="0" unique_id=1071422966]
 surface_material_override/0 = ExtResource("11")
 
-[node name="pantry_shelf_buns_1" parent="Dressing" instance=ExtResource("14")]
+[node name="pantry_shelf_buns_1" parent="Dressing" unique_id=1208381299 instance=ExtResource("14")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.675, 0, 4.45)
 metadata/prop = "pantry_shelf_buns"
 
-[node name="pantry_shelf_buns" parent="Dressing/pantry_shelf_buns_1"]
+[node name="pantry_shelf_buns" parent="Dressing/pantry_shelf_buns_1" index="0" unique_id=732088024]
 surface_material_override/0 = ExtResource("11")
 
-[node name="drink_crates_1" parent="Dressing" instance=ExtResource("15")]
+[node name="drink_crates_1" parent="Dressing" unique_id=1967892323 instance=ExtResource("15")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5.6, 0, 5.6)
 metadata/prop = "drink_crates"
 
-[node name="drink_crates" parent="Dressing/drink_crates_1"]
+[node name="drink_crates" parent="Dressing/drink_crates_1" index="0" unique_id=1474309765]
 surface_material_override/0 = ExtResource("11")
 
-[node name="pantry_shelf_buns_2" parent="Dressing" instance=ExtResource("14")]
+[node name="pantry_shelf_buns_2" parent="Dressing" unique_id=1054407986 instance=ExtResource("14")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.6, 0, 5.675)
 metadata/prop = "pantry_shelf_buns"
 
-[node name="pantry_shelf_buns" parent="Dressing/pantry_shelf_buns_2"]
+[node name="pantry_shelf_buns" parent="Dressing/pantry_shelf_buns_2" index="0" unique_id=732088024]
 surface_material_override/0 = ExtResource("11")
 
-[node name="art_burger_1" parent="Dressing" instance=ExtResource("16")]
+[node name="art_burger_1" parent="Dressing" unique_id=1632607206 instance=ExtResource("16")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3, 1.3, 5.9)
 metadata/prop = "art_burger"
 
-[node name="art_burger" parent="Dressing/art_burger_1"]
+[node name="art_burger" parent="Dressing/art_burger_1" index="0" unique_id=1036807147]
 surface_material_override/0 = ExtResource("11")
 
-[node name="pantry_shelf_3" parent="Dressing" instance=ExtResource("10")]
+[node name="pantry_shelf_3" parent="Dressing" unique_id=1766344880 instance=ExtResource("10")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 0, 5.675)
 metadata/prop = "pantry_shelf"
 
-[node name="pantry_shelf" parent="Dressing/pantry_shelf_3"]
+[node name="pantry_shelf" parent="Dressing/pantry_shelf_3" index="0" unique_id=1071422966]
 surface_material_override/0 = ExtResource("11")
 
-[node name="open_box_1" parent="Dressing" instance=ExtResource("17")]
+[node name="open_box_1" parent="Dressing" unique_id=540932533 instance=ExtResource("17")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 2, 5.68)
 metadata/prop = "open_box"
 
-[node name="veg_rack_1" parent="Dressing" instance=ExtResource("18")]
+[node name="veg_rack_1" parent="Dressing" unique_id=372304726 instance=ExtResource("18")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.45, 0, 4.9)
 metadata/prop = "veg_rack"
 
-[node name="veg_rack" parent="Dressing/veg_rack_1"]
+[node name="veg_rack" parent="Dressing/veg_rack_1" index="0" unique_id=1244339775]
 surface_material_override/0 = ExtResource("11")
 
-[node name="drink_crates_2" parent="Dressing" instance=ExtResource("15")]
+[node name="drink_crates_2" parent="Dressing" unique_id=19389186 instance=ExtResource("15")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.35, 0, 4.3)
 metadata/prop = "drink_crates"
 
-[node name="drink_crates" parent="Dressing/drink_crates_2"]
+[node name="drink_crates" parent="Dressing/drink_crates_2" index="0" unique_id=1474309765]
 surface_material_override/0 = ExtResource("11")
 
-[node name="wine_bottle_crate_1" parent="Dressing" instance=ExtResource("19")]
+[node name="wine_bottle_crate_1" parent="Dressing" unique_id=1953194509 instance=ExtResource("19")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4.35, 0, 1.75)
 metadata/prop = "wine_bottle_crate"
 
-[node name="crate_1" parent="Dressing" instance=ExtResource("20")]
+[node name="crate_1" parent="Dressing" unique_id=2131708296 instance=ExtResource("20")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 0, 4.6)
 metadata/prop = "crate"
 
-[node name="crate_2" parent="Dressing" instance=ExtResource("20")]
+[node name="crate_2" parent="Dressing" unique_id=152939450 instance=ExtResource("20")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 0.4, 4.6)
 metadata/prop = "crate"
 
-[node name="cardboard_box_1" parent="Dressing" instance=ExtResource("21")]
+[node name="cardboard_box_1" parent="Dressing" unique_id=2116757146 instance=ExtResource("21")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.68, 2, 1.3)
 metadata/prop = "cardboard_box"
 
-[node name="open_box_2" parent="Dressing" instance=ExtResource("17")]
+[node name="open_box_2" parent="Dressing" unique_id=1536474061 instance=ExtResource("17")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.68, 2, 4.45)
 metadata/prop = "open_box"
 
-[node name="cardboard_box_2" parent="Dressing" instance=ExtResource("21")]
+[node name="cardboard_box_2" parent="Dressing" unique_id=36960264 instance=ExtResource("21")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.75, 2, 0.33)
 metadata/prop = "cardboard_box"
 
-[node name="drink_crates_3" parent="Dressing" instance=ExtResource("15")]
+[node name="drink_crates_3" parent="Dressing" unique_id=631982686 instance=ExtResource("15")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5.6, 0.62, 5.6)
 metadata/prop = "drink_crates"
 
-[node name="drink_crates" parent="Dressing/drink_crates_3"]
+[node name="drink_crates" parent="Dressing/drink_crates_3" index="0" unique_id=1474309765]
 surface_material_override/0 = ExtResource("11")
 
-[node name="drink_crates_4" parent="Dressing" instance=ExtResource("15")]
+[node name="drink_crates_4" parent="Dressing" unique_id=498619492 instance=ExtResource("15")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.35, 0.62, 4.3)
 metadata/prop = "drink_crates"
 
-[node name="drink_crates" parent="Dressing/drink_crates_4"]
+[node name="drink_crates" parent="Dressing/drink_crates_4" index="0" unique_id=1474309765]
 surface_material_override/0 = ExtResource("11")
 
-[node name="Detail" type="Node3D" parent="."]
+[node name="Detail" type="Node3D" parent="." unique_id=1752624433]
 
-[node name="parcels_1" parent="Detail" instance=ExtResource("22")]
+[node name="parcels_1" parent="Detail" unique_id=1820940427 instance=ExtResource("22")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.6, 2, 5.68)
 metadata/prop = "parcels"
 
-[node name="parcels" parent="Detail/parcels_1"]
+[node name="parcels" parent="Detail/parcels_1" index="0" unique_id=803993125]
 surface_material_override/0 = ExtResource("11")
 
-[node name="wall_shelf_1" parent="Detail" instance=ExtResource("23")]
+[node name="wall_shelf_1" parent="Detail" unique_id=837938341 instance=ExtResource("23")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 1.45, 4.9)
 metadata/prop = "wall_shelf"
 
-[node name="wall_calendar_1" parent="Detail" instance=ExtResource("24")]
+[node name="wall_calendar_1" parent="Detail" unique_id=559745452 instance=ExtResource("24")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 5.9, 1.4, 2.15)
 metadata/prop = "wall_calendar"
 
-[node name="wall_calendar" parent="Detail/wall_calendar_1"]
+[node name="wall_calendar" parent="Detail/wall_calendar_1" index="0" unique_id=726639593]
 surface_material_override/0 = ExtResource("11")
 
-[node name="basket_1" parent="Detail" instance=ExtResource("25")]
+[node name="basket_1" parent="Detail" unique_id=1577078299 instance=ExtResource("25")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1.8, 0, 5.6)
 metadata/prop = "basket"
 
-[node name="bottles_1" parent="Detail" instance=ExtResource("26")]
+[node name="bottles_1" parent="Detail" unique_id=898627379 instance=ExtResource("26")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5.6, 1.24, 5.6)
 metadata/prop = "bottles"
 
-[node name="basket_2" parent="Detail" instance=ExtResource("25")]
+[node name="basket_2" parent="Detail" unique_id=1247156165 instance=ExtResource("25")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 0.8, 4.6)
 metadata/prop = "basket"
 
-[node name="basket_3" parent="Detail" instance=ExtResource("25")]
+[node name="basket_3" parent="Detail" unique_id=42748390 instance=ExtResource("25")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 0, 1.6)
 metadata/prop = "basket"
 
-[node name="Fixtures" type="Node3D" parent="."]
+[node name="Fixtures" type="Node3D" parent="." unique_id=1499083434]
 
-[node name="bare_bulb_1" parent="Fixtures" instance=ExtResource("27")]
+[node name="bare_bulb_1" parent="Fixtures" unique_id=1391853133 instance=ExtResource("27")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 3, 1.5)
 metadata/prop = "bare_bulb"
 
-[node name="pantry_bare_bulb_01" type="OmniLight3D" parent="Fixtures"]
+[node name="pantry_bare_bulb_01" type="OmniLight3D" parent="Fixtures" unique_id=1246504015]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 2.7, 3)
 light_color = Color(1, 0.85, 0.68, 1)
-omni_range = 6
+omni_range = 6.0
 metadata/fixture = "bare_bulb"
 metadata/glow = true
 
