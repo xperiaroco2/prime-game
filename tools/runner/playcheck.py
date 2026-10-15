@@ -29,6 +29,8 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
                             every other window the first wait after its first `press ready`, waits
                             BOTS_START_SECONDS longer, for their process to start
+    route <name> <x,z> ...  named waypoints (metres on the map's floor) for `aim station <kind> via <name>`, routed
+                            through the doors by trial (#1105: the House has no navigation mesh)
     tutorial                window 1 starts the solo tutorial (--tutorial, #601) instead of hosting: one window
                             and one player (`players 1`, `windows 1`, both implied), its host on a private
                             in-process hub with the game's two stand-ins in its roster; no bots, role, setting
@@ -63,6 +65,10 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          middle of the nearest item of <kind> resting in its own ClientModel
                                          (no holder; item positions are public); with none, it turns nothing.
                                          The mouse is never captured, so this is the only way to face something
+    aim station <kind> [via <route>]     the same toward the nearest placed station of <kind> (its use spot's aim sphere,
+                                         TargetChoice), after walking the route's waypoints in order: each frame it
+                                         faces the next waypoint at eye height until the feet are within
+                                         WAYPOINT_M of it (hold move_forward to walk; `aim off` ends it too)
     shot <name>                          the window's viewport as <name>.png ([a-z0-9_], unique in the scenario)
 A wait takes `timeout=<seconds>` as its last word to override the default. A `#` in a line starts its comment, so
 a text to wait for or a button's text holds none.
@@ -143,6 +149,8 @@ ACTIONS = ("press", "hold", "release")
 # PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", the kind of the item in the
 # FirstPersonHand under the current camera, and the TutorialScreen's step (#492: "Step 2 of 8", its how line as
 # drawn).
+HEADER_KEYS = ("players", "windows", "bots", "role", "setting", "map", "clock", "timeout", "tutorial", "route")
+
 FIELDS = (
     "hud.role",
     "hud.clock",
@@ -152,6 +160,7 @@ FIELDS = (
     "hud.hand",
     "hud.belt",
     "hud.aim",
+    "photo.counter",
     "hud.raising",
     "hud.crosshair",
     "life.title",
@@ -238,6 +247,7 @@ class _Parser:
         self.bots_count = 0
         # The first line of each header key.
         self.header_lines: dict[str, int] = {}
+        self.routes: dict[str, list[list[float]]] = {}
 
     def fail(self, why: str, line: int | None = None) -> Failure:
         return Failure(f"{self.scenario.name}{SUFFIX}:{line or self.line}: {why}")
@@ -304,7 +314,9 @@ class _Parser:
             s.clock = self.number(args[0], "clock", 1, MAX_CLOCK)
         elif key == "timeout" and len(args) == 1:
             s.timeout = self.seconds(args[0], "timeout")
-        elif key in ("players", "windows", "bots", "role", "setting", "map", "clock", "timeout", "tutorial"):
+        elif key == "route" and len(args) >= 2:
+            self.route(args)
+        elif key in HEADER_KEYS:
             raise self.fail(f"wrong number of words for `{key}`")
         else:
             raise self.fail(f"unknown header line `{key}` (steps go under a `window <n>` line)")
@@ -345,7 +357,7 @@ class _Parser:
             # Not "text": the plan's step has the line's text under that key.
             made = {"label": " ".join(args)}
         elif verb == "aim":
-            made = {"kind": self.aim(args)}
+            made = self.aim(args)
         elif verb in ("frames", "shot", *ACTIONS):
             raise self.fail(f"`{verb}` takes one word")
         else:
@@ -394,13 +406,40 @@ class _Parser:
             )
         return made
 
-    def aim(self, args: list[str]) -> str:
-        """The item kind of `aim item <kind>`, or "" for `aim off`."""
+    def aim(self, args: list[str]) -> dict[str, object]:
+        """An aim's kind ('' for `aim off`); a station's also its target and its route's waypoints."""
         if args == ["off"]:
-            return ""
-        if len(args) == 2 and args[0] == "item" and ID_RE.fullmatch(args[1]):
-            return args[1]
-        raise self.fail("an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`) or `aim off`")
+            return {"kind": ""}
+        via: list[list[float]] = []
+        if len(args) == 4 and args[0] == "station" and args[2] == "via":
+            if args[3] not in self.routes:
+                raise self.fail(f"no route {args[3]!r}: a `route <name> <x,z> ...` header line names one")
+            via = self.routes[args[3]]
+            args = args[:2]
+        if len(args) == 2 and args[0] in ("item", "station") and ID_RE.fullmatch(args[1]):
+            if args[0] == "item":
+                return {"kind": args[1]}
+            return {"kind": args[1], "target": "station", "via": via}
+        raise self.fail(
+            "an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`), `aim station <kind>"
+            " [via <route>]` (a station kind's id, such as `aim station camera`) or `aim off`"
+        )
+
+    def route(self, args: list[str]) -> None:
+        """A `route <name> <x,z> ...` header line: the named waypoints an `aim station ... via` walks."""
+        name, points = args[0], args[1:]
+        if not ID_RE.fullmatch(name) or name in self.routes:
+            raise self.fail(f"a route needs a new name like to_camera, not {name!r}")
+        via: list[list[float]] = []
+        for point in points:
+            parts = point.split(",")
+            try:
+                via.append([float(parts[0]), float(parts[1])] if len(parts) == 2 else [])
+            except ValueError:
+                via.append([])
+            if not via[-1]:
+                raise self.fail(f"a waypoint is <x>,<z> in metres, such as 30,40.5, not {point!r}")
+        self.routes[name] = via
 
     def field(self, rest: list[str], what: str) -> str:
         """The field a `wait text` or `wait shown` names; a mistake lists the fields there are."""

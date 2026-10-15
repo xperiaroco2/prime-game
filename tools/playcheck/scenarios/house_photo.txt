@@ -1,0 +1,49 @@
+# The photo camera's viewfinder on the House (#1105; photo P7, #786) in the game's real window.
+# Window 1 hosts alone (the base mode plays with one) on the House. From the Yard it walks the
+# route to the film box in the basement storage (`aim station film_box via to_film_box`: the
+# waypoints through the doors and down the basement stairs, found by trial, then the box's use
+# spot) until the HUD names the box under the crosshair, takes a film (E), walks back up and
+# through the ground floor to the photo camera, loads the film (E) and taps E again: the
+# viewfinder opens, its counter of frames left in the corner (shot). Taking a shot is not here yet:
+# `hold use` did not reach the viewfinder's shot (no ShotTaken in 30 s, #1105's PR), and the
+# pictures (P8, #787) are not on main.
+# The waypoints are x,z in metres on the House's floor; the Yard's spawns lie around x 24-38,
+# z 52-55, so the first one is reached straight from any of them.
+players 1
+windows 1
+route to_film_box 30,53 30,40.5 32,38 32,27 29,27 28.5,28.5 27,28.5 27,24.5 25,24.5 25,30 24,30.5
+route to_camera 25,30.5 25,24.5 27,24.5 27,28.5 29,28.5 29,27 32,27 34,25.5 36,25 36,21.5 34,19.5 31,18 29,17 29,14 26.5,11.5 14,11.5
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517); the shot's key acts only with the pointer captured.
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+press ready
+wait screen round timeout=60
+aim station film_box via to_film_box
+hold move_forward
+wait text hud.aim has film timeout=90
+release move_forward
+aim off
+press interact
+wait shown hud.hand on
+frames 10
+shot film_in_hand
+aim station camera via to_camera
+hold move_forward
+wait text hud.aim has camera timeout=90
+release move_forward
+aim off
+# E with a fresh film carried loads it; E tapped on the loaded camera opens the viewfinder.
+press interact
+wait event FilmLoaded
+frames 10
+press interact
+wait shown photo.counter on
+frames 30
+shot viewfinder
