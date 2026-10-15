@@ -504,7 +504,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
 - **Who:** one session of the engineer's, Opus at medium effort, in `D:\prime-game` (it only reads the checkout), on
   the skill `secretary` (`.claude/skills/secretary/SKILL.md`). Its cost counts in the engineer's own 5% of the week
   (the skill's `budget.md`) until he says otherwise.
-- **Powers:** it reads every session and the three repos, digests, and relays the engineer's answers to the session
+- **Powers:** it reads every session and the four repos, digests, and relays the engineer's answers to the session
   that asked, which records them on GitHub as usual. It never merges, launches, closes, creates or decides; it never
   answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
   comments and `send_message`.

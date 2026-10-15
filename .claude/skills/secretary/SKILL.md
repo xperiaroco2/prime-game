@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: The engineer's secretary for prime-game - gathers from every track's sessions and the three repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue every 30 to 60 minutes, says in one chat line what changed, and relays his answers to the session that asked. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
+description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue every 30 to 60 minutes, says in one chat line what changed, and relays his answers to the session that asked. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
