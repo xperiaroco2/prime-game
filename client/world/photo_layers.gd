@@ -1,7 +1,7 @@
 class_name PhotoLayers
 extends RefCounted
 ## The visual layers that keep a shot's picture and the live view apart (the photo ADR's §3.3,
-## #787; ARCHITECTURE §4.7). A picture is rendered in the live World3D (no copy of the level),
+## #787; ARCHITECTURE §4.7.58). A picture is rendered in the live World3D (no copy of the level),
 ## so what it shows and what the live cameras show are told apart by layer alone:
 ## - GROUND (layer 1, Godot's default): the level, items on the ground or on a station, dead
 ##   bodies: they move only by events, so both the live view and the picture draw them;

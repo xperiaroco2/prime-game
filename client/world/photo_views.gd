@@ -1,9 +1,9 @@
 class_name PhotoViews
 extends Node3D
 ## The photo task's station scenes in the level, driven from the own ClientModel (#787, photo P8;
-## ARCHITECTURE §4.7; the photo ADR §3.3, §9). The level holds `levels/stations/camera.tscn` and
-## `photo_board.tscn`, each found by its `UseSpot` in the `spawn_<tag>` group of its kind and bound
-## to the placed station nearest in 3D within StationViews.BIND_TOLERANCE_M (CookingViews'
+## ARCHITECTURE §4.7.58; the photo ADR §3.3, §9). The level holds `levels/stations/camera.tscn`
+## and `photo_board.tscn`, each found by its `UseSpot` in the `spawn_<tag>` group of its kind and
+## bound to the placed station nearest in 3D within StationViews.BIND_TOLERANCE_M (CookingViews'
 ## pattern), and the printer's tray, the marker in the group of the photo kind's spawn tag.
 ##
 ## - the camera shows its `FramesLeft` label, digits only, while it holds a film (P7's camera

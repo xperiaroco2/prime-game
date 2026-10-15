@@ -1,8 +1,8 @@
 class_name PhotoPictures
 extends Node3D
 ## Each shot's picture, rendered on this client from its ShotTaken record (#787, photo P8;
-## ARCHITECTURE §4.7; the photo ADR §3.3, PE15). A shot folded into the own ClientModel queues its
-## render; one render a frame: a SubViewport (UPDATE_ONCE, 384 px high and as wide as the type's
+## ARCHITECTURE §4.7.58; the photo ADR §3.3, PE15). A shot folded into the own ClientModel queues
+## its render; one render a frame: a SubViewport (UPDATE_ONCE, 384 px high and as wide as the type's
 ## aspect makes it) sharing the live World3D (no copy of the level), its Camera3D at the camera's
 ## frame (PhotoUse.frame_of: the host's lens, basis and the type's fov) seeing only
 ## PhotoLayers.PHOTO_VIEW, and a puppet per record row on PhotoLayers.PHOTO (no collision, no

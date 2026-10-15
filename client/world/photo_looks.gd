@@ -1,6 +1,6 @@
 class_name PhotoLooks
 extends RefCounted
-## The greybox looks of the photo task's items (#787, photo P8; ARCHITECTURE §4.7), as
+## The greybox looks of the photo task's items (#787, photo P8; ARCHITECTURE §4.7.58), as
 ## CookingLooks is Cooking's: ItemView asks it first for the base mode's `film` and `photo` kinds.
 ## The film is a small dark canister with a light label band; the photo a thin white card lying
 ## flat with its picture on the top face (`Picture`, its texture set through ItemView.set_picture:

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## PhotoViews (#787, photo P8; ARCHITECTURE §4.7): the real camera, printer and board scenes of
+## PhotoViews (#787, photo P8; ARCHITECTURE §4.7.58): the real camera, printer and board scenes of
 ## `levels/stations/` under a level, bound to a dealt photo task's stations (FixturePhotoClient),
 ## with ItemViews drawing the items at PhotoViews.drawn_point. The camera's FramesLeft label, the
 ## loaded film in its FilmSlot (still no item target, #1104 option (a)), the hung photos on the
