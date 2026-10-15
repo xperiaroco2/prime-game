@@ -42,10 +42,12 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Cringe-fun vibe**, and an audience that is not only guys. Teens and adults (15 and 16 year olds included): an
   adult, funny tone in which violence stays comic, with no guts and no dismemberment (the engineer, 2026-10-15,
   #1076).
-- **Macro skill over micro skill.** Simple mechanics, no aim-heavy mechanics: decisions, teamwork and communication
-  win, and a player who never plays shooters has as much fun as anyone. One-shot kills exist only as rare moments that
-  are hard to abuse: the dropped car now, maybe later a single-shot weapon that is very hard to get. The player
-  respawns as usual (the ADR's amendment of 2026-10-08, #591).
+- **Macro skill first, and skill may matter a little.** Decisions, teamwork and communication win more often than aim:
+  two players who are not into shooters can run the tasks and manage everything, or rush a shooter with knives from
+  two sides, and a death costs only time because the player respawns. Aim is allowed to matter for those who want it:
+  guns come mostly for points and have limited ammunition, and the host's settings set how many weapons a match has. One-shot kills exist only as rare moments that are hard to abuse: the dropped car now, maybe later
+  a single-shot weapon that is very hard to get (the ADR's amendment of 2026-10-08, #591; amended by the engineer,
+  2026-10-15, #1090).
 - **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the zones
   where items may appear) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but
   it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
@@ -58,6 +60,9 @@ Open questions:
 - What does this game do that Lockdown Protocol and Among Us do not?
 
 ## 2. Match setup
+
+The M8 match (the aliens' party, the humans, points, the neighbours' anger and the cops, capsules, the wins):
+[`design/m8-match.md`](design/m8-match.md).
 
 - How many players is the sweet spot inside 4–10, and does the setup scale with the count?
 - How are teams and roles dealt, and how many of each per player count?
