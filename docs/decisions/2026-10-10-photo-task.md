@@ -459,10 +459,12 @@ drafted"). P5 uses them; like every content file, P5's are provisional until he 
   until now only §5's snapshot rules guarded, and the leak test compares events against `view_of`, which reads the
   same record, so a record-building bug would pass it. P2 adds an invariant to `ScenarioInvariants` and `LeakCheck`
   written independently of the record builder: every row of a decoded `ShotTaken` names a peer that is ALIVE or
-  knocked down at that tick (never dead, left or not a player), within one movement claim's longest step of its
-  accepted position at the end of the tick before or of the shot's tick (the record is taken in the shot's command,
-  and a claim later in the same tick moves the position `LeakCheck` records), and within `range_m` + 2 m of the lens
-  plus that step. The cylinder is not checked: its edge flips with the same step, and the unit tests cover it. P2's
+  knocked down at that tick (never dead, left or not a player), near its accepted position, and within `range_m` + 2 m
+  of the lens. Each checker keeps its own slack (#788, ARCHITECTURE §4.6.4.1): `LeakCheck` sees positions only at the
+  ends of ticks, and a claim later in the same tick moves the position it records, so it allows one movement claim's
+  longest step against the position at the end of the tick before or of the shot's tick, and adds it to the lens
+  bound; `ScenarioInvariants` checks in the shot's own `Match` call against the positions then, with no step (with the
+  base mode's sprint the step is some 73 m, more than the House, and the record plant passed it). The cylinder is not checked: its edge flips with the same step, and the unit tests cover it. P2's
   unit cases feed it hand-built events (a dead player's row, a row beyond the bound: each caught); the record plant
   (the record builder dropping its distance test, so a player standing elsewhere on House at a shot gets a row; P9
   keeps a third player away from the gazebo for it) is P9's, over House's shots, planted once, reverted.

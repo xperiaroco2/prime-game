@@ -1774,8 +1774,8 @@ both name every event `PhotoTask.emits()` returns) and the record invariant (the
 first event to carry other players' avatar rows, and `view_of` reads the same record, so the leak test alone would pass
 a record-building bug. `ScenarioInvariants.record_problems`, written apart from `PhotoTask`'s builder, checks every
 row: a present peer alive or downed at the shot, named once, near its accepted position, and within `range_m` + 2 m
-of the lens (the camera's position raised by the eye height) plus the same slack. `LeakCheck.check_bot` runs it on
-each decoded `ShotTaken` (the camera from the decoded `StationPlaced`, the life states and positions `record_tick`
+of the lens (the camera's position raised by the eye height), each checker with its own slack (below).
+`LeakCheck.check_bot` runs it on each decoded `ShotTaken` (the camera from the decoded `StationPlaced`, the life states and positions `record_tick`
 saw); it sees positions only at the ends of ticks, so its slack is one movement claim's longest step (`record_step`:
 `MAX_TICK_CREDIT` plus `PUSH_TICKS` ticks of sprinting, plus the slack) horizontally of the position at the end of
 the tick before or of the shot's tick. `ScenarioInvariants.check_event` runs it on each emitted `ShotTaken` in the
