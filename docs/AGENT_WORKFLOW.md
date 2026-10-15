@@ -1485,8 +1485,8 @@ edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` h
 off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
 playcheck presses keys only, so the real mouse is never captured. The item keys read that pointer, so `hold use` (the
 left button has no key for `press`) uses the hand item and shoots from the viewfinder (#1114); spectate cycling,
-which reads Input's mouse mode, is out of its reach, and `aim` is the only way to turn. PNGs: `tools/out/playcheck/<scenario>/<shot>.png`
-(`gh` cannot upload them: the PR lists their paths and says what each shows); logs:
+which reads Input's mouse mode, is out of its reach, and `aim` is the only way to turn. PNGs:
+`tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot upload them: the PR lists their paths and says what each shows); logs:
 `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past its timeout (the window prints the step's line and
 what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
 done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started

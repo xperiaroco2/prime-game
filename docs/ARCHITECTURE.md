@@ -3035,7 +3035,8 @@ see them as just pressed; holds through `Input.action_press`, screenshots throug
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured. The item keys read the game's pointer
 (`ItemInteractions.mouse_captured`, which `Game` gives `pointer.captured`, #1114), so `hold use` (the left button has
-no key to press) uses the hand item and takes the viewfinder's shot (`house_photo`); spectate cycling, which reads Input's mouse mode, stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
+no key to press) uses the hand item and takes the viewfinder's shot (`house_photo`); spectate cycling, which reads Input's mouse mode, stays with the playtest.
+Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
