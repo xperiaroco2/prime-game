@@ -259,11 +259,21 @@ func test_a_part_from_each_bin() -> void:
 		assert_object(held).is_not_null()
 		if held != null:
 			assert_object(held.kind).is_same(type.parts[i])
-	# The hand's part went to the belt, the belt's to the feet: three parts, one in each place.
+	# Each take makes room as cooking's sources do (Items.give, ADR §2 row 16): the second take's
+	# hand part went onto the empty belt; with both slots full, a later take's hand part went down
+	# at the feet and the belt kept the first part. Three parts, one in each place.
 	var parts := 0
 	for kind: ItemKind in type.parts:
 		parts += _items_of(kind).size()
 	assert_int(parts).is_equal(type.parts.size())
+	assert_int(type.parts.size()).is_greater_equal(3)
+	var belted := Items.belted_by(_game.state, taker)
+	assert_object(belted).is_not_null()
+	if belted != null:
+		assert_object(belted.kind).is_same(type.parts[0])
+	for i in range(1, type.parts.size() - 1):
+		for item: ItemState in _items_of(type.parts[i]):
+			assert_int(item.where).override_failure_message(str(i)).is_equal(ItemState.Where.GROUND)
 	_assert_clean()
 
 
