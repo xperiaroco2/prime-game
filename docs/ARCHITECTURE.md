@@ -8061,8 +8061,16 @@ assets/
   vanished" warnings (11 million log lines on the first CI run).
   Tests: `tools/runner/tests/test_colliders.py` (in `selftest`); the House's level tests and `game_loop_test` pass
   in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
-  An override of a node inside an instance (a Shell, Dressing or Detail material, a collider's layer) survives a
-  re-save (the editor's, `normalize`'s) only with its instance's `[editable path]` entry (#1056; `levels/CLAUDE.md`).
+  An override of a node inside an instance (a Shell, Dressing or Detail material, `plan_at`, a collider's layer)
+  survives a re-save (the editor's, `normalize`'s) only with its instance's `[editable path]` entry, and a line at
+  its default value is dropped (#1056; `levels/CLAUDE.md`). `tools/runner/editables.py` finds an overridden instance
+  without its entry in a scene under `levels/` (the wrappers aside): `check` fails on it, and `colliders` ends by
+  adding the missing entries, so an art re-import follows the rule. Every House room and the plot are normalized
+  (a second `normalize` leaves them byte-identical); the art's per-instance `plan_at` keeps the overrides in the
+  rooms, not in the generated wrappers.
+  Tests: `tools/runner/tests/test_editables.py` (in `selftest`); `tests/integration/levels/house_overrides_test.gd`
+  (each room and the plot packed as a re-save packs it keep every property they set; text cannot see an instance
+  nested in an instanced scene).
   The garage (the art's P6, #1052) holds the art's car, lift posts and lift arms inside the car's station scene
   (car repair's R5, #809, §9.5.21), the lift panel behind its partition; its 8 m gate's leaf is an opening (layer 0,
   E4) under its lintel.
