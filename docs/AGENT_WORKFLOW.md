@@ -211,7 +211,13 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    needed (§11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
-2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
+   **A design-only diff** (#1123: every changed path on `.github/design-only-paths.txt`, the Markdown design docs
+   `docs/GDD.md`, `COMPASS.md`, `m8-match.md`, `docs/design/ideas/`, `docs/design/research/`; never `house-map.md`,
+   which the level tests read): its `verify` runs `doctor` and `lint` (the § references) without `check`, and CI
+   skips the Godot parts of `verify --full` (the required `verify` passes on their `skipped`, `runner on the minimum
+   Python` lints it); `runner on the minimum Python` took 38 s in the last PR run, the `changes` job is not yet
+   timed. Any other path in the diff runs everything.
+2. Fresh-context review (none for a design-only diff, step 1, #1123): `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `voice/`, `client/` (what it
    renders can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only
    such paths are under `client/ui/`, the screens: §7.1, #606); plus
@@ -1003,6 +1009,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   has a bypass: the engineer removed `main-2`'s admin bypass on 2026-09-29, so the admin account the agents push as
   cannot skip them either. A cloud session cannot change a ruleset: its GitHub proxy refuses writes to that API path
   (HTTP 403), so a ruleset change is the engineer's step in the repository's settings.
+- **Classic branch protection** on `main` too (read 2026-10-15 with `gh api .../branches/main/protection`, #1123):
+  a PR with 0 approvals, no required checks of its own (the ruleset's apply), force pushes and deletions refused,
+  admins not enforced. The rulesets above are the gate; it adds nothing they lack.
+- A design-only pull request (#1123, §4.2 step 1) skips CI's Godot parts but still reports both required checks: the
+  trigger has no path filter, and `verify` and `python-min` always run.
 - "Automatically delete head branches" is on: a merged PR's branch is deleted, and GitHub retargets its stacked
   children to `main` itself.
 
@@ -1561,7 +1572,10 @@ group of `verify.GROUPS`) runs both as one, every network run, locally. The job 
 `verify` needs every part (`if: always()`) and is green only when every part's job was. A second job, `python-min`
 (#349), runs `selftest --group python` on the pinned minimum Python (`pins --get python_min`), since 3.12-only code
 once broke `verify` on 3.11 (#345). Both are required checks of `main` (§8.5), so neither `merge` nor a human's merge
-button takes a PR while one is red. CI runs on every PR (whatever its base) and on pushes to `main` and `release/**`
+button takes a PR while one is red. Since #1123 a job `changes` first diffs a PR against its merge base (plain git)
+and matches every path against `.github/design-only-paths.txt`, the list `tools/runner/design_only.py` reads too:
+when all match (a design-only PR, §4.2 step 1), the parts are skipped, `verify` passes on their `skipped` and
+`python-min` also runs `lint` (the § references); a push, a dispatch or a red `changes` runs every part. CI runs on every PR (whatever its base) and on pushes to `main` and `release/**`
 (#622), so the tree a `merge` or `merge --sync-main` leaves there is tested (§7.1), with the checksum-checked Godot
 build from the pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads
 webrtc-native (the M6 ADR's E57, #367; smoke test `tests/unit/net/transport/webrtc_native_addon_test.gd`); if its

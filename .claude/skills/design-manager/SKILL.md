@@ -59,7 +59,10 @@ numbers, rules): root `CLAUDE.md`, Ownership. Chat in his language; everything o
   before you show him anything.
 - **Your PRs:** a task issue and branch through `tools\run.cmd start <n> --worktree`, the definition of done (root
   `CLAUDE.md`), `publish`, then the merge **only on his explicit word for that PR**: record it on GitHub, add
-  "Approved by the engineer: <link>" to the PR's body, `tools\run.cmd merge <pr> --base main`.
+  "Approved by the engineer: <link>" to the PR's body, `tools\run.cmd merge <pr> --base main`. A PR that changes only
+  the design docs on `.github/design-only-paths.txt` (#1123) takes the fast path: `verify` without the Godot check,
+  CI without its Godot parts, no fresh-context review (AGENT_WORKFLOW §4.2). Code, content or `house-map.md` in it
+  runs everything, so keep them in a PR of their own.
 
 ## 4. Budget
 The design track's budget is in `.claude/skills/orchestrate-stage/budget.md` (unlimited for now, his word on #1095).

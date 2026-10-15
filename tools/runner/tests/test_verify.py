@@ -148,9 +148,11 @@ class Verify:
         watch: object = None,
         verbose: bool = True,
         part: str | None = None,
+        design: tuple[bool, str] = (False, "not design-only (a test)"),
     ) -> tuple[int, str, dict[str, object]]:
         """verbose: the whole output, as before #572 (these tests read every step's lines); a quiet run's log goes to
-        self.logs, never this checkout's tools/out."""
+        self.logs, never this checkout's tools/out. design: design_only.check's answer (#1123), never this checkout's
+        own change."""
         out = io.StringIO()
         with (
             mock.patch.object(verify, "slot_pool", return_value=(pool, "no limit (a test)")) as self.slot_pool,
@@ -165,6 +167,7 @@ class Verify:
                 verify, "git_facts", return_value={"branch": "b", "head": "h", "tree": "t", "runner": "r"}
             ),
             mock.patch.object(verify, "HISTORY", self.history),
+            mock.patch.object(verify.design_only, "check", return_value=design) as self.design,
             mock.patch.object(common, "LOGS", self.logs),
             mock.patch.object(common, "OUT", self.logs.parent),
             mock.patch.dict(os.environ),
@@ -343,7 +346,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(
             set(record),
             {"start", "worktree", "branch", "head", "tree", "runner", "status", "seconds", "steps", "lanes", "cpus",
-             "workers", "selftest", "slot", "stopped", "mode", "part"},  # fmt: skip
+             "workers", "selftest", "slot", "stopped", "mode", "part", "design_only"},  # fmt: skip
         )
         self.assertIsNone(record["slot"])  # no slot pool: CI, or a verify inside a verify
         self.assertIsNone(record["stopped"])  # every step ran
@@ -630,6 +633,57 @@ class PartTest(unittest.TestCase):
         with mock.patch.object(verify, "_verify", side_effect=lambda _l, full, *_a: seen.append(full) or 0):
             verify.main(run_lane=mock.MagicMock(), part="test-2", verbose=True)
         self.assertEqual(seen, [True])
+
+
+class DesignOnlyTest(unittest.TestCase):
+    """A fast verify of a design-only change (#1123, design_only.check): doctor and lint, no check; --full and a
+    part never ask."""
+
+    WHY = "2 changed files against origin/main (merge base abc), all on .github/design-only-paths.txt"
+
+    def test_it_runs_doctor_and_lint_only_and_says_why(self) -> None:
+        ran: list[str] = []
+        run = Verify(self)
+        with stub_steps(ran):
+            rc, text, record = run.run(inline_lane, full=False, design=(True, self.WHY))
+        self.assertEqual(rc, 0)
+        self.assertEqual(ran, ["lint"])  # doctor: the stub in Verify
+        self.assertEqual(summary_rows(text), [("passed", "doctor"), ("passed", "lint")])
+        lines = text.splitlines()
+        self.assertIn(f"  {verify.DESIGN_LINE}", lines)
+        self.assertIn(f"  design-only: {self.WHY}", lines)
+        self.assertNotIn(f"  {verify.FAST_LINE}", lines)
+        self.assertTrue(verify.DESIGN_LINE.startswith(metrics.FAST_RUN), "metrics counts it as a fast run")
+        self.assertEqual((record["mode"], record["design_only"], record["status"]), ("fast", True, "passed"))
+        self.assertEqual(list(record["lanes"]), list(verify.DESIGN_LANES))  # type: ignore[arg-type]
+        self.assertEqual([s["name"] for s in record["steps"]], list(verify.DESIGN_ORDER))  # type: ignore[union-attr]
+        run.slot_pool.assert_not_called()
+
+    def test_a_red_lint_still_fails_it(self) -> None:
+        ran: list[str] = []
+        with stub_steps(ran, "lint"):
+            rc, text, record = Verify(self).run(inline_lane, full=False, design=(True, self.WHY))
+        self.assertEqual((rc, ran, record["status"]), (1, ["lint"], "FAILED"))
+        self.assertEqual(summary_rows(text), [("passed", "doctor"), ("FAILED", "lint")])
+
+    def test_any_other_change_runs_check_as_before(self) -> None:
+        ran: list[str] = []
+        run = Verify(self)
+        with stub_steps(ran):
+            _rc, text, record = run.run(inline_lane, full=False)
+        run.design.assert_called_once_with()
+        self.assertEqual(sorted(ran), ["check", "lint"])
+        self.assertIn(f"  {verify.FAST_LINE}", text.splitlines())
+        self.assertIs(record["design_only"], False)
+
+    def test_full_and_part_runs_never_ask(self) -> None:
+        for kwargs in ({"full": True}, {"full": False, "part": "runner"}):
+            with self.subTest(**kwargs):
+                run = Verify(self)
+                with stub_steps():
+                    _rc, _text, record = run.run(inline_lane, design=(True, self.WHY), **kwargs)  # type: ignore[arg-type]
+                run.design.assert_not_called()
+                self.assertIs(record["design_only"], False)
 
 
 class ChangedLintTest(unittest.TestCase):

@@ -4,6 +4,10 @@
 # PARTS), and the job named `verify`, the check the ruleset main-2 requires, is green only when every part was. Since
 # #980 `test`, the longest part, runs as its two halves, the parts test-1 and test-2 (verify.HALVES, gdunit.half_of),
 # and since #1013 the network runs as two parts: network-1 the ENet and loopback runs, network-2 the WebRTC ones.
+# Since #1123 a pull request whose every changed path is on .github/design-only-paths.txt (Markdown design docs) skips
+# the parts: the `changes` job decides, `verify` then accepts their `skipped`, and `runner on the minimum Python` lints
+# it (the § references). The trigger keeps no path filter, so both required checks always report; pushes to main and
+# release/**, a dispatch and the nightly run stay whole.
 # Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
 # docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
@@ -20,11 +24,69 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Is the pull request design-only (#1123)? Every path its head changed since the merge base with its base (plain git,
+  # no action: a new action is a dependency) matched against .github/design-only-paths.txt, which the runner's
+  # design_only.py reads too; in bash every `*` of a pattern matches any characters, `/` included, as in fnmatch. Fail
+  # safe: a push, a dispatch, an empty or failed diff, an empty list or one path on no line is `false`, and so is a
+  # change to the list (on no line); a red or skipped job leaves the output empty, and the parts run.
+  changes:
+    name: design-only paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      design_only: ${{ steps.diff.outputs.design_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+          fetch-depth: 0
+
+      - name: Is every changed path on the design-only list
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          design_only=false
+          changed=""
+          if [ "$EVENT" = pull_request ] && [ -n "$BASE" ] && [ -n "$HEAD" ]; then
+            changed=$(git -c core.quotePath=false diff --name-only --no-renames "$BASE...$HEAD") || changed=""
+          fi
+          if [ -n "$changed" ]; then
+            design_only=true
+            # Each line trimmed, blank and `#` lines dropped: as design_only.patterns() reads the file.
+            mapfile -t patterns < <(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' .github/design-only-paths.txt | grep -v -e '^#' -e '^$' || true)
+            if [ "${#patterns[@]}" -eq 0 ]; then
+              echo "no pattern in .github/design-only-paths.txt"
+              design_only=false
+            fi
+            while [ "$design_only" = true ] && IFS= read -r path; do
+              hit=false
+              for pattern in "${patterns[@]}"; do
+                # The pattern unquoted: a glob, not a string.
+                if [[ $path == $pattern ]]; then
+                  hit=true
+                  break
+                fi
+              done
+              if [ "$hit" = false ]; then
+                echo "not on the design-only list: $path"
+                design_only=false
+              fi
+            done <<< "$changed"
+          fi
+          echo "design-only: $design_only"
+          echo "design_only=$design_only" >> "$GITHUB_OUTPUT"
+
   # One job per part of verify --full; the list is verify.PARTS' names (test_github_workflows checks it), and each
   # part's steps come from the runner, so no step is listed here. Every part runs to its end when another is red, as
   # every step of one verify does.
   part:
     name: verify ${{ matrix.part }}
+    needs: changes
+    # Skipped for a design-only pull request (#1123); run when `changes` is red (its output then empty).
+    if: ${{ !cancelled() && needs.changes.outputs.design_only != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -86,10 +148,11 @@ jobs:
 
   # The required check `verify` (#857): green only when every part's job ended green. `always()` makes it run, and
   # so report, when a part failed, was cancelled or was skipped; its step then fails (needs.part.result is success
-  # only when every job of the matrix succeeded).
+  # only when every job of the matrix succeeded), except for a design-only pull request (#1123), whose parts the
+  # `changes` job skipped: there `skipped` is green.
   verify:
     name: verify
-    needs: part
+    needs: [changes, part]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -97,15 +160,25 @@ jobs:
       - name: Check every part
         env:
           RESULT: ${{ needs.part.result }}
+          DESIGN_ONLY: ${{ needs.changes.outputs.design_only }}
         run: |
           echo "the parts of verify --full: $RESULT"
+          if [ "$DESIGN_ONLY" = true ] && [ "$RESULT" = skipped ]; then
+            echo "a design-only pull request (#1123): its parts were skipped"
+            exit 0
+          fi
           test "$RESULT" = success
 
   # The runner on its stated minimum Python (tools/runner/pins.py PYTHON_MIN; the python-task-runner ADR), which the
   # verify parts' 3.12 never runs: 3.12-only code broke verify in a cloud session on 3.11 (#345, #349). Every runner
   # file must compile there, and the runner tests that start no Godot (verify's Python lane) must pass; no Godot here.
+  # A design-only pull request (#1123) also gets its lint here (the instruction files and the docs' § references), as
+  # the part that lints is skipped; `!cancelled()` runs the job, and so reports the required check, when `changes` is
+  # red.
   python-min:
     name: runner on the minimum Python
+    needs: changes
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -143,3 +216,7 @@ jobs:
 
       - name: Runner tests that start no Godot
         run: tools/run.sh selftest --group python
+
+      - name: Lint a design-only pull request
+        if: needs.changes.outputs.design_only == 'true'
+        run: tools/run.sh lint
