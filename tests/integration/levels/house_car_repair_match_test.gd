@@ -114,9 +114,9 @@ func test_the_deal_places_each_station_on_its_marker_and_the_car_s_box_holds_no_
 	# RE16: the car's use spot (under the car, its middle) lies on the garage floor of the host's
 	# world, as does car_end, which gives the axis.
 	var car := _station(task_state.car).position
-	var floor := _world.floor_below(car + Vector3.UP)
-	assert_bool(floor != WorldQuery.NO_FLOOR).is_true()
-	assert_float(floor.y).is_equal_approx(car.y, NEAR)
+	var under := _world.floor_below(car + Vector3.UP)
+	assert_bool(under != WorldQuery.NO_FLOOR).is_true()
+	assert_float(under.y).is_equal_approx(car.y, NEAR)
 	assert_float(task_state.car_end.y).is_equal_approx(car.y, NEAR)
 	assert_float(_flat(task_state.car_end - car).length()).is_greater(1.0)
 	# RE7: no spawn or respawn marker (nor any other but the car's own) inside the footprint box,
@@ -472,12 +472,12 @@ func test_the_holder_s_claim_into_the_box_then_a_swap_ends_with_it_dead_once() -
 		var died := 0
 		var knocked_after := 0
 		for event: MatchEvent in _game.view_of(peer).events:
-			var name := event.event_name()
-			if name != &"Died" and name != &"KnockedDown":
+			var kind := event.event_name()
+			if kind != &"Died" and kind != &"KnockedDown":
 				continue
 			if (event.to_dict()["peer"] as int) != holder:
 				continue
-			if name == &"Died":
+			if kind == &"Died":
 				died += 1
 			elif died > 0:
 				knocked_after += 1
