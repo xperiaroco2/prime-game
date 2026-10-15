@@ -235,7 +235,7 @@ func refresh_round(
 	_host_tick = host_tick
 	_local = local
 	_alive = model.is_alive(model.own_peer)
-	hud.aiming = not map.visible and _alive
+	hud.aiming = not map.visible and _alive and not _local.viewing
 	hud.show_hud(HudText.of(model, mode, host_tick, local))
 	# Lesson 7: the dead player's Spectate plate holds the top centre; the step goes under it.
 	tutorial.set_step_under(life.spectate if life.spectate.visible else null)
@@ -303,7 +303,7 @@ func _menu_panel_open() -> bool:
 func _show_map() -> void:
 	var was_shown := map.visible
 	map.visible = _map_open and screen == GameFlow.Screen.ROUND
-	hud.aiming = not map.visible and _alive
+	hud.aiming = not map.visible and _alive and not _local.viewing
 	# The tutorial's round HUD has no role chip (s1's Hud, #492; design §5).
 	hud.role_hidden = map.visible or esc.state.tutorial
 	if map.visible and not was_shown and _model != null:

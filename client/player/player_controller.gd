@@ -92,6 +92,14 @@ var sneak_held: bool = false
 ## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
 ## captures or frees it; the keys still move the player. Game sets it every frame.
 var mouse_free := false
+## The movement keys and the look are held (the photo camera's viewfinder, #786): the device
+## neither moves nor turns the player, while a click still captures the mouse and Esc still frees
+## it. Setting it lets go of every key held (release_keys()).
+var held := false:
+	set(value):
+		held = value
+		if held:
+			release_keys()
 ## Whether the mouse is captured, which the look needs: Input's mouse mode. Tests replace it, as
 ## headless Godot keeps no mouse mode (probed on 4.7.2: CAPTURED reads back as VISIBLE).
 var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
@@ -159,7 +167,7 @@ func _physics_process(delta: float) -> void:
 	# The dead have no body: nothing moves and nothing is claimed until a respawn.
 	if rules == null or not (is_living() or is_downed()):
 		return
-	if reads_device_input:
+	if reads_device_input and not held:
 		_read_device_input()
 	_head.position.y = move_toward(
 		_head.position.y,
@@ -178,7 +186,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var captured := mouse_captured.call() as bool
 	var motion := event as InputEventMouseMotion
-	if motion != null and captured:
+	if motion != null and captured and not held:
 		look(
 			-motion.screen_relative.x * mouse_sensitivity,
 			-motion.screen_relative.y * mouse_sensitivity

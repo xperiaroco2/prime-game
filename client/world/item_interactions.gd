@@ -4,7 +4,11 @@ extends Node3D
 ## the own player is living in the round:
 ## - E (`interact`) sends PickUp(item) for the item TargetChoice offers under the crosshair (on a
 ##   box, #776: a tap sends Interact(station -1, item), a hold of HOLD_SECONDS PickUp), or
-##   Interact(station, item -1) for the station it offers there (#801, §4.7.54);
+##   Interact(station, item -1) for the station it offers there (#801, §4.7.54); on a photo camera
+##   holding a film (#786, §4.7.56) a tap opens the viewfinder (PhotoViewfinder, nothing sent) and
+##   a hold of HOLD_SECONDS sends PickUp of its film, the box's gesture;
+## - in the viewfinder: E or the keys no longer listening close it, the left mouse button sends
+##   the shot, Interact(camera, item -1), while its film has frames left; no other item key acts;
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
 ##   that captures the mouse is not a use;
@@ -53,6 +57,8 @@ var station_of_hit := Callable()
 ## Where the crosshair aims at an item lying on a cooking station (CookingViews.aim_of, #776):
 ## id -> Vector3 or null (TargetChoice.aim_at); unset: such an item is never named.
 var aim_of := Callable()
+## The photo camera's viewfinder (ItemWorld's, #786); null: a tap on a loaded camera opens nothing.
+var viewfinder: PhotoViewfinder
 
 var _target := -1
 var _station := -1
@@ -64,6 +70,8 @@ var _was_captured := false
 ## The box E went down on (#776, CD4 (a)), -1 for none, and how long E has been held on it.
 var _held := -1
 var _held_for := 0.0
+## The photo camera holding a film E went down on (#786), -1 for none; timed by `_held_for` too.
+var _held_camera := -1
 
 
 func _init() -> void:
@@ -103,61 +111,120 @@ func station_target() -> int:
 
 
 ## E: Interact(station, item -1) for the station target (#801; the host decides what it does:
-## a switch toggles, the generator's button starts the charge), else PickUp for the item target;
+## a switch toggles, the generator's button starts the charge, an empty photo camera takes the
+## carried fresh film, #786), else PickUp for the item target;
 ## the sequence number sent, or -1 when nothing was sent.
 func interact() -> int:
 	if _station >= 0 and _acts():
+		# A loaded photo camera shoots only from the viewfinder (#786; its tap opens that).
+		if PhotoUse.is_loaded_camera(model, mode, _station):
+			return -1
 		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
 	return pick_up()
 
 
-## E went down (#776): on a station target or an item that is no box, interact() at once; on a
-## box (CookingUse.is_box) it starts the hold on that box and sends nothing yet: the release before
-## HOLD_SECONDS taps it (release_interact()), the hold reaching it picks it up (hold_step()). The
-## sequence number sent, or -1 when nothing was sent.
+## E went down (#776): in the viewfinder it closes it (#786); on a station target or an item that
+## is no box, interact() at once; on a box (CookingUse.is_box) or a photo camera holding a film
+## (PhotoUse.is_loaded_camera, #786) it starts the hold there and sends nothing yet: the release
+## before HOLD_SECONDS taps it (release_interact()), the hold reaching it picks the box or the
+## camera's film up (hold_step()). The sequence number sent, or -1 when nothing was sent.
 func press_interact() -> int:
 	_held = -1
+	_held_camera = -1
+	if viewing():
+		viewfinder.leave()
+		return -1
 	var item: ClientModel.Item = model.items.get(_target) if model != null else null
 	if _station < 0 and item != null and _acts() and CookingUse.is_box(mode, item.kind):
 		_held = _target
+		_held_for = 0.0
+		return -1
+	if _station >= 0 and _acts() and PhotoUse.is_loaded_camera(model, mode, _station):
+		_held_camera = _station
 		_held_for = 0.0
 		return -1
 	return interact()
 
 
 ## E released (#776): a hold on a box shorter than HOLD_SECONDS taps it, Interact(station -1,
-## item), if the keys still listen and the crosshair is still on that box (it can leave the box in
-## the frame E is released, before hold_step() runs); the sequence number sent, or -1 when nothing
-## was sent.
+## item), and one on a loaded photo camera opens the viewfinder there (#786, nothing sent), if the
+## keys still listen and the crosshair is still on that box or camera (it can leave in the frame
+## E is released, before hold_step() runs); the sequence number sent, or -1 when nothing was sent.
 func release_interact() -> int:
 	var box := _held
+	var camera := _held_camera
 	_held = -1
-	if box < 0 or not listening or not _acts() or _target != box or not model.items.has(box):
+	_held_camera = -1
+	if not listening or not _acts():
+		return -1
+	if camera >= 0:
+		if _station == camera and viewfinder != null:
+			viewfinder.enter(camera)
+		return -1
+	if box < 0 or _target != box or not model.items.has(box):
 		return -1
 	return session.send_intent(Intents.INTERACT, {"station": -1, "item": box})
 
 
 ## E still held for `delta` seconds (#776): once the hold on a box reaches HOLD_SECONDS, PickUp of
-## that box, once (the release then sends nothing). The hold is dropped, sending nothing, when the
-## keys stop listening (the Esc menu, the tutorial's invite), the own player cannot act, or the
-## crosshair leaves the box. The sequence number sent, or -1.
+## that box, once, and on a loaded photo camera PickUp of its film (#786, PD17 (a)); the release
+## then sends nothing. The hold is dropped, sending nothing, when the keys stop listening (the Esc
+## menu, the tutorial's invite), the own player cannot act, the crosshair leaves the box or camera,
+## or the camera's film leaves it. The sequence number sent, or -1.
 func hold_step(delta: float) -> int:
-	if _held < 0:
+	if _held < 0 and _held_camera < 0:
 		return -1
-	if not listening or not _acts() or _target != _held:
+	var on_box := _held >= 0 and _target == _held
+	var on_camera := (
+		_held_camera >= 0
+		and _station == _held_camera
+		and PhotoUse.is_loaded_camera(model, mode, _held_camera)
+	)
+	if not listening or not _acts() or not (on_box or on_camera):
 		_held = -1
+		_held_camera = -1
 		return -1
 	_held_for += delta
 	if _held_for < HOLD_SECONDS:
 		return -1
-	var box := _held
+	var item := _held if on_box else model.stations[_held_camera].film
 	_held = -1
-	return session.send_intent(Intents.PICK_UP, {"item": box})
+	_held_camera = -1
+	# The film's PickUp is the mode's (InReach from the feet), whatever the camera's cylinder.
+	var film: ClientModel.Item = model.items.get(item)
+	if (
+		not on_box
+		and (film == null or player.global_position.distance_to(film.position) > _reach_m)
+	):
+		return -1
+	return session.send_intent(Intents.PICK_UP, {"item": item})
 
 
 ## The box E is held on now (#776), -1 for none.
 func held_box() -> int:
 	return _held
+
+
+## The loaded photo camera E is held on now (#786), -1 for none.
+func held_camera() -> int:
+	return _held_camera
+
+
+## Whether the photo camera's viewfinder is up (#786).
+func viewing() -> bool:
+	return viewfinder != null and viewfinder.active()
+
+
+## The left mouse button in the viewfinder (#786): the shot, Interact(camera, item -1), while the
+## own player can act and the camera's film has frames left (the host refuses the rest anyway);
+## the sequence number sent, or -1 when nothing was sent.
+func shoot() -> int:
+	if not viewing() or not _acts():
+		return -1
+	var camera := viewfinder.station()
+	if PhotoUse.frames_left(model, mode, camera) <= 0:
+		return -1
+	return session.send_intent(Intents.INTERACT, {"station": camera, "item": -1})
 
 
 ## E: PickUp(item) for the target; the sequence number sent, or -1 when nothing was sent.
@@ -261,7 +328,13 @@ func cast_target() -> TargetChoice.Target:
 
 
 func _physics_process(_delta: float) -> void:
-	var aimed := cast_target() if listening else TargetChoice.Target.new()
+	# The keys stopped listening (the Esc menu, the round's end): the viewfinder closes (#786).
+	if viewing() and not listening:
+		viewfinder.leave()
+	# In the viewfinder nothing is aimed at: the HUD names nothing, and E closes it.
+	var aimed := TargetChoice.Target.new()
+	if listening and not viewing():
+		aimed = cast_target()
 	_target = aimed.id if aimed.is_item() else -1
 	_station = aimed.id if aimed.is_station() else -1
 
@@ -274,13 +347,18 @@ func _process(delta: float) -> void:
 	_was_captured = captured
 	if not listening:
 		_held = -1
+		_held_camera = -1
 		return
 	if Input.is_action_just_pressed(&"interact"):
 		press_interact()
-	elif _held >= 0 and not Input.is_action_pressed(&"interact"):
+	elif (_held >= 0 or _held_camera >= 0) and not Input.is_action_pressed(&"interact"):
 		release_interact()
 	else:
 		hold_step(delta)
+	if viewing():
+		if captured and was_captured and Input.is_action_just_pressed(&"use"):
+			shoot()
+		return
 	if Input.is_action_just_pressed(&"put_down"):
 		put_down()
 	if Input.is_action_just_pressed(&"swap"):

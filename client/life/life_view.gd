@@ -50,6 +50,9 @@ var avatars: AvatarViews
 ## The item views (M4-8): a target watched from its eyes has its items in the first-person hand,
 ## not at its body. Null in tests without items.
 var items: ItemViews
+## The camera the living see through instead of the own eye, or null for the eye: () -> Camera3D
+## (the photo viewfinder's lens while it is up, PhotoViewfinder.live_camera, #786). Unset: the eye.
+var view_camera := Callable()
 ## Read the keyboard and mouse. Tests turn it off and call the actions themselves.
 var reads_device_input := true
 ## Whether the life inputs apply now (the game turns it off under the Esc menu and outside the
@@ -513,6 +516,9 @@ func _show(which: View) -> void:
 		View.FIRST_PERSON:
 			var usable := is_instance_valid(player) and player.is_inside_tree()
 			camera = player.get_camera() if usable else null
+			var lens: Camera3D = view_camera.call() as Camera3D if view_camera.is_valid() else null
+			if lens != null and lens.is_inside_tree():
+				camera = lens
 		View.SPECTATE_EYES:
 			camera = _spectate_camera
 		_:
