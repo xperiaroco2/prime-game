@@ -1801,7 +1801,9 @@ Windows x86_64 builds from the two presets of `export_presets.cfg` (`Windows Rel
 beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
 checks the pinned export templates (`pins.py`, the release's SHA512-SUMS.txt), exports a clean `git archive` tree
 of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected, and webrtc-native's too when
-the probe below runs the Windows pack, which holds no Linux library), adds the license notices to both builds
+the probe below runs the Windows pack, which holds no Linux library), imported once before its first export
+(`--headless --import`, as `check` does, #1131: the UI translations `project.godot` names are the CSV import's
+gitignored products, so a clean tree lacks them until then; the probe checks that the release pack loads both), adds the license notices to both builds
 (#419: `CREDITS.md` and every `LICENSE*` file of the addons whose libraries a build ships, TwoVoIP's and
 webrtc-native's, under `licenses/<addon>/` beside the `.exe`, one folder per addon since two could both be
 `LICENSE`; and, #422, every file of `docs/credits/licenses/<folder>/` as `licenses/<folder>/`: Godot 4.7.2-stable's

@@ -10,9 +10,10 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 from runner import export, pins
-from runner.common import Failure
+from runner.common import Failure, Result
 
 try:
     import yaml
@@ -46,6 +47,20 @@ class ProbeTest(unittest.TestCase):
             export.parse_probe(PROBE_OUT[:-1])
         with self.assertRaises(Failure):
             export.parse_probe(["EXPORT done 0"])
+
+    def test_the_release_pack_must_load_both_ui_translations(self) -> None:
+        en, uk = (f"res://{name}" for name in export.TRANSLATIONS)
+        both = export.parse_probe([f"EXPORT translation {en} en", f"EXPORT translation {uk} uk", *PROBE_OUT])
+        self.assertEqual(both.translations, {en: "en", uk: "uk"})
+        self.assertEqual(export.missing_translations(both), [])
+        one = export.parse_probe([f"EXPORT translation {en} en", f"EXPORT translation {uk} missing", *PROBE_OUT])
+        self.assertEqual(export.missing_translations(one), [export.TRANSLATIONS[1]])
+        self.assertEqual(export.missing_translations(export.parse_probe(PROBE_OUT)), list(export.TRANSLATIONS))
+
+    def test_the_project_names_the_translations_the_release_must_carry(self) -> None:
+        project = (ROOT / "project.godot").read_text(encoding="utf-8")
+        for name in export.TRANSLATIONS:
+            self.assertIn(f'"res://{name}"', project)
 
     def test_a_proof_with_a_missing_file_fails_before_any_export(self) -> None:
         with self.assertRaises(Failure) as caught:
@@ -302,6 +317,114 @@ class NoticesTest(unittest.TestCase):
         presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
         for addon in export.SHIPPED_ADDONS:
             self.assertNotIn(f"addons/{addon}/", presets)
+
+
+class ImportTest(unittest.TestCase):
+    """The clean tree is imported once before its first export (#1131), so the exports find the UI translations."""
+
+    NOT_YET = [
+        "ERROR: Cannot open file 'res://client/i18n/strings.en.translation'.",
+        "   at: load (core/io/resource_format_binary.cpp:1156)",
+        "ERROR: Failed loading resource: res://client/i18n/strings.uk.translation.",
+        "   at: _load (core/io/resource_loader.cpp:317)",
+        "ERROR: Can't open dynamic library, file not found: 'addons/twovoip/libs/libtwovoip.linux.x86_64.so'.",
+    ]
+
+    def setUp(self) -> None:
+        self.tree = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tree, True)
+        patcher = mock.patch.object(export, "require_godot", return_value="godot")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.cmds: list[list[str]] = []
+        self.envs: list[dict[str, str] | None] = []
+
+    def godot(self, lines: list[str], rc: int = 0, writes: tuple[str, ...] = export.TRANSLATIONS, timed_out=False):
+        def fake(cmd: list[str], **kwargs: object) -> Result:
+            self.cmds.append(cmd)
+            self.envs.append(kwargs.get("env"))
+            for name in writes:
+                (self.tree / name).parent.mkdir(parents=True, exist_ok=True)
+                (self.tree / name).write_bytes(b"RSRC")
+            return Result(rc=rc, out="\n".join(lines), timed_out=timed_out, seconds=1.0)
+
+        return mock.patch.object(export, "run", side_effect=fake)
+
+    def test_the_import_runs_checks_flags_on_the_tree_with_the_exports_data(self) -> None:
+        with self.godot(self.NOT_YET), mock.patch.object(export, "say"):
+            export.import_tree(self.tree, Path("/data"), "export-import")
+        self.assertEqual(self.cmds, [["godot", "--headless", "--path", str(self.tree), "--import"]])
+        self.assertEqual(self.envs, [export.data_env(Path("/data"))])
+
+    def test_another_error_a_failed_import_a_timeout_or_an_unwritten_translation_fail(self) -> None:
+        cases = {
+            "Parse Error": dict(lines=[*self.NOT_YET, "ERROR: res://client/ui/hud.gd:3 - Parse Error: x"]),
+            "exit 1": dict(lines=[], rc=1),
+            "timed out": dict(lines=[], timed_out=True),
+            f"no {export.TRANSLATIONS[1]}": dict(lines=[], writes=export.TRANSLATIONS[:1]),
+        }
+        for reason, case in cases.items():
+            shutil.rmtree(self.tree / "client", ignore_errors=True)
+            with self.subTest(reason), self.godot(**case), self.assertRaises(Failure) as caught:
+                export.import_tree(self.tree, Path("/data"), "export-import")
+            self.assertIn(reason, str(caught.exception))
+            self.assertIn("tools/out/logs/export-import.log", str(caught.exception))
+
+    def test_the_build_tree_is_imported_after_its_version_and_before_the_first_export(self) -> None:
+        calls: list[tuple[str, object]] = []
+
+        def record(name: str, result: object = None):
+            def call(*args: object, **kwargs: object) -> object:
+                calls.append((name, args[0] if args else None))
+                if name == "export":
+                    raise Failure("stop")
+                return result if result is not None else (args[1] if name == "clean_tree" else None)
+
+            return call
+
+        commit = "a" * 40
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+            export,
+            EXPORT=Path(out),
+            git=mock.Mock(return_value=Result(rc=0, out=commit + "\n", timed_out=False, seconds=0.0)),
+            install_templates=record("install_templates", Path(out) / "templates"),
+            clean_tree=record("clean_tree"),
+            set_version=record("set_version"),
+            import_tree=record("import_tree"),
+            export=record("export"),
+            say=mock.DEFAULT,
+            ok=mock.DEFAULT,
+        ):
+            with self.assertRaises(Failure):
+                export.main("v0.7.0")
+            tree = Path(out) / "trees" / "build"
+        self.assertEqual(
+            calls,
+            [
+                ("install_templates", Path(out) / "data"),
+                ("clean_tree", commit),
+                ("set_version", tree),
+                ("import_tree", tree),
+                ("export", tree),
+            ],
+        )
+
+    def test_the_second_tree_of_the_hash_proof_is_imported_before_its_export(self) -> None:
+        calls: list[str] = []
+        again = Path("again")
+        release = export.parse_probe([line for line in PROBE_OUT if "missing" not in line])
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+            export,
+            EXPORT=Path(out),
+            clean_tree=mock.Mock(side_effect=lambda rev, dest: calls.append("clean_tree") or again),
+            import_tree=mock.Mock(side_effect=lambda tree, data, log: calls.append(f"import_tree {tree}")),
+            export=mock.Mock(side_effect=Failure("stop")),
+            ok=mock.DEFAULT,
+        ):
+            with self.assertRaises(Failure):
+                export.prove_hash("HEAD", Path("data"), release)
+            self.assertEqual(export.export.call_args.args[0], again)
+        self.assertEqual(calls, ["clean_tree", f"import_tree {again}"])
 
 
 class HelpersTest(unittest.TestCase):
