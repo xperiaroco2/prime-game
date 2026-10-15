@@ -50,6 +50,8 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 				"Delivery task.delivery",
 				# The Generator's card on the House (#800), under the deck's Switches.
 				"Generator task.switches",
+				# The photo task's placeholder card on the House (#784), under the deck's Photo zone.
+				"Photo room.photo_zone",
 			]
 		)
 	)

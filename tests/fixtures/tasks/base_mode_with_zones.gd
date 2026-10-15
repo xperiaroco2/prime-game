@@ -3,11 +3,12 @@ extends GameMode
 ## The base mode as release/m7's #649 made it, for the zone task's tests and scenarios: the
 ## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
 ## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
-## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator, its
-## setting and Round's Interact (#800) left out. The engineer took the
-## zone task out of the shipped base mode on #842 (comment 6110558513: "only from the mode, now"),
-## keeping its code, its tests and the House's zones; this fixture is where they run. Loaded
-## through `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as its mode.
+## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator and the
+## photo task (#784), their settings and Round's Interact (#800) left out (the film and photo
+## item kinds stay, unused). The engineer took the zone task out of the shipped base mode on #842
+## (comment 6110558513: "only from the mode, now"), keeping its code, its tests and the House's
+## zones; this fixture is where they run. Loaded through `base_mode_with_zones.tres` (PATH), so a
+## bot scenario can name it as its mode.
 
 const PATH := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -40,12 +41,13 @@ func _init() -> void:
 	zones.default_value = 1
 	zones.min_value = 1
 	zones.max_value = 1
-	# Without the Generator (#800): its House would deal two of three types, and these tests are
-	# the zone task beside Delivery, as #649 made it. The Generator's own tests load the shipped mode.
+	# Without the Generator (#800) and the photo task (#784): the House would deal two of four
+	# types, and these tests are the zone task beside Delivery, as #649 made it. Their own tests
+	# load the shipped mode.
 	var without: Array[StringName] = []
 	var types: Array[TaskType] = []
 	for type: TaskType in base.task_types:
-		if type is Generator:
+		if type is Generator or type is PhotoTask:
 			without.append(type.subtasks_setting)
 		else:
 			types.append(type)
@@ -67,8 +69,9 @@ static func mode() -> GameMode:
 	return load(PATH) as GameMode
 
 
-## Round's own copy without Interact, which only the Generator's station rules handle (the mode
-## check refuses an accepted intent no rule handles); the shipped mode's phases stay as they are.
+## Round's own copy without Interact, which only the Generator's and the photo task's station rules
+## handle (the mode check refuses an accepted intent no rule handles); the shipped mode's phases
+## stay as they are.
 func _without_interact() -> void:
 	var own: Array[PhaseSpec] = []
 	for spec: PhaseSpec in phases:
