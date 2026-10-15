@@ -1023,7 +1023,8 @@ def summary_markdown(summary: dict[str, object]) -> str:
     """The summary as Markdown for the GitHub job summary: suites with a failure only; the JSON holds every suite."""
     runs = summary["runs"]
     assert isinstance(runs, list)
-    lines = [f"## GdUnit4, {len(runs)} runs", "", "| run | status | tests | failed | note |", "|---|---|---|---|---|"]
+    half = f", half {summary['half']}" if "half" in summary else ""
+    lines = [f"## GdUnit4, {len(runs)} runs{half}", "", "| run | status | tests | failed | note |", "|---|---|---|---|---|"]
     lines += [f"| {r['run']} | {r['status']} | {r['tests']} | {len(r['failed'])} | {r['note']} |" for r in runs]
     flaky, every, suites = summary["flaky"], summary["failed_every_run"], summary["suites"]
     assert isinstance(flaky, list) and isinstance(every, list) and isinstance(suites, list)
@@ -1076,12 +1077,33 @@ def _sharded_run(index: int, items: list[str], count: int, why: str, fixed_fps: 
     return RunOutcome(index, "FAILED" if failed else "passed", note)
 
 
+# The half of the suites `test --repeat` runs (half_scripts), as the nightly flaky job sets it: one job per half, as CI
+# runs `verify --part test-1` and `test-2` (#1065: the art House's suites outgrew two real-time shards of one job,
+# nightly run 38689352624). A variable, not an option, so a ref whose runner is older ignores it and runs every suite.
+HALF_VAR = "PRIME_TEST_HALF"
+
+
+def half_from_env(paths: list[str] | None) -> int | None:
+    """The half HALF_VAR names for a run without paths; None when it is unset or empty, and for named paths (ignored,
+    as PRIME_TEST_SHARDS is). A value that is not a half fails."""
+    value = os.environ.get(HALF_VAR, "").strip()
+    if not value:
+        return None
+    if paths:
+        warn(f"{HALF_VAR}={value} ignored: named paths run as given")
+        return None
+    if value not in {str(half) for half in HALF_IDS}:
+        raise Failure(f"{HALF_VAR} must be one of {', '.join(map(str, HALF_IDS))}, not {value!r}")
+    return int(value)
+
+
 def repeat(
     runs: int,
     paths: list[str] | None = None,
     run_import: bool = True,
     fixed_fps: bool | None = None,
     shards: int | None = None,
+    half: int | None = None,
 ) -> int:
     """`test --repeat N`: N runs one after another; any failed run fails it. Each run's report goes to
     tools/out/gdunit-runs/run-<i>/ and its log to tools/out/logs/test-run<i>.log; summary.json and summary.md compare
@@ -1089,11 +1111,16 @@ def repeat(
     default too, real-time: the nightly flaky job's `test --repeat 3` keeps covering the #222 class (#341).
     Each run takes as many processes as `test` would (shard_count: `shards`, else one for named paths, else
     PRIME_TEST_SHARDS, else default_shards()): a run in one process outgrew TIMEOUT when the suite grew (#817). Its
-    shards keep the run's clock: real-time, or with `fixed_fps` every named suite at fixed fps."""
+    shards keep the run's clock: real-time, or with `fixed_fps` every named suite at fixed fps. `half` (else
+    HALF_VAR's, half_from_env): only that half of a run without paths (half_scripts), as verify's test-1 and test-2."""
     if runs < 1:
         raise Failure("--repeat must be at least 1")
     if fixed_fps and not paths:
         raise Failure("--repeat with --fixed-fps needs the paths to run at fixed fps")
+    if half is not None and paths:
+        raise Failure("a half of `test --repeat` is one of a run without paths: give no paths")
+    if half is None:
+        half = half_from_env(paths)
     count, why = shard_count(paths, shards)
     say(f"test --repeat {runs}" + CLOCK_NOTE[fixed_fps])
     ensure_out()
@@ -1108,13 +1135,15 @@ def repeat(
     shutil.rmtree(RUNS_DIR, ignore_errors=True)
     RUNS_DIR.mkdir(parents=True)
     engine_args = FIXED_FPS_ARGS if fixed_fps else ()
-    args = _args(paths, tests_dir, engine_args)
+    items = selectors(paths, tests_dir) if half is None else half_scripts(half, tests_dir)
+    if half is not None:
+        say(f"test: half {half} of {len(HALF_IDS)} of a run without paths (gdunit.half_of): {len(items)} scripts")
+    args = _command(items, REPORT_RES, engine_args)
     outcomes: list[RunOutcome] = []
     for index in range(1, runs + 1):
         say(f"test: run {index} of {runs}")
         shutil.rmtree(REPORT_DIR, ignore_errors=True)
         log = f"test-run{index}"
-        items = selectors(paths, tests_dir)
         outcome = _sharded_run(index, items, count, why, bool(fixed_fps), bool(paths)) if count > 1 else None
         if outcome is not None:
             reports = [REPORT_DIR / "results.xml"] if (REPORT_DIR / "results.xml").is_file() else []
@@ -1136,6 +1165,8 @@ def repeat(
     summary = summarize(outcomes)
     if engine_args:
         summary["engine_args"] = list(engine_args)
+    if half is not None:
+        summary["half"] = half
     (RUNS_DIR / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n")
     (RUNS_DIR / "summary.md").write_text(summary_markdown(summary), encoding="utf-8", newline="\n")
     say(f"test --repeat {runs}: " + ", ".join(f"run {o.run} {o.status}" for o in outcomes))
