@@ -6,13 +6,35 @@ extends GdUnitTestSuite
 
 const MODES := "res://content/modes"
 ## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
-## meanwhile: the photo task's film and photo (#784). No deck key fits either and none is invented
-## (`strings.csv` is the UI track's, byte for byte), so the UI track is asked for `item.film` and
-## `item.photo`. Self-expiring: the test fails once the deck carries the key, and the entry goes.
-## An exception the engineer approves in #784's PR, not a decision.
+## meanwhile: the photo task's film and photo (#784) and Cooking's 21 kinds (#775, the cooking
+## ADR's §5.1 names). No deck key fits any and none is invented (`strings.csv` is the UI track's,
+## byte for byte), so the UI track is asked for `item.<id>` of each. Self-expiring: the test fails
+## once the deck carries the key, and the entry goes. An exception the engineer approves in #784's
+## and #775's PRs, not a decision.
 const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"film": "Film",
 	&"photo": "Photo",
+	&"bun_white": "White bun",
+	&"bun_sesame": "Sesame bun",
+	&"bun_dark": "Dark bun",
+	&"patty_light_raw": "Raw light patty",
+	&"patty_red_raw": "Raw red patty",
+	&"patty_deep_red_raw": "Raw deep red patty",
+	&"patty_light": "Light patty",
+	&"patty_red": "Red patty",
+	&"patty_deep_red": "Deep red patty",
+	&"patty_burnt": "Burnt patty",
+	&"basil": "Basil",
+	&"dill": "Dill",
+	&"rosemary": "Rosemary",
+	&"chives": "Chives",
+	&"mint": "Mint",
+	&"box_bun_white": "Box of white buns",
+	&"box_bun_sesame": "Box of sesame buns",
+	&"box_bun_dark": "Box of dark buns",
+	&"box_patty_light": "Box of light patties",
+	&"box_patty_red": "Box of red patties",
+	&"box_patty_deep_red": "Box of deep red patties",
 }
 
 var _locale := ""
@@ -73,6 +95,13 @@ func test_the_generator_is_the_decks_switches() -> void:
 func test_the_photo_task_is_the_decks_photo_zone() -> void:
 	assert_str(ContentNames.task(&"photo", null)).is_equal("room.photo_zone")
 	assert_str(ContentNames.task(&"photo", GameMode.new())).is_equal("room.photo_zone")
+
+
+## Cooking (#775) reads as the deck's Kitchen, the nearest key the deck has, until the UI track
+## adds `task.cooking` (a placeholder the engineer approves in #775's PR).
+func test_cooking_is_the_decks_kitchen() -> void:
+	assert_str(ContentNames.task(&"cooking", null)).is_equal("room.kitchen")
+	assert_str(ContentNames.task(&"cooking", GameMode.new())).is_equal("room.kitchen")
 
 
 ## Content that adds a type the deck already names needs no edit in ContentNames: the key is found

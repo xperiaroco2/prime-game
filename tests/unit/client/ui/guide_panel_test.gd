@@ -52,6 +52,8 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 				"Generator task.switches",
 				# The photo task's placeholder card on the House (#784), under the deck's Photo zone.
 				"Photo room.photo_zone",
+				# Cooking's card on the House (#775), under the deck's Kitchen until the deck names it.
+				"Cooking room.kitchen",
 			]
 		)
 	)

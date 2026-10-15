@@ -54,12 +54,12 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 		"Waiting for everyone"
 	)
 	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
-	# match_duration, tasks, packages, switches (the Generator, #800), photos (the photo task, #784),
-	# dissidents, knives.
-	assert_int(steppers.size()).is_equal(7)
-	# The task count is 1 to 3 since the Generator and the photo task (#800, #784; GD7: every type the
-	# map plays): its row shows. A fixed count's row hides: the zones test below checks that on the
-	# Zones row.
+	# match_duration, tasks, packages, switches (the Generator, #800), photos (the photo task,
+	# #784), burgers (Cooking, #775), dissidents, knives.
+	assert_int(steppers.size()).is_equal(8)
+	# The task count is 1 to 4 since the Generator, the photo task and Cooking (#800, #784, #775;
+	# GD7: every type the map plays): its row shows. A fixed count's row hides: the zones test
+	# below checks that on the Zones row.
 	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_true()
 	var duration := steppers[0] as SettingStepper
 	var spec := mode.find_setting(&"match_duration")
