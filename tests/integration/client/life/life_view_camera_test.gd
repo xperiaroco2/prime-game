@@ -67,9 +67,9 @@ func test_no_view_camera_gives_the_eye_back() -> void:
 	await _drawn()
 	assert_bool(_lens.current).is_true()
 	_lens_up = false
-	_player.get_camera().make_current()
 	await _drawn()
 	assert_bool(_player.get_camera().current).is_true()
+	assert_bool(_lens.current).is_false()
 
 
 func test_the_downed_camera_wins_over_the_view_camera() -> void:
