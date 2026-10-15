@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Cooking's edge rows beside other parts (the cooking ADR §4, #773): a downed player at the
 ## grill is not accepted (the allowlist), a raiser's take applies and stops its raise, the last
-## ingredient in the clock's last tick wins for the crew (the command runs before the clock), and a
+## serve in the clock's last tick wins for the crew (the command runs before the clock; the last
+## ingredient before #1101, when a burger was done on its plate), and a
 ## round that ends while a patty fries changes nothing more until ResetMatch clears it. Driven by
 ## commands through a seeded Match on FixtureCookingModes.
 
@@ -45,21 +46,15 @@ func test_a_raiser_s_take_applies_and_stops_the_raise() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_the_last_ingredient_in_the_clock_s_last_tick_wins_for_the_crew() -> void:
+func test_the_last_serve_in_the_clock_s_last_tick_wins_for_the_crew() -> void:
 	var game := FixtureCookingModes.in_round(FixtureCookingModes.winning(1), [P1, P2])
 	var order := FixtureCookingModes.state_of(game).orders[0]
-	var place := FixtureCookingModes.place_of(game, 0)
-	FixtureCookingModes.take(game, P1, order.bun.id)
-	FixtureCookingModes.use(game, P1, place)
-	FixtureModes.run_ticks(game, 1)
-	FixtureCookingModes.fry(game, P1, order.raw_patty.id)
-	FixtureCookingModes.use(game, P1, place)
-	FixtureModes.run_ticks(game, 1)
-	FixtureCookingModes.pick(game, P1, order.herb.id)
-	FixtureModes.run_ticks(game, 1)
+	FixtureCookingModes.plate(game, P1, 0)
+	FixtureCookingModes.take_burger(game, P1, 0)
+	assert_bool(order.done).is_false()
 	# The clock's last tick: without the burger, time up would win for the dissidents.
 	game.state.clock_ticks_left = 1
-	FixtureCookingModes.use(game, P1, place)
+	FixtureCookingModes.use(game, P1, FixtureCookingModes.board_of(game))
 	FixtureModes.run_ticks(game, 1)
 	assert_bool(order.done).is_true()
 	assert_str(game.phase_id()).is_equal("end")

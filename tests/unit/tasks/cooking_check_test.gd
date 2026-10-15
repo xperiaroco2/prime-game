@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## Cooking's checks and declarations (the cooking ADR's CE6, CE7, CE14, CE18; ARCHITECTURE §5,
-## §9.5): ModeCheck refuses a Cooking without its parts, with a board that is no display kind or a
-## used kind without its use, with lists that do not fit together, a kind the mode does not list,
+## §9.5): ModeCheck refuses a Cooking without its parts (the burger among them, #1101), with a herb
+## board that is no display kind, an order board that is one (a serve, #1101) or a used kind
+## without its use, with lists that do not fit together, a kind the mode does not list,
 ## a box that gives no bun or raw patty, a kind no box gives, seconds out of bounds, an uncapped
-## or too low cap, an ingredient that never vanishes; emits() names every event the deal sends; and
+## or too low cap, an ingredient or a burger that never vanishes, a two-handed burger; emits()
+## names every event the deal sends; and
 ## both leak lists name every event emits() returns. Fixture values only.
 
 const P1 := 1
@@ -28,6 +30,7 @@ func test_the_mode_check_refuses_a_cooking_without_its_parts() -> void:
 	type.herbs = []
 	type.boxes = []
 	type.burnt = null
+	type.burger = null
 	type.subtasks_setting = &""
 	type.code_rng = &""
 	var errors := _errors(mode)
@@ -37,6 +40,7 @@ func test_the_mode_check_refuses_a_cooking_without_its_parts() -> void:
 		assert_str(errors).contains("Cooking cooking has no %s" % list_name)
 	assert_str(errors).contains("Cooking cooking has 2 fried_patties for 0 raw_patties")
 	assert_str(errors).contains("Cooking cooking has no burnt item kind")
+	assert_str(errors).contains("Cooking cooking has no burger item kind")
 	assert_str(errors).contains("Cooking cooking has no subtasks_setting")
 	assert_str(errors).contains("Cooking cooking has an empty RNG purpose")
 
@@ -54,7 +58,33 @@ func test_the_boards_are_display_kinds_and_the_others_end_in_their_use() -> void
 	assert_str(errors).contains("station kind grill is a display kind, never used")
 	assert_str(errors).contains("station kind place has no Interact rule ending in UseStation")
 	assert_str(errors).contains("station kind herb_bed has no Interact rule ending in UseStation")
-	assert_str(errors).not_contains("order_board is not")
+	assert_str(errors).not_contains("order_board is")
+
+
+## The order board is where a burger is served (#1101): a display kind, or one without its use, is
+## refused as the grill's would be.
+func test_the_order_board_is_no_display_kind_and_ends_in_its_use() -> void:
+	var mode := FixtureCookingModes.basic()
+	var type := FixtureCookingModes.type_of(mode)
+	type.order_board.display = true
+	assert_str(_errors(mode)).contains("station kind order_board is a display kind, never used")
+	type.order_board.display = false
+	type.order_board.actions = []
+	assert_str(_errors(mode)).contains(
+		"station kind order_board has no Interact rule ending in UseStation"
+	)
+
+
+func test_the_burger_vanishes_is_one_handed_and_listed() -> void:
+	var mode := FixtureCookingModes.basic()
+	var type := FixtureCookingModes.type_of(mode)
+	type.burger.vanish_seconds = 0
+	type.burger.hands = 2
+	mode.item_kinds.erase(type.burger)
+	var errors := _errors(mode)
+	assert_str(errors).contains("burger kind burger sets no vanish_seconds")
+	assert_str(errors).contains("burger kind burger is two-handed")
+	assert_str(errors).contains("names item kind burger, which the mode does not declare")
 
 
 func test_a_herb_bed_without_a_cooldown_in_its_use_rule_is_refused() -> void:

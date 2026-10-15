@@ -58,7 +58,7 @@ static func mode() -> GameMode:
 	made.settings.append(FixtureDealModes.banned_setting())
 	made.settings.append(FixtureModes.setting(&"burgers", 1, 0, FixtureCookingModes.MOST_BURGERS))
 	var type := cooking_type()
-	for kind: ItemKind in type.ingredients():
+	for kind: ItemKind in type.kinds():
 		made.item_kinds.append(kind)
 	for kind: ItemKind in type.boxes:
 		made.item_kinds.append(kind)
@@ -83,9 +83,9 @@ static func cooking_type() -> Cooking:
 	made.maps = PackedStringArray([KITCHEN])
 	made.herb_bed = FixtureCookingModes.taking(&"herb_bed")
 	made.herb_bed.actions[0].conditions.append(take_cooldown())
-	for kind: StationKind in [made.grill, made.herb_bed, made.place]:
+	for kind: StationKind in [made.order_board, made.grill, made.herb_bed, made.place]:
 		kind.radius_m = REACH_M
-	for kind: ItemKind in made.ingredients():
+	for kind: ItemKind in made.kinds():
 		kind.vanish_seconds = VANISH_SECONDS
 		if kind.max_items > 0:
 			kind.max_items = CAP

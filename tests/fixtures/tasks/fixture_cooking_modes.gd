@@ -8,12 +8,13 @@ extends RefCounted
 ## the raise; Round lists LifeTicks, then ChannelTicks) with VanishTicks and then TaskTicks added
 ## to Round, Interact from the living in Round, the settings `tasks` (1), `banned_task_types` and
 ## `burgers` (`burgers` by default, 0 to MOST_BURGERS), and the task type Cooking in place of the
-## mode's: the display kinds `order_board` and `herb_board`, the kinds `grill` and `herb_bed` with
-## the use rule less HandNotTwoHanded (a take beside a box, CD3 (b): AtStation, StationInSight,
-## StationUsable; UseStation) and `place` with the whole use rule (FixtureGeneratorModes.kind,
-## HandNotTwoHanded first), the buns `bun_a` and `bun_b`, the raw patties `raw_a` and
-## `raw_b`, the fried `fried_a` and `fried_b`, `burnt`, the herbs `herb_a` to `herb_c` (no spawn
-## tag, `vanish_seconds` VANISH, the given ones `max_items` CAP) and one two-handed box per bun and
+## mode's: the display kind `herb_board`, the kinds `order_board` (a serve, #1101), `grill` and
+## `herb_bed` with the use rule less HandNotTwoHanded (a take beside a box, CD3 (b): AtStation,
+## StationInSight, StationUsable; UseStation) and `place` with the whole use rule
+## (FixtureGeneratorModes.kind, HandNotTwoHanded first), the buns `bun_a` and `bun_b`, the raw
+## patties `raw_a` and `raw_b`, the fried `fried_a` and `fried_b`, `burnt`, the herbs `herb_a` to
+## `herb_c`, the `burger` (no spawn tag, `vanish_seconds` VANISH, the given ones `max_items` CAP;
+## the burger uncapped) and one two-handed box per bun and
 ## raw patty (`box_bun_a` ...), each on its own tag with FixtureGiveModes' take. The deal
 ## (DealTasks) runs before PlacePlayers on `lobby, all_ready -> round`.
 ##
@@ -68,7 +69,7 @@ static func _add_cooking(mode: GameMode, burgers: int) -> void:
 		mode.settings.append(FixtureDealModes.banned_setting())
 	mode.settings.append(FixtureModes.setting(&"burgers", burgers, 0, MOST_BURGERS))
 	var type := cooking_type()
-	for kind: ItemKind in type.ingredients():
+	for kind: ItemKind in type.kinds():
 		mode.item_kinds.append(kind)
 	for kind: ItemKind in type.boxes:
 		mode.item_kinds.append(kind)
@@ -83,7 +84,7 @@ static func cooking_type() -> Cooking:
 	var made := Cooking.new()
 	made.id = &"cooking"
 	made.description = "Cook the burgers on the order board."
-	made.order_board = board(&"order_board")
+	made.order_board = taking(&"order_board")
 	made.herb_board = board(&"herb_board")
 	made.grill = taking(&"grill")
 	made.herb_bed = bed(&"herb_bed")
@@ -95,6 +96,7 @@ static func cooking_type() -> Cooking:
 	made.herbs = [
 		ingredient(&"herb_a", true), ingredient(&"herb_b", true), ingredient(&"herb_c", true)
 	]
+	made.burger = ingredient(&"burger", false)
 	var given: Array[ItemKind] = []
 	given.append_array(made.buns)
 	given.append_array(made.raw_patties)
@@ -286,17 +288,50 @@ static func fry(game: Match, peer: int, raw_id: StringName) -> ItemState:
 	return patty
 
 
-## Every right ingredient of order `index` into `peer`'s hand and onto its place, in the order bun,
-## patty, herb, with one tick after each.
+## The order board's station id.
+static func board_of(game: Match) -> int:
+	return state_of(game).order_board
+
+
+## Order `index`'s burger made right and served (#1101): plate(), take_burger(), serve().
 static func cook(game: Match, peer: int, index: int) -> void:
+	plate(game, peer, index)
+	take_burger(game, peer, index)
+	serve(game, peer)
+
+
+## Every right ingredient of order `index` into `peer`'s hand and onto its place, in the order bun,
+## patty, herb, with one tick after each: the plate is full, nothing checked yet.
+static func plate(game: Match, peer: int, index: int) -> void:
 	var order := state_of(game).orders[index]
-	var place_id := place_of(game, index)
-	take(game, peer, order.bun.id)
-	use(game, peer, place_id)
+	put(game, peer, index, order.bun.id)
+	put(game, peer, index, order.raw_patty.id)
+	put(game, peer, index, order.herb.id)
+
+
+## An item of `kind_id` into `peer`'s hand (a bun from its box, a raw patty from its box fried, a
+## herb from its bed) and onto place `index`, then one tick.
+static func put(game: Match, peer: int, index: int, kind_id: StringName) -> void:
+	var type := type_of(game.mode)
+	if type.raw_patties.any(func(kind: ItemKind) -> bool: return kind.id == kind_id):
+		fry(game, peer, kind_id)
+	elif type.herbs.any(func(kind: ItemKind) -> bool: return kind.id == kind_id):
+		pick(game, peer, kind_id)
+	else:
+		take(game, peer, kind_id)
+	use(game, peer, place_of(game, index))
 	FixtureModes.run_ticks(game, 1)
-	fry(game, peer, order.raw_patty.id)
-	use(game, peer, place_id)
+
+
+## `peer` takes the plated burger off place `index` (E on its full plate), then one tick. Returns
+## the burger in `peer`'s hand.
+static func take_burger(game: Match, peer: int, index: int) -> ItemState:
+	use(game, peer, place_of(game, index))
 	FixtureModes.run_ticks(game, 1)
-	pick(game, peer, order.herb.id)
-	use(game, peer, place_id)
+	return held(game, peer)
+
+
+## `peer` serves the burger in hand at the order board (E there), then one tick.
+static func serve(game: Match, peer: int) -> void:
+	use(game, peer, board_of(game))
 	FixtureModes.run_ticks(game, 1)

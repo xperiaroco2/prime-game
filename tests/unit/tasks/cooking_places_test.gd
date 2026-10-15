@@ -1,11 +1,11 @@
 extends GdUnitTestSuite
-## Cooking's places (core/tasks/cooking.gd; the cooking ADR's §2.5, §4, CD8 (b), CE5, CE13, #773):
-## Interact on a place puts the hand item on. Right (the order's bun, fried patty or herb, its slot
-## empty): locked there; wrong: it lies at the place, and PickUp takes it back; IngredientPlaced
-## either way. The third right one: the place done, then Tasks.subtask_done. Refused `two_handed`
-## (the rule's HandNotTwoHanded), then `unavailable` (done), `empty_hand`, `wrong_item` (not an
-## ingredient a place takes: a knife, a raw or burnt patty). Driven by commands through a seeded
-## Match on FixtureCookingModes.
+## Cooking's places (core/tasks/cooking.gd; the cooking ADR's §2.5, §4, CD8 (b), CE5, CE13, #773,
+## and its amendment of 2026-10-15, #1101): Interact on a place puts the hand item on its free
+## slot, locked there, whatever the order asks: nothing is checked before the burger is served
+## (cooking_serve_test.gd), and IngredientPlaced carries no word of right or wrong. Refused
+## `two_handed` (the rule's HandNotTwoHanded), then `unavailable` (done), `empty_hand`,
+## `wrong_item` (not an ingredient a place takes: a knife, a raw or burnt patty), `unavailable`
+## (the slot filled). Driven by commands through a seeded Match on FixtureCookingModes.
 
 const P1 := 1
 const P2 := 2
@@ -17,7 +17,7 @@ func before_test() -> void:
 	_game = FixtureCookingModes.in_round(FixtureCookingModes.basic(2), [P1, P2])
 
 
-func test_the_order_s_bun_is_right_locked_on_the_place() -> void:
+func test_the_order_s_bun_is_locked_on_the_place() -> void:
 	var order := _order(0)
 	FixtureCookingModes.take(_game, P1, order.bun.id)
 	var bun := FixtureCookingModes.held(_game, P1)
@@ -27,56 +27,89 @@ func test_the_order_s_bun_is_right_locked_on_the_place() -> void:
 	assert_vector(bun.position).is_equal(place.position)
 	assert_int(_game.state.player(P1).held_item).is_equal(-1)
 	assert_int(order.bun_item).is_equal(bun.id)
-	var placed := {"item": bun.id, "station": place.id, "right": true}
+	var placed := {"item": bun.id, "station": place.id}
 	for peer: int in [P1, P2]:
 		assert_array(FixtureCookingModes.dicts(_game, peer, &"IngredientPlaced")).is_equal([placed])
 
 
-func test_another_bun_is_wrong_it_lies_at_the_place_and_pick_up_takes_it_back() -> void:
+## Before #1101 another bun lay on the ground at the place, drawn red; now it is locked on the
+## bun slot as the order's would be, and the event is the same.
+func test_another_bun_is_locked_on_the_place_as_the_order_s_would_be() -> void:
 	var order := _order(0)
 	FixtureCookingModes.take(_game, P1, _other_bun(order).id)
 	var bun := FixtureCookingModes.held(_game, P1)
 	var place := _game.state.stations[_place(0)]
-	var at := _game.ticked_through() + 1
 	_use(P1, 0)
-	assert_int(bun.where).is_equal(ItemState.Where.GROUND)
+	assert_int(bun.where).is_equal(ItemState.Where.LOCKED)
 	assert_vector(bun.position).is_equal(place.position)
-	assert_int(bun.rest_tick).is_equal(at)
-	assert_int(order.bun_item).is_equal(-1)
-	var placed := {"item": bun.id, "station": place.id, "right": false}
+	assert_int(order.bun_item).is_equal(bun.id)
+	var placed := {"item": bun.id, "station": place.id}
 	assert_array(FixtureCookingModes.dicts(_game, P2, &"IngredientPlaced")).is_equal([placed])
-	assert_array(FixtureModes.notes(_game)).contains(
-		["rested %d %s %s" % [bun.id, Items.ON_STATION, place.position]]
-	)
+	for note: Variant in FixtureModes.notes(_game):
+		assert_str(str(note)).not_contains(String(Items.ON_STATION))
+
+
+## A plated item is locked: no PickUp takes it back (a wrong one goes with the burger, #1101).
+func test_a_plated_item_is_not_picked_up() -> void:
+	FixtureCookingModes.take(_game, P1, _other_bun(_order(0)).id)
+	var bun := FixtureCookingModes.held(_game, P1)
+	_use(P1, 0)
 	FixtureModes.run_ticks(_game, 1)
-	FixtureItemModes.pick_up(_game, P1, bun)
-	assert_object(FixtureCookingModes.held(_game, P1)).is_same(bun)
+	FixtureItemModes.stand(_game, P2, bun.position + Vector3(0, 0, -1))
+	FixtureItemModes.pick_up(_game, P2, bun)
+	assert_object(FixtureCookingModes.held(_game, P2)).is_null()
+	assert_int(bun.where).is_equal(ItemState.Where.LOCKED)
 
 
-func test_a_second_right_bun_on_a_green_bun_is_wrong() -> void:
+## Before #1101 a second right bun lay there wrong; now a filled slot refuses another bun
+## `unavailable`, and it stays in the hand.
+func test_a_second_bun_on_a_filled_bun_slot_is_refused_unavailable() -> void:
 	var order := _order(0)
 	FixtureCookingModes.take(_game, P1, order.bun.id)
 	_use(P1, 0)
 	FixtureModes.run_ticks(_game, 1)
-	FixtureCookingModes.take(_game, P1, order.bun.id)
+	FixtureCookingModes.take(_game, P1, _other_bun(order).id)
 	var second := FixtureCookingModes.held(_game, P1)
 	_use(P1, 0)
-	assert_int(second.where).is_equal(ItemState.Where.GROUND)
-	var rights: Array = []
-	for placed: Dictionary in FixtureCookingModes.dicts(_game, P1, &"IngredientPlaced"):
-		rights.append(placed["right"])
-	assert_array(rights).is_equal([true, false])
+	FixtureModes.run_ticks(_game, 1)
+	assert_object(FixtureCookingModes.held(_game, P1)).is_same(second)
+	assert_array(FixtureModes.rejections(_game, P1)).is_equal([&"unavailable"])
+	assert_int(FixtureCookingModes.dicts(_game, P2, &"IngredientPlaced").size()).is_equal(1)
 
 
-func test_the_other_fried_patty_is_wrong() -> void:
+func test_the_other_fried_patty_is_locked_on_the_patty_slot() -> void:
 	var order := _order(0)
 	var other := _other_raw(order)
 	var patty := FixtureCookingModes.fry(_game, P1, other.id)
 	FixtureModes.run_ticks(_game, 1)
 	assert_bool(patty.kind == FixtureCookingModes.type_of(_game.mode).fried_of(other)).is_true()
 	_use(P1, 0)
-	assert_int(patty.where).is_equal(ItemState.Where.GROUND)
-	assert_bool(FixtureCookingModes.dicts(_game, P1, &"IngredientPlaced")[0]["right"]).is_false()
+	assert_int(patty.where).is_equal(ItemState.Where.LOCKED)
+	assert_int(order.patty_item).is_equal(patty.id)
+
+
+## Nothing about right or wrong before a burger is served (#1101): a right bun on one place and a
+## wrong one on another send the same events with the same keys, and no event carries a bool.
+func test_a_right_and_a_wrong_put_look_the_same_to_every_peer() -> void:
+	var seen := _game.view_of(P2).events.size()
+	FixtureCookingModes.take(_game, P1, _order(0).bun.id)
+	_use(P1, 0)
+	FixtureModes.run_ticks(_game, 1)
+	var right_names := FixtureItemModes.names_after(_game, P2, seen)
+	seen = _game.view_of(P2).events.size()
+	FixtureCookingModes.take(_game, P1, _other_bun(_order(1)).id)
+	_use(P1, 1)
+	FixtureModes.run_ticks(_game, 1)
+	assert_array(FixtureItemModes.names_after(_game, P2, seen)).is_equal(right_names)
+	var dicts := FixtureCookingModes.dicts(_game, P2, &"IngredientPlaced")
+	assert_int(dicts.size()).is_equal(2)
+	for placed: Dictionary in dicts:
+		assert_array(placed.keys()).is_equal(["item", "station"])
+	for peer: int in [P1, P2]:
+		for event: MatchEvent in _game.view_of(peer).events:
+			for value: Variant in event.to_dict().values():
+				var says := "%s carries a bool" % event.event_name()
+				assert_bool(value is bool).override_failure_message(says).is_false()
 
 
 func test_a_raw_or_burnt_patty_is_refused_wrong_item_and_stays_in_the_hand() -> void:
@@ -119,50 +152,39 @@ func test_an_empty_hand_is_refused_empty_hand() -> void:
 	assert_array(FixtureModes.rejections(_game, P1)).is_equal([&"empty_hand"])
 
 
-func test_the_third_right_one_completes_the_subtask_once_after_its_ingredient_placed() -> void:
+## Before #1101 the third right one completed the subtask on the spot; now it only fills the
+## plate: IngredientPlaced alone, nothing done (the serve completes it, cooking_serve_test.gd).
+func test_the_third_one_fills_the_plate_and_completes_nothing() -> void:
 	var order := _order(0)
-	FixtureCookingModes.take(_game, P1, order.bun.id)
-	_use(P1, 0)
-	FixtureModes.run_ticks(_game, 1)
-	FixtureCookingModes.fry(_game, P1, order.raw_patty.id)
-	_use(P1, 0)
-	FixtureModes.run_ticks(_game, 1)
+	FixtureCookingModes.put(_game, P1, 0, order.bun.id)
+	FixtureCookingModes.put(_game, P1, 0, order.raw_patty.id)
 	FixtureCookingModes.pick(_game, P1, order.herb.id)
 	FixtureModes.run_ticks(_game, 1)
 	var herb := FixtureCookingModes.held(_game, P1)
 	assert_object(herb.kind).is_same(order.herb)
-	assert_bool(order.done).is_false()
 	var seen := _game.view_of(P2).events.size()
 	_use(P1, 0)
-	assert_bool(order.done).is_true()
-	assert_bool(_game.state.stations[_place(0)].done).is_true()
-	assert_int(herb.where).is_equal(ItemState.Where.LOCKED)
-	assert_array(FixtureItemModes.names_after(_game, P2, seen)).is_equal(
-		[&"IngredientPlaced", &"TaskState", &"TaskProgress"]
-	)
-	assert_array(FixtureCookingModes.dicts(_game, P2, &"TaskProgress")[-1].values()).is_equal(
-		[1, 2]
-	)
-	assert_bool(FixtureCookingModes.state_of(_game).done_count() == 1).is_true()
-	# A done place refuses more, so the subtask is done once.
 	FixtureModes.run_ticks(_game, 1)
+	assert_bool(order.done).is_false()
+	assert_bool(_game.state.stations[_place(0)].done).is_false()
+	assert_int(herb.where).is_equal(ItemState.Where.LOCKED)
+	assert_int(order.herb_item).is_equal(herb.id)
+	assert_array(FixtureItemModes.names_after(_game, P2, seen)).is_equal([&"IngredientPlaced"])
+	assert_int(FixtureCookingModes.state_of(_game).done_count()).is_equal(0)
+
+
+## A done place keeps nothing on its plate (#1101; before it, a red one lay there and went back
+## with PickUp): its order served, its plate empty, and it refuses more, so the subtask is done
+## once.
+func test_a_done_place_holds_nothing_and_refuses_more() -> void:
+	FixtureCookingModes.cook(_game, P1, 0)
+	var order := _order(0)
+	assert_bool(order.done).is_true()
+	assert_array([order.bun_item, order.patty_item, order.herb_item]).is_equal([-1, -1, -1])
 	FixtureCookingModes.take(_game, P1, order.bun.id)
 	_use(P1, 0)
 	assert_array(FixtureModes.rejections(_game, P1)).is_equal([&"unavailable"])
 	assert_int(_game.view_of(P2).events_named(&"TaskProgress").size()).is_equal(2)
-
-
-func test_a_red_one_on_a_done_place_still_goes_back_with_pick_up() -> void:
-	var order := _order(0)
-	FixtureCookingModes.take(_game, P1, _other_bun(order).id)
-	var red := FixtureCookingModes.held(_game, P1)
-	_use(P1, 0)
-	FixtureModes.run_ticks(_game, 1)
-	FixtureCookingModes.cook(_game, P1, 0)
-	assert_bool(order.done).is_true()
-	FixtureItemModes.stand(_game, P2, red.position + Vector3(0, 0, -1))
-	FixtureItemModes.pick_up(_game, P2, red)
-	assert_object(FixtureCookingModes.held(_game, P2)).is_same(red)
 
 
 func test_a_second_place_s_order_is_its_own() -> void:
@@ -198,7 +220,9 @@ func _other_raw(order: Cooking.Order) -> ItemKind:
 	return null
 
 
-func test_a_bun_carried_past_its_time_vanishes_exactly_its_time_after_it_is_laid_red() -> void:
+## Before #1101 a wrong bun lay at the place and vanished in its time; now every plated item is
+## locked, so neither a carried nor a plated one vanishes, however long.
+func test_a_bun_carried_past_its_time_and_plated_never_vanishes() -> void:
 	var order := _order(0)
 	FixtureCookingModes.take(_game, P1, _other_bun(order).id)
 	var bun := FixtureCookingModes.held(_game, P1)
@@ -207,13 +231,9 @@ func test_a_bun_carried_past_its_time_vanishes_exactly_its_time_after_it_is_laid
 	FixtureModes.run_ticks(_game, vanish + 100)
 	assert_bool(_game.state.items.has(bun.id)).is_true()
 	_use(P1, 0)
-	var laid := bun.rest_tick
-	assert_int(laid).is_equal(_game.ticked_through() + 1)
-	FixtureModes.run_ticks(_game, laid + vanish - 1 - _game.ticked_through())
+	FixtureModes.run_ticks(_game, vanish + 100)
 	assert_bool(_game.state.items.has(bun.id)).is_true()
-	FixtureModes.run_ticks(_game, 1)
-	assert_bool(_game.state.items.has(bun.id)).is_false()
-	assert_int(_game.ticked_through()).is_equal(laid + vanish)
+	assert_int(bun.where).is_equal(ItemState.Where.LOCKED)
 
 
 func test_an_ingredient_put_down_near_a_place_lies_on_the_floor_unchecked() -> void:

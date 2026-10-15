@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## Cooking's role-swap check (the cooking ADR §7, C4: a take, a put, the grill and a place read no
 ## role): the same seed and the same commands with two players' forced roles swapped emit identical
-## OrderPosted, HerbsDealt, IngredientPlaced, GrillLoaded, ItemChanged, ItemVanished, TaskState and
-## TaskProgress streams. The leak test checks only who receives them; a place that refused the
-## dissidents would still send everyone the same events.
+## OrderPosted, HerbsDealt, IngredientPlaced, GrillLoaded, ItemChanged, ItemVanished, TaskState,
+## TaskProgress, BurgerPlated and BurgerServed streams (the last two #1101's). The leak test checks
+## only who receives them; a place or a board that refused the dissidents would still send everyone
+## the same events.
 ## Planted once in Cooking.use_problem, before a place's problem ("a place refuses dissidents":
 ## `unavailable` for an actor whose role is dissident): both tests failed; reverted (#773).
 
@@ -19,6 +20,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"ItemVanished",
 	&"TaskState",
 	&"TaskProgress",
+	&"BurgerPlated",
+	&"BurgerServed",
 ]
 ## Long enough for the fixture's VANISH (60 s) to pass inside the round.
 const MINUTES := 5
@@ -52,9 +55,10 @@ func test_a_dissident_s_right_bun_is_locked_on_its_place() -> void:
 
 
 ## A round of winning(2) (roles dealt, `dissidents` 1) with P1, P2 and P3 and `forced` roles: P1
-## cooks order 0; P2 puts order 1's bun and then the other bun on place 1, loads a raw patty and
-## lets it burn; then the round runs on until the wrong bun has vanished. Burger 1 stays unfinished
-## (every task done would end the round).
+## cooks order 0 (plates, takes and serves it); P2 plates place 1 with the other bun and the order's
+## patty and herb, takes that burger and serves it (wrong, #1101), puts order 1's bun on place 1,
+## loads a raw patty and lets it burn; then the round runs on. Burger 1 stays unfinished (every task
+## done would end the round).
 func _played(forced: Dictionary[int, StringName]) -> Match:
 	var game := FixtureCookingModes.in_round(
 		FixtureCookingModes.winning(2), [P1, P2, P3], {}, 7, {&"match_duration": MINUTES}, forced
@@ -62,13 +66,12 @@ func _played(forced: Dictionary[int, StringName]) -> Match:
 	FixtureItemModes.stand(game, P3, Vector3(-30, 0, 0))
 	FixtureCookingModes.cook(game, P1, 0)
 	var order := FixtureCookingModes.state_of(game).orders[1]
-	var place := FixtureCookingModes.place_of(game, 1)
-	FixtureCookingModes.take(game, P2, order.bun.id)
-	FixtureCookingModes.use(game, P2, place)
-	FixtureModes.run_ticks(game, 1)
-	FixtureCookingModes.take(game, P2, _other_bun(game, order).id)
-	FixtureCookingModes.use(game, P2, place)
-	FixtureModes.run_ticks(game, 1)
+	FixtureCookingModes.put(game, P2, 1, _other_bun(game, order).id)
+	FixtureCookingModes.put(game, P2, 1, order.raw_patty.id)
+	FixtureCookingModes.put(game, P2, 1, order.herb.id)
+	FixtureCookingModes.take_burger(game, P2, 1)
+	FixtureCookingModes.serve(game, P2)
+	FixtureCookingModes.put(game, P2, 1, order.bun.id)
 	FixtureCookingModes.take(game, P2, order.raw_patty.id)
 	FixtureCookingModes.use(game, P2, FixtureCookingModes.grill_of(game))
 	var type := FixtureCookingModes.type_of(game.mode)
