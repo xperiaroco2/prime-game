@@ -36,6 +36,9 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Randomness is part of the fun** (#1076). Lucky breaks and funny fails make the stories, and randomness always
   leaves a chance to react: a random respawn may land you next to everyone, then a few seconds of invulnerability let
   you run, a chase starts and you may find a weapon on the way and fight back, so it is fun even if they get you.
+- **The party is hard on its own** (the engineer, 2026-10-15, #1093). The aliens' tasks are a real challenge: aliens
+  who understand nothing and make many mistakes lose even without any humans. The humans only help the chaos along and
+  hide in the noise of honest mistakes, so a spoiled burger can always be just a mistake.
 - **Full of references, as parody** (#1076). Nods and easter eggs that players recognise from the games and shows
   they love, done as parody and allusion; never another work's names, logos, characters or assets. How games do it
   and where the legal line runs is open research.
