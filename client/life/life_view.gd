@@ -101,6 +101,7 @@ func _init() -> void:
 	rng.randomize()
 	_targets = SpectateTargets.new(rng)
 	_spectate_camera.name = "SpectateCamera"
+	_spectate_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_spectate_hand.name = "SpectateHand"
 	_spectate_camera.add_child(_spectate_hand)
 	add_child(_downed_camera)

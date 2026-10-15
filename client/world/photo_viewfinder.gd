@@ -48,6 +48,7 @@ func _init() -> void:
 	camera.name = "Lens"
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.near = PhotoFrame.NEAR_M
+	camera.cull_mask = PhotoLayers.LIVE_VIEW
 	add_child(camera)
 	mask.name = "Mask"
 	mask.layer = MASK_LAYER

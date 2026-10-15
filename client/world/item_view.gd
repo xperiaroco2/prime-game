@@ -28,6 +28,7 @@ var item_id := -1
 var kind: StringName
 
 var _look: Node3D
+var _layer := PhotoLayers.GROUND
 
 
 ## A view of item `id` of `kind`; `colour` is a package's circle colour (white for other items),
@@ -109,3 +110,17 @@ func _build(colour: Color, label_text: String) -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.position = Vector3.UP * (size.y + LABEL_ABOVE)
 		_look.add_child(label)
+
+
+## Puts the look on visual layer `value` (PhotoLayers: GROUND lying or in flight, LIVE_AVATAR
+## carried by a player, so a shot's picture draws the record's puppet holding it instead;
+## #787). Walks the look only when the layer changes.
+func set_layer(value: int) -> void:
+	if value == _layer:
+		return
+	_layer = value
+	PhotoLayers.assign(self, value)
+
+
+func layer() -> int:
+	return _layer

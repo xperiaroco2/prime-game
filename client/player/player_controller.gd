@@ -160,6 +160,7 @@ func _ready() -> void:
 		_apply_rules()
 	set_life(life)
 	_floor_y = global_position.y
+	_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_camera.add_child(_hand_view)
 
 

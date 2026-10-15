@@ -4,7 +4,8 @@ extends Node3D
 ## local player's camera showing the item the own ClientModel says is in the own hand, by the same
 ## greybox look as in the world (ItemView). A one-handed item sits low on the right; a two-handed
 ## one (the package) low in the middle, held with both hands. ItemViews tells it what to show; it
-## reads nothing itself. The offsets are looks, placeholders until the art pass.
+## reads nothing itself. The offsets are looks, placeholders until the art pass. The hand item is on
+## PhotoLayers.LIVE_AVATAR, so a shot's picture never draws it beside the holder's puppet (#787).
 
 ## Where the item sits in the camera's space, in metres.
 const ONE_HANDED := Vector3(0.28, -0.3, -0.55)
@@ -34,6 +35,7 @@ func show_item(kind: StringName, colour: Color, two_handed := false) -> void:
 	_view = ItemView.make(-1, kind, colour)
 	_view.name = "HandItem"
 	_view.position = TWO_HANDED if two_handed else ONE_HANDED
+	PhotoLayers.assign(_view, PhotoLayers.LIVE_AVATAR)
 	add_child(_view)
 
 

@@ -142,6 +142,9 @@ func _physics_process(delta: float) -> void:
 
 func _place(view: ItemView, item: ClientModel.Item) -> void:
 	_outline(view, item)
+	view.set_layer(
+		PhotoLayers.GROUND if item.holder == ClientModel.NO_HOLDER else PhotoLayers.LIVE_AVATAR
+	)
 	var arc: ItemArc = flights.arcs.get(view.item_id)
 	if arc != null:
 		_place_in_flight(view, item, arc)
