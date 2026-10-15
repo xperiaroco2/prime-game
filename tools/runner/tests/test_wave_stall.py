@@ -12,7 +12,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, wave_stall
+from runner import cli, metrics, wave_stall
 from runner.common import Failure
 from runner.tests import test_wave as tw
 
@@ -227,6 +227,23 @@ class StallTest(unittest.TestCase):
         self.assertEqual(st.waiting.tool_use_id, "b2")
         self.assertEqual(len(st.waiting.what), wave_stall.WHAT_LIMIT)
         self.assertTrue(st.waiting.what.endswith("..."))
+
+    def test_the_design_checkouts_sessions_are_read_too(self) -> None:
+        # #1124: the design track works in its own repo, D:\prime-game-design; with no dirs given, main() reads the
+        # track checkouts' folders (metrics.track_checkouts), that one's among them.
+        self.p.dir = self.root / "projects" / "D--prime-game-design"
+        self.p.dir.mkdir(parents=True)
+        self.night()
+        self.p.write()
+        out = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.root)}),
+            mock.patch.object(metrics, "main_checkout", return_value=Path("D:/prime-game")),
+            redirect_stdout(out),
+        ):
+            rc = wave_stall.main(now=minutes(40), alive=lambda sid: True)
+        self.assertEqual(rc, wave_stall.STALLED_EXIT)
+        self.assertIn("(5ef6e325, D--prime-game-design)", out.getvalue())
 
     def test_which_sessions_are_read(self) -> None:
         self.night()

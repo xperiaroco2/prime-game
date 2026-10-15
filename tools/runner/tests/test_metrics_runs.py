@@ -20,9 +20,9 @@ CHECKOUT = Path("D:/prime-game")
 ONE = usage(inp=5_750_000)  # $23.00 of input on Opus 5.5: 1% of the week, no cache reads
 WRITTEN = 1_000_000.0  # every fixture file's mtime
 NOW = WRITTEN + 600  # ten minutes later
-# The checkouts read, named when no run matches (#586): the fixture has no -ui checkout's folder.
+# The checkouts read, named when no run matches (#586): the fixture has no -ui or -design checkout's folder.
 READ = ("checkouts read: main D--prime-game; ui (prime-game-ui) not on this machine, its spend unknown here; art "
-        "D--prime-game-art")  # fmt: skip
+        "D--prime-game-art; design (prime-game-design) not on this machine, its spend unknown here")  # fmt: skip
 
 
 def journal(folder: Path, lines: list[dict]) -> None:

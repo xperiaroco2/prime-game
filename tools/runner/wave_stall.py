@@ -6,7 +6,7 @@ while the call waited: four finished runs and the keep-alive timer arrived toget
 allowed the call. Nothing outside the session showed it. This command shows it to any other session (a manager at its
 wake, the secretary) or to the engineer.
 
-Read-only. It reads the session transcripts of the three track checkouts and their worktrees (metrics.track_checkouts)
+Read-only. It reads the session transcripts of the track checkouts (the main, -ui, -art and -design ones) and their worktrees (metrics.track_checkouts)
 written in the last RECENT_HOURS, never the caller's own (CLAUDE_CODE_SESSION_ID), and Claude Code's live-session
 files (sessions.read_all). A session is flagged when its process is alive (or no session file exists to say) and:
 - a workflow run of it finished more than STALL_MINUTES ago with no turn of its own after that (wave.build_runs: the

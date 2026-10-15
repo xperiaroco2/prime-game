@@ -723,10 +723,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="extend",
         default=[],
         metavar="NAME",
-        help="each track's %% of the week since --since (the reset), over the main checkout's, -ui's and -art's "
-        "sessions (the -ui and -art checkouts by their transcript folders' names, in any folder; the last line names "
+        help="each track's %% of the week since --since (the reset), over the main checkout's, -ui's, -art's and "
+        "-design's sessions (those three by their transcript folders' names, in any folder; the last line names "
         "the checkouts read, or one not on this machine); a session's track: --session ID=TRACK, else its kickoff's "
-        "'Track: <name>' line, else its checkout's (-ui: ui, -art: art), else untracked; 'all' names every track found",
+        "'Track: <name>' line, else its checkout's (-ui: ui, -art: art, -design: design), else untracked; 'all' names every track found",
     )
     p.add_argument(
         "--budget",
@@ -745,7 +745,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="ID",
         help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
-        "who works now, its %% of the week and its list $ by phase, over the three track checkouts found on this machine "
+        "who works now, its %% of the week and its list $ by phase, over the track checkouts found on this machine "
         "(the check after a large launch's first phase, docs/MANAGERS.md §9)",
     )
 
@@ -797,7 +797,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--since", help="ISO 8601 time: comments updated at or after it (default 72 hours ago); PRs: all open ones"
     )
     p.add_argument(
-        "--repo", nargs="+", action="extend", default=[], metavar="OWNER/NAME", help="only these repos (default all three)"
+        "--repo", nargs="+", action="extend", default=[], metavar="OWNER/NAME", help="only these repos (default all four)"
     )
 
     p = sub.add_parser(
