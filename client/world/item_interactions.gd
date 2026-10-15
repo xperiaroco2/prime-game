@@ -54,6 +54,10 @@ var station_of_body := Callable()
 ## (ItemWorld's, which also names a herb bed by its shape of the beds' shared body, #776); when
 ## set it is asked instead of `station_of_body`.
 var station_of_hit := Callable()
+## Asked when the hit's collider named no station: (body, hit point) -> station id, -1 for none
+## (ItemWorld gives CarRepairViews.station_of_point: the shelf's one body names the bin nearest
+## the point, #811); unset: never asked.
+var station_near_hit := Callable()
 ## Where the crosshair aims at an item lying on a cooking station (CookingViews.aim_of, #776):
 ## id -> Vector3 or null (TargetChoice.aim_at); unset: such an item is never named.
 var aim_of := Callable()
@@ -72,6 +76,10 @@ var _held := -1
 var _held_for := 0.0
 ## The photo camera holding a film E went down on (#786), -1 for none; timed by `_held_for` too.
 var _held_camera := -1
+## The station whose hold E started (#811: Interact on a kind whose rule ends in a HoldStation,
+## StationUse.holds), -1 for none: E released sends StopRaise once, wherever the crosshair is then
+## (the host keeps the hold while the feet stay at the station, the car repair ADR's §2.2).
+var _hold_station := -1
 
 
 func _init() -> void:
@@ -112,15 +120,34 @@ func station_target() -> int:
 
 ## E: Interact(station, item -1) for the station target (#801; the host decides what it does:
 ## a switch toggles, the generator's button starts the charge, an empty photo camera takes the
-## carried fresh film, #786), else PickUp for the item target;
-## the sequence number sent, or -1 when nothing was sent.
+## carried fresh film, #786), else PickUp for the item target; the sequence number sent, or -1
+## when nothing was sent. On a station whose Interact starts a hold (the lift panel, the car's
+## fit; StationUse.holds) the hold is remembered for release_hold().
 func interact() -> int:
 	if _station >= 0 and _acts():
 		# A loaded photo camera shoots only from the viewfinder (#786; its tap opens that).
 		if PhotoUse.is_loaded_camera(model, mode, _station):
 			return -1
+		var station: ClientModel.Station = model.stations.get(_station)
+		if station != null and StationUse.holds(mode, station.kind):
+			_hold_station = _station
 		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
 	return pick_up()
+
+
+## E released, or the keys stopped listening, after interact() started a hold (#811, RE5):
+## StopRaise once, whatever the crosshair aims at now; the sequence number sent, or -1 for no hold.
+func release_hold() -> int:
+	var station := _hold_station
+	_hold_station = -1
+	if station < 0 or session == null:
+		return -1
+	return session.send_intent(Intents.STOP_RAISE)
+
+
+## The station whose hold E started (#811), -1 for none.
+func hold_station() -> int:
+	return _hold_station
 
 
 ## E went down (#776): in the viewfinder it closes it (#786); on a station target or an item that
@@ -296,7 +323,10 @@ func cast_target() -> TargetChoice.Target:
 	var to := eye + look * TargetChoice.RAY_M
 	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(
-		eye, to, PhysicsLayers.WORLD | PhysicsLayers.DOWNED, [player.get_rid()]
+		eye,
+		to,
+		PhysicsLayers.WORLD | PhysicsLayers.DOWNED | PhysicsLayers.MOVERS,
+		[player.get_rid()]
 	)
 	var hit := space.intersect_ray(query)
 	var blocked_at := TargetChoice.RAY_M
@@ -307,6 +337,10 @@ func cast_target() -> TargetChoice.Target:
 			device = station_of_hit.call(hit["collider"] as Object, hit["shape"] as int) as int
 		elif station_of_body.is_valid():
 			device = station_of_body.call(hit["collider"] as Object) as int
+		if device < 0 and station_near_hit.is_valid():
+			device = (
+				station_near_hit.call(hit["collider"] as Object, hit["position"] as Vector3) as int
+			)
 	var picked := TargetChoice.choose_target(
 		model, mode, eye, look, blocked_at, player.global_position, _reach_m, device, aim_of
 	)
@@ -345,10 +379,16 @@ func _process(delta: float) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	var was_captured := _was_captured
 	_was_captured = captured
+	# Knocked down, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
+	if model.life_of(model.own_peer) != ClientModel.Life.ALIVE:
+		_hold_station = -1
 	if not listening:
 		_held = -1
 		_held_camera = -1
+		release_hold()
 		return
+	if _hold_station >= 0 and not Input.is_action_pressed(&"interact"):
+		release_hold()
 	if Input.is_action_just_pressed(&"interact"):
 		press_interact()
 	elif (_held >= 0 or _held_camera >= 0) and not Input.is_action_pressed(&"interact"):
