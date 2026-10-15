@@ -377,10 +377,15 @@ func test_when_the_holder_lets_go_only_the_fitter_under_the_car_dies() -> void:
 		assert_int(died.size()).is_equal(1)
 		if died.size() == 1:
 			assert_int((died[0] as DiedEvent).peer).is_equal(fitter)
-		var lifts := view.events_named(&"LiftChanged")
-		assert_bool((lifts[lifts.size() - 1] as LiftChangedEvent).up).is_false()
-		var fits := view.events_named(&"FitChanged")
-		assert_int((fits[fits.size() - 1] as FitChangedEvent).fitter).is_equal(0)
+		# The car went up once and came down once; the fit started and stopped (RD10 (d)).
+		var lifts: Array[bool] = []
+		for event: MatchEvent in view.events_named(&"LiftChanged"):
+			lifts.append((event as LiftChangedEvent).up)
+		assert_array(lifts).override_failure_message("peer %d" % peer).is_equal([true, false])
+		var fitters: Array[int] = []
+		for event: MatchEvent in view.events_named(&"FitChanged"):
+			fitters.append((event as FitChangedEvent).fitter)
+		assert_array(fitters).override_failure_message("peer %d" % peer).is_equal([fitter, 0])
 	assert_int(_game.state.player(fitter).life).is_equal(PlayerState.Life.DEAD)
 	for peer: int in [holder, beside, past_end]:
 		assert_int(_game.state.player(peer).life).is_equal(PlayerState.Life.ALIVE)
