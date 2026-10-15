@@ -52,8 +52,9 @@ extends RefCounted
 ## demands 29 spawn tags, and a text per demanded tag is a shortfall; WireBudget sizes it as one
 ## subject). No row changed otherwise.
 ## 34 since #810 raised SettingsChanged's needed_markers and map_markers from 32 to 64 entries (the
-## base mode's House with the car repair demands 36 spawn tags). No row changed otherwise. (33 is
-## #1101's, open beside it: a skipped number is harmless, the versions only have to match.)
+## base mode's House with the car repair demands 36 spawn tags). No row changed otherwise. (33 was
+## held by #1101's open PR #1109: whichever of the two lands second takes its base's plus one at
+## its rebase. A skipped number is harmless: the versions only have to match.)
 const VERSION := 34
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
@@ -80,7 +81,8 @@ const MAX_PLAYERS := 16
 const MAX_AVATARS := MAX_PLAYERS
 ## The avatars of every player but one: the photo camera's shot of a living photographer.
 const MAX_OTHER_AVATARS := MAX_PLAYERS - 1
-## Settings, spawn tags and station kinds per map.
+## Settings, colours, palettes and station kinds per map (SettingsChanged's spawn tags take
+## MAX_MARKERS).
 const MAX_ENTRIES := 32
 ## SettingsChanged's spawn tags (needed_markers, map_markers): 64 since #810 (the base mode's House
 ## demands 36 with the car repair).
