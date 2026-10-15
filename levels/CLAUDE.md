@@ -30,15 +30,9 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle` (greybox; the House's only in the study, #1059), `spawn_zone`; House only, provisional (DE10, #826):
   `spawn_drop_dining_table`, `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one each at its
-  `spawn_circle` (greybox; the House's only in the study, #1059), `spawn_zone`; House only, provisional (DE10, #826):
-  `spawn_drop_dining_table`, `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one each at its
   furniture (#831); House only, "not a decision" (#799, #783): `spawn_switch`, `spawn_generator`, `spawn_camera`,
   `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`, `spawn_photo_board` (station use spots), `spawn_film`,
   `spawn_photo`. A marker in two such groups is a load error. The host reads them in scene-tree order. The bot
-  scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
-  `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no station
-  marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of different tags at
-  one (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
   scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
   `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no station
   marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of different tags at
