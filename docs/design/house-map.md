@@ -155,7 +155,7 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
 | Generator | Switch C | -1 | 52, 48 | Pump room |
 | Generator | Switch D | -1 | 48.5, 19.5 | Switch room |
-| Burgers | Order board (display only, #774: the board's use spot, 0.8 m south of it, across the places) | 0 | 39, 36.55 | Kitchen |
+| Burgers | Order board (#774: the board's use spot, 0.8 m south of it, across the places; since #1101 a burger is served here, from beside the board inside its 2 m reach) | 0 | 39, 36.55 | Kitchen |
 | Burgers | Place 1 (assembly, #774: a counter in the row of three, its use spot 0.8 m south) | 0 | 38, 37.8 | Kitchen |
 | Burgers | Place 2 | 0 | 39, 37.8 | Kitchen |
 | Burgers | Place 3 | 0 | 40, 37.8 | Kitchen |
@@ -199,8 +199,9 @@ the board's use spot is 1.2 m in front of it.
 The cooking stations (#774, proposed for the engineer's approval; each point is the use spot of its station scene,
 or the middle box marker): the kitchen's three places are three counters in a row, 1 m apart, in place of the art's
 2.4 m assembly island (one island cannot be three places), each use spot 0.8 m south of its counter; the order board
-stays where the art put it, north of them and facing them, its use spot between board and counters (a display kind:
-nobody uses it); the grill stands in the chill zone with its front to the east, its use spot 0.85 m east of it; the
+stays where the art put it, north of them and facing them, its use spot between board and counters (a display kind
+until #1101; now a burger is served there, from beside the board inside its 2 m reach, as the spot is too tight to
+stand on); the grill stands in the chill zone with its front to the east, its use spot 0.85 m east of it; the
 herb board stays where the art put it, facing north, its use spot 0.8 m in front of it; the five herb beds keep the
 art's row, each use spot 2 m south of its bed, in the greenhouse's open middle; storage's bun boxes lie on the floor
 0.6 m in front of the bun shelf and the patty boxes 0.75 m in front of the freezer (the art's shelf boards are full of
