@@ -85,6 +85,8 @@ var _held_camera := -1
 ## StationUse.holds), -1 for none: E released sends StopRaise once, wherever the crosshair is then
 ## (the host keeps the hold while the feet stay at the station, the car repair ADR's §2.2).
 var _hold_station := -1
+## The own photo held up close (#787), -1 for none.
+var _close_item := -1
 
 
 func _init() -> void:
@@ -247,6 +249,11 @@ func viewing() -> bool:
 	return viewfinder != null and viewfinder.active()
 
 
+## Whether the own photo is held up close (#787).
+func close_up() -> bool:
+	return _close_item >= 0
+
+
 ## The left mouse button in the viewfinder (#786): the shot, Interact(camera, item -1), while the
 ## own player can act and the camera's film has frames left (the host refuses the rest anyway);
 ## the sequence number sent, or -1 when nothing was sent.
@@ -274,8 +281,14 @@ func put_down() -> int:
 
 
 ## The left mouse button: Use(facing) while the own hand holds an item.
+## The primary button with a photo in the hand (#787) holds it up close or back and sends nothing
+## (a photo has no Use rule).
 func use() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
+		return -1
+	var hand_id := model.hand_item(model.own_peer)
+	if PhotoUse.is_photo(mode, model.items[hand_id].kind):
+		_set_close(hand_id if _close_item != hand_id else -1)
 		return -1
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
@@ -367,6 +380,12 @@ func cast_target() -> TargetChoice.Target:
 
 
 func _physics_process(_delta: float) -> void:
+	# The close-up ends when the hand item changes, the own player is knocked down or dies, the
+	# viewfinder opens or the keys stop listening (#787).
+	if _close_item >= 0 and (not listening or viewing() or not _acts()):
+		_set_close(-1)
+	elif _close_item >= 0 and model.hand_item(model.own_peer) != _close_item:
+		_set_close(-1)
 	# The keys stopped listening (the Esc menu, the round's end): the viewfinder closes (#786).
 	if viewing() and not listening:
 		viewfinder.leave()
@@ -422,3 +441,9 @@ func _acts() -> bool:
 		and player != null
 		and model.life_of(model.own_peer) == ClientModel.Life.ALIVE
 	)
+
+
+func _set_close(id: int) -> void:
+	_close_item = id
+	if player != null and player.is_inside_tree():
+		player.hand_view().set_close(id >= 0)

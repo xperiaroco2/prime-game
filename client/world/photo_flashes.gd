@@ -7,7 +7,7 @@ extends Node3D
 ## queued render of that shot has drawn: this light is that render's flash (the ADR's §3.3), so it
 ## stays on until then. A pulse lasts at least PULSE_S, so the live view sees it even when the
 ## render draws in the next frame, and ends at HOLD_LIMIT_S unreleased: the fallback for a shot no
-## render ever releases (a headless client renders nothing; P8 is not built yet).
+## render ever releases (a headless client renders nothing, PhotoPictures, #787).
 ##
 ## What it may show (per-peer filtering, the M4 ADR's §3 items 5 and 10): ShotTaken reaches everyone
 ## (a shot is public, the record names no shooter), and the flash is seen only where the eye

@@ -101,6 +101,7 @@ func _init() -> void:
 	rng.randomize()
 	_targets = SpectateTargets.new(rng)
 	_spectate_camera.name = "SpectateCamera"
+	_spectate_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_spectate_hand.name = "SpectateHand"
 	_spectate_camera.add_child(_spectate_hand)
 	add_child(_downed_camera)
@@ -543,7 +544,9 @@ func _hold_as_seen(peer: int) -> void:
 		_spectate_hand.show_item(&"", Color.WHITE)
 	else:
 		var kind := mode.find_item_kind(hand.kind)
-		_spectate_hand.show_item(hand.kind, hand.colour, kind != null and kind.is_two_handed())
+		var two_handed := kind != null and kind.is_two_handed()
+		_spectate_hand.show_item(hand.kind, hand.colour, two_handed, model.hand_item(peer))
+		_spectate_hand.set_picture(items.picture_for(hand) if items != null else null)
 	if items == null:
 		return
 	# A throw is hung at the body's hand until its launch is drawn: the hand is empty already.

@@ -60,6 +60,44 @@ static func load_film(model: ClientModel, id: int) -> void:
 	fold(model, FilmLoadedEvent.new(CAMERA, id))
 
 
-## A shot on film `id` at the camera, shot id `shot`.
-static func shoot(model: ClientModel, id: int, shot: int = 0) -> void:
-	fold(model, ShotTakenEvent.new(CAMERA, id, shot))
+## A shot on film `id` at the camera, shot id `shot`, with the record `record` (#787).
+static func shoot(
+	model: ClientModel, id: int, shot: int = 0, record: Array[Dictionary] = []
+) -> void:
+	fold(model, ShotTakenEvent.new(CAMERA, id, shot, record))
+
+
+## Photo `photo_id` printed from shot `shot` (#787): spawned at `at` (the tray), bound to the shot
+## by PhotoPrinted; then film `film` vanishes when `film_goes` (every shot of it printed).
+static func printed(
+	model: ClientModel,
+	film: int,
+	photo_id: int,
+	shot: int,
+	film_goes := true,
+	at := FixturePhotoModes.PRINTER_AT,
+) -> void:
+	fold(model, ItemSpawnedEvent.new(photo_id, &"photo", at))
+	fold(model, PhotoPrintedEvent.new(photo_id, shot))
+	if film_goes:
+		fold(model, ItemVanishedEvent.new(film))
+
+
+## Photo `photo_id`, held by the own player, hung on the board (#787): PhotoHung, `counted` or not.
+static func hang(model: ClientModel, photo_id: int, counted: bool) -> void:
+	fold(model, PhotoHungEvent.new(photo_id, BOARD, counted))
+
+
+## A record row for peer `peer` standing at `at` facing `facing` (#787).
+static func row(
+	peer: int, at: Vector3, facing := Vector3.FORWARD, downed := false, held := -1
+) -> Dictionary:
+	return {
+		"peer": peer,
+		"position": at,
+		"facing": facing,
+		"downed": downed,
+		"crouched": false,
+		"held_item": held,
+		"belt_item": -1,
+	}

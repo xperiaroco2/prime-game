@@ -213,6 +213,24 @@ func test_on_an_arms_out_rest_the_hand_socket_stands_upright_while_idle_plays() 
 	_assert_basis(at.basis, Basis.IDENTITY, "Hand")
 
 
+## A rig drawn before any physics step (a picture's puppet, #787) stands in its plan at once:
+## pose_now evaluates the tree and moves the sockets with the bones, never the arms-out rest.
+func test_pose_now_poses_the_rig_and_its_sockets_without_a_physics_step() -> void:
+	var scene := Fixture.scene(AvatarClips.all_clips(), Fixture.BONES, true)
+	var rig := CharacterRig.make(CharacterSet.from_scene(scene, Fixture.ragdoll()))
+	add_child(rig)
+	auto_free(rig)
+	rig.apply(_plan(AvatarClips.IDLE, 1.0, true))
+	rig.pose_now()
+	assert_float(rig.carry_weight()).is_equal(1.0)
+	var wrist := rig.skeleton.find_bone(&"Wrist.R")
+	var rest := rig.skeleton.get_bone_global_rest(wrist).origin
+	assert_float(rest.distance_to(rig.skeleton.get_bone_global_pose(wrist).origin)).is_greater(0.3)
+	var attach := rig.socket(&"Hand").get_parent() as BoneAttachment3D
+	var bone := rig.skeleton.global_transform * rig.skeleton.get_bone_global_pose(wrist)
+	assert_vector(attach.global_position).is_equal_approx(bone.origin, Vector3.ONE * 0.001)
+
+
 func test_the_tint_is_per_avatar_and_multiplies_the_albedo() -> void:
 	var a := _rig()
 	var b := _rig()

@@ -135,6 +135,19 @@ func step(delta: float) -> void:
 	tree.set("parameters/carry/blend_amount", _carry)
 
 
+## Stands the rig in the plan applied this instant, `seconds` into its clips with every fade done:
+## the tree evaluated, the skeleton and the sockets updated now. For a rig drawn before its first
+## physics step (a picture's puppet, #787), which the tree would leave in the arms-out rest.
+func pose_now(seconds := XFADE_S) -> void:
+	_carry = _carry_target
+	tree.set("parameters/carry/blend_amount", _carry)
+	tree.advance(0.0)
+	tree.advance(seconds)
+	skeleton.force_update_all_bone_transforms()
+	for at: Node3D in _sockets.values():
+		(at.get_parent() as BoneAttachment3D).on_skeleton_update()
+
+
 func _physics_process(delta: float) -> void:
 	step(delta)
 

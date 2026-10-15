@@ -105,6 +105,9 @@ func _ragdoll_for(peer: int, point: Vector3) -> RagdollView:
 		ragdoll.lie_at_rest(point, 0.0)
 	ragdoll.name = "Ragdoll"
 	ragdoll.make_dead(point)
+	# A dead body moves only by events, so the pictures draw it (the photo ADR §3.3); the
+	# live ragdoll handed over was on the live-avatar layer.
+	PhotoLayers.assign(ragdoll, PhotoLayers.GROUND)
 	return ragdoll
 
 

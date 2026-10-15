@@ -224,6 +224,7 @@ func _physics_process(delta: float) -> void:
 			body.add_to_group(SightHider.GROUP)
 			add_child(body)
 			body.set_character(character)
+			PhotoLayers.assign(body, PhotoLayers.LIVE_AVATAR)
 		body.set_living(model.is_alive(peer))
 		body.set_downed(downed)
 		body.set_invulnerable(model.is_invulnerable(peer))
@@ -311,6 +312,7 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll
 		add_child(ragdoll)
+		PhotoLayers.assign(ragdoll, PhotoLayers.LIVE_AVATAR)
 		return
 	ragdoll.hold(pose.position, velocity)
 	ragdoll.set_colour(colour)

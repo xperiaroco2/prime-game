@@ -31,6 +31,9 @@ extends Node3D
 signal sound_due(event_name: StringName, fields: Dictionary)
 
 const PHYSICS_PRIORITY := 1
+## A photo farther than this from the drawing camera shows no picture, so its texture can go
+## (PhotoPictures frees what nobody asks for). A look, "not a decision".
+const PICTURE_RANGE_M := 12.0
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands, and the Throw rule's numbers.
@@ -41,9 +44,13 @@ var avatars: AvatarViews
 var player: PlayerController
 ## The items in flight and their arcs.
 var flights := ItemFlights.new()
-## Where an item lying on a cooking station is drawn (CookingViews.point_of, #776): a Vector3, or
+## Where a resting item is drawn instead of its own position (ItemWorld's drawn_point): on a
+## cooking station (CookingViews.point_of, #776) a Vector3; the film in a photo camera, a photo on
+## the tray (a Vector3) or on the board (a Transform3D: upright) by PhotoViews.drawn_point (#787);
 ## null to draw it at its own position. Unset: at its own position.
 var station_point := Callable()
+## The shots' pictures (PhotoPictures, #787): a photo shows its shot's; unset: none.
+var pictures: PhotoPictures
 
 var _views: Dictionary[int, ItemView] = {}
 ## The model's Item each view was built for: ItemSpawned makes a new one, so a reused id shows.
@@ -136,12 +143,16 @@ func _physics_process(delta: float) -> void:
 			_built_for[id] = item
 			add_child(view)
 		_place(view, item)
+		_show_picture(view, item)
 	_show_own_hand()
 	_send_due()
 
 
 func _place(view: ItemView, item: ClientModel.Item) -> void:
 	_outline(view, item)
+	view.set_layer(
+		PhotoLayers.GROUND if item.holder == ClientModel.NO_HOLDER else PhotoLayers.LIVE_AVATAR
+	)
 	var arc: ItemArc = flights.arcs.get(view.item_id)
 	if arc != null:
 		_place_in_flight(view, item, arc)
@@ -156,7 +167,7 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		view.show_look(false)
 		return
 	if item.holder == ClientModel.NO_HOLDER:
-		view.global_transform = Transform3D(Basis.IDENTITY, _rest_point(view.item_id, item))
+		view.global_transform = _rest_point(view.item_id, item)
 		view.show_look(true)
 		return
 	var own := item.holder == model.own_peer
@@ -178,13 +189,16 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 	_place_at_body(view, item, body)
 
 
-## Where a resting item is drawn: on its plate or grill (`station_point`), else where it lies.
-func _rest_point(id: int, item: ClientModel.Item) -> Vector3:
-	if item.on_station >= 0 and station_point.is_valid():
+## Where a resting item is drawn: on its plate or grill, in its camera, on the tray or the board
+## (`station_point`), else where it lies.
+func _rest_point(id: int, item: ClientModel.Item) -> Transform3D:
+	if station_point.is_valid():
 		var at: Variant = station_point.call(id)
 		if at is Vector3:
+			return Transform3D(Basis.IDENTITY, at as Vector3)
+		if at is Transform3D:
 			return at
-	return item.position
+	return Transform3D(Basis.IDENTITY, item.position)
 
 
 ## A plate's ingredient gets its green (right, locked) or red outline; the grill's patty and every
@@ -236,7 +250,8 @@ func _show_own_hand() -> void:
 	if hand == null or not model.is_alive(model.own_peer) or flights.hides_hand(hand_id):
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
-		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind))
+		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind), hand_id)
+		player.hand_view().set_picture(picture_for(hand))
 
 
 ## The own arc's sweep (the throwing ADR's TE5 (a)): a sphere of `radius` from `from` towards `to`
@@ -274,3 +289,27 @@ func _send_due() -> void:
 func _two_handed(item_kind: StringName) -> bool:
 	var kind := mode.find_item_kind(item_kind) if mode != null else null
 	return kind != null and kind.is_two_handed()
+
+
+## The picture photo `item` shows (#787): its shot's texture, or null (no shot, no picture yet,
+## no PhotoPictures).
+func picture_for(item: ClientModel.Item) -> Texture2D:
+	if pictures == null or item == null or item.shot < 0:
+		return null
+	return pictures.texture_of(item.shot)
+
+
+## A photo's view shows its shot's picture while its look is shown within PICTURE_RANGE_M of the
+## drawing camera; else the blank, so the texture is no longer held and PhotoPictures frees it.
+func _show_picture(view: ItemView, item: ClientModel.Item) -> void:
+	if item.shot < 0 and view.picture() == null:
+		return
+	var texture: Texture2D = null
+	if view.look().visible and view.visible and _near(view.global_position):
+		texture = picture_for(item)
+	view.set_picture(texture)
+
+
+func _near(at: Vector3) -> bool:
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	return camera == null or camera.global_position.distance_to(at) <= PICTURE_RANGE_M

@@ -50,6 +50,7 @@ func _init() -> void:
 	add_child(_arm)
 	_camera.name = "Camera3D"
 	_camera.current = false
+	_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_arm.add_child(_camera)
 
 
