@@ -146,10 +146,10 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 |---|---|---|---|---|
 | Delivery | Wine rack (a source: any Delivery item starts on any storage spot, decided in #683) | -1 | 16, 26 | Storage |
 | Delivery | Boxes (a source, as the wine rack) | -1 | 21, 29 | Storage |
-| Delivery | Dining table (drop-off, the wine) | 0 | 36, 27 | Dining room |
-| Delivery | Terrace table (drop-off, the parasol, approved by the engineer in #683) | 0 | 29, 20 | Terrace |
-| Delivery | Garden drop-off (the garden gnome, approved by the engineer in #683) | 0 | 62, 24 | Garden |
-| Delivery | Workbench (drop-off, the motor oil) | 0 | 70, 37 | Garage |
+| Delivery | Dining table (drop-off, the wine): the art's long table (3 x 1.2 m) with eight chairs, its marker at the table's centre (#831) | 0 | 36, 27 | Dining room |
+| Delivery | Terrace table (drop-off, the parasol, approved by the engineer in #683): the art's table (1.6 x 0.9 m) with four chairs, its marker at the table's centre, and an empty parasol stand at its east end (`levels/props/parasol_stand.tscn`, 29.98, 20, #831) | 0 | 29, 20 | Terrace |
+| Delivery | Garden drop-off (the garden gnome, approved by the engineer in #683): the art's garden drop-off (`levels/house/outdoor.tscn`) under its marker | 0 | 62, 24 | Garden |
+| Delivery | Workbench (drop-off, the motor oil): the art's workbench against the east wall (centre 71.5, 37); the marker 1 m east of the first point (70, 37), whose 1 m cylinder missed the bench's top (#831) | 0 | 71, 37 | Garage |
 | Generator | Generator | -1 | 49, 32 | Generator hall |
 | Generator | Switch A | -1 | 16, 32 | Storage |
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
@@ -181,8 +181,8 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 
 No zone stands in the basement: the bot scenarios read every map of the base mode through a flat fake whose one floor
 is at y = 0, where a station marker below it finds no floor (`levels/CLAUDE.md`, #681). The yard's zone stands above the
-generator hall, 4 m east of its old point (44, 37): 6 m from the house and from the garage, 12 m from the nearest
-delivery circle on its floor (the kitchen's).
+generator hall, 4 m east of its old point (44, 37): 6 m from the house and from the garage, 15.6 m from the nearest
+drop-off on its floor (the dining table's; the kitchen's delivery circle, 12 m away, went with #831).
 
 The photo stations (#783, proposed for the engineer's approval; each point is the use spot of its station scene in
 `levels/stations/`, where the user stands): the photo spot is the gazebo's centre, on its deck (y 0.15), its 2 m floor
@@ -222,7 +222,11 @@ are his, approved as drafted
 Delivery plays on the House only: the greybox, a test bench only (#767), keeps today's colour-matched Delivery as far
 as its bot scenarios and the information-leak test need it, and gets no drop-offs (DD9 (c) of the
 [Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), the same comment). The House's circle
-markers go once the House plays this Delivery (the ADR's D4).
+markers went with the ADR's D4 (#831), all but the study's, which the study's owner (#783) leaves to a follow-up (#1059). Each
+drop-off's furniture is the art's dressing where the art gives it (the rows above), with layer-1 colliders: an item
+put on a top rests inside the drop-off's cylinder (`tests/integration/levels/house_drop_offs_test.gd`). The two
+tables differ at a glance: the long indoor one with eight chairs, the small outdoor one with four and the empty
+parasol stand beside it.
 
 ## 7. Routes and travel times
 

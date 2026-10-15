@@ -15,13 +15,15 @@ const LIFT := {
 	"Dressing/lift_arms_1": [PROPS + "lift_arms.tscn", Vector3(10, 0.04, 7)],
 	"Dressing/garage_car_1": [PROPS + "garage_car.tscn", Vector3(10, 0, 7)],
 }
-## HANDOFF's other points: node -> its position in the room.
+## HANDOFF's other points: node -> its position in the room. The workbench's drop-off stands 1 m
+## east of HANDOFF's (16, 0, 3), whose 1 m cylinder missed the bench's top (17.1 to 17.9 m):
+## an item on the top counts there (#831, house_drop_offs_test.gd).
 const POINTS := {
 	"Dressing/lift_panel_1": Vector3(3, 0, 11.6),
 	"Dressing/part_picture_1": Vector3(17.9, 1.3, 6.5),
 	"Stations/CarLift": Vector3(10, 0, 7),
 	"Stations/LiftPanel": Vector3(3, 0, 12),
-	"Stations/Workbench": Vector3(16, 0, 3),
+	"Stations/Workbench": Vector3(17, 0, 3),
 }
 const GATE := "Shell/garage_door_8m_1/"
 ## A section header of the scene's text: its name, its parent, and the rest (type=, instance=).
