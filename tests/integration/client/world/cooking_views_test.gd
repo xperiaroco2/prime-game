@@ -211,6 +211,138 @@ func test_a_ray_names_a_bed_by_its_shape_and_the_grill_by_its_collision() -> voi
 	assert_int(_views.station_of_hit(_level, 0)).is_equal(-1)
 
 
+func test_a_downed_eye_behind_a_kitchen_wall_sees_no_driven_part_nor_what_lies_on_them() -> void:
+	var items := _loaded_items()
+	await _frames()
+	var views: Array[Node3D] = [items.view_of(1), items.view_of(2), items.view_of(3)]
+	for root: Node3D in _views.scene_roots():
+		views.append(root.get_node(StationViews.WRAPPER) as Node3D)
+	for view: Node3D in views:
+		assert_bool(view.is_in_group(SightHider.GROUP)).is_true()
+	# A wall 3 m high in front of each row of stations: the boards and the grill, the places, the
+	# beds. A downed eye's raised camera stands 1 m up behind it, then on the open side.
+	var rows: Array[float] = [
+		FixtureCookingModes.GRILL_AT.z, FixtureCookingModes.PLACE_SPOTS[0].z, _bed_spot_z()
+	]
+	for z: float in rows:
+		_wall(Vector3(FixtureCookingModes.GRILL_AT.x, 1.5, z + 1.6), Vector3(60, 3, 0.1))
+	var hider := auto_free(SightHider.new()) as SightHider
+	add_child(hider)
+	await get_tree().physics_frame
+	for z: float in rows:
+		var behind := _views_in_row(views, z)
+		assert_int(behind.size()).is_greater(0)
+		hider.watch_from(Vector3(_row_x(behind), 1.0, z + 3.0))
+		hider.hide_unseen()
+		for view: Node3D in behind:
+			assert_bool(view.visible).override_failure_message(str(view.get_path())).is_false()
+		hider.watch_from(Vector3(_row_x(behind), 1.0, z + 1.0))
+		hider.hide_unseen()
+		for view: Node3D in behind:
+			assert_bool(view.visible).override_failure_message(str(view.get_path())).is_true()
+
+
+func test_no_driven_part_nor_plate_item_draws_through_walls_or_over_the_level() -> void:
+	var items := _loaded_items()
+	_now = 100 + FixtureCookingModes.type_of(_mode).fried_ticks() / 2
+	await _frames()
+	var roots: Array[Node] = []
+	for root: Node3D in _views.scene_roots():
+		roots.append(root)
+	roots.append(items)
+	var drawn := 0
+	for root: Node in roots:
+		for node: Node in root.find_children("*", "GeometryInstance3D", true, false):
+			drawn += 1
+			var path := str(node.get_path())
+			var sprite := node as SpriteBase3D
+			if sprite != null:
+				assert_bool(sprite.no_depth_test).override_failure_message(path).is_false()
+				assert_int(sprite.render_priority).override_failure_message(path).is_equal(0)
+			var label := node as Label3D
+			if label != null:
+				assert_bool(label.no_depth_test).override_failure_message(path).is_false()
+				assert_int(label.render_priority).override_failure_message(path).is_equal(0)
+			for material: Material in _materials_of(node as GeometryInstance3D):
+				assert_int(material.render_priority).override_failure_message(path).is_equal(0)
+				var base := material as BaseMaterial3D
+				if base != null:
+					assert_bool(base.no_depth_test).override_failure_message(path).is_false()
+	# The ring's segments, a plant, a board picture and the outlined plate items are among them.
+	assert_int(drawn).is_greater(CookingViews.RING_SEGMENTS)
+
+
+## ItemViews over the model with a right bun and a wrong herb on the first place and a raw patty
+## on the grill, drawn at CookingViews.point_of.
+func _loaded_items() -> ItemViews:
+	var items := auto_free(ItemViews.new()) as ItemViews
+	items.model = _model
+	items.mode = _mode
+	items.station_point = _views.point_of
+	add_child(items)
+	var type := FixtureCookingModes.type_of(_mode)
+	FixtureCookingClient.hold(_model, 1, &"bun_a")
+	FixtureCookingClient.put(_model, 1, 0, true)
+	FixtureCookingClient.hold(_model, 2, &"herb_b")
+	FixtureCookingClient.put(_model, 2, 0, false)
+	FixtureCookingClient.hold(_model, 3, &"raw_a")
+	FixtureCookingClient.grill(_model, 3, 100 + type.fried_ticks(), 100 + type.burnt_ticks())
+	return items
+
+
+func _wall(center: Vector3, size: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = PhysicsLayers.WORLD
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = center
+	_level.add_child(body)
+
+
+func _bed_spot_z() -> float:
+	return (_beds.get_node("Bed1/UseSpot") as Node3D).global_position.z
+
+
+## The views whose sight point lies in the row of use spots at `z` (within 2 m).
+func _views_in_row(views: Array[Node3D], z: float) -> Array[Node3D]:
+	var found: Array[Node3D] = []
+	for view: Node3D in views:
+		var point: Vector3 = view.call(&"sight_point") as Vector3
+		if absf(point.z - z) < 2.0:
+			found.append(view)
+	return found
+
+
+## The middle of the views' sight points in x.
+func _row_x(views: Array[Node3D]) -> float:
+	var low := INF
+	var high := -INF
+	for view: Node3D in views:
+		var x := (view.call(&"sight_point") as Vector3).x
+		low = minf(low, x)
+		high = maxf(high, x)
+	return (low + high) / 2.0
+
+
+func _materials_of(node: GeometryInstance3D) -> Array[Material]:
+	var found: Array[Material] = []
+	for material: Material in [node.material_override, node.material_overlay]:
+		if material != null:
+			found.append(material)
+	var mesh := node as MeshInstance3D
+	if mesh != null and mesh.mesh != null:
+		for i in mesh.mesh.get_surface_count():
+			var surface := mesh.get_surface_override_material(i)
+			if surface == null:
+				surface = mesh.mesh.surface_get_material(i)
+			if surface != null:
+				found.append(surface)
+	return found
+
+
 func _add(scene: StringName, spot_at: Vector3) -> void:
 	var root := (load(SCENES % scene) as PackedScene).instantiate() as Node3D
 	root.position = spot_at - (root.get_node("UseSpot") as Node3D).position
