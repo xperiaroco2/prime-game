@@ -31,6 +31,9 @@ extends Node3D
 signal sound_due(event_name: StringName, fields: Dictionary)
 
 const PHYSICS_PRIORITY := 1
+## A photo farther than this from the drawing camera shows no picture, so its texture can go
+## (PhotoPictures frees what nobody asks for). A look, "not a decision".
+const PICTURE_RANGE_M := 12.0
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands, and the Throw rule's numbers.
@@ -46,6 +49,8 @@ var flights := ItemFlights.new()
 ## the tray (a Vector3) or on the board (a Transform3D: upright) by PhotoViews.drawn_point (#787);
 ## null to draw it at its own position. Unset: at its own position.
 var station_point := Callable()
+## The shots' pictures (PhotoPictures, #787): a photo shows its shot's; unset: none.
+var pictures: PhotoPictures
 
 var _views: Dictionary[int, ItemView] = {}
 ## The model's Item each view was built for: ItemSpawned makes a new one, so a reused id shows.
@@ -138,6 +143,7 @@ func _physics_process(delta: float) -> void:
 			_built_for[id] = item
 			add_child(view)
 		_place(view, item)
+		_show_picture(view, item)
 	_show_own_hand()
 	_send_due()
 
@@ -245,6 +251,7 @@ func _show_own_hand() -> void:
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
 		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind), hand_id)
+		player.hand_view().set_picture(picture_for(hand))
 
 
 ## The own arc's sweep (the throwing ADR's TE5 (a)): a sphere of `radius` from `from` towards `to`
@@ -282,3 +289,27 @@ func _send_due() -> void:
 func _two_handed(item_kind: StringName) -> bool:
 	var kind := mode.find_item_kind(item_kind) if mode != null else null
 	return kind != null and kind.is_two_handed()
+
+
+## The picture photo `item` shows (#787): its shot's texture, or null (no shot, no picture yet,
+## no PhotoPictures).
+func picture_for(item: ClientModel.Item) -> Texture2D:
+	if pictures == null or item == null or item.shot < 0:
+		return null
+	return pictures.texture_of(item.shot)
+
+
+## A photo's view shows its shot's picture while its look is shown within PICTURE_RANGE_M of the
+## drawing camera; else the blank, so the texture is no longer held and PhotoPictures frees it.
+func _show_picture(view: ItemView, item: ClientModel.Item) -> void:
+	if item.shot < 0 and view.picture() == null:
+		return
+	var texture: Texture2D = null
+	if view.look().visible and view.visible and _near(view.global_position):
+		texture = picture_for(item)
+	view.set_picture(texture)
+
+
+func _near(at: Vector3) -> bool:
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	return camera == null or camera.global_position.distance_to(at) <= PICTURE_RANGE_M

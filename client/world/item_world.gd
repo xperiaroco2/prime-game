@@ -6,7 +6,8 @@ extends Node3D
 ## sounds (WorldSounds; the photo task's shutter, print and hang, #785) and the photo camera's
 ## flash (PhotoFlashes, #785) and the Generator's station scenes in the level (StationViews, #801)
 ## and its hum while it charges (StationHums, #801) and the photo camera's viewfinder
-## (PhotoViewfinder, #786) and its scenes, items and pictures (PhotoViews, #787),
+## (PhotoViewfinder, #786) and its scenes and items (PhotoViews, #787) and the shots' pictures
+## (PhotoPictures, #787),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -23,6 +24,7 @@ var cooking := CookingViews.new()
 var viewfinder := PhotoViewfinder.new()
 var car_repair := CarRepairViews.new()
 var photos := PhotoViews.new()
+var pictures := PhotoPictures.new()
 
 var _model: ClientModel
 var _mode: GameMode
@@ -44,6 +46,7 @@ func _init() -> void:
 	cooking.name = "CookingViews"
 	car_repair.name = "CarRepairViews"
 	photos.name = "PhotoViews"
+	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
 		circles,
@@ -59,6 +62,8 @@ func _init() -> void:
 	]:
 		add_child(each)
 	add_child(photos)
+	add_child(pictures)
+	items.pictures = pictures
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
 	interactions.throw_sent.connect(items.predict_throw)
@@ -96,6 +101,10 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	_host_tick = views.host_tick
 	photos.model = _model
 	photos.mode = game_mode
+	pictures.model = _model
+	pictures.mode = game_mode
+	pictures.avatars = views
+	pictures.flashes = flashes
 	hums.model = _model
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
@@ -138,6 +147,8 @@ func reset() -> void:
 	car_repair.host_tick = Callable()
 	_host_tick = Callable()
 	photos.model = null
+	pictures.clear()
+	pictures.model = null
 	hums.clear()
 	hums.model = null
 	sounds.model = null
@@ -192,6 +203,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 		return
 	items.on_event(event_name, fields)
 	flashes.on_event(event_name, fields)
+	pictures.on_event(event_name, fields)
 	viewfinder.on_event(event_name, fields)
 	if event_name == &"ItemThrown":
 		return

@@ -546,6 +546,7 @@ func _hold_as_seen(peer: int) -> void:
 		var kind := mode.find_item_kind(hand.kind)
 		var two_handed := kind != null and kind.is_two_handed()
 		_spectate_hand.show_item(hand.kind, hand.colour, two_handed, model.hand_item(peer))
+		_spectate_hand.set_picture(items.picture_for(hand) if items != null else null)
 	if items == null:
 		return
 	# A throw is hung at the body's hand until its launch is drawn: the hand is empty already.

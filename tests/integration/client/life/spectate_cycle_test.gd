@@ -27,6 +27,15 @@ var _life: LifeView
 var _now := 1000000
 
 
+## Pictures by shot id, no render (#787).
+class StubPictures:
+	extends PhotoPictures
+	var textures: Dictionary[int, Texture2D] = {}
+
+	func texture_of(shot: int) -> Texture2D:
+		return textures.get(shot)
+
+
 func before_test() -> void:
 	_mode = load(MODE) as GameMode
 	_model = ClientModel.new(_mode)
@@ -136,6 +145,25 @@ func test_the_first_target_after_none_is_no_switch() -> void:
 	_life.cycle_target(1)
 	assert_int(_life.target()).is_equal(FIRST)
 	assert_array(switched).is_empty()
+
+
+func test_the_watched_target_s_photo_shows_its_picture_in_the_spectate_hand() -> void:
+	# #787: the spectate hand asks ItemViews for the photo's picture, as the own hand does.
+	var pictures := StubPictures.new()
+	var image := Image.create_empty(4, 4, false, Image.FORMAT_RGB8)
+	var texture := ImageTexture.create_from_image(image)
+	pictures.textures = {7: texture}
+	_world.add_child(pictures)
+	_items.pictures = pictures
+	_others_at({FIRST: Vector3(4, 0, 0)})
+	_spawn(FIRST_HAND, &"photo")
+	(_model.items[FIRST_HAND] as ClientModel.Item).shot = 7
+	_model.fold(&"ItemPickedUp", {"peer": FIRST, "item": FIRST_HAND})
+	_model.lives[SECOND] = ClientModel.Life.DEAD
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	await _drawn()
+	assert_int(_life.target()).is_equal(FIRST)
+	assert_object(_life.spectate_hand().view().picture()).is_same(texture)
 
 
 ## `peer` is watched from its eyes as it sees itself, and the other target is drawn as any other
