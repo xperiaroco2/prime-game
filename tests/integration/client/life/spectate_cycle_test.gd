@@ -25,6 +25,8 @@ var _avatars: AvatarViews
 var _items: ItemViews
 var _life: LifeView
 var _now := 1000000
+## What the LifeView's mouse_captured seam answers (headless Godot keeps no mouse mode).
+var _captured := false
 
 
 ## Pictures by shot id, no render (#787).
@@ -71,6 +73,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	_click(false)
 	_world.free()
 
 
@@ -166,6 +169,31 @@ func test_the_watched_target_s_photo_shows_its_picture_in_the_spectate_hand() ->
 	assert_object(_life.spectate_hand().view().picture()).is_same(texture)
 
 
+## The real order (#1117, as #1114's shot): the controller captures the mouse on the click itself,
+## before LifeView's _process of that frame, so that click reads as captured now but was free a
+## frame ago and cycles nothing; the next click, the mouse already captured, cycles.
+func test_the_click_that_captures_the_mouse_cycles_no_target() -> void:
+	_others_at({FIRST: Vector3(4, 0, 0), SECOND: Vector3(-4, 0, 0)})
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	_captured = false
+	_life.mouse_captured = func() -> bool: return _captured
+	_life.reads_device_input = true
+	await _drawn()
+	var watched := _life.target()
+	assert_array([FIRST, SECOND]).contains([watched])
+	_click(true)
+	_captured = true
+	await _process_frames(2)
+	_click(false)
+	await _process_frames(1)
+	assert_int(_life.target()).is_equal(watched)
+	_click(true)
+	await _process_frames(2)
+	_click(false)
+	await _process_frames(1)
+	assert_int(_life.target()).is_equal(SECOND if watched == FIRST else FIRST)
+
+
 ## `peer` is watched from its eyes as it sees itself, and the other target is drawn as any other
 ## player: its body by the spectate camera, its items at its body.
 func _assert_watched(peer: int) -> void:
@@ -219,6 +247,21 @@ func _drawn_by(body: RemotePlayerBody, camera: Camera3D) -> bool:
 		if mesh.is_visible_in_tree() and (mesh.layers & camera.cull_mask) != 0:
 			return true
 	return false
+
+
+## The left mouse button (spectate_next) pressed or released, as a real click reaches the action
+## states.
+func _click(down: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = down
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
+
+func _process_frames(count: int) -> void:
+	for i: int in count:
+		await get_tree().process_frame
 
 
 func _drawn() -> void:

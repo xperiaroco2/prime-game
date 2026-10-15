@@ -169,6 +169,7 @@ func _ready() -> void:
 	_world.add_child(_items)
 	# The left button's use and shot need the mouse captured, as the game's pointer has it (#1114).
 	_items.interactions.mouse_captured = func() -> bool: return pointer.captured()
+	_life.mouse_captured = func() -> bool: return pointer.captured()
 	_ready_settings()
 	ui.menu.bind_name(settings)
 	_ready_voice()

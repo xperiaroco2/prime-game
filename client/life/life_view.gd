@@ -58,6 +58,10 @@ var reads_device_input := true
 ## Whether the life inputs apply now (the game turns it off under the Esc menu and outside the
 ## round).
 var listening := true
+## Whether the mouse is captured, which cycling the spectate target needs (the click that captures
+## it cycles nothing): Input's mouse mode unless replaced. Game gives its MousePointer's, as it
+## does ItemInteractions' (#1114); tests replace it too, as headless Godot keeps no mouse mode.
+var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 ## The spectate targets' generator (the purpose `spectate`): from the system's entropy unless a
 ## test seeds it.
 var rng := RandomNumberGenerator.new()
@@ -339,7 +343,7 @@ func _process(delta: float) -> void:
 		return
 	if not reads_device_input:
 		return
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured := mouse_captured.call() as bool
 	var was_captured := _was_captured
 	_was_captured = captured
 	if not listening:
