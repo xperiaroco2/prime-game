@@ -1773,14 +1773,23 @@ panel refuses dissidents", both failed, reverted).
 both name every event `PhotoTask.emits()` returns) and the record invariant (the photo ADR §8): `ShotTaken` is the
 first event to carry other players' avatar rows, and `view_of` reads the same record, so the leak test alone would pass
 a record-building bug. `ScenarioInvariants.record_problems`, written apart from `PhotoTask`'s builder, checks every
-row: a present peer alive or downed at the shot, named once, within one movement claim's longest step
-(`record_step`: `MAX_TICK_CREDIT` plus `PUSH_TICKS` ticks of sprinting, plus the slack) horizontally of its accepted
-position at the end of the tick before or of the shot's tick, and within `range_m` + 2 m + that step of the lens (the
-camera's position raised by the eye height). `ScenarioInvariants.check_event` runs it on each emitted `ShotTaken`,
-`LeakCheck.check_bot` on each decoded one (the camera from the decoded `StationPlaced`, the life states and
-positions `record_tick` saw). No bot plays the photo task (PE18): its unit cases (`tests/scenarios/
-record_invariant_test.gd`: a dead player's row, a row beyond the bound, a row a step from every accepted position, a
-peer named twice, each caught) stand in; the record plant over House's shots is P9's (#788).
+row: a present peer alive or downed at the shot, named once, near its accepted position, and within `range_m` + 2 m
+of the lens (the camera's position raised by the eye height) plus the same slack. `LeakCheck.check_bot` runs it on
+each decoded `ShotTaken` (the camera from the decoded `StationPlaced`, the life states and positions `record_tick`
+saw); it sees positions only at the ends of ticks, so its slack is one movement claim's longest step (`record_step`:
+`MAX_TICK_CREDIT` plus `PUSH_TICKS` ticks of sprinting, plus the slack) horizontally of the position at the end of
+the tick before or of the shot's tick. `ScenarioInvariants.check_event` runs it on each emitted `ShotTaken` in the
+shot's own `Match` call, so it takes the positions now with no step (#788: with the base mode's sprint the step was
+some 73 m, more than the House, and the record plant passed). No bot plays the photo task (PE18): its unit cases
+(`tests/scenarios/record_invariant_test.gd`: a dead player's row, a row beyond the bound, a row a step from every
+accepted position, a peer named twice, each caught; `record_wiring_test.gd`: a row a metre off its player now, a
+metre beyond the range, each seen failing on the stepped check) stand in. **#788 (photo P9)** planted both on the
+House with no bot, `tests/integration/levels/house_photo_test.gd` (§9.7): `ShotTakenEvent.audience()` as
+`Audience.only` of the shooter failed the two tests that shoot on `ScenarioInvariants` (`ShotTaken reached [1002],
+not every present player [1, 1002, 1003]`); the record builder without its distance test (a row for every living
+present player outside the camera's cylinder, however far) failed both on the record invariant (`a ShotTaken row puts
+peer 1003 at (24.0, 0.0, 55.0), 45.311 m from the lens ..., beyond 12.001 m`), after the step was taken out of
+`ScenarioInvariants` (with it, only the test's own record assertion failed); each reverted.
 **#773 (cooking C4)** added `GrillLoaded` and `IngredientPlaced` to both `TASK_EVENTS` lists; no bot plays Cooking
 (CE22, §9.7), so their plant waits for the House's (C8). What stands in: `cooking_events_name_no_player_test` (neither
 names a player) and `cooking_role_swap_test` (planted "a place refuses dissidents", both failed, reverted).
@@ -1788,8 +1797,10 @@ names a player) and `cooking_role_swap_test` (planted "a place refuses dissident
 (§9.7), so their plant waits for its bots. What stands in: `car_repair_events_name_no_player_test` (`PartFitted` names
 no player; `FitChanged` names only the fitter, RD15 (a)).
 **#782 (photo P3)** added `PhotoPrinted` and `PhotoHung` to both `TASK_EVENTS` lists (`photo_check_test` holds that
-both name every event `PhotoTask.emits()` returns); no bot plays the photo task (PE18), so their plant waits for the
-House's (P9, #788). What stands in: `photo_role_swap_test` over the whole chain (planted "a dissident's hang counts
+both name every event `PhotoTask.emits()` returns); no bot plays the photo task (PE18), so their plant waited for the
+House's: #788 (P9) declared `FilmLoaded`, `PhotoPrinted` and `PhotoHung` to peer 1 alone, and `house_photo_test`
+failed on `ScenarioInvariants` (`PhotoPrinted reached [1], not every present player [1, 1002, 1003]`, and the same
+for the other two); reverted. Beside it: `photo_role_swap_test` over the whole chain (planted "a dissident's hang counts
 nothing", both failed, reverted) and `photo_check_test` (neither `ShotTaken` nor `PhotoPrinted` says whether a person counted).
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
@@ -7496,7 +7507,10 @@ the spot's mark, the printer's tray on its top, the board's slots on its face) a
 `tests/integration/levels/house_photo_stations_test.gd` (the markers read once each at §6's points, a player clear
 on each device's use spot on a whole floor, the spot beyond the camera's reach, the shooter seeing a subject on
 the mark and not one behind the backdrop, the film beside the camera, no shared (x, z), no art copy left; the
-camera moved 0.9 m nearer and a floor tile moved beside the board each failed it).
+camera moved 0.9 m nearer and a floor tile moved beside the board each failed it). The ADR's §8 House tests (P9,
+#788) in `tests/integration/levels/house_photo_test.gd` (§9.7): the shipped base mode on the House in the host's
+real world, `ScenarioInvariants` on every call and tick, the match replayed from its command log, with the leak plant
+and the record plant (§4.6.4.1).
 
 #### 9.5.23 Crouch (not a part in v0)
 What it does: the `crouched` flag of `MoveClaim` (§7.1.17, the [crouch ADR](decisions/2026-10-10-crouch.md)): the
@@ -7912,6 +7926,24 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   darkroom behind the storage's wall is refused `out_of_reach`; with the switch cylinder widened to 3.5 m in a copy
   of the mode (a test value, not a decision), the same player is refused `blocked` by the wall. Seen failing with the
   leak plant (§4.6.4.1) and with `StationInSight` always passing (both `blocked` tests); each reverted.
+  The photo task (§9.5.22) has no bot scenario either (PD14, PE18 of the [photo ADR](decisions/2026-10-10-photo-task.md)).
+  What stands in for its scenarios is `tests/integration/levels/house_photo_test.gd` (#788, P9), built as
+  `house_generator_test.gd`: the shipped base mode on the House in the host's real world, three players with forced
+  roles, the photo task isolated in the setup's `ChangeSettings` (`tasks` 1 and every other task type of the base mode
+  banned, read from the mode; `photos` 2, a test value, so one hang leaves the round going), `ScenarioInvariants` on
+  every call and tick (the record invariant included). Players move only by movement claims the host accepts (each
+  with its own client clock, long walks in pieces of at most 30 m, the climb to the study by the external stairs), so
+  `Match.replay` reproduces every position: the two matches that shoot are replayed from their command logs (the same
+  events to the same recipients on the same ticks, no `diagnostics`). The station, tray and film markers read without
+  errors and the deal fills them; a player on each device's use spot is refused `no_film` at the camera,
+  `nothing_to_print` at the printer, `no_photo` at the board, and takes a film from the box; the photo spot's whole
+  mark lies outside the camera's cylinder, its lens clear of the camera scene and the line to the aim clear. Who
+  counts: a subject on the spot's centre and one on the mark's near edge do; one behind the gazebo's backdrop (in the
+  frame, out of sight) and one outside the frame (in sight) do not, each precondition asserted with `PhotoFrame` and
+  `line_of_sight`. A scripted chain (a film from the box in storage, the dealt film loaded, a shot with a subject, the
+  film out, the print in the study, the hang in the darkroom) completes a subtask, the shot's record naming the
+  subject alone, every present player's view holding each photo event once. Seen failing with the leak plant on
+  `ShotTaken` and on the other three photo events and with the record plant (§4.6.4.1); each reverted.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
