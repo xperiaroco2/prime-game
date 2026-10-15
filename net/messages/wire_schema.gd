@@ -55,7 +55,10 @@ extends RefCounted
 ## base mode's House with the car repair demands 36 spawn tags). No row changed otherwise. (33 was
 ## held by #1101's open PR #1109: whichever of the two lands second takes its base's plus one at
 ## its rebase. A skipped number is harmless: the versions only have to match.)
-const VERSION := 34
+## 35 since #1101 dropped IngredientPlaced's `right` (kind 80) and added Cooking's BurgerPlated
+## (kind 85) and BurgerServed (kind 86): a burger is checked when it is served. (It was 33 before
+## its rebase onto #810's 34.)
+const VERSION := 35
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -538,7 +541,7 @@ static func _events() -> Array[WireRow]:
 			12,
 			[_station("station"), _item("item"), _of("fried", _tick()), _of("burnt", _tick())]
 		),
-		_down(80, &"IngredientPlaced", 5, [_item("item"), _station("station"), _bool("right")]),
+		_down(80, &"IngredientPlaced", 4, [_item("item"), _station("station")]),
 		_down(
 			81,
 			&"FitChanged",
@@ -552,6 +555,13 @@ static func _events() -> Array[WireRow]:
 		_down(82, &"PartFitted", 4, [_station("station"), _item("item")]),
 		_down(83, &"PhotoPrinted", 4, [_item("item"), _u16("shot")]),
 		_down(84, &"PhotoHung", 5, [_item("item"), _station("station"), _bool("counted")]),
+		_down(
+			85,
+			&"BurgerPlated",
+			103,
+			[_item("item"), _station("station"), _id("bun"), _id("patty"), _id("herb")]
+		),
+		_down(86, &"BurgerServed", 3, [_station("station"), _bool("right")]),
 	]
 
 

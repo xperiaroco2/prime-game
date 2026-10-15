@@ -14,7 +14,8 @@ extends RefCounted
 ##   Generator's SwitchChanged and ButtonPressed, #797, Cooking's OrderPosted and HerbsDealt, #772,
 ##   the car repair's LiftChanged and PartNeeded, #807, the photo task's FilmLoaded and
 ##   ShotTaken, #781, Cooking's GrillLoaded and IngredientPlaced, #773, and the car repair's
-##   FitChanged and PartFitted, #808, and the photo task's PhotoPrinted and PhotoHung, #782).
+##   FitChanged and PartFitted, #808, the photo task's PhotoPrinted and PhotoHung, #782, and
+##   Cooking's BurgerPlated and BurgerServed, #1101).
 ## - No event and no snapshot holds the session seed or a match seed.
 ## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
 ##   holds its own avatar exactly when its player is knocked down, read from the life state, never
@@ -68,6 +69,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"PartFitted",
 	&"PhotoPrinted",
 	&"PhotoHung",
+	&"BurgerPlated",
+	&"BurgerServed",
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
