@@ -46,6 +46,12 @@ class Item:
 	## nobody and never taken again. `rests()` ignores `fitted` for now, so a view still draws it at
 	## the car: the car repair client issue (R7) hides it (the car repair ADR's RE12).
 	var fitted := false
+	## Cooking (#776): the station it lies on, a place's plate or the grill (IngredientPlaced,
+	## GrillLoaded), -1 for none; whether it is locked there (a right ingredient or the grill's
+	## patty: no PickUp takes it). A wrong (red) ingredient lies on its place unlocked. A pickup, a
+	## put down or a throw clears both. Nothing records who put it there (the ADR's §3).
+	var on_station := -1
+	var locked := false
 	## In flight (§7.1.16): from its ItemThrown until its ItemPlaced (cause `thrown`) or
 	## PackageDelivered. The launch exactly as the event carries it, so a client draws the arc
 	## from the same vectors the host's flight uses (37e): the thrower, the origin, velocity and
@@ -114,7 +120,22 @@ class Station:
 	var fit_tick := -1
 	## The parts fitted to the car, as the PartFitted events decoded for it told it.
 	var fitted := 0
+	## Cooking's place (#776): its order as OrderPosted told it (the bun and the fried patty kind
+	## ids, the herb's icon index; empty and -1 before), and the right ingredients on it so far
+	## (IngredientPlaced `right`): `done` at ORDER_SLOTS. The order's herb is never sent.
+	var bun := &""
+	var patty := &""
+	var icon := -1
+	var right_count := 0
+	## Cooking's grill (#776): its patty and the host ticks it turns fried and burnt at, as the
+	## last GrillLoaded told it; -1 when empty (the patty's ItemPickedUp empties it).
+	var grill_item := -1
+	var fried_tick := -1
+	var burnt_tick := -1
 
+
+## The right ingredients that finish a cooking place's burger: a bun, a patty and a herb (#776).
+const ORDER_SLOTS := 3
 
 ## Its own peer id once welcomed; 0 before.
 var own_peer := 0
@@ -158,6 +179,10 @@ var lives: Dictionary[int, Life] = {}
 var raises: Dictionary[int, int] = {}
 ## Task id -> its public state (TaskState, E30), for the task screen.
 var tasks: Dictionary[int, Task] = {}
+## Cooking's herbs as HerbsDealt told them (#776): the herb kind id per icon index (the herb
+## board) and per bed, in bed station order. Empty before the deal.
+var herb_code := PackedStringArray()
+var herb_beds := PackedStringArray()
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
@@ -359,6 +384,8 @@ func clear_match() -> void:
 	items.clear()
 	tasks.clear()
 	stations.clear()
+	herb_code = PackedStringArray()
+	herb_beds = PackedStringArray()
 	bodies.clear()
 	lives.clear()
 	raises.clear()
@@ -412,8 +439,22 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			var changed: Item = items.get(fields["item"] as int)
 			if changed != null:
 				changed.kind = fields["kind"]
+		&"OrderPosted":
+			var place: Station = stations.get(fields["station"] as int)
+			if place != null:
+				place.bun = fields["bun"]
+				place.patty = fields["patty"]
+				place.icon = fields["icon"]
+		&"HerbsDealt":
+			var code: PackedStringArray = fields["code"]
+			var beds: PackedStringArray = fields["beds"]
+			herb_code = code.duplicate()
+			herb_beds = beds.duplicate()
+		&"IngredientPlaced", &"GrillLoaded":
+			_fold_cooking_put(event_name, fields)
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
+			_unstation(fields["item"] as int)
 			if item != null:
 				item.holder = NO_HOLDER
 				item.belted = false
@@ -424,6 +465,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 		&"ItemVanished":
 			# Gone for good (the cooking ADR, CE3): its view goes with it; a later ItemSpawned may
 			# reuse the id for a new item.
+			_unstation(fields["item"] as int)
 			items.erase(fields["item"] as int)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
@@ -508,6 +550,8 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 			if item.holder == peer:
 				item.belted = not item.belted
 		return
+	_unstation(fields["item"] as int)
+	_unstation(fields.get("belted", -1) as int)
 	var picked: Item = items.get(fields["item"] as int)
 	if picked != null:
 		picked.holder = peer
@@ -516,6 +560,52 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	if belted != null:
 		belted.holder = peer
 		belted.belted = true
+
+
+## A put on a cooking place's plate (IngredientPlaced) or on the grill (GrillLoaded, #776): the
+## host sends no ItemPlaced for either (Items.lay_on_station, lock_at), so the item leaves the
+## putter's hand here and lies at the station, locked unless a wrong ingredient. Who put it is
+## never kept (the ADR's §3).
+func _fold_cooking_put(event_name: StringName, fields: Dictionary) -> void:
+	var station_id: int = fields["station"]
+	var station: Station = stations.get(station_id)
+	var item_id: int = fields["item"]
+	var item: Item = items.get(item_id)
+	var grill := event_name == &"GrillLoaded"
+	var right: bool = grill or fields["right"]
+	if item != null:
+		item.holder = NO_HOLDER
+		item.belted = false
+		item.flying = false
+		item.on_station = station_id
+		item.locked = right
+		if station != null:
+			item.position = station.position
+	if station == null:
+		return
+	if grill:
+		station.grill_item = item_id
+		station.fried_tick = fields["fried"]
+		station.burnt_tick = fields["burnt"]
+	elif right:
+		station.right_count += 1
+		station.done = station.right_count >= ORDER_SLOTS
+
+
+## Clears what a cooking put left on item `item_id` (#776): it lies on no station any more, and a
+## grill holding it is empty (no event marks the grill empty but the patty's ItemPickedUp).
+func _unstation(item_id: int) -> void:
+	if item_id < 0:
+		return
+	var item: Item = items.get(item_id)
+	if item != null:
+		item.on_station = -1
+		item.locked = false
+	for station: Station in stations.values():
+		if station.grill_item == item_id:
+			station.grill_item = -1
+			station.fried_tick = -1
+			station.burnt_tick = -1
 
 
 ## Whether no item routed to the station is still undelivered (DE7 of the delivery-by-meaning
@@ -535,6 +625,7 @@ func _fold_throw(fields: Dictionary) -> void:
 	var item: Item = items.get(fields["item"] as int)
 	if item == null:
 		return
+	_unstation(fields["item"] as int)
 	item.holder = NO_HOLDER
 	item.belted = false
 	item.flying = true
