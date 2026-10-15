@@ -55,6 +55,13 @@ func test_the_generator_is_the_decks_switches() -> void:
 	assert_str(ContentNames.task(&"generator", GameMode.new())).is_equal("task.switches")
 
 
+## The photo task (#784) reads as the deck's Photo zone, the one photo key the deck has, until the
+## UI track adds `task.photo` (a placeholder the engineer approves in #784's PR).
+func test_the_photo_task_is_the_decks_photo_zone() -> void:
+	assert_str(ContentNames.task(&"photo", null)).is_equal("room.photo_zone")
+	assert_str(ContentNames.task(&"photo", GameMode.new())).is_equal("room.photo_zone")
+
+
 ## Content that adds a type the deck already names needs no edit in ContentNames: the key is found
 ## by the convention, with no mode needed.
 func test_a_type_the_deck_names_resolves_by_its_convention() -> void:
