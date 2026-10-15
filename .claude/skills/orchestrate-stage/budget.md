@@ -16,26 +16,33 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 
 ## Budgets per track
 From the reset of 2026-10-13 10:00 UTC, the engineer's answer 1A to the weekly report
-([#302 comment 6145513919](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919)):
+([#302 comment 6145513919](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919)); design and
+art for the month from 2026-10-15 (below):
 
-| track | game | UI | art | meta | the engineer | buffer |
-|---|---|---|---|---|---|---|
-| % of the week | 34 | 6 | 20 | 12 | 5 | 16 |
+| track | game | UI | art | meta | design | the engineer | buffer |
+|---|---|---|---|---|---|---|---|
+| % of the week | 34 | 6 | **50** (20 before 2026-10-15) | 12 | **50** | 5 | 16 |
 
-- **design** (game design with the engineer, AGENT_WORKFLOW §7.3; `D:\prime-game`, plan #1095): **unlimited for
-  now**, outside the table: the engineer works on this track alone, for months, until the game design is polished (his
-  word, [#1095 comment 6199371817](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817)).
-  Its spend still counts against the account's weekly limit and the 93% stop, like every track's.
+- **Design 50%, art 50% of the week for the next month**, from 2026-10-15: the engineer's decision, "for the next
+  month we move in this vector" ([#1095 comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169)).
+  It replaces design's "unlimited for now" (his word of the same day,
+  [#1095 comment 6199371817](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817)) and art's
+  20%. The other rows stay as he left them: "the project lives its own life, as it did"
+  ([#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331)). So the
+  row adds up to more than 100%: each share is its track's limit, not a slice of the week, and the account's weekly
+  limit and the 93% stop (below) bind every track. When the month ends, the meta track's weekly proposal (below) asks him for the next budgets.
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
-  `main`). The engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until
-  he says otherwise. The buffer lies below the 93% stop (below).
+  `main`), **design** (game design with the engineer, AGENT_WORKFLOW §7.3, plan #1095; the private repo
+  `D:\prime-game-design`, committed straight to its `main`, and its decisions in `D:\prime-game` through docs PRs). The
+  engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until he says otherwise.
+  The buffer lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
 - What a budget buys is planned at row 8's all-in cost, re-measured at each reset (2026-10-13: game 0.60% a run, meta
   0.30% a run, art 0.77% an issue; UI not measured, 1.18% a run before). A run is not a task: relaunches make a game
-  PR cost 0.89%, so plan game tasks at that. A day's share (game 4.9%, UI 0.9%, art 2.9%, meta 1.7%) is a guide; the
-  weekly budget is the limit.
+  PR cost 0.89%, so plan game tasks at that. A day's share (game 4.9%, UI 0.9%, art 7.1%, meta 1.7%, design 7.1%) is a
+  guide; the weekly budget is the limit.
 - From the next reset on, the meta track posts with its weekly report the past week's spend per track against its
   budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones. A workflow that
   gathers it passes the lean types (AGENT_WORKFLOW §5, #466): its gatherers `{agentType: 'lean-reader'}` on Sonnet,
@@ -119,10 +126,10 @@ only what the budget and the trials decide.
   launch-args.md says the rest.
 
 ## Managers (N6 (b), N7 (a))
-- **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff
-  ([kickoff-template.md](kickoff-template.md) §10). The UI and art managers run their own repos' workflows (P5 ports the
-  levers there).
-- **The rules every track's manager follows**, UI and art included, are in
+- **One manager per track**, each in its track's checkout with the `Track:` line in its kickoff
+  ([kickoff-template.md](kickoff-template.md) §10; design: its own skill's §6). The UI, art and design managers run
+  their own repos' workflows (P5 ports the levers there; design: its `design-research`, #1124).
+- **The rules every track's manager follows**, UI, art and design included, are in
   [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
   keep-alive, when to hand over (§5: the 500k, 12-hour and 250k thresholds, N6 (b) as changed on
   [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287); the paste and the 500k:
