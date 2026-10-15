@@ -3,8 +3,9 @@ extends RefCounted
 ## a few of the contract's bones, one mesh, and an AnimationPlayer whose clips carry AvatarClips'
 ## names, each turning a known bone about X to a known angle, so a test reads which clip plays from
 ## a bone's pose: a base clip turns UpperLeg.L to base_angle(clip) (and UpperArm.R to 0),
-## Carry_Upper turns UpperArm.R to CARRY_ARM and UpperLeg.L to CARRY_LEG (which its filter must
-## drop), a one-shot turns Chest to SHOT_CHEST. Jog_Fwd also moves the Root bone (a root track).
+## Carry_Upper turns UpperArm.R to CARRY_ARM, Chest to CARRY_CHEST (a lean, as the art's does) and
+## UpperLeg.L to CARRY_LEG (which its filter must drop), a one-shot turns Chest to SHOT_CHEST.
+## Jog_Fwd also moves the Root bone (a root track).
 ## Plus a small ragdoll in the art's prime-ragdoll format.
 
 const BONES: Array[StringName] = [
@@ -35,6 +36,7 @@ const OFFSETS: Array[Vector3] = [
 const SKELETON_PATH := "Armature/Skeleton3D"
 const CARRY_ARM := 1.0
 const CARRY_LEG := 1.5
+const CARRY_CHEST := 0.4
 const SHOT_CHEST := 0.7
 const SHOT_S := 0.5
 const ALBEDO := Color(0.8, 0.6, 0.4)
@@ -144,6 +146,7 @@ static func _clip(clip: StringName) -> Animation:
 	elif clip == AvatarClips.CARRY_UPPER:
 		_turn(animation, &"UpperArm.R", CARRY_ARM)
 		_turn(animation, &"UpperLeg.L", CARRY_LEG)
+		_turn(animation, &"Chest", CARRY_CHEST)
 	else:
 		_turn(animation, &"UpperLeg.L", base_angle(clip))
 		_turn(animation, &"UpperArm.R", 0.0)

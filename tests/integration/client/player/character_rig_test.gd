@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## CharacterRig (#522) on the in-memory fixture character: the plan's base clip, its rate, the
 ## carry layer filtered to Torso and below, a one-shot over them and back, the sockets on their
-## bones at the old points, the tint per avatar, no root motion and no physical bones.
+## bones at their points (upright at their fitting poses, #1050), the tint per avatar, no root
+## motion and no physical bones.
 
 const Fixture := preload("res://tests/integration/client/player/character_fixture.gd")
 const STEP := 1.0 / 60.0
@@ -119,25 +120,80 @@ func test_no_root_motion_and_no_physical_bones() -> void:
 	assert_array(rig.find_children("*", "PhysicalBone3D", true, false)).is_empty()
 
 
-## At the rest pose each socket is where the placeholder's point was, on its bone.
-func test_the_sockets_sit_on_their_bones_at_the_old_points() -> void:
+## Each socket is a child of its bone's attachment, at its point in the bone's own frame.
+func test_each_socket_sits_at_its_point_in_its_bones_frame() -> void:
 	var rig := _rig()
 	for socket_name: StringName in CharacterRig.SOCKETS:
 		var entry: Array = CharacterRig.SOCKETS[socket_name]
 		var socket := rig.socket(socket_name)
 		var attach := socket.get_parent() as BoneAttachment3D
 		assert_str(attach.bone_name).is_equal(str(entry[0]))
-		var bone := rig.skeleton.find_bone(attach.bone_name)
-		var rest := rig.model.transform * rig.skeleton.get_parent_node_3d().transform
-		rest = rest * rig.skeleton.transform * rig.skeleton.get_bone_global_rest(bone)
 		var point: Vector3 = entry[1]
-		assert_vector((rest * socket.transform).origin).is_equal_approx(point, Vector3.ONE * 0.0001)
+		(
+			assert_vector(socket.position)
+			. override_failure_message(String(socket_name))
+			. is_equal_approx(point, Vector3.ONE * 1e-6)
+		)
+
+
+## The measured points face the way the art's bone frames do (the art faces +Z, its bones run
+## along +Y), so CI, which has no art (character_rig_art_test skips there), still sees a flipped
+## sign: the hand point runs down Wrist.R toward the fingers, the belt point is on the left (+X in
+## Hips' frame), the carry point is in front of the chest (+Z in Chest's frame) and below it.
+func test_the_measured_points_face_the_arts_bone_frames() -> void:
+	var hand: Vector3 = CharacterRig.SOCKETS[&"Hand"][1]
+	var belt: Vector3 = CharacterRig.SOCKETS[&"Belt"][1]
+	var carry: Vector3 = CharacterRig.SOCKETS[&"Carry"][1]
+	assert_float(hand.y).override_failure_message("Hand toward the fingers").is_greater(0.05)
+	assert_float(Vector2(hand.x, hand.z).length()).is_less(0.03)
+	assert_float(belt.x).override_failure_message("Belt on the left hip").is_greater(0.1)
+	assert_float(carry.z).override_failure_message("Carry in front").is_greater(0.2)
+	assert_float(carry.y).override_failure_message("Carry below the chest").is_less(0.0)
+
+
+## At the idle pose each socket is on its bone at its point; the hand and belt stand upright
+## (their items level), the carry socket is turned back by the carry layer's chest lean (seen in
+## the rig's frame, which faces the model's way), which the carry pose undoes (next test).
+func test_at_the_idle_pose_the_sockets_are_on_their_bones() -> void:
+	var rig := _rig()
+	_run(rig, 0.3)
+	for socket_name: StringName in CharacterRig.SOCKETS:
+		var entry: Array = CharacterRig.SOCKETS[socket_name]
+		var bone := _bone_in_rig(rig, entry[0] as StringName)
+		var at := _socket_in_rig(rig, socket_name)
+		var message := String(socket_name)
+		var point: Vector3 = entry[1]
+		assert_vector(at.origin).override_failure_message(message).is_equal_approx(
+			bone * point, Vector3.ONE * 0.001
+		)
+		var upright := Basis.IDENTITY
+		if entry[2]:
+			var lean_back := Basis(Vector3.RIGHT, -Fixture.CARRY_CHEST)
+			upright = rig.model.basis * lean_back * rig.model.basis.inverse()
+		_assert_basis(at.basis, upright, message)
+
+
+## Carrying (Carry_Upper on the carry layer), the carry socket stands upright on the leaning chest,
+## so a two-handed item is carried level.
+func test_carrying_the_carry_socket_stands_upright() -> void:
+	var rig := _rig()
+	rig.apply(_plan(AvatarClips.IDLE, 1.0, true))
+	_run(rig, 0.5)
+	var chest := rig.skeleton.get_bone_pose_rotation(rig.skeleton.find_bone(&"Chest"))
+	assert_float(chest.get_angle()).is_equal_approx(Fixture.CARRY_CHEST, 0.01)
+	var entry: Array = CharacterRig.SOCKETS[&"Carry"]
+	var point: Vector3 = entry[1]
+	var at := _socket_in_rig(rig, &"Carry")
+	assert_vector(at.origin).is_equal_approx(
+		_bone_in_rig(rig, &"Chest") * point, Vector3.ONE * 0.001
+	)
+	_assert_basis(at.basis, Basis.IDENTITY, "Carry")
 
 
 ## Fitted at the pose the clips play (the idle clip's first frame), never the rest pose: on an
-## arms-out bind pose the hand socket still sits at the old point while Idle plays, not swung up
-## with the rest pose's arm.
-func test_on_an_arms_out_rest_the_sockets_sit_at_the_old_points_while_idle_plays() -> void:
+## arms-out bind pose the hand socket still stands upright while Idle plays, not turned with the
+## rest pose's arm.
+func test_on_an_arms_out_rest_the_hand_socket_stands_upright_while_idle_plays() -> void:
 	var scene := Fixture.scene(AvatarClips.all_clips(), Fixture.BONES, true)
 	var rig := CharacterRig.make(CharacterSet.from_scene(scene, Fixture.ragdoll()))
 	add_child(rig)
@@ -149,17 +205,12 @@ func test_on_an_arms_out_rest_the_sockets_sit_at_the_old_points_while_idle_plays
 	var rest := rig.skeleton.get_bone_global_rest(wrist).origin
 	var pose := rig.skeleton.get_bone_global_pose(wrist).origin
 	assert_float(rest.distance_to(pose)).is_greater(0.3)
-	var to_rig := rig.model.transform * rig.skeleton.get_parent_node_3d().transform
-	to_rig = to_rig * rig.skeleton.transform
-	for socket_name: StringName in CharacterRig.SOCKETS:
-		var entry: Array = CharacterRig.SOCKETS[socket_name]
-		var socket := rig.socket(socket_name)
-		var bone := rig.skeleton.find_bone(entry[0] as StringName)
-		var at := (to_rig * rig.skeleton.get_bone_global_pose(bone) * socket.transform).origin
-		var point: Vector3 = entry[1]
-		assert_vector(at).override_failure_message(String(socket_name)).is_equal_approx(
-			point, Vector3.ONE * 0.001
-		)
+	var point: Vector3 = CharacterRig.SOCKETS[&"Hand"][1]
+	var at := _socket_in_rig(rig, &"Hand")
+	assert_vector(at.origin).is_equal_approx(
+		_bone_in_rig(rig, &"Wrist.R") * point, Vector3.ONE * 0.001
+	)
+	_assert_basis(at.basis, Basis.IDENTITY, "Hand")
 
 
 func test_the_tint_is_per_avatar_and_multiplies_the_albedo() -> void:
@@ -177,3 +228,24 @@ func test_the_tint_is_per_avatar_and_multiplies_the_albedo() -> void:
 	a.set_tint(Color.WHITE)
 	tinted = (mesh_a.get_active_material(0) as BaseMaterial3D).albedo_color
 	assert_float(tinted.g).is_equal_approx(Fixture.ALBEDO.g, 0.001)
+
+
+## `bone`'s pose now in the rig's frame.
+func _bone_in_rig(rig: CharacterRig, bone: StringName) -> Transform3D:
+	var to_rig := rig.model.transform * rig.skeleton.get_parent_node_3d().transform
+	to_rig = to_rig * rig.skeleton.transform
+	return to_rig * rig.skeleton.get_bone_global_pose(rig.skeleton.find_bone(bone))
+
+
+## The socket `socket_name` now in the rig's frame, from its bone's pose.
+func _socket_in_rig(rig: CharacterRig, socket_name: StringName) -> Transform3D:
+	var socket := rig.socket(socket_name)
+	var attach := socket.get_parent() as BoneAttachment3D
+	return _bone_in_rig(rig, StringName(attach.bone_name)) * socket.transform
+
+
+func _assert_basis(basis: Basis, expected: Basis, message: String) -> void:
+	for axis: int in 3:
+		assert_vector(basis[axis]).override_failure_message(message).is_equal_approx(
+			expected[axis], Vector3.ONE * 0.001
+		)

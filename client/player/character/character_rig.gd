@@ -21,13 +21,16 @@ const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
 ## The bone the carry layer starts at (the art: "Torso and every bone below it").
 const CARRY_ROOT := &"Torso"
-## The sockets: name -> [bone, the point in the rig's frame at the idle pose]. The points are the
-## placeholder capsule's (RemotePlayerBody.HAND_POINT, BELT_POINT, CARRY_POINT), so an item sits
-## where it did until a shot places it better: placeholders, "not a decision".
+## The sockets: name -> [bone, the point in the bone's own frame, fitted carrying]. Each point
+## was measured on the art (slice_m1) from close-up shots (#1050): Hand at the right palm, where a
+## one-handed item's bottom sits in the fist; Belt on the outside of the left hip at the waist;
+## Carry the bottom of a two-handed item held between both palms in front of the chest. A socket
+## stands upright in the rig at its fitting pose (the idle clip's first frame; carrying: with
+## Carry_Upper's first frame on the carry layer's bones), the pose its item shows in.
 const SOCKETS := {
-	&"Hand": [&"Wrist.R", Vector3(0.45, 0.95, -0.15)],
-	&"Belt": [&"Hips", Vector3(-0.48, 0.85, 0.0)],
-	&"Carry": [&"Chest", Vector3(0.0, 0.8, -0.72)],
+	&"Hand": [&"Wrist.R", Vector3(0.0, 0.125, 0.0), false],
+	&"Belt": [&"Hips", Vector3(0.19, 0.065, -0.06), false],
+	&"Carry": [&"Chest", Vector3(0.015, -0.265, 0.525), true],
 }
 
 ## The character's scene root, its skeleton, its player and the tree driving it.
@@ -184,11 +187,10 @@ func _build_tree() -> void:
 	tree.set("parameters/base/transition_request", String(AvatarClips.IDLE))
 
 
-## Each socket is fitted at the pose the clips play (the idle clip's first frame), not the rest:
-## the art's rest is an arms-out bind pose, against which the hand's point would swing up with the
-## arm as soon as a clip lowers it.
+## Each socket sits at its point on its bone, turned to stand upright at the pose its item shows
+## in, never the rest: the art's rest is an arms-out bind pose, against which the hand's item would
+## turn with the arm as soon as a clip lowers it.
 func _add_sockets() -> void:
-	var to_skeleton := _frame_of(skeleton)
 	for socket_name: StringName in SOCKETS:
 		var entry: Array = SOCKETS[socket_name]
 		var bone := skeleton.find_bone(entry[0] as StringName)
@@ -198,44 +200,50 @@ func _add_sockets() -> void:
 		skeleton.add_child(attach)
 		var at := Node3D.new()
 		at.name = "%sSocket" % socket_name
-		at.transform = socket_offset(to_skeleton * _idle_pose(bone), entry[1] as Vector3)
+		at.transform = socket_transform(fit_pose(bone, entry[2] as bool), entry[1] as Vector3)
 		attach.add_child(at)
 		_sockets[socket_name] = at
 
 
-## The socket's transform in its bone's frame, for a bone at `bone_pose` in the rig's frame and a
-## socket at `point` (no turn against the rig) there.
-static func socket_offset(bone_pose: Transform3D, point: Vector3) -> Transform3D:
-	return bone_pose.affine_inverse() * Transform3D(Basis.IDENTITY, point)
+## The socket's transform in its bone's frame: at `point` there, turned so it stands upright (no
+## turn against the rig) while the bone is at `bone_pose` in the rig's frame.
+static func socket_transform(bone_pose: Transform3D, point: Vector3) -> Transform3D:
+	return Transform3D(bone_pose.basis.inverse(), point)
 
 
-## `bone`'s pose in the skeleton's frame at the idle clip's first frame, sampled from its tracks (a
-## bone or a part the clip leaves alone keeps its rest), so no tree has to run first.
-func _idle_pose(bone: int) -> Transform3D:
+## `bone`'s pose in the rig's frame at a socket's fitting pose: the idle clip's first frame, with
+## Carry_Upper's first frame on the carry layer's bones when `carrying` (the layer at full weight),
+## sampled from the clips' tracks (a bone or a part a clip leaves alone keeps its rest), so no tree
+## has to run first.
+func fit_pose(bone: int, carrying: bool) -> Transform3D:
 	var idle := player.get_animation(AvatarClips.IDLE)
+	var carry := player.get_animation(AvatarClips.CARRY_UPPER)
+	var layered := carry_bones() if carrying else PackedStringArray()
 	var prefix := String(model.get_path_to(skeleton)) + ":"
 	var out := Transform3D.IDENTITY
 	var at := bone
 	while at >= 0:
-		out = _idle_local(idle, NodePath(prefix + skeleton.get_bone_name(at)), at) * out
+		var bone_name := skeleton.get_bone_name(at)
+		var clip := carry if layered.has(bone_name) else idle
+		out = _first_frame(clip, NodePath(prefix + bone_name), at) * out
 		at = skeleton.get_bone_parent(at)
-	return out
+	return _frame_of(skeleton) * out
 
 
-func _idle_local(idle: Animation, path: NodePath, bone: int) -> Transform3D:
+func _first_frame(clip: Animation, path: NodePath, bone: int) -> Transform3D:
 	var rest := skeleton.get_bone_rest(bone)
 	var origin := rest.origin
 	var turn := rest.basis.get_rotation_quaternion()
 	var size := rest.basis.get_scale()
-	var track := idle.find_track(path, Animation.TYPE_POSITION_3D)
+	var track := clip.find_track(path, Animation.TYPE_POSITION_3D)
 	if track >= 0:
-		origin = idle.position_track_interpolate(track, 0.0)
-	track = idle.find_track(path, Animation.TYPE_ROTATION_3D)
+		origin = clip.position_track_interpolate(track, 0.0)
+	track = clip.find_track(path, Animation.TYPE_ROTATION_3D)
 	if track >= 0:
-		turn = idle.rotation_track_interpolate(track, 0.0)
-	track = idle.find_track(path, Animation.TYPE_SCALE_3D)
+		turn = clip.rotation_track_interpolate(track, 0.0)
+	track = clip.find_track(path, Animation.TYPE_SCALE_3D)
 	if track >= 0:
-		size = idle.scale_track_interpolate(track, 0.0)
+		size = clip.scale_track_interpolate(track, 0.0)
 	return Transform3D(Basis(turn) * Basis.from_scale(size), origin)
 
 
