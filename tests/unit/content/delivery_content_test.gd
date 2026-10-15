@@ -16,7 +16,7 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([1, 1, 1])
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([2, 1, 2])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
@@ -62,13 +62,15 @@ func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_deli
 	# The two Deliveries, one per map (#828, DE15 (i)): the House's by meaning and the greybox's
 	# by colours, checked here; the zone task (#649) left the base mode on #842, and
 	# zone_base_mode_test.gd checks the fixture mode that still deals it.
-	assert_int(mode.task_types.size()).is_equal(2)
+	# The Generator (#800) plays on the House beside its Delivery: three types, `tasks` 1 to 2.
+	assert_int(mode.task_types.size()).is_equal(3)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 
 func test_each_delivery_plays_on_one_map_of_the_base_mode_the_two_apart() -> void:
-	# The delivery-by-meaning ADR §7, DE15 (i): with `tasks` 1 to 1, a map that both Deliveries
-	# played on would draw one at random and show two "Delivery" chips in its lobby.
+	# The delivery-by-meaning ADR §7, DE15 (i): a map that both Deliveries played on would deal
+	# both (`tasks` is the number of types a map plays, #800) and show two "Delivery" chips in its
+	# lobby.
 	var mode := load(BASE_MODE) as GameMode
 	var tutorial := load(TUTORIAL_MODE) as GameMode
 	var by_meaning: TaskType = mode.find_task_type(&"delivery")

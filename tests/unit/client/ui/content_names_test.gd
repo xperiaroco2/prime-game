@@ -48,6 +48,13 @@ func test_the_greyboxs_delivery_by_colours_is_the_decks_delivery() -> void:
 	assert_str(ContentNames.task(&"colour_delivery", GameMode.new())).is_equal("task.delivery")
 
 
+## The Generator (#800) reads as the deck's Switches, the one key the deck has for it, until the
+## UI track adds `task.generator` (a placeholder the engineer approves in #800's PR).
+func test_the_generator_is_the_decks_switches() -> void:
+	assert_str(ContentNames.task(&"generator", null)).is_equal("task.switches")
+	assert_str(ContentNames.task(&"generator", GameMode.new())).is_equal("task.switches")
+
+
 ## Content that adds a type the deck already names needs no edit in ContentNames: the key is found
 ## by the convention, with no mode needed.
 func test_a_type_the_deck_names_resolves_by_its_convention() -> void:

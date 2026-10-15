@@ -21,8 +21,9 @@ extends RefCounted
 ## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
 ## is `empty_hand`), SetProfile with a new name and colour only while its client is in loading or
 ## pregame (the host cannot be back in the lobby then; the round ends in End and then the lobby)
-## and else with its own (unchanged in the lobby, #551), Interact naming any id (the base mode
-## accepts it nowhere until G5, #800), nothing a race could turn into an action.
+## and else with its own (unchanged in the lobby, #551), Interact naming any id (on the
+## greybox no target has an Interact rule: the Generator plays on the House alone, #800), nothing a
+## race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -244,8 +245,9 @@ func _fresh_seq() -> int:
 
 
 ## Interact's args (#770): a station id 0 to 9, an item (one its client knows, or NO_ITEM, which
-## names nothing), both or neither (-1 is none). The base mode accepts Interact nowhere, so each
-## is not_accepted; the oracle has their rule for a mode that takes it (bad_args, nothing_to_do).
+## names nothing), both or neither (-1 is none). Round takes Interact from the living (#800); on the
+## greybox each is bad_args or nothing_to_do (no target there has an Interact rule), else
+## not_accepted.
 func _interact_args() -> Dictionary:
 	var named := rng.randi_range(0, 3)
 	var station := rng.randi_range(0, 9) if named & 1 else -1

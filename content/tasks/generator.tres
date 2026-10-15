@@ -1,0 +1,84 @@
+[gd_resource type="Resource" script_class="Generator" format=3 uid="uid://fjq47hl1ee45"]
+
+[ext_resource type="Script" uid="uid://dhccq25v7cvic" path="res://core/tasks/generator.gd" id="1_generator"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+
+[sub_resource type="Resource" id="Generator_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Generator_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Generator_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Generator_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Generator_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_generator"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Generator_one_handed"), SubResource("Generator_at_station"), SubResource("Generator_in_sight"), SubResource("Generator_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Generator_use")])
+
+[sub_resource type="Resource" id="StationKind_generator"]
+script = ExtResource("2_station")
+id = &"generator"
+spawn_tag = &"generator"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_generator")])
+
+[sub_resource type="Resource" id="Switch_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Switch_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Switch_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Switch_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Switch_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_switch"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Switch_one_handed"), SubResource("Switch_at_station"), SubResource("Switch_in_sight"), SubResource("Switch_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Switch_use")])
+
+[sub_resource type="Resource" id="StationKind_switch"]
+script = ExtResource("2_station")
+id = &"switch"
+spawn_tag = &"switch"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_switch")])
+
+[resource]
+script = ExtResource("1_generator")
+generator = SubResource("StationKind_generator")
+switch = SubResource("StationKind_switch")
+switches = 4
+seconds = 60.0
+id = &"generator"
+display_name = "Charge the generator"
+description = "Switch on every active switch, then press the generator's button to charge it."
+maps = PackedStringArray("res://levels/house/house.tscn")
+subtasks_setting = &"switches"

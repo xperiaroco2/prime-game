@@ -20,9 +20,13 @@ const ROLE_EXCEPTIONS: Dictionary[StringName, String] = {
 }
 ## A task type id whose deck key is not `task.<id>`: the greybox's Delivery by colours (id
 ## `colour_delivery`, DE15 (i) of the delivery-by-meaning ADR, #828) is the Delivery its players
-## play there, the deck's `task.delivery`; the House's Delivery has that id.
+## play there, the deck's `task.delivery`; the House's Delivery has that id. The Generator (id
+## `generator`, #800) reads as the deck's `task.switches` ("Switches"), the one key the deck has
+## for it, until the UI track adds `task.generator` (a placeholder, not a decision: the engineer
+## approves it in #800's PR).
 const TASK_EXCEPTIONS: Dictionary[StringName, String] = {
 	&"colour_delivery": "task.delivery",
+	&"generator": "task.switches",
 }
 const ROLE_PREFIX := "role."
 const ITEM_PREFIX := "item."

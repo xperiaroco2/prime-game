@@ -48,6 +48,8 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 				"Gap",
 				"Tasks guide.tasks",
 				"Delivery task.delivery",
+				# The Generator's card on the House (#800), under the deck's Switches.
+				"Generator task.switches",
 			]
 		)
 	)

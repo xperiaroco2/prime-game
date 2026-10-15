@@ -223,12 +223,26 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 
 
 func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
-	# The fixture reads the shipped base mode when it loads: only the task types and the
-	# `tasks` and `zones` settings differ.
+	# The fixture reads the shipped base mode when it loads: only the task types, the `tasks`,
+	# `zones` and Generator's `switches` settings and Round's Interact (#800) differ.
 	var base := _base_mode()
 	var mode := FixtureBaseModeWithZones.mode()
 	assert_array(ModeCheck.run(mode).errors).is_empty()
-	assert_array(mode.phases).is_equal(base.phases)
+	assert_int(mode.phases.size()).is_equal(base.phases.size())
+	for i in base.phases.size():
+		var own := mode.phases[i]
+		var shipped := base.phases[i]
+		if shipped.id != &"round":
+			assert_object(own).override_failure_message(str(shipped.id)).is_same(shipped)
+			continue
+		var accepts: Array[AcceptSpec] = []
+		for accept: AcceptSpec in shipped.accepts:
+			if accept.intent != Intents.INTERACT:
+				accepts.append(accept)
+		assert_int(accepts.size()).is_equal(shipped.accepts.size() - 1)
+		assert_array(own.accepts).is_equal(accepts)
+		assert_array(own.tick_systems).is_equal(shipped.tick_systems)
+	assert_object(mode.find_setting(&"switches")).is_null()
 	assert_array(mode.transitions).is_equal(base.transitions)
 	assert_array(mode.actions).is_equal(base.actions)
 	assert_array(mode.maps).is_equal(base.maps)
@@ -243,7 +257,8 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	assert_int(zones.min_value).is_equal(1)
 	assert_int(zones.max_value).is_equal(1)
 	assert_object(base.find_setting(&"zones")).is_null()
-	assert_int(base.find_setting(&"tasks").max_value).is_equal(1)
+	# The shipped mode deals the House's two types, Delivery and the Generator (#800).
+	assert_int(base.find_setting(&"tasks").max_value).is_equal(2)
 	# Its .tres holds the script and nothing else: a re-save that wrote the copied parts into it
 	# would freeze them, and the fixture would drift from the shipped mode unseen.
 	var text := FileAccess.get_file_as_string(FixtureBaseModeWithZones.PATH)

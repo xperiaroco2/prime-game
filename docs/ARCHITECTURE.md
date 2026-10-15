@@ -727,7 +727,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 | `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
-| `Interact(station or item)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host under `HOST`); a phase whose mode accepts it (no shipped mode does yet: the Generator's mode change, G5, adds it to Round) | `station` and `item` ints, each optional (-1, none), and exactly one of them names something: both or neither is `bad_args` (the cooking ADR's CE1, #770). A `station` that names no placed station, which is all a fixed switch is, or a station of a display kind (`StationKind.display`, CE6: the order and herb boards): `nothing_to_do` before any owner is tried (a package carrier hears `nothing_to_do`, not `two_handed`). An `item` that names no item: `nothing_to_do` too; else only the first `Interact` rule of the item's kind's `target_actions` (none: `nothing_to_do`), never the role's, the mode's or the hand item's: a box's take, whose rule is `ItemOnGround` (`unavailable` for a carried box), `InReach`, `InSight`, then `GiveItem` (CE2, CE3; §9.4.2). Then the first `Interact` rule of the station's kind (`StationKind.actions`), the actor's role or the mode, never the hand item (§9.2; none: `nothing_to_do`). A station's rule, as the Generator's switch has it: `HandNotTwoHanded` (`two_handed`), `AtStation` (`out_of_reach`), `StationInSight` (`blocked`), `StationUsable` (its type's `use_problem`: `unavailable`, or another reason the type lists in `use_reasons()` among `StationUsable.REASONS`, `wrong_item`, `empty_hand`, `two_handed`, the cooking ADR's CE11, #780; `no_film`, `no_frames_left`, `film_exposed`, the photo ADR's PE16, #781; `nothing_to_print`, `no_photo`, #782), then `UseStation` (the Generator ADR's GE1 to GE4, #796). A kind's rule may instead hold the station (`HoldStation`, #805: `AtStation` and `ChannelFree`, `busy` while another channel runs on it), a channel its rule's conditions check again every tick, ended by `StopRaise` (§9.4.2). Applied, a channel the sender runs (a raise, a hold) stops; refused, nothing stops (§9.2) |
+| `Interact(station or item)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host under `HOST`); a phase whose mode accepts it (the base mode's Round, from the living, since #800, the Generator's G5) | `station` and `item` ints, each optional (-1, none), and exactly one of them names something: both or neither is `bad_args` (the cooking ADR's CE1, #770). A `station` that names no placed station, which is all a fixed switch is, or a station of a display kind (`StationKind.display`, CE6: the order and herb boards): `nothing_to_do` before any owner is tried (a package carrier hears `nothing_to_do`, not `two_handed`). An `item` that names no item: `nothing_to_do` too; else only the first `Interact` rule of the item's kind's `target_actions` (none: `nothing_to_do`), never the role's, the mode's or the hand item's: a box's take, whose rule is `ItemOnGround` (`unavailable` for a carried box), `InReach`, `InSight`, then `GiveItem` (CE2, CE3; §9.4.2). Then the first `Interact` rule of the station's kind (`StationKind.actions`), the actor's role or the mode, never the hand item (§9.2; none: `nothing_to_do`). A station's rule, as the Generator's switch has it: `HandNotTwoHanded` (`two_handed`), `AtStation` (`out_of_reach`), `StationInSight` (`blocked`), `StationUsable` (its type's `use_problem`: `unavailable`, or another reason the type lists in `use_reasons()` among `StationUsable.REASONS`, `wrong_item`, `empty_hand`, `two_handed`, the cooking ADR's CE11, #780; `no_film`, `no_frames_left`, `film_exposed`, the photo ADR's PE16, #781; `nothing_to_print`, `no_photo`, #782), then `UseStation` (the Generator ADR's GE1 to GE4, #796). A kind's rule may instead hold the station (`HoldStation`, #805: `AtStation` and `ChannelFree`, `busy` while another channel runs on it), a channel its rule's conditions check again every tick, ended by `StopRaise` (§9.4.2). Applied, a channel the sender runs (a raise, a hold) stops; refused, nothing stops (§9.2) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -1988,8 +1988,10 @@ in the lobby (not in the round: its last frames could meet the lobby after End);
 `SET_PROFILE_BAD_NAME` (not UTF-8) are each under the cap, so the codec refuses them (`BAD_PAYLOAD`). `ChaosRun`
 fails a run that ends with a player named "Hacked" or two players sharing a colour. Seen failing: with
 `Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
-Kind 18, `Interact` (#796): no phase of `ACCEPTS` lists it (no shipped mode accepts it before the Generator's mode
-change, G5), so it is in `NEVER_ACCEPTED` and the hostile's `Interact` is refused `not_accepted` everywhere. Since
+Kind 18, `Interact` (#796): since #800 (the Generator's G5) Round of `ACCEPTS` lists it from the living, as the base mode
+does, so outside Round, or downed or dead, the hostile's `Interact` is refused `not_accepted`; in Round, alive, a target that
+names nothing, or a station or item with no `Interact` rule where the host looks for one (a station: its kind's actions, the sender's role's and the mode's; an item: its kind's `target_actions`; every one on the greybox, which deals no
+Generator), is `nothing_to_do` (`ChaosOracle._interact`), and only a target with the rule answers `?`. Since
 #770 its `station` and `item` are both optional (0xFFFF, none), so the hostile sends four shapes
 (`ChaosHostile._interact_args`): a station id from 0 to 9, an item it knows or none, both, and neither; and no field
 value is malformed any more: its malformed shapes are `INTERACT_TRUNCATED` (the seq and 0 to 3 of the 4 field bytes:
@@ -6543,7 +6545,9 @@ types that play on it (`TaskType.maps`, the Generator ADR's GE15, #803): a `Dema
 there; an empty map (`WireBudget`'s worst case) asks every type. So the fit check asks the lobby's chosen map, and
 `LayoutCheck`'s load check each map at the defaults, only for its own types' markers; when *tasks* asks for tasks
 and no type is left on the map after the bans, `DealTasks` sets `Demands.no_task_types` and the fit check refuses
-the map with `no_task_types` (no arguments: `SettingsChanged` names the map, as `no_layout`). `all_ready` (2b,
+the map with `no_task_types` (no arguments: `SettingsChanged` names the map, as `no_layout`). Since #800
+`LayoutCheck`'s load check refuses it too at the defaults (no bans): a map of the mode no task type plays on is a data
+mistake that fails `check` (`deal_tasks_maps_test.gd`). `all_ready` (2b,
 `FitCheck`) sums the demands per tag over every row into a phase on the map and the tick systems of the phases
 played on it (per tag, the most that any one of those phases needs; `LayoutCheck.demands_of`), compares
 each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
@@ -6614,9 +6618,9 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 1 (1 to 1: each map plays one of the two Deliveries, #828; #79); `banned_task_types` (a set of task types, empty;
-  a host may ban either Delivery: `ChangeSettings` accepts it, and a ban of the picked map's one type leaves its pool empty, so the fit check at `all_ready` refuses the start, `no_task_types`, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
-  decision"); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  `tasks` 2 (1 to 2: every type a map plays, in every match, the Generator ADR's GD7 (i): the House's Delivery and Generator; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #800, #828, #79); `banned_task_types` (a set of task types, empty;
+  a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays two types since #800: banning its Delivery leaves the Generator, and banning both House types (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
+  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed hold still (§7.1.7) for
@@ -6640,12 +6644,12 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25).
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); Hold
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
-  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise` and `Swap` from the living, `GiveUp` from the
+  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` and `Interact` (#800) from the living, `GiveUp` from the
   downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, TaskTicks; yes;
   runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
@@ -6666,7 +6670,7 @@ between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) 
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46).
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
 from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -7032,7 +7036,7 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
 Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
-#799), its data is a later issue (no shipped mode deals it yet).
+#799), its data in #800 (G5): the base mode deals it on the House alone.
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
 `switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to
@@ -7072,8 +7076,16 @@ and `generator.tscn` (the button, four bars, the glow), each the art prop as its
 and a use spot in `spawn_switch` or `spawn_generator`, instanced in the House's storage, boiler room, pump room,
 switch room and generator hall in place of the plain markers, their use spots at house-map §6's points (the
 convention: the [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes");
-read as plain points until G5's type snaps their tags.
-Tests: `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
+read as plain points until G5's type snaps their tags. The data in #800 (Generator G5; provisional until the engineer
+approves it): `content/tasks/generator.tres` (GD1's name "Charge the generator" and description, `seconds` 60,
+`switches` 4, `maps` the House alone, both kinds' `Interact` rule and GD6's 2 m radii and heights, placeholders) in the
+base mode with its `switches` setting (3, 2 to 4; §9.5.1); until the copy deck has `task.generator` the client names
+it by the deck's `task.switches` ("Switches", `ContentNames.TASK_EXCEPTIONS`) and its how-to card
+(`content/howto/tasks/generator.tres`) shows three word frames of existing keys, placeholders the engineer approves.
+Since #800 `LayoutCheck` also refuses a map on which no task type plays while a row deals tasks at the defaults.
+Tests: `tests/unit/content/generator_content_test.gd` (#800: the data, the fit of House with it and of the greybox
+without it, GD12's switch spacing in the host's world, fixture cases 13 m refused and 16 m accepted at 2 m, and the
+panel's bars matching `switches`); and `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
 table), `generator_progress_events_test.gd` (the window, the order, the ticks), `generator_check_test.gd` (GE10,
 `use_emits`, the leak lists, no event naming a player), `generator_role_swap_test.gd` (planted "the button refuses
 dissidents", both failed, reverted), `generator_demands_test.gd` (the exact demands through `LayoutCheck` and the
@@ -7456,9 +7468,10 @@ content/
   tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
   tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
+  tasks/generator.tres             the Generator, with its generator and switch station kinds inside it (#800)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
-  howto/tasks/delivery.tres, colour_delivery.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/

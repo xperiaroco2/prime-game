@@ -56,6 +56,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"StopRaise": From.LIVING,
 		&"Swap": From.LIVING,
 		&"Throw": From.LIVING,
+		&"Interact": From.LIVING,
 		&"GiveUp": From.DOWNED,
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
@@ -64,14 +65,15 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 ## ACCEPTS that has no row above (accepts() reads an absent intent as refused). NextStage (#599,
 ## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
 ## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
-## Interact (#796): the base mode has no station rule yet; the Generator (G5, #800) adds its row.
-const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Interact"]
+## Interact (#796) left it when the Generator (G5, #800) gave Round its row.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
 ## the phase it is applied in, `player` the sender's state (null for a newcomer), `match_id` the
 ## current match's id, `state` the match the intent meets (its items and the other players; null:
-## no item exists and the sender is the only player).
+## no item exists and the sender is the only player), `mode` the mode played (null: its rules are
+## not known, so Interact's role and mode rules are not looked for).
 static func answer(
 	intent: StringName,
 	args: Dictionary,
@@ -79,13 +81,14 @@ static func answer(
 	phase: StringName,
 	player: PlayerState,
 	match_id: int,
-	state: MatchState = null
+	state: MatchState = null,
+	mode: GameMode = null
 ) -> StringName:
 	if not accepts(intent, peer, phase, player):
 		# A refused MoveClaim is dropped (E15); everything else is not_accepted (§3.1). A chaos
 		# peer never sends a Hello as a newcomer (that would be its join).
 		return SILENT if intent == Intents.MOVE_CLAIM else RejectReasons.NOT_ACCEPTED
-	return _rule(intent, args, peer, player, match_id, state)
+	return _rule(intent, args, peer, player, match_id, state, mode)
 
 
 ## Whether the phase's allowlist takes `intent` from `peer` (§3.1, §3.2).
@@ -146,7 +149,8 @@ static func _rule(
 	peer: int,
 	player: PlayerState,
 	match_id: int,
-	state: MatchState
+	state: MatchState,
+	mode: GameMode
 ) -> StringName:
 	var answer_now := RejectReasons.NOTHING_TO_DO
 	match intent:
@@ -186,25 +190,45 @@ static func _rule(
 			else:
 				answer_now = &"?"
 		Intents.INTERACT:
-			answer_now = _interact(args, state)
+			answer_now = _interact(args, player, state, mode)
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 
 
 ## Interact's target checks (§4.1, the cooking ADR's CE1): naming both a station and an item, or
 ## neither, is `bad_args`; an id that names nothing, or a display station (CE6), is `nothing_to_do`;
-## a target that exists is "?" (its rules are the mode's; the base mode accepts Interact nowhere,
-## so a run never asks).
-static func _interact(args: Dictionary, state: MatchState) -> StringName:
+## a target that exists but has no Interact rule where the host looks for one is `nothing_to_do`
+## too (Match._find_action: a placed station tries its kind's actions, then the actor's role's and
+## the mode's; an item only its kind's target_actions). In the base mode only the Generator's
+## station kinds have one (§9.5.19), and the Generator plays on the House alone, GD7, so on the
+## greybox every accepted Interact gets this. A target with the rule is "?" (its conditions are
+## the mode's, and the chaos run never meets one). `mode` null: only the target kind's rules.
+static func _interact(
+	args: Dictionary, player: PlayerState, state: MatchState, mode: GameMode
+) -> StringName:
 	var station: int = args.get("station", -1)
 	var item: int = args.get("item", -1)
 	if (station >= 0) == (item >= 0):
 		return RejectReasons.BAD_ARGS
-	var exists := false
-	if state != null:
-		var target: StationState = state.stations.get(station)
-		exists = state.items.has(item) if item >= 0 else target != null and not target.kind.display
-	return &"?" if exists else RejectReasons.NOTHING_TO_DO
+	var rules: Array[Rule] = []
+	if state != null and item >= 0:
+		if state.items.has(item):
+			rules = (state.items[item] as ItemState).kind.target_actions
+	elif state != null and state.stations.has(station):
+		var target: StationState = state.stations[station]
+		if not target.kind.display:
+			rules = target.kind.actions.duplicate()
+			var role: GameRole = null
+			if mode != null and player != null:
+				role = mode.find_role(player.role)
+			if role != null:
+				rules.append_array(role.actions)
+			if mode != null:
+				rules.append_array(mode.actions)
+	for rule: Rule in rules:
+		if rule.trigger == Intents.INTERACT:
+			return &"?"
+	return RejectReasons.NOTHING_TO_DO
 
 
 ## PickUp's conditions in their order (§9.4): ItemOnGround (`unavailable`), then InReach from the
