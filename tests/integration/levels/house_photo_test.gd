@@ -133,7 +133,7 @@ func test_a_player_on_each_use_spot_passes_at_station_and_station_in_sight() -> 
 	assert_object(held).is_not_null()
 	if held != null:
 		assert_str(String(held.kind.id)).is_equal(String(_type().film.id))
-	assert_array(Array(_problems)).is_empty()
+	_assert_quiet()
 
 
 func test_the_mark_lies_outside_the_cylinder_and_the_lens_sees_the_aim() -> void:
@@ -154,7 +154,7 @@ func test_the_mark_lies_outside_the_cylinder_and_the_lens_sees_the_aim() -> void
 	var lens := _lens(camera)
 	assert_int(_hits_at(lens)).override_failure_message("the lens %s" % lens).is_equal(0)
 	assert_bool(_world.line_of_sight(lens, _aim())).is_true()
-	# The check can fail: the camera device's own body stands beside its use spot.
+	# The check can fail: twice as far along the line lies past the photo spot, where the backdrop is.
 	assert_bool(_world.line_of_sight(lens, _aim() + (_aim() - lens))).is_false()
 	_assert_clean()
 
@@ -248,10 +248,10 @@ func test_a_scripted_chain_completes_a_subtask() -> void:
 	assert_str(_game.phase_id()).is_equal("round")
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
-		for name: StringName in [&"FilmLoaded", &"ShotTaken", &"PhotoPrinted", &"PhotoHung"]:
+		for event_name: StringName in [&"FilmLoaded", &"ShotTaken", &"PhotoPrinted", &"PhotoHung"]:
 			(
-				assert_int(view.events_named(name).size())
-				. override_failure_message(String(name))
+				assert_int(view.events_named(event_name).size())
+				. override_failure_message(String(event_name))
 				. is_equal(1)
 			)
 		var hung := view.events_named(&"PhotoHung")
@@ -486,10 +486,10 @@ func _load_the_dealt_film(peer: int) -> void:
 ## `peer`, at the loaded camera, shoots: the shot's entry, or null when no ShotTaken went out.
 func _shoot(peer: int) -> PhotoTask.Shot:
 	var task_state := FixturePhotoModes.state_of(_game)
-	var before := _game.view_of(peer).events_named(&"ShotTaken").size()
+	var shots_before := _game.view_of(peer).events_named(&"ShotTaken").size()
 	_use(peer, task_state.camera)
 	var taken := _game.view_of(peer).events_named(&"ShotTaken")
-	if taken.size() != before + 1:
+	if taken.size() != shots_before + 1:
 		return null
 	var last: MatchEvent = taken[taken.size() - 1]
 	var shot_id: int = last.to_dict()["shot"]
@@ -636,9 +636,16 @@ func _assert_replays() -> void:
 
 ## No invariant broke, no command was refused, no claim corrected, and the match logged no error.
 func _assert_clean() -> void:
-	assert_array(Array(_problems)).is_empty()
 	for peer: int in _game.state.present_peers():
 		assert_array(FixtureModes.rejections(_game, peer)).is_empty()
+	_assert_quiet()
+
+
+## No invariant broke, no claim was corrected, the match logged no error; refusals are not looked at
+## (a test that expects some calls this, not `_assert_clean`).
+func _assert_quiet() -> void:
+	assert_array(Array(_problems)).is_empty()
+	for peer: int in _game.state.present_peers():
 		var corrections := _game.view_of(peer).events_named(&"Correction").size()
 		assert_int(corrections).is_equal(_placed.get(peer, 0))
 	for line: String in _game.diagnostics:
