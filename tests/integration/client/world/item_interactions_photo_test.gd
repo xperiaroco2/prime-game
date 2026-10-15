@@ -204,6 +204,15 @@ func test_a_release_after_the_crosshair_left_the_camera_opens_no_view() -> void:
 	assert_int(_harness.sent_named(Intents.INTERACT).size()).is_equal(0)
 
 
+func test_nothing_is_aimed_at_in_the_view() -> void:
+	await _open_view()
+	# The held, hidden crosshair still points at the camera: it names nothing while the view is up.
+	await _frames(2)
+	assert_bool(_keys.viewing()).is_true()
+	assert_int(_keys.station_target()).is_equal(-1)
+	assert_int(_keys.target()).is_equal(-1)
+
+
 func test_the_shot_sends_interact_at_the_camera_until_no_frame_is_left() -> void:
 	await _open_view()
 	assert_int(_keys.shoot()).is_greater(0)
