@@ -1,0 +1,63 @@
+[gd_scene format=3 uid="uid://dcw3k1ed7u7nq"]
+
+[ext_resource type="PackedScene" uid="uid://dkcc6kxewaauy" path="res://levels/kit/house_props/car_parts_shelf.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+[ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="3_green"]
+[ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="4_blue"]
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="5_yellow"]
+
+[sub_resource type="BoxShape3D" id="ShelfShape"]
+size = Vector3(2, 2, 0.5)
+
+[sub_resource type="QuadMesh" id="Plate"]
+size = Vector2(0.3, 0.3)
+
+[node name="PartsShelf" type="Node3D" unique_id=1162432569]
+
+[node name="Body" parent="." unique_id=1771314247 instance=ExtResource("1_body")]
+
+[node name="car_parts_shelf" parent="Body" index="0" unique_id=1004840099]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="car_parts_shelf_col0" parent="Body" index="1" unique_id=993966979]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=307756427]
+
+[node name="Shelf" type="CollisionShape3D" parent="Collision" unique_id=1055262814]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("ShelfShape")
+
+[node name="Bin1" type="Node3D" parent="." unique_id=169770965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0, 0)
+
+[node name="Picture" type="MeshInstance3D" parent="Bin1" unique_id=1576867456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0.26)
+mesh = SubResource("Plate")
+surface_material_override/0 = ExtResource("3_green")
+
+[node name="UseSpot" type="Marker3D" parent="Bin1" unique_id=907664534 groups=["spawn_part_bin_1"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.65)
+
+[node name="Bin2" type="Node3D" parent="." unique_id=1508756763]
+
+[node name="Picture" type="MeshInstance3D" parent="Bin2" unique_id=1045598955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0.26)
+mesh = SubResource("Plate")
+surface_material_override/0 = ExtResource("4_blue")
+
+[node name="UseSpot" type="Marker3D" parent="Bin2" unique_id=2073030796 groups=["spawn_part_bin_2"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.65)
+
+[node name="Bin3" type="Node3D" parent="." unique_id=202221778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 0)
+
+[node name="Picture" type="MeshInstance3D" parent="Bin3" unique_id=1969835124]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0.26)
+mesh = SubResource("Plate")
+surface_material_override/0 = ExtResource("5_yellow")
+
+[node name="UseSpot" type="Marker3D" parent="Bin3" unique_id=999007947 groups=["spawn_part_bin_3"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.65)
+
+[editable path="Body"]

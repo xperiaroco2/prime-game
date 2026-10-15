@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://dl7ivvbwgsaf3"]
+
+[ext_resource type="PackedScene" uid="uid://d2r5bhwclo7xy" path="res://levels/kit/house_props/lift_panel.tscn" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+[ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="3_green"]
+
+[sub_resource type="BoxShape3D" id="PanelShape"]
+size = Vector3(0.42, 1.5, 0.3)
+
+[sub_resource type="BoxMesh" id="Lamp"]
+material = ExtResource("3_green")
+size = Vector3(0.12, 0.12, 0.03)
+
+[node name="LiftPanel" type="Node3D" unique_id=1240446169]
+
+[node name="Body" parent="." unique_id=1141548026 instance=ExtResource("1_body")]
+
+[node name="lift_panel" parent="Body" index="0" unique_id=878218662]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="lift_panel_col0" parent="Body" index="1" unique_id=2135808088]
+collision_layer = 0
+
+[node name="Collision" type="StaticBody3D" parent="." unique_id=1626953589]
+
+[node name="Panel" type="CollisionShape3D" parent="Collision" unique_id=884669990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("PanelShape")
+
+[node name="Light" type="MeshInstance3D" parent="." unique_id=1343778875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, 0.165)
+visible = false
+mesh = SubResource("Lamp")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=1000180191 groups=["spawn_lift_panel"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.75)
+
+[editable path="Body"]

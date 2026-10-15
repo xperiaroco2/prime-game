@@ -26,17 +26,17 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1
   body at all (#112). A look a player can hide behind (a partition, a tarp, a shelf) needs a layer-1 collider
   covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
-- **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
-  group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
-  `spawn_circle` (greybox only), `spawn_zone`; House only, provisional (DE10, #826):
-  `spawn_drop_dining_table`, `spawn_drop_terrace_table`, `spawn_drop_garden`, `spawn_drop_workbench`, one each at its
-  furniture (#831); House only, "not a decision" (#799, #783): `spawn_switch`, `spawn_generator`, `spawn_camera`,
-  `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`, `spawn_photo_board` (station use spots), `spawn_film`,
-  `spawn_photo`. A marker in two such groups is a load error. The host reads them in scene-tree order. The bot
-  scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
-  `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no station
-  marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two markers of different tags at
-  one (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
+- **Spawn points** (`docs/ARCHITECTURE.md` §9.6): a `Marker3D` in exactly one persistent group `spawn_<tag>` (Groups
+  dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`, `spawn_circle` (greybox only),
+  `spawn_zone`; House only, provisional (DE10, #826): `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
+  `spawn_drop_garden`, `spawn_drop_workbench`, one each at its furniture (#831); House only, "not a decision":
+  `spawn_switch`, `spawn_generator`, `spawn_camera`, `spawn_photo_spot`, `spawn_film_box`, `spawn_printer`,
+  `spawn_photo_board`, `spawn_film`, `spawn_photo`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
+  `spawn_part_bin_<n>`, `spawn_part_picture`). A marker in two such groups is a load error. The host reads them in
+  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any map a scenario names:
+  `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0): on those, no
+  station marker (`circle` or `zone`, #681) below that floor and no two markers of different tags at one (x, z). The
+  other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -56,10 +56,11 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - `zone` markers (as many as the `zones` setting's maximum) only where the zone task plays: its `maps` list the House
   alone (GD13 (b), #804), the greybox (a test bench, #767) has none; House's three (the yard, the garden, the
   landing) are #651's placeholders until the engineer moves them.
-- **Station scenes** (a device used where it stands: #799's switch and generator, #783's photo stations): read the
+- **Station scenes** (#799, #783, #809; RE16: the car's use spot under its `Lift`, layer 4 `movers`): read the
   [level piece ADR](../docs/decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes" first: root at the
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
+  The car breaks the layer-1 rule: only its layer-4 `Lift` collides; players and plates pass it until R7 (RE8).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
@@ -96,5 +97,4 @@ no hand edit of a scene while the agent works on it.
 
 ## Checking the work
 - Hand-written `.tscn` files follow `.claude/rules/godot-resources.md`; `verify` must be green.
-- Headless runs cannot see a level. Each new or changed piece gets a `shot` screenshot (once `shot` exists) in the
-  PR, and the engineer checks the look and feel in a playtest.
+- Headless runs cannot see a level: a new or changed piece gets a `shot` in the PR; the engineer playtests the feel.

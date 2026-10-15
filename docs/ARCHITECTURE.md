@@ -7295,8 +7295,18 @@ Status: `core/` R3 built in #807: `core/tasks/car_repair.gd`, `core/events/lift_
 `core/events/part_needed_event.gd`, `TaskType.layout_problems` and `HostText.SHORT_AXIS`, wire kinds 75 and 76
 (protocol 23), `ClientModel.Station`'s `up`, `lift_tick` and `part`; R4 in #808: `core/events/fit_changed_event.gd`,
 `core/events/part_fitted_event.gd`, wire kinds 81 and 82 (protocol 27), `ClientModel.Station`'s `fitter`, `fit_tick`
-and `fitted`, and `ClientModel.Item`'s `fitted`.
-Tests: `tests/unit/tasks/car_repair_deal_test.gd` (the stations, the draw with no repeat, N = 0, an exact-count map,
+and `fitted`, and `ClientModel.Item`'s `fitted`. The level, R5 in #809: `levels/stations/car.tscn` (the car and
+the lift arms on `Lift`, an `AnimatableBody3D` on layer 4, `movers`, with one box hull: no top within a jump's reach,
+its lowest point 0.16 m, under the 1.4 m `clearance_m`; the posts' frame on layer 1, clear of the use spot under the
+car), `lift_panel.tscn` (a hidden lamp), `parts_shelf.tscn` (three bins, each a use spot and a colour plate, RD2's
+placeholders) and `part_picture.tscn` (a hidden plate on the garage's east wall), instanced in the garage and in
+storage in place of the markers and the art's copies; a kit partition 1 m east of the panel's use spot hides the space
+under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional.
+Tests: `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
+`tests/integration/levels/house_car_repair_test.gd` (#809: the use spots at §6's points, the car's on the garage
+floor, RE15 from the use spot and the rim of its cylinder at every eye of the crouch band, planted without the
+partition: failed, reverted; the voice distance, no marker in the footprint, players clear);
+`tests/unit/tasks/car_repair_deal_test.gd` (the stations, the draw with no repeat, N = 0, an exact-count map,
 the fit check's `short_axis`), `car_repair_lift_test.gd` (every stop, the box, the downed and the invulnerable, a busy
 second press, RD11, the rise, the phase's end), `car_repair_fit_test.gd` (#808: the fit's start and completion, the
 refusals in order, a stop, a hit, a stale fitter, the last part, the same-tick fit and drop, the belt; planted out
@@ -8015,12 +8025,13 @@ assets/
   in a `GIT_LFS_SKIP_SMUDGE=1` clone with `CI=true` (#1043).
   An override of a node inside an instance (a Shell, Dressing or Detail material, a collider's layer) survives a
   re-save (the editor's, `normalize`'s) only with its instance's `[editable path]` entry (#1056; `levels/CLAUDE.md`).
-  The garage (the art's P6, #1052) keeps the art's car, lift posts and lift arms as separate wrapper instances
-  under `Dressing`, for car repair's R5 (#809); its 8 m gate's leaf is an opening (layer 0, E4) under its lintel.
+  The garage (the art's P6, #1052) holds the art's car, lift posts and lift arms inside the car's station scene
+  (car repair's R5, #809, §9.5.21), the lift panel behind its partition; its 8 m gate's leaf is an opening (layer 0,
+  E4) under its lintel.
   The art has no garage roof, so the room is open above (the greybox's ceiling collider is gone; adding one is
   the engineer's call).
-  Tests: `tests/integration/levels/house_garage_test.gd` (the lift pieces and their colliders at the art handoff's
-  points, the panel, picture and station points, the gate, and every override with its editable path).
+  Tests: `tests/integration/levels/house_garage_test.gd` (the lift pieces in the car's station scene at the art
+  handoff's points, no art copy left, the station points, the gate, and every override with its editable path).
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
   locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
   (the art pipeline's step 15).

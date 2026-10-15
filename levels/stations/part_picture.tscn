@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://thtlqn1063yi"]
+
+[ext_resource type="PackedScene" uid="uid://66edmvss8j3p" path="res://assets/environment/house_props/part_picture.glb" id="1_body"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="2_prop"]
+
+[sub_resource type="QuadMesh" id="Plate"]
+size = Vector2(0.6, 0.5)
+
+[node name="PartPicture" type="Node3D" unique_id=1154036151]
+
+[node name="Body" parent="." unique_id=773593297 instance=ExtResource("1_body")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+
+[node name="part_picture" parent="Body" index="0" unique_id=1473540738]
+surface_material_override/0 = ExtResource("2_prop")
+
+[node name="Picture" type="MeshInstance3D" parent="." unique_id=1428054655]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.675, 0.065)
+visible = false
+mesh = SubResource("Plate")
+
+[node name="UseSpot" type="Marker3D" parent="." unique_id=709546142 groups=["spawn_part_picture"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.2)
+
+[editable path="Body"]
