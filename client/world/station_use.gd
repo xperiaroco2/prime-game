@@ -14,8 +14,8 @@ extends RefCounted
 ## CarRepairUse); a kind of any other type is never offered until its client issue adds its row
 ## here. The other conditions of a rule (AtStation, StationInSight) are TargetChoice's and
 ## ItemInteractions'; one this client does not know is left to the host. A fixed switch is no
-## station at all (GE14), so it is never
-## offered, and nothing here reads a switch's `on`: the hint never names a switch's state.
+## station at all (GE14), so it is never offered, and nothing here reads a switch's `on`: the hint
+## never names a switch's state.
 
 
 ## The station kind `kind_id` of one of `mode`'s task types, or null.

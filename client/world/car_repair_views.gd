@@ -267,10 +267,7 @@ func _drive_lift(scene: Scene, now: float) -> void:
 	if scene.station >= 0:
 		var panel := CarRepairUse.station_of(model, scene.type, CarRepairUse.Role.PANEL)
 		fraction = CarRepairUse.lift_fraction(
-			panel,
-			now,
-			scene.type.rise_ticks(),
-			Ticks.from_seconds(CarRepairUse.DROP_SECONDS)
+			panel, now, scene.type.rise_ticks(), Ticks.from_seconds(CarRepairUse.DROP_SECONDS)
 		)
 	var y := scene.lift_rest_y + fraction * scene.rise_m
 	if not is_equal_approx(scene.lift.position.y, y):
