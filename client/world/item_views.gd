@@ -174,8 +174,6 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 	_place_at_body(view, item, body)
 
 
-## On its arc; before the launch is drawn, in the thrower's hand as its body is seen (another
-## player's throw on the avatars' timeline), hidden with no body to hold it.
 ## Where a resting item is drawn: on its plate or grill (`station_point`), else where it lies.
 func _rest_point(id: int, item: ClientModel.Item) -> Vector3:
 	if item.on_station >= 0 and station_point.is_valid():
@@ -201,6 +199,8 @@ func _outline(view: ItemView, item: ClientModel.Item) -> void:
 		CookingLooks.set_outline(view.look(), want)
 
 
+## On its arc; before the launch is drawn, in the thrower's hand as its body is seen (another
+## player's throw on the avatars' timeline), hidden with no body to hold it.
 func _place_in_flight(view: ItemView, item: ClientModel.Item, arc: ItemArc) -> void:
 	var at := arc.position()
 	if at.is_finite():
