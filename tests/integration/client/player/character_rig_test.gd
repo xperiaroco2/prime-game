@@ -136,6 +136,21 @@ func test_each_socket_sits_at_its_point_in_its_bones_frame() -> void:
 		)
 
 
+## The measured points face the way the art's bone frames do (the art faces +Z, its bones run
+## along +Y), so CI, which has no art (character_rig_art_test skips there), still sees a flipped
+## sign: the hand point runs down Wrist.R toward the fingers, the belt point is on the left (+X in
+## Hips' frame), the carry point is in front of the chest (+Z in Chest's frame) and below it.
+func test_the_measured_points_face_the_arts_bone_frames() -> void:
+	var hand: Vector3 = CharacterRig.SOCKETS[&"Hand"][1]
+	var belt: Vector3 = CharacterRig.SOCKETS[&"Belt"][1]
+	var carry: Vector3 = CharacterRig.SOCKETS[&"Carry"][1]
+	assert_float(hand.y).override_failure_message("Hand toward the fingers").is_greater(0.05)
+	assert_float(Vector2(hand.x, hand.z).length()).is_less(0.03)
+	assert_float(belt.x).override_failure_message("Belt on the left hip").is_greater(0.1)
+	assert_float(carry.z).override_failure_message("Carry in front").is_greater(0.2)
+	assert_float(carry.y).override_failure_message("Carry below the chest").is_less(0.0)
+
+
 ## At the idle pose each socket is on its bone at its point; the hand and belt stand upright
 ## (their items level), the carry socket is turned back by the carry layer's chest lean (seen in
 ## the rig's frame, which faces the model's way), which the carry pose undoes (next test).
