@@ -215,7 +215,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    `docs/GDD.md`, `COMPASS.md`, `m8-match.md`, `docs/design/ideas/`, `docs/design/research/`; never `house-map.md`,
    which the level tests read): its `verify` runs `doctor` and `lint` (the § references) without `check`, and CI
    skips the Godot parts of `verify --full` (the required `verify` passes on their `skipped`, `runner on the minimum
-   Python` lints it), a minute or two in all. Any other path in the diff runs everything.
+   Python` lints it); `runner on the minimum Python` took 38 s in the last PR run, the `changes` job is not yet
+   timed. Any other path in the diff runs everything.
 2. Fresh-context review (none for a design-only diff, step 1, #1123): `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `voice/`, `client/` (what it
    renders can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only
