@@ -148,16 +148,17 @@ func reset() -> void:
 
 
 ## What the HUD shows besides the model, at the estimated host tick `tick` (negative: the views'
-## host tick): the own fit at the car shows in the raise bar (`raising`, #811), only while the
-## own player is the car's fitter (CarRepairUse.fit_progress).
-func hud_local(tick: float = -1.0) -> HudText.Local:
+## host tick): the raise bar (`raising`) shows the own raise's progress `raise` (-1: none), else
+## the own fit at the car (#811), only while the own player is the car's fitter
+## (CarRepairUse.fit_progress); never both at once, so the larger is the one running.
+func hud_local(tick: float = -1.0, raise: float = -1.0) -> HudText.Local:
 	var local := HudText.Local.new()
 	if _player != null and _player.stamina != null:
 		local.stamina = _player.stamina.get_stamina()
 	local.aim = interactions.target()
 	local.aim_station = interactions.station_target()
 	local.viewing = viewfinder.active()
-	local.raising = fit_shown(tick)
+	local.raising = maxf(raise, fit_shown(tick))
 	return local
 
 
