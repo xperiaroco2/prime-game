@@ -5532,7 +5532,7 @@ The local player's controller (#46, `client/player/`):
   `crouch_maps` went), and `release_keys()` lets go of Ctrl with the other keys under the Esc menu.
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9), 4 `movers` (`PhysicsLayers.MOVERS`: client-only
-  moving bodies, today the car repair's car, §4.7.56). The living collide with the world and the movers (#811), the
+  moving bodies, today the car repair's car, §4.7.57). The living collide with the world and the movers (#811), the
   downed with the world only (a raise ray passes through the movers); the dead are on no layer; a living player
   finds the other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other
   players are
@@ -7489,7 +7489,7 @@ its lowest point 0.16 m, under the 1.4 m `clearance_m`; the posts' frame on laye
 car), `lift_panel.tscn` (a hidden lamp), `parts_shelf.tscn` (three bins, each a use spot and a colour plate, RD2's
 placeholders) and `part_picture.tscn` (a hidden plate on the garage's east wall), instanced in the garage and in
 storage in place of the markers and the art's copies; a kit partition 1 m east of the panel's use spot hides the space
-under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client, R7 in #811: §4.7.56
+under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client, R7 in #811: §4.7.57
 (`ClientModel.Station`'s `rise_tick`, `Item.rests()` false when fitted, the `movers` mask, `CarRepairUse`,
 `CarRepairViews`, the hold's `StopRaise`).
 Tests: `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),

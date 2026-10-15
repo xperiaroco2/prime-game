@@ -1,7 +1,7 @@
 class_name CarRepairViews
 extends Node3D
 ## The car repair's station scenes in the level, driven from the own ClientModel (#811, the car
-## repair ADR's §8 R7, RE8, RE16, RD3; ARCHITECTURE §4.7.56). The level holds R5's scenes
+## repair ADR's §8 R7, RE8, RE16, RD3; ARCHITECTURE §4.7.57). The level holds R5's scenes
 ## (`levels/stations/car.tscn`, `lift_panel.tscn`, `part_picture.tscn`, `parts_shelf.tscn` with its
 ## three bins), each found by its `UseSpot` in the `spawn_<tag>` group of its kind; a placed station
 ## binds to the scene of its kind whose use spot is nearest in 3D, within

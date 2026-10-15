@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## RE8's walk test (#811, ARCHITECTURE §4.7.56; the car repair ADR's RE8, RD1, §8 R7): R5's real
+## RE8's walk test (#811, ARCHITECTURE §4.7.57; the car repair ADR's RE8, RD1, §8 R7): R5's real
 ## car scene (`levels/stations/car.tscn`) in both Games' levels on NetPair's crouch_room, its Lift
 ## (layer 4, `movers`, which the own living player's mask holds) driven on the client by a
 ## test-local CarRepairViews from a ClientModel of FixtureCarRepairClient (for_scenes(): R5's

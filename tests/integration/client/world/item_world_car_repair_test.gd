@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ItemWorld's HUD numbers for the car repair (#811, ARCHITECTURE §4.7.56): the raise bar
+## ItemWorld's HUD numbers for the car repair (#811, ARCHITECTURE §4.7.57): the raise bar
 ## (`HudText.Local.raising`) shows the own fit at the car from FitChanged's tick and the client's
 ## copy of the fit's seconds, only while the own player is the car's fitter; another fitter, no
 ## fitter and a stopped fit show nothing (-1); a running raise shows instead (the larger wins, the

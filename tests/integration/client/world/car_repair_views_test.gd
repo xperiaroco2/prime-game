@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The car repair's station scenes driven from the own ClientModel (#811, ARCHITECTURE §4.7.56; the
+## The car repair's station scenes driven from the own ClientModel (#811, ARCHITECTURE §4.7.57; the
 ## car repair ADR's §8 R7, RE8, RE16, RD3): R5's real scenes (`levels/stations/`) under a fixture
 ## level, the stations of FixtureCarRepairModes placed at their use spots (for_scenes(): the
 ## shelf's bin tags, R5's clearance). The car's Lift rises to the clearance over rise_ticks and

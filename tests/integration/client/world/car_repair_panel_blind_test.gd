@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The lift panel is blind to the car (#811, ARCHITECTURE §4.7.56; the car repair ADR's RE16, RD14):
+## The lift panel is blind to the car (#811, ARCHITECTURE §4.7.57; the car repair ADR's RE16, RD14):
 ## the holder at the panel learns nothing of what happens under the car from the panel. With R5's
 ## real lift_panel.tscn under CarRepairViews, the lamp, StationUse.usable(panel) and the HUD aimed
 ## at the panel stay the same through FitChanged (a fitter starting and stopping) and a PartFitted

@@ -1,7 +1,7 @@
 class_name CarRepairUse
 extends RefCounted
 ## What E offers at the car repair's stations and how high its car stands (#811, the car repair
-## ADR's §8 R7, ARCHITECTURE §4.7.56), pure: from the own ClientModel and the client's own copy of
+## ADR's §8 R7, ARCHITECTURE §4.7.57), pure: from the own ClientModel and the client's own copy of
 ## the mode, never `core/` state. It mirrors the host's CarRepair.use_problem() on what the client
 ## knows and leaves the rest to the host (§7.1); it only decides what to offer:
 ## - the lift panel: the task not done and the car not up or going up (`up` from LiftChanged: then
