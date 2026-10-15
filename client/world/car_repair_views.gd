@@ -44,6 +44,9 @@ var _bound_ids: Array[int] = []
 ## The host tick last read and the seconds since it changed: the car moves between ticks.
 var _tick := -1
 var _since_tick := 0.0
+## The fallback pictures, made once each, by FALLBACK index: a new one each frame would be set
+## again each frame.
+var _fallbacks: Dictionary[int, Material] = {}
 
 
 ## One station scene of the level.
@@ -306,10 +309,13 @@ func _look_of(type: CarRepair, part: StringName) -> Material:
 			var look := plate.get_active_material(0)
 			if look != null:
 				return look
-	var fallback := StandardMaterial3D.new()
-	fallback.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fallback.albedo_color = FALLBACK[maxi(index, 0) % FALLBACK.size()]
-	return fallback
+	var slot := maxi(index, 0) % FALLBACK.size()
+	if not _fallbacks.has(slot):
+		var fallback := StandardMaterial3D.new()
+		fallback.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		fallback.albedo_color = FALLBACK[slot]
+		_fallbacks[slot] = fallback
+	return _fallbacks[slot]
 
 
 func _show(node: Node3D, shown: bool) -> void:

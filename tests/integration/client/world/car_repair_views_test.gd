@@ -126,6 +126,19 @@ func test_the_picture_wears_the_plate_of_the_needed_parts_bin() -> void:
 	assert_bool(quad.visible).is_false()
 
 
+func test_an_unbound_bin_s_fallback_picture_is_made_once() -> void:
+	_shelf.position = Vector3(40, 0, 0)
+	_views.level = _level
+	await _frames()
+	assert_object(_views.scene_of(FIRST_BIN)).is_null()
+	var quad := _picture.get_node("StationSight/Picture") as MeshInstance3D
+	var look := quad.material_override
+	assert_bool(quad.visible).is_true()
+	assert_object(look).is_not_null()
+	await _frames()
+	assert_object(quad.material_override).is_same(look)
+
+
 func test_the_plates_differ_so_the_pictures_do() -> void:
 	var looks: Array[Material] = []
 	for k in 3:
