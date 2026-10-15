@@ -802,9 +802,9 @@ static func _ends_in_use(kind: StationKind) -> bool:
 	return false
 
 
-static func _ids(kinds: Array[ItemKind]) -> PackedStringArray:
+static func _ids(listed: Array[ItemKind]) -> PackedStringArray:
 	var found := PackedStringArray()
-	for kind: ItemKind in kinds:
+	for kind: ItemKind in listed:
 		found.append(String(kind.id))
 	return found
 
