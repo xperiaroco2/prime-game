@@ -33,6 +33,7 @@
 [ext_resource type="Resource" uid="uid://dvjwtg2w1e1qn" path="res://content/items/box_patty_light.tres" id="31_box_patty_light"]
 [ext_resource type="Resource" uid="uid://b40ke8e2mmpr1" path="res://content/items/box_patty_red.tres" id="32_box_patty_red"]
 [ext_resource type="Resource" uid="uid://3km0bk25j57h" path="res://content/items/box_patty_deep_red.tres" id="33_box_patty_deep_red"]
+[ext_resource type="Resource" uid="uid://bulyemfaacc4x" path="res://content/items/burger.tres" id="34_burger"]
 
 [sub_resource type="Resource" id="Grill_at_station"]
 script = ExtResource("7_at_station")
@@ -102,6 +103,24 @@ height_m = 2.0
 palette = PackedColorArray()
 display = true
 
+[sub_resource type="Resource" id="OrderBoard_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="OrderBoard_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="OrderBoard_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="OrderBoard_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_serve_burger"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("OrderBoard_at_station"), SubResource("OrderBoard_in_sight"), SubResource("OrderBoard_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("OrderBoard_use")])
+
 [sub_resource type="Resource" id="StationKind_order_board"]
 script = ExtResource("2_station")
 id = &"order_board"
@@ -109,7 +128,7 @@ spawn_tag = &"order_board"
 radius_m = 2.0
 height_m = 2.0
 palette = PackedColorArray()
-display = true
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_serve_burger")])
 
 [sub_resource type="Resource" id="Place_one_handed"]
 script = ExtResource("6_one_handed")
@@ -152,12 +171,13 @@ buns = Array[ExtResource("12_item_kind")]([ExtResource("13_bun_white"), ExtResou
 raw_patties = Array[ExtResource("12_item_kind")]([ExtResource("16_patty_light_raw"), ExtResource("17_patty_red_raw"), ExtResource("18_patty_deep_red_raw")])
 fried_patties = Array[ExtResource("12_item_kind")]([ExtResource("19_patty_light"), ExtResource("20_patty_red"), ExtResource("21_patty_deep_red")])
 burnt = ExtResource("22_patty_burnt")
+burger = ExtResource("34_burger")
 herbs = Array[ExtResource("12_item_kind")]([ExtResource("23_basil"), ExtResource("24_dill"), ExtResource("25_rosemary"), ExtResource("26_chives"), ExtResource("27_mint")])
 boxes = Array[ExtResource("12_item_kind")]([ExtResource("28_box_bun_white"), ExtResource("29_box_bun_sesame"), ExtResource("30_box_bun_dark"), ExtResource("31_box_patty_light"), ExtResource("32_box_patty_red"), ExtResource("33_box_patty_deep_red")])
 fry_seconds = 10.0
 burn_seconds = 5.0
 id = &"cooking"
 display_name = "Cooking"
-description = "Make every order on the kitchen board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+description = "Make every order on the kitchen board: put its bun, a fried patty and the herb from the greenhouse board on its plate, then carry the burger to the board and serve it."
 maps = PackedStringArray("res://levels/house/house.tscn")
 subtasks_setting = &"burgers"

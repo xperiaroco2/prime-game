@@ -6,11 +6,12 @@ extends GdUnitTestSuite
 
 const MODES := "res://content/modes"
 ## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
-## meanwhile: the photo task's film and photo (#784), Cooking's 21 kinds (#775, the cooking
-## ADR's §5.1 names) and car repair's three parts (#810). No deck key fits any and none is invented
-## (`strings.csv` is the UI track's, byte for byte), so the UI track is asked for `item.<id>` of
-## each. Self-expiring: the test fails once the deck carries the key, and the entry goes. An
-## exception the engineer approves in #784's, #775's and #810's PRs, not a decision.
+## meanwhile: the photo task's film and photo (#784), Cooking's 22 kinds (#775, the cooking
+## ADR's §5.1 names; the burger of #1101) and car repair's three parts (#810). No deck key fits
+## any and none is invented (`strings.csv` is the UI track's, byte for byte), so the UI track is
+## asked for `item.<id>` of each. Self-expiring: the test fails once the deck carries the key, and
+## the entry goes. An exception the engineer approves in #784's, #775's, #810's and #1101's PRs,
+## not a decision.
 const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"film": "Film",
 	&"photo": "Photo",
@@ -35,6 +36,7 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"box_patty_light": "Box of light patties",
 	&"box_patty_red": "Box of red patties",
 	&"box_patty_deep_red": "Box of deep red patties",
+	&"burger": "Burger",
 	&"car_part_green": "Green part",
 	&"car_part_blue": "Blue part",
 	&"car_part_yellow": "Yellow part",
