@@ -5,6 +5,15 @@ extends GdUnitTestSuite
 ## its scene's file name; text() follows the language now.
 
 const MODES := "res://content/modes"
+## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
+## meanwhile: the photo task's film and photo (#784). No deck key fits either and none is invented
+## (`strings.csv` is the UI track's, byte for byte), so the UI track is asked for `item.film` and
+## `item.photo`. Self-expiring: the test fails once the deck carries the key, and the entry goes.
+## An exception the engineer approves in #784's PR, not a decision.
+const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
+	&"film": "Film",
+	&"photo": "Photo",
+}
 
 var _locale := ""
 
@@ -28,7 +37,11 @@ func test_every_shipped_role_item_and_task_has_a_deck_key() -> void:
 		for role: GameRole in mode.roles:
 			_assert_keyed(ContentNames.role(role.id, mode), "%s: role %s" % [file, role.id])
 		for kind: ItemKind in mode.item_kinds:
-			_assert_keyed(ContentNames.item(kind.id, mode), "%s: item %s" % [file, kind.id])
+			var what := "%s: item %s" % [file, kind.id]
+			if ITEMS_NOT_IN_DECK_YET.has(kind.id):
+				_assert_not_in_deck_yet(kind.id, mode, what)
+				continue
+			_assert_keyed(ContentNames.item(kind.id, mode), what)
 		for type: TaskType in mode.task_types:
 			_assert_keyed(ContentNames.task(type.id, mode), "%s: task %s" % [file, type.id])
 	assert_int(modes).is_greater_equal(2)
@@ -53,6 +66,13 @@ func test_the_greyboxs_delivery_by_colours_is_the_decks_delivery() -> void:
 func test_the_generator_is_the_decks_switches() -> void:
 	assert_str(ContentNames.task(&"generator", null)).is_equal("task.switches")
 	assert_str(ContentNames.task(&"generator", GameMode.new())).is_equal("task.switches")
+
+
+## The photo task (#784) reads as the deck's Photo zone, the one photo key the deck has, until the
+## UI track adds `task.photo` (a placeholder the engineer approves in #784's PR).
+func test_the_photo_task_is_the_decks_photo_zone() -> void:
+	assert_str(ContentNames.task(&"photo", null)).is_equal("room.photo_zone")
+	assert_str(ContentNames.task(&"photo", GameMode.new())).is_equal("room.photo_zone")
 
 
 ## Content that adds a type the deck already names needs no edit in ContentNames: the key is found
@@ -99,6 +119,17 @@ func test_what_the_deck_does_not_name() -> void:
 	assert_str(ContentNames.map("res://levels/house/house.tscn")).is_equal("House")
 	assert_bool(ContentNames.has_key("room.boiler_room")).is_true()
 	assert_bool(ContentNames.has_key("room.lab")).is_true()
+
+
+## An item kind of ITEMS_NOT_IN_DECK_YET: still no `item.<id>` in the deck (once it lands, remove
+## the entry) and the kind shows its display name.
+func _assert_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> void:
+	var key := ContentNames.ITEM_PREFIX + String(id)
+	var landed := "%s: the deck has %s now: remove it from ITEMS_NOT_IN_DECK_YET" % [what, key]
+	assert_bool(ContentNames.has_key(key)).override_failure_message(landed).is_false()
+	assert_str(ContentNames.item(id, mode)).override_failure_message(what).is_equal(
+		ITEMS_NOT_IN_DECK_YET[id]
+	)
 
 
 ## `key` is a deck key with text in English and Ukrainian.

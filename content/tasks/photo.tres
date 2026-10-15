@@ -1,0 +1,165 @@
+[gd_resource type="Resource" script_class="PhotoTask" format=3 uid="uid://cprpiofont4cq"]
+
+[ext_resource type="Script" uid="uid://y3cof27g43ir" path="res://core/tasks/photo_task.gd" id="1_photo"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="11_cooldown"]
+[ext_resource type="Resource" uid="uid://by2ejachdpkni" path="res://content/items/film.tres" id="12_film"]
+[ext_resource type="Resource" uid="uid://xt3gjdo6x3jy" path="res://content/items/photo.tres" id="13_photo"]
+
+[sub_resource type="Resource" id="Board_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Board_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Board_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Board_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Board_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_board"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Board_one_handed"), SubResource("Board_at_station"), SubResource("Board_in_sight"), SubResource("Board_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Board_use")])
+
+[sub_resource type="Resource" id="StationKind_photo_board"]
+script = ExtResource("2_station")
+id = &"photo_board"
+spawn_tag = &"photo_board"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_board")])
+
+[sub_resource type="Resource" id="Camera_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Camera_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Camera_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Camera_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Camera_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_camera"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Camera_one_handed"), SubResource("Camera_at_station"), SubResource("Camera_in_sight"), SubResource("Camera_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Camera_use")])
+
+[sub_resource type="Resource" id="StationKind_camera"]
+script = ExtResource("2_station")
+id = &"camera"
+spawn_tag = &"camera"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_camera")])
+
+[sub_resource type="Resource" id="FilmBox_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="FilmBox_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="FilmBox_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="FilmBox_cooldown"]
+script = ExtResource("11_cooldown")
+key = &"photo_take"
+seconds = 0.25
+
+[sub_resource type="Resource" id="FilmBox_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_film_box"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("FilmBox_at_station"), SubResource("FilmBox_in_sight"), SubResource("FilmBox_usable"), SubResource("FilmBox_cooldown")])
+effects = Array[ExtResource("5_effect")]([SubResource("FilmBox_use")])
+
+[sub_resource type="Resource" id="StationKind_film_box"]
+script = ExtResource("2_station")
+id = &"film_box"
+spawn_tag = &"film_box"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_film_box")])
+
+[sub_resource type="Resource" id="StationKind_photo_spot"]
+script = ExtResource("2_station")
+id = &"photo_spot"
+spawn_tag = &"photo_spot"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+display = true
+
+[sub_resource type="Resource" id="Printer_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Printer_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Printer_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Printer_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Printer_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_printer"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Printer_one_handed"), SubResource("Printer_at_station"), SubResource("Printer_in_sight"), SubResource("Printer_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Printer_use")])
+
+[sub_resource type="Resource" id="StationKind_printer"]
+script = ExtResource("2_station")
+id = &"printer"
+spawn_tag = &"printer"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_printer")])
+
+[resource]
+script = ExtResource("1_photo")
+camera = SubResource("StationKind_camera")
+photo_spot = SubResource("StationKind_photo_spot")
+film_box = SubResource("StationKind_film_box")
+printer = SubResource("StationKind_printer")
+board = SubResource("StationKind_photo_board")
+film = ExtResource("12_film")
+photo = ExtResource("13_photo")
+frames_per_film = 5
+fov_deg = 50.0
+aspect = 1.3333334
+range_m = 10.0
+id = &"photo"
+display_name = "Photography"
+description = "Load a film into the camera, photograph a player on the spot, print the film, and hang the photos on the board: each one with a person in it counts."
+maps = PackedStringArray("res://levels/house/house.tscn")
+subtasks_setting = &"photos"

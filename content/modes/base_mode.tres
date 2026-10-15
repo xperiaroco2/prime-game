@@ -69,6 +69,9 @@
 [ext_resource type="Resource" uid="uid://beqj22bnihvqd" path="res://content/items/gnome.tres" id="123_gnome"]
 [ext_resource type="Resource" uid="uid://kapnebg1wj21" path="res://content/items/parasol.tres" id="124_parasol"]
 [ext_resource type="Resource" uid="uid://fjq47hl1ee45" path="res://content/tasks/generator.tres" id="125_generator"]
+[ext_resource type="Resource" uid="uid://by2ejachdpkni" path="res://content/items/film.tres" id="126_film"]
+[ext_resource type="Resource" uid="uid://xt3gjdo6x3jy" path="res://content/items/photo.tres" id="127_photo"]
+[ext_resource type="Resource" uid="uid://cprpiofont4cq" path="res://content/tasks/photo.tres" id="128_photo_task"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -420,9 +423,9 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 2
+default_value = 3
 min_value = 1
-max_value = 2
+max_value = 3
 
 [sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")
@@ -445,6 +448,14 @@ display_name = "Active switches (Generator)"
 default_value = 3
 min_value = 2
 max_value = 4
+
+[sub_resource type="Resource" id="Setting_photos"]
+script = ExtResource("2_setting")
+id = &"photos"
+display_name = "Photos (Photography)"
+default_value = 3
+min_value = 1
+max_value = 5
 
 [sub_resource type="Resource" id="Setting_dissidents"]
 script = ExtResource("2_setting")
@@ -562,16 +573,16 @@ actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResour
 script = ExtResource("1_mode")
 min_players = 1
 max_players = 10
-settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_switches"), SubResource("Setting_photos"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_film"), ExtResource("127_photo")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
-task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"
