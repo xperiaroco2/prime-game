@@ -4877,8 +4877,9 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   picture slot); `PhotoViews` binds the camera, printer and board scenes of `levels/stations/` by their kinds'
   spawn tags (`StationViews`' pattern) and gives `ItemWorld.drawn_point` / `aim_point` (after `CookingViews`): the
   loaded film at the camera's `FilmSlot` (drawn, still never an item target: `aim_point` names no point, #1104
-  option (a)), a hung photo upright on its board `SlotN` (past the last slot stacked 1 cm out), the tray's photos
-  spread three to a row by item id (each rank 1 mm higher, so overlapping cards never z-fight); the camera's
+  option (a)), a hung photo upright on its board `SlotN` (past the last slot stacked 1 cm out), the photos lying
+  on the tray (a photo kind within 5 cm of the `Tray` marker, where the print puts it; any other item is drawn
+  where it lies) spread three to a row by item id (each rank 1 mm higher, so overlapping cards never z-fight); the camera's
   `FramesLeft` label shows the digits of the frames left while it holds a film, hidden otherwise. Spacings are
   looks, "not a decision".
 - **The pictures.** `PhotoPictures` (in `ItemWorld`, after `PhotoFlashes`) queues each folded `ShotTaken` and starts
@@ -4886,7 +4887,9 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   sharing the live `World3D`), its `Camera3D` at `PhotoUse.frame_of` (fov, `KEEP_HEIGHT`, `PhotoFrame.NEAR_M`)
   seeing `PHOTO_VIEW`, and a puppet per record row: a `RemotePlayerBody` with collision 0 and no shadow on `PHOTO`,
   the live avatars' rules and character, crouched as recorded, turned through `SnapshotBuffer.look_angles` (a zero
-  or vertical facing is honest play), a downed row laid flat, its hand, carried and belt items with it. After
+  or vertical facing is honest play), a downed row laid flat, its hand, carried and belt items with it. A puppet
+  with the character is posed at once (`CharacterRig.pose_now`: the tree evaluated, the skeleton and sockets
+  updated), since it is drawn before any physics step would run its tree (else the art's arms-out rest). After
   `drawn` (`RenderingServer.frame_post_draw`) the image is read back (`reader`), kept as JPEG bytes (quality 0.8),
   the viewport and puppets freed, then the flash released (`PhotoFlashes.release`: the picture is lit by it). A
   queued or in-hand render whose shot the model no longer holds is dropped and its flash released. A picture lives
@@ -4898,12 +4901,24 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   own hand holds it up close (`FirstPersonHand.set_close`: in front of the eye, facing it, 2.2 times larger) or
   back, sending nothing (a photo has no Use rule); a hand change, a knockdown or death, the viewfinder and the keys
   no longer listening end it. Sizes, range and frames are placeholders, "not a decision".
+- **Memory** (`tools\run.cmd shot client/dev/photo_memory_preview.tscn --frames 450`, the greybox puppets, two
+  to a shot, measured 2026-10-15 on the engineer's PC, Vulkan Forward+, 1280x720): 20 pictures kept are 172 KB
+  of JPEG; PE15's worst case of 224 (32 films x 5 frames plus 64 photos) 1.9 MB, about 8.6 KB each, well under
+  PE15's 10 MB. Static memory grows about 16 MB with the first renders and stays there (124.5 to 140.8 MB from 20
+  to 224 pictures, not growing with the count). Texture memory: 20.4 MB before any render, 61.5 MB once 224 are
+  kept and no render is in hand (the renderer keeps about 41 MB from the first renders, the same at 20 and 224),
+  109.5 MB with 64 photos of distinct shots drawn in view (48 MB, 0.75 MB a decoded 512x384 texture): the 12 m
+  range and the 30 frames bound how many are decoded at once. 224 renders took 6.9 s at one a frame.
+- **Previews.** `client/dev/photo_preview.tscn` (the room: the board with two hung photos, the camera, the
+  printer), `photo_counter_preview.tscn`, `photo_tray_preview.tscn` (close on the counter, on the tray),
+  `photo_picture_preview.tscn` and `photo_character_preview.tscn` (a picture itself, greybox and with the art).
 - **Tests.** `tests/unit/client/net/client_model_photo_pictures_test.gd`,
   `tests/unit/client/world/photo_layers_test.gd`, `photo_looks_test.gd`,
   `tests/integration/client/world/photo_isolation_test.gd` (every live camera drops `PHOTO`, the live parts on
   `LIVE_AVATAR`, a dead body back on `GROUND`), `photo_views_test.gd` (the real scenes),
   `photo_pictures_test.gd` (with a test `drawn` signal and `reader`: the frame, the puppets, read then release, one
-  render a frame, lazy textures, dropped and recycled shots, zero and vertical facings, headless),
+  render a frame, lazy textures, dropped and recycled shots, zero and vertical facings, a posed character, no live
+  view's `visible` touched, headless), `character_rig_test.gd` (`pose_now`),
   `photo_close_up_test.gd`, `tests/integration/client/player/first_person_hand_test.gd`,
   `tests/integration/client/life/spectate_cycle_test.gd` (the spectate hand's picture).
 
