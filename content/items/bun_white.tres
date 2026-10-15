@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://dm2onoiilvgig"]
+
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_bt3kr"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+
+[resource]
+script = ExtResource("1_kind")
+id = &"bun_white"
+display_name = "White bun"
+hands = 1
+vanish_seconds = 60
+max_items = 128
