@@ -1,7 +1,8 @@
 # Manager rules for every track
 
 The one place for the rules every track's manager session follows: game and meta (`D:\prime-game`, the
-`orchestrate-stage` skill and `wave`), UI (`D:\prime-game-ui`) and art (`D:\prime-game-art`). The UI and art repos'
+`orchestrate-stage` skill and `wave`), design (`D:\prime-game`, the `design-manager` skill, AGENT_WORKFLOW §7.3),
+UI (`D:\prime-game-ui`) and art (`D:\prime-game-art`). The UI and art repos'
 `CLAUDE.md` files point here instead of copying these rules, so a change is made once, in this file
 ([#511](https://github.com/xperiaroco2/prime-game/issues/511)). Approved by the engineer:
 [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (the paste,
@@ -31,8 +32,9 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
 ## 2. The kickoff
 - One message, as the engineer wrote it (his language kept). It names the scope, the plan issue for reports, the
   order, the budget as a percentage of the week, the approved agent count per workflow, and a `Track: <game | ui |
-  art | meta>` line in English (`metrics --track` reads it). Game and meta: the `orchestrate-stage` skill's §10
-  template (its `kickoff-template.md`).
+  art | meta | design>` line in English (`metrics --track` reads it). Game and meta: the `orchestrate-stage` skill's
+  §10 template (its `kickoff-template.md`); design: the `design-manager` skill's §6, which names no stage or agent
+  count (its budget is in `budget.md`, its workflows each ask first).
 - **No "ultracode"** in a manager's kickoff. The keyword is only the opt-in for workflows, and its "token cost is not a
   constraint" guidance works against the token efficiency track. The kickoff says **"one task = one issue-task
   workflow"** (UI and art: one task = one workflow of your repo), with the approved agent count: that explicit request
@@ -102,10 +104,11 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
   its kickoff, so hand over only when a threshold forces it, never by judgment or at a stop; and with runs in flight
   do not stop them: launch nothing new, let them end, then post the handover.
 - How you measure: game and meta, the last line of `wave` at each turn end (the `orchestrate-stage` skill's §7); UI,
-  `node tools/manager/context.js` and the session's start; art, the app's context usage and the session's start.
+  `node tools/manager/context.js` and the session's start; art and design, the app's context usage and the session's start.
 
 ## 6. The handover comment and the paste
-- **The comment**, on your plan issue, titled exactly "Handover to a fresh manager session": the order from here, the
+- **The comment**, on your plan issue, titled exactly "Handover to a fresh manager session" (design: "Handover to a
+  fresh design session", with the contents its skill's §5 lists; its ready kickoff is the skill's §6): the order from here, the
   open questions, the human steps still due, the stage's start, the runs you stopped (relaunch fresh, with their
   args), every standing instruction he gave in chat since the kickoff (a pause, a changed budget), the UTC time of his
   last chat message, your app session id, and, last in your notes, in a `text` block, **the ready kickoff** (below).

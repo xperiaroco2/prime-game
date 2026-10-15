@@ -686,12 +686,13 @@ TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
 WORKTREE_KEY = "--claude-worktrees-"
 # A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
 # any case. The humans translate kickoffs, so the Ukrainian key `Трек:` counts too, but the name stays English (game,
-# ui, art, meta): an unfilled placeholder `<game | ...>` or a translated name names no track.
+# ui, art, meta, design): an unfilled placeholder `<game | ...>` or a translated name names no track.
 TRACK_LINE = re.compile(r"^[ \t]*(?:Track|Трек):[ \t]*([A-Za-z][\w-]*)", re.MULTILINE | re.IGNORECASE)
 # A session no label, kickoff or checkout names: the engineer's reserve.
 UNTRACKED = "untracked"
-# The order of `--track all`'s lines (the design's four tracks); any other name follows alphabetically.
-TRACK_ORDER = ("game", "ui", "art", "meta")
+# The order of `--track all`'s lines (the budget design's four tracks, then design, #1120); any other name follows
+# alphabetically.
+TRACK_ORDER = ("game", "ui", "art", "meta", "design")
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
