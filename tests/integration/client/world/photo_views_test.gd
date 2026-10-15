@@ -142,6 +142,20 @@ func test_photos_on_the_tray_are_spread_apart_and_aimed_at_where_they_are_drawn(
 		)
 
 
+## Only a photo lying on the tray itself is spread: another kind put there, or a photo on the floor
+## under the tray, is drawn (and aimed at) where it lies.
+func test_only_a_photo_on_the_tray_itself_is_spread() -> void:
+	var tray := _printer.get_node("Tray") as Node3D
+	C.printed(_model, FILM, FIRST_PHOTO, 0, false, tray.global_position)
+	C.printed(_model, FILM, FIRST_PHOTO + 1, 1, false, tray.global_position - Vector3(0, 0.6, 0))
+	C.fold(_model, ItemSpawnedEvent.new(30, &"film", tray.global_position))
+	await _frames()
+	assert_object(_views.drawn_point(FIRST_PHOTO)).is_not_null()
+	assert_object(_views.drawn_point(FIRST_PHOTO + 1)).is_null()
+	assert_object(_views.drawn_point(30)).is_null()
+	assert_object(_views.aim_point(30)).is_null()
+
+
 func test_a_downed_eye_behind_a_wall_sees_neither_the_counter_nor_the_film_nor_a_photo() -> void:
 	C.load_film(_model, FILM)
 	_hang(FIRST_PHOTO, true)

@@ -28,7 +28,8 @@ const TRAY_COLUMNS := 3
 const TRAY_STEP := Vector2(0.12, 0.1)
 const TRAY_RISE_M := 0.001
 const TRAY_LAYER := 9
-## A photo resting this close to the tray marker (on the ground plane) lies on the tray.
+## A photo resting this close to the tray marker lies on the tray (the print puts it at the marker),
+## so a photo on the floor under the printer, or another kind on the tray, is drawn where it lies.
 const TRAY_RADIUS_M := 0.05
 const PARTS: Array[String] = ["FramesLeft"]
 ## The card turned upright, its picture (the look's +Y face) facing the board's +Z, the picture's
@@ -158,6 +159,8 @@ func _slot_of(board_id: int, board: ClientModel.Station, id: int) -> Variant:
 
 ## The spread point of photo `id` lying on a tray, or null when it lies on none.
 func _tray_point(id: int, item: ClientModel.Item) -> Variant:
+	if not _is_photo(item.kind):
+		return null
 	var tray := _tray_under(item.position)
 	if tray == null:
 		return null
@@ -182,7 +185,7 @@ func _tray_under(at: Vector3) -> Node3D:
 		if not is_instance_valid(tray):
 			continue
 		var off := tray.global_position - at
-		if Vector2(off.x, off.z).length() <= TRAY_RADIUS_M:
+		if off.length() <= TRAY_RADIUS_M:
 			return tray
 	return null
 
@@ -239,6 +242,14 @@ func _types() -> Array[PhotoTask]:
 		if type is PhotoTask:
 			found.append(type as PhotoTask)
 	return found
+
+
+## Whether `kind` is a photo task's photo kind.
+func _is_photo(kind: StringName) -> bool:
+	for type: PhotoTask in _types():
+		if type.photo != null and type.photo.id == kind:
+			return true
+	return false
 
 
 func _station_ids() -> Array[int]:
