@@ -1,0 +1,48 @@
+# The knocked-down body as the character's skeleton ragdoll and the stand-up at the revive (#522,
+# ARCHITECTURE §4.7.53, §4.7.9) in the game's real windows, on the greybox test bench. Needs the
+# LFS art checked out (without it the ragdoll is the greybox capsule). Windows 1 and 2 face the
+# one package; window 2 walks up to it. Player 3, a bot forced to be the dissident
+# (knockdown_bots.tres), takes a knife and knocks player 2 down; player 4, a crew bot, waits for
+# the ragdoll to rest, walks up and raises player 2. Window 1 shoots player 2's ragdoll at rest and
+# player 2 standing again; window 2 shoots its own ragdoll from its downed camera, then its view
+# standing again.
+players 4
+windows 2
+bots tools/playcheck/scenarios/knockdown_bots.tres
+role 1 crew
+role 2 crew
+role 3 dissident
+role 4 crew
+setting packages 1
+map res://levels/greybox/greybox.tscn
+
+window 1
+wait phase lobby
+press ready
+wait screen round timeout=60
+aim item package
+wait life 2 downed timeout=90
+frames 20
+shot remote_ragdoll_falling
+frames 100
+shot remote_ragdoll_at_rest
+wait life 2 alive timeout=60
+frames 20
+shot remote_stood_up
+aim off
+
+window 2
+wait phase lobby
+press ready
+wait screen round timeout=60
+aim item package
+hold move_forward
+wait text hud.aim is Package timeout=30
+release move_forward
+aim off
+wait life downed timeout=90
+frames 120
+shot own_ragdoll_at_rest
+wait life alive timeout=60
+frames 20
+shot stood_up

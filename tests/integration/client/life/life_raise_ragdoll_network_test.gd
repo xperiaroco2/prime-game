@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 ## with the ragdoll's pose held off its point, the hint follows the point, not the pose (728d).
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
+const Fixture := preload("res://tests/integration/client/player/character_fixture.gd")
 const RESPAWN_S := 2.0
 ## Long enough a knockdown for the whole test.
 const KNOCKDOWN_S := 60.0
@@ -136,6 +137,37 @@ func test_the_raise_reach_goes_to_the_held_point_never_to_the_ragdolls_pose() ->
 	_pair.aim(player, ragdoll.global_position)
 	await _pair.frames(2)
 	assert_int(life.raise_target()).is_equal(0)
+	await _pair.stop()
+
+
+## #522: on the character's skeleton ragdoll the ray hits a PhysicalBone3D, never the view itself:
+## the hint still names the bone's peer (RagdollView.of_collider()).
+func test_a_bone_of_a_skeleton_ragdoll_names_its_peer() -> void:
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var model := _pair.client.client().model
+	var downed := _pair.peer_of(_pair.host)
+	var player := _pair.client.player()
+	var life := _pair.client.life()
+	var avatars := _pair.client.avatars()
+	avatars.character = CharacterSet.from_scene(Fixture.scene(), Fixture.ragdoll())
+	_pair.knock_down(_pair.host)
+	var drawn := func() -> bool:
+		return (
+			model.life_of(downed) == ClientModel.Life.DOWNED and avatars.ragdoll_of(downed) != null
+		)
+	assert_bool(await _until(drawn)).is_true()
+	await _pair.frames(REST_FRAMES)
+	var ragdoll := avatars.ragdoll_of(downed)
+	assert_object(ragdoll.rig()).is_not_null()
+	var point := ragdoll.held_point()
+	var hint := LifeView.raise_hint_reach_of(_pair.mode)
+	assert_bool(await _pair.walk_to(player, point + Vector3(hint - 0.5, 0.0, 0.0))).is_true()
+	await _pair.frames(10)
+	var torso := ragdoll.bones()[2]
+	_pair.aim(player, torso.global_position)
+	await _pair.frames(2)
+	assert_int(life.raise_target()).is_equal(downed)
 	await _pair.stop()
 
 

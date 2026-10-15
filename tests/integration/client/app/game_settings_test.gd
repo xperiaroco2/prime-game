@@ -96,6 +96,7 @@ func test_the_window_chips_and_alt_enter_keep_the_mode_and_the_file_in_step() ->
 func _game() -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray()
 	game.window = RecordingWindow.new()
 	add_child(game)

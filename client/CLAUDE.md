@@ -19,7 +19,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`,
-  M4-9), `RemotePlayerBody`, `RagdollView` (a knocked-down body, #848), `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks), `BodyColours` (body colour index to Color, #551).
+  M4-9), `RemotePlayerBody`, `RagdollView` (a knocked-down body, #848), `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks), `BodyColours` (body colour index to Color, #551), `AvatarClips` (the pure state-to-clip table, #522, §4.7.53) and `character/`: `CharacterSet` (the injected art character; null: the greybox capsule, so no test needs LFS content), `CharacterRig` (its clips on an `AnimationTree`, its sockets and tint) and `ragdoll_builder.gd` (the art's ragdoll builder, preloaded by `RagdollView`, whose ragdoll is the skeleton's with a character).
 - The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `UiOverlays` (pure: what Esc closes, one per press, #488,
   §4.7.35), `EscMenuState` (pure), `EscMenu` (the Toy menu, #491, §4.7.46), its pages `LobbyPanel` (`LobbyPresets`, `SettingStepper`), `RolePage` (the pure `RoleFacts`), `GuidePanel` and `SettingsPage` (also the main menu's: `SettingRows`, `VoicePanel` M5-6, `ControlsPanel` #211, §4.7.28: `app/Controls`, `ui/KeyLabel`; wired by `app/GameSettings`), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
@@ -69,7 +69,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height, stamina,
   the crouch's numbers, #791; the crouch plays everywhere, #991) come from the client's own copy of the mode's `PlayerRules`;
   `PlayerTuning` keeps client feel only (the push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
-- Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity, and every head or
+- Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity (their clips too: `AvatarClips` takes the drawn move), and every head or
   basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be
   zero or vertical in honest play. A body placed in `_physics_process` for the push search is a `StaticBody3D` and
   calls `force_update_transform()` (§4.7: with Jolt a kinematic body's teleport shows only after the step); one

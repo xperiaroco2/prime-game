@@ -29,6 +29,12 @@ extends StaticBody3D
 ## the same frame finds the crouched capsule; its head and everything hung on it (the mouth its
 ## voice plays from, the hand, belt and carry points) ease down by the eye heights' difference at
 ## the step's catch-up rate (`tuning`), as the own view does. A downed body lies at standing size.
+##
+## With a character (`set_character`, #522, §4.7.53) the animated rig draws the body in the
+## capsule's place, tinted by the body colour and hidden by the same rule (downed, watched); the
+## clips come from AvatarViews (`apply_plan`, `play_one_shot`), and the hand, belt and carry points
+## are the rig's sockets on its bones. The collision capsule, the head, the mouth and the sight
+## point are the capsule's, with or without it.
 
 ## The visor's size and how far it sits in front of the eyes, in metres (greybox looks).
 const VISOR_SIZE := Vector3(0.3, 0.1, 0.12)
@@ -69,6 +75,8 @@ var _hand_point := Node3D.new()
 var _belt_point := Node3D.new()
 var _carry_point := Node3D.new()
 var _mouth_point := Node3D.new()
+## The animated character (set_character, #522), or null: then the greybox capsule and visor.
+var _rig: CharacterRig
 
 @onready var _shape: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $Mesh
@@ -96,13 +104,45 @@ func set_rules(value: PlayerRules) -> void:
 		_apply_rules()
 
 
-## Paints the capsule `value` (the player's body colour, BodyColours, #551). Only
-## a change touches the mesh: AvatarViews calls it every physics frame. Before the body is ready,
-## or before its rules, the colour waits for _apply_rules.
+## Gives the body `with_set`'s animated character (#522, §4.7.53) in place of the greybox capsule
+## and visor, once; null keeps the capsule. The collision capsule, the head, the mouth and the sight
+## point stay as they are; the hand, belt and carry points become the rig's sockets, which follow
+## its bones. Call it once the body is in the tree.
+func set_character(with_set: CharacterSet) -> void:
+	if with_set == null or _rig != null:
+		return
+	_rig = CharacterRig.make(with_set)
+	add_child(_rig)
+	_rig.set_tint(color)
+	_show_looks()
+
+
+## The animated character, or null (the greybox capsule).
+func character() -> CharacterRig:
+	return _rig
+
+
+## Plays AvatarClips' `plan` on the character; nothing without one.
+func apply_plan(plan: AvatarClips.Plan) -> void:
+	if _rig != null:
+		_rig.apply(plan)
+
+
+## Plays the one-shot `clip` on the character; nothing without one.
+func play_one_shot(clip: StringName) -> void:
+	if _rig != null:
+		_rig.play_one_shot(clip)
+
+
+## Paints the capsule `value` (the player's body colour, BodyColours, #551), or tints the
+## character by it. Only a change touches the mesh: AvatarViews calls it every physics frame.
+## Before the body is ready, or before its rules, the colour waits for _apply_rules.
 func set_colour(value: Color) -> void:
 	if value == color:
 		return
 	color = value
+	if _rig != null:
+		_rig.set_tint(color)
 	if not is_node_ready() or not _mesh.mesh is CapsuleMesh:
 		return
 	var material := (_mesh.mesh as CapsuleMesh).material as StandardMaterial3D
@@ -245,23 +285,30 @@ func _show_looks() -> void:
 	_shape.disabled = _downed
 	_mesh.transform = pose
 	_shell.transform = pose
-	_mesh.visible = not _downed and not _watched
-	_head.visible = not _downed and not _watched
+	var shown := not _downed and not _watched
+	# The character draws the body and its face: the capsule and the visor stay hidden then.
+	_mesh.visible = shown and _rig == null
+	_head.visible = shown
+	var visor := _head.get_node_or_null(^"Visor") as Node3D
+	if visor != null:
+		visor.visible = _rig == null
+	if _rig != null:
+		_rig.visible = shown
 
 
-## Where this player's hand item is drawn (M4-8).
+## Where this player's hand item is drawn (M4-8): the character's hand socket with one.
 func hand_point() -> Node3D:
-	return _hand_point
+	return _rig.socket(&"Hand") if _rig != null else _hand_point
 
 
 ## Where this player's belt item is drawn: the belt is visible (vision revision 1, Two hands).
 func belt_point() -> Node3D:
-	return _belt_point
+	return _rig.socket(&"Belt") if _rig != null else _belt_point
 
 
 ## Where this player's two-handed item (the package) is drawn: in front, with both hands.
 func carry_point() -> Node3D:
-	return _carry_point
+	return _rig.socket(&"Carry") if _rig != null else _carry_point
 
 
 ## This player's mouth, MOUTH_BELOW_EYE_M below the eyes, lowered with the head while crouched: its
@@ -321,4 +368,5 @@ func _apply_rules() -> void:
 	visor.name = "Visor"
 	visor.mesh = visor_mesh
 	visor.position = Vector3(0.0, 0.0, -VISOR_AHEAD)
+	visor.visible = _rig == null
 	_head.add_child(visor)

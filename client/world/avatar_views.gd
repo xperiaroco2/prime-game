@@ -28,6 +28,14 @@ extends Node3D
 ## (a revive stands the avatar up at once, KD7 (a)), except at a death with a body: it is parked for
 ## BodyViews (-70) to take in the same physics frame (release_ragdoll()), which greys it where it
 ## lies; one not taken by the next frame goes.
+##
+## With a `character` (#522, §4.7.53) every body wears the animated rig: each physics frame it plays
+## AvatarClips' plan of what is drawn (the drawn move since the last frame, a placement's jump
+## counting as none, the pose's yaw and crouch bit, and a two-handed hand item from the model's
+## events), never a claimed velocity. Picking up (ItemPickedUp) and putting down (ItemPlaced, the
+## cause put_down only) play their one-shots on the holder's body once the interpolation delay has
+## passed since the event arrived, when the drawn body does it; ItemPlaced names no holder and the
+## model has cleared it by then, so the holder is the one the last physics frame drew holding it.
 
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
@@ -48,6 +56,11 @@ var buffer: SnapshotBuffer
 var rules: PlayerRules
 ## The clock in microseconds, the session's: Time.get_ticks_usec() unless a test sets one.
 var clock := Callable()
+## The character the bodies wear, or null: the greybox capsules. The game sets it
+## (CharacterSet.load_default()); tests leave it null unless they test the character.
+var character: CharacterSet
+## The client's own copy of the mode: which item kinds take both hands (the carry layer).
+var mode: GameMode
 
 var _bodies: Dictionary[int, RemotePlayerBody] = {}
 var _ragdolls: Dictionary[int, RagdollView] = {}
@@ -60,6 +73,12 @@ var _given_tick := -1
 ## The level of the model's phase when last seen (each physics frame and each PhaseChanged): a
 ## PhaseChanged to another level forgets the poses; -1 before the first look.
 var _level := -1
+## Peer -> its body's drawn position last physics frame (the drawn move picks the clip).
+var _drawn_pos: Dictionary[int, Vector3] = {}
+## Item -> the peer the last physics frame drew holding it in the hand.
+var _held: Dictionary[int, int] = {}
+## One-shots waiting for the interpolation delay: [peer, clip, due in clock microseconds].
+var _shots: Array[Array] = []
 
 
 func _init() -> void:
@@ -138,6 +157,9 @@ func clear() -> void:
 		_drop(ragdoll)
 	_ragdolls.clear()
 	_parked.clear()
+	_drawn_pos.clear()
+	_held.clear()
+	_shots.clear()
 	_drawn_at = -1.0
 	_given_tick = -1
 	_level = -1
@@ -161,6 +183,12 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 			var spots: Dictionary = fields["spots"]
 			for key: Variant in spots:
 				buffer.snap(key as int, tick)
+		&"ItemPickedUp":
+			_queue_shot(fields["peer"] as int, fields["item"] as int, AvatarClips.Shot.PICKUP)
+		&"ItemPlaced":
+			var item: int = fields["item"]
+			if fields.get("cause", &"") == Items.PUT_DOWN and _held.has(item):
+				_queue_shot(_held[item], item, AvatarClips.Shot.PUTDOWN)
 
 
 func _physics_process(delta: float) -> void:
@@ -171,6 +199,7 @@ func _physics_process(delta: float) -> void:
 		if not model.avatars.has(peer):
 			_drop(_bodies[peer])
 			_bodies.erase(peer)
+			_drawn_pos.erase(peer)
 	_put_away_ragdolls()
 	_drawn_at = buffer.render_tick(now_usec())
 	for key: Variant in model.avatars:
@@ -194,6 +223,7 @@ func _physics_process(delta: float) -> void:
 			_bodies[peer] = body
 			body.add_to_group(SightHider.GROUP)
 			add_child(body)
+			body.set_character(character)
 		body.set_living(model.is_alive(peer))
 		body.set_downed(downed)
 		body.set_invulnerable(model.is_invulnerable(peer))
@@ -202,6 +232,67 @@ func _physics_process(delta: float) -> void:
 		body.set_crouched(pose.crouched, ease_s)
 		body.set_sneaking(pose.sneaking)
 		body.set_pose(pose)
+		_animate(body, pose, delta)
+	_fire_shots()
+	_held.clear()
+	for key: Variant in model.avatars:
+		var item := model.hand_item(key as int)
+		if item >= 0:
+			_held[item] = key as int
+
+
+## Plays on `body`'s character (if any) AvatarClips' plan of what is drawn at `pose`, `delta`
+## seconds after the last frame.
+func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -> void:
+	if body.character() == null:
+		return
+	var state := AvatarClips.State.new()
+	state.downed = body.is_downed()
+	state.yaw = pose.yaw
+	state.crouched = pose.crouched
+	state.carrying = _two_handed(model.hand_item(body.peer))
+	if _drawn_pos.has(body.peer) and delta > 0.0:
+		var moved := pose.position - _drawn_pos[body.peer]
+		# Faster than anyone moves is a placement (a respawn, a snap), no move.
+		if Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
+			state.drawn_move = moved / delta
+	_drawn_pos[body.peer] = pose.position
+	var walk := rules.walk_speed_mps if rules != null else 0.0
+	var sprint := rules.sprint_speed_mps if rules != null else 0.0
+	body.apply_plan(AvatarClips.plan(state, walk, sprint))
+
+
+## Queues `peer`'s one-shot `shot` for `item` (two-handed or not) to play after the interpolation
+## delay: the drawn body reaches the event's tick then. None for the own player or without a
+## character.
+func _queue_shot(peer: int, item: int, shot: AvatarClips.Shot) -> void:
+	if character == null or model == null or peer == model.own_peer:
+		return
+	var clip := AvatarClips.one_shot(shot, _two_handed(item))
+	_shots.append([peer, clip, now_usec() + int(delay_ms() * 1000.0)])
+
+
+## Plays the one-shots whose time came, on bodies still drawn standing; drops them otherwise.
+func _fire_shots() -> void:
+	var now := now_usec()
+	var waiting: Array[Array] = []
+	for shot: Array in _shots:
+		if (shot[2] as int) > now:
+			waiting.append(shot)
+			continue
+		var body: RemotePlayerBody = _bodies.get(shot[0] as int)
+		if body != null and not body.is_downed():
+			body.play_one_shot(shot[1] as StringName)
+	_shots = waiting
+
+
+## Whether `item` (an id the model knows) is of a kind that takes both hands (the package).
+func _two_handed(item: int) -> bool:
+	var known: ClientModel.Item = model.items.get(item)
+	if known == null or mode == null:
+		return false
+	var kind := mode.find_item_kind(known.kind)
+	return kind != null and kind.is_two_handed()
 
 
 ## Starts `peer`'s ragdoll at `pose` the first time, then holds it to the pose's point. Only a
@@ -215,7 +306,7 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	var ragdoll: RagdollView = _ragdolls.get(peer)
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
-		ragdoll.setup(rules, peer, colour)
+		ragdoll.setup(rules, peer, colour, character)
 		ragdoll.start(pose.position, pose.yaw, velocity)
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll

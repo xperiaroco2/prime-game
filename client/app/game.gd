@@ -58,6 +58,9 @@ var make_transport := Callable()
 ## The clock in microseconds of the host session and of the avatars' host-tick estimate: the real
 ## one unless a test sets one. The client session's claims count physics steps (SessionNode).
 var clock := Callable()
+## Whether the avatars wear the animated character (CharacterSet.load_default(), #522): tests turn
+## it off, so a run with the LFS art and one without (CI) draw the same greybox capsules.
+var load_character := true
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
 var last_reason: StringName = &""
@@ -105,6 +108,9 @@ var _join_started_ms := 0
 var _retry := Callable()
 ## This game's content hash, for the version check against `found`.
 var _own_content := 0
+## The character the avatars wear (null: the greybox capsules), loaded once, at the first session.
+var _character: CharacterSet
+var _character_loaded := false
 var _client: ClientSession
 var _session_node: SessionNode
 var _buffer: SnapshotBuffer
@@ -696,7 +702,10 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_avatars.buffer = _buffer
 	_avatars.rules = mode.player_rules
 	_avatars.clock = clock
+	_avatars.mode = mode
+	_avatars.character = _character_set()
 	_bodies.setup(_client.model, mode.player_rules, _avatars)
+	_bodies.character = _avatars.character
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items
@@ -896,6 +905,15 @@ func _ready_controls() -> void:
 		if read_command_line:
 			controls.apply()
 	GameSettings.setup(self)
+
+
+## The character the avatars wear: the shipped one, loaded at the first call, unless
+## `load_character` is off or the build has none (an LFS pointer, CI's stand-in); else null.
+func _character_set() -> CharacterSet:
+	if load_character and not _character_loaded:
+		_character_loaded = true
+		_character = CharacterSet.load_default()
+	return _character if load_character else null
 
 
 ## The voices follow the new session's ClientSession, model and avatars; the own voice speaks

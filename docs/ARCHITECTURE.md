@@ -2587,7 +2587,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   its peer and measures the reach to `held_point()`. At a death `BodyViews` takes the ragdoll (`release_ragdoll`, the
   same step), greys it, puts it on no layer (no ray stops at a body) and draws `LifeLooks.cross` over the body's
   point; a body this client never saw knocked down gets a fresh ragdoll lying at rest along -Z. A revive drops the
-  ragdoll and the controller stands at the host's point. #522's character takes this over on its skeleton.
+  ragdoll and the controller stands at the host's point. With the character (#522, §4.7.53) the same view holds the
+  skeleton's `PhysicalBone3D`s instead of the capsule.
   Tests: `tests/integration/client/player/ragdoll_view_test.gd`, `tests/integration/client/world/avatar_views_test.gd`,
   `body_views_test.gd`, `tests/unit/client/life/downed_camera_clamp_test.gd`, `life_raise_ragdoll_network_test.gd`
   and `life_ragdoll_network_test.gd` (over the loopback on `NetPair.MOTION_LEVEL`, whose low slab the host and the
@@ -4557,6 +4558,91 @@ TE5 (a)). The wire is unchanged.
   built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
   a wall, and the own predicted knife held at a wall a step ahead.
 
+#### 4.7.53 Built in #522, the animated character
+The art character (`assets/characters/slice_m1/`, §11.3) on the avatars, its clips from a pure mapping, and the
+knocked-down body as its skeleton's ragdoll. Not built: the cast (heads, hair, faces, art#42) and which parts take the
+body colour (a follow-up of #522), and a mirror or shadow of the own living player.
+- `client/player/AvatarClips` (pure, `RefCounted`): the drawn state in, the clip out. The state is what the client may
+  draw (invariants 2 and 7): a remote avatar's drawn move (its interpolated position's change over the drawn frame,
+  never `Pose.velocity`, a claimed or host velocity; a source test holds it), its pose's yaw and public `crouched` bit
+  (#790), whether its hand item (`ClientModel.hand_item`, from events it already received) is two-handed, and its
+  life (knocked down, or a dead player's body). The rates are the drawn speed over the clip's ground speed at rate 1
+  (the art's table: `Jog_*` and `Strafe_*` 4.5 m/s, `Sprint_Fwd` 7.0, `Crouch_Fwd` 0.75), clamped to 0.25..4.0 (a
+  placeholder, "not a decision"). Checked in this order:
+
+  | State | Base clip | Rate |
+  |---|---|---|
+  | knocked down, or a dead body | none: the ragdoll (`RAGDOLL`, KE7), no clip; a revive stands up at once (KD7 (a)) | - |
+  | drawn speed under 0.5 m/s (`FootstepCadence.MIN_SPEED_MPS`), crouched | `Crouch_Idle` | 1 |
+  | drawn speed under 0.5 m/s, standing (sneaking too) | `Idle` | 1 |
+  | moving, crouched (any heading) | `Crouch_Fwd` | speed / 0.75 |
+  | moving within 45° of the body's back | `Jog_Bwd` | speed / 4.5 |
+  | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` | speed / 4.5 |
+  | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` | speed / 4.5 |
+  | moving ahead, faster | `Sprint_Fwd` | speed / 7.0 |
+
+  Holding a two-handed item adds the `Carry_Upper` layer over any base (carry idle = `Idle` + `Carry_Upper`, carry
+  walk = `Jog_Fwd` + `Carry_Upper`). Picking up and putting down are one-shots (`one_shot()`): `Pickup_Package` and
+  `Putdown_Package` for a two-handed item, `Pickup_One` and `Putdown_One` for another. Not mapped (they stay in the
+  GLB): jump, turn, raise, talk, push and knife clips, and the head's pitch.
+- `client/player/character/CharacterSet`: the injected character (the GLB's scene and its ragdoll data), null for the
+  placeholder capsule. It is a set only when the instantiated scene is the character (one `Skeleton3D` with the bones
+  the rig names, one `AnimationPlayer` with every mapped clip), never judged from the GLB's bytes: CI's empty LFS
+  stand-in and a missing file give null silently, so no test needs LFS content.
+- `client/player/character/CharacterRig`: one avatar's instance of the set, turned to face -Z, on an `AnimationTree`
+  in the physics step (base clips cross-faded, a time scale, the carry layer filtered to `Torso` and every bone below
+  it, a one-shot), with no root motion (the clips are in place; the body's code moves the body, the collision capsule
+  is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
+  the hand, belt and carry points where the placeholder had them at the idle clip's first frame, never the rest pose
+  (the art's arms-out bind pose, which the clips lower; placeholders until a `shot`). A tint multiplies each surface's own albedo: the body colour of #551 (§4.7.50) stays on the character.
+- The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
+  the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
+  and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
+  colour; `hand_point()`, `belt_point()` and `carry_point()` return its sockets, so the item views follow the bones
+  (the tree runs in the physics callback; the skeleton applies its pose in its deferred update, so a socket, and an item on
+  it, may show the previous step's bone pose: a one-step lag, accepted). `AvatarViews` (its
+  `character` and `mode` set by `Game`) plays each frame `AvatarClips.plan` of the drawn move since its last frame (a
+  move faster than `SnapshotBuffer.SNAP_SPEED_MPS` is a placement and counts as none), the pose's yaw and crouch bit
+  and the model's hand item. One-shots: `ItemPickedUp` (its `peer`) plays the pick-up, and `ItemPlaced` with the cause
+  `put_down` the put-down on the peer the last physics frame drew holding the item (the event names no holder and
+  the model has already folded it); each plays once the interpolation delay has passed since the event arrived, when
+  the drawn body reaches its tick, on a body still drawn standing; other causes (thrown, swap, death, leave) and the
+  own player play none. The own living player has no character on its own screen (no mirror or shadow yet).
+- The ragdoll on the skeleton (KE7, §4.7.9): `RagdollView.setup` with the set (and its ragdoll data) gives the
+  knocked-down player, the own one too, a fresh rig of its own, `top_level`, whose skeleton gets the art's bodies and
+  joints (`client/player/character/ragdoll_builder.gd`, the art's reference builder from prime-game-art 45f73ac,
+  typed for the project's warnings; the game builds them at spawn from `slice_m1.ragdoll.json`: 16 bodies, 15 joints,
+  70 kg). The view stays as the anchor: frozen, with no mesh, no shape and no layer (never hidden through `visible`,
+  which `SightHider` owns; hiding the view hides its rig), following the pelvis. The bones are on the `downed` layer
+  with the world mask, never sleep, and are the only ray target: `RagdollView.of_collider` names a hit bone's view,
+  which the raise hint uses. The fall starts from the idle pose one physics frame after the view enters the tree, tipped
+  over as the capsule is (each body turned about the feet, so the legs do not fold under a body left sitting), with
+  the host's velocity. The spring is the capsule's on the pelvis (the data's parentless body): to the point plus the
+  pelvis' smallest half extent, the vertical term whole, across the floor faded by how much the pelvis lies (its axis
+  up the body, measured at the idle pose), the same velocity change on every bone so it moves the body, not its
+  joints; past `SNAP_M` from where the pelvis belongs (the lying centre raised by the standing pelvis height as much
+  as it stands, so a standing pose is never snapped into the floor) every bone moves by one offset. The bones take
+  the capsule's low `FRICTION`, not the data's, so the floor does not hold a body off the point. `lie_at_rest` lays the rig on its back along the yaw's
+  axis with its pelvis on the lying centre; `make_dead` greys the tint and puts every bone on no layer; the handover
+  to `BodyViews` keeps it simulating, and `BodyViews.character` (set by `Game` with `AvatarViews.character`) dresses
+  a fresh body. The living rig has no physical bones. The export ships the data (`include_filter="*.ragdoll.json"`
+  in both presets: a `.json` is no resource).
+- `Game` loads the shipped set once, at the first session (`load_character`, on unless a test turns it off: every
+  `Game` test does, so a checkout with the LFS art and CI without it run the same capsules).
+- Tests: `tests/unit/client/player/avatar_clips_test.gd` (the table, every clip in the import contract with its loop:
+  seen failing on the old contract; the velocity guards on AvatarClips and on AvatarViews' clip code: seen failing on
+  planted reads), `tests/integration/client/player/character_set_test.gd` and `character_rig_test.gd` on an
+  in-memory character (`character_fixture.gd`; the carry filter seen failing with the filter off),
+  `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
+  sockets; the clip per drawn move, a claimed sprint standing still is `Idle`: seen failing on a planted
+  `pose.velocity`; a placement's jump; the carry layer; the one-shots per cause after the delay; a knocked-down
+  player's ragdoll is the skeleton), `tests/integration/client/player/ragdoll_view_character_test.gd` (the anchor, the
+  bones' layers, the fall to rest over the point, the snap, lying at rest, off a ledge, a lifted point: the vertical
+  term seen failing with a horizontal-only pull; dead on no layer; `of_collider`; the handover),
+  `tests/integration/client/world/body_views_test.gd` (a fresh body's grey skeleton) and
+  `tests/integration/client/life/life_raise_ragdoll_network_test.gd` (a hit bone names its peer: seen failing on the
+  old collider cast).
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -5744,7 +5830,8 @@ there would not follow from the commands.
 
 #### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790, the local crouch in #791, others' in #792)
 Status: the host's part and the wire are built (#790), the local player's crouch (727b, #791) and others' crouch
-with the quiet steps (727c, #792); #522's crouch animation clips are not on main.
+with the quiet steps (727c, #792); #522's crouch clips (`Crouch_Idle`, `Crouch_Fwd`) play on the character's remote
+avatars (§4.7.53).
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
@@ -5845,7 +5932,7 @@ reads, do not move.
   body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
   its two placeholders, used by `WorldSounds` (§4.7.40); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
   #522's crouch
-  animation clips are not on main: the bodies stay capsules until they land. A `shot` preview:
+  clips play on the character's remote avatars (§4.7.53); without the character the bodies stay capsules. A `shot` preview:
   `client/dev/crouch_preview.tscn`.
 - **Tests (727c):** `tests/unit/client/world/snapshot_buffer_test.gd` (the pose's flag),
   `tests/integration/client/world/avatar_views_test.gd` (the push search finds the crouched capsule in the frame it
@@ -7811,15 +7898,20 @@ assets/
   routes through LFS) keeps its folder's `compress/mode`.
 
 Each problem is one line that starts with the asset's path and names what is missing, for instance
-`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
+`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crouch_Fwd (it has: Carry_Upper, ...)`. Broken
 fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
 compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
 committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
 clips, which a local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
 
-**The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
-`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to
-Godot's `SkeletonProfileHumanoid` names, and the file changes with it. The clips are the slice's list from
-prime-game-art#42 under the art MVP set's names as Godot imports them (`Idle`, `Jog_Fwd`, `Sprint_Fwd`,
-`Carry_Upper`, `Pickup_Package`, `Putdown_Package`, `Knockdown`, `Crawl`, `Getup_Fours`): not a decision; the
-avatar (#522) settles the clips it maps and edits the list.
+**The contract's data.** The bones are the art export's rig as measured (art `docs/animations.md`:
+`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`, 64 in all, kept until the art contract
+v2, the engineer's "as recommended" of 2026-10-14 on #522); the art contract v2 may move them to Godot's
+`SkeletonProfileHumanoid` names, and the file changes with it. The clips are those the avatar maps (#522,
+`AvatarClips`, §4.7.53) under the art MVP set's names as Godot imports them: `Idle`, `Jog_Fwd`, `Jog_Bwd`,
+`Strafe_Left`, `Strafe_Right`, `Sprint_Fwd`, `Crouch_Idle`, `Crouch_Fwd` and `Carry_Upper` looping, `Pickup_One`,
+`Putdown_One`, `Pickup_Package` and `Putdown_Package` once. The knockdown is a ragdoll (art #115), so `Knockdown`,
+`Crawl` and `Getup_Fours` left the list; the GLB's other clips (jump, turn, raise, talk, push, knife) are not checked
+until a mapping plays them. The first character is `assets/characters/slice_m1/` (prime-game-art `45f73ac`, PR
+art#182): the GLB, its 11 textures as the importer extracts them (`compress/mode=2`) and `slice_m1.ragdoll.json`
+(text, not LFS), which the game builds the ragdoll's bones from (§4.7.53).

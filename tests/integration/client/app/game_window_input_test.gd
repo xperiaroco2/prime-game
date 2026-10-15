@@ -27,6 +27,7 @@ func after_test() -> void:
 func test_alt_enter_on_the_menu_flips_the_window() -> void:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray()
 	var window := RecordingWindow.new()
 	game.window = window

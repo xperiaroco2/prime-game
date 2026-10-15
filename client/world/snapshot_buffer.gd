@@ -14,9 +14,10 @@ extends RefCounted
 ## - Positions and facings are interpolated linearly between the two snapshots around the render
 ##   time. Past the newest snapshot a player holds still (no extrapolation: a player who stopped
 ##   running is not drawn on into a wall). A placement snaps (snap(), and any two snapshots further
-##   apart than SNAP_SPEED_MPS could carry anyone). The velocity is the newest snapshot's and picks
-##   an animation: a claimed velocity never moves a body on another screen. A ragdoll (AvatarViews)
-##   takes it only from a snapshot that shows its player downed, where it is the host body's. The
+##   apart than SNAP_SPEED_MPS could carry anyone). The velocity is the newest snapshot's; it never
+##   picks a clip (AvatarClips takes the drawn move, #522), and a claimed velocity never moves a
+##   body on another screen. A ragdoll (AvatarViews) takes it only from a snapshot that shows its
+##   player downed, where it is the host body's. The
 ##   crouch flag (the crouch ADR, KE7) is the snapshot's at or before the render time: a flag is
 ##   never blended.
 ## - A relayed facing can be degenerate in honest play (a bot falling straight down claims
@@ -55,7 +56,7 @@ class Pose:
 	var yaw := 0.0
 	## Radians up (+) or down (-), within ±MAX_PITCH: the head's tilt.
 	var pitch := 0.0
-	## The newest snapshot's velocity: picks an animation; a ragdoll takes it only when downed.
+	## The newest snapshot's velocity: never a clip (#522); a ragdoll takes it only when downed.
 	var velocity := Vector3.ZERO
 	## The avatar's crouch (the crouch ADR, KE7) in the snapshot at or before the render time, or
 	## the only one held: a flag is never blended.

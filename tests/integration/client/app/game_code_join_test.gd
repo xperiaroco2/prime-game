@@ -260,6 +260,7 @@ func _lan_host() -> Game:
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
+	game.load_character = false
 	game.launch_args = PackedStringArray(args)
 	var machine := SubViewport.new()
 	machine.own_world_3d = true
