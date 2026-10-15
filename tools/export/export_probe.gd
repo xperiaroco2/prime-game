@@ -10,6 +10,9 @@ extends SceneTree
 ##   EXPORT walk <level> <ContentFingerprint.of with a zero mode hash>
 ##   EXPORT reached <level> <a file the level reaches>
 ##   EXPORT missing <level> <a reached file that is not there>
+## For each translation project.godot's locale/translations names (#1131: the release pack must
+## carry the UI translations, gitignored import products):
+##   EXPORT translation <path> <its locale, or missing>
 ## then `EXPORT done <modes>`. Scripts are loaded by path: outside the pack's res:// the global
 ## class names do not resolve, and net/ names no core/ class (ContentFingerprint's caller does).
 
@@ -47,6 +50,12 @@ func _initialize() -> void:
 		var gone: PackedStringArray = fingerprint.call("missing_from", walked)
 		for file: String in gone:
 			print("EXPORT missing %s %s" % [level, file])
+	var translations: PackedStringArray = ProjectSettings.get_setting(
+		"internationalization/locale/translations", PackedStringArray()
+	)
+	for path: String in translations:
+		var translation: Translation = load(path) if ResourceLoader.exists(path) else null
+		print("EXPORT translation %s %s" % [path, translation.locale if translation else "missing"])
 	print("EXPORT done %d" % modes)
 	quit(0)
 

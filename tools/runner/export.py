@@ -9,7 +9,9 @@
    TwoVoIP extension, which a cloud session's sparse checkout leaves out, is in it. The build's project.godot gets
    `application/config/version` from `git describe --tags --always` (#899): the tag on a tagged commit, else
    `<last tag>-<commits since>-g<short sha>`, a short sha with no tag at all; never committed. On Linux Godot prints `ERROR:`
-   lines for that extension (it has Windows libraries only); those are expected, any other fails the export.
+   lines for that extension (it has Windows libraries only); those are expected, any other fails the export. The tree
+   is imported once (`--headless --import`, as `check` does) before its first export (#1131): the UI translations
+   project.godot names are the CSV import's gitignored products, which a clean tree lacks until then.
 3. Both presets exported (`--export-release` / `--export-debug`), the license notices added (CREDITS.md and the shipped
    addons' LICENSE* files under licenses/<addon>/, #419; Godot's and the codecs' texts from docs/credits/licenses/,
    #422) and zipped into tools/out/export/.
@@ -18,8 +20,8 @@
    OS.is_debug_build() is false only in a release template, and the F3 overlay, the dev tools and the debug wire kinds
    exist only when it is true (invariant 8). The debug zip must carry the same notices.
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
-   level and every file it reaches is found; a second tree of the same commit exported again gives the same hash;
-   one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
+   level and every file it reaches is found, and both UI translations load (#1131); a second tree of the same commit
+   exported again gives the same hash; one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
    the test fixtures of ContentFingerprint's suite, exported from that tree with tests/fixtures/ kept: a map reaching
    two scenes, a resource and an imported texture (the binary scenes' dependencies and the export's `.import`), every
    one found, and one byte of the resource or of the texture's source changing the hash.
@@ -85,6 +87,11 @@ RELEASE_FILES = {
 # Extensions whose `ERROR:` lines a Linux Godot run expects: TwoVoIP ships no Linux library at all; the Windows pack
 # the probe runs holds webrtc-native's `.gdextension` but no Linux library (the project's Linux one loads).
 WINDOWS_ONLY = ("twovoip",)
+# The UI translations (#208): the CSV import writes them beside client/i18n/strings.csv, gitignored, and project.godot's
+# locale/translations names them, so a clean tree's first Godot run cannot open them until its import wrote them
+# (#1131); the release pack must carry both, or the game shows its keys.
+TRANSLATIONS = ("client/i18n/strings.en.translation", "client/i18n/strings.uk.translation")
+IMPORT_TIMEOUT = 900
 PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
 EXPORT_TIMEOUT = 600
@@ -195,6 +202,27 @@ def unexpected_errors(lines: list[str], extensions: tuple[str, ...] = WINDOWS_ON
     return errors
 
 
+def import_tree(tree: Path, data: Path, log: str) -> None:
+    """`tree` imported once before its first export (#1131), with `check`'s flags: the exports then find the import's
+    products, the UI translations among them. Before it wrote them a run cannot open them, so their `ERROR:` lines are
+    expected; any other, a failed import or a translation it did not write fails the export."""
+    cmd = [require_godot(), "--headless", "--path", str(tree), "--import"]
+    res = run(cmd, timeout=IMPORT_TIMEOUT, log=log, env=data_env(data))
+    if res.timed_out:
+        raise Failure(f"the clean tree's import timed out after {IMPORT_TIMEOUT}s (log: tools/out/logs/{log}.log)")
+    errors = unexpected_errors(res.lines, WINDOWS_ONLY + TRANSLATIONS)
+    unwritten = [name for name in TRANSLATIONS if not (tree / name).is_file()]
+    if res.rc != 0 or errors or unwritten:
+        reason = "; ".join(errors) or (f"exit {res.rc}" if res.rc != 0 else f"no {', '.join(unwritten)}")
+        raise Failure(f"the clean tree's import failed: {reason} (log: tools/out/logs/{log}.log)")
+    say(f"        --import: {res.seconds:.0f}s")
+
+
+def missing_translations(release: Probe) -> list[str]:
+    """The TRANSLATIONS the release pack lacks: the probe loaded no Translation from them."""
+    return [name for name in TRANSLATIONS if release.translations.get(f"res://{name}", "missing") == "missing"]
+
+
 def export(tree: Path, data: Path, mode: str, preset: str, target: Path, log: str) -> None:
     """One headless export of `tree` (`mode`: --export-release, --export-debug or --export-pack) into `target`."""
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -218,6 +246,7 @@ class Probe:
     missing: list[str] = field(default_factory=list)
     walks: dict[str, int] = field(default_factory=dict)
     reached: dict[str, list[str]] = field(default_factory=dict)
+    translations: dict[str, str] = field(default_factory=dict)  # project.godot's locale/translations: locale or missing
 
     def levels(self) -> list[str]:
         """The level files the modes name, in order, each once."""
@@ -253,6 +282,8 @@ def parse_probe(lines: list[str]) -> Probe:
             probe.walks[parts[2]] = int(parts[3])
         elif parts[1] == "reached" and len(parts) == 4:
             probe.reached.setdefault(parts[2], []).append(parts[3])
+        elif parts[1] == "translation" and len(parts) == 4:
+            probe.translations[parts[2]] = parts[3]
         elif parts[1] == "done":
             done = True
     if not done or not probe.fingerprints:
@@ -393,6 +424,7 @@ def prove_hash(rev: str, data: Path, release: Probe) -> None:
         raise Failure("in the export the hash misses files: " + "; ".join(release.missing + release.missing_digests()))
     ok(f"every level file and what it reaches is found in the export ({len(release.levels())} levels)")
     tree = clean_tree(rev, EXPORT / "trees" / "again")
+    import_tree(tree, data, "export-import-again")
     proof = EXPORT / "proof"
     if proof.exists():
         shutil.rmtree(proof)
@@ -473,6 +505,7 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     tree = clean_tree(commit, EXPORT / "trees" / "build")
     set_version(tree, name)
     ok(f"application/config/version is {name} in the exported build")
+    import_tree(tree, data, "export-import")
     builds = EXPORT / "build"
     if builds.exists():
         shutil.rmtree(builds)
@@ -497,7 +530,12 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     if missing:
         raise Failure(f"{debug_zip.name} has no license notices {missing}")
     ok(f"{debug_zip.name} carries the license notices ({len(NOTICES)} files)")
-    prove_hash(commit, data, probe(builds / "release" / f"{GAME}.pck", data))
+    release = probe(builds / "release" / f"{GAME}.pck", data)
+    untranslated = missing_translations(release)
+    if untranslated:
+        raise Failure(f"{release_zip.name} lacks the UI translations {untranslated}: the game would show its keys")
+    ok(f"{release_zip.name} carries the UI translations ({len(TRANSLATIONS)} files)")
+    prove_hash(commit, data, release)
     for archive in (release_zip, debug_zip):
         say(f"EXPORT {archive.relative_to(ROOT).as_posix()} {archive.stat().st_size // (1 << 20)} MB")
     say(f"export: done ({commit[:9]})")
