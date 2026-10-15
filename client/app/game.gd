@@ -789,6 +789,7 @@ func _set_level(node: Node, kind: PhaseSpec.Level) -> void:
 	_world.add_child(_level)
 	_world.move_child(_level, 0)
 	_level_kind = kind
+	_items.set_level(_level)
 
 
 func _clear_level() -> void:
@@ -797,6 +798,7 @@ func _clear_level() -> void:
 		_level.queue_free()
 	_level = null
 	_level_kind = PhaseSpec.Level.NONE
+	_items.set_level(null)
 	ui.set_map_data(MapData.new())
 
 

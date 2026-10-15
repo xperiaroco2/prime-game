@@ -33,6 +33,9 @@ const ITEM_PREFIX := "item."
 const TASK_PREFIX := "task."
 ## A room's key is this and its id, where the deck has one.
 const ROOM_PREFIX := "room."
+## A station kind's key is this and its id, where the deck has one (#801: the deck has none for the
+## Generator's kinds yet, the UI track adds `station.generator` and `station.switch`).
+const STATION_PREFIX := "station."
 
 
 ## A role's deck key, else the mode's display name for it, else its id.
@@ -66,6 +69,13 @@ static func task(id: StringName, mode: GameMode) -> String:
 ## A room's deck key (`room.<id>`) where the deck has one, else its id.
 static func room(id: StringName) -> String:
 	var key := ROOM_PREFIX + String(id)
+	return key if has_key(key) else String(id)
+
+
+## A station kind's deck key (`station.<id>`) where the deck has one, else its id (a StationKind
+## has no display name; #801's gap until the UI deck has the key).
+static func station(id: StringName) -> String:
+	var key := STATION_PREFIX + String(id)
 	return key if has_key(key) else String(id)
 
 

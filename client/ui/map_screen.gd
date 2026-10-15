@@ -16,6 +16,10 @@ extends Control
 ## Never another player's place, an item's or a circle's: the screen reads only the model's tasks
 ## and clock, and the own place the game passes in (HudText.Local); zones are level data (the M4
 ## ADR's §3 item 4 as revised by #253). Styled only through the shared theme's Toy variations.
+##
+## A Generator's row (#801, G6; §4.7.54) shows its charge as a bar (`Charge`, MapBar) in place of
+## the counter: fed only by its generator station's ZoneProgress (ZoneViews.ticks_at at the host
+## tick while the round plays, frozen at the last event's ticks after it), struck once full.
 
 ## Asked when a task row's «?» is pressed: the how-to card of `task_type`; the screen opens it.
 signal howto_requested(task_type: StringName)
@@ -41,6 +45,8 @@ const HERE_GAP := Vector2(8, -3)
 const ZONE_HINT_GAP := 12.0
 ## The how-to card's width over the map (the handoff's Card), in pixels (layout).
 const HOWTO_WIDTH := 1536.0
+## A Generator's charge bar's least width, in pixels (layout; its height is the theme's MapBar).
+const BAR_WIDTH := 240.0
 ## The pack's room pictograms, by room id (prime-game-ui `dist/pack/icons/room/`).
 const ROOM_ICON := &"room/%s"
 
@@ -54,6 +60,12 @@ class Row:
 	var name: String
 	var done := 0
 	var total := 0
+	## A Generator's row (#801): a charge bar, `ticks` of `needed` (1 before any ZoneProgress), in
+	## place of the counter; `full` once its charge is (or every switch's subtask is done).
+	var bar := false
+	var ticks := 0
+	var needed := 1
+	var full := false
 
 
 var title := UiParts.styled_label("map.tasks", &"ToyTitleOnLight")
@@ -281,8 +293,8 @@ func lit() -> StringName:
 
 ## One row per task type of the match, in the order of its first task's id: the type's name in the
 ## own mode and its tasks' shared counters together (DealTasks deals each type once, so a type has
-## one task in a round).
-static func rows(model: ClientModel, mode: GameMode) -> Array[Row]:
+## one task in a round). A Generator's row is a charge bar at `host_tick` (charge()).
+static func rows(model: ClientModel, mode: GameMode, host_tick := -1.0) -> Array[Row]:
 	var ids: Array[int] = []
 	ids.assign(model.tasks.keys())
 	ids.sort()
@@ -299,7 +311,38 @@ static func rows(model: ClientModel, mode: GameMode) -> Array[Row]:
 			made.append(row)
 		row.done += task.done
 		row.total += task.total
+	for row: Row in made:
+		charge(row, model, mode, host_tick)
 	return made
+
+
+## Makes `row` a charge bar if its type is one of `mode`'s Generators (#801, G6), fed only by the
+## events of its generator station: its ticks at `host_tick` while the round plays
+## (GameFlow.in_round), else its last ZoneProgress's (the round's end freezes it; the model's
+## end_tick is the clock's, not when the round ended).
+static func charge(row: Row, model: ClientModel, mode: GameMode, host_tick: float) -> void:
+	for type: Generator in StationUse.generators_of(mode):
+		if type.id != row.type:
+			continue
+		row.bar = true
+		row.full = row.total > 0 and row.done >= row.total
+		var station: ClientModel.Station = model.stations.get(
+			StationUse.generator_station(model, type)
+		)
+		if station == null:
+			return
+		var now := station.progress_tick
+		if host_tick >= 0.0 and GameFlow.in_round(model):
+			now = floori(host_tick)
+		row.ticks = ZoneViews.ticks_at(station, now)
+		row.needed = maxi(1, station.needed)
+		row.full = row.full or station.done
+		return
+
+
+## A charge row's bar value (of `needed`): its ticks, all of them once full.
+static func charge_of(row: Row) -> int:
+	return row.needed if row.full else mini(row.ticks, row.needed)
 
 
 ## A row's name in the language now (ContentNames).
@@ -309,11 +352,15 @@ static func name_of(row: Row) -> String:
 
 ## Whether every subtask of the row is done (a row with no subtasks is not).
 static func is_done(row: Row) -> bool:
+	if row.bar:
+		return row.full
 	return row.total > 0 and row.done >= row.total
 
 
-## "3 of 6" in the language now.
+## "3 of 6" in the language now; none for a charge bar.
 static func counter_text(row: Row) -> String:
+	if row.bar:
+		return ""
 	return TranslationServer.translate("map.progress").format(
 		{"count": row.done, "total": row.total}
 	)
@@ -410,7 +457,7 @@ func _refresh_now() -> void:
 		return
 	time_label.text = time_text(_model, _host_tick)
 	time_label.visible = not time_label.text.is_empty()
-	var made := rows(_model, _mode)
+	var made := rows(_model, _mode, _host_tick)
 	var same_types := made.size() == _shown.size()
 	for i in mini(made.size(), _shown.size()):
 		same_types = same_types and made[i].type == _shown[i].type
@@ -442,7 +489,10 @@ func _retext_rows() -> void:
 		var shown_name := plates[i].find_child("Name", true, false) as Label
 		shown_name.text = name_of(_shown[i])
 		_set_struck(shown_name, is_done(_shown[i]))
-		(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
+		if _shown[i].bar:
+			_fill(plates[i].find_child("Charge", true, false) as ProgressBar, _shown[i])
+		else:
+			(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
 
 
 func _rebuild_rows() -> void:
@@ -474,11 +524,14 @@ func _task_row(row: Row) -> Control:
 	task_name.draw.connect(_draw_strike.bind(task_name))
 	_set_struck(task_name, is_done(row))
 	line.add_child(task_name)
-	var count := UiParts.styled_label(counter_text(row), &"ToySettingRowText")
-	count.name = "Count"
-	count.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(count)
+	if row.bar:
+		line.add_child(_charge_bar(row))
+	else:
+		var count := UiParts.styled_label(counter_text(row), &"ToySettingRowText")
+		count.name = "Count"
+		count.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(count)
 	var help := Button.new()
 	help.name = "Help"
 	help.text = "?"
@@ -493,6 +546,26 @@ func _task_row(row: Row) -> Control:
 	ToyPress.attach(help)
 	line.add_child(help)
 	return plate
+
+
+## A Generator's charge (#801): a bar with its percentage, in place of the counter.
+func _charge_bar(row: Row) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.name = "Charge"
+	bar.theme_type_variation = &"MapBar"
+	bar.step = 1.0
+	bar.show_percentage = true
+	_fill(bar, row)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.custom_minimum_size = Vector2(BAR_WIDTH, 0)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return bar
+
+
+## The charge bar's range and value: `max_value` the progress event's `needed`, `value` the ticks.
+static func _fill(bar: ProgressBar, row: Row) -> void:
+	bar.max_value = row.needed
+	bar.value = charge_of(row)
 
 
 ## A done task's name is struck through: a placeholder line until the UI milestone (#150);

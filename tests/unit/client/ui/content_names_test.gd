@@ -109,3 +109,15 @@ func _assert_keyed(key: String, what: String) -> void:
 		var failure := "%s: %s has no %s text" % [what, key, locale]
 		assert_str(text).override_failure_message(failure).is_not_empty()
 		assert_str(text).override_failure_message(failure).is_not_equal(key)
+
+
+func test_a_station_kind_shows_its_deck_key_else_its_id() -> void:
+	# #801: the deck has no station keys yet; a kind shows its id until it has.
+	assert_str(ContentNames.station(&"probe_kind")).is_equal("probe_kind")
+	var deck := Translation.new()
+	deck.locale = TranslationServer.get_locale()
+	deck.add_message(&"station.probe_kind", &"Probe")
+	TranslationServer.add_translation(deck)
+	var named := ContentNames.station(&"probe_kind")
+	TranslationServer.remove_translation(deck)
+	assert_str(named).is_equal("station.probe_kind")

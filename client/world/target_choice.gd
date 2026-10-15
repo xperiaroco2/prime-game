@@ -10,6 +10,14 @@ extends RefCounted
 ## claim it accepted, which trail the player's own while walking in. The client mirrors the
 ## host's OnGround, InReach and (in ItemInteractions) InSight; the host checks everything again
 ## (§7.1); this only decides what to offer.
+##
+## Stations (#801, §4.7.54): choose_target() weighs the item against the stations StationUse
+## offers. A station is a candidate only where the ray meets its device (the station scene's own
+## collision, hit at `blocked_at`: ItemInteractions asks StationViews whose it is) or its use spot
+## (a sphere of STATION_AIM_RADIUS_M a little above the floor point StationPlaced gives, entered no
+## farther than `blocked_at`), and only while the feet stand in its cylinder (the host's AtStation)
+## less the hint's walking margin. The nearest along the ray wins, an item on a tie: an item lying
+## inside a station's cylinder in front of the device is named, one behind the device's face never.
 
 ## How far the camera's ray looks for an item, in metres: past any reach the host grants, since
 ## the reach is checked from the feet afterwards.
@@ -29,6 +37,35 @@ const PICK_RADIUS_M := 0.3
 ## Sprinting in (7 m/s) can still outrun it; once the player stands, the host catches up within a
 ## claim.
 const HINT_MARGIN_S := 1.0 / Ticks.RATE + 1.0 / 60.0
+## The use spot's sphere the ray may name a station by, in metres, and how far above the floor
+## point its middle sits (looks, not rules; placeholders, "not a decision"): where no station scene
+## stands (a greybox level) the use spot is all there is to aim at.
+const STATION_AIM_RADIUS_M := 0.4
+const STATION_AIM_LIFT_M := 0.4
+## Float noise under a station's floor the feet may stand at, as the host's AtStation allows.
+const FLOOR_SLACK_M := 0.001
+
+
+## What the crosshair names: an item, a station, or nothing; `t` how far along the ray.
+class Target:
+	extends RefCounted
+
+	enum Kind { NONE, ITEM, STATION }
+
+	var kind := Kind.NONE
+	var id := -1
+	var t := INF
+
+	func _init(target_kind: Kind = Kind.NONE, target_id: int = -1, at: float = INF) -> void:
+		kind = target_kind
+		id = target_id
+		t = at
+
+	func is_item() -> bool:
+		return kind == Kind.ITEM
+
+	func is_station() -> bool:
+		return kind == Kind.STATION
 
 
 ## The reach of the mode's PickUp (its InReach), in metres from the feet; 0 when the mode has
@@ -71,6 +108,62 @@ static func choose(
 	if picked < 0:
 		return -1
 	return picked if feet.distance_to(model.items[picked].position) <= reach else -1
+
+
+## What the crosshair names (see the class doc): the item choose() offers within `item_reach` of
+## the feet (0: none), or a station StationUse offers that the ray meets, at its device
+## (`device_station`, the station whose scene the level's ray hit at `blocked_at`; -1 for none) or
+## at its use spot, while `feet` stand in its cylinder less the hint's margin; the nearest along the
+## ray, an item on a tie; NONE for nothing. The host's InSight of a station (StationInSight) needs
+## the physics space: ItemInteractions casts it afterwards.
+static func choose_target(
+	model: ClientModel,
+	mode: GameMode,
+	eye: Vector3,
+	look: Vector3,
+	blocked_at: float,
+	feet: Vector3,
+	item_reach: float,
+	device_station: int
+) -> Target:
+	var best := Target.new()
+	var length := minf(blocked_at, RAY_M)
+	if item_reach > 0.0:
+		var picked := choose(model, eye, look, blocked_at, feet, item_reach)
+		if picked >= 0:
+			var item := model.items[picked]
+			var centre := ItemView.centre_of(item.kind, item.position)
+			best = Target.new(Target.Kind.ITEM, picked, enters_at(eye, look, centre, PICK_RADIUS_M))
+	for id: int in model.stations:
+		var station := model.stations[id]
+		if not StationUse.usable(model, mode, id) or not stands_at(station, mode, feet):
+			continue
+		var t := blocked_at if id == device_station else INF
+		var spot := enters_at(eye, look, aim_point(station), STATION_AIM_RADIUS_M)
+		if spot >= 0.0 and spot <= length:
+			t = minf(t, spot)
+		if t < best.t:
+			best = Target.new(Target.Kind.STATION, id, t)
+	return best
+
+
+## The middle of a station's use-spot sphere: STATION_AIM_LIFT_M above its floor point.
+static func aim_point(station: ClientModel.Station) -> Vector3:
+	return station.position + Vector3.UP * STATION_AIM_LIFT_M
+
+
+## Whether `feet` stand in `station`'s cylinder as the host's AtStation measures it (its kind's
+## radius across, from its floor up to its height, with float noise below), the radius less the
+## hint's walking margin (hint_reach()); false for a kind the mode does not name.
+static func stands_at(station: ClientModel.Station, mode: GameMode, feet: Vector3) -> bool:
+	var kind := StationUse.kind_of(mode, station.kind)
+	if kind == null:
+		return false
+	var flat := Vector2(feet.x - station.position.x, feet.z - station.position.z).length()
+	var rise := feet.y - station.position.y
+	return (
+		flat <= hint_reach(kind.radius_m, mode) and rise >= -FLOOR_SLACK_M and rise <= kind.height_m
+	)
 
 
 ## The item on the ground whose middle the ray from `eye` along `look` passes within PICK_RADIUS_M

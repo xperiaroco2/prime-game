@@ -2500,7 +2500,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `LifeView.raise_hint_reach_of`, through `TargetChoice.hint_reach`). The host's `InReach` and `TargetInReach` are
   unchanged. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()` (and, since #645,
-  `Throw(facing)` on G); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
+  `Throw(facing)` on G; and, since #801, `Interact(station, item -1)` on E at a Generator's station,
+  §4.7.54); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
   `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
@@ -2605,7 +2606,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.10 Built in M4-8 (#144), items, hands, the HUD and the task screen
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
-  `ItemInteractions` and `WorldSounds` and gives the HUD what the model does not hold (`hud_local()`: the predicted
+  `ItemInteractions` and `WorldSounds` (since #801 also `StationViews` and `StationHums`, §4.7.54) and gives the HUD what the model does not hold (`hud_local()`: the predicted
   stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
   greybox look by its kind's id (D7 (a)), a labelled box for an unknown kind, its origin the resting point;
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
@@ -2618,7 +2619,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   frame. `CircleViews` finds a station kind's size in the task types' `station_kinds()` (Delivery's `circle`, Delivery
   by meaning's drop-offs) and draws the circles in their colours; nothing of the client draws through walls since the
   destination marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by
-  what it is. It leaves out a zone, which `ZoneViews` (§4.7.51) draws.
+  what it is. Since #801 it draws only Delivery's circles and the fallback cylinder of a kind no type holds
+  (`CircleViews.draws`, §4.7.54): a zone is `ZoneViews`' (§4.7.51), the Generator's stations are their level
+  scenes, and another task's station kind waits for its own client issue.
   Delivery by meaning's looks (DE11 of its ADR, #830; greybox placeholders until the art): `CircleViews.is_drop_off`
   tells a drop-off from a circle by which of the client's own Delivery types lists its kind (a `DeliveryByMeaning`'s
   `station_kinds()`), never by a colour or a name; a drop-off is an open tube (no caps) of its kind's radius and
@@ -4449,7 +4452,7 @@ material, the ragdolls' colours).
 The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
 ZD11 (b) and ZE8, as the engineer answered them on #302).
 - **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
-  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out and draws every other station kind as before.
+  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out (since #801 it draws only Delivery's circles, §4.7.54).
 - **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
   `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
   start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
@@ -4659,6 +4662,45 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   `tests/integration/client/world/body_views_test.gd` (a fresh body's grey skeleton) and
   `tests/integration/client/life/life_raise_ragdoll_network_test.gd` (a hit bone names its peer: seen failing on the
   old collider cast).
+
+#### 4.7.54 Built in #801 (Generator G6), the Generator's stations, switches and panel
+The client side of the Generator (the [Generator ADR](decisions/2026-10-10-generator-task.md)'s GD4, GE11, GE14),
+from the own `ClientModel`'s StationPlaced, SwitchChanged, ButtonPressed and ZoneProgress folds only; the wire is
+unchanged.
+- **What E offers.** `StationUse` (pure) offers a placed station whose kind has an Interact rule, whose hand rule
+  (HandNotTwoHanded) holds, and whose task type this client draws: today only a Generator's generator and switch,
+  neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Other kinds with
+  an Interact rule (photo, cooking, car repair) are offered once their client issues add them.
+- **The target.** `TargetChoice.choose_target` weighs the item against the offered stations: a station counts where
+  the camera's ray hits its device (`StationViews.station_of_body` names the scene's `Collision`) or enters its use
+  spot's sphere (`STATION_AIM_RADIUS_M` 0.4 m, its middle 0.4 m above the floor point; looks, "not a decision"),
+  while the feet stand in its cylinder less the hint's margin (the host's AtStation); the nearest along the ray
+  wins, an item on a tie. `ItemInteractions` then casts the host's StationInSight (camera to the lifted floor point,
+  world layer) and E sends `Interact(station, item -1)`. The HUD names the station by `ContentNames.station`
+  (`station.<id>` once the UI deck has it, else the kind id), never a switch's state.
+- **The scenes.** `CircleViews` draws only Delivery's circles (and the fallback cylinder of a kind no type holds).
+  `StationViews` (in `ItemWorld`; `Game` hands it the level) binds each placed generator or switch to the level's
+  scene of its kind whose `UseSpot` is nearest (within 0.5 m) and drives the level-piece ADR's named parts: a
+  switch's `Active/On` or `Active/Off`; a scene no station binds while the Generator is dealt shows `Fixed`; the
+  generator's `Bars/Bar1..` lit from the fixed switches' count plus the switches on, `Glow` once all are lit, and
+  `Button` moved in 0.02 m for 0.15 s at each press (a press before the bind replays nothing). The driven parts move
+  once per scene under a `StationSight` wrapper in `SightHider.GROUP` (sight point 1 m above the use spot), so a
+  downed eye behind a wall sees none; `Fixed` stays outside it. All are the level's depth-tested meshes.
+- **The sounds.** `SoundChooser` plays SwitchChanged's click at the switch's station and ButtonPressed's at the
+  generator's (aimed `PANEL_AIM_M` above), cut at the hearing range and muffled like every world sound, on
+  `WorldSounds.station_blip()` placeholders. `StationHums` (in `ItemWorld`) keeps one looping hum
+  (`WorldSounds.hum_blip()`) at each generator station that counts and is not full, while `GameFlow.in_round`; a zone
+  held never hums (`StationUse.is_generator`); a muffle ray every 0.1 s. The hum stops with the charge or the round.
+- **The map bar.** `MapScreen`'s Generator row shows a `ProgressBar` `Charge` (theme variation `MapBar`, a thin
+  `ToyBarProgress` in the mapping's legacy section, as `LifeBar`) in place of the counter: `max_value` the
+  ZoneProgress's `needed`, `value` `ZoneViews.ticks_at` at the host tick while `GameFlow.in_round`, else the last
+  event's ticks (the model's `end_tick` is the clock's, not the round's end); full, and struck, once the station or
+  the task is done. It reads only its generator station's events.
+- **Tests.** `tests/unit/client/world/station_use_test.gd`, `target_choice_station_test.gd`,
+  `generator_sounds_test.gd`, `tests/integration/client/world/item_interactions_station_test.gd`,
+  `circle_views_generator_test.gd`, `station_views_test.gd` (the real `levels/stations/` scenes),
+  `station_hums_test.gd`, `tests/unit/client/ui/content_names_test.gd`, `map_screen_generator_test.gd`,
+  `tests/unit/client/app/game_flow_test.gd` (`in_round`).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -7051,7 +7093,8 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
 Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
-#799), its data in #800 (G5): the base mode deals it on the House alone.
+#799), its client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.54 (#801, G6),
+its data in #800 (G5): the base mode deals it on the House alone.
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
 `switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to

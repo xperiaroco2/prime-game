@@ -3569,6 +3569,7 @@ LineEdit/styles/focus = SubResource("ToyField_focus")
 LineEdit/styles/normal = SubResource("ToyField_normal")
 LineEdit/styles/read_only = SubResource("ToyField_read_only")
 LoadingBackdrop/base_type = &"ToyBackdropNight"
+MapBar/base_type = &"ToyBarProgress"
 OptionButton/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
 OptionButton/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
 OptionButton/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)

@@ -92,3 +92,10 @@ static func seconds_left(end_tick: int, host_tick: int) -> int:
 	if end_tick < 0 or host_tick < 0:
 		return -1
 	return maxi(0, ceili(float(end_tick - host_tick) / Ticks.RATE))
+
+
+## Whether `model`'s match is in its round now (the Round screen, #801): what a view that runs
+## only while the round plays reads, the generator's hum and the map's charge bar, so both stop
+## when the round ends (End, or a win) though the model's clock (`end_tick`) says nothing of when.
+static func in_round(model: ClientModel) -> bool:
+	return model != null and screen(Session.WELCOMED, model) == Screen.ROUND

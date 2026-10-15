@@ -4,7 +4,8 @@ extends Node3D
 ## (b)): each delivery circle a translucent cylinder of its station kind's radius and height (the
 ## client's own copy of the mode) in StationPlaced's colour, dimmed once PackageDelivered names it.
 ## A station kind the mode does not name gets a cylinder of the fallback size. A zone (a ZoneTask's
-## station kind) is ZoneViews', not drawn here.
+## station kind) is ZoneViews', not drawn here, and so is every other task type's station (`draws`;
+## a Generator's generator and switch are the level's station scenes, StationViews, #801).
 ##
 ## A drop-off of Delivery by meaning (DE11 of the delivery-by-meaning ADR, #830), told from a circle
 ## by which of the client's own Delivery types lists its kind (`is_drop_off`): an open tube of its
@@ -72,6 +73,27 @@ static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
 	return false
 
 
+## Whether a station of `kind_id` is drawn here (#801's G6: only Delivery's circles): a kind a
+## Delivery or a DeliveryByMeaning holds, or one no task type of the mode holds (the fallback
+## cylinder). A zone is ZoneViews'; a Generator's generator and switch are the level's station
+## scenes (StationViews); another task type's stations wait for its client issue (photo P7 #786,
+## cooking C7 #776, car repair R7 #811).
+static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
+	if game_mode == null:
+		return true
+	var held := false
+	for type: TaskType in game_mode.task_types:
+		if type == null:
+			continue
+		for kind: StationKind in type.station_kinds():
+			if kind.id != kind_id:
+				continue
+			if type is Delivery or type is DeliveryByMeaning:
+				return true
+			held = true
+	return not held
+
+
 func _process(_delta: float) -> void:
 	if model == null:
 		return
@@ -82,8 +104,8 @@ func _process(_delta: float) -> void:
 			_done.erase(id)
 	for id: int in model.stations:
 		var station := model.stations[id]
-		if ZoneViews.zone_task(mode, station.kind) != null:
-			continue  # ZoneViews draws the zones.
+		if not draws(mode, station.kind):
+			continue  # Another view's, or none yet.
 		var view: MeshInstance3D = _views.get(id)
 		if view == null:
 			view = _make(id, station)

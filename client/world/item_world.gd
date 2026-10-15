@@ -4,7 +4,9 @@ extends Node3D
 ## and the destination marker (CircleViews), the zones and their fill (ZoneViews, #650), the item
 ## keys and the crosshair's target (ItemInteractions; the throw key's arc, #645) and the world
 ## sounds (WorldSounds; the photo task's shutter, print and hang, #785) and the photo camera's
-## flash (PhotoFlashes, #785), all from the own ClientModel, the interpolated poses and the
+## flash (PhotoFlashes, #785) and the Generator's station scenes in the level (StationViews, #801)
+## and its hum while it charges (StationHums, #801),
+## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
 
@@ -14,6 +16,8 @@ var zones := ZoneViews.new()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
 var flashes := PhotoFlashes.new()
+var stations := StationViews.new()
+var hums := StationHums.new()
 
 var _model: ClientModel
 var _mode: GameMode
@@ -28,12 +32,16 @@ func _init() -> void:
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
-	for each: Node3D in [items, circles, zones, interactions, sounds, flashes]:
+	stations.name = "StationViews"
+	hums.name = "StationHums"
+	for each: Node3D in [items, circles, zones, interactions, sounds, flashes, stations, hums]:
 		add_child(each)
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
 	interactions.throw_sent.connect(items.predict_throw)
 	interactions.predicting = items.is_predicting
+	interactions.station_of_body = stations.station_of_body
+	hums.ears = sounds.ears
 	items.sound_due.connect(sounds.on_event)
 
 
@@ -49,6 +57,10 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	zones.model = _model
 	zones.mode = game_mode
 	zones.host_tick = views.host_tick
+	stations.model = _model
+	stations.mode = game_mode
+	hums.model = _model
+	hums.mode = game_mode
 	interactions.setup(client, game_mode)
 	sounds.model = _model
 	sounds.avatars = views
@@ -77,6 +89,9 @@ func reset() -> void:
 	circles.model = null
 	zones.model = null
 	zones.host_tick = Callable()
+	stations.model = null
+	hums.clear()
+	hums.model = null
 	sounds.model = null
 	flashes.clear()
 	flashes.model = null
@@ -94,6 +109,7 @@ func hud_local() -> HudText.Local:
 	if _player != null and _player.stamina != null:
 		local.stamina = _player.stamina.get_stamina()
 	local.aim = interactions.target()
+	local.aim_station = interactions.station_target()
 	return local
 
 
@@ -110,3 +126,8 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if event_name == &"ItemPlaced" and fields.get("cause", &"") == Items.THROWN:
 		return
 	sounds.on_event(event_name, fields)
+
+
+## The level now (Game's), or null: StationViews finds the Generator's station scenes in it.
+func set_level(level: Node) -> void:
+	stations.level = level

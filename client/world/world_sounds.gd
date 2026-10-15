@@ -28,7 +28,9 @@ extends Node3D
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
 ## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
 ## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens
-## (`lens_m` above its marker).
+## (`lens_m` above its marker). So do the Generator's clicks (#801, G6): a switch thrown and the
+## generator's button pressed (station_blip()); its hum while it charges is StationHums'
+## (hum_blip()).
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
@@ -39,6 +41,15 @@ const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.PRINT: 0.6,
 	SoundChooser.HANG: 0.12,
 }
+## The Generator's placeholder clicks (#801, G6) and the length of each in seconds: placeholders,
+## "not a decision", until the engineer's files arrive.
+const STATION_BLIP_SECONDS: Dictionary[StringName, float] = {
+	SoundChooser.SWITCH_CLICK: 0.05,
+	SoundChooser.BUTTON_CLICK: 0.1,
+}
+## The hum's placeholder loop (#801, G6): its length in seconds, a whole number of its waves so
+## the loop has no seam. A placeholder, "not a decision".
+const HUM_SECONDS := 0.5
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -67,6 +78,8 @@ var _cadences: Dictionary[int, FootstepCadence] = {}
 var _throw_blip: AudioStreamWAV = null
 ## The photo sounds' placeholders (photo_blip()), each made once, by sound id.
 var _photo_blips: Dictionary[StringName, AudioStreamWAV] = {}
+## The Generator's clicks (station_blip()), each made once, by sound id.
+var _station_blips: Dictionary[StringName, AudioStreamWAV] = {}
 
 
 ## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
@@ -168,6 +181,68 @@ static func photo_blip(id: StringName) -> AudioStreamWAV:
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = MIX_RATE
 	stream.data = data
+	return stream
+
+
+## The placeholder click of the Generator's sound `id` (#801, G6; built in code as photo_blip()
+## until the engineer's files arrive): a switch's two sharp snaps, the button's low thunk; a 16-bit
+## mono burst STATION_BLIP_SECONDS long. Null for an id with no click.
+static func station_blip(id: StringName) -> AudioStreamWAV:
+	if not STATION_BLIP_SECONDS.has(id):
+		return null
+	var seconds: float = STATION_BLIP_SECONDS[id]
+	var count := int(MIX_RATE * seconds)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for i: int in count:
+		var t := float(i) / MIX_RATE
+		var noise := rng.randf_range(-1.0, 1.0)
+		var value := 0.0
+		if id == SoundChooser.SWITCH_CLICK:
+			value = noise * exp(-t / 0.002)
+			if t >= 0.02:
+				value += 0.6 * noise * exp(-(t - 0.02) / 0.002)
+		else:
+			value = sin(TAU * 90.0 * t) * exp(-t / 0.025) + 0.4 * noise * exp(-t / 0.004)
+		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
+	return _wav(data, false)
+
+
+## The placeholder hum of a charging generator (#801, G6): a looping low buzz, 100 Hz with its
+## second and third harmonics, HUM_SECONDS long (a whole number of 100 Hz waves: no seam).
+static func hum_blip() -> AudioStreamWAV:
+	var count := int(MIX_RATE * HUM_SECONDS)
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	for i: int in count:
+		var t := float(i) / MIX_RATE
+		var value := (
+			0.6 * sin(TAU * 100.0 * t)
+			+ 0.3 * sin(TAU * 200.0 * t)
+			+ 0.15 * signf(sin(TAU * 300.0 * t))
+		)
+		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.4 * 32767.0))
+	return _wav(data, true)
+
+
+## The ears' position now (the test's listener, the AudioListener3D, else the camera), or null:
+## StationHums' hearing range and muffle ray start there too.
+func ears() -> Variant:
+	return _heard_from()
+
+
+## A 16-bit mono stream of `data` at MIX_RATE, looping over the whole of it if `loop`.
+static func _wav(data: PackedByteArray, loop: bool) -> AudioStreamWAV:
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = MIX_RATE
+	stream.data = data
+	if loop:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = data.size() >> 1
 	return stream
 
 
@@ -274,6 +349,10 @@ func _stream_of(id: StringName) -> AudioStream:
 		if not _photo_blips.has(id):
 			_photo_blips[id] = photo_blip(id)
 		stream = _photo_blips[id]
+	if stream == null and STATION_BLIP_SECONDS.has(id):
+		if not _station_blips.has(id):
+			_station_blips[id] = station_blip(id)
+		stream = _station_blips[id]
 	return stream
 
 
@@ -328,9 +407,9 @@ func _blocked(from: Vector3, to: Vector3) -> bool:
 func _ears_position() -> Variant:
 	if not is_inside_tree():
 		return null
-	var ears := get_viewport().get_audio_listener_3d()
-	if ears != null:
-		return ears.global_position
+	var audio_listener := get_viewport().get_audio_listener_3d()
+	if audio_listener != null:
+		return audio_listener.global_position
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return null
