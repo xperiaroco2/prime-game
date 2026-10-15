@@ -121,7 +121,6 @@ func test_what_the_deck_does_not_name() -> void:
 	assert_bool(ContentNames.has_key("room.lab")).is_true()
 
 
-## `key` is a deck key with text in English and Ukrainian.
 ## An item kind of ITEMS_NOT_IN_DECK_YET: still no `item.<id>` in the deck (once it lands, remove
 ## the entry) and the kind shows its display name.
 func _assert_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> void:
@@ -133,6 +132,7 @@ func _assert_not_in_deck_yet(id: StringName, mode: GameMode, what: String) -> vo
 	)
 
 
+## `key` is a deck key with text in English and Ukrainian.
 func _assert_keyed(key: String, what: String) -> void:
 	for locale: String in ["en", "uk"]:
 		var translation := load("res://client/i18n/strings.%s.translation" % locale) as Translation
