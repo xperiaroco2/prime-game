@@ -1,8 +1,8 @@
 # House kit (prime-game-art)
 
-- **Files:** `assets/environment/house_kit/**` (124 files; each file's SHA-256 in the art manifest)
+- **Files:** `assets/environment/house_kit/**` (181 files; each file's SHA-256 in the art manifests: the kit's, and since #1080 its three attic stair pieces stair_attic, floor_boards_4x2_hatch and hatch_guard_attic (art #188) and the rooms' 52 merged shell and floor meshes with their shadow twins in their merged folder (art #184, #189), listed by the room packages P2-P7)
 - **Author:** prime-game-art (own work, made by the art pipeline's code); ambientCG (Lennart Demes) (the CC0 sources below)
-- **Source:** the art manifest `assets/kit/house_kit/manifest.toml` in xperiaroco2/prime-game-art (approval PRs: https://github.com/xperiaroco2/prime-game-art/pull/125, the latest https://github.com/xperiaroco2/prime-game-art/pull/169; taken at prime-game-art `main` 3fc4a77); made from:
+- **Source:** the art manifest `assets/kit/house_kit/manifest.toml` in xperiaroco2/prime-game-art (approval PRs: https://github.com/xperiaroco2/prime-game-art/pull/125, https://github.com/xperiaroco2/prime-game-art/pull/169, https://github.com/xperiaroco2/prime-game-art/pull/184 (the merged meshes), the latest https://github.com/xperiaroco2/prime-game-art/pull/188 (the attic stair) and https://github.com/xperiaroco2/prime-game-art/pull/189 (the shadow twins); taken at prime-game-art `main` 3fc4a77, the attic stair and the merged meshes at 7df542b (#1080)); made from:
   - ambientCG PBR materials, 2K-JPG (19 chosen for the location prototypes) by ambientCG (Lennart Demes), https://ambientcg.com (downloaded 2026-10-06):
     - `ambientcg/Concrete034/Concrete034_2K-JPG/Concrete034_2K-JPG_Color.jpg`: SHA-256 `fa27982687596d7aa080db1e9b88c30f48a3c32eb3e50b27a2ea27c431e4cde9`
     - `ambientcg/Concrete034/Concrete034_2K-JPG/Concrete034_2K-JPG_NormalGL.jpg`: SHA-256 `b077dfe6b3b8fbe794d82b9014d030fa01984a25ab67d2e21310995e6ea5b881`

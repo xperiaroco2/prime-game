@@ -51,25 +51,25 @@
 [ext_resource type="PackedScene" uid="uid://cfgjbaqqp3xwx" path="res://levels/kit/house_garden/bush_hydrangea.tscn" id="49"]
 [ext_resource type="PackedScene" uid="uid://c4o058eecmp4h" path="res://levels/kit/house_garden/bush_lavender.tscn" id="50"]
 [ext_resource type="PackedScene" uid="uid://b5cvbc3qhnrqo" path="res://levels/kit/house_garden/bush_currant.tscn" id="51"]
-[ext_resource type="PackedScene" uid="uid://v75bv4isqdlw" path="res://levels/kit/house_props/music_speaker.tscn" id="53"]
-[ext_resource type="PackedScene" uid="uid://4vaga8fmt1lc" path="res://levels/kit/house_props/fire_pit_zones.tscn" id="54"]
-[ext_resource type="PackedScene" uid="uid://d13j6y4cr6y6s" path="res://levels/kit/house_props/deckchair_zones.tscn" id="55"]
-[ext_resource type="PackedScene" uid="uid://55vjq8hfhptn" path="res://levels/kit/house_props/bean_bag_zones.tscn" id="56"]
-[ext_resource type="PackedScene" uid="uid://dr6wsyhkim22o" path="res://levels/kit/house_props/cooler_box_zones.tscn" id="57"]
-[ext_resource type="PackedScene" uid="uid://dn1y5fgx5skvr" path="res://levels/kit/house_props/string_lights_set.tscn" id="58"]
-[ext_resource type="PackedScene" uid="uid://cnlb3bhooc01j" path="res://levels/kit/house_props/lantern_zones.tscn" id="59"]
-[ext_resource type="PackedScene" uid="uid://c5yv3gso0j4mx" path="res://levels/kit/house_props/picnic_table.tscn" id="60"]
-[ext_resource type="PackedScene" uid="uid://c6m4pbxmucxl" path="res://levels/kit/house_props/firewood_stack.tscn" id="61"]
-[ext_resource type="PackedScene" uid="uid://bq3voms3114gt" path="res://levels/kit/house_props/photo_backdrop_zones.tscn" id="63"]
-[ext_resource type="PackedScene" uid="uid://b50qo5ik7a7ld" path="res://levels/kit/house_props/string_lights_gazebo.tscn" id="65"]
-[ext_resource type="PackedScene" uid="uid://c8il7nd23h7k6" path="res://levels/kit/house_props/planter_pot.tscn" id="66"]
-[ext_resource type="PackedScene" uid="uid://cx1m5r0on8ylx" path="res://levels/kit/house_kit/gazebo_sector_open.tscn" id="67"]
-[ext_resource type="PackedScene" uid="uid://db41k0otlbusm" path="res://levels/kit/house_kit/gazebo_sector.tscn" id="68"]
-[ext_resource type="PackedScene" uid="uid://i7g1f0tiw2uu" path="res://levels/kit/house_kit/gazebo_roof_sector.tscn" id="69"]
-[ext_resource type="PackedScene" uid="uid://g2l4ij6ja6hx" path="res://levels/kit/house_kit/gazebo_finial.tscn" id="70"]
-[ext_resource type="PackedScene" uid="uid://csgi81lwr73d5" path="res://levels/kit/house_kit/railing_gazebo_2m.tscn" id="71"]
-[ext_resource type="PackedScene" uid="uid://cm7gf17xsd284" path="res://levels/kit/house_kit/railing_gazebo_1m.tscn" id="72"]
-[ext_resource type="PackedScene" uid="uid://c8r0hsdpw7x0a" path="res://levels/kit/house_kit/railing_gazebo_post.tscn" id="73"]
+[ext_resource type="PackedScene" uid="uid://v75bv4isqdlw" path="res://levels/kit/house_props/music_speaker.tscn" id="52"]
+[ext_resource type="PackedScene" uid="uid://4vaga8fmt1lc" path="res://levels/kit/house_props/fire_pit_zones.tscn" id="53"]
+[ext_resource type="PackedScene" uid="uid://d13j6y4cr6y6s" path="res://levels/kit/house_props/deckchair_zones.tscn" id="54"]
+[ext_resource type="PackedScene" uid="uid://55vjq8hfhptn" path="res://levels/kit/house_props/bean_bag_zones.tscn" id="55"]
+[ext_resource type="PackedScene" uid="uid://dr6wsyhkim22o" path="res://levels/kit/house_props/cooler_box_zones.tscn" id="56"]
+[ext_resource type="PackedScene" uid="uid://dn1y5fgx5skvr" path="res://levels/kit/house_props/string_lights_set.tscn" id="57"]
+[ext_resource type="PackedScene" uid="uid://cnlb3bhooc01j" path="res://levels/kit/house_props/lantern_zones.tscn" id="58"]
+[ext_resource type="PackedScene" uid="uid://c5yv3gso0j4mx" path="res://levels/kit/house_props/picnic_table.tscn" id="59"]
+[ext_resource type="PackedScene" uid="uid://c6m4pbxmucxl" path="res://levels/kit/house_props/firewood_stack.tscn" id="60"]
+[ext_resource type="PackedScene" uid="uid://bq3voms3114gt" path="res://levels/kit/house_props/photo_backdrop_zones.tscn" id="61"]
+[ext_resource type="PackedScene" uid="uid://b50qo5ik7a7ld" path="res://levels/kit/house_props/string_lights_gazebo.tscn" id="62"]
+[ext_resource type="PackedScene" uid="uid://c8il7nd23h7k6" path="res://levels/kit/house_props/planter_pot.tscn" id="63"]
+[ext_resource type="PackedScene" uid="uid://cx1m5r0on8ylx" path="res://levels/kit/house_kit/gazebo_sector_open.tscn" id="64"]
+[ext_resource type="PackedScene" uid="uid://db41k0otlbusm" path="res://levels/kit/house_kit/gazebo_sector.tscn" id="65"]
+[ext_resource type="PackedScene" uid="uid://i7g1f0tiw2uu" path="res://levels/kit/house_kit/gazebo_roof_sector.tscn" id="66"]
+[ext_resource type="PackedScene" uid="uid://g2l4ij6ja6hx" path="res://levels/kit/house_kit/gazebo_finial.tscn" id="67"]
+[ext_resource type="PackedScene" uid="uid://csgi81lwr73d5" path="res://levels/kit/house_kit/railing_gazebo_2m.tscn" id="68"]
+[ext_resource type="PackedScene" uid="uid://cm7gf17xsd284" path="res://levels/kit/house_kit/railing_gazebo_1m.tscn" id="69"]
+[ext_resource type="PackedScene" uid="uid://c8r0hsdpw7x0a" path="res://levels/kit/house_kit/railing_gazebo_post.tscn" id="70"]
 
 [node name="Outdoor" type="Node3D" unique_id=214115493]
 metadata/art_package = 7
@@ -93,221 +93,221 @@ metadata/surface = "concrete"
 [node name="fence_2m_1" parent="Shell" unique_id=1396307206 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_1" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_1" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_1" parent="Shell" unique_id=2029413093 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_1" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_1" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_2" parent="Shell" unique_id=1874571314 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_2" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_2" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(2, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_2" parent="Shell" unique_id=896496633 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_2" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_2" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(2, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_3" parent="Shell" unique_id=976558849 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_3" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_3" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(4, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_3" parent="Shell" unique_id=1749876998 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_3" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_3" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(4, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_4" parent="Shell" unique_id=11097882 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_4" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_4" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(6, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_4" parent="Shell" unique_id=1633574853 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_4" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_4" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(6, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_5" parent="Shell" unique_id=1189485226 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_5" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_5" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(8, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_5" parent="Shell" unique_id=91104492 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_5" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_5" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(8, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_6" parent="Shell" unique_id=2083082109 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_6" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_6" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(10, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_6" parent="Shell" unique_id=1563903932 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_6" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_6" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(10, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_7" parent="Shell" unique_id=2073676067 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_7" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_7" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(12, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_7" parent="Shell" unique_id=853035136 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_7" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_7" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(12, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_8" parent="Shell" unique_id=491604982 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_8" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_8" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(14, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_8" parent="Shell" unique_id=571279644 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_8" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_8" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(14, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_9" parent="Shell" unique_id=336201957 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_9" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_9" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(16, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_9" parent="Shell" unique_id=175316200 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_9" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_9" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(16, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_10" parent="Shell" unique_id=2076404896 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_10" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_10" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(18, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_10" parent="Shell" unique_id=1103759412 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_10" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_10" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(18, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_11" parent="Shell" unique_id=1801363260 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_11" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_11" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(20, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_11" parent="Shell" unique_id=976302476 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_11" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_11" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(20, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_12" parent="Shell" unique_id=1294067873 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_12" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_12" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(22, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_12" parent="Shell" unique_id=2146770896 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_12" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_12" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(22, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_13" parent="Shell" unique_id=2074819601 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_13" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_13" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(24, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_13" parent="Shell" unique_id=234064793 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_13" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_13" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(24, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_14" parent="Shell" unique_id=791825632 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_14" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_14" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(26, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_14" parent="Shell" unique_id=2100913526 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_14" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_14" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(26, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_1m_1" parent="Shell" unique_id=524056962 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 0, 60)
 
-[node name="fence_1m" parent="Shell/fence_1m_1" index="0" unique_id=2084769395]
+[node name="fence_1m" parent="Shell/fence_1m_1" index="0" unique_id=1789765539]
 instance_shader_parameters/plan_at = Vector4(28, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_15" parent="Shell" unique_id=1720182783 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_15" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_15" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(28, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_wicket_2m_1" parent="Shell" unique_id=1418905958 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29, 0, 60)
 
-[node name="fence_wicket_2m" parent="Shell/fence_wicket_2m_1" index="0" unique_id=334896058]
+[node name="fence_wicket_2m" parent="Shell/fence_wicket_2m_1" index="0" unique_id=1756860452]
 instance_shader_parameters/plan_at = Vector4(29, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="fence_wicket_2m_leaf" parent="Shell/fence_wicket_2m_1" index="1" unique_id=1687429826]
+[node name="fence_wicket_2m_leaf" parent="Shell/fence_wicket_2m_1" index="1" unique_id=1332446608]
 instance_shader_parameters/plan_at = Vector4(29.31, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
@@ -317,217 +317,217 @@ collision_layer = 0
 [node name="fence_post_cap_16" parent="Shell" unique_id=336318926 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_16" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_16" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(29, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_15" parent="Shell" unique_id=531999149 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_15" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_15" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(31, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_17" parent="Shell" unique_id=660791269 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_17" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_17" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(31, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_16" parent="Shell" unique_id=1761028100 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_16" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_16" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(33, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_18" parent="Shell" unique_id=811715273 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_18" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_18" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(33, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_17" parent="Shell" unique_id=322470803 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_17" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_17" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(35, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_19" parent="Shell" unique_id=1479453910 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_19" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_19" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(35, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_18" parent="Shell" unique_id=263293195 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_18" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_18" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(37, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_20" parent="Shell" unique_id=48405946 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_20" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_20" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(37, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_19" parent="Shell" unique_id=664219560 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_19" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_19" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(39, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_21" parent="Shell" unique_id=1168163669 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_21" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_21" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(39, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_20" parent="Shell" unique_id=791855801 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_20" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_20" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(41, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_22" parent="Shell" unique_id=571242319 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_22" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_22" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(41, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_21" parent="Shell" unique_id=370792619 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_21" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_21" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(43, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_23" parent="Shell" unique_id=2009699665 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_23" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_23" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(43, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_22" parent="Shell" unique_id=1813045614 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_22" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_22" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(45, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_24" parent="Shell" unique_id=475292479 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_24" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_24" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(45, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_23" parent="Shell" unique_id=1612225491 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_23" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_23" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(47, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_25" parent="Shell" unique_id=1734842622 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_25" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_25" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(47, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_24" parent="Shell" unique_id=1169799998 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_24" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_24" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(49, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_26" parent="Shell" unique_id=1446068922 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_26" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_26" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(49, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_25" parent="Shell" unique_id=1738905319 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_25" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_25" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(51, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_27" parent="Shell" unique_id=321755307 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_27" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_27" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(51, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_26" parent="Shell" unique_id=1764767203 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_26" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_26" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(53, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_28" parent="Shell" unique_id=1221048243 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_28" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_28" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(53, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_27" parent="Shell" unique_id=660639738 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_27" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_27" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(55, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_29" parent="Shell" unique_id=280190707 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_29" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_29" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(55, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_28" parent="Shell" unique_id=714766957 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_28" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_28" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(57, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_30" parent="Shell" unique_id=2071299068 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_30" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_30" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(57, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_1m_2" parent="Shell" unique_id=2005411705 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, 0, 60)
 
-[node name="fence_1m" parent="Shell/fence_1m_2" index="0" unique_id=2084769395]
+[node name="fence_1m" parent="Shell/fence_1m_2" index="0" unique_id=1789765539]
 instance_shader_parameters/plan_at = Vector4(59, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_31" parent="Shell" unique_id=1069412787 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_31" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_31" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(59, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
@@ -543,1498 +543,1498 @@ collision_layer = 0
 [node name="gate_post_1" parent="Shell" unique_id=997276302 instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, 0, 60)
 
-[node name="gate_post" parent="Shell/gate_post_1" index="0" unique_id=986151677]
+[node name="gate_post" parent="Shell/gate_post_1" index="0" unique_id=1043998517]
 instance_shader_parameters/plan_at = Vector4(60, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="gate_post_2" parent="Shell" unique_id=187919772 instance=ExtResource("9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 0, 60)
 
-[node name="gate_post" parent="Shell/gate_post_2" index="0" unique_id=986151677]
+[node name="gate_post" parent="Shell/gate_post_2" index="0" unique_id=1043998517]
 instance_shader_parameters/plan_at = Vector4(68, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_29" parent="Shell" unique_id=2033254392 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_29" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_29" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(68, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_32" parent="Shell" unique_id=467979136 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_32" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_32" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(68, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_30" parent="Shell" unique_id=1593621701 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_30" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_30" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(70, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_33" parent="Shell" unique_id=1282365113 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_33" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_33" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(70, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_31" parent="Shell" unique_id=2121393204 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_31" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_31" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(72, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_34" parent="Shell" unique_id=1530164552 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_34" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_34" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(72, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_32" parent="Shell" unique_id=95572985 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_32" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_32" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(74, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_35" parent="Shell" unique_id=1399522739 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_35" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_35" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(74, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_33" parent="Shell" unique_id=1074099012 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_33" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_33" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(76, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_36" parent="Shell" unique_id=419894499 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_36" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_36" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(76, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_34" parent="Shell" unique_id=30773599 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_34" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_34" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(78, 0, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_37" parent="Shell" unique_id=433718598 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_37" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_37" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(78, 1.9, 60, 0)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_35" parent="Shell" unique_id=366011906 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 60)
 
-[node name="fence_2m" parent="Shell/fence_2m_35" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_35" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 60, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_38" parent="Shell" unique_id=1215857719 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 60)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_38" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_38" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 60, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_36" parent="Shell" unique_id=495962556 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 58)
 
-[node name="fence_2m" parent="Shell/fence_2m_36" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_36" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 58, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_39" parent="Shell" unique_id=173632022 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 58)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_39" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_39" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 58, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_37" parent="Shell" unique_id=292128046 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 56)
 
-[node name="fence_2m" parent="Shell/fence_2m_37" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_37" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 56, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_40" parent="Shell" unique_id=308175360 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 56)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_40" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_40" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 56, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_38" parent="Shell" unique_id=350420950 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 54)
 
-[node name="fence_2m" parent="Shell/fence_2m_38" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_38" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 54, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_41" parent="Shell" unique_id=1749147146 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 54)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_41" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_41" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 54, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_39" parent="Shell" unique_id=1605960197 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 52)
 
-[node name="fence_2m" parent="Shell/fence_2m_39" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_39" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 52, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_42" parent="Shell" unique_id=200282406 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 52)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_42" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_42" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 52, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_40" parent="Shell" unique_id=47909593 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 50)
 
-[node name="fence_2m" parent="Shell/fence_2m_40" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_40" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 50, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_43" parent="Shell" unique_id=230875074 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 50)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_43" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_43" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 50, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_41" parent="Shell" unique_id=1847865083 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 48)
 
-[node name="fence_2m" parent="Shell/fence_2m_41" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_41" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 48, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_44" parent="Shell" unique_id=2027045720 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 48)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_44" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_44" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 48, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_42" parent="Shell" unique_id=641863234 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 46)
 
-[node name="fence_2m" parent="Shell/fence_2m_42" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_42" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 46, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_45" parent="Shell" unique_id=1396069789 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 46)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_45" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_45" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 46, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_43" parent="Shell" unique_id=575252176 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 44)
 
-[node name="fence_2m" parent="Shell/fence_2m_43" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_43" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 44, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_46" parent="Shell" unique_id=88060869 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 44)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_46" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_46" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 44, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_44" parent="Shell" unique_id=1952147315 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 42)
 
-[node name="fence_2m" parent="Shell/fence_2m_44" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_44" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 42, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_47" parent="Shell" unique_id=1418686236 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 42)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_47" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_47" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 42, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_45" parent="Shell" unique_id=1618545226 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 40)
 
-[node name="fence_2m" parent="Shell/fence_2m_45" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_45" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 40, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_48" parent="Shell" unique_id=951310565 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 40)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_48" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_48" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 40, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_46" parent="Shell" unique_id=1558219755 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 38)
 
-[node name="fence_2m" parent="Shell/fence_2m_46" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_46" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 38, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_49" parent="Shell" unique_id=2021371319 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 38)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_49" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_49" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 38, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_47" parent="Shell" unique_id=1976356386 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 36)
 
-[node name="fence_2m" parent="Shell/fence_2m_47" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_47" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 36, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_50" parent="Shell" unique_id=895226032 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 36)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_50" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_50" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 36, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_48" parent="Shell" unique_id=1740399590 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 34)
 
-[node name="fence_2m" parent="Shell/fence_2m_48" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_48" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 34, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_51" parent="Shell" unique_id=576519788 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 34)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_51" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_51" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 34, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_49" parent="Shell" unique_id=1936900578 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 32)
 
-[node name="fence_2m" parent="Shell/fence_2m_49" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_49" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 32, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_52" parent="Shell" unique_id=399900987 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 32)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_52" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_52" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 32, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_50" parent="Shell" unique_id=798321366 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 30)
 
-[node name="fence_2m" parent="Shell/fence_2m_50" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_50" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 30, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_53" parent="Shell" unique_id=1081230652 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 30)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_53" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_53" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 30, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_51" parent="Shell" unique_id=854718452 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 28)
 
-[node name="fence_2m" parent="Shell/fence_2m_51" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_51" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 28, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_54" parent="Shell" unique_id=916573288 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 28)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_54" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_54" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 28, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_52" parent="Shell" unique_id=1225716995 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 26)
 
-[node name="fence_2m" parent="Shell/fence_2m_52" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_52" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 26, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_55" parent="Shell" unique_id=2105718624 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 26)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_55" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_55" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 26, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_53" parent="Shell" unique_id=563391540 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 24)
 
-[node name="fence_2m" parent="Shell/fence_2m_53" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_53" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 24, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_56" parent="Shell" unique_id=277416093 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 24)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_56" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_56" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 24, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_54" parent="Shell" unique_id=1490905295 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 22)
 
-[node name="fence_2m" parent="Shell/fence_2m_54" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_54" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 22, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_57" parent="Shell" unique_id=2032668948 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 22)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_57" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_57" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 22, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_55" parent="Shell" unique_id=1011731785 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 20)
 
-[node name="fence_2m" parent="Shell/fence_2m_55" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_55" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 20, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_58" parent="Shell" unique_id=395831687 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 20)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_58" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_58" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 20, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_56" parent="Shell" unique_id=1133806333 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 18)
 
-[node name="fence_2m" parent="Shell/fence_2m_56" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_56" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 18, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_59" parent="Shell" unique_id=1505377947 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 18)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_59" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_59" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 18, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_57" parent="Shell" unique_id=1837554024 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 16)
 
-[node name="fence_2m" parent="Shell/fence_2m_57" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_57" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 16, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_60" parent="Shell" unique_id=1251782385 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 16)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_60" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_60" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 16, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_58" parent="Shell" unique_id=511535189 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 14)
 
-[node name="fence_2m" parent="Shell/fence_2m_58" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_58" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 14, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_61" parent="Shell" unique_id=1402173306 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 14)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_61" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_61" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 14, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_59" parent="Shell" unique_id=569050636 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 12)
 
-[node name="fence_2m" parent="Shell/fence_2m_59" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_59" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 12, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_62" parent="Shell" unique_id=1028191756 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 12)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_62" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_62" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 12, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_60" parent="Shell" unique_id=100205858 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 10)
 
-[node name="fence_2m" parent="Shell/fence_2m_60" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_60" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 10, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_63" parent="Shell" unique_id=1702214253 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 10)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_63" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_63" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 10, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_61" parent="Shell" unique_id=341574101 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 8)
 
-[node name="fence_2m" parent="Shell/fence_2m_61" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_61" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 8, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_64" parent="Shell" unique_id=575787724 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 8)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_64" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_64" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 8, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_62" parent="Shell" unique_id=646270394 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 6)
 
-[node name="fence_2m" parent="Shell/fence_2m_62" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_62" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 6, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_65" parent="Shell" unique_id=1167818461 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 6)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_65" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_65" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 6, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_63" parent="Shell" unique_id=83409203 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 4)
 
-[node name="fence_2m" parent="Shell/fence_2m_63" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_63" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 4, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_66" parent="Shell" unique_id=1175243101 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 4)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_66" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_66" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 4, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_64" parent="Shell" unique_id=179372711 instance=ExtResource("3")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 0, 2)
 
-[node name="fence_2m" parent="Shell/fence_2m_64" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_64" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 2, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_67" parent="Shell" unique_id=485634235 instance=ExtResource("5")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 80, 1.9, 2)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_67" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_67" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 2, 90)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_65" parent="Shell" unique_id=2046451311 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 80, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_65" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_65" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(80, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_68" parent="Shell" unique_id=2117440569 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 80, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_68" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_68" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(80, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_66" parent="Shell" unique_id=2142368124 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 78, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_66" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_66" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(78, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_69" parent="Shell" unique_id=848159978 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 78, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_69" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_69" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(78, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_67" parent="Shell" unique_id=1748232107 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 76, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_67" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_67" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(76, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_70" parent="Shell" unique_id=2100879557 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 76, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_70" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_70" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(76, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_68" parent="Shell" unique_id=107898554 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 74, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_68" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_68" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(74, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_71" parent="Shell" unique_id=1974719521 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 74, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_71" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_71" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(74, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_69" parent="Shell" unique_id=706657843 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 72, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_69" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_69" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(72, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_72" parent="Shell" unique_id=734027391 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 72, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_72" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_72" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(72, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_70" parent="Shell" unique_id=247542061 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 70, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_70" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_70" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(70, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_73" parent="Shell" unique_id=695040862 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 70, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_73" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_73" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(70, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_71" parent="Shell" unique_id=716893132 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 68, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_71" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_71" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(68, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_74" parent="Shell" unique_id=1870428702 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 68, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_74" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_74" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(68, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_72" parent="Shell" unique_id=2010712703 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 66, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_72" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_72" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(66, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_75" parent="Shell" unique_id=1196530140 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 66, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_75" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_75" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(66, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_73" parent="Shell" unique_id=2076903660 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 64, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_73" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_73" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(64, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_76" parent="Shell" unique_id=2064269441 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 64, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_76" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_76" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(64, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_74" parent="Shell" unique_id=1274046961 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 62, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_74" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_74" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(62, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_77" parent="Shell" unique_id=1099887931 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 62, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_77" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_77" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(62, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_75" parent="Shell" unique_id=1879689034 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 60, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_75" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_75" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(60, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_78" parent="Shell" unique_id=673931604 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 60, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_78" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_78" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(60, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_76" parent="Shell" unique_id=737037824 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 58, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_76" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_76" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(58, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_79" parent="Shell" unique_id=1235073837 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 58, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_79" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_79" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(58, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_77" parent="Shell" unique_id=941732529 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 56, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_77" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_77" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(56, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_80" parent="Shell" unique_id=960898380 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 56, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_80" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_80" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(56, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_78" parent="Shell" unique_id=1668074004 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 54, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_78" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_78" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(54, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_81" parent="Shell" unique_id=36191840 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 54, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_81" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_81" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(54, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_79" parent="Shell" unique_id=169386918 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 52, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_79" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_79" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(52, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_82" parent="Shell" unique_id=2053848109 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 52, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_82" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_82" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(52, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_80" parent="Shell" unique_id=1107396596 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 50, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_80" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_80" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(50, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_83" parent="Shell" unique_id=229438015 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 50, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_83" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_83" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(50, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_81" parent="Shell" unique_id=1188632723 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 48, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_81" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_81" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(48, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_84" parent="Shell" unique_id=225645126 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 48, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_84" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_84" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(48, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_82" parent="Shell" unique_id=1751977568 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 46, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_82" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_82" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(46, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_85" parent="Shell" unique_id=159609810 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 46, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_85" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_85" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(46, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_83" parent="Shell" unique_id=1365604704 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 44, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_83" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_83" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(44, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_86" parent="Shell" unique_id=644753255 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 44, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_86" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_86" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(44, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_84" parent="Shell" unique_id=1993141604 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 42, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_84" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_84" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(42, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_87" parent="Shell" unique_id=5909848 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 42, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_87" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_87" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(42, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_85" parent="Shell" unique_id=1785212370 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 40, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_85" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_85" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(40, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_88" parent="Shell" unique_id=85493283 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 40, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_88" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_88" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(40, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_86" parent="Shell" unique_id=1840427624 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 38, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_86" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_86" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(38, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_89" parent="Shell" unique_id=631156941 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 38, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_89" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_89" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(38, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_87" parent="Shell" unique_id=113444877 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 36, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_87" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_87" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(36, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_90" parent="Shell" unique_id=232982390 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 36, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_90" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_90" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(36, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_88" parent="Shell" unique_id=933266275 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 34, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_88" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_88" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(34, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_91" parent="Shell" unique_id=955164686 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 34, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_91" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_91" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(34, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_89" parent="Shell" unique_id=1301182108 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 32, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_89" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_89" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(32, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_92" parent="Shell" unique_id=1461701357 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 32, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_92" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_92" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(32, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_90" parent="Shell" unique_id=634579474 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 30, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_90" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_90" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(30, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_93" parent="Shell" unique_id=2113703451 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 30, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_93" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_93" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(30, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_91" parent="Shell" unique_id=1055286413 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 28, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_91" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_91" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(28, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_94" parent="Shell" unique_id=621872091 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 28, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_94" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_94" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(28, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_92" parent="Shell" unique_id=924215704 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 26, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_92" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_92" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(26, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_95" parent="Shell" unique_id=2049550677 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 26, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_95" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_95" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(26, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_93" parent="Shell" unique_id=1309564355 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 24, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_93" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_93" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(24, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_96" parent="Shell" unique_id=1097175274 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 24, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_96" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_96" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(24, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_94" parent="Shell" unique_id=637644740 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 22, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_94" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_94" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(22, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_97" parent="Shell" unique_id=1163474603 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 22, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_97" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_97" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(22, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_95" parent="Shell" unique_id=170333754 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 20, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_95" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_95" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(20, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_98" parent="Shell" unique_id=1624109510 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 20, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_98" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_98" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(20, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_96" parent="Shell" unique_id=1622313999 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 18, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_96" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_96" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(18, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_99" parent="Shell" unique_id=1414784913 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 18, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_99" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_99" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(18, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_97" parent="Shell" unique_id=686881089 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 16, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_97" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_97" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(16, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_100" parent="Shell" unique_id=997673172 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 16, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_100" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_100" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(16, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_98" parent="Shell" unique_id=334655905 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 14, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_98" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_98" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(14, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_101" parent="Shell" unique_id=311122014 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 14, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_101" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_101" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(14, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_99" parent="Shell" unique_id=2075399366 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 12, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_99" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_99" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(12, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_102" parent="Shell" unique_id=690649994 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 12, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_102" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_102" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(12, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_100" parent="Shell" unique_id=1717235843 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_100" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_100" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(10, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_103" parent="Shell" unique_id=361878144 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_103" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_103" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(10, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_101" parent="Shell" unique_id=440343144 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_101" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_101" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(8, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_104" parent="Shell" unique_id=1685037220 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_104" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_104" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(8, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_102" parent="Shell" unique_id=1258537114 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 6, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_102" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_102" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(6, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_105" parent="Shell" unique_id=692119228 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 6, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_105" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_105" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(6, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_103" parent="Shell" unique_id=775722325 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_103" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_103" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(4, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_106" parent="Shell" unique_id=2129925530 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_106" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_106" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(4, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_104" parent="Shell" unique_id=1268092172 instance=ExtResource("3")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_104" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_104" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(2, 0, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_107" parent="Shell" unique_id=173247451 instance=ExtResource("5")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_107" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_107" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(2, 1.9, 0, 180)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_105" parent="Shell" unique_id=656696240 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 0)
 
-[node name="fence_2m" parent="Shell/fence_2m_105" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_105" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 0, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_108" parent="Shell" unique_id=124293579 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 0)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_108" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_108" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 0, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_106" parent="Shell" unique_id=1139055656 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 2)
 
-[node name="fence_2m" parent="Shell/fence_2m_106" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_106" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 2, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_109" parent="Shell" unique_id=1183068865 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 2)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_109" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_109" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 2, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_107" parent="Shell" unique_id=1105260546 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 4)
 
-[node name="fence_2m" parent="Shell/fence_2m_107" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_107" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 4, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_110" parent="Shell" unique_id=1367842459 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 4)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_110" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_110" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 4, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_108" parent="Shell" unique_id=1728617011 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 6)
 
-[node name="fence_2m" parent="Shell/fence_2m_108" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_108" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 6, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_111" parent="Shell" unique_id=1114397225 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 6)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_111" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_111" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 6, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_109" parent="Shell" unique_id=558651050 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 8)
 
-[node name="fence_2m" parent="Shell/fence_2m_109" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_109" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 8, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_112" parent="Shell" unique_id=521342140 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 8)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_112" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_112" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 8, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_110" parent="Shell" unique_id=1536200101 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 10)
 
-[node name="fence_2m" parent="Shell/fence_2m_110" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_110" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 10, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_113" parent="Shell" unique_id=1308316671 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 10)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_113" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_113" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 10, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_111" parent="Shell" unique_id=249817525 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 12)
 
-[node name="fence_2m" parent="Shell/fence_2m_111" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_111" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 12, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_114" parent="Shell" unique_id=473850081 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 12)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_114" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_114" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 12, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_112" parent="Shell" unique_id=895250209 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 14)
 
-[node name="fence_2m" parent="Shell/fence_2m_112" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_112" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 14, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_115" parent="Shell" unique_id=673616159 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 14)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_115" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_115" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 14, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_113" parent="Shell" unique_id=2011154456 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 16)
 
-[node name="fence_2m" parent="Shell/fence_2m_113" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_113" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 16, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_116" parent="Shell" unique_id=426015143 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 16)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_116" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_116" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 16, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_114" parent="Shell" unique_id=1523786883 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 18)
 
-[node name="fence_2m" parent="Shell/fence_2m_114" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_114" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 18, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_117" parent="Shell" unique_id=619017464 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 18)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_117" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_117" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 18, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_115" parent="Shell" unique_id=1948019346 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 20)
 
-[node name="fence_2m" parent="Shell/fence_2m_115" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_115" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 20, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_118" parent="Shell" unique_id=303276119 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 20)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_118" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_118" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 20, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_116" parent="Shell" unique_id=206679571 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 22)
 
-[node name="fence_2m" parent="Shell/fence_2m_116" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_116" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 22, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_119" parent="Shell" unique_id=302851188 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 22)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_119" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_119" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 22, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_117" parent="Shell" unique_id=1231975451 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 24)
 
-[node name="fence_2m" parent="Shell/fence_2m_117" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_117" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 24, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_120" parent="Shell" unique_id=602424212 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 24)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_120" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_120" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 24, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_118" parent="Shell" unique_id=282005730 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 26)
 
-[node name="fence_2m" parent="Shell/fence_2m_118" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_118" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 26, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_121" parent="Shell" unique_id=1213615630 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 26)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_121" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_121" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 26, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_119" parent="Shell" unique_id=1028462021 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 28)
 
-[node name="fence_2m" parent="Shell/fence_2m_119" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_119" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 28, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_122" parent="Shell" unique_id=106595482 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 28)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_122" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_122" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 28, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_120" parent="Shell" unique_id=1767605486 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 30)
 
-[node name="fence_2m" parent="Shell/fence_2m_120" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_120" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 30, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_123" parent="Shell" unique_id=293221214 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 30)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_123" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_123" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 30, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_121" parent="Shell" unique_id=118556087 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 32)
 
-[node name="fence_2m" parent="Shell/fence_2m_121" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_121" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 32, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_124" parent="Shell" unique_id=1543766642 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 32)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_124" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_124" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 32, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_122" parent="Shell" unique_id=655584207 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 34)
 
-[node name="fence_2m" parent="Shell/fence_2m_122" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_122" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 34, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_125" parent="Shell" unique_id=787299963 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 34)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_125" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_125" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 34, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_123" parent="Shell" unique_id=1341624659 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 36)
 
-[node name="fence_2m" parent="Shell/fence_2m_123" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_123" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 36, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_126" parent="Shell" unique_id=469034046 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 36)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_126" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_126" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 36, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_124" parent="Shell" unique_id=584323613 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 38)
 
-[node name="fence_2m" parent="Shell/fence_2m_124" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_124" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 38, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_127" parent="Shell" unique_id=24723130 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 38)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_127" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_127" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 38, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_125" parent="Shell" unique_id=1636671453 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 40)
 
-[node name="fence_2m" parent="Shell/fence_2m_125" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_125" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 40, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_128" parent="Shell" unique_id=442605844 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 40)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_128" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_128" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 40, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_126" parent="Shell" unique_id=1576448168 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 42)
 
-[node name="fence_2m" parent="Shell/fence_2m_126" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_126" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 42, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_129" parent="Shell" unique_id=2069116790 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 42)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_129" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_129" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 42, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_127" parent="Shell" unique_id=1789514976 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 44)
 
-[node name="fence_2m" parent="Shell/fence_2m_127" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_127" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 44, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_130" parent="Shell" unique_id=449394965 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 44)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_130" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_130" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 44, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_128" parent="Shell" unique_id=624333126 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 46)
 
-[node name="fence_2m" parent="Shell/fence_2m_128" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_128" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 46, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_131" parent="Shell" unique_id=229459048 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 46)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_131" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_131" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 46, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_129" parent="Shell" unique_id=1549146629 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 48)
 
-[node name="fence_2m" parent="Shell/fence_2m_129" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_129" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 48, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_132" parent="Shell" unique_id=993164684 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 48)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_132" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_132" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 48, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_130" parent="Shell" unique_id=1846097356 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 50)
 
-[node name="fence_2m" parent="Shell/fence_2m_130" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_130" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 50, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_133" parent="Shell" unique_id=1421355510 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 50)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_133" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_133" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 50, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_131" parent="Shell" unique_id=1362487971 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 52)
 
-[node name="fence_2m" parent="Shell/fence_2m_131" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_131" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 52, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_134" parent="Shell" unique_id=1007141076 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 52)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_134" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_134" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 52, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_132" parent="Shell" unique_id=722817807 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 54)
 
-[node name="fence_2m" parent="Shell/fence_2m_132" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_132" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 54, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_135" parent="Shell" unique_id=609874981 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 54)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_135" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_135" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 54, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_133" parent="Shell" unique_id=8836515 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 56)
 
-[node name="fence_2m" parent="Shell/fence_2m_133" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_133" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 56, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_136" parent="Shell" unique_id=1434745594 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 56)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_136" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_136" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 56, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_2m_134" parent="Shell" unique_id=818684440 instance=ExtResource("3")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 0, 58)
 
-[node name="fence_2m" parent="Shell/fence_2m_134" index="0" unique_id=2045091541]
+[node name="fence_2m" parent="Shell/fence_2m_134" index="0" unique_id=1185498893]
 instance_shader_parameters/plan_at = Vector4(0, 0, 58, 270)
 surface_material_override/0 = ExtResource("4")
 
 [node name="fence_post_cap_137" parent="Shell" unique_id=1371651910 instance=ExtResource("5")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0, 1.9, 58)
 
-[node name="fence_post_cap" parent="Shell/fence_post_cap_137" index="0" unique_id=1799525798]
+[node name="fence_post_cap" parent="Shell/fence_post_cap_137" index="0" unique_id=1513787987]
 instance_shader_parameters/plan_at = Vector4(0, 1.9, 58, 270)
 surface_material_override/0 = ExtResource("4")
 
@@ -2042,7 +2042,7 @@ surface_material_override/0 = ExtResource("4")
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 66, -1.6, 29)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_half" parent="Shell/stairs_outdoor_half_1" index="0" unique_id=912224640]
+[node name="stairs_outdoor_half" parent="Shell/stairs_outdoor_half_1" index="0" unique_id=1856206334]
 instance_shader_parameters/plan_at = Vector4(66, -1.6, 29, 270)
 surface_material_override/0 = ExtResource("4")
 
@@ -2050,7 +2050,7 @@ surface_material_override/0 = ExtResource("4")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, -1.6, 28)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_landing" parent="Shell/stairs_outdoor_landing_1" index="0" unique_id=1431775187]
+[node name="stairs_outdoor_landing" parent="Shell/stairs_outdoor_landing_1" index="0" unique_id=144337382]
 instance_shader_parameters/plan_at = Vector4(62, -1.6, 28, 0)
 surface_material_override/0 = ExtResource("4")
 
@@ -2058,7 +2058,7 @@ surface_material_override/0 = ExtResource("4")
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 62, -3.2, 32)
 metadata/surface = "concrete"
 
-[node name="stairs_outdoor_half" parent="Shell/stairs_outdoor_half_2" index="0" unique_id=912224640]
+[node name="stairs_outdoor_half" parent="Shell/stairs_outdoor_half_2" index="0" unique_id=1856206334]
 instance_shader_parameters/plan_at = Vector4(62, -3.2, 32, 90)
 surface_material_override/0 = ExtResource("4")
 
@@ -2374,236 +2374,236 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 74, 3.8, 14)
 [node name="glass_gable_tri_2m_up_6" parent="Shell" unique_id=1138564166 instance=ExtResource("28")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 74, 5.2, 14)
 
-[node name="gazebo_sector_open_1" parent="Shell" unique_id=1431266360 instance=ExtResource("67")]
+[node name="gazebo_sector_open_1" parent="Shell" unique_id=1431266360 instance=ExtResource("64")]
 transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector_open" parent="Shell/gazebo_sector_open_1" index="0" unique_id=2048845972]
+[node name="gazebo_sector_open" parent="Shell/gazebo_sector_open_1" index="0" unique_id=837184728]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 330)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_sector_1" parent="Shell" unique_id=943048025 instance=ExtResource("68")]
+[node name="gazebo_sector_1" parent="Shell" unique_id=943048025 instance=ExtResource("65")]
 transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector" parent="Shell/gazebo_sector_1" index="0" unique_id=762983445]
+[node name="gazebo_sector" parent="Shell/gazebo_sector_1" index="0" unique_id=1025232046]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 30)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_sector_2" parent="Shell" unique_id=2144591020 instance=ExtResource("68")]
+[node name="gazebo_sector_2" parent="Shell" unique_id=2144591020 instance=ExtResource("65")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector" parent="Shell/gazebo_sector_2" index="0" unique_id=762983445]
+[node name="gazebo_sector" parent="Shell/gazebo_sector_2" index="0" unique_id=1025232046]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_sector_3" parent="Shell" unique_id=1658812406 instance=ExtResource("68")]
+[node name="gazebo_sector_3" parent="Shell" unique_id=1658812406 instance=ExtResource("65")]
 transform = Transform3D(-0.866, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector" parent="Shell/gazebo_sector_3" index="0" unique_id=762983445]
+[node name="gazebo_sector" parent="Shell/gazebo_sector_3" index="0" unique_id=1025232046]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 150)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_sector_4" parent="Shell" unique_id=1568487396 instance=ExtResource("68")]
+[node name="gazebo_sector_4" parent="Shell" unique_id=1568487396 instance=ExtResource("65")]
 transform = Transform3D(-0.866, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector" parent="Shell/gazebo_sector_4" index="0" unique_id=762983445]
+[node name="gazebo_sector" parent="Shell/gazebo_sector_4" index="0" unique_id=1025232046]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 210)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_sector_5" parent="Shell" unique_id=2124344494 instance=ExtResource("68")]
+[node name="gazebo_sector_5" parent="Shell" unique_id=2124344494 instance=ExtResource("65")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 9, 0, 11)
 metadata/surface = "wood"
 
-[node name="gazebo_sector" parent="Shell/gazebo_sector_5" index="0" unique_id=762983445]
+[node name="gazebo_sector" parent="Shell/gazebo_sector_5" index="0" unique_id=1025232046]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_1" parent="Shell" unique_id=880899420 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_1" parent="Shell" unique_id=880899420 instance=ExtResource("66")]
 transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_1" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_1" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 330)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_2" parent="Shell" unique_id=178489584 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_2" parent="Shell" unique_id=178489584 instance=ExtResource("66")]
 transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_2" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_2" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 30)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_3" parent="Shell" unique_id=1931639106 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_3" parent="Shell" unique_id=1931639106 instance=ExtResource("66")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_3" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_3" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_4" parent="Shell" unique_id=1773184892 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_4" parent="Shell" unique_id=1773184892 instance=ExtResource("66")]
 transform = Transform3D(-0.866, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_4" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_4" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 150)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_5" parent="Shell" unique_id=757350395 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_5" parent="Shell" unique_id=757350395 instance=ExtResource("66")]
 transform = Transform3D(-0.866, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_5" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_5" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 210)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_roof_sector_6" parent="Shell" unique_id=1132245804 instance=ExtResource("69")]
+[node name="gazebo_roof_sector_6" parent="Shell" unique_id=1132245804 instance=ExtResource("66")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 9, 0, 11)
 
-[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_6" index="0" unique_id=1520257167]
+[node name="gazebo_roof_sector" parent="Shell/gazebo_roof_sector_6" index="0" unique_id=1481063993]
 instance_shader_parameters/plan_at = Vector4(9, 0, 11, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="gazebo_finial_1" parent="Shell" unique_id=723456431 instance=ExtResource("70")]
+[node name="gazebo_finial_1" parent="Shell" unique_id=723456431 instance=ExtResource("67")]
 transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 9, 0, 11)
 
-[node name="railing_gazebo_2m_1" parent="Shell" unique_id=78850940 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_1" parent="Shell" unique_id=78850940 instance=ExtResource("68")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_1" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_1" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 6, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_2" parent="Shell" unique_id=799322523 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_2" parent="Shell" unique_id=799322523 instance=ExtResource("68")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_2" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_2" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(6, 0, 6, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_3" parent="Shell" unique_id=1541175047 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_3" parent="Shell" unique_id=1541175047 instance=ExtResource("68")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_3" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_3" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(8, 0, 6, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_4" parent="Shell" unique_id=1523419310 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_4" parent="Shell" unique_id=1523419310 instance=ExtResource("68")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_4" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_4" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(10, 0, 6, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_5" parent="Shell" unique_id=184029292 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_5" parent="Shell" unique_id=184029292 instance=ExtResource("68")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_5" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_5" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(12, 0, 6, 0)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_6" parent="Shell" unique_id=689200091 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_6" parent="Shell" unique_id=689200091 instance=ExtResource("68")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 0, 6)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_6" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_6" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(14, 0, 6, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_1m_1" parent="Shell" unique_id=1390519362 instance=ExtResource("72")]
+[node name="railing_gazebo_1m_1" parent="Shell" unique_id=1390519362 instance=ExtResource("69")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 0, 8)
 
-[node name="railing_gazebo_1m" parent="Shell/railing_gazebo_1m_1" index="0" unique_id=308470399]
+[node name="railing_gazebo_1m" parent="Shell/railing_gazebo_1m_1" index="0" unique_id=1910616191]
 instance_shader_parameters/plan_at = Vector4(14, 0, 8, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_post_1" parent="Shell" unique_id=189461711 instance=ExtResource("73")]
+[node name="railing_gazebo_post_1" parent="Shell" unique_id=189461711 instance=ExtResource("70")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 0, 9)
 
-[node name="railing_gazebo_post" parent="Shell/railing_gazebo_post_1" index="0" unique_id=1897101472]
+[node name="railing_gazebo_post" parent="Shell/railing_gazebo_post_1" index="0" unique_id=1227037136]
 instance_shader_parameters/plan_at = Vector4(14, 0, 9, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_7" parent="Shell" unique_id=1726521985 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_7" parent="Shell" unique_id=1726521985 instance=ExtResource("68")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 0, 13)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_7" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_7" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(14, 0, 13, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_1m_2" parent="Shell" unique_id=1842114208 instance=ExtResource("72")]
+[node name="railing_gazebo_1m_2" parent="Shell" unique_id=1842114208 instance=ExtResource("69")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 0, 15)
 
-[node name="railing_gazebo_1m" parent="Shell/railing_gazebo_1m_2" index="0" unique_id=308470399]
+[node name="railing_gazebo_1m" parent="Shell/railing_gazebo_1m_2" index="0" unique_id=1910616191]
 instance_shader_parameters/plan_at = Vector4(14, 0, 15, 270)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_8" parent="Shell" unique_id=525602894 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_8" parent="Shell" unique_id=525602894 instance=ExtResource("68")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 14, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_8" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_8" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(14, 0, 16, 180)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_9" parent="Shell" unique_id=1464679118 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_9" parent="Shell" unique_id=1464679118 instance=ExtResource("68")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 12, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_9" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_9" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(12, 0, 16, 180)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_10" parent="Shell" unique_id=625413486 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_10" parent="Shell" unique_id=625413486 instance=ExtResource("68")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 10, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_10" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_10" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(10, 0, 16, 180)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_11" parent="Shell" unique_id=21547981 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_11" parent="Shell" unique_id=21547981 instance=ExtResource("68")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 8, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_11" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_11" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(8, 0, 16, 180)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_12" parent="Shell" unique_id=1741319987 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_12" parent="Shell" unique_id=1741319987 instance=ExtResource("68")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 6, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_12" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_12" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(6, 0, 16, 180)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_13" parent="Shell" unique_id=944969587 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_13" parent="Shell" unique_id=944969587 instance=ExtResource("68")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4, 0, 16)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_13" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_13" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 16, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_14" parent="Shell" unique_id=1552833871 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_14" parent="Shell" unique_id=1552833871 instance=ExtResource("68")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4, 0, 14)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_14" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_14" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 14, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_15" parent="Shell" unique_id=701183292 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_15" parent="Shell" unique_id=701183292 instance=ExtResource("68")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4, 0, 12)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_15" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_15" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 12, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_16" parent="Shell" unique_id=123685269 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_16" parent="Shell" unique_id=123685269 instance=ExtResource("68")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4, 0, 10)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_16" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_16" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 10, 90)
 surface_material_override/0 = ExtResource("4")
 
-[node name="railing_gazebo_2m_17" parent="Shell" unique_id=878000751 instance=ExtResource("71")]
+[node name="railing_gazebo_2m_17" parent="Shell" unique_id=878000751 instance=ExtResource("68")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4, 0, 8)
 
-[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_17" index="0" unique_id=1935702541]
+[node name="railing_gazebo_2m" parent="Shell/railing_gazebo_2m_17" index="0" unique_id=772459185]
 instance_shader_parameters/plan_at = Vector4(4, 0, 8, 90)
 surface_material_override/0 = ExtResource("4")
 
@@ -2741,7 +2741,7 @@ metadata/surface = "concrete"
 [node name="garden_dropoff_1" parent="Dressing" unique_id=1813153642 instance=ExtResource("31")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 0, 24)
 
-[node name="garden_dropoff" parent="Dressing/garden_dropoff_1" index="0" unique_id=946579291]
+[node name="garden_dropoff" parent="Dressing/garden_dropoff_1" index="0" unique_id=589592719]
 surface_material_override/0 = ExtResource("32")
 
 [node name="hedge_9" parent="Dressing" unique_id=877994355 instance=ExtResource("19")]
@@ -3089,71 +3089,71 @@ transform = Transform3D(0, 0, 1.15, 0, 1.15, 0, -1.15, 0, 0, 54.889, 0, 22.121)
 [node name="bush_hydrangea_8" parent="Dressing" unique_id=1547222685 instance=ExtResource("49")]
 transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 49.571, 0, 18.389)
 
-[node name="music_speaker_1" parent="Dressing" unique_id=1766657855 instance=ExtResource("53")]
+[node name="music_speaker_1" parent="Dressing" unique_id=1766657855 instance=ExtResource("52")]
 transform = Transform3D(-0.0905, 0, -0.9959, 0, 1, 0, 0.9959, 0, -0.0905, 12, 0, 55)
 
-[node name="fire_pit_1" parent="Dressing" unique_id=2070522170 instance=ExtResource("54")]
+[node name="fire_pit_1" parent="Dressing" unique_id=2070522170 instance=ExtResource("53")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, 54.5)
 metadata/surface = "concrete"
 
-[node name="deckchair_1" parent="Dressing" unique_id=1613809497 instance=ExtResource("55")]
+[node name="deckchair_1" parent="Dressing" unique_id=1613809497 instance=ExtResource("54")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, 52.4)
 
-[node name="deckchair_2" parent="Dressing" unique_id=327743908 instance=ExtResource("55")]
+[node name="deckchair_2" parent="Dressing" unique_id=327743908 instance=ExtResource("54")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 8.6, 0, 54.5)
 
-[node name="deckchair_3" parent="Dressing" unique_id=2107626814 instance=ExtResource("55")]
+[node name="deckchair_3" parent="Dressing" unique_id=2107626814 instance=ExtResource("54")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 6.5, 0, 56.6)
 
-[node name="deckchair_4" parent="Dressing" unique_id=907596854 instance=ExtResource("55")]
+[node name="deckchair_4" parent="Dressing" unique_id=907596854 instance=ExtResource("54")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 4.4, 0, 54.5)
 
-[node name="bean_bag_1" parent="Dressing" unique_id=1588764741 instance=ExtResource("56")]
+[node name="bean_bag_1" parent="Dressing" unique_id=1588764741 instance=ExtResource("55")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.8, 0, 53.4)
 
-[node name="bean_bag_2" parent="Dressing" unique_id=670779549 instance=ExtResource("56")]
+[node name="bean_bag_2" parent="Dressing" unique_id=670779549 instance=ExtResource("55")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.9, 0, 56.2)
 
-[node name="bean_bag_3" parent="Dressing" unique_id=834557605 instance=ExtResource("56")]
+[node name="bean_bag_3" parent="Dressing" unique_id=834557605 instance=ExtResource("55")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.6, 0, 57)
 
-[node name="cooler_box_1" parent="Dressing" unique_id=2061583398 instance=ExtResource("57")]
+[node name="cooler_box_1" parent="Dressing" unique_id=2061583398 instance=ExtResource("56")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8, 0, 48.5)
 
-[node name="cooler_box_2" parent="Dressing" unique_id=1847472821 instance=ExtResource("57")]
+[node name="cooler_box_2" parent="Dressing" unique_id=1847472821 instance=ExtResource("56")]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, 4.2, 0, 52.4)
 
-[node name="string_lights_set_1" parent="Dressing" unique_id=275533263 instance=ExtResource("58")]
+[node name="string_lights_set_1" parent="Dressing" unique_id=275533263 instance=ExtResource("57")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, 50.9)
 
-[node name="string_lights_set_2" parent="Dressing" unique_id=1352992922 instance=ExtResource("58")]
+[node name="string_lights_set_2" parent="Dressing" unique_id=1352992922 instance=ExtResource("57")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, 57.7)
 
-[node name="string_lights_set_3" parent="Dressing" unique_id=385902068 instance=ExtResource("58")]
+[node name="string_lights_set_3" parent="Dressing" unique_id=385902068 instance=ExtResource("57")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 10.4, 0, 53.3)
 
-[node name="lantern_1" parent="Dressing" unique_id=2087489699 instance=ExtResource("59")]
+[node name="lantern_1" parent="Dressing" unique_id=2087489699 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 53)
 
-[node name="lantern_2" parent="Dressing" unique_id=1063906782 instance=ExtResource("59")]
+[node name="lantern_2" parent="Dressing" unique_id=1063906782 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 53)
 
-[node name="lantern_3" parent="Dressing" unique_id=1602909539 instance=ExtResource("59")]
+[node name="lantern_3" parent="Dressing" unique_id=1602909539 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 56)
 
-[node name="lantern_4" parent="Dressing" unique_id=1369531219 instance=ExtResource("59")]
+[node name="lantern_4" parent="Dressing" unique_id=1369531219 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 56)
 
-[node name="lantern_5" parent="Dressing" unique_id=2074465267 instance=ExtResource("59")]
+[node name="lantern_5" parent="Dressing" unique_id=2074465267 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 51.3)
 
-[node name="lantern_6" parent="Dressing" unique_id=970722647 instance=ExtResource("59")]
+[node name="lantern_6" parent="Dressing" unique_id=970722647 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.7, 0, 55.7)
 
-[node name="picnic_table_1" parent="Dressing" unique_id=1023466481 instance=ExtResource("60")]
+[node name="picnic_table_1" parent="Dressing" unique_id=1023466481 instance=ExtResource("59")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0, 49.5)
 
-[node name="firewood_stack_1" parent="Dressing" unique_id=1376049534 instance=ExtResource("61")]
+[node name="firewood_stack_1" parent="Dressing" unique_id=1376049534 instance=ExtResource("60")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 3, 0, 50)
 
 [node name="garden_tree_1" parent="Dressing" unique_id=1637911067 instance=ExtResource("39")]
@@ -3171,37 +3171,37 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.2, 0, 57.2)
 [node name="bush_3" parent="Dressing" unique_id=2053395507 instance=ExtResource("48")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.8, 0, 47.8)
 
-[node name="photo_backdrop_1" parent="Dressing" unique_id=1200962790 instance=ExtResource("63")]
+[node name="photo_backdrop_1" parent="Dressing" unique_id=1200962790 instance=ExtResource("61")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 7.6, 0.15, 11)
 
-[node name="string_lights_gazebo_1" parent="Dressing" unique_id=188830192 instance=ExtResource("65")]
+[node name="string_lights_gazebo_1" parent="Dressing" unique_id=188830192 instance=ExtResource("62")]
 transform = Transform3D(-0.866, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866, 10.1605, 2.45, 8.99)
 
-[node name="string_lights_gazebo_2" parent="Dressing" unique_id=1228482383 instance=ExtResource("65")]
+[node name="string_lights_gazebo_2" parent="Dressing" unique_id=1228482383 instance=ExtResource("62")]
 transform = Transform3D(-0.866, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866, 7.8395, 2.45, 8.99)
 
-[node name="string_lights_gazebo_3" parent="Dressing" unique_id=644380718 instance=ExtResource("65")]
+[node name="string_lights_gazebo_3" parent="Dressing" unique_id=644380718 instance=ExtResource("62")]
 transform = Transform3D(0.866, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866, 7.8395, 2.45, 13.01)
 
-[node name="string_lights_gazebo_4" parent="Dressing" unique_id=1770278124 instance=ExtResource("65")]
+[node name="string_lights_gazebo_4" parent="Dressing" unique_id=1770278124 instance=ExtResource("62")]
 transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 10.1605, 2.45, 13.01)
 
-[node name="lantern_7" parent="Dressing" unique_id=2028001311 instance=ExtResource("59")]
+[node name="lantern_7" parent="Dressing" unique_id=2028001311 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.6, 0, 8.6)
 
-[node name="lantern_8" parent="Dressing" unique_id=1329703926 instance=ExtResource("59")]
+[node name="lantern_8" parent="Dressing" unique_id=1329703926 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.6, 0, 13.4)
 
-[node name="lantern_9" parent="Dressing" unique_id=1475183478 instance=ExtResource("59")]
+[node name="lantern_9" parent="Dressing" unique_id=1475183478 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.15, 8.9)
 
-[node name="lantern_10" parent="Dressing" unique_id=1031376264 instance=ExtResource("59")]
+[node name="lantern_10" parent="Dressing" unique_id=1031376264 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.15, 13.1)
 
-[node name="lantern_11" parent="Dressing" unique_id=965284884 instance=ExtResource("59")]
+[node name="lantern_11" parent="Dressing" unique_id=965284884 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.6, 0, 8.9)
 
-[node name="lantern_12" parent="Dressing" unique_id=692093193 instance=ExtResource("59")]
+[node name="lantern_12" parent="Dressing" unique_id=692093193 instance=ExtResource("58")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.6, 0, 13.1)
 
 [node name="garden_bench_4" parent="Dressing" unique_id=2138309075 instance=ExtResource("33")]
@@ -3210,22 +3210,22 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 9, 0, 15.2)
 [node name="garden_bench_5" parent="Dressing" unique_id=2048969844 instance=ExtResource("33")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 6.8)
 
-[node name="planter_pot_1" parent="Dressing" unique_id=1539524307 instance=ExtResource("66")]
+[node name="planter_pot_1" parent="Dressing" unique_id=1539524307 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.8, 0, 6.8)
 
-[node name="planter_pot_2" parent="Dressing" unique_id=734925260 instance=ExtResource("66")]
+[node name="planter_pot_2" parent="Dressing" unique_id=734925260 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.8, 0, 15.2)
 
-[node name="planter_pot_3" parent="Dressing" unique_id=401416417 instance=ExtResource("66")]
+[node name="planter_pot_3" parent="Dressing" unique_id=401416417 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0, 6.8)
 
-[node name="planter_pot_4" parent="Dressing" unique_id=431778154 instance=ExtResource("66")]
+[node name="planter_pot_4" parent="Dressing" unique_id=431778154 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0, 15.2)
 
-[node name="planter_pot_5" parent="Dressing" unique_id=281683618 instance=ExtResource("66")]
+[node name="planter_pot_5" parent="Dressing" unique_id=281683618 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 0, 7.8)
 
-[node name="planter_pot_6" parent="Dressing" unique_id=1779227374 instance=ExtResource("66")]
+[node name="planter_pot_6" parent="Dressing" unique_id=1779227374 instance=ExtResource("63")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 0, 14.2)
 
 [node name="bush_4" parent="Dressing" unique_id=958087365 instance=ExtResource("48")]

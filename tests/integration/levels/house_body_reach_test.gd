@@ -64,15 +64,16 @@ const WALKABLE: Array[String] = [
 	"SecondFloor/Bathroom",
 	"SecondFloor/GuestRoom",
 	"SecondFloor/Balcony",
+	"AtticAndRoof/Attic",
 ]
-## The House's pieces players reach but do not walk to: the attic, whose only way up is the art's
-## hatch ladder (#523: a ladder of about 68 degrees, no flight a step at a time; a climb is
-## engine work, so no walk reaches the attic yet: the engineer's call, listed in the PR).
-const LOCKED: Array[String] = ["AtticAndRoof/Attic"]
+## The House's pieces players reach but do not walk to: none since the art's attic stair (#1080,
+## art #188: a 40.4 degree flight under a long hatch, the engineer's option B on PR #1043; the
+## hatch ladder before it locked the attic, #523). A piece no walk reaches goes here.
+const LOCKED: Array[String] = []
 ## The Shell pieces of the art's rooms players never stand on: walls, fences, railings, roofs,
-## glass, beams, pillars, the ladder and the garage gate's lintel (its top at 3.0 m would count as
-## a walked floor) (their names' starts; every other Shell piece is a floor, a slab, a porch or a
-## flight of stairs).
+## glass, beams, pillars, the attic hatch's balustrade and the garage gate's lintel (its top at
+## 3.0 m would count as a walked floor) (their names' starts; every other Shell piece is a floor, a
+## slab, a porch or a flight of stairs).
 const NOT_WALKED: Array[String] = [
 	"wall_",
 	"fence",
@@ -86,12 +87,26 @@ const NOT_WALKED: Array[String] = [
 	"pillar_",
 	"chimney",
 	"dormer_gable",
-	"hatch_ladder",
+	"hatch_guard",
 	"gazebo_roof",
 	"gazebo_finial",
 ]
 ## The flood fill's spacing, each step taken in two halves (a stair's tread is 0.3 m).
 const STEP_M := 0.5
+## Flights narrower than the fill's lattice can pass (the attic stair, art #188: 1.1 m between its
+## stringer walls, so no column 0.5 m apart fits the capsule up it): each walked SPACING_M at a
+## time from a spot of the lattice at its foot (map coordinates, its floor's y) along its corners
+## to a lattice spot beyond its top, as house_stairs_test.gd walks it; the top joins the fill.
+const NARROW_FLIGHTS := {
+	"attic stair, landing to attic":
+	[
+		Vector3(30.5, 3.2, 29.5),
+		Vector3(30.5, 3.2, 29.3),
+		Vector3(25.7, 3.2, 29.3),
+		Vector3(25.5, 3.2, 29.5),
+	],
+}
+const SPACING_M := 0.1
 ## How far a floor's top may lie from a spot's height, and the height band of the fill's cells.
 const TOP_TOLERANCE_M := 0.02
 const BAND_M := 0.05
@@ -397,6 +412,47 @@ func _flood_fill() -> void:
 			var to := _step_from(middle, half)
 			if to != WorldQuery.NO_FLOOR and _visit(to):
 				queue.append(to)
+		if head == queue.size():
+			for flight: String in NARROW_FLIGHTS:
+				var top := _walk_flight(NARROW_FLIGHTS[flight] as Array)
+				if top != WorldQuery.NO_FLOOR and _visit(top):
+					queue.append(top)
+
+
+## The spot at the end of a narrow flight's walk (NARROW_FLIGHTS) when the fill has reached its
+## start and every SPACING_M of it is a step a crouched player fits on, the capsule resting on the
+## highest floor under its circle (on a flight's slope its up-hill edge); else NO_FLOOR.
+func _walk_flight(corners: Array) -> Vector3:
+	var start := corners[0] as Vector3
+	# The fill stands where the mover does: on the flight's first tread when the capsule's rim
+	# overhangs it, so the start's cell is that of the floor stood on, not the map's floor height.
+	var at := _world.stand_floor_below(start + Vector3.UP * _rules.step_height_m)
+	if at == WorldQuery.NO_FLOOR:
+		return at
+	var cell := Vector3i(roundi(at.x / STEP_M), roundi(at.y / BAND_M), roundi(at.z / STEP_M))
+	if not _spots.has(cell):
+		return WorldQuery.NO_FLOOR
+	for i in range(1, corners.size()):
+		var leg := (corners[i] as Vector3) - (corners[i - 1] as Vector3)
+		var steps := ceili(Vector2(leg.x, leg.z).length() / SPACING_M)
+		for k in steps:
+			at = _step_from(at, Vector2(leg.x, leg.z) / steps)
+			if at == WorldQuery.NO_FLOOR or not _crouched_fits(_resting(at)):
+				return WorldQuery.NO_FLOOR
+	return at
+
+
+## `at` lifted to the highest floor within a step above it under the capsule's circle (its centre
+## and RING_RAYS points on its rim), where the capsule rests.
+func _resting(at: Vector3) -> Vector3:
+	var top := at.y
+	for k in RING_RAYS:
+		var angle := TAU * k / RING_RAYS
+		var rim := Vector3(cos(angle), 0.0, sin(angle)) * _rules.capsule_radius_m
+		var under := _world.stand_floor_below(at + rim + Vector3.UP * _rules.step_height_m)
+		if under != WorldQuery.NO_FLOOR:
+			top = maxf(top, under.y)
+	return Vector3(at.x, top, at.z)
 
 
 ## The floor a player at `from` steps onto `offset` away: no higher than a step, any drop.

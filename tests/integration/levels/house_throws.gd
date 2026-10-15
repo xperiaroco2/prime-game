@@ -35,9 +35,16 @@ const MAP := "res://levels/house/house.tscn"
 const ROOF_Y := 6.4
 const ROOF_TOLERANCE_M := 0.05
 ## The attic's footprint (house.tscn: the Attic at x 18, z 24, size_m 24 x 20), less half its
-## knee wall: a rest inside it that sees the attic's floor straight below is in the attic.
+## knee wall: a rest inside it that sees the attic's floor below it (or near, ATTIC_LOOK_M) is in
+## the attic.
 const ATTIC := Rect2(18.0, 24.0, 24.0, 20.0)
 const ATTIC_WALL_HALF_M := 0.15
+## How far around a rest's column on_roof looks for the attic's floor, on a ring of this many
+## points inside the attic's footprint: a rest on the rail of the hatch's balustrade (art #188,
+## #1080), which hides the floor straight below, sees it beside the rail; one on the roof sees no
+## attic floor anywhere near (the roof is between).
+const ATTIC_LOOK_M := 1.0
+const ATTIC_LOOK_POINTS := 8
 ## The fan from each spot: a yaw every 10 degrees, a pitch every 5 from level to 85 up (648
 ## throws). A throw below level reaches no higher than its eye.
 const YAW_STEP_DEG := 10
@@ -126,9 +133,9 @@ static func roof_rests(
 
 
 ## Whether a rest at `at` is on the roof: at the attic floor's height or above, and not inside the
-## attic: outside its footprint, or above something that hides the attic's floor (the roof's
-## slope, an eave, a gutter; also a box in the attic, which no sweep from outside reaches but
-## through a wall).
+## attic: outside its footprint, or above something that hides the attic's floor below it and
+## within ATTIC_LOOK_M around (the roof's slope, an eave, a gutter; also the top of a box in the
+## attic wider than that).
 static func on_roof(world: HostWorldQuery, at: Vector3) -> bool:
 	if at.y < ROOF_Y - ROOF_TOLERANCE_M:
 		return false
@@ -138,10 +145,17 @@ static func on_roof(world: HostWorldQuery, at: Vector3) -> bool:
 	if at.y <= attic_floor.y:
 		return false
 	var lifted := Items.lifted(at)
-	# Both ways: a ray misses a shape it starts in.
-	return not (
-		world.line_of_sight(lifted, attic_floor) and world.line_of_sight(attic_floor, lifted)
-	)
+	for k in ATTIC_LOOK_POINTS + 1:
+		var below := attic_floor
+		if k > 0:
+			var angle := TAU * k / ATTIC_LOOK_POINTS
+			below += Vector3(cos(angle), 0.0, sin(angle)) * ATTIC_LOOK_M
+			if not ATTIC.grow(-ATTIC_WALL_HALF_M).has_point(Vector2(below.x, below.z)):
+				continue
+		# Both ways: a ray misses a shape it starts in.
+		if world.line_of_sight(lifted, below) and world.line_of_sight(below, lifted):
+			return false
+	return true
 
 
 ## Where a flight from `eye` rests, as FlightTicks flies it with no player in the way.

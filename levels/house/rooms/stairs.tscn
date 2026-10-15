@@ -5,35 +5,43 @@
 [ext_resource type="PackedScene" uid="uid://1eh7h0tsnp02" path="res://levels/kit/house_kit/wall_storey_1m_int.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://df7yarg3oyn2b" path="res://levels/kit/house_kit/wall_storey_2m_door_int.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://mvo68v3nueqi" path="res://levels/kit/house_kit/floor_boards_2x2.tscn" id="5"]
-[ext_resource type="PackedScene" uid="uid://djvbwb23sf8xj" path="res://assets/environment/house_props/stair_runner.glb" id="6"]
-[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="7"]
-[ext_resource type="PackedScene" uid="uid://che8xwhjrl05k" path="res://assets/environment/house_props/stair_gallery.glb" id="8"]
-[ext_resource type="PackedScene" uid="uid://bcgndy40scrmp" path="res://assets/environment/house_props/landing_plant.glb" id="9"]
-[ext_resource type="PackedScene" uid="uid://w2tlfhthpgs" path="res://assets/environment/house_props/art_abstract.glb" id="10"]
-[ext_resource type="PackedScene" uid="uid://bmmh674rbn8dw" path="res://assets/environment/house_props/hall_runner.glb" id="11"]
-[ext_resource type="PackedScene" uid="uid://dkaphkctouugm" path="res://levels/kit/house_props/hall_console.tscn" id="12"]
-[ext_resource type="PackedScene" uid="uid://b48t5b6mwduxd" path="res://assets/environment/house_props/hall_mirror.glb" id="13"]
-[ext_resource type="PackedScene" uid="uid://dhbstd5ppomvi" path="res://levels/kit/house_props/hall_bench.tscn" id="14"]
-[ext_resource type="PackedScene" uid="uid://dsof8rbuiswti" path="res://levels/kit/house_props/radiator.tscn" id="15"]
-[ext_resource type="PackedScene" uid="uid://1lvmqp85y4ko" path="res://assets/environment/house_props/art_city.glb" id="16"]
-[ext_resource type="PackedScene" uid="uid://bb23ln18q08a8" path="res://assets/environment/house_props/picture_frame.glb" id="17"]
-[ext_resource type="PackedScene" uid="uid://bj33bq4du0hnl" path="res://levels/kit/house_props/bookcase.tscn" id="18"]
-[ext_resource type="PackedScene" uid="uid://cbc7fvjaanps5" path="res://levels/kit/house_props/shoe_rack.tscn" id="19"]
-[ext_resource type="PackedScene" uid="uid://cj6iex6ibf8my" path="res://levels/kit/house_props/coat_rack.tscn" id="20"]
-[ext_resource type="PackedScene" uid="uid://c2afoyiuyk6kg" path="res://levels/kit/house_props/floor_plant.tscn" id="21"]
-[ext_resource type="PackedScene" uid="uid://dim4yiovqm2dv" path="res://assets/environment/house_props/side_lamp.glb" id="22"]
-[ext_resource type="PackedScene" uid="uid://dijjs1qi0jew4" path="res://assets/environment/house_props/mail_stack.glb" id="23"]
-[ext_resource type="PackedScene" uid="uid://bfteow0khevyb" path="res://assets/environment/house_props/table_plant.glb" id="24"]
-[ext_resource type="PackedScene" uid="uid://bhli31s8xxk3" path="res://assets/environment/house_props/photo_row.glb" id="25"]
-[ext_resource type="PackedScene" uid="uid://cg2x15wfs60u5" path="res://assets/environment/house_props/shoes.glb" id="26"]
-[ext_resource type="PackedScene" uid="uid://b4ovw63y7by74" path="res://assets/environment/house_props/parcels.glb" id="27"]
-[ext_resource type="PackedScene" uid="uid://bw7jm8cfkg3tn" path="res://assets/environment/house_props/boots.glb" id="28"]
-[ext_resource type="PackedScene" uid="uid://d4eayx300g8t8" path="res://assets/environment/house_props/wall_sconce.glb" id="29"]
+[ext_resource type="PackedScene" uid="uid://c8j67b1owv6e3" path="res://assets/environment/house_kit/merged/floor_m_ground_stairs.glb" id="6"]
+[ext_resource type="PackedScene" uid="uid://5ht6chq48dww" path="res://assets/environment/house_kit/merged/shell_m_ground_stairs.glb" id="7"]
+[ext_resource type="PackedScene" uid="uid://djvbwb23sf8xj" path="res://assets/environment/house_props/stair_runner.glb" id="8"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="9"]
+[ext_resource type="PackedScene" uid="uid://che8xwhjrl05k" path="res://assets/environment/house_props/stair_gallery.glb" id="10"]
+[ext_resource type="PackedScene" uid="uid://bcgndy40scrmp" path="res://assets/environment/house_props/landing_plant.glb" id="11"]
+[ext_resource type="PackedScene" uid="uid://w2tlfhthpgs" path="res://assets/environment/house_props/art_abstract.glb" id="12"]
+[ext_resource type="PackedScene" uid="uid://bmmh674rbn8dw" path="res://assets/environment/house_props/hall_runner.glb" id="13"]
+[ext_resource type="PackedScene" uid="uid://dkaphkctouugm" path="res://levels/kit/house_props/hall_console.tscn" id="14"]
+[ext_resource type="PackedScene" uid="uid://b48t5b6mwduxd" path="res://assets/environment/house_props/hall_mirror.glb" id="15"]
+[ext_resource type="PackedScene" uid="uid://dhbstd5ppomvi" path="res://levels/kit/house_props/hall_bench.tscn" id="16"]
+[ext_resource type="PackedScene" uid="uid://dsof8rbuiswti" path="res://levels/kit/house_props/radiator.tscn" id="17"]
+[ext_resource type="PackedScene" uid="uid://1lvmqp85y4ko" path="res://assets/environment/house_props/art_city.glb" id="18"]
+[ext_resource type="PackedScene" uid="uid://bb23ln18q08a8" path="res://assets/environment/house_props/picture_frame.glb" id="19"]
+[ext_resource type="PackedScene" uid="uid://bj33bq4du0hnl" path="res://levels/kit/house_props/bookcase.tscn" id="20"]
+[ext_resource type="PackedScene" uid="uid://cbc7fvjaanps5" path="res://levels/kit/house_props/shoe_rack.tscn" id="21"]
+[ext_resource type="PackedScene" uid="uid://cj6iex6ibf8my" path="res://levels/kit/house_props/coat_rack.tscn" id="22"]
+[ext_resource type="PackedScene" uid="uid://c2afoyiuyk6kg" path="res://levels/kit/house_props/floor_plant.tscn" id="23"]
+[ext_resource type="PackedScene" uid="uid://bmfdlgfueysi7" path="res://assets/environment/house_props/merged/batch_ground_stairs_dressing.glb" id="24"]
+[ext_resource type="PackedScene" uid="uid://c5w7ggma74vrw" path="res://assets/environment/house_props/merged/batch_ground_stairs_dressing_shadow.glb" id="25"]
+[ext_resource type="PackedScene" uid="uid://dim4yiovqm2dv" path="res://assets/environment/house_props/side_lamp.glb" id="26"]
+[ext_resource type="PackedScene" uid="uid://dijjs1qi0jew4" path="res://assets/environment/house_props/mail_stack.glb" id="27"]
+[ext_resource type="PackedScene" uid="uid://bfteow0khevyb" path="res://assets/environment/house_props/table_plant.glb" id="28"]
+[ext_resource type="PackedScene" uid="uid://bhli31s8xxk3" path="res://assets/environment/house_props/photo_row.glb" id="29"]
+[ext_resource type="PackedScene" uid="uid://cg2x15wfs60u5" path="res://assets/environment/house_props/shoes.glb" id="30"]
+[ext_resource type="PackedScene" uid="uid://b4ovw63y7by74" path="res://assets/environment/house_props/parcels.glb" id="31"]
+[ext_resource type="PackedScene" uid="uid://bw7jm8cfkg3tn" path="res://assets/environment/house_props/boots.glb" id="32"]
+[ext_resource type="PackedScene" uid="uid://dv4qvqqkq0yet" path="res://assets/environment/house_props/merged/batch_ground_stairs_detail.glb" id="33"]
+[ext_resource type="PackedScene" uid="uid://cd3xlisu4bwy3" path="res://assets/environment/house_props/merged/batch_ground_stairs_detail_shadow.glb" id="34"]
+[ext_resource type="PackedScene" uid="uid://d4eayx300g8t8" path="res://assets/environment/house_props/wall_sconce.glb" id="35"]
+[ext_resource type="PackedScene" uid="uid://dixebhxssy3kn" path="res://assets/environment/house_props/merged/batch_ground_stairs_fixtures.glb" id="36"]
+[ext_resource type="PackedScene" uid="uid://nqcjjaicwwca" path="res://assets/environment/house_props/merged/batch_ground_stairs_fixtures_shadow.glb" id="37"]
 
 [node name="Stairs" type="Node3D" unique_id=1808220214]
+metadata/size_m = Vector2i(8, 6)
 metadata/room_id = &"stairs"
 metadata/name_key = "room.stairs"
-metadata/size_m = Vector2i(8, 6)
 
 [node name="Name" type="Label3D" parent="." unique_id=1900160500]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.4, 3)
@@ -47,63 +55,72 @@ outline_size = 16
 [node name="wall_storey_2m_int_1" parent="Shell" unique_id=1036795264 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0" unique_id=1216547244]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_1" index="0" unique_id=440273668]
+visible = false
 instance_shader_parameters/plan_at = Vector4(26, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_int_2" parent="Shell" unique_id=2012569143 instance=ExtResource("1")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0" unique_id=1216547244]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_2" index="0" unique_id=440273668]
+visible = false
 instance_shader_parameters/plan_at = Vector4(28, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_int_1" parent="Shell" unique_id=752219133 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
 
-[node name="wall_storey_1m_int" parent="Shell/wall_storey_1m_int_1" index="0" unique_id=1178135742]
+[node name="wall_storey_1m_int" parent="Shell/wall_storey_1m_int_1" index="0" unique_id=1840647971]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_door_int_1" parent="Shell" unique_id=1987472263 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 6)
 
-[node name="wall_storey_2m_door_int" parent="Shell/wall_storey_2m_door_int_1" index="0" unique_id=1500600986]
+[node name="wall_storey_2m_door_int" parent="Shell/wall_storey_2m_door_int_1" index="0" unique_id=1054850809]
+visible = false
 instance_shader_parameters/plan_at = Vector4(31, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_1m_int_2" parent="Shell" unique_id=741811700 instance=ExtResource("3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 6)
 
-[node name="wall_storey_1m_int" parent="Shell/wall_storey_1m_int_2" index="0" unique_id=1178135742]
+[node name="wall_storey_1m_int" parent="Shell/wall_storey_1m_int_2" index="0" unique_id=1840647971]
+visible = false
 instance_shader_parameters/plan_at = Vector4(33, 0, 36, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_int_3" parent="Shell" unique_id=1532666917 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8, 0, 2)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_3" index="0" unique_id=1216547244]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_3" index="0" unique_id=440273668]
+visible = false
 instance_shader_parameters/plan_at = Vector4(34, 0, 32, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_int_4" parent="Shell" unique_id=751618385 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8, 0, 4)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_4" index="0" unique_id=1216547244]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_4" index="0" unique_id=440273668]
+visible = false
 instance_shader_parameters/plan_at = Vector4(34, 0, 34, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="wall_storey_2m_int_5" parent="Shell" unique_id=803916889 instance=ExtResource("1")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 8, 0, 6)
 
-[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_5" index="0" unique_id=1216547244]
+[node name="wall_storey_2m_int" parent="Shell/wall_storey_2m_int_5" index="0" unique_id=440273668]
+visible = false
 instance_shader_parameters/plan_at = Vector4(34, 0, 36, 90)
 surface_material_override/0 = ExtResource("2")
 
 [node name="floor_boards_2x2_1" parent="Shell" unique_id=1896752656 instance=ExtResource("5")]
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(26, 0, 30, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -111,7 +128,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_2" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_2" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(28, 0, 30, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -119,7 +137,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_3" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_3" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 0, 30, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -127,7 +146,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_4" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_4" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(32, 0, 30, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -135,7 +155,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_5" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_5" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(26, 0, 32, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -143,7 +164,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_6" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_6" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(28, 0, 32, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -151,7 +173,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_7" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_7" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 0, 32, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -159,7 +182,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_8" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_8" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(32, 0, 32, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -167,7 +191,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_9" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_9" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(26, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -175,7 +200,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_10" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_10" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(28, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -183,7 +209,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_11" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_11" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 0, 34, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -191,196 +218,299 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_12" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_12" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(32, 0, 34, 0)
+surface_material_override/0 = ExtResource("2")
+
+[node name="merged_floor" parent="Shell" unique_id=743831223 instance=ExtResource("6")]
+
+[node name="merged_floor" parent="Shell/merged_floor" index="0" unique_id=1767263866]
+instance_shader_parameters/plan_at = Vector4(26, 0, 30, 0)
+surface_material_override/0 = ExtResource("2")
+
+[node name="merged_shell" parent="Shell" unique_id=282124244 instance=ExtResource("7")]
+
+[node name="merged_shell" parent="Shell/merged_shell" index="0" unique_id=458563419]
+instance_shader_parameters/plan_at = Vector4(26, 0, 30, 0)
 surface_material_override/0 = ExtResource("2")
 
 [node name="Dressing" type="Node3D" parent="." unique_id=54351459]
 
-[node name="stair_runner_1" parent="Dressing" unique_id=1430519173 instance=ExtResource("6")]
+[node name="stair_runner_1" parent="Dressing" unique_id=1430519173 instance=ExtResource("8")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 2.5, 0, 5)
 metadata/prop = "stair_runner"
 
-[node name="stair_runner" parent="Dressing/stair_runner_1" index="0" unique_id=597484559]
-surface_material_override/0 = ExtResource("7")
+[node name="stair_runner" parent="Dressing/stair_runner_1" index="0" unique_id=902106119]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="stair_runner_2" parent="Dressing" unique_id=1415049171 instance=ExtResource("6")]
+[node name="stair_runner_2" parent="Dressing" unique_id=1415049171 instance=ExtResource("8")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 2.5, 1.6, 3)
 metadata/prop = "stair_runner"
 
-[node name="stair_runner" parent="Dressing/stair_runner_2" index="0" unique_id=597484559]
-surface_material_override/0 = ExtResource("7")
+[node name="stair_runner" parent="Dressing/stair_runner_2" index="0" unique_id=902106119]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="stair_gallery_1" parent="Dressing" unique_id=1391460702 instance=ExtResource("8")]
+[node name="stair_gallery_1" parent="Dressing" unique_id=1391460702 instance=ExtResource("10")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2.5, 1.5, 5.9)
 metadata/prop = "stair_gallery"
 
-[node name="stair_gallery" parent="Dressing/stair_gallery_1" index="0" unique_id=635255579]
-surface_material_override/0 = ExtResource("7")
+[node name="stair_gallery" parent="Dressing/stair_gallery_1" index="0" unique_id=381631435]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="landing_plant_1" parent="Dressing" unique_id=186247420 instance=ExtResource("9")]
+[node name="landing_plant_1" parent="Dressing" unique_id=186247420 instance=ExtResource("11")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.3, 1.6, 5.7)
 metadata/prop = "landing_plant"
 
-[node name="landing_plant" parent="Dressing/landing_plant_1" index="0" unique_id=1097414411]
-surface_material_override/0 = ExtResource("7")
+[node name="landing_plant" parent="Dressing/landing_plant_1" index="0" unique_id=16045729]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="art_abstract_1" parent="Dressing" unique_id=725293109 instance=ExtResource("10")]
+[node name="art_abstract_1" parent="Dressing" unique_id=725293109 instance=ExtResource("12")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 2.55, 4)
 metadata/prop = "art_abstract"
 
-[node name="art_abstract" parent="Dressing/art_abstract_1" index="0" unique_id=1746590016]
-surface_material_override/0 = ExtResource("7")
+[node name="art_abstract" parent="Dressing/art_abstract_1" index="0" unique_id=1333346267]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="hall_runner_1" parent="Dressing" unique_id=708266303 instance=ExtResource("11")]
+[node name="hall_runner_1" parent="Dressing" unique_id=708266303 instance=ExtResource("13")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 0, 3)
 metadata/prop = "hall_runner"
 
-[node name="hall_runner" parent="Dressing/hall_runner_1" index="0" unique_id=2121228712]
-surface_material_override/0 = ExtResource("7")
+[node name="hall_runner" parent="Dressing/hall_runner_1" index="0" unique_id=270497277]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="hall_console_1" parent="Dressing" unique_id=541440269 instance=ExtResource("12")]
+[node name="hall_console_1" parent="Dressing" unique_id=541440269 instance=ExtResource("14")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.7, 0, 3)
 metadata/prop = "hall_console"
 
-[node name="hall_console" parent="Dressing/hall_console_1" index="0" unique_id=682308083]
-surface_material_override/0 = ExtResource("7")
+[node name="hall_console" parent="Dressing/hall_console_1" index="0" unique_id=1320929061]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="hall_mirror_1" parent="Dressing" unique_id=431563463 instance=ExtResource("13")]
+[node name="hall_mirror_1" parent="Dressing" unique_id=431563463 instance=ExtResource("15")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 1.05, 3)
 metadata/prop = "hall_mirror"
 
-[node name="hall_mirror" parent="Dressing/hall_mirror_1" index="0" unique_id=522046854]
-surface_material_override/0 = ExtResource("7")
+[node name="hall_mirror" parent="Dressing/hall_mirror_1" index="0" unique_id=1798292998]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="hall_bench_1" parent="Dressing" unique_id=419904268 instance=ExtResource("14")]
+[node name="hall_bench_1" parent="Dressing" unique_id=419904268 instance=ExtResource("16")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.68, 0, 1)
 metadata/prop = "hall_bench"
 
-[node name="hall_bench" parent="Dressing/hall_bench_1" index="0" unique_id=20790016]
-surface_material_override/0 = ExtResource("7")
+[node name="hall_bench" parent="Dressing/hall_bench_1" index="0" unique_id=1651153101]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="radiator_1" parent="Dressing" unique_id=1337169318 instance=ExtResource("15")]
+[node name="radiator_1" parent="Dressing" unique_id=1337169318 instance=ExtResource("17")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 0.12, 4.14)
 metadata/prop = "radiator"
 
-[node name="art_city_1" parent="Dressing" unique_id=266379447 instance=ExtResource("16")]
+[node name="radiator" parent="Dressing/radiator_1" index="0" unique_id=257709907]
+visible = false
+
+[node name="art_city_1" parent="Dressing" unique_id=266379447 instance=ExtResource("18")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 1.2, 4.75)
 metadata/prop = "art_city"
 
-[node name="art_city" parent="Dressing/art_city_1" index="0" unique_id=1787131390]
-surface_material_override/0 = ExtResource("7")
+[node name="art_city" parent="Dressing/art_city_1" index="0" unique_id=1163560638]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="radiator_2" parent="Dressing" unique_id=628729344 instance=ExtResource("15")]
+[node name="radiator_2" parent="Dressing" unique_id=628729344 instance=ExtResource("17")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.38, 0.12, 0.1)
 metadata/prop = "radiator"
 
-[node name="radiator_3" parent="Dressing" unique_id=1967423594 instance=ExtResource("15")]
+[node name="radiator" parent="Dressing/radiator_2" index="0" unique_id=257709907]
+visible = false
+
+[node name="radiator_3" parent="Dressing" unique_id=1967423594 instance=ExtResource("17")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 0.12, 0.87)
 metadata/prop = "radiator"
 
-[node name="picture_frame_1" parent="Dressing" unique_id=91688372 instance=ExtResource("17")]
+[node name="radiator" parent="Dressing/radiator_3" index="0" unique_id=257709907]
+visible = false
+
+[node name="picture_frame_1" parent="Dressing" unique_id=91688372 instance=ExtResource("19")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.1, 1.4, 1)
 metadata/prop = "picture_frame"
 
-[node name="bookcase_1" parent="Dressing" unique_id=277431348 instance=ExtResource("18")]
+[node name="picture_frame" parent="Dressing/picture_frame_1" index="0" unique_id=1060259762]
+visible = false
+
+[node name="bookcase_1" parent="Dressing" unique_id=277431348 instance=ExtResource("20")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.97, 0, 0.325)
 metadata/prop = "bookcase"
 
-[node name="bookcase" parent="Dressing/bookcase_1" index="0" unique_id=1040296822]
-surface_material_override/0 = ExtResource("7")
+[node name="bookcase" parent="Dressing/bookcase_1" index="0" unique_id=1315854176]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="picture_frame_2" parent="Dressing" unique_id=109878209 instance=ExtResource("17")]
+[node name="picture_frame_2" parent="Dressing" unique_id=109878209 instance=ExtResource("19")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.55, 1.4, 0.1)
 metadata/prop = "picture_frame"
 
-[node name="shoe_rack_1" parent="Dressing" unique_id=1667881376 instance=ExtResource("19")]
+[node name="picture_frame" parent="Dressing/picture_frame_2" index="0" unique_id=1060259762]
+visible = false
+
+[node name="shoe_rack_1" parent="Dressing" unique_id=1667881376 instance=ExtResource("21")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.13, 0, 0.3)
 metadata/prop = "shoe_rack"
 
-[node name="coat_rack_1" parent="Dressing" unique_id=2147434149 instance=ExtResource("20")]
+[node name="shoe_rack" parent="Dressing/shoe_rack_1" index="0" unique_id=1680514765]
+visible = false
+
+[node name="coat_rack_1" parent="Dressing" unique_id=2147434149 instance=ExtResource("22")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.93, 0, 0.35)
 metadata/prop = "coat_rack"
 
-[node name="floor_plant_1" parent="Dressing" unique_id=2043700267 instance=ExtResource("21")]
+[node name="coat_rack" parent="Dressing/coat_rack_1" index="0" unique_id=889738461]
+visible = false
+
+[node name="floor_plant_1" parent="Dressing" unique_id=2043700267 instance=ExtResource("23")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.95, 0, 1.45)
 metadata/prop = "floor_plant"
 
-[node name="floor_plant" parent="Dressing/floor_plant_1" index="0" unique_id=1857790043]
-surface_material_override/0 = ExtResource("7")
+[node name="floor_plant" parent="Dressing/floor_plant_1" index="0" unique_id=337379130]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="floor_plant_2" parent="Dressing" unique_id=2077270919 instance=ExtResource("21")]
+[node name="floor_plant_2" parent="Dressing" unique_id=2077270919 instance=ExtResource("23")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.45, 0, 1.4)
 metadata/prop = "floor_plant"
 
-[node name="floor_plant" parent="Dressing/floor_plant_2" index="0" unique_id=1857790043]
-surface_material_override/0 = ExtResource("7")
+[node name="floor_plant" parent="Dressing/floor_plant_2" index="0" unique_id=337379130]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="floor_plant_3" parent="Dressing" unique_id=1529604709 instance=ExtResource("21")]
+[node name="floor_plant_3" parent="Dressing" unique_id=1529604709 instance=ExtResource("23")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0, 0.4)
 metadata/prop = "floor_plant"
 
-[node name="floor_plant" parent="Dressing/floor_plant_3" index="0" unique_id=1857790043]
-surface_material_override/0 = ExtResource("7")
+[node name="floor_plant" parent="Dressing/floor_plant_3" index="0" unique_id=337379130]
+visible = false
+surface_material_override/0 = ExtResource("9")
+
+[node name="batch_dressing" parent="Dressing" unique_id=792768509 instance=ExtResource("24")]
+
+[node name="merged_props" parent="Dressing/batch_dressing" index="0" unique_id=774469794]
+cast_shadow = 0
+surface_material_override/0 = ExtResource("9")
+
+[node name="batch_dressing_shadow" parent="Dressing" unique_id=2143094000 instance=ExtResource("25")]
+
+[node name="shadow" parent="Dressing/batch_dressing_shadow" index="0" unique_id=1030194505]
+cast_shadow = 3
+gi_mode = 0
 
 [node name="Detail" type="Node3D" parent="." unique_id=599806065]
 
-[node name="side_lamp_1" parent="Detail" unique_id=65131676 instance=ExtResource("22")]
+[node name="side_lamp_1" parent="Detail" unique_id=65131676 instance=ExtResource("26")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.72, 0.82, 2.62)
 metadata/prop = "side_lamp"
 
-[node name="side_lamp" parent="Detail/side_lamp_1" index="0" unique_id=448202853]
-surface_material_override/0 = ExtResource("7")
+[node name="side_lamp" parent="Detail/side_lamp_1" index="0" unique_id=1928232644]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="mail_stack_1" parent="Detail" unique_id=1393439782 instance=ExtResource("23")]
+[node name="mail_stack_1" parent="Detail" unique_id=1393439782 instance=ExtResource("27")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.72, 0.82, 3.05)
 metadata/prop = "mail_stack"
 
-[node name="mail_stack" parent="Detail/mail_stack_1" index="0" unique_id=978908469]
-surface_material_override/0 = ExtResource("7")
+[node name="mail_stack" parent="Detail/mail_stack_1" index="0" unique_id=1079149709]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="table_plant_1" parent="Detail" unique_id=712916666 instance=ExtResource("24")]
+[node name="table_plant_1" parent="Detail" unique_id=712916666 instance=ExtResource("28")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.72, 0.82, 3.4)
 metadata/prop = "table_plant"
 
-[node name="table_plant" parent="Detail/table_plant_1" index="0" unique_id=898947864]
-surface_material_override/0 = ExtResource("7")
+[node name="table_plant" parent="Detail/table_plant_1" index="0" unique_id=1595409060]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="photo_row_1" parent="Detail" unique_id=1286043951 instance=ExtResource("25")]
+[node name="photo_row_1" parent="Detail" unique_id=1286043951 instance=ExtResource("29")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 1.45, 1)
 metadata/prop = "photo_row"
 
-[node name="photo_row" parent="Detail/photo_row_1" index="0" unique_id=1494801146]
-surface_material_override/0 = ExtResource("7")
+[node name="photo_row" parent="Detail/photo_row_1" index="0" unique_id=680448433]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="shoes_1" parent="Detail" unique_id=884190773 instance=ExtResource("26")]
+[node name="shoes_1" parent="Detail" unique_id=884190773 instance=ExtResource("30")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.7, 0, 2.02)
 metadata/prop = "shoes"
 
-[node name="parcels_1" parent="Detail" unique_id=1558397084 instance=ExtResource("27")]
+[node name="shoes" parent="Detail/shoes_1" index="0" unique_id=2033719655]
+visible = false
+
+[node name="parcels_1" parent="Detail" unique_id=1558397084 instance=ExtResource("31")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.65, 0, 5.45)
 metadata/prop = "parcels"
 
-[node name="parcels" parent="Detail/parcels_1" index="0" unique_id=803993125]
-surface_material_override/0 = ExtResource("7")
+[node name="parcels" parent="Detail/parcels_1" index="0" unique_id=161549590]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="boots_1" parent="Detail" unique_id=1284981261 instance=ExtResource("28")]
+[node name="boots_1" parent="Detail" unique_id=1284981261 instance=ExtResource("32")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.48, 0, 0.36)
 metadata/prop = "boots"
 
-[node name="shoes_2" parent="Detail" unique_id=302872953 instance=ExtResource("26")]
+[node name="boots" parent="Detail/boots_1" index="0" unique_id=580175253]
+visible = false
+
+[node name="shoes_2" parent="Detail" unique_id=302872953 instance=ExtResource("30")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.13, 0.5, 0.3)
 metadata/prop = "shoes"
 
+[node name="shoes" parent="Detail/shoes_2" index="0" unique_id=2033719655]
+visible = false
+
+[node name="batch_detail" parent="Detail" unique_id=1370834743 instance=ExtResource("33")]
+
+[node name="merged_props" parent="Detail/batch_detail" index="0" unique_id=921397439]
+cast_shadow = 0
+surface_material_override/0 = ExtResource("9")
+
+[node name="batch_detail_shadow" parent="Detail" unique_id=147372710 instance=ExtResource("34")]
+
+[node name="shadow" parent="Detail/batch_detail_shadow" index="0" unique_id=119096194]
+cast_shadow = 3
+gi_mode = 0
+
 [node name="Fixtures" type="Node3D" parent="." unique_id=714216593]
 
-[node name="wall_sconce_1" parent="Fixtures" unique_id=1394689588 instance=ExtResource("29")]
+[node name="wall_sconce_1" parent="Fixtures" unique_id=1394689588 instance=ExtResource("35")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1.95, 0.1)
 metadata/prop = "wall_sconce"
 
-[node name="wall_sconce_2" parent="Fixtures" unique_id=883800190 instance=ExtResource("29")]
+[node name="wall_sconce" parent="Fixtures/wall_sconce_1" index="1" unique_id=1161683633]
+visible = false
+
+[node name="wall_sconce_2" parent="Fixtures" unique_id=883800190 instance=ExtResource("35")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 7.9, 1.95, 1.9)
 metadata/prop = "wall_sconce"
+
+[node name="wall_sconce" parent="Fixtures/wall_sconce_2" index="1" unique_id=1161683633]
+visible = false
+
+[node name="batch_fixtures" parent="Fixtures" unique_id=2086419998 instance=ExtResource("36")]
+
+[node name="merged_props" parent="Fixtures/batch_fixtures" index="0" unique_id=1310083443]
+cast_shadow = 0
+
+[node name="batch_fixtures_shadow" parent="Fixtures" unique_id=1108137470 instance=ExtResource("37")]
+
+[node name="shadow" parent="Fixtures/batch_fixtures_shadow" index="0" unique_id=1721409155]
+cast_shadow = 3
+gi_mode = 0
 
 [node name="stairs_wall_sconce_01" type="OmniLight3D" parent="Fixtures" unique_id=1456246910]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.85, 1.9, 0.35)
@@ -428,6 +558,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 6)
 [editable path="Shell/floor_boards_2x2_10"]
 [editable path="Shell/floor_boards_2x2_11"]
 [editable path="Shell/floor_boards_2x2_12"]
+[editable path="Shell/merged_floor"]
+[editable path="Shell/merged_shell"]
 [editable path="Dressing/stair_runner_1"]
 [editable path="Dressing/stair_runner_2"]
 [editable path="Dressing/stair_gallery_1"]
@@ -437,13 +569,31 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 6)
 [editable path="Dressing/hall_console_1"]
 [editable path="Dressing/hall_mirror_1"]
 [editable path="Dressing/hall_bench_1"]
+[editable path="Dressing/radiator_1"]
 [editable path="Dressing/art_city_1"]
+[editable path="Dressing/radiator_2"]
+[editable path="Dressing/radiator_3"]
+[editable path="Dressing/picture_frame_1"]
 [editable path="Dressing/bookcase_1"]
+[editable path="Dressing/picture_frame_2"]
+[editable path="Dressing/shoe_rack_1"]
+[editable path="Dressing/coat_rack_1"]
 [editable path="Dressing/floor_plant_1"]
 [editable path="Dressing/floor_plant_2"]
 [editable path="Dressing/floor_plant_3"]
+[editable path="Dressing/batch_dressing"]
+[editable path="Dressing/batch_dressing_shadow"]
 [editable path="Detail/side_lamp_1"]
 [editable path="Detail/mail_stack_1"]
 [editable path="Detail/table_plant_1"]
 [editable path="Detail/photo_row_1"]
+[editable path="Detail/shoes_1"]
 [editable path="Detail/parcels_1"]
+[editable path="Detail/boots_1"]
+[editable path="Detail/shoes_2"]
+[editable path="Detail/batch_detail"]
+[editable path="Detail/batch_detail_shadow"]
+[editable path="Fixtures/wall_sconce_1"]
+[editable path="Fixtures/wall_sconce_2"]
+[editable path="Fixtures/batch_fixtures"]
+[editable path="Fixtures/batch_fixtures_shadow"]

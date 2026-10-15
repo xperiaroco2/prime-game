@@ -6,17 +6,22 @@
 [ext_resource type="PackedScene" uid="uid://cuulq5y6hp7rt" path="res://levels/kit/house_kit/railing_balcony_2m.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://sdhjdhst42jf" path="res://levels/kit/house_kit/railing_balcony_post.tscn" id="5"]
 [ext_resource type="PackedScene" uid="uid://diwg670ftqjt2" path="res://levels/kit/house_kit/railing_balcony_1m.tscn" id="6"]
-[ext_resource type="PackedScene" uid="uid://nuaq6282ym33" path="res://levels/kit/house_props/small_table.tscn" id="7"]
-[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="8"]
-[ext_resource type="PackedScene" uid="uid://b6ssh0fkodmap" path="res://levels/kit/house_props/balcony_chair.tscn" id="9"]
-[ext_resource type="PackedScene" uid="uid://c8il7nd23h7k6" path="res://levels/kit/house_props/planter_pot.tscn" id="10"]
-[ext_resource type="PackedScene" uid="uid://cae3v82kasxe2" path="res://levels/kit/house_props/lantern.tscn" id="11"]
-[ext_resource type="PackedScene" uid="uid://d3nmygrkxcygu" path="res://assets/environment/house_props/string_lights.glb" id="12"]
+[ext_resource type="PackedScene" uid="uid://b7yrx84q04hf1" path="res://assets/environment/house_kit/merged/floor_m_upper_balcony.glb" id="7"]
+[ext_resource type="PackedScene" uid="uid://nuaq6282ym33" path="res://levels/kit/house_props/small_table.tscn" id="8"]
+[ext_resource type="Material" path="res://assets/environment/house_props/prop_fine_high.tres" id="9"]
+[ext_resource type="PackedScene" uid="uid://b6ssh0fkodmap" path="res://levels/kit/house_props/balcony_chair.tscn" id="10"]
+[ext_resource type="PackedScene" uid="uid://c8il7nd23h7k6" path="res://levels/kit/house_props/planter_pot.tscn" id="11"]
+[ext_resource type="PackedScene" uid="uid://bbj46vhd2xol7" path="res://assets/environment/house_props/merged/batch_upper_balcony_dressing.glb" id="12"]
+[ext_resource type="PackedScene" uid="uid://c8jy6jmomqboo" path="res://assets/environment/house_props/merged/batch_upper_balcony_dressing_shadow.glb" id="13"]
+[ext_resource type="PackedScene" uid="uid://cae3v82kasxe2" path="res://levels/kit/house_props/lantern.tscn" id="14"]
+[ext_resource type="PackedScene" uid="uid://d3nmygrkxcygu" path="res://assets/environment/house_props/string_lights.glb" id="15"]
+[ext_resource type="PackedScene" uid="uid://cbq60g5gougdf" path="res://assets/environment/house_props/merged/batch_upper_balcony_fixtures.glb" id="16"]
+[ext_resource type="PackedScene" uid="uid://hvvrgf8ncbni" path="res://assets/environment/house_props/merged/batch_upper_balcony_fixtures_shadow.glb" id="17"]
 
 [node name="Balcony" type="Node3D" unique_id=695545631]
+metadata/size_m = Vector2i(10, 3)
 metadata/room_id = &"balcony"
 metadata/name_key = "room.balcony"
-metadata/size_m = Vector2i(10, 3)
 
 [node name="Name" type="Label3D" parent="." unique_id=1884483752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.4, 1.5)
@@ -30,7 +35,8 @@ outline_size = 16
 [node name="floor_boards_2x2_1" parent="Shell" unique_id=1745251204 instance=ExtResource("1")]
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_1" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 3.2, 21, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -38,7 +44,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_2" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_2" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(32, 3.2, 21, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -46,7 +53,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_3" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_3" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(34, 3.2, 21, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -54,7 +62,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_4" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_4" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(36, 3.2, 21, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -62,7 +71,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 0)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_5" index="0" unique_id=450101820]
+[node name="floor_boards_2x2" parent="Shell/floor_boards_2x2_5" index="0" unique_id=594829]
+visible = false
 instance_shader_parameters/plan_at = Vector4(38, 3.2, 21, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -70,7 +80,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_1" index="0" unique_id=711988639]
+[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_1" index="0" unique_id=933991931]
+visible = false
 instance_shader_parameters/plan_at = Vector4(30, 3.2, 23, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -78,7 +89,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_2" index="0" unique_id=711988639]
+[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_2" index="0" unique_id=933991931]
+visible = false
 instance_shader_parameters/plan_at = Vector4(32, 3.2, 23, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -86,7 +98,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_3" index="0" unique_id=711988639]
+[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_3" index="0" unique_id=933991931]
+visible = false
 instance_shader_parameters/plan_at = Vector4(34, 3.2, 23, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -94,7 +107,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_4" index="0" unique_id=711988639]
+[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_4" index="0" unique_id=933991931]
+visible = false
 instance_shader_parameters/plan_at = Vector4(36, 3.2, 23, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -102,7 +116,8 @@ surface_material_override/0 = ExtResource("2")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 2)
 metadata/surface = "wood"
 
-[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_5" index="0" unique_id=711988639]
+[node name="floor_boards_2x1" parent="Shell/floor_boards_2x1_5" index="0" unique_id=933991931]
+visible = false
 instance_shader_parameters/plan_at = Vector4(38, 3.2, 23, 0)
 surface_material_override/0 = ExtResource("2")
 
@@ -145,52 +160,109 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
 [node name="railing_balcony_post_6" parent="Shell" unique_id=37366768 instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 3)
 
+[node name="merged_floor" parent="Shell" unique_id=2007001051 instance=ExtResource("7")]
+
+[node name="merged_floor" parent="Shell/merged_floor" index="0" unique_id=1078709453]
+instance_shader_parameters/plan_at = Vector4(30, 3.2, 21, 0)
+surface_material_override/0 = ExtResource("2")
+
 [node name="Dressing" type="Node3D" parent="." unique_id=728453561]
 
-[node name="small_table_1" parent="Dressing" unique_id=363370788 instance=ExtResource("7")]
+[node name="small_table_1" parent="Dressing" unique_id=363370788 instance=ExtResource("8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0, 1.4)
 metadata/prop = "small_table"
 
-[node name="small_table" parent="Dressing/small_table_1" index="0" unique_id=1606093625]
-surface_material_override/0 = ExtResource("8")
+[node name="small_table" parent="Dressing/small_table_1" index="0" unique_id=1249164248]
+visible = false
+surface_material_override/0 = ExtResource("9")
 
-[node name="balcony_chair_1" parent="Dressing" unique_id=746060927 instance=ExtResource("9")]
+[node name="balcony_chair_1" parent="Dressing" unique_id=746060927 instance=ExtResource("10")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0, 0.6)
 metadata/prop = "balcony_chair"
 
-[node name="balcony_chair_2" parent="Dressing" unique_id=1668968718 instance=ExtResource("9")]
+[node name="balcony_chair" parent="Dressing/balcony_chair_1" index="0" unique_id=1864434127]
+visible = false
+
+[node name="balcony_chair_2" parent="Dressing" unique_id=1668968718 instance=ExtResource("10")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.55, 0, 2.2)
 metadata/prop = "balcony_chair"
 
-[node name="planter_pot_1" parent="Dressing" unique_id=1304287602 instance=ExtResource("10")]
+[node name="balcony_chair" parent="Dressing/balcony_chair_2" index="0" unique_id=1864434127]
+visible = false
+
+[node name="planter_pot_1" parent="Dressing" unique_id=1304287602 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0, 0.35)
 metadata/prop = "planter_pot"
 
-[node name="planter_pot_2" parent="Dressing" unique_id=1406163638 instance=ExtResource("10")]
+[node name="planter_pot" parent="Dressing/planter_pot_1" index="0" unique_id=722383303]
+visible = false
+
+[node name="planter_pot_2" parent="Dressing" unique_id=1406163638 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 0, 0.35)
 metadata/prop = "planter_pot"
 
-[node name="planter_pot_3" parent="Dressing" unique_id=799633566 instance=ExtResource("10")]
+[node name="planter_pot" parent="Dressing/planter_pot_2" index="0" unique_id=722383303]
+visible = false
+
+[node name="planter_pot_3" parent="Dressing" unique_id=799633566 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 0.35)
 metadata/prop = "planter_pot"
 
-[node name="planter_pot_4" parent="Dressing" unique_id=1835751002 instance=ExtResource("10")]
+[node name="planter_pot" parent="Dressing/planter_pot_3" index="0" unique_id=722383303]
+visible = false
+
+[node name="planter_pot_4" parent="Dressing" unique_id=1835751002 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.65, 0, 2.65)
 metadata/prop = "planter_pot"
 
+[node name="planter_pot" parent="Dressing/planter_pot_4" index="0" unique_id=722383303]
+visible = false
+
+[node name="batch_dressing" parent="Dressing" unique_id=1427690446 instance=ExtResource("12")]
+
+[node name="merged_props" parent="Dressing/batch_dressing" index="0" unique_id=894712490]
+cast_shadow = 0
+surface_material_override/0 = ExtResource("9")
+
+[node name="batch_dressing_shadow" parent="Dressing" unique_id=1037982038 instance=ExtResource("13")]
+
+[node name="shadow" parent="Dressing/batch_dressing_shadow" index="0" unique_id=1100554407]
+cast_shadow = 3
+gi_mode = 0
+
 [node name="Fixtures" type="Node3D" parent="." unique_id=1170068799]
 
-[node name="lantern_1" parent="Fixtures" unique_id=1321658435 instance=ExtResource("11")]
+[node name="lantern_1" parent="Fixtures" unique_id=1321658435 instance=ExtResource("14")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.7, 1.4)
 metadata/prop = "lantern"
 
-[node name="lantern_2" parent="Fixtures" unique_id=1314234547 instance=ExtResource("11")]
+[node name="lantern" parent="Fixtures/lantern_1" index="0" unique_id=1329506609]
+visible = false
+
+[node name="lantern_2" parent="Fixtures" unique_id=1314234547 instance=ExtResource("14")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 2.7)
 metadata/prop = "lantern"
 
-[node name="string_lights_1" parent="Fixtures" unique_id=1846583132 instance=ExtResource("12")]
+[node name="lantern" parent="Fixtures/lantern_2" index="0" unique_id=1329506609]
+visible = false
+
+[node name="string_lights_1" parent="Fixtures" unique_id=1846583132 instance=ExtResource("15")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.6, 2.85)
 metadata/prop = "string_lights"
+
+[node name="string_lights" parent="Fixtures/string_lights_1" index="1" unique_id=1013939515]
+visible = false
+
+[node name="batch_fixtures" parent="Fixtures" unique_id=1921254254 instance=ExtResource("16")]
+
+[node name="merged_props" parent="Fixtures/batch_fixtures" index="0" unique_id=1738963669]
+cast_shadow = 0
+
+[node name="batch_fixtures_shadow" parent="Fixtures" unique_id=1089208286 instance=ExtResource("17")]
+
+[node name="shadow" parent="Fixtures/batch_fixtures_shadow" index="0" unique_id=1711475506]
+cast_shadow = 3
+gi_mode = 0
 
 [node name="balcony_string_lights_01" type="OmniLight3D" parent="Fixtures" unique_id=720498282]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.6, 1.5)
@@ -235,4 +307,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 0)
 [editable path="Shell/floor_boards_2x1_3"]
 [editable path="Shell/floor_boards_2x1_4"]
 [editable path="Shell/floor_boards_2x1_5"]
+[editable path="Shell/merged_floor"]
 [editable path="Dressing/small_table_1"]
+[editable path="Dressing/balcony_chair_1"]
+[editable path="Dressing/balcony_chair_2"]
+[editable path="Dressing/planter_pot_1"]
+[editable path="Dressing/planter_pot_2"]
+[editable path="Dressing/planter_pot_3"]
+[editable path="Dressing/planter_pot_4"]
+[editable path="Dressing/batch_dressing"]
+[editable path="Dressing/batch_dressing_shadow"]
+[editable path="Fixtures/lantern_1"]
+[editable path="Fixtures/lantern_2"]
+[editable path="Fixtures/string_lights_1"]
+[editable path="Fixtures/batch_fixtures"]
+[editable path="Fixtures/batch_fixtures_shadow"]

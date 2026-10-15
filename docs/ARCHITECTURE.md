@@ -6216,12 +6216,15 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
 - **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
   `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece, a node declaring
-  `size_m`, is listed there or in `LOCKED`: the attic, whose hatch ladder is no walk; it stays locked until the art's walkable stair under a
-  longer hatch replaces the ladder, prime-game-art#183, and its knife marker moved to the pump room, #523); a flood fill of the
-  crouched capsule from the `round_player` spawn markers over those pieces' walked colliders (the art rooms' `Shell`
-  floor, slab and stair pieces, the garage's among them since the art's P6, #1052, and the plot's ground; each spot named
-  after the smallest piece whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`,
-  any drop) gives the spots a player walks to, every piece reached; from one open spot near each piece's middle, every launching
+  `size_m`, is listed there or in `LOCKED`, which is empty: the art's walkable attic stair under a 3.125 x 1.14 m
+  hatch replaced the hatch ladder, prime-game-art#183 and #188, #1080, which also moved the attic's knife marker
+  back from the pump room, where #523 had put it); a flood fill of the crouched capsule from the `round_player`
+  spawn markers over those pieces' walked colliders (the art rooms' `Shell` floor, slab and stair pieces, the
+  garage's among them since the art's P6, #1052, and the plot's ground; each spot named after the smallest piece
+  whose footprint holds it; 0.5 m apart in two halves, each rise at most `step_height_m`, any drop; a flight
+  narrower than the lattice, the attic stair between its stringer walls, is walked 0.1 m at a time along
+  `NARROW_FLIGHTS` from a spot at its foot, its top joining the fill) gives the spots a player walks to, every
+  piece reached; from one open spot near each piece's middle, every launching
   `Strike` of the base mode's item kinds (read from the data) knocks a body down in 8 directions, and each rest must
   lie off the locked roof and within the raise's reach of a spot (`TargetInReach`'s distance from its feet, read from
   the `Raise` rule, and `TargetInSight` from its crouched eye). On the House as it stands every knife launch passes;
@@ -8199,6 +8202,12 @@ assets/
   Tests: `tools/runner/tests/test_editables.py` (in `selftest`); `tests/integration/levels/house_overrides_test.gd`
   (each room and the plot packed as a re-save packs it keep every property they set; text cannot see an instance
   nested in an instanced scene).
+  Since #1080 (art main 7df542b, the attic stair of art #188) the art draws each room through `merged_*` meshes in
+  `Shell` and `batch_*` ones in `Dressing` (art #184; shadow-only twins, art #189), the per-piece meshes `visible =
+  false` beside them and their colliders still on the pieces' wrappers. A station prop the game replaces with its
+  station scene must stay out of the art's batch (the art's `[merge] keep_props`), else the batch draws the art's copy
+  where the station draws its own: the garage's `part_picture` does (an art note on #1042). The re-import was a
+  three-way node merge (base: the art export each room was taken from), so every game change to a room stayed.
   The garage (the art's P6, #1052) holds the art's car, lift posts and lift arms inside the car's station scene
   (car repair's R5, #809, §9.5.21), the lift panel behind its partition; its 8 m gate's leaf is an opening (layer 0,
   E4) under its lintel.

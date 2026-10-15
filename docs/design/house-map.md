@@ -111,7 +111,7 @@ room record (#306): its id, its scene's file name, and the copy deck's `room.<id
 |---|---|---|---|
 | Bedroom | 18, 24 | 8 x 10 m | No task yet. |
 | Kids' room | 18, 34 | 8 x 10 m | No task yet. |
-| Landing | 26, 24 | 8 x 20 m | The stairs down and the hatch with a ladder up to the attic. |
+| Landing | 26, 24 | 8 x 20 m | The stairs down and the stair up through the hatch to the attic. |
 | Study | 34, 24 | 8 x 8 m | The computer and the printer for the photos (decision 7). |
 | Bathroom | 34, 32 | 8 x 4 m | |
 | Guest room | 34, 36 | 8 x 8 m | No task yet. |
@@ -131,7 +131,7 @@ room record (#306): its id, its scene's file name, and the copy deck's `room.<id
 | Outdoor stairs behind the garage: the yard to the passage and the generator hall | 64, 31 | 0 <-> -1 |
 | Main stairs: the ground floor to the landing | 28, 33 | 0 <-> 1 |
 | External stairs: the terrace to the balcony | 39, 22.5 | 0 <-> 1 |
-| Hatch and ladder: the landing to the attic | 28, 28.5 | 1 <-> 2 |
+| Attic stair: the landing up west through the 3.125 x 1.14 m hatch to the attic (the art's `stair_attic`, a walked 40.4 degree flight, art #188; the engineer's answer 1B on PR #1043, #1080) | 28, 29.3 | 1 <-> 2 |
 | Climb-out: the attic's dormer window to the roof (the art's `stair_dormer`, #523) | 35, 42.85 | 2 (locked, decision 11) |
 
 Ways into the house on the ground floor: the main entrance from the path (hallway, south), the kitchen's side door
