@@ -146,6 +146,25 @@ func test_a_rest_in_the_attic_is_not_on_the_roof_but_one_on_its_top_is() -> void
 	assert_bool(HouseThrows.on_roof(_world, Vector3(35, 3.2, 22))).is_false()
 
 
+func test_the_hatch_rail_is_the_attic_and_the_dormer_slope_is_the_roof() -> void:
+	# The attic stair's hatch (art #188, #1080) has a 1 m rail along its long sides, its top at
+	# 7.4 m: a rest on it hides the floor straight below, but sees it beside the rail, so it is in
+	# the attic (the ring, HouseThrows.ATTIC_LOOK_M).
+	assert_bool(HouseThrows.on_roof(_world, Vector3(28.0, 7.4, 28.69))).is_false()
+	assert_bool(HouseThrows.on_roof(_world, Vector3(28.0, 7.4, 29.91))).is_false()
+	# The ring must not turn a roof rest into an attic one: the slope and the ridge of the dormer
+	# at x 35, z 36 to 43 (its window is open), read as the top floor at each spot, are all roof.
+	var checked := 0
+	for x: float in [33.0, 34.0, 34.5, 35.0, 35.5, 36.0, 37.0]:
+		for z: float in [37.0, 38.0, 40.0, 41.0, 42.0, 42.85, 43.5]:
+			var top := _world.floor_below(Vector3(x, 14.0, z))
+			if top == WorldQuery.NO_FLOOR or top.y < HouseThrows.ROOF_Y + 1.0:
+				continue
+			checked += 1
+			assert_bool(HouseThrows.on_roof(_world, top)).is_true()
+	assert_int(checked).is_greater(20)
+
+
 # House's host world with a 1 m by 1 m block of `height` standing on the floor at `base` (centre
 # of its bottom face).
 func _house_with_box(base: Vector3, height: float) -> HostWorldQuery:
