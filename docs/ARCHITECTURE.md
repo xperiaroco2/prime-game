@@ -4846,8 +4846,12 @@ RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of t
   (RE8 on NetPair with the real car: a jump at the lowered car and a standing walk at the raised one stay out, a
   crouched walk goes under and out, no Correction; the drop on a crouched player at the end prints its push on an
   `RE8 edge:` line; planted: `movers` off the living mask, failed, reverted),
+  `tests/integration/client/world/item_world_car_repair_test.gd` (the own fit in the raise bar, and a raise),
   `tests/integration/client/player/player_controller_downed_test.gd`; fixture
-  `tests/fixtures/client/fixture_car_repair_client.gd`.
+  `tests/fixtures/client/fixture_car_repair_client.gd`. `shot` previews: `client/dev/car_repair_preview.tscn` (fully
+  up, the lamp lit, a picture per part beside the shelf), `car_repair_half_preview.tscn`,
+  `car_repair_lowered_preview.tscn` and `car_repair_crouch_preview.tscn` (the crouched eye under the raised car), on a
+  CarRepair built in `car_repair_preview.gd` until R6 (#810).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
