@@ -1,0 +1,4 @@
+[gd_resource type="ConvexPolygonShape3D" format=3 uid="uid://c1gp1hnnirdhm"]
+
+[resource]
+points = PackedVector3Array(0, 0, -0.08, 0, 0, 0, 0, 1, -0.08, 0, 1, 0, 3.2050002, 0, -0.08, 3.2050002, 0, 0, 3.2050002, 1, -0.08, 3.2050002, 1, 0)

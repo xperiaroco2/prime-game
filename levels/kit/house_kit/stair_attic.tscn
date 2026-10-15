@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://b8msf8qrrevdb"]
+
+[ext_resource type="PackedScene" uid="uid://b7mchreticqse" path="res://assets/environment/house_kit/stair_attic.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://ctworijkjmaxj" path="res://levels/kit/house_kit/stair_attic.stair_attic_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://da7nm88l5crp0" path="res://levels/kit/house_kit/stair_attic.stair_attic_col1.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://b3ipcxrp2fcj2" path="res://levels/kit/house_kit/stair_attic.stair_attic_col2.tres" id="4"]
+
+[node name="stair_attic" unique_id=384330532 instance=ExtResource("1")]
+
+[node name="stair_attic_col0" type="StaticBody3D" parent="." unique_id=62116934]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stair_attic_col0" unique_id=524606375]
+shape = ExtResource("2")
+
+[node name="stair_attic_col1" type="StaticBody3D" parent="." unique_id=1958012112]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stair_attic_col1" unique_id=1880517958]
+shape = ExtResource("3")
+
+[node name="stair_attic_col2" type="StaticBody3D" parent="." unique_id=1841149290]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stair_attic_col2" unique_id=445689892]
+shape = ExtResource("4")
