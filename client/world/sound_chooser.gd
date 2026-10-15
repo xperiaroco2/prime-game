@@ -83,8 +83,10 @@ const SIZZLE := &"sizzle"
 ## marker on the floor: the ray aims there, as at a panel. A placeholder, "not a decision".
 const COUNTER_AIM_M := PANEL_AIM_M
 ## The car repair's sounds (#811, the car repair ADR's RD14): the lift coming down, at its car,
-## only in the round (the phase end's stop lowers the car without a crash, RE4); a part fitted, at
-## the car. FitChanged makes no sound; a part taken from a bin is ItemPickedUp's pick-up.
+## only in the round (the phase end's stop lowers the car without a crash, RE4; its LiftChanged
+## comes before its PhaseChanged, so WorldSounds holds the crash to the next physics frame and plays
+## it only while the round runs); a part fitted, at the car. FitChanged makes no sound; a part
+## taken from a bin is ItemPickedUp's pick-up.
 const LIFT_CRASH := &"lift_crash"
 const PART_FITTED := &"part_fitted"
 ## Where at the car its sounds aim: about its middle.

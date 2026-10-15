@@ -4835,9 +4835,10 @@ RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of t
   progress from `FitChanged`'s tick fills the raise bar (`ItemWorld.fit_shown`, `HudText.Local.raising`); a player
   that fits nothing sees none.
 - **The sounds.** `SoundChooser`: `LIFT_CRASH` at the car on `LiftChanged(up = false)` in the round only (the phase's
-  end lowers it without a kill), `PART_FITTED` at the car, each `CAR_AIM_M` above, cut at 12 m and muffled; `FitChanged`
-  is silent (RD14 (a)). `StationHums` runs the lift's motor at the car while it rises (a hum placeholder at a lower
-  pitch). Placeholders, not decisions.
+  end lowers it without a kill; the host sends that stop's `LiftChanged` before its `PhaseChanged`, so `WorldSounds`
+  holds a crash to its next physics frame and plays it only if the round still runs), `PART_FITTED` at the car, each
+  `CAR_AIM_M` above, cut at 12 m and muffled; `FitChanged` is silent (RD14 (a)). `StationHums` runs the lift's motor
+  at the car while it rises (a hum placeholder at a lower pitch). Placeholders, not decisions.
 - **Tests.** `tests/unit/client/world/car_repair_use_test.gd`, `tests/unit/client/physics_layers_test.gd`,
   `tests/unit/client/net/client_model_test.gd`, `tests/integration/client/world/car_repair_views_test.gd` (the real
   `levels/stations/` scenes), `item_interactions_car_repair_test.gd`, `car_repair_sounds_test.gd`,

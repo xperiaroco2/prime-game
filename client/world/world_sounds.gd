@@ -91,6 +91,12 @@ var mode: GameMode
 var _played := 0
 var _rays := 0
 var _muffled := 0
+## The lift crashes chosen in this batch of events, played at the next physics frame (#811). The
+## host's phase end stops a hold, whose LiftChanged comes down, before its PhaseChanged (Match:
+## Channels.stop_all, then _enter_phase), so a crash that a PhaseChanged follows in the same batch
+## is the phase end's, which drops no car and kills nobody (RE4, RD16 (c)): at the next physics
+## frame the model has left the round, and the crash is dropped.
+var _held_crashes: Array[SoundChooser.Sound] = []
 var _steps := 0
 ## Where each player's feet were in the last physics frame, and its cadence; the own player's
 ## under 0 (no peer is 0).
@@ -132,7 +138,24 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	)
 	if sound == null:
 		return
+	if sound.id == SoundChooser.LIFT_CRASH:
+		_held_crashes.append(sound)
+		return
 	_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
+
+
+## Plays the lift crashes held from the last batch of events while the round still runs (#811);
+## each physics frame calls it first.
+func play_held() -> void:
+	if _held_crashes.is_empty():
+		return
+	var held := _held_crashes
+	_held_crashes = []
+	var heard_from: Variant = _heard_from()
+	if model == null or model.phase != &"round" or not heard_from is Vector3:
+		return
+	for sound: SoundChooser.Sound in held:
+		_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
 
 
 ## How many sounds were started, steps included (tests).
@@ -343,6 +366,7 @@ func position_of(peer: int) -> Variant:
 
 
 func _physics_process(delta: float) -> void:
+	play_held()
 	var walking: Dictionary[int, Vector3] = {}
 	if player != null and player.is_inside_tree() and player.is_living():
 		walking[0] = player.global_position

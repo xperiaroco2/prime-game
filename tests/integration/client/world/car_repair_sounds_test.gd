@@ -1,7 +1,9 @@
 extends GdUnitTestSuite
 ## The car repair's sounds (#811, the car repair ADR's RD14 (a); SoundChooser, WorldSounds,
 ## StationHums): LiftChanged going down crashes at the car of that panel, in the round only (the
-## phase end's stop lowers the car without a kill, RE4: no crash then); PartFitted plays at the car;
+## phase end's stop lowers the car without a kill, RE4: no crash then; the host sends that stop's
+## LiftChanged before its PhaseChanged, so WorldSounds holds a crash to the next physics frame and
+## drops it once the model has left the round); PartFitted plays at the car;
 ## FitChanged is silent everywhere and nothing sounds at the panel for a fit (RE16); each within the
 ## hearing range. WorldSounds plays each on a generated placeholder, and the lift's motor hums at
 ## the car while it rises, keyed by the panel, until it is fully up or let go.
@@ -39,9 +41,26 @@ func test_the_lift_coming_down_crashes_at_the_car() -> void:
 
 
 func test_the_phase_end_s_stop_makes_no_crash() -> void:
-	_choose(&"LiftChanged", _lift(true, 10), CAR_AT)
-	F.fold(_model, PhaseChangedEvent.new(&"end", 2000))
-	assert_object(_choose(&"LiftChanged", _lift(false, 20), CAR_AT)).is_null()
+	# The host's order: Match stops the channels (the hold's LiftChanged down), then enters the
+	# next phase (its PhaseChanged), both in one batch of events.
+	var sounds := _sounds()
+	_deliver(sounds, &"LiftChanged", _lift(true, 10))
+	_deliver(sounds, &"LiftChanged", _lift(false, 20))
+	var phase := PhaseChangedEvent.new(&"end", 2000)
+	_deliver(sounds, phase.event_name(), phase.to_dict())
+	await _physics_frames()
+	assert_int(sounds.played()).is_equal(0)
+
+
+func test_a_let_go_in_the_round_crashes_at_the_next_physics_frame() -> void:
+	var sounds := _sounds()
+	_deliver(sounds, &"LiftChanged", _lift(true, 10))
+	_deliver(sounds, &"LiftChanged", _lift(false, 20))
+	assert_int(sounds.played()).is_equal(0)
+	await _physics_frames()
+	assert_int(sounds.played()).is_equal(1)
+	await _physics_frames()
+	assert_int(sounds.played()).is_equal(1)
 
 
 func test_a_part_fitted_sounds_at_the_car_and_a_fit_starting_is_silent() -> void:
@@ -56,22 +75,16 @@ func test_a_part_fitted_sounds_at_the_car_and_a_fit_starting_is_silent() -> void
 
 
 func test_world_sounds_plays_each_car_repair_sound_on_its_placeholder() -> void:
-	var sounds := WorldSounds.new()
-	sounds.model = _model
-	sounds.mode = _mode
-	sounds.listener = func() -> Variant: return CAR_AT
-	_model.fold(&"LiftChanged", _lift(false, 20))
-	sounds.on_event(&"LiftChanged", _lift(false, 20))
+	var sounds := _sounds()
+	_deliver(sounds, &"LiftChanged", _lift(false, 20))
 	F.hold(_model, 40, &"spark_plug", F.OTHER)
-	var fitted := {"station": F.CAR, "item": 40}
-	_model.fold(&"PartFitted", fitted)
-	sounds.on_event(&"PartFitted", fitted)
+	_deliver(sounds, &"PartFitted", {"station": F.CAR, "item": 40})
+	await _physics_frames()
 	assert_int(sounds.played()).is_equal(2)
 	for child: Node in sounds.get_children():
 		var player := child as AudioStreamPlayer3D
 		assert_object(player.stream).is_instanceof(AudioStreamWAV)
 		assert_float(player.max_distance).is_equal(RANGE)
-	sounds.free()
 
 
 func test_the_placeholders_exist() -> void:
@@ -119,6 +132,27 @@ func _choose(event_name: StringName, fields: Dictionary, listener: Vector3) -> S
 
 func _nobody(_peer: int) -> Variant:
 	return null
+
+
+## A WorldSounds hearing at the car, in the test's world (freed with it).
+func _sounds() -> WorldSounds:
+	var sounds := WorldSounds.new()
+	sounds.model = _model
+	sounds.mode = _mode
+	sounds.listener = func() -> Variant: return CAR_AT
+	_world.add_child(sounds)
+	return sounds
+
+
+## `event_name` folded into the model, then heard by `sounds`, as ClientSession emits it.
+func _deliver(sounds: WorldSounds, event_name: StringName, fields: Dictionary) -> void:
+	_model.fold(event_name, fields)
+	sounds.on_event(event_name, fields)
+
+
+func _physics_frames() -> void:
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 
 
 func _frames() -> void:
