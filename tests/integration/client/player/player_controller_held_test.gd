@@ -45,12 +45,12 @@ func test_held_movement_keys_are_not_read_until_it_is_cleared() -> void:
 func test_a_mouse_motion_turns_nobody_while_held() -> void:
 	_player.reads_device_input = true
 	_player.held = true
-	var before := _player.look_vector()
+	var look_before := _player.look_vector()
 	_move_mouse()
-	assert_vector(_player.look_vector()).is_equal_approx(before, Vector3.ONE * 1e-6)
+	assert_vector(_player.look_vector()).is_equal_approx(look_before, Vector3.ONE * 1e-6)
 	_player.held = false
 	_move_mouse()
-	assert_float(_player.look_vector().distance_to(before)).is_greater(1e-3)
+	assert_float(_player.look_vector().distance_to(look_before)).is_greater(1e-3)
 
 
 ## A mouse motion of 40 px to the right, as the mouse sends it.
