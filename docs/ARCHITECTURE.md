@@ -7796,8 +7796,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   which a press and a switch are refused `unavailable` and the round goes on (Delivery is not done); with two active
   switches the two markers the deal left hold no station (GE14). The refusals in the House's own geometry: behind the
   generator's body, inside its cylinder, `blocked`; in plain sight 2.5 m from it `out_of_reach`. At GD6's 2 m no
-  standing spot of another room lies inside a use cylinder (a probe of #802 found the nearest 3 m from switch A, in the
-  darkroom; 3.35 m from B, in the darkroom; 3.45 m from D, in the hall; none within 4 m of C), so a player in the
+  standing spot of another room lies inside a switch's cylinder (a one-off probe of #802, not kept in the repo, found
+  the nearest 3 m from switch A, in the darkroom; 3.35 m from B, in the darkroom; 3.45 m from D, in the hall; none
+  within 4 m of C; the generator's cylinder was not probed for one), so a player in the
   darkroom behind the storage's wall is refused `out_of_reach`; with the switch cylinder widened to 3.5 m in a copy
   of the mode (a test value, not a decision), the same player is refused `blocked` by the wall. Seen failing with the
   leak plant (§4.6.4.1) and with `StationInSight` always passing (both `blocked` tests); each reverted.
