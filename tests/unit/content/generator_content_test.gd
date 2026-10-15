@@ -67,9 +67,9 @@ func test_the_switches_setting_and_every_type_in_every_match() -> void:
 	# The label is GD1's placeholder, "not a decision": the engineer approves it in the PR.
 	assert_str(switches.display_name).is_not_empty()
 	# `tasks` (GD7 (i)): every type that plays on the map, every match, so its default and maximum
-	# are the most types one map plays: the House's three (Delivery, the Generator and the photo
-	# task, #784); the greybox deals its Delivery by colours alone (DealTasks deals a smaller pool
-	# whole).
+	# are the most types one map plays: the House's four (Delivery, the Generator, the photo task,
+	# #784, and Cooking, #775); the greybox deals its Delivery by colours alone (DealTasks deals a
+	# smaller pool whole).
 	var tasks := mode.find_setting(&"tasks")
 	var most := 0
 	for path: String in mode.maps:
