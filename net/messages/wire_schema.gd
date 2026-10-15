@@ -48,7 +48,10 @@ extends RefCounted
 ## the Rejected reason `moving` (the knockdown rework's KE5, KE12).
 ## 31 since #990 added the `sneaking` flag to MoveClaim's and MoveClaimReliable's flags (16) and the
 ## snapshot avatar's (8).
-const VERSION := 31
+## 32 since #775 raised SettingsChanged's shortfalls from 32 to 64 entries (the base mode now demands
+## 29 spawn tags, and a text per demanded tag is a shortfall; WireBudget sizes it as one subject).
+## No row changed otherwise.
+const VERSION := 32
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -79,7 +82,7 @@ const MAX_ENTRIES := 32
 const MAX_TASK_TYPES := 16
 ## Cooking's herbs (HerbsDealt's lists, #772): a list's count is a u8, as an order's icon is.
 const MAX_HERBS := 255
-const MAX_SHORTFALLS := 32
+const MAX_SHORTFALLS := 64
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
 const MAX_TEXT_NUMBERS := 4

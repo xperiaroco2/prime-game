@@ -77,7 +77,7 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 
 
 func test_the_most_demanded_tags_refuse_the_settings_but_not_the_stations() -> void:
-	var problems := "\n".join(WireBudget.check(_demanding(_mode(10, 3, 1, 4), 16, 16)))
+	var problems := "\n".join(WireBudget.check(_demanding(_mode(10, 3, 1, 4), 32, 32)))
 	assert_str(problems).contains("SettingsChanged (kind 37): ")
 	assert_str(problems).not_contains("StationPlaced")
 	assert_str(problems).not_contains("ItemSpawned")
@@ -112,8 +112,15 @@ func test_the_longest_shortfall_of_each_kind_is_a_host_text_the_wire_takes() -> 
 		assert_array(found.map(func(text: HostText) -> StringName: return text.id))
 		. is_equal([HostText.PLAYERS_FEW, HostText.NO_LAYOUT])
 	)
-	found.append_array(needed.shortfalls(LevelLayout.new(mode.maps[0])))
+	var demanded := needed.shortfalls(LevelLayout.new(mode.maps[0]))
+	found.append_array(demanded)
 	assert_int(found.size()).is_equal(needed.markers.size() + needed.colours.size() + 2)
+	# What WireBudget sizes a demanded tag or palette as (_demanded_text): one subject and the
+	# two arguments `need` and `have`.
+	assert_int(demanded.size()).is_equal(needed.markers.size() + needed.colours.size())
+	for text: HostText in demanded:
+		assert_int(text.ids.size()).override_failure_message(str(text)).is_equal(1)
+		assert_array(text.numbers.keys()).override_failure_message(str(text)).contains_exactly_in_any_order([&"need", &"have"])
 	var schema := WireSchema.game(false)
 	var fields: Dictionary = {}
 	for message: WireMessage in WireBudget.worst_cases(mode):
@@ -279,7 +286,7 @@ func test_station_kinds_with_no_demanded_palette_add_no_shortfall() -> void:
 	# demand none (the photo task's five, #784) size the station ids, never the shortfalls.
 	var mode := _mode(10, 3, 1, 1)
 	var kinds: Array[StationKind] = []
-	for i: int in WireSchema.MAX_SHORTFALLS - 1:
+	for i: int in WireSchema.MAX_ENTRIES - 1:
 		kinds.append(FixtureKindsType.kind(StringName(_id(100 + i)), &"spot"))
 	mode.task_types = [FixtureKindsType.of(&"kinds", kinds)]
 	var changed: WireMessage = null
