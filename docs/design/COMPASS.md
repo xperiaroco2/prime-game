@@ -27,6 +27,23 @@ In the repo the tone is described, never named:
 
 **The tone test:** could this be a scene in one of the engineer's references? If not, drop it before he sees it.
 
+**The vibe** (his six principles, approved 2026-10-16: [#1095 comment 6211564717](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6211564717),
+from his direction in [comment 6211140103](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6211140103);
+the examples come only from his references, never from other works):
+1. **A real party, not a parody.** The aliens party hard and sincerely: they drink, smoke, dance, sing, puke and fall
+   into the pool; beer, a bong, energy drinks, pizza and burgers everywhere. Adult jokes for teenagers and up. The
+   tasks are woven into the party.
+2. **Slay.** The aliens are masters: what they make is stylish, fashionable and modern, as on the makeover show; a job
+   ends in a "wow" reveal for the whole party.
+3. **Tech with a character and its own problem.** One mania or drama per device, its job taken literally to the
+   absurd; it speaks only when something happens, never non-stop.
+4. **A gadget for a small thing that blows everything up,** in front of the party.
+5. **The body, the high and the gross as the joke.** High, drunk, swollen, transformed, puked on: dumb and funny,
+   never scary, no guts.
+6. **References everywhere.** Earth pop culture in an alien version, played straight; parody only (§3).
+
+**Not the vibe:** a shy, childish party ("we party, we bake pies"); jokes dragged in by the ears; slow, careful work.
+
 ## 3. The pillars as a checklist
 Each idea answers these (GDD §1 is the source; numbers are placeholders until a balance model and a playtest):
 - Fun from the first second; never boring: nobody waits long, a mistake costs a short time out.
