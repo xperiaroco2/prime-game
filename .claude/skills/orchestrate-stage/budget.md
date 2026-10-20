@@ -87,6 +87,10 @@ art for the month from 2026-10-15 (below):
   any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost.
 - **The 93% stop**, a standing rule: no new launch while the weekly counter reads 93% or more, whatever the track's
   own budget; runs in flight finish. Read the counter before each wave's launches.
+- **80% for game, meta and UI** while design 50% and art 50% hold (the month from 2026-10-15): the game, meta and UI
+  managers launch nothing new once the weekly counter (get_usage) reads 80% or more; design and art go on up to the
+  93% stop. Runs in flight finish (the engineer's answer 1A,
+  [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723)).
 
 ## The PC (N3 (b))
 - At most **four task workflows of this repo** at once: by day the game 3 and meta 1; at night either track up to 3,
