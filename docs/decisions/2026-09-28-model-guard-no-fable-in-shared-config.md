@@ -120,7 +120,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     was certain) or `models.publish_findings` (#835's advice "stop": 2.40 findings not fixed a task against the Opus
     baseline's 0.83, over 5 Sonnet tasks). `pr-rebase`'s `models.publish: "sonnet"` continues under the rules of
     2026-10-11 (advice "continue" at 8 of its 10 runs). The scripts keep the roles and no default names a model, so
-    nothing else changes.
+    nothing else changes. Since #1147 (2026-10-20, the answer 3A in #302 comment 6291039723) `issue-task.js`
+    refuses the three and has no `publish_findings` role (a run with findings publishes on `publish`).
   - **2026-10-20** (#1146, the answer 2A to the weekly report). Approved by the engineer:
     https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723. #835's `pr-rebase` verdict (from
     2026-10-08 12:25Z to 2026-10-20 10:00Z, `metrics`' "Sonnet publisher trial (#835)": 16 Sonnet against 13 Opus
