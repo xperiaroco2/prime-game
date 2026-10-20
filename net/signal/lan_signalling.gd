@@ -55,10 +55,6 @@ func handled() -> int:
 	return _handled
 
 
-func socket_count() -> int:
-	return _sockets.size()
-
-
 func poll() -> void:
 	while _server.is_listening() and _server.is_connection_available():
 		var peer := WebSocketPeer.new()
