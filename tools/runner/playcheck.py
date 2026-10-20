@@ -96,7 +96,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import hostjoin, launch, shot
+from . import hostjoin, launch, offscreen, shot
 from .common import IS_CI, LOGS, OUT, ROOT, Failure, bad, ensure_out, ok, rel, require_godot, say
 
 SCENARIOS = ROOT / "tools" / "playcheck" / "scenarios"
@@ -647,8 +647,9 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
 
 
 def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
-    """Windows: the window script in a real window at shot's off-screen position with the dummy audio driver. The
-    console exe opens them too, and relays the lines the runner reads. The bots: their script headless."""
+    """Windows: the window script in a real window off-screen (offscreen.START, its SIZE in the environment) with the
+    dummy audio driver. The console exe opens them too, and relays the lines the runner reads. The bots: their script
+    headless."""
     for part in parts:
         bots = part.label == "bots"
         part.cmd = launch.command(
@@ -659,8 +660,8 @@ def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
             offscreen=not bots,
             audio="dummy",
             user_args=part.user_args,
-            window=None if bots else ["--resolution", SIZE],
         )
+        part.env = {} if bots else offscreen.env(SIZE)
 
 
 def failed_line(part: hostjoin.Part) -> str:
@@ -691,6 +692,9 @@ def problem(part: hostjoin.Part, *, others_failed: bool = False) -> str:
         return line.removeprefix(FAIL)
     if part.problem:
         return part.problem
+    placed = "" if part.label == "bots" else offscreen.problem(part.lines)
+    if placed:
+        return f"its window was {placed}"
     if part.label != "bots" and not done(part):
         where = last_step(part)
         why = "stopped before its steps were done, since another process failed" if others_failed else (

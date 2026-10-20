@@ -393,8 +393,9 @@ class CommandTest(unittest.TestCase):
         for part in parts[:2]:
             cmd = part.cmd
             self.assertNotIn("--headless", cmd)
-            self.assertEqual(cmd[cmd.index("--position") + 1], shot.POSITION)
-            self.assertEqual(cmd[cmd.index("--resolution") + 1], playcheck.SIZE)
+            self.assertEqual(cmd[cmd.index("--position") + 1], "30000,-30000")  # off-screen, #1141
+            self.assertEqual(cmd[cmd.index("--resolution") + 1], "1x1")
+            self.assertEqual(part.env, {"PRIME_WINDOW": playcheck.SIZE})
             self.assertEqual(cmd[cmd.index("--audio-driver") + 1], "Dummy")
             self.assertEqual(cmd[cmd.index("-s") + 1], playcheck.WINDOW_SCRIPT)
             self.assertIn(f"--plan={Path('/out/probe/plan.json')}", cmd)
@@ -409,6 +410,7 @@ class CommandTest(unittest.TestCase):
         self.assertIn(f"--join={hostjoin.LOCALHOST}", guest)
         self.assertIn("--headless", bots)
         self.assertNotIn("--position", bots)
+        self.assertEqual(parts[2].env, {})
         self.assertEqual(bots[bots.index("-s") + 1], playcheck.BOTS_SCRIPT)
         for arg in (f"--scenario=res://{BOTS}", "--first=3", f"--peers={Path('/out/probe/peers')}", "--port=24999"):
             self.assertIn(arg, bots)
@@ -492,6 +494,10 @@ def say(text):
     print(text, flush=True)
 if window == "1":
     say("session: hosting base_mode.tres on 127.0.0.1:1")
+if window and what != "unplaced":
+    # tools/offscreen/offscreen.gd place() (#1141); "onscreen": a window Godot left on the screen.
+    at = "-8,-31" if what == "onscreen" else "-30008,-30031"
+    say(f"OFFSCREEN window {at} 1296x759 screens 0,0,2560,1440 ticks 990")
 if window:
     plan = json.loads(pathlib.Path(args["--plan"]).read_text(encoding="utf-8"))
     for i, step in enumerate(plan["steps"][window], start=1):
@@ -579,6 +585,17 @@ class RunTest(unittest.TestCase):
         self.assertIn("playcheck probe: passed", printed)
         self.assertIn(f"PLAYCHECK {out / 'host_view.png'}", printed)
         self.assertRegex(printed, r"ok    window 1: its steps done, stopped in \d+\.\ds")
+
+    def test_a_window_not_proven_off_screen_fails_the_run(self) -> None:
+        # #1141: Godot clamps a new window onto the screen; a window that never moved off it, or never said where it
+        # went, fails the run even when its steps were done.
+        for what, why in (("onscreen", "is on screen 0"), ("unplaced", "no OFFSCREEN line")):
+            with self.subTest(what=what):
+                code, parts = self.run_scenario({"window 2": what})
+                self.assertEqual(code, 1, self.out.getvalue())
+                self.assert_all_stopped(parts)
+                self.assertRegex(self.out.getvalue(), rf"FAIL  window 2: its window was not proven off-screen .*{why}")
+                self.assertIn("ok    window 1: its steps done", self.out.getvalue())
 
     def test_a_window_gets_its_own_longer_grace_to_exit_and_the_bots_hostjoins(self) -> None:
         # #354: a window's renderer teardown can take seconds under load after `session: stopped`.

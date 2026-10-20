@@ -2,13 +2,15 @@ extends SceneTree
 ## Renders one scene in a real window and saves a PNG. Used by `tools/run.py shot`.
 ##
 ## Run windowed and off-screen, never headless or minimized: Godot does not draw then, so
-## frame_post_draw would never fire.
-##   godot --position -30000,-30000 --resolution 1280x720 -s res://tools/shot/shot.gd
-##       -- <res://scene.tscn> <out.png> [frames]
+## frame_post_draw would never fire. The runner starts the window as one pixel and passes its size
+## in PRIME_WINDOW; Offscreen.place() then moves it off every screen and grows it (#1141):
+##   PRIME_WINDOW=1280x720 godot --position 30000,-30000 --resolution 1x1
+##       -s res://tools/shot/shot.gd -- <res://scene.tscn> <out.png> [frames]
 ## Prints SHOT renderer <driver> <method> (the rendering driver and method this window uses, since
 ## the runner passes --no-header), then SHOT saved <png> <width>x<height>, or SHOT error <why>.
 ## A watchdog quits after 60 s.
 
+const Offscreen := preload("res://tools/offscreen/offscreen.gd")
 const WATCHDOG_S: float = 60.0
 
 
@@ -16,6 +18,11 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if DisplayServer.get_name() == "headless":
 		_fail("running headless; shot needs a real window")
+		return
+	# First: Godot opened the window clamped onto the screen's corner (#1141).
+	var placed: String = Offscreen.place()
+	if placed != "":
+		_fail(placed)
 		return
 	if args.size() < 2:
 		_fail("usage: -- <res://scene.tscn> <out.png> [frames]")

@@ -3,6 +3,7 @@
 The real-Godot test runs tools/run/probe.gd headless in a throwaway project, so it needs no import of this one.
 """
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,15 +63,48 @@ class PathsAndArgumentsTest(unittest.TestCase):
         self.assertNotIn("--", cmd)
 
     def test_windowed_scene(self) -> None:
+        # Off-screen (#1141): one pixel at the clamp's top-right corner, the scene under the script that places the
+        # window off every screen first; the scene and the window's size go in the environment.
         cmd = launch.command("godot", ROOT, "res://a.tscn", headless=False, offscreen=True, audio="dummy", user_args=[])
         self.assertNotIn("--headless", cmd)
-        self.assertEqual(cmd[cmd.index("--position") + 1], "-30000,-30000")
+        self.assertEqual(cmd[cmd.index("--position") + 1], "30000,-30000")
+        self.assertEqual(cmd[cmd.index("--resolution") + 1], "1x1")
         self.assertEqual(cmd[cmd.index("--audio-driver") + 1], "Dummy")
-        self.assertNotIn("-s", cmd)
+        self.assertEqual(cmd[cmd.index("-s") + 1], launch.OFFSCREEN_SCENE)
+        self.assertNotIn("res://a.tscn", cmd)
+        self.assertEqual(
+            launch.offscreen_env("res://a.tscn"),
+            {"PRIME_WINDOW": "1152x648", launch.OFFSCREEN_SCENE_ENV: "res://a.tscn"},
+        )
+        script = launch.command("godot", ROOT, "res://a.gd", headless=False, offscreen=True, audio="dummy",
+                                user_args=[])  # fmt: skip
+        self.assertEqual(script[script.index("-s") + 1], "res://a.gd")
+        self.assertEqual(launch.offscreen_env("res://a.gd"), {"PRIME_WINDOW": "1152x648"})
         visible = launch.command("godot", ROOT, "res://a.tscn", headless=False, offscreen=False, audio="default",
                                  user_args=[])  # fmt: skip
         self.assertNotIn("--position", visible)
+        self.assertNotIn("--resolution", visible)
+        self.assertNotIn("-s", visible)
         self.assertNotIn("--audio-driver", visible)
+
+    def test_the_off_screen_size_is_the_projects_window_size(self) -> None:
+        text = (ROOT / "project.godot").read_text(encoding="utf-8")
+        width = re.search(r"^window/size/window_width_override=(\d+)$", text, re.MULTILINE)
+        height = re.search(r"^window/size/window_height_override=(\d+)$", text, re.MULTILINE)
+        assert width is not None and height is not None
+        self.assertEqual(launch.OFFSCREEN_SIZE, f"{width.group(1)}x{height.group(1)}")
+
+    def test_an_off_screen_instance_must_prove_its_window_off_screen(self) -> None:
+        placed = "OFFSCREEN window -30008,-30031 1296x759 screens 0,0,2560,1440 ticks 990\n"
+        on = "OFFSCREEN window -8,-31 1296x759 screens 0,0,2560,1440 ticks 990\n"
+        for out, problem in (("", "no OFFSCREEN line"), (on, "is on screen 0"), (placed, "")):
+            with self.subTest(out=out):
+                inst = launch.Instance(1, ROOT / "tools/out/logs/run/x-1.log", Result(0, out, False, 0.1), 60, True)
+                if problem:
+                    self.assertIn(problem, inst.problem)
+                else:
+                    self.assertEqual(inst.problem, "")
+        self.assertEqual(instance(0, "").problem, "")  # a window not started off-screen needs no line
 
     def test_everything_after_the_separator_reaches_the_game(self) -> None:
         argv = ["run", "a.gd", "--headless", "--", "--seconds", "9", "--", "x"]

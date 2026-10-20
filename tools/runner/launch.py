@@ -14,6 +14,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import offscreen as offscreen_window
 from . import shot
 from .check import ensure_import
 from .common import (
@@ -45,6 +46,11 @@ INSTANCE_ENV = "PRIME_INSTANCE"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 ERROR_RE = re.compile(r"^(?:USER )?(?:SCRIPT |SHADER )?ERROR: ")
 SHOWN_ERRORS = 3
+# `run --offscreen`: a scene runs under this script, which places the window off-screen first (#1141), and its
+# window gets project.godot's window_width_override and window_height_override, as a plain window would.
+OFFSCREEN_SCENE = "res://tools/offscreen/offscreen_scene.gd"
+OFFSCREEN_SCENE_ENV = "PRIME_OFFSCREEN_SCENE"
+OFFSCREEN_SIZE = "1152x648"
 
 
 def target_res(name: str) -> str:
@@ -71,9 +77,11 @@ def command(
     window: list[str] | None = None,
     engine_args: list[str] | None = None,
 ) -> list[str]:
-    """The Godot command line of one instance; `window` (such as --position and --resolution) only with a window.
+    """The Godot command line of one instance; `window` only with a window.
 
-    `engine_args` (such as `--fixed-fps 60`) go to the engine, before the target; `user_args` to the game, after `--`.
+    `offscreen`: the window starts as offscreen.START; the window script places it off-screen (a scene target runs
+    under OFFSCREEN_SCENE, which takes the scene from offscreen_env()). `engine_args` (such as `--fixed-fps 60`) go to
+    the engine, before the target; `user_args` to the game, after `--`.
     """
     cmd = [exe, "--no-header", "--path", str(project)]
     if headless:
@@ -81,15 +89,26 @@ def command(
         cmd += ["--headless"] if audio == "dummy" else ["--display-driver", "headless"]
     else:
         if offscreen:
-            cmd += ["--position", shot.POSITION]
+            cmd += offscreen_window.START
         cmd += window or []
         if audio == "dummy":
             cmd += ["--audio-driver", "Dummy"]
     cmd += engine_args or []
-    cmd += ["-s", target] if target.endswith(".gd") else [target]
+    if target.endswith(".gd"):
+        cmd += ["-s", target]
+    else:
+        cmd += ["-s", OFFSCREEN_SCENE] if offscreen and not headless else [target]
     if user_args:
         cmd += ["--", *user_args]
     return cmd
+
+
+def offscreen_env(target: str, size: str = OFFSCREEN_SIZE) -> dict[str, str]:
+    """The environment of an off-screen instance: its window's size, and a scene target for OFFSCREEN_SCENE."""
+    env = offscreen_window.env(size)
+    if not target.endswith(".gd"):
+        env[OFFSCREEN_SCENE_ENV] = target
+    return env
 
 
 def error_lines(lines: list[str], limit: int = SHOWN_ERRORS) -> tuple[int, list[str]]:
@@ -117,6 +136,8 @@ class Instance:
     log: Path
     result: Result
     seconds: int
+    # Its window started off-screen: the run must print a placed OFFSCREEN line (offscreen.problems, #1141).
+    offscreen: bool = False
 
     @property
     def errors(self) -> tuple[int, list[str]]:
@@ -135,11 +156,24 @@ class Instance:
         count = self.errors[0]
         if count:
             return f"exited 0 but printed {count} engine error line{'s' if count > 1 else ''}"
+        if self.offscreen:
+            return offscreen_window.problem(self.result.lines)
         return ""
 
 
-def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd: Path = ROOT) -> list[Instance]:
-    """Start every command at once, wait for all of them and write one log each. One instance echoes live."""
+def launch(
+    cmds: list[list[str]],
+    *,
+    seconds: int,
+    log_dir: Path,
+    name: str,
+    cwd: Path = ROOT,
+    env: dict[str, str] | None = None,
+    offscreen: bool = False,
+) -> list[Instance]:
+    """Start every command at once, wait for all of them and write one log each. One instance echoes live.
+
+    `env` is added to each instance's environment; `offscreen`: each must prove its window stayed off-screen."""
     log_dir.mkdir(parents=True, exist_ok=True)
     own_log = re.compile(rf"{re.escape(name)}-\d+\.log")  # never another target's logs, such as lobby-test-1.log
     for old in log_dir.iterdir():
@@ -149,10 +183,10 @@ def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd
     failures: list[Failure] = []
 
     def one(number: int, cmd: list[str]) -> None:
-        env = {INSTANCE_ENV: str(number)}
+        own = {**(env or {}), INSTANCE_ENV: str(number)}
         try:
             # One of several instances (one ENet game on one port) is not restarted: its late start fails the others.
-            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env, restart=len(cmds) == 1)
+            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=own, restart=len(cmds) == 1)
         except Failure as exc:  # the exe could not start: report it once, after the others finished
             failures.append(exc)
 
@@ -167,7 +201,7 @@ def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd
     for number in range(1, len(cmds) + 1):
         log = log_dir / f"{name}-{number}.log"
         log.write_text(results[number].out, encoding="utf-8")
-        instances.append(Instance(number, log, results[number], seconds))
+        instances.append(Instance(number, log, results[number], seconds, offscreen))
     return instances
 
 
@@ -237,5 +271,13 @@ def main(
     )
     say(f"        {' '.join(cmd[1:])}" + (f"  x{instances}" if instances > 1 else ""))
     name = Path(res_path).stem
-    results = launch([cmd] * instances, seconds=seconds, log_dir=LOGS / "run", name=name)
+    off = offscreen and not headless
+    results = launch(
+        [cmd] * instances,
+        seconds=seconds,
+        log_dir=LOGS / "run",
+        name=name,
+        env=offscreen_env(res_path) if off else None,
+        offscreen=off,
+    )
     return report(Path(res_path).name, results)

@@ -126,6 +126,8 @@ class Part:
     log: Path | None = None
     # What a check of its own found missing in a process that ended well (a window, verify's game step).
     unmet: str = ""
+    # Added to its environment (playcheck's off-screen window size, #1141).
+    env: dict[str, str] = field(default_factory=dict)
 
     @property
     def running(self) -> bool:
@@ -344,7 +346,7 @@ def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            env={**os.environ, launch.INSTANCE_ENV: str(instance)},
+            env={**os.environ, **part.env, launch.INSTANCE_ENV: str(instance)},
             **kwargs,  # type: ignore[arg-type]
         )
     except FileNotFoundError as exc:

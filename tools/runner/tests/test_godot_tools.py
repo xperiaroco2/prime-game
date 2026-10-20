@@ -9,11 +9,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import normalize, shot
+from runner import normalize, offscreen, shot
 from runner.verify import starts_godot
 from runner.common import ROOT, Failure, Result, godot_bin, run
 
 PROBE = "tools/shot/probe.tscn"
+# What tools/offscreen/offscreen.gd prints once it moved the window off every screen (#1141).
+PLACED = "OFFSCREEN window -30008,-30031 1296x759 screens 0,0,2560,1440 ticks 990\n"
 
 
 class NormalizeTest(unittest.TestCase):
@@ -131,11 +133,14 @@ class ShotTest(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
     def test_command_is_windowed_and_off_screen(self) -> None:
+        # #1141: Godot clamps --position onto the screen, so the window starts as one pixel at the clamp's top-right
+        # corner; shot.gd moves it off every screen and grows it to the size in the environment.
         cmd = shot.command(f"res://{PROBE}", Path("out.png"), "640x360", 5)
         self.assertNotIn("--headless", cmd)
-        self.assertEqual(cmd[cmd.index("--position") + 1], "-30000,-30000")
-        self.assertEqual(cmd[cmd.index("--resolution") + 1], "640x360")
+        self.assertEqual(cmd[cmd.index("--position") + 1], "30000,-30000")
+        self.assertEqual(cmd[cmd.index("--resolution") + 1], "1x1")
         self.assertEqual(cmd[-4:], ["--", f"res://{PROBE}", "out.png", "5"])
+        self.assertEqual(offscreen.env("640x360"), {"PRIME_WINDOW": "640x360"})
 
     def test_refuses_without_a_desktop_and_bad_arguments(self) -> None:
         with mock.patch.object(shot, "IS_CI", True), mock.patch.object(shot, "say"):
@@ -153,20 +158,41 @@ class ShotTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             png = Path(tmp) / "p.png"
 
-            def fake_godot(args: list[str], **_kwargs: object) -> Result:
+            envs: list[object] = []
+
+            def fake_godot(args: list[str], **kwargs: object) -> Result:
+                envs.append(kwargs.get("env"))
                 Path(args[args.index("--") + 2]).write_bytes(shot.PNG_MAGIC + b"rest")
-                return Result(0, f"SHOT saved {png} 1280x720\n", False, 0.0)
+                return Result(0, f"{PLACED}SHOT saved {png} 1280x720\n", False, 0.0)
 
             with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
                     mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
                 self.assertEqual(shot.main(PROBE, out=str(png)), 0)
             self.ensure_import.assert_called_once_with()
+            self.assertEqual(envs, [{"PRIME_WINDOW": "1280x720"}])
             failing = Result(1, "SHOT error cannot load res://x.tscn\n", False, 0.0)
             with mock.patch.object(shot, "has_display", return_value=True), \
                     mock.patch.object(shot, "godot", return_value=failing), mock.patch.object(shot, "say"):  # fmt: skip
                 with self.assertRaises(Failure) as caught:
                     shot.main(PROBE, out=str(png))
             self.assertIn("cannot load", str(caught.exception))
+
+    def test_refuses_a_picture_whose_window_was_not_proven_off_screen(self) -> None:
+        # #1141: Godot clamps --position onto the screen, so only shot.gd's OFFSCREEN line proves the window left it.
+        on = "OFFSCREEN window -8,-31 1296x759 screens 0,0,2560,1440 ticks 990\n"
+        for out, why in (("", "no OFFSCREEN line"), (on, "is on screen 0")):
+            with self.subTest(why=why), tempfile.TemporaryDirectory() as tmp:
+                png = Path(tmp) / "p.png"
+
+                def fake_godot(args: list[str], out: str = out, **_kwargs: object) -> Result:
+                    Path(args[args.index("--") + 2]).write_bytes(shot.PNG_MAGIC + b"rest")
+                    return Result(0, f"{out}SHOT saved {png} 1280x720\n", False, 0.0)
+
+                with mock.patch.object(shot, "has_display", return_value=True), \
+                        mock.patch.object(shot, "godot", fake_godot), mock.patch.object(shot, "say"):  # fmt: skip
+                    with self.assertRaises(Failure) as caught:
+                        shot.main(PROBE, out=str(png))
+                self.assertIn(why, str(caught.exception))
 
     def test_names_the_rendering_driver(self) -> None:
         # The runner passes --no-header, so Godot's own "Vulkan ... Forward+" line is gone: shot.gd prints the
@@ -176,7 +202,7 @@ class ShotTest(unittest.TestCase):
 
             def fake_godot(args: list[str], **_kwargs: object) -> Result:
                 Path(args[args.index("--") + 2]).write_bytes(shot.PNG_MAGIC + b"rest")
-                return Result(0, f"SHOT renderer vulkan forward_plus\nSHOT saved {png} 1280x720\n", False, 0.0)
+                return Result(0, f"SHOT renderer vulkan forward_plus\n{PLACED}SHOT saved {png} 1280x720\n", False, 0.0)
 
             said: list[str] = []
             with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
