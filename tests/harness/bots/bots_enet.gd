@@ -336,8 +336,15 @@ func _shim_seed() -> int:
 	return SHIM_SEED + instance * SHIM_SEED_STRIDE + _transports_made
 
 
+## A bot's join starts once its client is made (#950): a ClientSession hashes the mode's level
+## files as it is made (ContentFingerprint: 2016 files, 5.5 s on the engineer's PC), and a join
+## started before that ran out its real-time limits meanwhile. Over WebRTC every join of a remote
+## bot ended at the signalling's 5 s cap (`service_unreachable`), each one joined again the same
+## way, and the run failed with no remote bot in the lobby.
 func _join_host(bot: ScenarioBot) -> String:
-	add_client(bot, _joining())
+	var transport := _unjoined()
+	add_client(bot, transport)
+	_start_join(transport)
 	return ""
 
 
@@ -355,17 +362,29 @@ func _log_label() -> String:
 
 
 func _joining() -> NetTransport:
+	var transport := _unjoined()
+	_start_join(transport)
+	return transport
+
+
+## A new transport to the host, its join not started yet (_start_join).
+func _unjoined() -> NetTransport:
 	if webrtc:
-		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
-		var joined_room := rtc.join(BotWebRtc.CODE, 0)
+		return BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+	return EnetTransport.new(schema.kind_table())
+
+
+## Starts `transport`'s join of the host (of its room over WebRTC); one that cannot start is a
+## failure of the run.
+func _start_join(transport: NetTransport) -> void:
+	if webrtc:
+		var joined_room := transport.join(BotWebRtc.CODE, 0)
 		if joined_room != OK:
 			failures.append("cannot join room %s: %s" % [BotWebRtc.CODE, error_string(joined_room)])
-		return rtc
-	var transport := EnetTransport.new(schema.kind_table())
+		return
 	var joined := transport.join(ADDRESS, port)
 	if joined != OK:
 		failures.append("cannot join %s:%d: %s" % [ADDRESS, port, error_string(joined)])
-	return transport
 
 
 func _peer_known(bot: ScenarioBot) -> void:

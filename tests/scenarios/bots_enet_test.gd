@@ -12,8 +12,11 @@ const FRAME_USEC := 16_667
 
 
 ## Bot 2's instance with its joins on a LoopbackTransport that is never hosted: no ENet client.
+## Each join it starts records whether bot 2's client was made by then.
 class RemoteBot:
 	extends BotsEnet
+
+	var client_made_at_join: Array[bool] = []
 
 	func _init(bot_scenario: BotScenario) -> void:
 		super(bot_scenario, 2, NO_PORT, OUT)
@@ -23,8 +26,12 @@ class RemoteBot:
 		bots.append(bot)
 		return bot
 
-	func _joining() -> NetTransport:
+	func _unjoined() -> NetTransport:
 		return LoopbackTransport.new(schema.kind_table(), null)
+
+	func _start_join(transport: NetTransport) -> void:
+		var client: BotClient = clients.get(2)
+		client_made_at_join.append(client != null and client.transport() == transport)
 
 
 func test_bot_1_acts_once_every_bot_that_joins_at_the_start_is_in_its_lobby() -> void:
@@ -68,6 +75,24 @@ func test_a_remote_bot_whose_join_went_unanswered_joins_again() -> void:
 	assert_object(second).is_not_same(first)
 	assert_array(runner.failures).is_empty()
 	second.leave()
+
+
+## A remote bot's join, the first and one joined again, starts once its client is made (#950):
+## making a ClientSession hashes the mode's level files, seconds on a PC with the house's assets,
+## and a join started before it ran out its real-time limits meanwhile (over WebRTC every join
+## ended at the signalling's 5 s cap).
+func test_a_remote_bots_join_starts_once_its_client_is_made() -> void:
+	var runner := RemoteBot.new(_scenario([[], []]))
+	var bot := runner.add_bot()
+	runner.now_usec = START_USEC
+	runner._join_host(bot)
+	var first: BotClient = runner.clients[2]
+	runner.now_usec += EnetTransport.JOIN_TIMEOUT_MS * 1000
+	first.end_reason = ClientSession.CONNECT_FAILED
+	runner._join_again(bot)
+	assert_object(runner.clients[2]).is_not_same(first)
+	assert_array(runner.client_made_at_join).contains_exactly([true, true])
+	(runner.clients[2] as BotClient).leave()
 
 
 func test_a_join_the_host_refused_at_once_does_not_join_again() -> void:
@@ -167,7 +192,7 @@ func test_over_webrtc_a_join_that_reached_the_room_does_not_join_again() -> void
 class RtcRemoteBot:
 	extends RemoteBot
 
-	func _joining() -> NetTransport:
+	func _unjoined() -> NetTransport:
 		return WebRtcTransport.new(schema.kind_table())
 
 
