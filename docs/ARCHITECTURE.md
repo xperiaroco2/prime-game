@@ -6032,8 +6032,8 @@ have the player in the air), and §7.1.5's notes on the stamina prediction. Test
 #### 7.1.16 Throws (designed in #37; the flight built in #642, the intent and the effect in #643)
 The [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD1 to TD12 and TE1 are answered: the engineer took
 every recommendation ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719); TD1's
-speed and the provisional gravity, radius and longest flight in the next two comments there), and this section follows
-them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
+speed and the gravity, radius and longest flight in the next two comments there; the numbers were approved as built on
+2026-10-16, below), and this section follows them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
 and their wire rows (37c, #643, below).
 The client's model, the chaos shapes and the bots' step (37d, #644, below);
 the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e, #645) are in §4.7.52.
@@ -6117,8 +6117,8 @@ there would not follow from the commands.
   item, and Round accepts `Throw` from the living and lists `FlightTicks` after `ChannelTicks`, before `TaskTicks`
   (§3.2). The numbers (#302 comments 6085904317, 6096074314), approved as built by the engineer on 2026-10-16 with
   the M7 playtests skipped ([#879, comment 6202590193](https://github.com/xperiaroco2/prime-game/issues/879#issuecomment-6202590193)):
-  5 m/s, the project's physics gravity (9.8 m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable, but its door may be locked, so instead of
-  TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
+  5 m/s, the project's physics gravity (9.8 m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable,
+  but its door may be locked, so instead of TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
   no throw from a standable spot near the roof rests on it, less one step: 5.5 m/s on the greybox House's flat roof
   at 6.4 m, where the tops of the balcony's 1 m railings decided it (a 1 m jump may reach them and the eye then
   stands 1 m higher; at 5 m/s the highest arc from there topped out at 7.08 m, below the 7.35 m a 0.15 m item needed
@@ -6132,7 +6132,7 @@ there would not follow from the commands.
   order), `tests/unit/items/throw_replay_test.gd` (a throw replayed from its command log), `chaos_test.gd`
   (§4.6.5.3), and the scenario `crew_throws_a_package_into_its_circle` (§9.7). The level convention: `levels/CLAUDE.md`.
 - **The engineer's answers** (all as recommended, #302): strength and range (TD1 (a); 5 m/s since #646,
-  provisional, above), which
+  approved as built, above), which
   items (TD2), what a thrown item does to a player (TD3 (b): stops and drops at its feet, no damage), a thrown package
   counts in its circle (TD4 (a)), where an item may come to rest (TD5 (a); House's roof by the speed, #302 comment
   6096074314), a cost (TD6), the key (TD7), no catching
