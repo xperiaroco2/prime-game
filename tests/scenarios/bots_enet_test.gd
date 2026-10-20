@@ -213,8 +213,56 @@ func _scenario(scripts: Array) -> BotScenario:
 	return scenario
 
 
+func before_test() -> void:
+	DirAccess.remove_absolute(OUT.path_join(BotsEnet.HOST_UP_FILE))
+
+
+func after_test() -> void:
+	DirAccess.remove_absolute(OUT.path_join(BotsEnet.HOST_UP_FILE))
+
+
+## A remote bot's clock and its first join start once the host serves (#950): the host's start
+## took seconds, and a clock started with the process ran the scenario's spacing out meanwhile.
+func test_a_remote_bots_clock_and_join_start_once_the_host_is_up() -> void:
+	var runner := RemoteBot.new(_scenario([[], []]))
+	assert_bool(runner.start(START_USEC)).is_true()
+	assert_bool(runner.clients.has(2)).override_failure_message("joined before the host").is_false()
+	var later := START_USEC + 2 * BotsEnet.PEERS_READ_USEC
+	runner.step(later)
+	assert_bool(runner.clients.has(2)).override_failure_message("joined before the host").is_false()
+	runner._write_host_up()
+	assert_bool(FileAccess.file_exists(OUT.path_join(BotsEnet.HOST_UP_FILE))).is_true()
+	var up := later + BotsEnet.PEERS_READ_USEC
+	runner.step(up)
+	assert_bool(runner.clients.has(2)).override_failure_message("joined once up").is_true()
+	assert_int(runner._start_usec).is_equal(up)
+	assert_int(runner.tick_now).is_equal(0)
+	assert_array(runner.failures).is_empty()
+	(runner.clients[2] as BotClient).leave()
+
+
+func test_a_remote_bot_whose_host_never_came_up_starts_after_the_wait() -> void:
+	var runner := RemoteBot.new(_scenario([[], []]))
+	assert_bool(runner.start(START_USEC)).is_true()
+	var before := START_USEC + BotsEnet.HOST_UP_WAIT_S * BotsEnet.USEC_PER_SECOND - 1
+	runner.step(before)
+	assert_bool(runner.clients.has(2)).is_false()
+	runner.step(before + BotsEnet.PEERS_READ_USEC)
+	assert_bool(runner.clients.has(2)).override_failure_message("joins as before").is_true()
+	(runner.clients[2] as BotClient).leave()
+
+
+func test_a_remote_bot_that_joins_late_starts_its_clock_without_joining() -> void:
+	var runner := RemoteBot.new(_scenario([[], [StepJoin.new()]]))
+	runner._write_host_up()
+	assert_bool(runner.start(START_USEC)).is_true()
+	assert_int(runner._start_usec).is_equal(START_USEC)
+	assert_bool(runner.clients.has(2)).override_failure_message("its Join step joins").is_false()
+
+
 func test_a_remote_bot_whose_join_was_lost_for_good_fails_at_once_and_writes_its_reason() -> void:
 	var runner := RtcRemoteBot.new(_scenario([[], []]))
+	runner._write_host_up()
 	assert_bool(runner.start(START_USEC)).is_true()
 	var client: BotClient = runner.clients[2]
 	client.end_reason = NetTransport.JOIN_UNREACHABLE

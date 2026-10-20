@@ -55,6 +55,12 @@ const RELAY_WINDOW_S := 5
 ## instance's transports.
 const SHIM_SEED := 371000
 const SHIM_SEED_STRIDE := 100
+## The file the host writes in `dir` once it serves (its session started; over WebRTC its room is
+## up): a remote bot's clock starts when it reads it (#950).
+const HOST_UP_FILE := "host-up"
+## A remote bot starts its clock this long after its own start at the latest, the host's file read
+## or not (a host that never came up: its joins then fail as before). Well under the runner's kill.
+const HOST_UP_WAIT_S := 30
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
@@ -86,6 +92,10 @@ var _next_window_usec := 0
 var _signalling: LanSignalling
 var _host_rtc: BotWebRtc
 var _transports_made := 0
+## A remote bot: when this instance started, and whether its clock has (_wait_for_host).
+var _launched_usec := 0
+var _clock_started := false
+var _next_host_check_usec := 0
 
 
 func _init(
@@ -125,14 +135,52 @@ func start(now: int) -> bool:
 	var bot := ScenarioBot.new(instance, 0, scenario.steps_of(instance), peers)
 	bots.append(bot)
 	if is_host():
-		return _start_host(bot)
-	if not bot.joins_late():
-		_connect(bot)
+		_clock_started = true
+		return _start_host(bot) and _write_host_up()
+	_launched_usec = now
+	_wait_for_host(now)
+	return true
+
+
+## A remote bot's clock (its scenario's times, its time limit) and its first join start once the
+## host serves (#950). The host's start takes seconds (it reads the levels and hashes the files they
+## reach, ContentFingerprint), and its instances start their processes apart: a clock started with
+## the process ran the scenario's spacing out meanwhile (leave_and_return_keep_the_number's bot 3
+## joins 3 s in, after bot 2, and bot 2 then joined after it: 4 runs of 4 on the engineer's PC).
+## Read every PEERS_READ_USEC, given up on after HOST_UP_WAIT_S.
+func _wait_for_host(now: int) -> void:
+	if _clock_started or now < _next_host_check_usec:
+		return
+	_next_host_check_usec = now + PEERS_READ_USEC
+	var waited := now - _launched_usec >= HOST_UP_WAIT_S * USEC_PER_SECOND
+	if not waited and not FileAccess.file_exists(dir.path_join(HOST_UP_FILE)):
+		return
+	_clock_started = true
+	now_usec = now
+	_start_usec = now
+	if not bots[0].joins_late():
+		_connect(bots[0])
+
+
+## The host's sign that it serves (HOST_UP_FILE); false with a failure when it cannot write it.
+func _write_host_up() -> bool:
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		failures.append("cannot create %s" % dir)
+		return false
+	var file := FileAccess.open(dir.path_join(HOST_UP_FILE), FileAccess.WRITE)
+	if file == null:
+		failures.append("cannot write %s" % dir.path_join(HOST_UP_FILE))
+		return false
+	file.close()
 	return true
 
 
 ## One frame at `now` (microseconds of the real clock).
 func step(now: int) -> void:
+	if not _clock_started:
+		_wait_for_host(now)
+		if not _clock_started:
+			return
 	now_usec = now
 	@warning_ignore("integer_division")
 	tick_now = (now - _start_usec) * Ticks.RATE / USEC_PER_SECOND

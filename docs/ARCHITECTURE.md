@@ -1526,9 +1526,13 @@ runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it con
 (`LoopbackHub` hands out the ids). Over ENet each instance writes its peer ids to `tools/out/bots/<scenario>/peer-<i>`
 on `connected`, one id per line, one line per connection (a bot that left and returned has a line for each); bot 1
 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
-the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer
-ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
-after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+the `ForceRole`s; every other bot reads `peers` before its first step. Since #950 a remote bot's clock (its
+scenario's times and time limit) and its first join start once bot 1 wrote `host-up` there (it serves: its session
+started, over WebRTC its room is up), or `HOST_UP_WAIT_S` (30 s) after its own start at the latest: the host's start
+takes seconds, and clocks started with the processes ran the scenario's spacing out meanwhile
+(`leave_and_return_keep_the_number`'s bot 3 joined before bot 2 in 4 runs of 4 on the engineer's PC). Learning ids
+out of band is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id
+is known, after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
 listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
 like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
 with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
