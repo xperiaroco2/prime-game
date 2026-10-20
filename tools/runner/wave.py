@@ -1372,10 +1372,6 @@ def successor_text(track: str | None) -> str:
             "orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
 
 
-def handover_verdict(w: Wave) -> str:
-    return handover_state(w)[0]
-
-
 def handover_state(w: Wave) -> tuple[str, bool]:
     """The verdict line and whether it is due. The line: 'handover due: <why>' or 'handover not due' with its clauses
     (orchestrate-stage §7, #467).
