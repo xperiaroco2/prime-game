@@ -2774,7 +2774,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `Game._hud_local()`), `HudText.spectates()`
   and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
   line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
-  stay.
+  stay. **Superseded by #489** (§4.7.37): `Hud.spectating_label`, `HudText.Local.watching` and `Shown.spectating`
+  are gone; while `HudText.spectates()` the HUD shows nothing, and `LifeScreen`'s `Spectate` plate names the target.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the spectator's words from a fake `ClientModel`: the target's name
   and slots, none of its private facts, none of the spectator's own slots, numbers or hint),
   `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network),
