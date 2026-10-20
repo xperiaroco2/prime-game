@@ -11,11 +11,12 @@ pins every agent's prompt, label, phase, schema and options for representative a
 publishing agents' options end in an `agentType`) are always on. Until #883 an `unbounded/` folder held the same cases
 with `bounded_waits: false` and `lean: false`, the text a resume of a run launched before #411 or #458 replayed; #883
 removed both switches and that folder once no such run could resume (the engineer's approval on #876). Most cases pass
-no v2 arg; `publish-clean-main` pins the publish_clean trial of #308, `plan-review-main` #469's plan phase,
-`ab-review-main` #535's A/B of the code reviewer's model, `checkpoint-main` #559's implementer handoffs (the default
-since #920; `checkpoint-off-main` its opt-out, `checkpoint: false`),
-`publish-findings-main` and pr-rebase's `publish-sonnet-main` #835's Sonnet publisher trial, and `update-main` #856's
-update run. A deliberate change of a default prompt rewrites them: run `selftest` once with
+no v2 arg; `publish-clean-main` pins the publish_clean trial of #308 (`publish-clean-findings-main` the same launch
+on a run with a major left open, whose publisher takes publish), `plan-review-main` #469's plan phase,
+`checkpoint-main` #559's implementer handoffs (the default since #920; `checkpoint-off-main` its opt-out,
+`checkpoint: false`), pr-rebase's `publish-sonnet-main` #835's Sonnet publisher, and `update-main` #856's update run.
+#1147 removed `ab-review-main` (#535's A/B) and `publish-findings-main` (#835's issue-task trial): both options
+ended on 2026-10-13 and now throw. A deliberate change of a default prompt rewrites them: run `selftest` once with
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
 commit it with the change, and run `selftest` again without the variable. Such a change merges between waves, with no
 issue-task run before its publisher, because a run that resumes after the merge replays its publisher fresh; the
@@ -69,7 +70,6 @@ for (const job of jobs) {
     if (label.startsWith('review')) return { reviewer: 'r', verdict: 'ok', findings: stub.findings || [] }
     if (label.startsWith('test-review')) return { available: true, exit_2: false, findings: [], mutants: [] }
     if (label.startsWith('skeptic')) return { refuted: false, reason: 'it stands' }
-    if (label.startsWith('ab-judge')) return { verdicts: [], matches: [] }
     if (label.startsWith('fix')) return { fixed: [], verify_green: true, published: true, ci_green: true }
     return { published: true, handoff_posted: true }
   }
@@ -151,10 +151,11 @@ SNAPSHOT_CASES = {
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
         # #308's one-wave trial: a clean run's publisher with a cheaper model (a case with a v2 arg).
         ("publish-clean-main", {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MINOR]}),
-        # #835's trial: a run with findings left takes the publisher of publish_findings (a case with a v2 arg).
+        # The same launch on a run with a major left open: its publisher takes publish (#1147 ended #835's
+        # publish_findings), so no model reaches it (a case with a v2 arg).
         (
-            "publish-findings-main",
-            {"branch": "core/7-x", "models": {"publish_clean": "sonnet", "publish_findings": "sonnet"}},
+            "publish-clean-findings-main",
+            {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}},
             {"paths": ["core/x.gd"], "findings": [MAJOR]},
         ),
         # #469's plan phase: the planner on the model the manager passes, a plan with a file map and its comment.
@@ -166,16 +167,6 @@ SNAPSHOT_CASES = {
                 "file_map": {"base_sha": "0123456789abcdef0123456789abcdef01234567", "files": [{"path": "core/x.gd", "lines": "1-40", "facts": ["func f() -> int"]}]},
                 "comment_url": "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1",
             }]}},
-        ),
-        # #535's A/B of the code reviewer's model: a control code reviewer and a blind judge (a case with a v2 arg).
-        (
-            "ab-review-main",
-            {"branch": "tooling/7-x", "ab_review": True, "models": {"code": "sonnet", "publish_clean": "sonnet"}},
-            {"paths": ["tools/runner/x.py"], "findings": [MINOR], "queues": {"ab-judge": [{
-                "verdicts": [{"reviewer": 1, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"},
-                             {"reviewer": 2, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"}],
-                "matches": [{"first": 0, "second": 0}],
-            }] * 2}},
         ),
         (
             "every-arg-release",
@@ -314,7 +305,6 @@ class WorkflowTest(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
@@ -338,7 +328,7 @@ class WorkflowTest(unittest.TestCase):
                 self.assertEqual(len(lines), 1, f"the rule differs between agents or scripts: {sorted(lines)}")
         # Every read-only role is covered, not only the agents of the shared rules.
         self.assertLessEqual({f"issue-task.js:{r}" for r in ("review:plan", "review:code", "review:netcode", "review:godot-api",
-                                                             "review:netcode-second", "ab-judge", "skeptic")}
+                                                             "review:netcode-second", "skeptic")}
                              | {f"pr-rebase.js:{r}" for r in ("review:code", "review:netcode", "review:netcode-second", "skeptic")}
                              | {"quick-task.js:review:code", "quick-task.js:review:netcode", "quick-task.js:publish", "quick-task.js:fix"},
                              labels)  # fmt: skip
@@ -357,7 +347,6 @@ class WorkflowTest(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
@@ -377,7 +366,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
         self.assertLessEqual({f"issue-task.js:{r}" for r in ("plan", "review:plan", "implement", "review:code", "review:netcode",
                                                              "review:godot-api", "review:netcode-second", "test-review",
-                                                             "ab-judge", "skeptic", "publish")}
+                                                             "skeptic", "publish")}
                              | {f"pr-rebase.js:{r}" for r in ("rebase", "review:code", "review:netcode", "review:netcode-second",
                                                               "skeptic", "fix")},
                              labels)  # fmt: skip
@@ -713,7 +702,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-off-main, publish-findings-main,
+        # case but publish-clean-main, publish-clean-findings-main, plan-review-main, checkpoint-off-main,
         # publish-sonnet-main and update-main passes no v2 arg). Each case runs as launched (`<case>.txt`), with
         # bounded waits (#411) and the lean agent types (#458) always on.
         jobs, files = [], []
@@ -743,8 +732,6 @@ class WorkflowTest(unittest.TestCase):
 
 
 AVAILABLE = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["availableModels"]
-# #535's A/B of the code reviewer's model, with every other v2 option.
-AB = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "ab_review": True, "models": {"code": "sonnet"}}
 V2 = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "visual": ["spectate"]}
 GODOT_LINE = "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen)."
 PLAYCHECK_LINE = (
@@ -840,7 +827,9 @@ class PipelineV2Test(unittest.TestCase):
                     self.assertNotIn("model", options(event))
 
     def test_models_reach_the_roles_they_name_and_their_fallbacks(self) -> None:
-        a, b = AVAILABLE[0], AVAILABLE[1]
+        # b, the implementer's, is not sonnet: models.implement "sonnet" ended on 2026-10-13 (#1147).
+        b = next(m for m in AVAILABLE if m != "sonnet")
+        a = next(m for m in AVAILABLE if m != b)
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", models={"second_review": a}, **V2), core),
@@ -861,90 +850,25 @@ class PipelineV2Test(unittest.TestCase):
         self.assertEqual({k: v for k, v in got.items() if v}, {"review:netcode-second:#8": a, "fix:#8": b}, got)
 
     def test_the_code_role_is_the_code_reviewer_alone(self) -> None:
-        # #535: models.review also moves the plan critique, the netcode reviews and the skeptics; code moves only the
-        # diff's code reviewer, and falls back to review.
-        a, b = AVAILABLE[0], AVAILABLE[1]
+        # #535: efforts.review also moves the plan critique, the netcode reviews and the skeptics; efforts.code moves
+        # only the diff's code reviewer, and falls back to review. models.code ended on 2026-10-13 (#1147:
+        # EndedOptionsTest): models.review still moves the code reviewer with the others.
+        a = AVAILABLE[0]
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         jobs = [
-            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a}, efforts={"code": "medium"}, **V2), core),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a, "review": b}, efforts={"review": "low"}, **V2), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", efforts={"code": "medium"}, **V2), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"review": a}, efforts={"code": "medium", "review": "low"}, **V2), core),
         ]
         only_code, with_review = ({e["label"]: options(e) for e in agents(r)} for r in run_jobs(jobs))
-        self.assertEqual({k: o["model"] for k, o in only_code.items() if "model" in o}, {"review:code:#7": a})
         reviewers = ("review:plan:#7", "review:netcode:#7", "review:netcode-second:#7", "review:godot-api:#7", "skeptic:#7")
         self.assertEqual(only_code["review:code:#7"].get("effort"), "medium")
         for label in reviewers:
             self.assertNotIn("effort", only_code[label], label)
-        self.assertEqual((with_review["review:code:#7"]["model"], with_review["review:code:#7"]["effort"]), (a, "low"))
+        self.assertNotIn("model", only_code["review:code:#7"])
+        self.assertEqual((with_review["review:code:#7"]["model"], with_review["review:code:#7"]["effort"]), (a, "medium"))
         for label in set(reviewers) - {"review:godot-api:#7"}:
-            self.assertEqual(with_review[label]["model"], b, label)
+            self.assertEqual((with_review[label]["model"], with_review[label]["effort"]), (a, "low"), label)
         self.assertNotIn("model", with_review["review:godot-api:#7"])
-
-    def test_ab_review_adds_a_control_reviewer_and_a_blind_judge(self) -> None:
-        # #535: the control is the code reviewer's prompt on the review model; both reviews go on as usual. The judge,
-        # on the review model and told neither model, sees reviewer 1 (the trial) and reviewer 2 (the control).
-        a, b = AVAILABLE[1], AVAILABLE[0]
-        tooling = {"paths": ["tools/runner/x.py"], "findings": [MAJOR, MINOR]}
-        judged = {
-            "verdicts": [
-                {"reviewer": 1, "index": 0, "verdict": "valid", "severity": "major"},
-                {"reviewer": 2, "index": 1, "verdict": "invalid", "severity": "nit"},
-            ],
-            "matches": [{"first": 0, "second": 0}],
-        }
-        plain = dict(ARGS, branch="tooling/7-x", models={"code": a})
-        ab = dict(plain, ab_review=True)
-        jobs = [
-            ("issue-task.js", plain, tooling),  # 0: the same launch without the A/B
-            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [judged]})),
-            ("issue-task.js", dict(ab, models={"code": a, "review": b}), tooling),
-            ("issue-task.js", ab, {"paths": ["tools/runner/x.py"]}),  # 3: nothing to judge
-            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [None]})),  # 4: the judge died
-            ("issue-task.js", dict(ab, branch="core/7-x"), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-        ]
-        plain_run, run, on_review, empty, died, core = results = run_jobs(jobs)
-        for result in results:
-            self.assertIsNone(result["error"])
-        self.assertFalse(calls(plain_run, "review:code-control") or calls(plain_run, "ab-judge"))
-        self.assertNotIn("ab_review", plain_run["returned"])
-        self.assertNotIn("ab_review", calls(plain_run, "publish")[0]["prompt"])
-        # Both code reviewers in the parallel review, then the publisher; the judge runs beside the publisher (it is off the
-        # critical path: the publisher never sees it), so only the set of agents is fixed.
-        labels = [e["label"] for e in agents(run)]
-        self.assertEqual(labels[:3], ["implement:#7", "review:code:#7", "review:code-control:#7"])
-        self.assertEqual(set(labels[3:]), {"ab-judge:#7", "publish:#7"})
-        trial, control, judge = (calls(run, p)[0] for p in ("review:code:#", "review:code-control", "ab-judge"))
-        self.assertEqual(trial["prompt"], control["prompt"])
-        self.assertEqual(options(trial)["model"], a)
-        self.assertNotIn("model", options(control))
-        self.assertEqual(options(calls(on_review, "review:code-control")[0])["model"], b)
-        self.assertEqual(options(calls(on_review, "ab-judge")[0])["model"], b)
-        self.assertEqual({k: options(judge).get(k) for k in ("phase", "agentType", "model")}, {"phase": "Review", "agentType": "code-reviewer", "model": None})
-        self.assertEqual(set(options(judge)["schema"]["required"]), {"verdicts", "matches"})
-        self.assertIn(f"Reviewer 1 found: {json.dumps([MAJOR, MINOR], separators=(',', ':'))}", judge["prompt"])
-        self.assertIn("Reviewer 2 found: ", judge["prompt"])
-        for model in AVAILABLE:
-            self.assertNotIn(model, judge["prompt"].lower())
-        # Blind: nothing in the prompt points to the A/B's issue or arg, whose texts say which reviewer is the trial.
-        for hint in ("#535", "ab_review", "trial", "control"):
-            self.assertNotIn(hint, judge["prompt"].lower().replace("#7", ""))
-        self.assertIn("ab_review, #535", calls(run, "publish")[0]["prompt"])
-        self.assertEqual([r["by"] for r in run["returned"]["reviews"]], ["code-reviewer", "code-reviewer (control)"])
-        self.assertEqual(
-            run["returned"]["ab_review"],
-            {"model": a, "control_model": None, "judge": {"verdicts": {"valid": 1, "invalid": 1}, "matches": 1}},
-        )
-        self.assertEqual(on_review["returned"]["ab_review"]["control_model"], b)
-        # Nothing to judge: no judge. A judge that died: the run goes on, unjudged.
-        self.assertFalse(calls(empty, "ab-judge"))
-        self.assertEqual(empty["returned"]["ab_review"]["judge"], "neither code reviewer found anything")
-        self.assertEqual(died["returned"]["ab_review"]["judge"], "returned nothing")
-        self.assertTrue(died["returned"]["published"])
-        # The control's findings count like any reviewer's: with the netcode and godot reviews routed too.
-        self.assertEqual(
-            [e["label"] for e in agents(core)][1:5], ["review:code:#7", "review:code-control:#7", "review:netcode:#7", "review:godot-api:#7"]
-        )
-        self.assertEqual(calls(core, "publish")[0]["label"], "publish:#7")
 
     def test_efforts_fall_back_per_role(self) -> None:
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
@@ -1007,18 +931,7 @@ class PipelineV2Test(unittest.TestCase):
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"checkpoint": "yes"}, {"checkpoint": 1})]  # #559
-        # ab_review (#535): an A/B needs a model on trial for the code reviewer, other than the control's.
-        jobs += [
-            ("issue-task.js", dict(ARGS, **args), {})
-            for args in (
-                {"ab_review": True},
-                {"ab_review": True, "models": {"review": "opus"}},
-                {"ab_review": True, "models": {"code": "sonnet", "review": "sonnet"}},
-                {"ab_review": "yes", "models": {"code": "sonnet"}},
-                {"ab_review": True, "design": True, "models": {"code": "sonnet"}},
-                {"models": {"code": ""}},
-            )
-        ]
+        # ab_review and models.code (#535) ended on 2026-10-13 and throw: EndedOptionsTest (#1147).
         for (name, args, _), result in zip(jobs, run_jobs(jobs)):
             with self.subTest(workflow=name, args={k: v for k, v in args.items() if k not in ARGS}):
                 self.assertIsNotNone(result["error"])
@@ -1076,7 +989,6 @@ class PipelineV2Test(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
@@ -1130,7 +1042,6 @@ class PipelineV2Test(unittest.TestCase):
     def test_every_v2_agent_gets_the_rules_or_is_a_read_only_reviewer(self) -> None:
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         # With lean (always on since #883) the implementing and publishing agents get a lean writer type (#332) and
@@ -1152,7 +1063,6 @@ class PipelineV2Test(unittest.TestCase):
         # agent() throws on a schema whose root is not an object or whose required names a missing property.
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         for result in run_jobs(jobs):
@@ -1460,96 +1370,6 @@ class PipelineV2Test(unittest.TestCase):
             self.assertNotIn("no such role", result["error"])
             self.assertEqual(agents(result), [])
 
-    def test_publish_findings_applies_only_on_a_run_with_findings(self) -> None:
-        # #835, a trial: the full publisher of a non-design run with a blocker or major still open takes the role
-        # publish_findings (falling back to publish), whose model can only be sonnet. Nothing else changes: not its
-        # prompt, not another agent, not a clean run's, a design task's or a mutants stop's publisher.
-        s = "sonnet"
-        self.assertIn(s, AVAILABLE)
-        other = next(m for m in AVAILABLE if m != s)
-        core = dict(ARGS, branch="core/7-x")  # three reviewers: code, netcode, godot
-        clean = {"paths": ["core/x.gd"], "findings": [MINOR]}
-        major = {"paths": ["core/x.gd"], "findings": [MAJOR, MINOR]}  # three majors
-        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
-        trial = {"models": {"publish_findings": s}}
-        both = {"models": {"publish_clean": s, "publish_findings": s}}
-        jobs = [
-            ("issue-task.js", core, major),  # 0: the same run without the arg
-            ("issue-task.js", dict(core, **trial), major),
-            ("issue-task.js", dict(core, **trial), clean),
-            ("issue-task.js", dict(core, **both), clean),
-            ("issue-task.js", dict(core, **both), major),
-            ("issue-task.js", dict(core, models={"publish": other, "publish_findings": s}), major),  # 5
-            ("issue-task.js", dict(core, models={"publish": other, "publish_findings": s}), clean),
-            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, **trial), {"paths": ["docs/x.md"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(core, test_review=True, **trial), dict(major, queues={"test-review": [stuck]})),
-            ("issue-task.js", dict(core, efforts={"publish_findings": "medium"}), major),
-            ("issue-task.js", dict(ARGS, models={"publish_findings": other}), {}),  # 10
-            ("issue-task.js", dict(ARGS, models={"publish_findings": ""}), {}),
-            ("issue-task.js", dict(ARGS, efforts={"publish_findings": "extreme"}), {}),
-            ("issue-task.js", dict(core, models={"publish": other}), major),
-        ]
-        results = run_jobs(jobs)
-        for k, result in enumerate(results[:10] + results[13:]):
-            self.assertIsNone(result["error"], k)
-
-        def publisher(result: dict) -> dict:
-            (event,) = calls(result, "publish")
-            return event
-
-        def trial_of(result: dict, key: str = "publish_findings") -> dict:
-            return result["returned"][key]
-
-        def logs(result: dict) -> list[str]:
-            return [e["message"] for e in result["events"] if e["kind"] == "log" and "publish_findings" in e["message"]]
-
-        base, on = results[0], results[1]
-        # A run with findings: only the publisher's model changes; its prompt and every other option are today's.
-        self.assertEqual(options(publisher(on))["model"], s)
-        self.assertEqual(publisher(on)["prompt"], publisher(base)["prompt"])
-        self.assertEqual({k: v for k, v in options(publisher(on)).items() if k != "model"}, options(publisher(base)))
-        self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(base)])
-        for before, after in zip(agents(base), agents(on)):
-            if not after["label"].startswith("publish"):
-                self.assertEqual((after["opts"], after["prompt"]), (before["opts"], before["prompt"]), after["label"])
-        self.assertNotIn("publish_findings", base["returned"])
-        self.assertNotIn("publish_clean", on["returned"])
-        self.assertEqual(logs(base), [])
-        want = {"applied": True, "why": "3 blocker or major finding(s) open", "open": 3, "model": s, "effort": "high"}
-        self.assertEqual(trial_of(on), want)
-        self.assertIn("publish_findings applied", logs(on)[0])
-        # A clean run keeps its publisher as it is (publish_clean's, here unset).
-        self.assertNotIn("model", options(publisher(results[2])))
-        self.assertEqual(trial_of(results[2]), dict(want, applied=False, why="no blocker or major open", open=0, model=None))
-        self.assertIn("publish_findings not applied: no blocker or major open", logs(results[2])[0])
-        # Both trials passed: every non-design publisher on Sonnet, each result saying which role applied.
-        for k, clean_applied in ((3, True), (4, False)):
-            with self.subTest(case=k):
-                self.assertEqual(options(publisher(results[k]))["model"], s)
-                self.assertEqual(trial_of(results[k], "publish_clean")["applied"], clean_applied)
-                self.assertEqual(trial_of(results[k])["applied"], not clean_applied)
-                self.assertEqual(trial_of(results[k])["model"], s)
-        # publish_findings falls back to publish, and wins over it on a run with findings.
-        self.assertEqual(options(publisher(results[5]))["model"], s)
-        self.assertEqual((options(publisher(results[6]))["model"], trial_of(results[6])["model"]), (other, other))
-        self.assertEqual(options(publisher(results[13]))["model"], other)
-        self.assertNotIn("publish_findings", results[13]["returned"])
-        # A design task and a mutants stop never switch.
-        for k, why in ((7, "a design task"), (8, "mutants exited 2")):
-            with self.subTest(case=k):
-                self.assertNotIn("model", options(publisher(results[k])))
-                self.assertEqual((trial_of(results[k])["applied"], trial_of(results[k])["why"]), (False, why))
-        self.assertIn("Task: report a stopped run of issue #7", publisher(results[8])["prompt"])
-        # efforts.publish_findings: the effort in the options and in the prompt's Effort line.
-        self.assertEqual(options(publisher(results[9]))["effort"], "medium")
-        self.assertIn("Effort: medium.", publisher(results[9])["prompt"])
-        # The whitelist: only sonnet, named in the error; a wrong effort is the efforts' error.
-        self.assertIn("args.models.publish_findings must be sonnet", results[10]["error"])
-        for result in results[10:13]:
-            self.assertIn("must be", result["error"])
-            self.assertNotIn("no such role", result["error"])
-            self.assertEqual(agents(result), [])
-
     def test_pr_rebase_publish_moves_its_rebase_and_fix_agents(self) -> None:
         # #835, a trial: pr-rebase's role publish is the fallback of rebase and fix, the two agents that publish; its
         # model can only be sonnet, while rebase and fix keep the values they had. The reviewers never move.
@@ -1729,7 +1549,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "efforts", "models", "ab_review", "checkpoint", "tier", "update"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "efforts", "models", "checkpoint", "tier", "update"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "efforts", "models")),
         ):
@@ -2340,10 +2160,83 @@ class PlanPhaseTest(unittest.TestCase):
         self.assertEqual({k: v for k, v in got.items() if v}, {"plan:#7": model}, got)
         publish = calls(result, "publish")[0]["prompt"]
         self.assertIn('{"plan_summary":"p","plan_comment":"' + COMMENT + '","critique":', publish)
-        # models.implement still reaches the planner when models.plan is unset (the fallback), and the result says so.
+        # models.implement still reaches the planner when models.plan is unset (the fallback), and the result says so;
+        # not with "sonnet", which ended on 2026-10-13 for the implementer (#1147).
+        model = next(m for m in AVAILABLE if m != "sonnet")
         result = self.run_plan(mapped_plan(), models={"implement": model})
         self.assertEqual(options(calls(result, "plan:")[0])["model"], model)
         self.assertEqual(result["returned"]["plan"]["model"], model)
+
+
+class EndedOptionsTest(unittest.TestCase):
+    """#1147 (the engineer's answer 3A on #302, comment 6291039723): issue-task.js refuses the options the engineer
+    ended on 2026-10-13 (#302 comment 6145513919, 3A to 5A), which managers still passed after the stop: an error
+    naming the option, the date and that comment, before any agent runs. A launch with today's habits still passes."""
+
+    # (the option the error names, the args over a core task's).
+    REFUSED = (
+        ("ab_review", {"ab_review": True}),
+        ("ab_review", {"ab_review": "yes"}),
+        ("ab_review", {"ab_review": 1}),
+        ("ab_review", {"ab_review": True, "models": {"code": "sonnet", "publish_clean": "sonnet"}}),
+        ("ab_review", {"ab_review": True, "design": True}),
+        ("models.code", {"models": {"code": "sonnet"}}),
+        ("models.code", {"models": {"code": "opus", "publish_clean": "sonnet"}}),
+        ("models.code", {"models": {"code": ""}}),
+        ('models.implement "sonnet"', {"models": {"implement": "sonnet"}}),
+        ('models.implement "sonnet"', {"models": {"implement": "Sonnet"}}),
+        ('models.implement "sonnet"', {"models": {"implement": "claude-sonnet-5-5"}}),
+        ('models.implement "sonnet"', {"plan_review": True, "models": {"implement": "sonnet", "plan": "sonnet"}}),
+        ("models.publish_findings", {"models": {"publish_findings": "sonnet"}}),
+        ("models.publish_findings", {"models": {"publish_clean": "sonnet", "publish_findings": "opus"}}),
+        ("efforts.publish_findings", {"efforts": {"publish_findings": "medium"}}),
+        ("efforts.publish_findings", {"efforts": {"implement": "medium", "publish_findings": "high"}}),
+    )
+
+    def test_each_ended_option_throws_naming_it_before_any_agent(self) -> None:
+        stub = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        jobs = [("issue-task.js", dict(ARGS, branch="core/7-x", **args), stub) for _, args in self.REFUSED]
+        for (option, args), result in zip(self.REFUSED, run_jobs(jobs)):
+            with self.subTest(args=args):
+                self.assertIsNotNone(result["error"])
+                self.assertIn(f"issue-task: args.{option} ended on 2026-10-13 (#302 comment 6145513919)", result["error"])
+                self.assertIn("Launch without it", result["error"])
+                self.assertEqual(agents(result), [])
+
+    def test_a_launch_with_todays_habits_still_runs(self) -> None:
+        # launch-args.md: publish_clean "sonnet" on every non-design launch, plan "sonnet" with plan_review, another
+        # model of models.implement (a stage design or a task red twice), efforts.code and efforts.implement; and
+        # ab_review false or null, which change nothing.
+        other = next(m for m in AVAILABLE if m != "sonnet")
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        plain = dict(ARGS, branch="core/7-x", models={"publish_clean": "sonnet"})
+        normal = (
+            plain,
+            dict(ARGS, branch="core/7-x", plan_review=True, test_review=True, models={"plan": "sonnet", "publish_clean": "sonnet"}),
+            dict(ARGS, branch="core/7-x", models={"implement": other, "publish_clean": "sonnet"}),
+            dict(ARGS, branch="core/7-x", efforts={"code": "medium", "implement": "medium"}, models={"publish_clean": "sonnet"}),
+            dict(ARGS, branch="docs/7-x", design=True, skeptic=2),
+            dict(plain, ab_review=False),
+            dict(plain, ab_review=None),
+        )
+        jobs = [("issue-task.js", args, {"paths": ["docs/x.md"]} if args.get("design") else core) for args in normal]
+        results = run_jobs(jobs)
+        for args, result in zip(normal, results):
+            with self.subTest(args={k: v for k, v in args.items() if k not in ARGS}):
+                self.assertIsNone(result["error"])
+                self.assertTrue(result["returned"]["published"])
+                self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "ended" in e["message"]])
+                labels = [e["label"] for e in agents(result)]
+                self.assertFalse([x for x in labels if "control" in x or "judge" in x], labels)
+                self.assertNotIn("ab_review", result["returned"])
+                self.assertNotIn("publish_findings", result["returned"])
+        self.assertEqual(options(calls(results[2], "implement:")[0])["model"], other)
+        # A run with a major left open: its publisher takes publish, so publish_clean's model does not reach it.
+        self.assertNotIn("model", options(calls(results[0], "publish:")[0]))
+        self.assertFalse(results[0]["returned"]["publish_clean"]["applied"])
+        # ab_review false or null is the launch without it.
+        for k in (5, 6):
+            self.assertEqual(render(results[k]), render(results[0]))
 
 
 class NodeOnCiTest(unittest.TestCase):
@@ -2792,13 +2685,6 @@ class ReviewTierTest(unittest.TestCase):
                 self.assertEqual(bool(calls(result, "skeptic:")), tier == "full")
                 self.assertEqual(result["returned"]["tier"], tier)
                 self.assertEqual(result["returned"].get("tier_skipped"), skipped)
-
-    def test_ab_review_and_visual_still_run_in_the_light_tier(self) -> None:
-        (result,) = run_jobs([("issue-task.js", dict(ARGS, ab_review=True, models={"code": "sonnet"}), {"paths": ["tools/x.py"], "findings": [MINOR]})])
-        self.assertIsNone(result["error"])
-        self.assertEqual(result["returned"]["tier"], "light")
-        self.assertTrue(calls(result, "review:code-control:"))
-        self.assertTrue(calls(result, "ab-judge:"))
 
     def test_a_red_implementer_still_reports_its_tier(self) -> None:
         (result,) = run_jobs([("issue-task.js", ARGS, {"queues": {"implement": [implemented(["docs/x.md"], verify_green=False)]}})])

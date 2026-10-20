@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint (on unless false, #920) none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), checkpoint (on unless false, #920) none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, efforts and models add none. Ended on 2026-10-13 (#302 comment 6145513919) and refused with an error (#1147): ab_review, models.code, models.implement "sonnet", models.publish_findings and efforts.publish_findings.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -32,7 +32,7 @@ export const meta = {
 //            client/ voice/ tests/harness/ (quick-task.js's REVIEWED), no changed paths or a design task; light for any
 //            other diff (docs, content, levels, tooling, and the UI's client/ui/: the engineer's answer 2b on #302,
 //            comment 6085059719; the rest of client/ stays full, #158). Light runs the code reviewer (and
-//            godot-api-checker on a .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and
+//            godot-api-checker on a .gd/.tscn/.tres change) and the publisher, and
 //            drops the netcode review, test_review, second_review and skeptic even when passed. plan_review runs
 //            before the diff exists, so the branch's area (`start`'s <area>/ prefix) decides it: content, level and
 //            tooling skip it, unless tier is 'full'.
@@ -99,35 +99,29 @@ export const meta = {
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, code,
 //                 netcode, second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
-//                 publish_clean and publish_findings (both fall back to publish). review is the fallback of code (the
-//                 diff's code reviewer alone, #535), plan_review, netcode, skeptic and (after netcode) second_review.
+//                 and publish_clean (falls back to publish). review is the fallback of code (the diff's code reviewer
+//                 alone, #535), plan_review, netcode, skeptic and (after netcode) second_review.
 //                 An agentType reviewer gets an effort only when one is set; otherwise its agent file's applies, as
 //                 before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 (plan falls back to implement, publish_clean and publish_findings to publish, code to review, none
-//                 to a default). No default names a model (the model-guard ADR and its amendment A: the manager
-//                 passes one per launch where the kickoff allows it). +0 agents
-//                 The role code is the diff's code-reviewer only: models.code changes no other reviewer, where
-//                 models.review also changes the plan critique, the netcode reviews and the skeptics (#535's A/B).
+//                 (plan falls back to implement, publish_clean to publish, code to review, none to a default). No
+//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
+//                 where the kickoff allows it). +0 agents
+//                 Ended on 2026-10-13 (#302 comment 6145513919, 3A to 5A), refused since #1147 with an error naming
+//                 the option, the date and that comment: models.code (the code reviewer stays on its agent file's
+//                 model; efforts.code still works), models.implement "sonnet" (#560's habit, any Sonnet value; another
+//                 model of models.implement still passes, for a stage design or a task red twice), and models.publish_findings
+//                 and efforts.publish_findings (#835's trial: a run with a blocker or major left open takes publish).
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
 //                 skeptics left with no blocker or major open (a skeptic-refuted finding is closed, one over the
 //                 skeptic limit is open; the plan critique's findings do not count), never of a design task or of a
 //                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
-//                 The role publish_findings (#835) is the full publisher of every other run: one with a blocker or
-//                 major still open, never of a design task or of a run stopped by mutants. It is the trial of a
-//                 Sonnet publisher there (the model-guard ADR, amendment of 2026-10-11), so models.publish_findings
-//                 takes only sonnet; when models or efforts name it, the result's publish_findings says whether it
-//                 applied.
-//   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
-//                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
-//                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
-//                 prompt on the review model, and both reviews go on as usual (the publisher fixes the union, so the run
-//                 is reviewed at least as an all-Opus run is). Then a read-only judge on the review model, told neither
-//                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
-//                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
-//                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
+//   ab_review     ended on 2026-10-13 (#302 comment 6145513919, 3A): any value but false or null throws (#1147). It was
+//                 the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md): a
+//                 control code-reviewer and a blind judge, removed with it; `metrics` still reads the old runs'
+//                 review:code-control and ab-judge agents from their journals. +0 agents
 //   checkpoint    on by default (#559; #920, the engineer's answer 6A on #302 after #759's measurement), false turns it
 //                 off: an implementer past 150,000 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
 //                 its own transcript's last API call; HANDOFF NOW at 150,000) every ~15 tool calls and after each
@@ -147,7 +141,7 @@ export const meta = {
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
 // review tier (tier; tier_skipped, the agents passed that it dropped, #606), with update the path it took (update,
 // #856: path update or full, the published head and the delta's size, or why the full chain; skipped), and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean); `full` points to the run's
 // journal.jsonl, which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole
 // was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
@@ -200,36 +194,43 @@ const SCENES = V === true
   : null
 if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
 const VISUAL = SCENES !== null
-const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean', 'publish_findings']
+// #1147 (the engineer's answer 3A on #302, comment 6291039723): the options the engineer ended on 2026-10-13 (#302
+// comment 6145513919, 3A to 5A) throw, before any other check of models and efforts: a stop that lived only in each
+// manager's reading of budget.md was missed (12 launches with models.publish_findings after it). models.implement
+// stays for a stage design or a task red twice (launch-args.md): only a Sonnet value is refused (the habit of #560:
+// "sonnet" in any case, or a full model ID with sonnet in it).
+const ENDED = '2026-10-13 (#302 comment 6145513919)'
+const ended = (option, why) => {
+  throw new Error(`issue-task: args.${option} ended on ${ENDED}: ${why}. Launch without it (a resume of a run launched with it: relaunch without it)`)
+}
+const isMap = v => v !== undefined && v !== null && typeof v === 'object' && !Array.isArray(v)
+if (A.ab_review !== undefined && A.ab_review !== null && A.ab_review !== false) ended('ab_review', 'answer 3A, the code reviewer\'s A/B (#535) ended and Opus stays the code reviewer')
+if (isMap(A.models) && A.models.code !== undefined) ended('models.code', 'answer 3A, the code reviewer\'s A/B (#535) ended and Opus stays the code reviewer')
+if (isMap(A.models) && typeof A.models.implement === 'string' && /sonnet/i.test(A.models.implement)) ended('models.implement "sonnet"', 'answer 4A, the Sonnet implementer habit (#560) ended; models.implement stays only for a stage design or a task red twice, launch-args.md')
+for (const k of ['models', 'efforts']) {
+  if (isMap(A[k]) && A[k].publish_findings !== undefined) ended(`${k}.publish_findings`, 'answer 5A, the Sonnet publisher of runs with findings (#835) ended; pr-rebase\'s models.publish "sonnet" goes on')
+}
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
   implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
   code: ['code', 'review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
   test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
-  publish_clean: ['publish_clean', 'publish'], publish_findings: ['publish_findings', 'publish'],
+  publish_clean: ['publish_clean', 'publish'],
 }
-// #835: a trial's role takes only the model its trial names (the model-guard ADR, amendment of 2026-10-11); its
-// fallback keeps the values it had.
-const TRIAL_MODELS = { publish_findings: ['sonnet'] }
 const perRole = (k, values) => {
   const m = A[k]
   if (m === undefined || m === null) return {}
   if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`issue-task: args.${k} must be an object {role: value}; roles: ${ROLES.join(', ')}`)
   for (const [role, v] of Object.entries(m)) {
     if (!ROLES.includes(role)) throw new Error(`issue-task: args.${k}.${role}: no such role; roles: ${ROLES.join(', ')}`)
-    const allowed = values || (k === 'models' ? TRIAL_MODELS[role] : undefined)
-    if (typeof v !== 'string' || v === '' || (allowed && !allowed.includes(v))) throw new Error(`issue-task: args.${k}.${role} must be ${allowed ? allowed.join(', ') : 'a model name'}`)
+    if (typeof v !== 'string' || v === '' || (values && !values.includes(v))) throw new Error(`issue-task: args.${k}.${role} must be ${values ? values.join(', ') : 'a model name'}`)
   }
   return m
 }
 const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
-// ab_review (#535): an A/B needs a model on trial that differs from the control's (the review model).
-const AB_REVIEW = flag('ab_review')
-if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
-if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
-if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
 // #920 (the engineer's answer 6A on #302, comment 6145513919): on by default; checkpoint: false turns it off.
 flag('checkpoint')
 const CHECKPOINT = A.checkpoint !== false
@@ -272,7 +273,7 @@ const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start
 // the line also says to read the ADR by section, never whole. #834: docs/ARCHITECTURE.md too, about $20 over
 // 1471 reads since 2026-10-08T12:25Z (51% of it the implementer's), which the ADR line left out.
 const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
-// The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
+// The read-only agents' rules (reviewers, the plan critique, the skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL
   ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
@@ -466,30 +467,6 @@ const SKEPTIC_SCHEMA = {
   type: 'object',
   properties: { refuted: { type: 'boolean' }, reason: { type: 'string' }, evidence: { type: 'string' } },
   required: ['refuted', 'reason'],
-}
-// ab_review (#535): the judge's verdict on each finding of reviewer 1 (the trial) and 2 (the control), and the pairs.
-const AB_JUDGE_SCHEMA = {
-  type: 'object',
-  properties: {
-    verdicts: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          reviewer: { type: 'number', enum: [1, 2] }, index: { type: 'number' },
-          verdict: { type: 'string', enum: ['valid', 'invalid', 'unsure'] },
-          severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, reason: { type: 'string' },
-        },
-        required: ['reviewer', 'index', 'verdict', 'severity'],
-      },
-    },
-    matches: {
-      type: 'array',
-      items: { type: 'object', properties: { first: { type: 'number' }, second: { type: 'number' } }, required: ['first', 'second'] },
-    },
-    notes: { type: 'string' },
-  },
-  required: ['verdicts', 'matches'],
 }
 
 // The default test expectations follow the task branch's area (`<area>/<n>-<slug>`, from `start`); args.testing
@@ -790,8 +767,6 @@ let labels = []
 let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
-let judge = null
-let judging = null
 // The blocker and major findings still open before the publisher (publish_clean): a skeptic's refutation closes one.
 let openSerious = 0
 if (impl.verify_green) {
@@ -826,11 +801,6 @@ if (impl.verify_green) {
       : `\n\nVisual check (visual): no playcheck screenshots (${shots.notes || 'none returned'}). That is not a finding of yours: the publisher reports it.`
   labels = ['code-reviewer']
   const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'code'))]
-  // ab_review (#535): the control, the same prompt on the review model, second in the list (the judge reads 0 and 1).
-  if (AB_REVIEW) {
-    labels.push('code-reviewer (control)')
-    thunks.push(() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code-control:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review')))
-  }
   if (netcode) {
     labels.push('netcode-security-reviewer')
     thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
@@ -851,27 +821,6 @@ if (impl.verify_green) {
   if (missing.length) throw new Error(`#${N}: reviewer(s) ${missing.join(', ')} returned nothing; resume this run with the same args`)
   reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
-
-  // ab_review (#535): a blind judge of both code reviews. It changes nothing in the run: the publisher never sees it, so
-  // it runs beside the rest of the review and the publisher and is awaited only before the result is written.
-  if (AB_REVIEW) {
-    const [trial, control] = [reviews[0].findings || [], reviews[1].findings || []]
-    if (!trial.length && !control.length) {
-      judge = { skipped: 'neither code reviewer found anything' }
-    } else {
-      judging = agent([
-        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-        REVIEW_RULES,
-        'A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
-        `Read ${diff}, the issue and its comments (\`gh issue view ${N} --comments\`), and the code, tests and docs each finding names.`,
-        `Reviewer 1 found: ${JSON.stringify(trial)}`,
-        `Reviewer 2 found: ${JSON.stringify(control)}`,
-        'Both reviewers had the same prompt; judge each finding on its own, whoever raised it. valid: the defect or gap is real in this diff and the change should fix it (an acceptance criterion missed, an invariant broken, a wrong behaviour, a missing or weak test, a doc the change makes stale). invalid: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer\'s answers, or it asks for something outside the issue. unsure: you cannot settle it within the budget. Give each the severity you would give it on the reviewers\' scale (blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test; major: building on it as written would need rework; minor; nit), whatever the reviewer said.',
-        'Then match the two lists: a finding of reviewer 1 and one of reviewer 2 match when they name the same defect (the same root cause), whatever their wording, line or severity; a finding matches at most one of the other list.',
-        'Return verdicts, one per finding of both lists (reviewer 1 or 2, its 0-based index in that reviewer\'s list, the verdict, your severity and a one-line reason), and matches, the pairs {first: an index in reviewer 1\'s list, second: an index in reviewer 2\'s}.',
-      ].join('\n\n'), asReviewer({ label: `ab-judge:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: AB_JUDGE_SCHEMA }, 'review'))
-    }
-  }
 
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
@@ -987,13 +936,6 @@ const brief = (stopped, pub, extra) => {
     out.test_review = { available: testReview.available, exit_2: testReview.exit_2, mutants: tally(testReview.mutants, 'result', ['killed', 'survived', 'error', 'equivalent']), findings: tally(testReview.findings, 'severity', SEVERITIES), ...(testReview.notes ? { notes: line(testReview.notes) } : {}) }
   }
   if (SKEPTIC_LIMIT && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
-  // ab_review (#535): the two models and the judge's counts; `metrics` scores the runs from the journal.
-  if (AB_REVIEW && reviews.length) {
-    out.ab_review = {
-      model: set(MODELS, 'code'), control_model: set(MODELS, 'review') || null,
-      judge: !judge ? 'returned nothing' : judge.skipped || { verdicts: tally(judge.verdicts, 'verdict', ['valid', 'invalid', 'unsure']), matches: (judge.matches || []).length },
-    }
-  }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
   out.full = FULL
@@ -1018,12 +960,11 @@ const stoppedByMutants = testReview && testReview.exit_2 === true
 // schema stays byte-identical.
 const PUB_SCHEMA = testReview && testReview.available ? { ...PUB, properties: { ...PUB.properties, stopped_by_mutants: { type: 'boolean' } } } : PUB
 // publish_clean (#308): the full publisher of a clean run takes its own role, which falls back to publish, so with
-// neither models nor efforts naming it the publisher's options and prompt stay byte-identical. publish_findings
-// (#835), the full publisher of a non-design run with a blocker or major left open, likewise.
-const PUB_ROLE = DESIGN || stoppedByMutants ? 'publish' : openSerious === 0 ? 'publish_clean' : 'publish_findings'
+// neither models nor efforts naming it the publisher's options and prompt stay byte-identical. Every other run's
+// publisher takes publish (#835's publish_findings ended on 2026-10-13, #1147).
+const PUB_ROLE = DESIGN || stoppedByMutants || openSerious !== 0 ? 'publish' : 'publish_clean'
 const FULL_PUB_EFFORT = set(EFFORTS, PUB_ROLE) || 'high'
 const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== undefined
-const FINDINGS_TRIAL = MODELS.publish_findings !== undefined || EFFORTS.publish_findings !== undefined
 const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
 // #606: the tier in the publisher's prompt, for the PR and for `metrics` (a run's return value is not journaled, so
 // metrics.REVIEW_TIER reads this line from the publisher's transcript); the publisher stopped by mutants gets it too.
@@ -1033,7 +974,6 @@ const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's ver
 const UPDATE_LINE = !UPD ? ''
   : `Update run (update, #856): ${DELTA ? `the update path: the reviewers read only the delta since the PR's published head ${DELTA.head}, ${DELTA.lines} changed lines in ${DELTA.files} files, none under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/` : `the full chain (${UPD.why}): the reviewers read the whole PR diff`}${UPD.skipped.length ? `; skipped although the launch passed them: ${UPD.skipped.join(', ')}` : ''}. Say the path, the delta's size and what was skipped in one line of the PR's verification section and in the handoff.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
-if (FINDINGS_TRIAL) log(`#${N}: publish_findings ${PUB_ROLE === 'publish_findings' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
     PUB_RULES,
@@ -1053,7 +993,6 @@ const pub = stoppedByMutants
     TIER_LINE,
     UPDATE_LINE,
     FOLLOWUP ? `Follow-up (checkpoint, #983): the last implementer stopped at its context limit, at its last green commit, and filed the rest as ${FOLLOWUP}. The PR says \`Part of #${N}\` and links it under what is left; so does the handoff comment. Do not build what it filed.` : '',
-    AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
     planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
       : !testReview ? ''
@@ -1083,17 +1022,10 @@ const pub = stoppedByMutants
   ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: FULL_PUB_EFFORT, schema: PUB_SCHEMA }, PUB_ROLE))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
-// ab_review (#535): the judge ran beside the publisher; a measurement, not a gate: one that died leaves the run unjudged.
-if (judging) {
-  judge = await judging.catch(() => null)
-  if (!judge) log(`#${N}: the ab_review judge returned nothing; the run goes on unjudged`)
-}
-if (AB_REVIEW && reviews.length) log(`#${N}: ab_review ${judge ? (judge.skipped || `judged ${(judge.verdicts || []).length} finding(s), ${(judge.matches || []).length} pair(s)`) : 'unjudged'}`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 return brief(stoppedByMutants || pub.stopped_by_mutants === true
   ? `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
   : null, pub, {
   ...(TRIAL ? { publish_clean: { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {}),
-  ...(FINDINGS_TRIAL ? { publish_findings: { applied: PUB_ROLE === 'publish_findings', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {}),
 })
