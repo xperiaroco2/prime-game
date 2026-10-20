@@ -2585,7 +2585,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
   human picks a CC0 track with its `docs/credits/` entry.
 - Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
-  `tests/unit/client/ui/life_panel_test.gd` (the theme source test, seen failing on a planted override),
+  `tests/unit/client/ui/life_screen_test.gd` (the Toy `LifeScreen` that #497 put in place of `LifePanel`),
+  `tests/unit/client/ui/theme_test.gd` (the theme source test, seen failing on the planted overrides),
   `tests/unit/client/app/session_node_test.gd`, `tests/integration/client/life/downed_camera_test.gd` (every look
   at or below the eye and before a wall behind the body, seen failing without the clamp and the mask; a view seen
   from the arm's end past a short wall but not from the eye is hidden),
@@ -3176,7 +3177,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   types (#576); the committed themes equal a fresh
   build, which is deterministic, seen failing on a planted stale value; the uids; spot values, the press motion and
   the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
-  failing on a probe at 1152). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
+  failing on a probe at 1152). `theme_test.gd` runs unchanged on the generated theme.
 
 #### 4.7.26 Built in #208 (a), English and Ukrainian
 The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
