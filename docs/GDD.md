@@ -246,6 +246,13 @@ Open questions, for the engineer (built as today until he answers):
 - Who can sabotage, how is it fixed, and what does the crew lose if it is not?
 - Can sabotages affect voice, vision or movement?
 
+**The blackout (the MVP; the engineer, 2026-10-20, [#1033 comment 6294249388](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6294249388)).**
+A light breaker in the security room (the house's basement, [estate-map](design/estate-map.md) §6) cuts the estate's
+lights: the lanterns and the buildings go dark, the camera wall goes dark, and sight in the night drops sharply (the
+prototype used 40% of the normal distance). The bonfire burns on and the ship keeps its own power. Anyone may throw
+the breaker either way; fixing it means getting back to it. It is the humans' tool against the aliens' talk and sight
+(m8-match §9). Numbers are placeholders for the greybox.
+
 ## 8. Tasks
 
 - What kinds of tasks exist (short, long, shared, fake-able)?
@@ -870,6 +877,12 @@ they watch and lift music. There are no meetings.
 - How reliable is each, and can it be faked?
 
 ## 13. Maps
+
+**The MVP's map is [the forest estate](design/estate-map.md)** (approved by the engineer on 2026-10-20,
+[#1035 comment 6297325577](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6297325577)): a country
+estate in a pine forest on the edge of a small town, 135 x 90 m, separate buildings in clearings joined by two loops of
+paths, no dead ends, at night. It is built for the MVP's task set (§8); its sizes are a working draft for a box
+greybox. Until that greybox exists, the House below is what the game plays.
 
 The first map is [House](design/house-map.md) (decided by the engineer on 2026-10-08, #591): a country house with a
 yard on an 80 x 60 m plot, for 4 to 10 players, on four levels (basement, ground floor with the yard, second floor,
