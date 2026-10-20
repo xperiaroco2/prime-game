@@ -266,10 +266,11 @@ car tuning, the ship's engine, Cooking (reworked below), Photo (as a pose silhou
 the Generator and Car repair leave the MVP; their M7 rules stay below for the record. The base mode's data and code
 follow in engineering issues. Every number in the new sections is a placeholder for the playtest.
 
-**The rule: every core part is printed or grown** ([#1033 c6287031697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287031697)).
-No part exists once on the map, so nothing that matters can be hidden, and nothing is highlighted. Parts come from
-3D printers (a print takes about 5 s, and it is a sight: the part visibly grows) or grow in the greenhouse. Hiding
-something costs only time. The reason: the map has many floors, passages and undergrounds
+**The rule: nothing can be hidden that cannot be made again** ([#1033 c6287031697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287031697),
+in his words [#1095 c6289528171](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6289528171); the
+compass §3). Every core part is printed, grown or taken from a pool; none exists once on the map, and nothing hidden is
+found by highlighting. Parts come from 3D printers (a print takes about 5 s, and it is a sight: the part visibly
+grows), grow in the greenhouse, or come from an endless pool. Hiding something costs only time. The reason: the map has many floors, passages and undergrounds
 ([#1035 c6238063024](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6238063024)), so a hidden key
 item would be found too late.
 
@@ -550,7 +551,7 @@ are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answe
 
 **Changed for the MVP** (the engineer, 2026-10-20, [#1033 c6287322692](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287322692)
 and [c6287630697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287630697)), under the rule
-"every core part is printed or grown" (§8): the boxes give way to **a food printer in the pantry** (the old storage):
+"nothing can be hidden that cannot be made again" (§8): the boxes give way to **a food printer in the pantry** (the old storage):
 choose the bun or the patty and its kind, about 5 s, take it. **The herbs are the greenhouse's five flowers:** the
 order shows a flower's icon, and every match gives each flower a random icon, shown on the flower itself, so the herb
 board and the herb beds go. A box can no longer be hidden. Where the rules below say otherwise, this paragraph wins.

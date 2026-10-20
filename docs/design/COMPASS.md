@@ -54,6 +54,8 @@ Each idea answers these (GDD §1 is the source; numbers are placeholders until a
 - Action over long discussions; death costs only time.
 - Macro skill first; aim may matter a little.
 - Open knowledge: every rule is known to everyone.
+- Nothing can be hidden that cannot be made again: printed, grown or taken from a pool; hiding costs only time
+  (the engineer, 2026-10-20, [#1095 comment 6289528171](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6289528171)).
 - References as parody, never another work's names, logos, characters or assets.
 
 ## 4. What went wrong before
