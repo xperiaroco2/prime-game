@@ -324,7 +324,8 @@ The engineer's spin-up ([#1033 c6235144451](https://github.com/xperiaroco2/prime
 for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652) to
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
-- **The start:** a charged battery into the starter. Everything else happens inside the ship.
+- **The start:** a charged battery into the starter. Everything else happens inside the ship, a wide manta whose
+  hall, wing corridors, five stations and renewer are laid out in [estate-map](design/estate-map.md) §5a.
 - **Stages:** 3 in the MVP (3 to 5 later). Each stage spawns problems, their kinds random, their count fixed: 2, then
   4, then 6. A stage passes when every one of its problems is fixed.
 - **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,

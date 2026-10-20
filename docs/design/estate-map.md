@@ -54,7 +54,7 @@ garage's driveway at y 11. North and west: forest.
 | Garage | 101.4, 11 | 8 x 8 | 10 | 0 |
 | Gazebo (photo) | 114.9, 34 | r 3.5, open | 8 | 0 |
 | Well | 24.9, 72 | r 1.2 | 7 | 0 |
-| Ship | 116, 72 | r 9 (its look is open) | 14 | 0 and its interior |
+| Ship (a manta, §5a) | 116, 72 | 26 wide x 14 deep, its mouth ramp facing north | 16 | 0 and its interior |
 | Fallen trunk | 86, 79.5 | 12 x 3, east-west, walkable inside | | 0 |
 | Gate | 67.5, 90 | 4 wide | | 0 |
 
@@ -69,6 +69,24 @@ not crossable except at the crossings: the log bridge (30, 51.8), the stepping s
 - **Lower loop:** bonfire → stepping stones → well → fallen trunk → ship → pipe → bonfire.
 - **Spokes:** house ↔ bonfire; pantry → log bridge → well; gazebo → ship (east side); trunk → gate; garage →
   driveway.
+
+## 5a. The ship (the engineer, 2026-10-20)
+
+The aliens' ship is a **wide metal manta** (#1035 comment 6299338851): broad flat wings, two eye-like cockpit bubbles,
+a mouth-shaped front ramp, a side hatch; wider than it is long. Its interior is one deck, built for the ship's engine
+(GDD §8), approved on #1035 comment 6300127535:
+- **The mouth ramp** (north side, the ship's centre) leads into **the central hall** under the two cockpit bubbles:
+  the start console with the start lever, the battery slot and the stage display (one lamp per stage).
+- **Two corridors** run from the hall along the wings, across the whole width of the ship (about 2.5 m wide, curving
+  with the wing).
+- **Five problem stations** stand along the corridors: in the west wing a vent (overheat), a cartridge socket and the
+  switch panel (four coloured switches, a lamp over each); in the east wing a vent and a cartridge socket.
+- **The cartridge renewer** stands at the east wing's tip; **the side hatch** at the west wing's tip is the ship's
+  second way out. A burnt cartridge from the west wing runs the whole width of the ship to be renewed (about 22 m,
+  5 s each way at a walk), well inside the cartridge's 30 s.
+- Positions inside, from the ship's centre (x east, y south): the console (0, 1); the west vent (-5, -1), the west
+  socket (-8, -1), the panel (-10.5, 0); the east vent (5, -1), the east socket (8, -1); the renewer (12, 0); the side
+  hatch (-12.5, 1). Working draft.
 
 ## 5. Links between levels
 
@@ -97,7 +115,7 @@ not crossable except at the crossings: the log bridge (30, 51.8), the stepping s
 | Cellar | basement | decor |
 | Fireworks launch point | roof terrace | mischief |
 | Camera and pose spot | gazebo | photo |
-| Starter, core console, five problem points, cartridge renewer at the far end | ship | the ship's engine |
+| Start console (lever, battery slot, stage lamps), five problem stations, cartridge renewer (§5a) | ship | the ship's engine |
 | The dead's room | a separate scene | death (m8 §3) |
 
 ## 7. Routes and travel times
@@ -123,7 +141,6 @@ house–summer kitchen 24 m.
 
 ## 8. Open
 
-- The ship's look and interior (a separate research); its two hatches.
 - A tunnel from the garage to the basement (not drawn).
 - The roof's second way down.
 - The tree strips' density and the night's sight distance: from walking the greybox.
