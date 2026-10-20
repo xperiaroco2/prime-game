@@ -3190,8 +3190,9 @@ names and the font's glyphs are #549 (§4.7.48).
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
   ui-copy <tag>` (AGENT_WORKFLOW §11.27) copies it at a release tag into `client/i18n/strings.csv`, byte for byte,
-  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-0.4.0`, 221 keys in 225 rows. Never edit
-  the deck here: a change goes to the UI repo, a new tag, then `ui-copy`.
+  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-0.8.0`, 270 keys in 274 rows (since #1025;
+  `ui-0.4.0` before, 221 keys in 225 rows). Never edit the deck here: a change goes to the UI repo, a new tag, then
+  `ui-copy`.
 - **The translations.** Godot's import writes `strings.en.translation` and `strings.uk.translation` beside the deck
   (gitignored: every import rebuilds them); `project.godot`'s `[internationalization]` lists both, so every run loads
   them. A screen sets a Control's text to a key (Godot translates it and retranslates it on a switch) or calls
