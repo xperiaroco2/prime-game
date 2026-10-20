@@ -693,6 +693,8 @@ def problem(part: hostjoin.Part, *, others_failed: bool = False) -> str:
     if part.problem:
         return part.problem
     placed = "" if part.label == "bots" else offscreen.problem(part.lines)
+    if placed and others_failed and not done(part) and not any(offscreen.LINE_RE.search(x) for x in part.lines):
+        placed = ""  # stopped before its place() ran: the process that failed first is the cause (below)
     if placed:
         return f"its window was {placed}"
     if part.label != "bots" and not done(part):

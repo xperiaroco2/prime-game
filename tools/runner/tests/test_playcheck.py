@@ -597,6 +597,14 @@ class RunTest(unittest.TestCase):
                 self.assertRegex(self.out.getvalue(), rf"FAIL  window 2: its window was not proven off-screen .*{why}")
                 self.assertIn("ok    window 1: its steps done", self.out.getvalue())
 
+    def test_a_window_stopped_before_it_placed_itself_blames_the_process_that_failed_first(self) -> None:
+        window = hostjoin.Part(label="window 1", user_args=[], proc=mock.Mock(returncode=0))
+        self.assertIn("no OFFSCREEN line", playcheck.problem(window))
+        self.assertEqual(
+            playcheck.problem(window, others_failed=True),
+            "stopped before its steps were done, since another process failed; it started none",
+        )
+
     def test_a_window_gets_its_own_longer_grace_to_exit_and_the_bots_hostjoins(self) -> None:
         # #354: a window's renderer teardown can take seconds under load after `session: stopped`.
         behaviours = {"window 1": "slowexit", "window 2": "slowexit", "bots": "slowexit"}
