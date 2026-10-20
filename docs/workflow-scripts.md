@@ -41,17 +41,15 @@ agent `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `metrics` reads
 - `issue-task.js` and `pr-rebase.js`, launched by the orchestrate-stage skill (`docs/AGENT_WORKFLOW.md` §7.1). Each
   arg has a row `//   <arg>  ...` in the header comment and `<arg>?` in `meta.whenToUse`; `KNOWN` lists them; a
   wrong value throws before any agent runs; an unknown arg only logs, and so does a retired one (`RETIRED`, #883:
-  `bounded_waits`, `lean`, `lean_reason`, always on now). An ended option throws instead (`issue-task.js`'s
-  `ended()`, #1147: `ab_review`, `models.code`, `models.implement` of a Sonnet model, `publish_findings`;
-  `EndedOptionsTest`).
-- `issue-task.js`'s `checkpoint` (#559), on by default (#920; launch it without the arg): `false` runs without the
+  `bounded_waits`, `lean`, `lean_reason`, always on now); an ended option throws (`ended()`, #1147, `EndedOptionsTest`).
+- `issue-task.js`'s `checkpoint` (#559), on by default (#920): `false` runs without the
   rules and the `handoff` key (the last one's `followup`, #983). `CheckpointTest` covers both,
   `checkpoint-off-main` the opt-out.
 - Every agent's options are built in `withModel` (`asReviewer` for a reviewer): models, efforts and the lean agent
   type are appended last, so a launch without them keeps its options.
-- `tools/runner/tests/test_workflows.py` runs the three scripts under Node with stub agents (`selftest`, in `verify`).
+- `tools/runner/tests/test_workflows.py` runs the three scripts under Node with stub agents (`selftest`).
   The snapshots in `tools/runner/tests/workflow_snapshots/` (not quick-task's) pin every agent's prompt and
-  options per launch. A deliberate change regenerates them (also after a rebase that touched the scripts): run the
+  options per launch. A deliberate change regenerates them (also after a rebase): run the
   tests once with `PRIME_WORKFLOW_SNAPSHOTS=update`, read the diff (only the intended lines may change), commit it
   with the change, run them again without it. Never edit a snapshot by hand.
 - The compact result (#386): `CompactResultTest` bounds its size.
