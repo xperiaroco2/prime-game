@@ -127,7 +127,7 @@ only what the budget and the trials decide.
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md) amendment of
   2026-10-20). The publisher of `issue-task` runs with findings stays Opus.
 - **Ended 2026-10-13** (#302 comment 6145513919, 3A to 5A): `ab_review` with `models.code`, `models.implement:
-  "sonnet"` and `models.publish_findings`; pass none of them: `issue-task` refuses each since #1147.
+  "sonnet"` and `models.publish_findings` and `efforts.publish_findings`; pass none of them: `issue-task` refuses each since #1147.
 - **`checkpoint`** (#759, #920): on by default since the engineer's answer 6A (#302 comment 6145513919); pass nothing.
   launch-args.md says the rest.
 
