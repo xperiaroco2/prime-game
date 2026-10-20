@@ -74,13 +74,12 @@ const BUTTON_CLICK := &"button_click"
 ## the floor: the ray aims there, as a swing aims at a chest. A placeholder, "not a decision".
 const PANEL_AIM_M := SWING_AIM_M
 ## Cooking's sounds (#776, CD14 (a)): a right ingredient on a plate, a wrong one, a burger done, a
-## patty fried, a patty burnt, and the grill's sizzle loop (StationHums).
+## patty fried, a patty burnt (the grill's sizzle loop is StationHums', not an id here).
 const CHIME := &"chime"
 const BUZZ := &"buzz"
 const BURGER_DONE := &"burger_done"
 const DING := &"ding"
 const HISS := &"hiss"
-const SIZZLE := &"sizzle"
 ## A plate and the grill's grate sit on a counter at about a chest's height above their station's
 ## marker on the floor: the ray aims there, as at a panel. A placeholder, "not a decision".
 const COUNTER_AIM_M := PANEL_AIM_M
