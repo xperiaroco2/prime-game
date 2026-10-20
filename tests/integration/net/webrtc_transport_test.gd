@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 ## the WebRTC library's setup (seconds under load) is in no test's wait (#472).
 
 const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 ## The longest wait for one condition, unless a test names its own; a pass takes well under a
 ## second.
 const MAX_WAIT_MS := 5000
@@ -18,6 +19,10 @@ const WARM_UP_MS := 30000
 const SHORT_JOIN_MS := 1500
 const TALK := 1
 const STATE := 2
+## The close test's rounds, and the sends of each kind per poll in them: before #950 a round hit
+## the race about one time in three, so a bug come back fails it all but surely.
+const CLOSE_ROUNDS := 10
+const CLOSE_SENDS := 4
 
 var _kinds := NetKindTable.new()
 var _server: LanSignalling
@@ -552,6 +557,90 @@ func test_a_freed_id_is_not_handed_out_again() -> void:
 	assert_bool(await _until(_has.bind("host joined 3"))).is_true()
 
 
+## A client's own close is a leave the host never sends into (#950): a host sending to it as fast
+## as it can from the close on logs no engine error, round after round. Before, the client shut
+## the connection down at once, and a send in the moment before the host's channels read closed
+## printed "SCTP sending failed, errno=32" or a closed channel's FAILED (the bots lanes fail on
+## any engine error line): in about a third of the rounds of a probe (9 of 25 on an idle PC).
+func test_a_host_sending_through_a_clients_close_logs_no_engine_error() -> void:
+	var errors := EngineErrors.new()
+	for round_number in CLOSE_ROUNDS:
+		_events.clear()
+		var host := _host(4)
+		host.peer_left.connect(func(id: int) -> void: _events.append("host left %d" % id))
+		assert_bool(await _until(func() -> bool: return host.room_code() != "")).is_true()
+		var client := _client()
+		assert_int(client.join(host.room_code(), 0)).is_equal(OK)
+		assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+		errors.clear()
+		errors.start()
+		client.close()
+		var deadline := Time.get_ticks_msec() + MAX_WAIT_MS
+		while not _has("host left 2") and Time.get_ticks_msec() < deadline:
+			_server.poll()
+			host.poll()
+			for _send in CLOSE_SENDS:
+				host.send(2, STATE, "late".to_utf8_buffer())
+				host.send(2, TALK, "late".to_utf8_buffer())
+			OS.delay_usec(20)
+		errors.stop()
+		var round_name := "round %d of %d: %s" % [round_number + 1, CLOSE_ROUNDS, errors.snapshot()]
+		assert_array(errors.snapshot()).override_failure_message(round_name).is_empty()
+		assert_bool(_has("host left 2")).override_failure_message(round_name).is_true()
+		assert_int(host.rejects.total()).is_equal(0)
+		host.close()
+
+
+## A client's close sends BYE on RELIABLE and leaves the connection to the host (#950): nothing
+## on its side closes while the host has not read it.
+func test_a_clients_close_says_bye_and_leaves_the_connection_to_the_host() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	client.close()
+	var reliable: Array[PackedByteArray] = []
+	var bye_came := func() -> bool:
+		reliable.append_array(fake_host.take(NetKindTable.Lane.RELIABLE))
+		return not reliable.is_empty()
+	assert_bool(await _until(bye_came)).is_true()
+	assert_array(reliable).contains_exactly([PackedByteArray(WebRtcTransport.BYE)])
+	await _idle(200)
+	assert_bool(fake_host.all_open()).is_true()
+	fake_host.pc.close()
+
+
+## A client's BYE is its leave, after what it sent before: the host reports the leave unrejected
+## and closes the connection itself (#950).
+func test_a_clients_bye_is_its_leave_and_the_host_closes_the_connection() -> void:
+	var joiner := await _admitted_fake()
+	joiner.put(NetKindTable.Lane.RELIABLE, NetFrame.encode(TALK, "last".to_utf8_buffer()))
+	joiner.put(NetKindTable.Lane.RELIABLE, PackedByteArray(WebRtcTransport.BYE))
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+	assert_array(_events.slice(_events.find("host got 2 1 last"))).contains_exactly(
+		["host got 2 1 last", "host left 2"]
+	)
+	assert_int(_transports[0].rejects.total()).is_equal(0)
+	assert_bool(await _until(_ended.bind(joiner))).is_true()
+
+
+## The host's BYE ends its client as a lost host, and the client closes the connection (#950).
+func test_a_hosts_bye_is_host_lost_and_the_client_closes_the_connection() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	client.host_lost.connect(func() -> void: _events.append("client lost the host"))
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, PackedByteArray(WebRtcTransport.BYE))
+	assert_bool(await _until(_has.bind("client lost the host"))).is_true()
+	assert_int(client.rejects.total()).is_equal(0)
+	assert_bool(await _until(_ended.bind(fake_host))).is_true()
+
+
 ## A FakePeer joiner the host admitted as peer 2.
 func _admitted_fake() -> FakePeer:
 	var host := _host(4)
@@ -671,6 +760,12 @@ func _any_begins_with(prefix: String) -> bool:
 
 func _has(line: String) -> bool:
 	return line in _events
+
+
+## The other side closed `fake`'s connection.
+static func _ended(fake: FakePeer) -> bool:
+	var state := fake.pc.get_connection_state()
+	return state == WebRTCPeerConnection.STATE_CLOSED or state == WebRTCPeerConnection.STATE_FAILED
 
 
 func _until(condition: Callable, max_wait_ms := MAX_WAIT_MS) -> bool:
