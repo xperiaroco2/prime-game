@@ -119,4 +119,6 @@ Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#i
 runs since 2026-10-11 11:00Z, Sonnet against Opus: 16 against 38 valid findings (42%, the bar 80%), 27 against 5
 missed, 13 of 29 invalid (45%) against 10 of 48 (21%), $0.21 against $0.63 a run. The advice "drop the trial model"
 held in the week's window (14 runs) and since 2026-09-30 (27). Opus stays the code reviewer; the manager no longer
-passes `ab_review` or `models.code`, which the script keeps (a launch without them runs as before).
+passes `ab_review` or `models.code`, which the script keeps (a launch without them runs as before). Since #1147
+(2026-10-20, the engineer's answer 3A in #302 comment 6291039723) `issue-task.js` refuses both and no longer has
+the control reviewer and the judge; `metrics` still reads the A/B runs' journals.
