@@ -91,8 +91,8 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   are scattered and players are placed.
 - **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
   match clock starts (the engineer, #213).
-- **Round:** everyone works on the shared tasks (the House's task types: §8); the dissidents sabotage by hiding packages and run out
-  the clock. A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
+- **Round:** everyone works on the shared tasks (the House's task types: §8); the dissidents spoil them deniably and
+  run out the clock (in the MVP nothing that matters can be hidden: §8, the rule of 2026-10-20). A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
   ([vision revision 1](decisions/2026-10-01-vision-revision-1.md)). The first win condition met ends it: every task
   done (the Engineers, id `crew`), every engineer has left the match (dissidents), time up with a task left
   (dissidents).
@@ -259,7 +259,109 @@ only, it deals the colour-matched Delivery alone. The lobby's `tasks` is 5 (1 to
 types a match deals, drawn at random from the map's types; the host may ban types with `banned_task_types`. The zone
 task is not in the mode's list (see below).
 
+**The MVP's task set** (decided by the engineer on 2026-10-20, #1144; his words on #1033, comments
+[6286836993](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6286836993) to
+[6289345766](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6289345766)): five task types, the
+car tuning, the ship's engine, Cooking (reworked below), Photo (as a pose silhouette, #1102) and the Wi-Fi. Delivery,
+the Generator and Car repair leave the MVP; their M7 rules stay below for the record. The base mode's data and code
+follow in engineering issues. Every number in the new sections is a placeholder for the playtest.
+
+**The rule: every core part is printed or grown** ([#1033 c6287031697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287031697)).
+No part exists once on the map, so nothing that matters can be hidden, and nothing is highlighted. Parts come from
+3D printers (a print takes about 5 s, and it is a sight: the part visibly grows) or grow in the greenhouse. Hiding
+something costs only time. The reason: the map has many floors, passages and undergrounds
+([#1035 c6238063024](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6238063024)), so a hidden key
+item would be found too late.
+
+### The flowers (the greenhouse, 2026-10-20)
+- Five flowers in five colours grow in the greenhouse. A flower's colour is fixed: it makes the car's paint. Every
+  match gives each flower a random icon, shown on it: the burger's order names the icon
+  ([#1033 c6287630697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287630697)).
+- Picking a flower starts its regrowth (about 1 to 2 min); watering it with a can filled at the well speeds it up and
+  keeps flowers from being spammed ([#1033 c6198904911](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6198904911),
+  [c6238062666](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6238062666)). Anyone, a human too,
+  may pick a grown flower and throw it away: it regrows.
+- They feed two mechanics: the car's paint and the burgers. The engine takes none (removed 2026-10-20, maybe later).
+
+### The battery (2026-10-20)
+- Printed empty on its own small printer in the laboratory (about 5 s).
+- Charged somewhere else, in a microwave turned charger (the kitchen or another room: the level design decides):
+  about 10 to 15 s, a ding, then 3 s to take it out; left longer, it bursts with a bang and flies out across the room
+  empty, knocking down whoever is near ([#1033 c6212542349](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6212542349)).
+- One level: charged or not. No slow, careful carrying
+  ([#1033 c6210643508](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6210643508)).
+- The same battery serves both machines: it starts the ship's engine and goes into the car last
+  ([#1033 c6288900379](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288900379)).
+
+### Car tuning (2026-10-20)
+A makeover show by aliens (the engineer's concept,
+[#1033 c6287031697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287031697) and
+[c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652)): a relaxed task of
+handwork, little hassle. It replaces Car repair (#688).
+- A board in the garage holds the order: cards, each a part and a colour ("a blue spoiler", "red rims"). The deal
+  decides how many cards.
+- For each card: pick a flower of that colour in the greenhouse; print the part on the big, wide parts printer in the
+  laboratory; carry both to the paint mixer in the pantry, which scans the flower and gives paint of its colour, and
+  paint the part; carry it to the garage and screw it on. Partners split it: "you make the paint, I print the part".
+- The garage's tools hang on cables: they work anywhere inside the garage and drop from the hand when its holder
+  steps out, so nothing to hide. A tool is dangerous: a soldering iron in hand can kill.
+- The right colour lights its card green. A wrong one is unscrewed, thrown away and done again.
+- Every card green: a charged battery goes in last, and the car comes alive in a show (neon, bass, the crowd). The
+  task is done. A match without this task shows the car already tuned, as decoration.
+- **The humans' spoils:** the wrong shade ("I thought that was blue"); being slow; painting someone's fresh print the
+  wrong colour; screwing on a wrong part so it must come off again.
+
+### The ship's engine (2026-10-20)
+The engineer's spin-up ([#1033 c6235144451](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6235144451),
+for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652) to
+[c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
+the expert knows every fix by heart.
+- **The start:** a charged battery into the starter. Everything else happens inside the ship.
+- **Stages:** 3 in the MVP (3 to 5 later). Each stage spawns problems, their kinds random, their count fixed: 2, then
+  4, then 6. A stage passes when every one of its problems is fixed.
+- **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
+  the panel 15 s, a cartridge 30 s).
+- **Overheat** (reaction): hold the vent; a needle rises; let go inside the green band. A miss coughs steam; try again.
+- **A burnt cartridge** (speed): pull it out, run it to the renewer in another compartment, along the whole ship, put
+  it in, take back a good one and fit it. There are no spare cartridges to spam.
+- **A sparking panel** (memory), in one place: four big coloured switches with a lamp over each; the lamps blink a
+  sequence (3, 4, then 5 long by stage) and go dark; press the switches in that order. A wrong click zaps and the
+  sequence plays again, with no damage. A friend beside you may read it out.
+- **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
+  aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
+  drops one stage; the battery is not needed again; a fail on stage 1 restarts stage 1.
+- **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
+  task is done.
+- **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, letting a timer
+  run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
+  outing moment").
+
+### The Wi-Fi (2026-10-20)
+The engineer's library cipher of 2026-10-15 (`design/ideas/2026-10-15-brainstorm-2.md`), made the party's Wi-Fi
+([#1033 c6289149236](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6289149236) to
+[c6289345766](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6289345766)).
+- The guests demand Wi-Fi. The lord's router is paranoid: it writes passwords only in alien glyphs and changes the
+  password after every connection.
+- A computer in the security room shows a password of 4 glyphs and a keypad of the digits 0 to 9.
+- A static decoder book in the library (it cannot be carried off): ten pages, one per digit, each with its three
+  glyphs. Every match deals the 30 glyphs to the digits anew.
+- The house phone: one in each of the two rooms, on one line. While both receivers are held, the two players hear
+  each other at any distance; the line distorts the voices, and at times its quality drops ("I didn't hear, repeat").
+  One describes a glyph ("a snail with horns"), the other finds it in the book and calls the digit.
+- A right password switches the Wi-Fi on with a show (the guests' phones light up, a cheer) and the router shows the
+  next one. The task is done after N passwords, a lobby setting.
+- A wrong password: the router shrieks "HACKER" and locks the keypad for about 5 s; the password stays.
+- Solo is possible by memory, or by a screenshot: the player's own business. The task is made for a group.
+- **The humans' spoils:** calling a wrong digit, "the line crackled", hanging up mid-password, locking the router
+  with a wrong code on purpose.
+- **Engine part:** voice through a station (two receivers bridge two players' voices); today voice is proximity only.
+
 ### Delivery (#683)
+**Out of the MVP** (the engineer, 2026-10-20, [#1033 c6287322692](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287322692)):
+"removed for now, until something cool comes to mind"; its items exist once and hiding them is its sabotage, against
+the rule above. The M7 rules below stay for the record.
+
+
 The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md), Tasks; `docs/ARCHITECTURE.md`
 §9.5.4), reworked by the engineer on 2026-10-10 (#683 and its comments; his answers on PR #713, comments
 [6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718) and
@@ -325,6 +427,10 @@ split, for M7.
 Open questions: none. The engineer answered every one on 2026-10-10 and 2026-10-11 (the ADR's §5 and §10).
 
 ### Photo (#687)
+**In the MVP as a pose silhouette** (the engineer, 2026-10-15, #1102): the photographer sees a silhouette of the pose
+and explains it by voice; the shot works only when the subject matches it; no printing and hanging. Its details are
+open on #1102; the M7 rules below stay until then.
+
 The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
 are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
 [PR #704, comments 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907) and
@@ -442,6 +548,13 @@ are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answe
 [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)); the engine parts are in
 [the cooking ADR](decisions/2026-10-10-cooking-task.md). Its core is on main (C1 to C4, C9 to C11); C5 to C8 are open.
 
+**Changed for the MVP** (the engineer, 2026-10-20, [#1033 c6287322692](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287322692)
+and [c6287630697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287630697)), under the rule
+"every core part is printed or grown" (§8): the boxes give way to **a food printer in the pantry** (the old storage):
+choose the bun or the patty and its kind, about 5 s, take it. **The herbs are the greenhouse's five flowers:** the
+order shows a flower's icon, and every match gives each flower a random icon, shown on the flower itself, so the herb
+board and the herb beds go. A box can no longer be hidden. Where the rules below say otherwise, this paragraph wins.
+
 **Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
 kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
 the far south-west corner of the yard and carried back (the long meat run is intended); the herb is picked in the
@@ -544,6 +657,11 @@ Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR
 in the playtest.
 
 ### Generator (#679)
+**Out of the MVP** (the engineer, 2026-10-20, [#1033 c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)
+and [c6289051351](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6289051351)): he likes its
+"king of the hill" (switch everything on and hold), but without a human it is too easy, and random trips would make
+it the ship's engine again. The mechanic is kept for later. The M7 rules below stay for the record.
+
 The House map's generator chain ([House map](design/house-map.md) §2, decision 8; its stations in §6). The rules below
 are the engineer's (#679, chat of 2026-10-09, and his answers of 2026-10-10 to the design's questions, in PR #695's
 comments, from [6095326452](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6095326452) on, each
@@ -627,6 +745,8 @@ Open questions: none; the engineer answered the ADR's GD1 to GD13 on 2026-10-10 
 last two (ADR §9). The numbers above are tuned in the playtest.
 
 ### Car repair (#688)
+**Replaced by Car tuning** (above; the engineer, 2026-10-20). The M7 rules below stay for the record.
+
 The House map's garage chain ([House map](design/house-map.md) §2, decisions 5, 9 and 10; its stations in §6). The
 rules below are the engineer's: #688 (chat of 2026-10-10) and his answers to the design's questions (PR #709,
 [comment 6095445261](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6095445261),

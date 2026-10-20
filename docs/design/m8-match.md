@@ -43,6 +43,11 @@
 - **The wait is 30 s** (decided, tuned by playtest); **no wait that grows per death** (rejected as boring) (#1032).
   Today's rules already respawn at a random free marker after 30 s with 3 s of invulnerability (vision revision 1),
   so the capsules start as those markers.
+- **The dead's room** (the MVP, the engineer, 2026-10-20,
+  [#1032 c6289051758](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6289051758)): the dead do not
+  spectate the living; they go to a separate room together and hang out there until the respawn. Kept for later:
+  the soul pinball, choosing the spot and the misprint debuff
+  ([#1032 c6223852584](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6223852584)).
 
 ## 4. Points
 
@@ -62,6 +67,11 @@
 - **A killed alien tells everyone who killed him,** so a kill outs the killer (#1040).
 - **What points buy:** a mutation, a global sabotage, or a weapon (§7); calming the neighbours (§5) and stalling the
   cops (§5) also cost points (#1031, #1040).
+- **In the MVP points buy three positive mutations** (the engineer, 2026-10-20,
+  [#1040 c6289148858](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6289148858)): run faster, jump
+  higher, more HP, put on at the mutation workbench in the laboratory. No negative mutations yet. Global sabotages,
+  weapons, calming the neighbours and stalling the cops are not in the MVP. What earns points and how many is to be
+  validated.
 - **No cap on re-sabotaging one task for now:** the aliens outnumber the humans, so two of them kill a camper; the
   intended human plays on the move (#1040).
 
@@ -70,7 +80,7 @@
 Designed in the chat from research round 2 and the engineer's idea of calling the cops (#1031, comment of
 2026-10-15). Two layers, kept apart so each makes sense in the story:
 
-1. **Task sabotage** (hide a delivery item, switch the generator off) slows the aliens against the timer and earns
+1. **Task sabotage** (in the MVP: paint a car part the wrong shade, let an engine problem run out; GDD §8) slows the aliens against the timer and earns
    nothing (§4). The neighbours do not care about it.
 2. **Mischief the neighbours notice** raises the **neighbours' anger** meter. Mischief stations are open knowledge
    and anyone may use them; an alien who does calls the cops on his own party.
@@ -86,9 +96,13 @@ Designed in the chat from research round 2 and the engineer's idea of calling th
    - **The aliens choose:** if the humans only sabotage tasks, the aliens may ignore the meter and push their tasks.
    - **The threshold is a host setting** (e.g. 50 or 100).
    - **Start small:** one ongoing mischief, one one-off, and the timer; more are added one at a time.
+   - **The MVP's set** (the engineer, 2026-10-20,
+     [#1033 c6289051351](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6289051351)): the meter
+     stays; the bins knocked over and loud music (ongoing), the fireworks (one-off, from the pantry). No cake for now.
 3. **The meter full: the finale.** The neighbours call the cops themselves: "they arrive in a minute". The aliens have
    that minute to finish. **Any player may spend points at a special place to stall the cops** (a minute more): a
-   hidden human may offer, be trusted, and not do it.
+   hidden human may offer, be trusted, and not do it. Not in the MVP (the engineer, 2026-10-20,
+   [#1040 c6289148858](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6289148858)).
 
 ## 6. Winning
 
