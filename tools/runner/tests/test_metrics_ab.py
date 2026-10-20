@@ -2,9 +2,14 @@
 each side's findings as the blind judge ruled them, the totals per pair of models and the stop rule, from synthetic
 runs written here (never real ones)."""
 
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from runner import metrics
+from runner.tests import test_metrics
+from runner.tests.test_metrics import UNTIL, Fixture, gh_stub, new_pub
 
 SONNET, OPUS = "claude-sonnet-5-5", "claude-opus-5-5"
 MAJOR = {"severity": "major", "problem": "p"}
@@ -125,6 +130,48 @@ class AbVerdictTest(unittest.TestCase):
         # The totals' missed_serious comes from the other side's unique ones.
         rows = [row(i, side(), missed_two if i == 0 else side()) for i in range(2)]
         self.assertTrue(metrics.ab_totals(rows)[0]["verdict"].startswith("stop"))
+
+
+class EndedOptionsJournalTest(unittest.TestCase):
+    """#1147: issue-task.js refuses ab_review, models.code, models.implement "sonnet" and publish_findings since they
+    ended on 2026-10-13, and runs no control reviewer or judge any more; `metrics` still reads the journals of the runs
+    launched with them, beside a run of today, from fixture journals."""
+
+    def test_an_old_run_with_the_ended_options_beside_a_run_of_today(self) -> None:
+        lines = test_metrics.QualityTest.lines
+        judged = {"verdicts": [verdict(1, 0, "valid", "major"), verdict(2, 0, "valid", "major")], "matches": [{"first": 0, "second": 0}]}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(metrics, "PUB_TRIAL_FROM", "2026-10-01T00:00:00Z"):
+            folder = Path(tmp) / "projects" / "D--prime-game"
+            wf = folder / test_metrics.QualityTest.SID / "subagents" / "workflows"
+            # #70, launched with ab_review, models.code, models.implement and models.publish_findings, all "sonnet":
+            # the control code reviewer and the judge on Opus, a major left open for the Sonnet publisher.
+            Fixture.run(wf / "wf_70", [
+                ("k-i70", "a-i70", "implement:#70", "Implement", {"verify_green": True}, lines("i70", 0, 8, model=SONNET)),
+                ("k-r70", "a-r70", "review:code:#70", "Review", {"findings": [MAJOR]}, lines("r70", 8, 9, model=SONNET)),
+                ("k-c70", "a-c70", "review:code-control:#70", "Review", {"findings": [MAJOR]}, lines("c70", 8, 9)),
+                ("k-j70", "a-j70", "ab-judge:#70", "Review", judged, lines("j70", 9, 10)),
+                ("k-p70", "a-p70", "publish:#70", "Publish", new_pub(80, not_fixed=["x"]),
+                 lines("p70", 10, 15, model=SONNET, publishes=1)),
+            ])  # fmt: skip
+            # #71, a run of today: no control, no judge, the publisher on the session's model.
+            Fixture.run(wf / "wf_71", [
+                ("k-i71", "a-i71", "implement:#71", "Implement", {"verify_green": True}, lines("i71", 30, 38)),
+                ("k-r71", "a-r71", "review:code:#71", "Review", {"findings": [MAJOR]}, lines("r71", 38, 39)),
+                ("k-p71", "a-p71", "publish:#71", "Publish", new_pub(81), lines("p71", 39, 45, publishes=1)),
+            ])  # fmt: skip
+            until = metrics.parse_time(UNTIL)
+            data = metrics.collect([folder], {}, None, until)
+            github = metrics.read_github(gh_stub({"prs": [], "runs": [], "issues": []}))
+            md, rec, _compact = metrics.build(data, [], None, None, until, github=github)
+        text = "\n".join(md)
+        self.assertEqual(sorted(r["issue"] for r in data["runs"]), [70, 71])
+        # The old run's A/B row, as before #1147; today's run has none.
+        self.assertIn("## The code reviewer's A/B (#535)", text)
+        (ab,) = rec["ab_review"]["rows"]
+        self.assertEqual((ab["issue"], ab["trial_model"], ab["control_model"], ab["judged"]), (70, SONNET, OPUS, True))
+        # Its Sonnet publisher with a major left open is still a task of #835's trial, today's Opus one the baseline.
+        trial = rec["publisher_trial"]
+        self.assertEqual(([x["issue"] for x in trial["tasks"]], [x["issue"] for x in trial["baseline"]]), ([70], [71]))
 
 
 if __name__ == "__main__":
