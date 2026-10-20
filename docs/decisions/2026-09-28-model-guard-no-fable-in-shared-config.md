@@ -7,7 +7,8 @@
   reviewer); amended 2026-10-08 (#560: the Sonnet implementer trial); amended 2026-10-10 (#560: the Sonnet implementer
   kept, a standing manager habit); amended 2026-10-11 (#835: the Sonnet publisher of runs with findings and
   Sonnet `pr-rebase`, a trial); amended 2026-10-13 (#919: the code reviewer's A/B, the Sonnet implementer habit and
-  the Sonnet publisher of runs with findings ended; Sonnet `pr-rebase` continues)
+  the Sonnet publisher of runs with findings ended; Sonnet `pr-rebase` continues); amended 2026-10-20 (#1146: Sonnet
+  `pr-rebase` a standing manager habit)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -120,6 +121,15 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     baseline's 0.83, over 5 Sonnet tasks). `pr-rebase`'s `models.publish: "sonnet"` continues under the rules of
     2026-10-11 (advice "continue" at 8 of its 10 runs). The scripts keep the roles and no default names a model, so
     nothing else changes.
+  - **2026-10-20** (#1146, the answer 2A to the weekly report). Approved by the engineer:
+    https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723. #835's `pr-rebase` verdict (from
+    2026-10-08 12:25Z to 2026-10-20 10:00Z, `metrics`' "Sonnet publisher trial (#835)": 16 Sonnet against 13 Opus
+    runs, 0 red each; blockers and majors 0.12 against 0.31 a run, not fixed 0.19 against 0.23, $2.31 against $3.34;
+    advice "keep Sonnet for pr-rebase") makes `models.publish: "sonnet"` on every `pr-rebase` launch a standing
+    manager habit, no longer a trial. The publisher of `issue-task` runs with findings stays Opus (the answer 5A of
+    2026-10-13; the trial's final advice for it, of 2026-10-20, is the same: drop). Reverting ends the `pr-rebase`
+    `models.publish` launches and changes nothing else. Sonnet is in the shared list, so it needs no allowance under
+    amendment A; no script, default or agent file names the model.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.

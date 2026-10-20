@@ -84,9 +84,14 @@ art for the month from 2026-10-15 (below):
   the wave comment and ask once in "For you:" for a share of the buffer, with the amount and what it buys. With no
   answer, stop without a keep-alive (§7): a fresh session later costs less than a warm wait of days.
 - **The last 24 hours** before the reset (from Monday 10:00 UTC) open every track's unspent budget and the buffer to
-  any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost.
+  any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost. The 80%
+  rule for game, meta and UI below still holds in these hours.
 - **The 93% stop**, a standing rule: no new launch while the weekly counter reads 93% or more, whatever the track's
   own budget; runs in flight finish. Read the counter before each wave's launches.
+- **80% for game, meta and UI** while design 50% and art 50% hold (the month from 2026-10-15): the game, meta and UI
+  managers launch nothing new once the weekly counter (get_usage) reads 80% or more, the last 24 hours included;
+  design and art go on up to the 93% stop. Runs in flight finish (the engineer's answer 1A,
+  [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723)).
 
 ## The PC (N3 (b))
 - At most **four task workflows of this repo** at once: by day the game 3 and meta 1; at night either track up to 3,
@@ -117,10 +122,10 @@ only what the budget and the trials decide.
 - **`models.plan: "sonnet"`** (#469): the result's `plan.model` shows it; `metrics`' plan phase table compares the plan
   and critique $, the planner files the implementer read again and the critique's findings with the runs before (they
   must not rise).
-- **`models.publish: "sonnet"`** on every `pr-rebase` launch (#835, a trial: [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)
-  amendments of 2026-10-11 and 2026-10-13): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s "Sonnet
-  publisher trial (#835)" before each wave; once its "Advice (pr-rebase)" is other than "continue", post it on #302
-  with the table and stop passing it.
+- **`models.publish: "sonnet"`** on every `pr-rebase` launch, a habit since #835's verdict "keep" (the engineer's
+  answer 2A, [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723);
+  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md) amendment of
+  2026-10-20). The publisher of `issue-task` runs with findings stays Opus.
 - **Ended 2026-10-13** (#302 comment 6145513919, 3A to 5A): `ab_review` with `models.code`, `models.implement:
   "sonnet"` and `models.publish_findings`; pass none of them.
 - **`checkpoint`** (#759, #920): on by default since the engineer's answer 6A (#302 comment 6145513919); pass nothing.
