@@ -22,21 +22,6 @@ extends RefCounted
 const BUTTON_SIZE := Vector2(183, 0)
 
 
-## A centered panel with a title, filling `parent`; returns the column to add rows to.
-static func centered_column(parent: Control, title: String) -> VBoxContainer:
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(center)
-	var panel := PanelContainer.new()
-	center.add_child(panel)
-	var column := VBoxContainer.new()
-	column.theme_type_variation = &"ScreenColumn"
-	panel.add_child(_margin(column))
-	column.add_child(heading(title))
-	return column
-
-
 static func heading(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
