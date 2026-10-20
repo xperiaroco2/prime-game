@@ -1167,9 +1167,11 @@ window script calls `tools/offscreen/offscreen.gd` `place()` first, which moves 
 line. The runner fails a run whose line is missing or whose window meets a screen. What a window watcher still saw:
 the frame's 1 px left border, 2 px tall at the top-right corner, until `place()` (0.5 to 0.8 s for a shot, 3.7 and
 4.9 s for playcheck's two windows); the game keeps its title bar and focus (no command-line flag makes a window
-borderless or unfocused). The pictures are unchanged (pixel-identical for `probe.tscn` and the attic). A 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
-one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
-forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
+borderless or unfocused). The pictures are unchanged: pixel-identical for `probe.tscn` and the attic; the End
+screen of `client/dev/end_preview.tscn` fades in over 0.4 s of real time, so its background differs by 1 to 2 levels
+between two runs of the same code too. A 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level
+piece) gets one that frames all its geometry, plus a light if it has none. It prints the driver it drew with
+(`renderer: vulkan forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
 gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
