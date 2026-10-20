@@ -518,7 +518,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("target", help="a .tscn or a .gd that extends SceneTree (repo-relative or res://)")
     view = p.add_mutually_exclusive_group()
     view.add_argument("--headless", action="store_true", help="no window (GODOT_BIN); CI and agent checks")
-    view.add_argument("--offscreen", action="store_true", help="a real window kept off-screen as shot's (a scene runs under tools/offscreen/offscreen_scene.gd)")
+    view.add_argument(
+        "--offscreen",
+        action="store_true",
+        help="a real window kept off-screen as shot's (a scene runs under tools/offscreen/offscreen_scene.gd)",
+    )
     p.add_argument("--seconds", type=int, default=60, help="hard timeout; kills the process tree (default 60)")
     p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
     p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
