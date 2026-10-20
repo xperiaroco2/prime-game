@@ -60,14 +60,15 @@ garage's driveway at y 11. North and west: forest.
 
 **The creek:** (0, 48) → (22.5, 49.5) → (45, 60) → (67.5, 63) → (90, 55.5) → (112.5, 54) → (135, 57), about 3 m wide,
 not crossable except at the crossings: the log bridge (30, 51.8), the stepping stones (57, 62.3), the drainage pipe
-(94.5, 54.8).
+(94.5, 54.8), and a plank footbridge (118, 54.9) on the gazebo → ship spoke, which otherwise crosses the creek with no way
+over (found by the design track's walk-through, 2026-10-21; a working fix for him to confirm).
 
 ## 4. Paths
 
 2.5 m wide, a lantern every 6 m.
 - **Upper loop:** bonfire → pantry → greenhouse → house → garage → gazebo → summer kitchen → bonfire.
 - **Lower loop:** bonfire → stepping stones → well → fallen trunk → ship → pipe → bonfire.
-- **Spokes:** house ↔ bonfire; pantry → log bridge → well; gazebo → ship (east side); trunk → gate; garage →
+- **Spokes:** house ↔ bonfire; pantry → log bridge → well; gazebo → plank footbridge → ship (east side); trunk → gate; garage →
   driveway.
 
 ## 5a. The ship (the engineer, 2026-10-20)
