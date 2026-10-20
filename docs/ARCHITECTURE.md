@@ -2774,9 +2774,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `Game._hud_local()`), `HudText.spectates()`
   and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
   line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
-  stay.
-- Tests: `tests/unit/client/ui/hud_test.gd` (the spectator's words from a fake `ClientModel`: the target's name
-  and slots, none of its private facts, none of the spectator's own slots, numbers or hint),
+  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.44): `Hud.spectating_label`, `HudText.Local.watching` and
+  `Shown.spectating` are gone; while `HudText.spectates()` the HUD shows nothing (since #497 not even the target's
+  hand and belt), the target's name is `LifeHud.Local.watching` and `Shown.watching`, and `LifeScreen`'s `Spectate`
+  plate (#497) shows it in `watching_label`, so the "no Watching line" sentence above no longer holds.
+- Tests: `tests/unit/client/ui/hud_test.gd` (from a fake `ClientModel`; superseded: it now checks that a dead
+  spectator sees nothing of the HUD, `test_a_dead_spectator_sees_nothing_of_the_hud`; the target's name is checked in
+  `life_hud_test.gd` and `life_network_test.gd` on `LifeScreen.watching_label`),
   `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network),
   `spectate_network_test.gd` (above; the target's meshes and items not drawn from its eyes, drawn again when it
   goes down or the spectator respawns; the retrace measured to the segment between two recorded poses, so the
