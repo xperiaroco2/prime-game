@@ -4,8 +4,8 @@
 8); usage in docs/AGENT_WORKFLOW.md §11. It catches what only a playtest saw before (#168, #169).
 
 A scenario, tools/playcheck/scenarios/<name>.txt, names its players: the first `windows` are the game,
-client/app/game.tscn, each in a real window at `shot`'s off-screen position (never headless or minimized: Godot then
-draws nothing), started by tools/playcheck/playcheck_window.gd with the command line `host` gives a host (window 1:
+client/app/game.tscn, each in a real window kept off-screen as `shot`'s (tools/runner/offscreen.py; never headless or
+minimized: Godot then draws nothing), started by tools/playcheck/playcheck_window.gd with the command line `host` gives a host (window 1:
 --host --local) and its local clients (--join=127.0.0.1); the players after them are bots, one headless process of
 tests/harness/playcheck/playcheck_bots_main.gd that plays the scripts of a BotScenario over ENet. Each window runs
 its own steps. A wait reads only that window's own client: its ClientSession and ClientModel (the host's own client

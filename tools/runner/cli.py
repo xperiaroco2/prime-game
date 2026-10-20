@@ -501,7 +501,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "shot",
         help="render a scene off-screen in a real window and save a PNG",
-        description="An off-screen PNG of a scene: render it in a real window at an off-screen position and save it.",
+        description="An off-screen PNG of a scene: render it in a real window kept off every screen and save it.",
     )
     p.add_argument("scene", help="the .tscn to render (repo-relative or res://)")
     p.add_argument("--out", help="PNG path (default: tools/out/shots/<scene>.png)")
@@ -518,7 +518,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("target", help="a .tscn or a .gd that extends SceneTree (repo-relative or res://)")
     view = p.add_mutually_exclusive_group()
     view.add_argument("--headless", action="store_true", help="no window (GODOT_BIN); CI and agent checks")
-    view.add_argument("--offscreen", action="store_true", help="a real window at the off-screen position of shot")
+    view.add_argument("--offscreen", action="store_true", help="a real window kept off-screen as shot's (a scene runs under tools/offscreen/offscreen_scene.gd)")
     p.add_argument("--seconds", type=int, default=60, help="hard timeout; kills the process tree (default 60)")
     p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
     p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
