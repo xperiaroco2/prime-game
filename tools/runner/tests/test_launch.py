@@ -87,6 +87,11 @@ class PathsAndArgumentsTest(unittest.TestCase):
         self.assertNotIn("-s", visible)
         self.assertNotIn("--audio-driver", visible)
 
+    def test_the_echoed_command_carries_the_environment_it_needs(self) -> None:
+        self.assertEqual(launch.shown(None), "")
+        self.assertEqual(launch.shown(launch.offscreen_env("res://a.gd")), "PRIME_WINDOW=1152x648 ")
+        self.assertIn("PRIME_OFFSCREEN_SCENE=res://a.tscn ", launch.shown(launch.offscreen_env("res://a.tscn")))
+
     def test_the_off_screen_size_is_the_projects_window_size(self) -> None:
         text = (ROOT / "project.godot").read_text(encoding="utf-8")
         width = re.search(r"^window/size/window_width_override=(\d+)$", text, re.MULTILINE)

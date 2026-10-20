@@ -111,6 +111,11 @@ def offscreen_env(target: str, size: str = OFFSCREEN_SIZE) -> dict[str, str]:
     return env
 
 
+def shown(env: dict[str, str] | None) -> str:
+    """An instance's added environment as `NAME=value ` words before the command it is echoed with."""
+    return "".join(f"{k}={v} " for k, v in (env or {}).items())
+
+
 def error_lines(lines: list[str], limit: int = SHOWN_ERRORS) -> tuple[int, list[str]]:
     """(number of engine error lines, the first `limit` of them).
 
@@ -269,15 +274,17 @@ def main(
         user_args=user_args or [],
         engine_args=engine_args,
     )
-    say(f"        {' '.join(cmd[1:])}" + (f"  x{instances}" if instances > 1 else ""))
-    name = Path(res_path).stem
     off = offscreen and not headless
+    env = offscreen_env(res_path) if off else None
+    # The environment is part of the command: by hand, without PRIME_WINDOW the window script fails at once.
+    say(f"        {shown(env)}{' '.join(cmd[1:])}" + (f"  x{instances}" if instances > 1 else ""))
+    name = Path(res_path).stem
     results = launch(
         [cmd] * instances,
         seconds=seconds,
         log_dir=LOGS / "run",
         name=name,
-        env=offscreen_env(res_path) if off else None,
+        env=env,
         offscreen=off,
     )
     return report(Path(res_path).name, results)
