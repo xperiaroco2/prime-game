@@ -86,11 +86,6 @@ func cutoff() -> float:
 	return _cutoff_m
 
 
-## Whether it can play: the codec was available and the player is in the tree.
-func can_play() -> bool:
-	return _playback != null
-
-
 ## Takes one relayed frame (VoiceJitter.push()).
 func push(seq: int, tick: int, frame: PackedByteArray, arrival_usec: int) -> void:
 	jitter.push(seq, tick, frame, arrival_usec)
