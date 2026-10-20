@@ -25,6 +25,11 @@
   be locked), so the volume task (#733) is closed. PR #744 (37f, #646) derived the provisional speed 5.0 m/s by a
   sweep: the limit, 5.5 m/s, is set by the balcony railing tops, a 1 m jump. House's roof test guards the speed, and
   the lower roofs get a test per map in #746. With 37e (#645, PR #748) every part of the split, 37a to 37f, is built.
+- **Update 2026-10-16 (the numbers approved):** the engineer skipped the M7 playtests and approved the provisional
+  numbers they were to judge as they are
+  ([#879](https://github.com/xperiaroco2/prime-game/issues/879#issuecomment-6202590193)): the speed 5.0 m/s, the
+  project's physics gravity (9.8 m/s²), the item radius 0.15 m and the longest flight 3 s are no longer provisional
+  (ARCHITECTURE §7.1.16, §10). The text below keeps "provisional" as history. No change to a TD or TE answer.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
