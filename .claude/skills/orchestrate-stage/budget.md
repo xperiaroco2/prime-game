@@ -121,10 +121,10 @@ only what the budget and the trials decide.
 - **`models.plan: "sonnet"`** (#469): the result's `plan.model` shows it; `metrics`' plan phase table compares the plan
   and critique $, the planner files the implementer read again and the critique's findings with the runs before (they
   must not rise).
-- **`models.publish: "sonnet"`** on every `pr-rebase` launch (#835, a trial: [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)
-  amendments of 2026-10-11 and 2026-10-13): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s "Sonnet
-  publisher trial (#835)" before each wave; once its "Advice (pr-rebase)" is other than "continue", post it on #302
-  with the table and stop passing it.
+- **`models.publish: "sonnet"`** on every `pr-rebase` launch, a habit since #835's verdict "keep" (the engineer's
+  answer 2A, [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723);
+  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md) amendment of
+  2026-10-20). The publisher of `issue-task` runs with findings stays Opus.
 - **Ended 2026-10-13** (#302 comment 6145513919, 3A to 5A): `ab_review` with `models.code`, `models.implement:
   "sonnet"` and `models.publish_findings`; pass none of them.
 - **`checkpoint`** (#759, #920): on by default since the engineer's answer 6A (#302 comment 6145513919); pass nothing.
