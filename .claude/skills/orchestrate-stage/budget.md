@@ -84,12 +84,13 @@ art for the month from 2026-10-15 (below):
   the wave comment and ask once in "For you:" for a share of the buffer, with the amount and what it buys. With no
   answer, stop without a keep-alive (§7): a fresh session later costs less than a warm wait of days.
 - **The last 24 hours** before the reset (from Monday 10:00 UTC) open every track's unspent budget and the buffer to
-  any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost.
+  any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost. The 80%
+  rule for game, meta and UI below still holds in these hours.
 - **The 93% stop**, a standing rule: no new launch while the weekly counter reads 93% or more, whatever the track's
   own budget; runs in flight finish. Read the counter before each wave's launches.
 - **80% for game, meta and UI** while design 50% and art 50% hold (the month from 2026-10-15): the game, meta and UI
-  managers launch nothing new once the weekly counter (get_usage) reads 80% or more; design and art go on up to the
-  93% stop. Runs in flight finish (the engineer's answer 1A,
+  managers launch nothing new once the weekly counter (get_usage) reads 80% or more, the last 24 hours included;
+  design and art go on up to the 93% stop. Runs in flight finish (the engineer's answer 1A,
   [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723)).
 
 ## The PC (N3 (b))
