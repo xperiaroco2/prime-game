@@ -17,6 +17,7 @@ class RemoteBot:
 	extends BotsEnet
 
 	var client_made_at_join: Array[bool] = []
+	var join_started_usec := START_USEC
 
 	func _init(bot_scenario: BotScenario) -> void:
 		super(bot_scenario, 2, NO_PORT, OUT)
@@ -28,6 +29,9 @@ class RemoteBot:
 
 	func _unjoined() -> NetTransport:
 		return LoopbackTransport.new(schema.kind_table(), null)
+
+	func _join_started_usec() -> int:
+		return join_started_usec
 
 	func _start_join(transport: NetTransport) -> void:
 		var client: BotClient = clients.get(2)
@@ -244,20 +248,48 @@ func test_a_remote_bots_clock_and_join_start_once_the_host_is_up() -> void:
 func test_a_remote_bot_whose_host_never_came_up_starts_after_the_wait() -> void:
 	var runner := RemoteBot.new(_scenario([[], []]))
 	assert_bool(runner.start(START_USEC)).is_true()
-	var before := START_USEC + BotsEnet.HOST_UP_WAIT_S * BotsEnet.USEC_PER_SECOND - 1
-	runner.step(before)
+	var just_before := START_USEC + BotsEnet.HOST_UP_WAIT_S * BotsEnet.USEC_PER_SECOND - 1
+	runner.step(just_before)
 	assert_bool(runner.clients.has(2)).is_false()
-	runner.step(before + BotsEnet.PEERS_READ_USEC)
+	runner.step(just_before + BotsEnet.PEERS_READ_USEC)
 	assert_bool(runner.clients.has(2)).override_failure_message("joins as before").is_true()
 	(runner.clients[2] as BotClient).leave()
 
 
 func test_a_remote_bot_that_joins_late_starts_its_clock_without_joining() -> void:
-	var runner := RemoteBot.new(_scenario([[], [StepJoin.new()]]))
+	var late := StepJoin.new()
+	late.at_s = 30.0
+	var runner := RemoteBot.new(_scenario([[], [late]]))
+	assert_bool(runner.start(START_USEC)).is_true()
+	assert_bool(runner._clock_started).override_failure_message("before the host").is_false()
+	runner._write_host_up()
+	var up := START_USEC + BotsEnet.PEERS_READ_USEC
+	runner.step(up)
+	assert_bool(runner._clock_started).override_failure_message("host is up").is_true()
+	assert_int(runner._start_usec).is_equal(up)
+	assert_bool(runner.clients.has(2)).override_failure_message("its Join step joins").is_false()
+
+
+## The join's retry clock starts with the join, after the client was made and hashed (#950).
+func test_a_remote_bots_join_retry_clock_starts_with_the_join_not_before_its_client() -> void:
+	var runner := RemoteBot.new(_scenario([[], []]))
+	runner.join_started_usec = START_USEC + 5_500_000
 	runner._write_host_up()
 	assert_bool(runner.start(START_USEC)).is_true()
-	assert_int(runner._start_usec).is_equal(START_USEC)
-	assert_bool(runner.clients.has(2)).override_failure_message("its Join step joins").is_false()
+	assert_int(runner._join_retry(2).started_usec).is_equal(START_USEC + 5_500_000)
+	(runner.clients[2] as BotClient).leave()
+
+
+## The host's clock starts at its first step, after its start (#950).
+func test_the_hosts_clock_starts_at_its_first_step_after_its_start() -> void:
+	var runner := BotsEnet.new(_scenario([[], []]), 1, NO_PORT, OUT)
+	runner._start_usec = START_USEC
+	runner._host_clock_pending = true
+	var after_start := START_USEC + 6_000_000
+	runner._sync_host_clock(after_start)
+	assert_int(runner._start_usec).is_equal(after_start)
+	runner._sync_host_clock(after_start + FRAME_USEC)
+	assert_int(runner._start_usec).override_failure_message("once").is_equal(after_start)
 
 
 func test_a_remote_bot_whose_join_was_lost_for_good_fails_at_once_and_writes_its_reason() -> void:

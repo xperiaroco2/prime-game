@@ -96,6 +96,8 @@ var _transports_made := 0
 var _launched_usec := 0
 var _clock_started := false
 var _next_host_check_usec := 0
+## The host: its clock starts at its first step, once its start is done (_sync_host_clock).
+var _host_clock_pending := false
 
 
 func _init(
@@ -136,6 +138,7 @@ func start(now: int) -> bool:
 	bots.append(bot)
 	if is_host():
 		_clock_started = true
+		_host_clock_pending = true
 		return _start_host(bot) and _write_host_up()
 	_launched_usec = now
 	_wait_for_host(now)
@@ -162,6 +165,16 @@ func _wait_for_host(now: int) -> void:
 		_connect(bots[0])
 
 
+## The host's clock starts at its first step, as the remote bots' do at host-up (#950): its start
+## (the levels, the content hash, over WebRTC the room) takes seconds, and its time limit has no
+## margin, so a clock started with the process ran the remote bots' windows short by that time.
+func _sync_host_clock(now: int) -> void:
+	if not _host_clock_pending:
+		return
+	_host_clock_pending = false
+	_start_usec = now
+
+
 ## The host's sign that it serves (HOST_UP_FILE); false with a failure when it cannot write it.
 func _write_host_up() -> bool:
 	if DirAccess.make_dir_recursive_absolute(dir) != OK:
@@ -181,6 +194,7 @@ func step(now: int) -> void:
 		_wait_for_host(now)
 		if not _clock_started:
 			return
+	_sync_host_clock(now)
 	now_usec = now
 	@warning_ignore("integer_division")
 	tick_now = (now - _start_usec) * Ticks.RATE / USEC_PER_SECOND
@@ -392,8 +406,16 @@ func _shim_seed() -> int:
 func _join_host(bot: ScenarioBot) -> String:
 	var transport := _unjoined()
 	add_client(bot, transport)
+	# add_client started the retry's clock before the client was made (and hashed): the join's own
+	# starts now, or a refusal within a poll would look unanswered and be joined again.
+	_join_retry(bot.number).start(_join_started_usec())
 	_start_join(transport)
 	return ""
+
+
+## The real clock a join starts on (_join_clock_usec is the frame's, from before the client).
+func _join_started_usec() -> int:
+	return Time.get_ticks_usec()
 
 
 ## The lurker and the refused bot, once made (on the host only).
