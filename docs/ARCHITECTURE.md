@@ -532,7 +532,7 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of Â
     thread stays `CONNECTED` (M6-1). `poll()` sends each live peer exactly `[0, 0, 0]` on VOICE when nothing went to
     it for `KEEPALIVE_MS` (1 s), from the main thread only; the receiver consumes exactly that packet on VOICE before
     the inbox (and the round trip's probes below), and any other kind-0 packet reaches the inbox, which rejects it
-    (`UNKNOWN_KIND`). After every channel
+    (`UNKNOWN_KIND`), the exact `BYE` frame on RELIABLE below excepted. After every channel
     was read (the backlog drained first, so a thawed side drops nobody), a peer heard nothing from for `SILENCE_MS`
     (20 s), keepalives included, leaves: `peer_left` on the host, `host_lost` on a client. So does a connection in
     `FAILED` or `CLOSED` (judged after its channels were read, so what came with the end comes first, as on ENet;
@@ -556,7 +556,8 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of Â
     (`bots-webrtc` failed on it three times, a client's leave while the host sent snapshots). So `close()` (either
     role) sends each live peer `BYE` on RELIABLE (the kind-0 frame with the 1-byte payload 3, consumed before the
     inbox) and leaves the connection to it, kept by a SceneTree timer for `CLOSE_WAIT_MS` (5 s) and then closed
-    (with no SceneTree, or a peer not live, at once). A side that reads `BYE` has read all sent before it, sends
+    (with no SceneTree, or a peer not live, at once; a process that quits in the frame it closes frees the timer and
+    drops the connection at once, so it keeps running for a moment first). A side that reads `BYE` has read all sent before it, sends
     nothing more, ends that peer (a leave on the host, `host_lost` on a client) and closes the connection itself.
   - **`disconnect_peer`** never blocks: the reason the caller sent goes out first; the next `poll()` closes that
     peer's RELIABLE channel once its buffered amount is 0, and the connection once the client closed its side (its
@@ -1528,7 +1529,7 @@ on `connected`, one id per line, one line per connection (a bot that left and re
 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
 the `ForceRole`s; every other bot reads `peers` before its first step. Since #950 a remote bot's clock (its
 scenario's times and time limit) and its first join start once bot 1 wrote `host-up` there (it serves: its session
-started, over WebRTC its room is up), or `HOST_UP_WAIT_S` (30 s) after its own start at the latest: the host's start
+started, over WebRTC its room is up), or `HOST_UP_WAIT_S` (30 s) after its own start at the latest (bot 1's own clock starts at its first step, after its start, and each join's retry clock when its client is made): the host's start
 takes seconds, and clocks started with the processes ran the scenario's spacing out meanwhile
 (`leave_and_return_keep_the_number`'s bot 3 joined before bot 2 in 4 runs of 4 on the engineer's PC). Learning ids
 out of band is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id

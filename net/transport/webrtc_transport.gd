@@ -391,7 +391,8 @@ func _backend_close() -> void:
 ## can still read open over there for a moment, and a send into it prints an engine error ("SCTP
 ## sending failed, errno=32"; the bots lanes fail on any). It is closed from this side after
 ## CLOSE_WAIT_MS if the other never did, kept until then by a SceneTree timer (none: at once, as
-## any connection not live or whose BYE did not go out).
+## any connection not live or whose BYE did not go out). A process that quits in the frame it closes
+## frees the timer and the connection with it: it must keep running until the other side closed.
 func _say_bye(conn: Conn) -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or not _is_live(conn) or _put(conn, NetKindTable.Lane.RELIABLE, _bye) != OK:
