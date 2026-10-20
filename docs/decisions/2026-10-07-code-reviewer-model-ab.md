@@ -111,7 +111,8 @@ rule like the one above, and the result reported on prime-game #302. Its manager
   and `publish_clean` do.
 - The judge is Opus judging Opus against Sonnet; the prompts hide which is which, and the reviewers' order is fixed
   (reviewer 1 is always the trial), so a position bias, if any, is the same in every run.
-- `models.code` stays after the trial: with no default it changes nothing unless a launch passes it.
+- `models.code` stayed after the trial (no default, so it changed nothing unless a launch passed it); since #1147
+  (2026-10-20) `issue-task.js` refuses it (see the Outcome).
 
 ## Outcome (2026-10-13)
 Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919 (3A, on the
@@ -119,6 +120,6 @@ Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#i
 runs since 2026-10-11 11:00Z, Sonnet against Opus: 16 against 38 valid findings (42%, the bar 80%), 27 against 5
 missed, 13 of 29 invalid (45%) against 10 of 48 (21%), $0.21 against $0.63 a run. The advice "drop the trial model"
 held in the week's window (14 runs) and since 2026-09-30 (27). Opus stays the code reviewer; the manager no longer
-passes `ab_review` or `models.code`, which the script keeps (a launch without them runs as before). Since #1147
+passes `ab_review` or `models.code` (a launch without them ran as before). Since #1147
 (2026-10-20, the engineer's answer 3A in #302 comment 6291039723) `issue-task.js` refuses both and no longer has
 the control reviewer and the judge; `metrics` still reads the A/B runs' journals.
