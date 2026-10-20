@@ -1442,8 +1442,8 @@ one line each (the key in `metrics.json` in brackets):
 - the Sonnet implementer trial (#560, `sonnet_trial`; [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md),
   with its revert rule's advice; ended 2026-10-13);
 - the Sonnet publisher trial and `pr-rebase` by model (#835, `publisher_trial`; the
-  [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendments of 2026-10-11
-  and 2026-10-13: the publisher's half ended, `pr-rebase`'s goes on);
+  [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendments of 2026-10-11,
+  2026-10-13 and 2026-10-20: the publisher's half ended, `pr-rebase`'s became a standing habit);
 - agents by role and agent type, and how many ran general (#557, `agent_types`);
 - cache re-writes after a `wait` or a CI wait (#555, §11.17, `bounded_waits`) and the tool-call start-up per class of
   call (#568, §8.2, `tool_latency`);
