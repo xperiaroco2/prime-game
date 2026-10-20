@@ -36,7 +36,9 @@ ONE_PROCESS_SECONDS = 300
 # files.
 ENET_SECONDS = 180
 NAME_RE = re.compile(r"[a-z0-9_]+")
-# `run` writes instance i's output to tools/out/logs/run/bots_main-<i>.log.
+# `run` writes instance i of one process to tools/out/logs/run/bots_main-<i>.log, of a network scenario to
+# bots_main-<scenario>-<transport>-<i>.log (log_name): bots-enet and bots-webrtc play the same two scenarios, and one
+# shared name made the later run overwrite the earlier one's logs (#1171).
 RUN_LOGS = LOGS / "run"
 CHAOS_TARGET = "tests/harness/chaos/chaos_main.gd"
 # Per seed over the loopback: three runs of about 2 s each (the long match about 3 s).
@@ -79,6 +81,11 @@ def check_args(scenarios: list[str], instances: int, transport: str = "enet") ->
         raise Failure(f"--transport {transport} plays one scenario, one process per bot: give --instances N")
 
 
+def log_name(scenario: str, transport: str) -> str:
+    """The log name stem of a network scenario's instances: bots_main-<scenario>-<transport>."""
+    return f"{Path(TARGET).stem}-{scenario}-{transport}"
+
+
 def clear_out(scenarios: list[str]) -> None:
     """Old view files would pass for this run's (the ENet host waits for them): start each scenario empty."""
     if not scenarios:
@@ -106,9 +113,10 @@ def main(
         seconds=seconds or ENET_SECONDS,
         instances=instances,
         user_args=user_args(names, port, instances, transport),
+        log_name=log_name(names[0], transport),
     )
     if code != 0:
-        show_failures(instances)
+        show_failures(instances, log_name(names[0], transport))
     return code
 
 
@@ -184,8 +192,8 @@ def failure_block(log: Path) -> list[str]:
     return block
 
 
-def show_failures(instances: int) -> None:
+def show_failures(instances: int, name: str = Path(TARGET).stem) -> None:
     """Over ENet `run` echoes only engine error lines: print each instance's failure report from its log."""
     for number in range(1, instances + 1):
-        for line in failure_block(RUN_LOGS / f"{Path(TARGET).stem}-{number}.log"):
+        for line in failure_block(RUN_LOGS / f"{name}-{number}.log"):
             say(f"  #{number} {line}")

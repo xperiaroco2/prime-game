@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import bots, cli, verify
-from runner.common import ROOT, Failure
+from runner import bots, cli, launch, verify
+from runner.common import ROOT, Failure, Result
 
 
 class BotsArgsTest(unittest.TestCase):
@@ -186,6 +186,7 @@ class BotsRunTest(unittest.TestCase):
             seconds=50,
             instances=2,
             user_args=["--port=24242", "--instances=2", "refusals"],
+            log_name="bots_main-refusals-enet",
         )
 
     def test_webrtc_runs_one_instance_per_bot_on_a_port_free_for_tcp_too(self) -> None:
@@ -203,6 +204,7 @@ class BotsRunTest(unittest.TestCase):
             seconds=bots.ENET_SECONDS,
             instances=2,
             user_args=["--port=24243", "--instances=2", "--transport=webrtc", "refusals"],
+            log_name="bots_main-refusals-webrtc",
         )
 
     def test_a_transport_needs_instances_and_a_known_name(self) -> None:
@@ -223,8 +225,9 @@ class BotsRunTest(unittest.TestCase):
                 "  command log (Match.replay with ReplayFiles.read): x.replay",
                 "after",
             ]
-            (logs / "bots_main-1.log").write_text("".join(f"{line}\n" for line in first), encoding="utf-8")
-            (logs / "bots_main-2.log").write_text("BOTS refusals: instance 2 of 2 on port 1\n", encoding="utf-8")
+            stem = "bots_main-refusals-enet"
+            (logs / f"{stem}-1.log").write_text("".join(f"{line}\n" for line in first), encoding="utf-8")
+            (logs / f"{stem}-2.log").write_text("BOTS refusals: instance 2 of 2 on port 1\n", encoding="utf-8")
             with (
                 mock.patch.object(bots, "RUN_LOGS", logs),
                 mock.patch.object(bots, "clear_out"),
@@ -242,6 +245,32 @@ class BotsRunTest(unittest.TestCase):
                 "  #1   command log (Match.replay with ReplayFiles.read): x.replay",
             ],
         )
+
+    def test_two_network_scenarios_keep_both_sets_of_logs(self) -> None:
+        """bots-enet and bots-webrtc play the same scenarios (#1171): every scenario and transport keeps its logs."""
+        plays = (("a", "enet"), ("b", "enet"), ("a", "webrtc"), ("b", "webrtc"))
+        with tempfile.TemporaryDirectory() as tmp:
+            for scenario, transport in plays:
+                out = Result(0, f"{scenario} over {transport}\n", False, 0.1)
+                with (
+                    mock.patch.object(bots, "clear_out"),
+                    mock.patch.object(verify, "free_udp_port", return_value=24244),
+                    mock.patch.object(launch, "run", return_value=out),
+                    mock.patch.object(launch, "require_godot", return_value="g"),
+                    mock.patch.object(launch, "ensure_import"),
+                    mock.patch.object(launch, "LOGS", Path(tmp)),
+                    mock.patch.object(launch, "say"),
+                    mock.patch.object(launch, "ok"),
+                    mock.patch.object(launch, "bad"),
+                    mock.patch.object(bots, "say"),
+                ):
+                    self.assertEqual(bots.main([scenario], instances=2, transport=transport), 0)
+            logs = Path(tmp) / "run"
+            self.assertEqual(
+                sorted(p.name for p in logs.iterdir()),
+                sorted(f"bots_main-{s}-{t}-{n}.log" for s, t in plays for n in (1, 2)),
+            )
+            self.assertEqual((logs / "bots_main-a-enet-1.log").read_text("utf-8"), "a over enet\n")
 
     def test_a_run_starts_with_empty_scenario_folders(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
