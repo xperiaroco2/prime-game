@@ -1,8 +1,10 @@
 """common.force_rmtree: the vanish-tolerant delete of a folder git made, used by mutants and the runner tests (#440,
 #453)."""
 
+import errno
 import os
 import stat
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,6 +47,42 @@ class RmtreeTest(unittest.TestCase):
             force_rmtree(str(self.tmp / "remote.git"))
         self.assertEqual(raced, ["a6", "b7"])
         self.assertFalse((self.tmp / "remote.git").exists())
+
+    def test_directory_not_empty_is_retried_whole(self) -> None:
+        # A process wrote into a folder rmtree had emptied (#1142): the first rmtree raises ENOTEMPTY, the second works.
+        full = OSError(errno.ENOTEMPTY, "Directory not empty", str(self.tmp / "remote.git"))
+        with mock.patch.object(common.time, "sleep") as sleep:
+            with mock.patch.object(common.shutil, "rmtree", side_effect=[full, None]) as patched:
+                force_rmtree(str(self.tmp / "remote.git"))
+        self.assertEqual(patched.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_a_persistent_directory_not_empty_still_raises(self) -> None:
+        full = OSError(errno.ENOTEMPTY, "Directory not empty", str(self.tmp / "remote.git"))
+        with mock.patch.object(common.time, "sleep") as sleep:
+            with mock.patch.object(common.shutil, "rmtree", side_effect=full) as patched:
+                with self.assertRaises(OSError) as raised:
+                    force_rmtree(str(self.tmp / "remote.git"))
+        self.assertIs(raised.exception, full)
+        self.assertEqual(patched.call_count, common.RMTREE_TRIES)
+        self.assertEqual(sleep.call_count, common.RMTREE_TRIES - 1)
+
+    def test_another_error_is_not_retried(self) -> None:
+        denied = PermissionError(13, "Access is denied", str(self.tmp))
+        with mock.patch.object(common.time, "sleep") as sleep:
+            with mock.patch.object(common.shutil, "rmtree", side_effect=denied) as patched:
+                with self.assertRaises(PermissionError):
+                    force_rmtree(str(self.tmp / "remote.git"))
+        self.assertEqual(patched.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_the_tests_run_git_without_auto_gc(self) -> None:
+        # runner/tests/__init__.py puts gc.auto=0 and maintenance.auto=false into every git the tests start (#1142).
+        out = subprocess.run(
+            ["git", "config", "--get-regexp", r"^(gc\.auto|maintenance\.auto)$"], cwd=self.tmp, capture_output=True,
+            text=True, check=True,
+        )  # fmt: skip
+        self.assertEqual(sorted(out.stdout.split("\n")[:2]), ["gc.auto 0", "maintenance.auto false"])
 
     def test_every_other_error_stays_loud(self) -> None:
         # A file that stays: a refused delete, and a "not found" for a path that is still there.

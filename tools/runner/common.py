@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import io
 import os
@@ -839,14 +840,27 @@ def _delete_again(func, target, exc) -> None:  # type: ignore[no-untyped-def]
             raise
 
 
+RMTREE_TRIES = 4  # force_rmtree's attempts when a folder is written into while it is deleted (#1142)
+RMTREE_PAUSE = 0.2  # seconds between them
+
+
 def force_rmtree(path: Path | str) -> None:
     """Delete a folder that git made: git makes its object files read-only, and Windows refuses to delete those
     without a chmod. A path that vanishes meanwhile (a git process still tidying its object folders, #440) counts as
-    deleted; every other error is raised. Used by mutants' scratch worktrees and the runner tests' temp repos (#453)."""
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=_delete_again)
-    else:
-        shutil.rmtree(path, onerror=_delete_again)
+    deleted. "Directory not empty" (ENOTEMPTY, also Windows' ERROR_DIR_NOT_EMPTY: a process wrote a file into a folder
+    rmtree had emptied, #1142) runs the whole delete again a few times; every other error, and that one after the last
+    try, is raised. Used by mutants' scratch worktrees and the runner tests' temp repos (#453)."""
+    for attempt in range(RMTREE_TRIES):
+        try:
+            if sys.version_info >= (3, 12):
+                shutil.rmtree(path, onexc=_delete_again)
+            else:
+                shutil.rmtree(path, onerror=_delete_again)
+            return
+        except OSError as exc:
+            if exc.errno != errno.ENOTEMPTY or attempt == RMTREE_TRIES - 1:
+                raise
+            time.sleep(RMTREE_PAUSE)
 
 
 def remove_own_user_dir(folder: Path | None) -> bool:
