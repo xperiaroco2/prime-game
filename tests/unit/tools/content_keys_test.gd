@@ -93,6 +93,42 @@ trigger = &"round_start"
 	assert_array(_keys.unknown_keys_in(PATH, text)).is_empty()
 
 
+func test_an_indented_or_quoted_key_is_compared_like_godot_reads_it() -> void:
+	var text := (
+		HEAD
+		+ """
+  [resource]
+script = ExtResource("1_rule")
+  triger = &"round_start"
+"trigr" = &"round_start"
+"trigger" = &"round_start"
+"""
+	)
+	var problems := _keys.unknown_keys_in(PATH, text)
+	assert_array(problems).has_size(2)
+	assert_str(problems[0]).contains(':8: unknown property "triger"')
+	assert_str(problems[1]).contains(':9: unknown property "trigr"')
+
+
+func test_a_comment_neither_hides_a_key_nor_unbalances_the_scan() -> void:
+	var text := (
+		HEAD
+		+ """
+[resource]
+script = ExtResource("1_rule")
+; a comment with a quote " and a bracket [ and a brace {
+trigger = &"round_start" ; a trailing comment with a (
+triger = &"round_start"
+resource_name = "a ; inside a string"
+trigr = 1
+"""
+	)
+	var problems := _keys.unknown_keys_in(PATH, text)
+	assert_array(problems).has_size(2)
+	assert_str(problems[0]).contains(':10: unknown property "triger"')
+	assert_str(problems[1]).contains(':12: unknown property "trigr"')
+
+
 func test_a_native_sub_resource_is_compared_with_its_class() -> void:
 	var text := (
 		HEAD

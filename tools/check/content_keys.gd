@@ -14,9 +14,9 @@ extends RefCounted
 ## written by hand).
 const ROOTS: PackedStringArray = ["res://content/"]
 
-const _HEADER := "^\\[(\\w+)(.*)\\]\\s*$"
+const _HEADER := "^\\s*\\[(\\w+)(.*)\\]\\s*(;.*)?$"
 const _ATTRIBUTE := '(\\w+)="([^"]*)"'
-const _KEY := "^([A-Za-z_][A-Za-z0-9_/:.-]*)\\s*="
+const _KEY := '^\\s*(?:([A-Za-z_][A-Za-z0-9_/:.-]*)|"([^"]*)")\\s*='
 const _EXT_RESOURCE := '^\\s*ExtResource\\(\\s*"([^"]+)"\\s*\\)'
 
 ## Stored property names (a set) per "<type> <script path>": each class is made once.
@@ -95,7 +95,8 @@ func unknown_keys_in(path: String, text: String) -> PackedStringArray:
 
 ## The [resource] and [sub_resource] sections of `text`, with each line's property key; fills
 ## `ext_paths` (id -> path). A line counts only outside a string and outside brackets, so a
-## multi-line string or dictionary value never reads as a key or a header.
+## multi-line string or dictionary value never reads as a key or a header. Like Godot's parser it
+## skips leading whitespace, accepts a quoted key and ignores a `;` comment.
 func _sections(text: String, ext_paths: Dictionary[String, String]) -> Array[Section]:
 	var sections: Array[Section] = []
 	var main_type: String = ""
@@ -128,9 +129,12 @@ func _sections(text: String, ext_paths: Dictionary[String, String]) -> Array[Sec
 			elif current != null:
 				var key: RegExMatch = _key_re.search(line)
 				if key != null:
-					current.keys.append(key.get_string(1))
+					var name: String = key.get_string(1)
+					if name.is_empty():
+						name = key.get_string(2)  # a quoted key
+					current.keys.append(name)
 					current.lines.append(number)
-					if key.get_string(1) == "script":
+					if name == "script":
 						var ext: RegExMatch = _ext_re.search(line.substr(key.get_end()))
 						if ext != null:
 							current.script_id = ext.get_string(1)
@@ -144,6 +148,8 @@ func _sections(text: String, ext_paths: Dictionary[String, String]) -> Array[Sec
 					in_string = false
 			elif character == '"':
 				in_string = true
+			elif character == ";":
+				break  # a comment to the end of the line, as in Godot's own parser
 			elif character in "[{(":
 				depth += 1
 			elif character in "]})":
