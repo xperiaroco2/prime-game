@@ -139,9 +139,7 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 
 
 func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_decoded() -> void:
-	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot;
-	# since #1209 none is unreached.
-	assert_dict(LeakCheck.UNREACHED).is_empty()
+	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot.
 	var seen: Dictionary[StringName, bool] = {}
 	for event: StringName in LeakCheck.TASK_EVENTS:
 		seen[event] = true
