@@ -36,6 +36,21 @@ func test_it_sends_hello_with_the_version_and_the_content_fingerprint_on_connect
 	assert_str(hellos[0].fields["name"]).is_empty()
 
 
+## A join asks for its fingerprint twice (game.gd's join_target, then its session): the process's
+## cache hashes the levels once (#1172).
+func test_content_of_and_a_session_of_the_same_mode_hash_once() -> void:
+	var cache := ContentFingerprintCache.shared()
+	var mode := _harness.mode
+	var content := ClientSession.content_of(mode)
+	var asked := cache.asked
+	var computed := cache.computed
+	var again := Harness.new()
+	assert_int(cache.asked).is_equal(asked + 1)
+	assert_int(cache.computed).is_equal(computed)
+	assert_int(ClientSession.content_of(again.mode)).is_equal(content)
+	again.close()
+
+
 ## Hello asks for the player's own name (#550), cleaned again by the session, so even a name too
 ## long for the wire (40 Cyrillic letters are 80 bytes) or with a control leaves as a Hello.
 func test_hello_carries_the_players_name_cleaned() -> void:
