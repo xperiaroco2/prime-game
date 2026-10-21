@@ -225,6 +225,20 @@ static func talk_key() -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and mode_button != null:
 		_retext()
+	elif (
+		what == NOTIFICATION_EXIT_TREE
+		or (what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree())
+	):
+		_interrupted()
+
+
+## Esc or a phase change closing the menu mid-drag (#726): a Slider then drops its drag without
+## drag_ended, so the drag or the quiet time ends here and the value it left is saved (#1245).
+func _interrupted() -> void:
+	if _dragging or not settle_timer.is_stopped():
+		_dragging = false
+		settle_timer.stop()
+		sliders_settled.emit()
 
 
 ## The dropdowns' words in the current language (their items are set from code).

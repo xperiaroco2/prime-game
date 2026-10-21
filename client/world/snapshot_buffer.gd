@@ -176,19 +176,22 @@ func clear(floor_tick := -1) -> void:
 
 ## `peer`'s pose at host tick `at` (a render_tick()), or null when no snapshot held has it.
 func pose_of(peer: int, at: float) -> Pose:
-	var before := -1
-	var after := -1
-	var newest := -1
-	for i: int in _ticks.size():
-		if not _avatars[i].has(peer):
-			continue
-		newest = i
-		if _ticks[i] <= at:
-			before = i
-		elif after < 0:
-			after = i
-	if newest < 0:
+	# The bracket is found by a binary search, then a walk past the snapshots without `peer`
+	# (usually none): each body calls this every frame and the buffer holds up to 41 (#1245).
+	var split := _first_after(at)
+	var before := split - 1
+	while before >= 0 and not _avatars[before].has(peer):
+		before -= 1
+	var after := split
+	while after < _ticks.size() and not _avatars[after].has(peer):
+		after += 1
+	if after == _ticks.size():
+		after = -1
+	if before < 0 and after < 0:
 		return null
+	var newest := _ticks.size() - 1
+	while newest > maxi(before, after) and not _avatars[newest].has(peer):
+		newest -= 1
 	var pose := Pose.new()
 	pose.velocity = _field(newest, peer, "velocity")
 	pose.crouched = _flag(before if before >= 0 else after, peer, "crouched")
@@ -237,6 +240,19 @@ func _face(pose: Pose, peer: int, facing: Vector3) -> void:
 	pose.pitch = angles.y
 	_facings[peer] = pose.facing
 	_angles[peer] = angles
+
+
+## The index of the first snapshot held with a tick past `at` (the size when none is).
+func _first_after(at: float) -> int:
+	var low := 0
+	var high := _ticks.size()
+	while low < high:
+		var middle := (low + high) >> 1
+		if _ticks[middle] <= at:
+			low = middle + 1
+		else:
+			high = middle
+	return low
 
 
 func _snaps_between(peer: int, before: int, after: int) -> bool:
