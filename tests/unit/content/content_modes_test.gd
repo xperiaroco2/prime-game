@@ -149,7 +149,9 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 			continue
 		var world := ScenarioLevels.world_of(scenario)
 		if ScenarioLevels.STOREYED_MAPS.has(scenario.played_map()):
-			assert_bool(world is FlatWorldQuery and world.get_script() != FlatWorldQuery).is_true()
+			assert_object(world.get_script()).override_failure_message(file).is_same(
+				ScenarioLevels.StoreyedWorld
+			)
 		else:
 			assert_object(world.get_script()).override_failure_message(file).is_same(FlatWorldQuery)
 			assert_float((world as FlatWorldQuery).floor_y).is_equal(0.0)
