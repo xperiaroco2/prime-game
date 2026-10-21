@@ -309,7 +309,8 @@ static func is_name_char(code: int) -> bool:
 
 
 ## Writes `fields` from `source`; the problem, or empty. Every key of `source` must be one the
-## fields fill: when fewer of their keys are in `source` than it holds, one is undeclared.
+## fields fill: when fewer of their keys are in `source` than it holds, one is undeclared (the count
+## needs each key declared once per list; wire_schema_test pins it).
 ## `message` gives the SEQ and PEER slots (null inside a record).
 static func write_all(
 	fields: Array[WireField], source: Dictionary, writer: WireWriter, message: WireMessage
