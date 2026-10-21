@@ -4791,7 +4791,9 @@ unchanged.
   generator's `Bars/Bar1..` lit from the fixed switches' count plus the switches on, `Glow` once all are lit, and
   `Button` moved in 0.02 m for 0.15 s at each press (a press before the bind replays nothing). The driven parts move
   once per scene under a `StationSight` wrapper in `SightHider.GROUP` (sight point 1 m above the use spot), so a
-  downed eye behind a wall sees none; `Fixed` stays outside it. All are the level's depth-tested meshes.
+  downed eye behind a wall sees none; `Fixed` stays outside it. All are the level's depth-tested meshes. It searches a
+  level for its scenes once (as `CookingViews`, `PhotoViews` and `CarRepairViews`, #1198): a level that holds none is
+  not rescanned every frame; a new level is searched again.
 - **The sounds.** `SoundChooser` plays SwitchChanged's click at the switch's station and ButtonPressed's at the
   generator's (aimed `PANEL_AIM_M` above), cut at the hearing range and muffled like every world sound, on
   `WorldSounds.station_blip()` placeholders. `StationHums` (in `ItemWorld`) keeps one looping hum
@@ -4805,6 +4807,7 @@ unchanged.
 - **Tests.** `tests/unit/client/world/station_use_test.gd`, `target_choice_station_test.gd`,
   `generator_sounds_test.gd`, `tests/integration/client/world/item_interactions_station_test.gd`,
   `circle_views_generator_test.gd`, `station_views_test.gd` (the real `levels/stations/` scenes),
+  `station_scene_search_test.gd` (the four views' one search),
   `station_hums_test.gd`, `tests/unit/client/ui/content_names_test.gd`, `map_screen_generator_test.gd`,
   `tests/unit/client/app/game_flow_test.gd` (`in_round`).
 
