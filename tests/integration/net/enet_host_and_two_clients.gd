@@ -12,7 +12,8 @@ extends SceneTree
 ## sees peer_left once, the client host_lost. The host sends every peer (its own client too) one
 ## message per lane carrying that peer's id (the first ones' upload counted at once, take_upload);
 ## each peer checks the id and echoes it. The host starts
-## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
+## refusing joins and proves it with a third ENet client in its own process, which must end with
+## joins_closed at once (the refusal frame, #1233), not connect_failed. Client 3 leaves when
 ## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
 ## The own connection (the M6 design §3 item 4, #431): each client, when pinged, reports a direct
@@ -211,13 +212,19 @@ func _host_step() -> void:
 					return
 				_start_probe()
 		"probe":
-			if _prober_result == "connect_failed":
-				# Refused at once, not by the join timeout: that is what the ADMIT is for.
+			if _prober_result == String(NetTransport.JOIN_STARTED):
+				# Refused at once, not by the join timeout, and saying why: that is what the ADMIT
+				# and its refusal frame are for (#1233).
 				var waited := Time.get_ticks_msec() - _probe_started_ms
 				if waited > EnetTransport.JOIN_TIMEOUT_MS / 2.0:
 					_fail("a refused join failed only after %d ms" % waited)
 					return
-				print("NET host a join while refusing failed after %d ms, as it should" % waited)
+				print(
+					(
+						"NET host a join while refusing failed (joins_closed) after %d ms, as it should"
+						% waited
+					)
+				)
 				_prober = null
 				_phase = "leave"
 				_host.send(_peer_of_instance[3], COMMAND, "leave".to_utf8_buffer())

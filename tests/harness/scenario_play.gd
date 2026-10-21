@@ -27,9 +27,9 @@ const MAX_STEPS_PER_TICK := 32
 ## ScenarioPeers (`peer`; RaiseStarted's and RaiseStopped's `raiser` and `target`, M4-4).
 const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
 ## What a Join after the bot's own Leave tries again after, every RETRY_S seconds until its
-## deadline_s (P12 (t2) of the returning-players ADR): a refused connection (ENet's and the
-## loopback's connect_failed, the core runner's refusal) and joins_closed (the WebRTC signalling's,
-## or a Rejected Hello's). Anything else fails it at once.
+## deadline_s (P12 (t2) of the returning-players ADR): a refused connection (the loopback's
+## connect_failed, the core runner's refusal) and joins_closed (ENet's refusal frame, #1233; the
+## WebRTC signalling's; or a Rejected Hello's). Anything else fails it at once.
 const RETRIED: Array[StringName] = [ClientSession.CONNECT_FAILED, RejectReasons.JOINS_CLOSED]
 const RETRY_S := 0.5
 

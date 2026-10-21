@@ -6,7 +6,8 @@ extends NetTransport
 ##
 ## A client counts as connected only when the host's ADMIT arrives. ENet completes its handshake
 ## before the host's code sees the peer, so a refused client would otherwise see "connected" and
-## then wait for a timeout. A refusing host disconnects the peer instead of admitting it.
+## then wait for a timeout. A host refusing new connections sends REFUSED_JOINS_CLOSED instead of
+## the ADMIT and disconnects the peer, so the client ends with joins_closed, not connect_failed.
 
 ## ENet drops a peer that acknowledges nothing for this long; a crashed peer is noticed within
 ## PEER_TIMEOUT_MAX_MS. ENet runs only on the main thread, so a peer whose main thread freezes
@@ -36,6 +37,10 @@ const JOIN_TIMEOUT_MS := 5000
 ## The host's first packet to each client: a frame of kind 0, which no kind table allows, so it
 ## can never be mistaken for a game message.
 const ADMIT: Array[int] = [0, 0, 0]
+## A host refusing new connections sends this in the ADMIT's place, on the same lane, then
+## disconnects the peer: a kind-0 frame with a 1-byte payload, the reason, 1 for joins closed (the
+## only one). The client ends with NetTransport.JOIN_STARTED, as a WebRTC join of a started match.
+const REFUSED_JOINS_CLOSED: Array[int] = [0, 1, 0, 1]
 
 ## The address the host listens on. "*" is every interface; 127.0.0.1 keeps local tests off the
 ## network (and off the firewall prompt).
@@ -91,9 +96,14 @@ func _backend_poll() -> void:
 		var channel := _peer.get_packet_channel()
 		var mode := _peer.get_packet_mode()
 		var bytes := _peer.get_packet()
-		if not is_host() and not _admitted and _is_admit(from_peer, bytes, channel, mode):
+		var before_admit := not is_host() and not _admitted
+		if before_admit and _is_frame(ADMIT, from_peer, bytes, channel, mode):
 			_admitted = true
 			_push(Inbound.new(Inbound.Type.CONNECTED, _client_id))
+		elif before_admit and _is_frame(REFUSED_JOINS_CLOSED, from_peer, bytes, channel, mode):
+			var refused := Inbound.new(Inbound.Type.CONNECT_FAILED, HOST_ID)
+			refused.reason = JOIN_STARTED
+			_push(refused)
 		else:
 			_push(Inbound.new(Inbound.Type.PACKET, from_peer, bytes, channel, mode))
 	for peer_id in _departures:
@@ -192,7 +202,9 @@ func _use(peer: ENetMultiplayerPeer) -> void:
 
 
 ## Host: admits each new peer before anything else goes to it, or disconnects it. The ADMIT
-## and the game's reliable messages share channel 0, so they arrive in this order.
+## and the game's reliable messages share channel 0, so they arrive in this order. While refusing
+## new connections it answers a peer with a valid id REFUSED_JOINS_CLOSED and disconnects it later
+## (_backend_disconnect), so the refusal arrives first: the client knows why at once.
 ## The client picks its own peer id (Godot only refuses 0, 1 and ids in use), so it is neither
 ## secret nor unique over time. A negative id would turn every send to it into "everyone but"
 ## (set_target_peer), and an id still leaving in this poll would be taken for the old peer.
@@ -200,25 +212,32 @@ func _admit_arrivals() -> void:
 	for peer_id in _arrivals:
 		if not _live.has(peer_id):  # joined and left within this poll
 			continue
-		if (
-			is_refusing_new_connections()
-			or peer_id <= HOST_ID
-			or _peers.has(peer_id)
-			or peer_id in _departures
-		):
+		if peer_id <= HOST_ID or _peers.has(peer_id) or peer_id in _departures:
 			_peer.disconnect_peer(peer_id)
+			continue
+		if is_refusing_new_connections():
+			_backend_send(
+				peer_id, PackedByteArray(REFUSED_JOINS_CLOSED), NetKindTable.Lane.RELIABLE
+			)
+			_backend_disconnect(peer_id)
 			continue
 		_set_timeout(peer_id)
 		_backend_send(peer_id, PackedByteArray(ADMIT), NetKindTable.Lane.RELIABLE)
 		_push(Inbound.new(Inbound.Type.JOINED, peer_id))
 
 
-func _is_admit(
-	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
+## Whether a packet is the host's transport frame `expected` (ADMIT or REFUSED_JOINS_CLOSED), on
+## the lane the host sends it.
+func _is_frame(
+	expected: Array[int],
+	from_peer: int,
+	bytes: PackedByteArray,
+	channel: int,
+	mode: MultiplayerPeer.TransferMode,
 ) -> bool:
 	return (
 		from_peer == HOST_ID
-		and bytes == PackedByteArray(ADMIT)
+		and bytes == PackedByteArray(expected)
 		and channel == NetKindTable.channel_of(NetKindTable.Lane.RELIABLE)
 		and mode == NetKindTable.mode_of(NetKindTable.Lane.RELIABLE)
 	)

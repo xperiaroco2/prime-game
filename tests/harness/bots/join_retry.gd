@@ -9,11 +9,11 @@ extends RefCounted
 ## under load a process can start seconds before the host's listens (#284). A join that found no
 ## room (ROOM_NOT_UP, WebRTC: the host's process or room is not up yet, or the signalling socket
 ## did not open within Signaller.CONNECT_TIMEOUT_MS, the 5 s cap) joins again ROOM_RETRY_USEC after
-## it ended. A host that refuses a join answers at once: before the admission (refusing new
-## connections, an id in use) a client also ends `connect_failed`, but within a poll or two, and
-## after it (a Rejected Hello) `host_lost`; both stay failures, as do WebRTC's `joins_closed`,
-## `full` and `host_unreachable`. Judged when the failure is first seen, on the caller's join
-## clock. With max_joins above 0 it makes that many joins at most.
+## it ended. A host that refuses a join answers at once: before the admission a client ends
+## `joins_closed` (refusing new connections, #1233) or `connect_failed` (an id in use, but
+## within a poll or two), and after it (a Rejected Hello) `host_lost`; all stay failures, as do
+## WebRTC's `joins_closed`, `full` and `host_unreachable`. Judged when the failure is first seen,
+## on the caller's join clock. With max_joins above 0 it makes that many joins at most.
 
 ## A join that failed this long or more after it started went unanswered: half of
 ## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
