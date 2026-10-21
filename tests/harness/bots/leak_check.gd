@@ -28,6 +28,8 @@ extends RefCounted
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
 ##   task events (check_tasks).
+## - Coverage (check_coverage, #1197): over a run of every scenario some bot decoded each task event
+##   but the UNREACHED ones, so these checks see every task family's events over the wire.
 ## - The distance invariant (§5, E45), apart from the voice rule's hears and speakers_of: no bot
 ##   decodes a frame of a speaker farther away than the hearing radius of the phase at the frame's
 ##   tick (VoiceRule.radius_of), between the two players' last accepted positions after that tick
@@ -98,6 +100,22 @@ const TASK_EVENTS: Array[StringName] = [
 	&"BurgerPlated",
 	&"BurgerServed",
 ]
+## The task events no scenario reaches (#1197), each with why (check_coverage). The scenarios play
+## the House one storey at a time (BotScenario.floor_y, ARCHITECTURE §9.7): its ground floor (the
+## photo camera, the herb beds and places, the lift panel) and its basement (the Generator's
+## switches and button, the part bins); a chain that carries an item between storeys, or waits a
+## minute for an item to vanish, stays unplayed until bots climb stairs.
+const UNREACHED: Dictionary[StringName, String] = {
+	&"ItemVanished": "an item vanishes a minute after it lies loose, or in a chain no storey holds",
+	&"ItemChanged": "a patty fries on the ground floor's grill, from the basement's boxes",
+	&"GrillLoaded": "the grill on the ground floor takes a patty from the basement's boxes",
+	&"BurgerPlated": "a burger takes a bun and a patty from the basement's boxes",
+	&"BurgerServed": "a burger takes a bun and a patty from the basement's boxes",
+	&"FitChanged": "the car on the ground floor takes a part from the basement's bins",
+	&"PartFitted": "the car on the ground floor takes a part from the basement's bins",
+	&"PhotoPrinted": "the printer stands upstairs, the camera on the ground floor",
+	&"PhotoHung": "the board in the basement hangs a photo printed upstairs",
+}
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
 ## in length like Opus speech at 24 kbit/s (the M5 ADR §4: a mean near 45 B).
@@ -378,6 +396,32 @@ func check_tasks(views: Dictionary[String, DecodedView]) -> PackedStringArray:
 						% [first[match_id], label, match_id]
 					)
 				)
+	return found
+
+
+## Adds the names of the task events `decoded` holds to `seen`.
+static func add_task_events(decoded: DecodedView, seen: Dictionary[StringName, bool]) -> void:
+	for event: WireMessage in decoded.events:
+		if TASK_EVENTS.has(event.name):
+			seen[event.name] = true
+
+
+## The coverage of a run of every scenario (#1197): every task event but the UNREACHED ones was
+## decoded by some bot (`seen`, add_task_events over every view), so a scenario that stops reaching
+## one fails the run; an UNREACHED event some bot decoded fails too, to be taken off the list, and
+## so does an UNREACHED name that is no task event.
+static func check_coverage(seen: Dictionary[StringName, bool]) -> PackedStringArray:
+	var found := PackedStringArray()
+	for name: StringName in TASK_EVENTS:
+		if not UNREACHED.has(name) and not seen.has(name):
+			found.append("coverage: no bot decoded the task event %s in any scenario" % name)
+		elif UNREACHED.has(name) and seen.has(name):
+			found.append(
+				"coverage: a bot decoded %s, listed as unreached: take it off UNREACHED" % name
+			)
+	for name: StringName in UNREACHED:
+		if not TASK_EVENTS.has(name):
+			found.append("coverage: UNREACHED lists %s, which is no task event" % name)
 	return found
 
 

@@ -12,8 +12,9 @@ extends SceneTree
 ## `--transport=webrtc` (else ENet). Prints one
 ## line per scenario; a failed one prints its seed, each failure (the bot, its step, its last
 ## events) and the command log that replays it (ReplayFiles, E13), next to the bots' view files in
-## tools/out/bots/<scenario>/.
-## Exits 1 when any scenario failed.
+## tools/out/bots/<scenario>/. A run of every scenario then checks the task events' coverage
+## (LeakCheck.check_coverage, #1197: one `BOTS coverage` line); a run of named scenarios does not.
+## Exits 1 when any scenario failed, or the coverage.
 
 const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const SCENARIOS_DIR := "res://content/scenarios/"
@@ -76,6 +77,7 @@ func _run_in_one_process(names: PackedStringArray) -> int:
 	if paths.is_empty():
 		return 1
 	var failed := 0
+	var seen: Dictionary[StringName, bool] = {}
 	for path: String in paths:
 		var scenario := load(path) as BotScenario
 		var name := path.get_file().get_basename()
@@ -94,8 +96,14 @@ func _run_in_one_process(names: PackedStringArray) -> int:
 			]
 		)
 		failed += _report(name, runner.failures, scenario, runner.replay_path, took)
+		seen.merge(runner.task_events_seen)
 	print("BOTS %d of %d scenarios passed" % [paths.size() - failed, paths.size()])
-	return 1 if failed > 0 else 0
+	var uncovered := LeakCheck.check_coverage(seen) if names.is_empty() else PackedStringArray()
+	if names.is_empty():
+		print("BOTS coverage: %s" % ("passed" if uncovered.is_empty() else "FAILED"))
+	for problem: String in uncovered:
+		print("  %s" % problem)
+	return 1 if failed > 0 or not uncovered.is_empty() else 0
 
 
 func _start_enet(names: PackedStringArray, port: int, instances: int, webrtc: bool) -> void:
