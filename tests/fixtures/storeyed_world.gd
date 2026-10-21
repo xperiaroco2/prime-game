@@ -21,7 +21,10 @@ var storeys: Array[float] = []
 ## Each flight: its two ends (`from`, `to`) and its width.
 var flights: Array[Flight] = []
 
-## Whether the level Match asks about is `map_path`'s; until it says, it is.
+## Whether the level Match asks about is `map_path`'s; until it says, it is. Only the host's process
+## has a Match to tell it: a remote bot instance (`bots --instances`) builds its own world that no
+## Match tells, so its bots walk the lobby on the map's storeys (a House scenario run over ENet
+## keeps its lobby walks off the stairs).
 var _on_map := true
 
 

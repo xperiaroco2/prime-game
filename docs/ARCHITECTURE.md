@@ -8191,10 +8191,12 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     and 1.2 m wide (`ScenarioLevels.HOUSE_FLIGHTS`: the pantry stairs, two flights and their landing, and the
     external stairs, one flight; the ends follow the walks over the real stairs in `house_cooking_test`'s
     `PANTRY_UP` and `house_photo_test`'s `UPSTAIRS`), a storey's floor cut out over a flight (the stairwell). On
-    any other level (the lobby, which `Match` names with `use_level`) it is one floor at y 0. Each position a walk
-    claims stands on the floor found from a step above the bot's feet (`scenario_play.gd`), so a bot climbs a
-    step or a flight and walks down one; a drop past a step and the steepest floor over the claim's travel is a
-    fall, which the host does not bound (§7.1): the step fails (`route it over the stairs`), so a bot changes
+    any other level (the lobby, which `Match` names with `use_level`) it is one floor at y 0. A remote bot instance
+    (`bots --instances`) has no `Match` to name the level, so its world stays on the storeys: a House scenario run
+    over ENet keeps its lobby walks off the stairs. Each position a walk
+    claims stands on the floor found from a step and the claim's travel (the steepest floor, 45°) above the
+    bot's feet (`scenario_play.gd`), so a bot climbs a step or a flight, even after a stall that makes one claim span
+    several ticks, and walks down one; a drop past that reach is a fall, which the host does not bound (§7.1): the step fails (`route it over the stairs`), so a bot changes
     storey only over the stairs, through waypoints, and a ground walk keeps off the pantry's stairwell. The fake has none of the House's walls,
     so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (each House station, drop-off and storage marker stands on a storey of the fake; a flat map's on its one floor); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
