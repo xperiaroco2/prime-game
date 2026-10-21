@@ -152,7 +152,7 @@ func play_held() -> void:
 	var held := _held_crashes
 	_held_crashes = []
 	var heard_from: Variant = _heard_from()
-	if model == null or model.phase != &"round" or not heard_from is Vector3:
+	if not SoundChooser.in_play(model) or not heard_from is Vector3:
 		return
 	for sound: SoundChooser.Sound in held:
 		_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
