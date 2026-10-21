@@ -1656,7 +1656,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   one-process run of the 14 scenarios took 34 to 51 s on the engineer's machine while other worktrees ran their
   checks (25 s before M5-1 on the same busy machine; the runner's limit is 300 s), and `bots-enet` 48 to 49 s
   (2026-10-03). #1197's two House scenarios add about 10 s to the one-process run (19 scenarios: 130 s on a busy
-  machine, 2026-10-21), which ends, after a run of every scenario, with the task events' coverage
+  machine, 2026-10-21), and #1209's `bots_carry_items_between_the_house_storeys` about 20 s (64 s simulated; the
+  20 scenarios: 133.5 s on a busy machine, 2026-10-21), which ends, after a run of every scenario, with the task events' coverage
   (`BOTS coverage: passed`, §4.6.4.1).
 - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
   session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
@@ -1863,9 +1864,10 @@ nothing", both failed, reverted) and `photo_check_test` (neither `ShotTaken` nor
 `check_tasks` and `ScenarioInvariants` see the Generator's, Cooking's, the car repair's and the photo task's events
 over the wire, and added a coverage check so that cannot silently drop: after a run of every scenario (`bots` with no
 names; `BotsRunner.task_events_seen`, `bots_main` prints `BOTS coverage: passed` or `FAILED` with a line each)
-`LeakCheck.check_coverage` fails a task event no bot decoded, unless `LeakCheck.UNREACHED` lists it with why (the
-nine a chain across storeys or a longer-lying item would reach, #1209), and fails an UNREACHED event some bot decoded (take it off
-the list) or that is no task event. Seen failing: `check_coverage` planted to skip the missing branch failed
+`LeakCheck.check_coverage` fails a task event no bot decoded, unless `LeakCheck.UNREACHED` lists it with why, and
+fails an UNREACHED event some bot decoded (take it off the list) or that is no task event. #1197 listed nine (the
+chains across storeys, and `ItemVanished`); **#1209** reached them all (the bots change storey over the House's
+stairs, §9.7), so the list is empty; `bots_runner_test` checks the list's two failures with a list of its own. Seen failing: `check_coverage` planted to skip the missing branch failed
 `bots_runner_test`'s coverage case; with the basement scenario taken out, `bots` printed `BOTS 18 of 18 scenarios
 passed`, then `BOTS coverage: FAILED` (`no bot decoded the task event SwitchChanged in any scenario`, the same for
 `ButtonPressed`) and exited 1; both reverted.
@@ -8064,8 +8066,7 @@ told. One format runs in two runners.
     default); the seed; the number of bots (bot 1 is the host's own
     client); the match settings that differ from the defaults, numbers (`settings`) and sets of task type ids (`id_sets`: the host's bans, #79; M7-Z2), which `problems()` checks as the lobby would: a set the mode does not declare, an id that is none of its task types, and bans that leave fewer types than `tasks` are refused, so a ban of one of two types also lowers `tasks` in the same setup (`DealTasks.settings_problem`); roles forced per bot (debug builds only, invariant 8;
     otherwise the deal draws them from the seed); the match clock's length in seconds, forced with the debug command
-    `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting); the height of
-    the fake world's one floor (`floor_y`, #1197: 0, the flat levels'; a House scenario plays one storey, below). By default every
+    `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every
     bot joins (sends `Hello`) at the start and acknowledges every `LoadMatch` at once; the steps `Join` and `LoadAck`
     change that for one bot;
   - one script per bot, whose steps run in order; the bots run at the same time;
@@ -8097,7 +8098,7 @@ told. One format runs in two runners.
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Throw(towards, pitch_deg)` | faces the target flat, tilts that facing up by `pitch_deg` (-90 to 90) and sends `Throw`; standing on the target with a pitch other than ±90 fails the step (a zero facing would throw along the last one) | its `ItemThrown` of the item it held arrives (a `WaitFor` of `ItemPlaced` with cause `thrown` waits for the rest) |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |
-| `Interact(station, until)` | sends `Interact` naming the station a `station(kind, n)` target finds (`ScenarioBot.station_of`); no facing: the host checks reach and sight from the bot's position, so a `WalkTo` to it comes first; a station the bot was told of none of fails the step (#796) | the event `until` names arrives for this bot, or names no peer (no default: a use emits its task type's events); with `expect_rejected` and no `until`, that `Rejected` |
+| `Interact(station, until)` | sends `Interact` naming the station a `station(kind, n)` target finds (`ScenarioBot.station_of`), or with `item` in its place (#1209) the item a `nearest(kind)` target finds (`ScenarioBot.item_of`: the nearest of that kind lying on the ground, such as Cooking's boxes); no facing: the host checks reach and sight from the bot's position, so a `WalkTo` to it comes first; a station or item the bot was told of none of fails the step (#796) | the event `until` names arrives for this bot, or names no peer (no default: a use emits its task type's events); with `expect_rejected` and no `until`, that `Rejected` |
 | `Jump` | claims a jump | the claim is sent |
 | `Expect(event, fields, within)` | checks | it received a matching event since its previous step, or within `within` seconds |
 | `ExpectNone(event, fields, for_s)` | checks | no matching event arrived for `for_s` seconds; the first one fails the step |
@@ -8179,14 +8180,23 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
     (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House). The
     four-level House (#626), the one map players play (#767), is played by people in the host's real world, and since
-    #1197 by two scenarios one storey each (below); the runners
+    #1197 by bot scenarios (below); the runners
     read its markers, and those of every map no scenario plays, where the scene puts them, none snapped to a floor (`MarkerReader.read_levels`'s `unsnapped`,
-    `ScenarioLevels.unsnapped`; GE12, #798), since the flat fake has one floor: a station marker (a delivery
-    circle, a zone, a basement device) may stand below it there, and markers of different tags may share an
-    (x, z). A House scenario sets `floor_y` to the storey it plays (the ground floor 0, the basement -3.2): the fake
-    world's one floor stands there, a bot set down at y 0 drops onto it with its first claim (`scenario_play.gd` caps
-    the y of each position a walk claims at `floor_y`; the walk's target and its x-z distance are unchanged), and it reaches only that storey's stations; the fake has none of the House's walls,
-    so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (a flat map's scenarios keep `floor_y` 0); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    `ScenarioLevels.unsnapped`; GE12, #798): a station marker (a delivery
+    circle, a zone, a basement device) may stand on any storey, and markers of different tags may share an
+    (x, z). Since #1209 a scenario on the House plays in a fake world with its storeys and stairs
+    (`ScenarioLevels.world_of`, `tests/fixtures/storeyed_world.gd`; every other scenario keeps `FlatWorldQuery`):
+    `FlatWorldQuery`'s arithmetic with three floors (the basement -3.2, the ground floor 0, the second floor 3.2;
+    the attic, which no task uses, is left out) joined by flights of stairs, each a straight ramp between two ends
+    and 1.2 m wide (`ScenarioLevels.HOUSE_FLIGHTS`: the pantry stairs, two flights and their landing, and the
+    external stairs, one flight; the ends follow the walks over the real stairs in `house_cooking_test`'s
+    `PANTRY_UP` and `house_photo_test`'s `UPSTAIRS`), a storey's floor cut out over a flight (the stairwell). On
+    any other level (the lobby, which `Match` names with `use_level`) it is one floor at y 0. Each position a walk
+    claims stands on the floor found from a step above the bot's feet (`scenario_play.gd`), so a bot climbs a
+    step or a flight and walks down one; a drop past a step and the steepest floor over the claim's travel is a
+    fall, which the host does not bound (§7.1): the step fails (`route it over the stairs`), so a bot changes
+    storey only over the stairs, through waypoints, and a ground walk keeps off the pantry's stairwell. The fake has none of the House's walls,
+    so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (each House station, drop-off and storage marker stands on a storey of the fake; a flat map's on its one floor); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
@@ -8277,7 +8287,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   §4.6.4.1), and with a downed player counted (`_anyone_inside` reading `DEAD` for not alive); each reverted.
   `ZoneProgress` over the wire and a freeze in a zone: `host_session_zone_test.gd` (§4.6.5.3).
   The Generator (§9.5.19) had no bot scenario (GD7, GD13: it plays on the House alone) until #1197's basement
-  scenario (below), which plays it on the fake's flat floor. What stands in for its scenarios in the House's own
+  scenario (below), which plays it in the fake world (since #1209 down its pantry stairs). What stands in for its scenarios in the House's own
   geometry is `tests/integration/levels/house_generator_test.gd` (#802, G7), built as `house_zone_test.gd`: the shipped
   base mode on the House in the host's real world, three players with forced roles, the `switches` setting sent in the
   setup's `ChangeSettings`, `ScenarioInvariants` on every call and tick. The five markers read without errors and each
@@ -8293,8 +8303,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   of the mode (a test value, not a decision), the same player is refused `blocked` by the wall. Seen failing with the
   leak plant (§4.6.4.1) and with `StationInSight` always passing (both `blocked` tests); each reverted.
   The photo task (§9.5.22) had no bot scenario either (PD14, PE18 of the [photo ADR](decisions/2026-10-10-photo-task.md))
-  until #1197's ground-floor scenario (below) took a shot; the printer upstairs and the board in the basement no
-  scenario reaches. What stands in for its scenarios is `tests/integration/levels/house_photo_test.gd` (#788, P9), built as
+  until #1197's ground-floor scenario (below) took a shot, and #1209's scenario across the storeys (below) carried the film to the printer upstairs and the
+  photo to the board in the basement. What stands in for its scenarios is `tests/integration/levels/house_photo_test.gd` (#788, P9), built as
   `house_generator_test.gd`: the shipped base mode on the House in the host's real world, three players with forced
   roles, the photo task isolated in the setup's `ChangeSettings` (`tasks` 1 and every other task type of the base mode
   banned, read from the mode; `photos` 2, a test value, so one hang leaves the round going), `ScenarioInvariants` on
@@ -8312,8 +8322,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   subject alone, every present player's view holding each photo event once. Seen failing with the leak plant on
   `ShotTaken` and on the other three photo events and with the record plant (§4.6.4.1); each reverted.
   Cooking (the [cooking ADR](decisions/2026-10-10-cooking-task.md), CD15, CE22) had no bot scenario either until
-  #1197's ground-floor scenario (below) picked a herb and placed it; the grill and the burger, whose patty and bun
-  come from the basement's boxes, no scenario reaches. What stands in for its scenarios is `tests/integration/levels/house_cooking_test.gd` (#777, C8), built as
+  #1197's ground-floor scenario (below) picked a herb and placed it, and #1209's scenario across the storeys (below) the grill and the burger, whose patty and bun
+  come from the basement's boxes. What stands in for its scenarios is `tests/integration/levels/house_cooking_test.gd` (#777, C8), built as
   `house_photo_test.gd`: the shipped base mode on the House in the host's real world, three players with forced roles,
   Cooking isolated in the setup's `ChangeSettings` (`tasks` 1, every other task type banned, `burgers` 3 so every
   place is a station), `ScenarioInvariants` on every call and tick, players moving only by accepted claims (the climb
@@ -8331,8 +8341,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   same recipients on the same ticks, no `diagnostics`). Seen failing with the leak plant on `IngredientPlaced`
   (§4.6.4.1); reverted.
   The car repair (the [car repair ADR](decisions/2026-10-10-car-repair-task.md), RD13, §7) had no bot scenario either
-  until #1197's scenarios (below) raised the car (the ground floor) and took a part (the basement); a fit, which
-  carries a part between the storeys, no scenario reaches. What stands in for its scenarios is `tests/integration/levels/house_car_repair_match_test.gd` (#812, R8), built as
+  until #1197's scenarios (below) raised the car (the ground floor) and took a part (the basement), and #1209's scenario across the storeys (below) a fit, which
+  carries a part between the storeys. What stands in for its scenarios is `tests/integration/levels/house_car_repair_match_test.gd` (#812, R8), built as
   `house_cooking_test.gd`: the shipped base mode on the House in the host's real world, four players with forced
   roles, the car repair isolated in the setup's `ChangeSettings` (`tasks` 1, every other task type banned, `car_parts`
   3; Delivery beside it for the package carrier, whose packages are the House's two-handed items), `ScenarioInvariants`
@@ -8354,15 +8364,21 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   carrier's, the repair's, the drop's and the class-5 matches replay from their command logs. Seen failing with the
   leak plant on `FitChanged` (§4.6.4.1); reverted.
   The House's station tasks over the wire (#1197; foundation audit #877, e4): two scenarios play them through
-  `Interact` with the shipped base mode and settings, one storey each (`floor_y`), a 20 s clock, crew bots doing the
+  `Interact` with the shipped base mode and settings, a 20 s clock, crew bots doing the
   work and a forced dissident, ending by time up. `bots_use_the_house_ground_floor_stations` (3 bots): a film into
   the camera and a shot (`FilmLoaded`, `ShotTaken`), a herb from a bed onto its place (`IngredientPlaced`), the lift
-  panel (`LiftChanged`, `PartNeeded`); `bots_use_the_house_basement_stations` (2 bots, `floor_y` -3.2): the Generator's
-  three switches, then its button (`SwitchChanged`, `ButtonPressed`), and a part from a bin. Every bot decodes them
-  alike (`LeakCheck.check_tasks`, `ScenarioInvariants`). A chain that carries an item between storeys (the grill and
-  the burger, the car's fit, the printer and the board) stays unplayed until bots change storey, and a loose item
-  vanishes only after its `vanish_seconds` (a herb's 60 s), past a scenario's 55 s time limit, though one storey
-  would do: `LeakCheck.UNREACHED` names those nine events, each with why (§4.6.4.1); #1209 is to reach them.
+  panel (`LiftChanged`, `PartNeeded`); `bots_use_the_house_basement_stations` (2 bots, down the pantry stairs since
+  #1209): the Generator's three switches, then its button (`SwitchChanged`, `ButtonPressed`), and a part from a bin.
+  #1209 added the chains that carry an item between storeys over the fake's stairs (above),
+  `bots_carry_items_between_the_house_storeys` (4 bots, a 56 s clock, its own 90 s time limit, raised for that
+  clock alone): a burger from the basement's bun and patty boxes over the grill, the herb bed and the plate to the
+  order board (`ItemChanged`, `GrillLoaded`, `BurgerPlated`, `BurgerServed`); the part `PartNeeded` names carried
+  up to the raised car (`PartFitted`); a shot's film up the external stairs to the printer and the photo down to the
+  basement's board (`PhotoPrinted`, `PhotoHung`); the dissident holding the lift panel. Its plated burger's items and
+  the printer's film vanish on the spot (`ItemVanished`), so no scenario waits out a loose item's `vanish_seconds`
+  and no shipped task setting changed. The burger takes at least 48 s of the clock (46 s failed at the herb), so
+  56 s leaves about 8 s. Every bot decodes them alike (`LeakCheck.check_tasks`, `ScenarioInvariants`), and
+  `LeakCheck.UNREACHED` is empty (§4.6.4.1).
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
