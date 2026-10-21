@@ -246,3 +246,27 @@ func test_a_drag_settles_once_at_its_end_and_a_keyboard_change_after_the_quiet_t
 	assert_array(_got).is_empty()
 	panel.settle_timer.timeout.emit()
 	assert_array(_got).contains_exactly(["settled"])
+
+
+## Esc or a phase change closing the menu mid-drag (#726): the Slider drops its drag without
+## drag_ended, so hiding the panel says "settled" (the value is saved) and the next keyboard change
+## starts the quiet time again; a hide with nothing pending says nothing (#1245).
+func test_hiding_the_panel_mid_drag_settles_and_unsticks_the_drag() -> void:
+	var panel: VoicePanel = auto_free(VoicePanel.new())
+	add_child(panel)
+	panel.show_facts(_shown())
+	panel.sliders_settled.connect(func() -> void: _got.append("settled"))
+	panel.volume_sliders[AudioBuses.MUSIC].drag_started.emit()
+	panel.volume_sliders[AudioBuses.MUSIC].value = -12.0
+	panel.hide()
+	assert_array(_got).contains_exactly(["settled"])
+	panel.show()
+	panel.hide()
+	assert_array(_got).contains_exactly(["settled"])
+	panel.show()
+	_got.clear()
+	panel.volume_sliders[AudioBuses.MUSIC].value = -6.0
+	assert_bool(panel.settle_timer.is_stopped()).is_false()
+	panel.hide()
+	assert_bool(panel.settle_timer.is_stopped()).is_true()
+	assert_array(_got).contains_exactly(["settled"])
