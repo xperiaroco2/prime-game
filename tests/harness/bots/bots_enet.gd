@@ -122,7 +122,7 @@ func is_host() -> bool:
 
 ## Starts this instance's part; false with `failures` when it cannot.
 func start(now: int) -> bool:
-	var problems := scenario.problems()
+	var problems := scenario.problems(ScenarioBot.receivable_events())
 	for problem: String in problems:
 		failures.append("scenario: %s" % problem)
 	if instance < 1 or instance > scenario.bots:

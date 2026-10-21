@@ -32,6 +32,35 @@ func test_every_scenario_plays_to_its_expected_ends_and_replays() -> void:
 		_assert_replays(path, runner.game)
 
 
+## Every event a `never`, Expect, ExpectNone or WaitFor names is one a bot receives, with fields it
+## has (#1235: a misspelled one never matches and would pass forever). ScenarioRunner checks it
+## too; this names the scenario without playing it.
+func test_every_scenario_names_events_and_fields_a_bot_receives() -> void:
+	var events := ScenarioBot.receivable_events()
+	for path: String in _scenario_paths():
+		var scenario := load(path) as BotScenario
+		if scenario == null:
+			continue
+		(
+			assert_array(Array(scenario.problems(events)))
+			. override_failure_message("%s:\n%s" % [path, "\n".join(scenario.problems(events))])
+			. is_empty()
+		)
+
+
+## The catalogue is the wire schema's event rows with their payload's fields, plus `peer` on the
+## events for one peer that name none (field_of).
+func test_the_receivable_events_are_the_wire_events_and_their_fields() -> void:
+	var events := ScenarioBot.receivable_events()
+	assert_array(Array(events[&"Died"])).contains_exactly_in_any_order(["peer", "position"])
+	assert_array(Array(events[&"SelfStatus"])).contains(["peer", "sprint_available"])
+	assert_array(Array(events[&"PhaseChanged"])).contains(["phase"])
+	assert_bool(events.has(&"Disconnecting")).is_true()
+	assert_bool(Array(events[&"Disconnecting"]).has("peer")).is_false()
+	assert_bool(events.has(&"MoveClaim")).is_false()
+	assert_bool(events.has(&"Hello")).is_false()
+
+
 ## The match replayed from its command log gives the same events, in order, to the same peers.
 func _assert_replays(path: String, game: Match) -> void:
 	var replayed := Match.replay(game.command_log, game.mode)

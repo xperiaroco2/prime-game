@@ -73,7 +73,7 @@ static func play(bot_scenario: BotScenario, out := "") -> BotsRunner:
 
 
 func run() -> void:
-	var problems := scenario.problems()
+	var problems := scenario.problems(ScenarioBot.receivable_events())
 	for problem: String in problems:
 		failures.append("scenario: %s" % problem)
 	if not problems.is_empty():

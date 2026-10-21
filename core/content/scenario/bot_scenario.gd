@@ -99,8 +99,12 @@ func played_map() -> String:
 	return mode.bench_maps[0] if not mode.bench_maps.is_empty() else mode.default_map()
 
 
-## What makes this scenario unplayable, each once; empty when it is fine.
-func problems() -> PackedStringArray:
+## What makes this scenario unplayable, each once; empty when it is fine. `events`: every event a
+## bot can receive -> the fields a scenario may match on it (ScenarioBot.receivable_events(), from
+## the wire schema: core/ references no net/), handed in by the runner; then each event a `never`,
+## Expect, ExpectNone or WaitFor names, and each of its `fields` keys, must be one of them (#1235:
+## a misspelled `never` or ExpectNone never matches, so it would pass forever). Empty skips that.
+func problems(events: Dictionary[StringName, PackedStringArray] = {}) -> PackedStringArray:
 	var found := PackedStringArray()
 	if mode == null:
 		found.append("no mode")
@@ -152,6 +156,50 @@ func problems() -> PackedStringArray:
 				continue
 			for problem: String in step.problems():
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
+			for problem: String in _step_event_problems(step, events):
+				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
+	for i in never.size():
+		if never[i] == null:
+			found.append("never %d is empty" % i)
+		elif never[i].event.is_empty():
+			found.append("never %d has no event" % i)
+		elif not events.is_empty():
+			for problem: String in event_problems(never[i].event, never[i].fields, events):
+				found.append("never %d: %s" % [i, problem])
+	return found
+
+
+## The event problems of a step that waits for or checks an event (Expect, ExpectNone, WaitFor);
+## empty for any other step or without `events`.
+static func _step_event_problems(
+	step: ScenarioStep, events: Dictionary[StringName, PackedStringArray]
+) -> PackedStringArray:
+	if events.is_empty():
+		return PackedStringArray()
+	if step is StepExpect:
+		return event_problems((step as StepExpect).event, (step as StepExpect).fields, events)
+	if step is StepExpectNone:
+		var none := step as StepExpectNone
+		return event_problems(none.event, none.fields, events)
+	if step is StepWaitFor:
+		return event_problems((step as StepWaitFor).event, (step as StepWaitFor).fields, events)
+	return PackedStringArray()
+
+
+## Why `event` with `fields` would never match an event a bot receives: a name that is none of
+## `events`, or a field key its event lacks. An empty name is the step's own problem.
+static func event_problems(
+	event: StringName, fields: Dictionary, events: Dictionary[StringName, PackedStringArray]
+) -> PackedStringArray:
+	var found := PackedStringArray()
+	if event.is_empty():
+		return found
+	if not events.has(event):
+		found.append("event %s is none a bot receives" % event)
+		return found
+	for key: Variant in fields:
+		if not events[event].has(str(key)):
+			found.append("event %s has no field %s" % [event, key])
 	return found
 
 

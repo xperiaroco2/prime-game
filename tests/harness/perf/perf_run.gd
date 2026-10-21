@@ -66,7 +66,7 @@ func _init(bot_scenario: BotScenario, over_enet := false, on_port := 0) -> void:
 
 ## Starts the host and connects every bot; false with `failures` when it cannot.
 func start() -> bool:
-	for problem: String in scenario.problems():
+	for problem: String in scenario.problems(ScenarioBot.receivable_events()):
 		failures.append("scenario: %s" % problem)
 	if not OS.is_debug_build():
 		failures.append("perf runs in debug builds only (ForceClock, the observer)")

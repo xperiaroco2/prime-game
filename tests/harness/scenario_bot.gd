@@ -16,6 +16,8 @@ const OWN_EVENTS: Array[StringName] = [
 	&"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
 ]
 
+static var _receivable: Dictionary[StringName, PackedStringArray] = {}
+
 var number: int
 ## Its peer id; 0 until it is known (a network bot learns it when it connects).
 var peer: int
@@ -280,6 +282,21 @@ func field_of(event: WireMessage, field: String) -> Variant:
 	if field == "peer" and OWN_EVENTS.has(event.name):
 		return peer
 	return null
+
+
+## Every event a bot can receive -> the fields a step or a `never` may match on it (field_of): the
+## wire schema's event rows and their payload's names, plus `peer` for OWN_EVENTS. What
+## BotScenario.problems() checks a scenario's event names and `fields` keys against (#1235).
+static func receivable_events() -> Dictionary[StringName, PackedStringArray]:
+	if _receivable.is_empty():
+		for row: WireRow in WireSchema.game(true).rows():
+			if row.kind < WireSchema.FIRST_EVENT or row.kind >= WireSchema.FIRST_STATE:
+				continue
+			var fields := row.field_names()
+			if OWN_EVENTS.has(row.name) and not fields.has("peer"):
+				fields.append("peer")
+			_receivable[row.name] = fields
+	return _receivable
 
 
 ## Where `target` is, as the bot knows it, or Vector3.INF when it cannot know.

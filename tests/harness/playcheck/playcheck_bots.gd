@@ -38,7 +38,7 @@ func _init(bot_scenario: BotScenario, first_bot: int, on_port: int, peers_dir: S
 
 ## Joins every bot; false with `failures` when the scenario does not fit a playcheck run.
 func start(now: int) -> bool:
-	for problem: String in scenario.problems():
+	for problem: String in scenario.problems(ScenarioBot.receivable_events()):
 		failures.append("scenario: %s" % problem)
 	if first < 2 or first > scenario.bots:
 		failures.append(
