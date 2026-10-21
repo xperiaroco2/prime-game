@@ -118,6 +118,7 @@ var _leaving: Dictionary[int, int] = {}
 var _disconnected: Dictionary[int, bool] = {}
 var _relay := VoiceRelay.new()
 var _voice_batch: VoiceBatchEncoder
+var _snapshots: SnapshotEncoder
 ## Debug builds only (E47 as amended): the relay's time and the upload, apart; null in a release
 ## build.
 var _meter: RelayMeter = RelayMeter.new() if _debug else null
@@ -148,6 +149,7 @@ func _init(transport: NetTransport, schema: WireSchema = null) -> void:
 	_transport = transport
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
 	_voice_batch = VoiceBatchEncoder.new(_schema)
+	_snapshots = SnapshotEncoder.new(_schema)
 	# Bound methods, not lambdas: a lambda capturing self, held by the transport, is a cycle.
 	_transport.peer_joined.connect(_on_peer_joined)
 	_transport.peer_left.connect(_on_peer_left)
@@ -394,18 +396,22 @@ func _carry_out(directive: MatchEvent) -> void:
 func _send_snapshots(at_tick: int) -> void:
 	if _meter != null:
 		_meter.add_other_upload(_transport.take_upload())
-	var kind := _schema.kind_of(SNAPSHOT)
 	var present := game.state.present_peers()
 	present.sort()
+	# Each viewer gets the avatars core/ entitles it to; each avatar's record is encoded once (#1234).
+	_snapshots.start(at_tick)
 	for peer: int in present:
 		if not _reachable(peer):
 			continue
 		var snapshot := game.snapshot_for(peer)
 		if snapshot.is_empty():
 			continue
-		var fields := {"tick": at_tick, "avatars": snapshot["avatars"]}
-		var payload := _schema.encode(WireMessage.new(SNAPSHOT, fields))
-		if not payload.is_empty() and _send(peer, kind, payload) == OK and _meter != null:
+		var payload := _snapshots.payload(snapshot["avatars"] as Dictionary)
+		if (
+			not payload.is_empty()
+			and _send(peer, _snapshots.kind, payload) == OK
+			and _meter != null
+		):
 			_meter.snapshots += 1
 	if _meter != null:
 		_meter.add_snapshot_upload(_transport.take_upload())
