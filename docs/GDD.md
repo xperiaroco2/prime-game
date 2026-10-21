@@ -242,8 +242,18 @@ Open questions, for the engineer (built as today until he answers):
 - A take with an item in the hand puts the hand item into a free belt slot; with both slots full (full hands: an item
   in the hand and two on the belt), the hand item drops at the player's feet. Every "the belt" below means a free
   belt slot, and "the belt is full" both slots taken.
-- How a player draws a given belt item into the hand (a key per slot, or one key that cycles) is the controls' to
-  settle.
+- **Drawing from the belt** (decided by the engineer on 2026-10-21,
+  [#1040 c6320249563](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6320249563)): the hand and
+  the two belt slots are three places, 1, 2 and 3; an item keeps its place, and the key picks which one is in the
+  hand, the rest hang on the belt.
+  - Keys 1, 2 and 3 draw that place's item; the mouse wheel steps through the three; X goes back to the item held
+    last. An empty place is an empty hand.
+  - A take goes into the place in the hand when it is empty, else into a free place, and comes into the hand (the
+    rule above, unchanged).
+  - With a two-handed item, 1, 2, 3 or the wheel put it down at the feet and draw the belt item: no refusal, a
+    visible action.
+  - The draw is instant and seen by everyone: the item changes in the hand and leaves the belt. On screen, three
+    numbered icons, the one in the hand lit.
 - Consumables (a medkit, an energy drink) and rare two-handed gadgets come after the MVP (#1040).
 
 ### Open
