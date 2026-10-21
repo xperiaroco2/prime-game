@@ -220,3 +220,29 @@ func _shown() -> VoicePanel.Shown:
 	for bus: StringName in UserSettings.VOLUMES:
 		shown.volumes[bus] = UserSettings.default_db(bus)
 	return shown
+
+
+## A drag applies every value live and says "settled" once, when it ends; a keyboard or wheel change
+## says it when the quiet time ends (#1193).
+func test_a_drag_settles_once_at_its_end_and_a_keyboard_change_after_the_quiet_time() -> void:
+	var panel: VoicePanel = auto_free(VoicePanel.new())
+	add_child(panel)
+	panel.show_facts(_shown())
+	var live := []
+	panel.threshold_changed.connect(func(value: float) -> void: live.append(value))
+	panel.sliders_settled.connect(func() -> void: _got.append("settled"))
+	panel.threshold_slider.drag_started.emit()
+	for step in 5:
+		panel.threshold_slider.value = 0.1 + step * 0.05
+	panel.settle_timer.timeout.emit()
+	assert_int(live.size()).is_equal(5)
+	assert_array(_got).is_empty()
+	panel.threshold_slider.drag_ended.emit(true)
+	assert_array(_got).contains_exactly(["settled"])
+	_got.clear()
+	for step in 3:
+		panel.volume_sliders[AudioBuses.MUSIC].value = -20.0 + step
+	assert_bool(panel.settle_timer.is_stopped()).is_false()
+	assert_array(_got).is_empty()
+	panel.settle_timer.timeout.emit()
+	assert_array(_got).contains_exactly(["settled"])

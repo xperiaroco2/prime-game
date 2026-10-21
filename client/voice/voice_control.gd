@@ -3,8 +3,9 @@ extends RefCounted
 ## The player's voice settings applied (the M5 ADR §1.1, §1.7, E36 as amended, E43, D11, D15):
 ## UserSettings to VoiceSender (which microphone is open, the mode, the threshold, RNNoise) and to
 ## the buses (the four volumes); the Esc menu's Voice tab and the main menu's Voice page (#301)
-## change them through here, and each change is written at once. The debug test tone and "mute
-## this window" (E47) are never saved.
+## change them through here, and each change is written at once, except the sliders' (the
+## threshold and the volumes): they apply live and are written once they settle (save_sliders,
+## #1193). The debug test tone and "mute this window" (E47) are never saved.
 ##
 ## Which microphone opens: none without the codec (voice unavailable), none in Off (Off closes
 ## only the own microphone; the others stay audible, the Voice slider silences them), none in a
@@ -33,6 +34,8 @@ var froze := ""
 var _microphone: VoiceMicrophone
 var _tone := VoiceToneMicrophone.new()
 var _devices := PackedStringArray()
+## The threshold or a volume changed and is not yet in the file (save_sliders).
+var _unsaved := false
 
 
 func _init(with_settings: UserSettings, with_sender: VoiceSender) -> void:
@@ -107,7 +110,7 @@ func set_mode(mode: UserSettings.Mode) -> void:
 func set_threshold(value: float) -> void:
 	settings.threshold = value
 	sender.gate.threshold = settings.threshold
-	settings.write()
+	_unsaved = true
 
 
 func set_denoise(on: bool) -> void:
@@ -120,8 +123,16 @@ func set_denoise(on: bool) -> void:
 
 func set_volume(bus: StringName, db: float) -> void:
 	settings.set_volume_db(bus, db)
-	settings.write()
+	_unsaved = true
 	apply_volume(bus)
+
+
+## Writes the threshold and volumes changed since the last write: a slider applies live and many
+## events come in a drag, so the file is written once when the sliders settle (#1193).
+func save_sliders() -> void:
+	if _unsaved:
+		_unsaved = false
+		settings.write()
 
 
 ## Debug builds only: the test tone instead of the microphone, not saved.

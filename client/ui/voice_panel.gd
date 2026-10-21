@@ -19,6 +19,10 @@ signal mode_picked(mode: UserSettings.Mode)
 signal threshold_changed(value: float)
 signal denoise_toggled(on: bool)
 signal volume_changed(bus: StringName, db: float)
+## The sliders came to rest: a drag ended, or SETTLE_SECONDS passed after a keyboard or wheel
+## change. The moment to save (#1193); the values are applied live by threshold_changed and
+## volume_changed.
+signal sliders_settled
 signal tone_toggled(on: bool)
 signal mute_toggled(on: bool)
 
@@ -50,6 +54,8 @@ const VOLUME_ROWS: Dictionary[StringName, Array] = {
 }
 const THRESHOLD_STEP := 0.005
 const VOLUME_STEP := 1.0
+## Quiet time after a keyboard or wheel change before sliders_settled (no drag ends there).
+const SETTLE_SECONDS := 0.5
 ## The meter's size (the handoff's MicTest: 500 x 10).
 const METER_SIZE := Vector2(500, 10)
 
@@ -99,12 +105,20 @@ var debug_box := VBoxContainer.new()
 var tone_chip := UiParts.toggle("common.on", Callable(), &"ToyChipToggleOnLight")
 var mute_chip := UiParts.toggle("common.on", Callable(), &"ToyChipToggleOnLight")
 
+## Restarted by each keyboard or wheel change of a slider.
+var settle_timer := Timer.new()
+
 var _devices := PackedStringArray()
 var _mode := UserSettings.Mode.VOICE_ACTIVITY
+var _dragging := false
 
 
 func _init() -> void:
 	name = "Sound"
+	settle_timer.one_shot = true
+	settle_timer.wait_time = SETTLE_SECONDS
+	settle_timer.timeout.connect(_on_settled)
+	add_child(settle_timer)
 	theme_type_variation = &"ToyColumnEight"
 	add_child(unavailable_label)
 	add_child(notice_label)
@@ -120,8 +134,11 @@ func _init() -> void:
 	mode_row = SettingRows.row("TalkMode", "settings.talk_mode", mode_button)
 	add_child(mode_row)
 	threshold_slider.value_changed.connect(
-		func(value: float) -> void: threshold_changed.emit(value)
+		func(value: float) -> void:
+			threshold_changed.emit(value)
+			_changed()
 	)
+	_settles(threshold_slider)
 	threshold_row = SettingRows.row("Threshold", "settings.voice_threshold", threshold_slider)
 	add_child(threshold_row)
 	meter.name = "Meter"
@@ -141,7 +158,12 @@ func _init() -> void:
 	add_child(noise_row)
 	for bus: StringName in UserSettings.VOLUMES:
 		var slider := SettingRows.slider(UserSettings.MIN_DB, UserSettings.MAX_DB, VOLUME_STEP)
-		slider.value_changed.connect(func(db: float) -> void: volume_changed.emit(bus, db))
+		slider.value_changed.connect(
+			func(db: float) -> void:
+				volume_changed.emit(bus, db)
+				_changed()
+		)
+		_settles(slider)
 		volume_sliders[bus] = slider
 		var names: Array = VOLUME_ROWS[bus]
 		add_child(SettingRows.row(str(names[0]), str(names[1]), slider))
@@ -223,6 +245,32 @@ func _list_devices() -> void:
 func _on_device(index: int) -> void:
 	if index >= 0 and index < _devices.size():
 		device_picked.emit(_devices[index])
+
+
+## A drag saves once, when it ends; a keyboard or wheel change (no drag) when SETTLE_SECONDS pass
+## without another (#1193).
+func _settles(slider: HSlider) -> void:
+	slider.drag_started.connect(
+		func() -> void:
+			_dragging = true
+			settle_timer.stop()
+	)
+	slider.drag_ended.connect(
+		func(_moved: bool) -> void:
+			_dragging = false
+			settle_timer.stop()
+			sliders_settled.emit()
+	)
+
+
+func _changed() -> void:
+	if not _dragging:
+		settle_timer.start()
+
+
+func _on_settled() -> void:
+	if not _dragging:
+		sliders_settled.emit()
 
 
 func _on_mode(index: int) -> void:
