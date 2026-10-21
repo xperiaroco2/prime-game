@@ -2228,7 +2228,7 @@ lives for the whole process:
 
 | Node | What it is |
 |---|---|
-| `Game` | `client/app/game.gd`: the menu's choices, the sessions, the level swap, leaving and quitting, the end reasons; its helpers sit beside it: `GameHowto`, `GameSettings`, `GameTutorial`, and `GameTalk` (the per-frame talk key and Voice panel, #964, out of `game.gd` for lint's 1000 lines) |
+| `Game` | `client/app/game.gd`: the menu's choices, the sessions, the level swap, leaving and quitting, the end reasons; its helpers sit beside it: `GameHowto`, `GameSettings`, `GameTutorial`, `GameTalk` (the per-frame talk key and Voice panel, #964, out of `game.gd` for lint's 1000 lines), and since #1249 `GamePlayer` (the local player's flags, mouse, life and HUD facts), `GameJoin` (the join under way) and `GameLevel` (the level swap); `GameSettings` also sets up the settings, the own voice and the controls at `_ready` |
 | `HostNode` | on a host only: steps `HostSession` (§4.5) at `process_physics_priority` -100 |
 | `SessionNode` | steps the `ClientSession` at priority -90 |
 | `World` | a `Node3D`: `Level` (the lobby or the map instance), the views of stations, items and bodies, `Avatars` (a `RemotePlayerBody` per other player) and `Player` (the local `PlayerController` and its cameras) |
@@ -2267,7 +2267,7 @@ Under load or after a hitch Godot runs several physics frames in one idle frame.
 `Game.screen()` can already be on the next phase while the screens and their texts, which `Game._process` sets, still
 follow the previous one; nothing is drawn in between. A test that reads those waits until `game.ui.screen` shows the
 screen it waited for; game_loop_test checks that wait with `Game._process` off (#225). The local player's physics step
-and input flags (`Game._apply_player_flags`) follow the model at once: `Game._on_event` applies them at every event the
+and input flags (`GamePlayer.apply_flags`) follow the model at once: `Game._on_event` applies them at every event the
 session folds, in its physics step, and `_process` again every frame (the Esc menu), so after a hitch the player
 neither steps nor claims into Loading, Pregame or End, nor waits for `_process` to walk again (#241). A step turned off there
 stops the player in that physics frame; one turned on steps it from the next (observed on 4.7.2, not in the docs).
@@ -2614,7 +2614,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.9 Built in M4-9 (#145), the life states in 3D
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
-  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), showing nothing
+  life fold (`GamePlayer.sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), showing nothing
   (its body is the own avatar's ragdoll); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
   its step), so a dead player never stands back up and walks before its `Respawned`. `held` (the
   raise's hold, from `ClientModel.raiser_of(own) != 0`) went with #728: every downed controller holds still.
@@ -2839,7 +2839,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   shows the watched target's hand item in a `FirstPersonHand` under the spectate camera (`spectate_hand()`) and hides the
   views of its hand and belt items after `ItemViews` (1) placed them in the same physics step (`LifeView.items`,
   given by `Game`); a downed target, another target or the own respawn shows them at the body again.
-- `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `Game._hud_local()`), `HudText.spectates()`
+- `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `GamePlayer.hud_local()`), `HudText.spectates()`
   and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
   line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
   stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.44): `Hud.spectating_label`, `HudText.Local.watching` and
@@ -3276,7 +3276,7 @@ names and the font's glyphs are #549 (§4.7.48).
   (`lang.en`, `lang.uk`, each in its own language in both columns), picks the first launch's language (Ukrainian
   when `OS.get_locale_language()` is `uk`, English otherwise; not written to the file, so until a choice the game
   follows the system), applies it with `TranslationServer.set_locale`, and `choose()` applies and saves a pick at
-  once, for the settings screen. `Game._ready_settings` applies it before the voice settings and the first screen. A Game with no command line (a test, a playcheck window) ignores the machine's language and speaks English unless its settings say otherwise.
+  once, for the settings screen. `GameSettings.ready_settings` applies it before the voice settings and the first screen. A Game with no command line (a test, a playcheck window) ignores the machine's language and speaks English unless its settings say otherwise.
 Tests: `tests/unit/client/i18n/translations_test.gd` (both translations listed and loaded, every key in both
 languages, Ukrainian plurals for 1, 2, 5, 11 and 21 directly and through `tr_n`, the deck against its lock),
 `tests/unit/client/app/languages_test.gd` (the first launch, the choice over the system, a switch at once that
@@ -3572,17 +3572,17 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   another). Test: `tests/unit/client/ui/game_ui_layers_test.gd`; shots `client/dev/loading_esc_preview.tscn`,
   `pregame_esc_preview.tscn`, `end_esc_preview.tscn` (`ScreenPreview.esc_over`).
 - **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until the host's `Welcome` brings
-  the lobby's name (#214, §3.5: Game's `_refresh_join` then calls `set_lobby(model.lobby_name, model.host_name())`,
+  the lobby's name (#214, §3.5: `GameJoin.refresh` then calls `set_lobby(model.lobby_name, model.host_name())`,
   `connect.connecting` with the typed name, or `lobby.default_name` with the host's name). That title is wired but
   not drawn today: the frame that folds a Welcome in the Lobby already picks the lobby screen (`GameFlow.screen`),
   so the name shows in the Esc menu's Lobby tab and (#495) the lobby HUD instead; showing it on this screen (a
   short beat after Welcome, or the name in the signalling `found`) is the engineer's call on #214. Then the step
   from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
-  `UiParts.sized`, 42 under large text) and the time since Join (m:ss, Game's `_refresh_join`); a Direct join and a
+  `UiParts.sized`, 42 under large text) and the time since Join (m:ss, `GameJoin.refresh`); a Direct join and a
   host show no code row and no address. The spinner turns once a second about its centre, half as fast under
   `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the
   handoff's tree), because a container resets a child's rotation at every sort. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
-  fields keep what was typed (a command-line join fills them first, `Game._fill_menu`).
+  fields keep what was typed (a command-line join fills them first, `GameJoin.fill_menu`).
 - **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
   (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
   end as `Game.failure` (GameFlow's `FAILED` session, `FAILURE` screen, the pointer free) until Back
@@ -3924,7 +3924,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   it does not parse (an empty field included), so no typed problem reaches `Game`; the port line names the default
   (`join.port`, the launch options' `--port`). Host hosts over ENet on the port typed after the address, else the
   default (`typed_port`); Host is off while the typed port is not one (`JoinTarget.port_problem`), never quietly on
-  the default. A command-line join fills its panel (`Game._fill_menu`) so Back finds it there; a `--join=` that does
+  the default. A command-line join fills its panel (`GameJoin.fill_menu`) so Back finds it there; a `--join=` that does
   not parse waits in the Direct field with Join off, the menu's only sign of it.
 - **The name row** binds to `UserSettings.player_name` (`bind_name`, #550): each change is cleaned by `PlayerNames`
   and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
@@ -4424,7 +4424,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   peer gets alike): no role, team or match fact. The
   rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
   `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
-- **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `Game._refresh_join`): the code to the host and every
+- **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `GameJoin.refresh`): the code to the host and every
   code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
   explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
 - **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
@@ -4527,7 +4527,7 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
   not a decision: s1 draws no dead player).
 - **The game** (`GameTutorial`): once the room is in with `invite_open`, `open_invite()` (Start focused) and the
   mouse freed; `GameUi.blocks_keys()` (the Esc menu or the invite) and `frees_mouse()` (the map or the invite) feed
-  `Game._apply_player_flags`, so no key counts under the invite and a click does not recapture; the map key is
+  `GamePlayer.apply_flags`, so no key counts under the invite and a click does not recapture; the map key is
   ignored there. Esc is the invite's Skip through a `UiOverlays` entry (`INVITE`, layer 2). Start writes
   `tutorial_seen`, closes the invite, `begin()`s lesson 1 and captures the mouse (focused windows only); Skip writes
   it and leaves (`EndReasons.CLOSED`: the main menu, no failure). A chip calls `GameSettings.choose_language`
@@ -6530,7 +6530,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
     `spawn_tag` and `tag` a part holds, every condition's rejection reason and every reason a task type lists in
     `use_reasons()` (#780), is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
-    every mode in `content/modes/` and runs this part (`ModeCheck`).
+    every mode in `content/modes/` and runs this part (`ModeCheck`; its station checks are `StationRuleCheck`'s and
+    its checks of the conditions that read the actor or the target `ActorConditionCheck`'s, #1249).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks (a task
     type only on the maps it plays on, `TaskType.maps`, #803); a marker with two tags; a lobby with fewer
     `lobby_player` markers than the mode's maximum of players; a level without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
