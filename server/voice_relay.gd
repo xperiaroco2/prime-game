@@ -3,9 +3,10 @@ extends RefCounted
 ## The host's voice relay (ARCHITECTURE §4.5 "Voice relay", §6, E11). The routing table holds
 ## `Match.speakers_for(l)` for every present player l, refreshed after every `Match.tick` call
 ## (catch-up ticks included), so between two ticks it is the routing `view_of` records for the
-## last one. A VoiceUp from speaker s goes, as a VoiceDown (s, the stream's next seq, the host
-## tick, the bytes unchanged), to each listener l != s whose entry holds s; a frame from a peer
-## that is not a present player is dropped. The host never decodes Opus.
+## last one; the host's refresh builds it only when a frame needs it (refresh_lazily). A VoiceUp
+## from speaker s goes, as a VoiceDown (s, the stream's next seq, the host tick, the bytes
+## unchanged), to each listener l != s whose entry holds s; a frame from a peer that is not a
+## present player is dropped. The host never decodes Opus.
 ##
 ## Frames are held during one poll and relayed right after it: after a freeze of the host or of the
 ## speaker only the newest NEWEST_PER_POLL frames per speaker (by the speaker's own seq) are
@@ -32,6 +33,8 @@ var relayed := 0
 
 ## Listener -> the speakers it may hear: every present player has an entry.
 var _routes: Dictionary[int, PackedInt32Array] = {}
+## Builds _routes on its next read, when valid (refresh_lazily).
+var _build := Callable()
 ## Peers that left (peer_left) and are out of the relay until a refresh no longer keeps them.
 var _muted: Dictionary[int, bool] = {}
 ## Vector2i(speaker, listener) -> the next seq of that stream.
@@ -58,9 +61,17 @@ class Outgoing:
 ## or this session disconnected it).
 func refresh(table: Dictionary[int, PackedInt32Array], still_leaving: Dictionary) -> void:
 	_routes = table
-	for peer: int in _muted.keys():
-		if not still_leaving.has(peer):
-			_muted.erase(peer)
+	_build = Callable()
+	_unmute(still_leaving)
+
+
+## The same as refresh(build.call(), still_leaving), but `build` runs only on the first hold(),
+## flush() or routes() after it, so a tick nobody talks after builds no table (#1251). `build`
+## must return the routing of the state this refresh is for: the host calls it only before the
+## next Match call. The muted peers are updated now, as refresh() does.
+func refresh_lazily(build: Callable, still_leaving: Dictionary) -> void:
+	_build = build
+	_unmute(still_leaving)
 
 
 ## The transport says `peer` left: it neither speaks nor hears from now on, its frames held in
@@ -77,6 +88,7 @@ func leave(peer: int) -> void:
 func routes(listener: int, speaker: int) -> bool:
 	if listener == speaker or _muted.has(listener) or _muted.has(speaker):
 		return false
+	_build_routes()
 	return _routes.has(speaker) and _routes.has(listener) and _routes[listener].has(speaker)
 
 
@@ -88,7 +100,10 @@ func has_held() -> bool:
 ## Holds one VoiceUp of `speaker` until flush(); dropped at once from a peer that is not a present
 ## player.
 func hold(speaker: int, seq: int, opus: PackedByteArray) -> void:
-	if not _routes.has(speaker) or _muted.has(speaker):
+	if _muted.has(speaker):
+		return
+	_build_routes()
+	if not _routes.has(speaker):
 		return
 	if not _held.has(speaker):
 		_held[speaker] = []
@@ -103,6 +118,7 @@ func flush(host_tick: int) -> Array[Outgoing]:
 	var speakers: Array[int] = []
 	speakers.assign(_held.keys())
 	speakers.sort()
+	_build_routes()
 	var listeners: Array[int] = []
 	listeners.assign(_routes.keys())
 	listeners.sort()
@@ -129,6 +145,21 @@ func flush(host_tick: int) -> Array[Outgoing]:
 			out.append(each)
 	_held.clear()
 	return out
+
+
+func _unmute(still_leaving: Dictionary) -> void:
+	for peer: int in _muted.keys():
+		if not still_leaving.has(peer):
+			_muted.erase(peer)
+
+
+## Builds the table a refresh_lazily() left pending, once.
+func _build_routes() -> void:
+	if not _build.is_valid():
+		return
+	var build := _build
+	_build = Callable()
+	_routes = build.call()
 
 
 ## The newest NEWEST_PER_POLL of one speaker's frames, ordered by its seq (which wraps at
