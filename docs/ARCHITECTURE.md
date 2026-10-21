@@ -532,7 +532,7 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of ย
     thread stays `CONNECTED` (M6-1). `poll()` sends each live peer exactly `[0, 0, 0]` on VOICE when nothing went to
     it for `KEEPALIVE_MS` (1 s), from the main thread only; the receiver consumes exactly that packet on VOICE before
     the inbox (and the round trip's probes below), and any other kind-0 packet reaches the inbox, which rejects it
-    (`UNKNOWN_KIND`). After every channel
+    (`UNKNOWN_KIND`), the exact `BYE` frame on RELIABLE below excepted. After every channel
     was read (the backlog drained first, so a thawed side drops nobody), a peer heard nothing from for `SILENCE_MS`
     (20 s), keepalives included, leaves: `peer_left` on the host, `host_lost` on a client. So does a connection in
     `FAILED` or `CLOSED` (judged after its channels were read, so what came with the end comes first, as on ENet;
@@ -551,6 +551,14 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of ย
     handshake reports nothing. On Linux the refused socket closes at once (`service_unreachable` too).
   - **Never a send on a closed channel:** each write checks the channel's `get_ready_state()` first (a closed one
     prints an engine `ERROR:` line, M6-1). A leaving peer's channels are drained and discarded until it is gone.
+  - **Nor into a connection the other side shuts down** (#950): one closed over there can still read open here for a
+    moment (libdatachannel's threads change its state), and a send into it prints `SCTP sending failed, errno=32`
+    (`bots-webrtc` failed on it three times, a client's leave while the host sent snapshots). So `close()` (either
+    role) sends each live peer `BYE` on RELIABLE (the kind-0 frame with the 1-byte payload 3, consumed before the
+    inbox) and leaves the connection to it, kept by a SceneTree timer for `CLOSE_WAIT_MS` (5 s) and then closed
+    (with no SceneTree, or a peer not live, at once; a process that quits in the frame it closes frees the timer and
+    drops the connection at once, so it keeps running for a moment first). A side that reads `BYE` has read all sent before it, sends
+    nothing more, ends that peer (a leave on the host, `host_lost` on a client) and closes the connection itself.
   - **`disconnect_peer`** never blocks: the reason the caller sent goes out first; the next `poll()` closes that
     peer's RELIABLE channel once its buffered amount is 0, and the connection once the client closed its side (its
     connection or another channel closed) or `CLOSE_WAIT_MS` (5 s) passed. Held LATEST packets are discarded at once,
@@ -629,7 +637,8 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of ย
   keepalives and other kind-0 packets, the join's reasons (a closed service port and a service that never answers
   the handshake: `service_unreachable` on every OS, with the shipped timeouts too, #461), a peer's last message
   before its leave, a kick's reason read with the closed channel, ids not reused, a channel closed under a live
-  connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected;
+  connection; `BYE` both ways, and ten client closes with the host sending meanwhile and no engine error line, #950;
+  the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected;
   a warm-up connection lives as long as the suite, and only the joins a test expects to give up have the short
   join timeout, since a join under load took up to 1.7 s, #472),
   `tests/integration/net/webrtc_warm_up_test.gd` (`WebRtcWarmUp.wait()`: ready, its bound's timeout named, a
@@ -1518,9 +1527,13 @@ runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it con
 (`LoopbackHub` hands out the ids). Over ENet each instance writes its peer ids to `tools/out/bots/<scenario>/peer-<i>`
 on `connected`, one id per line, one line per connection (a bot that left and returned has a line for each); bot 1
 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then sends
-the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer
-ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
-after it connected (ยง9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+the `ForceRole`s; every other bot reads `peers` before its first step. Since #950 a remote bot's clock (its
+scenario's times and time limit) and its first join start once bot 1 wrote `host-up` there (it serves: its session
+started, over WebRTC its room is up), or `HOST_UP_WAIT_S` (30 s) after its own start at the latest (bot 1's own clock starts at its first step, after its start, and each join's retry clock when its client is made): the host's start
+takes seconds, and clocks started with the processes ran the scenario's spacing out meanwhile
+(`leave_and_return_keep_the_number`'s bot 3 joined before bot 2 in 4 runs of 4 on the engineer's PC). Learning ids
+out of band is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id
+is known, after it connected (ยง9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
 listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
 like a player's gate (the M5 ADR ยง5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
 with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
@@ -1579,7 +1592,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
   admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
   the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
-  time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
+  time. A `BotsEnet` remote bot's join starts once its client is made (#950): a `ClientSession` computes its
+  `ContentFingerprint` as it is made (5.5 s on the engineer's PC since the House assets), and a join started
+  before that ran out the signalling's 5 s cap meanwhile, every time (`bots_enet_test.gd`). Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
   gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
   chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
   cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots

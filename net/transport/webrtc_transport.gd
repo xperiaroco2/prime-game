@@ -23,6 +23,11 @@ extends NetTransport
 ## heard from for SILENCE_MS (backlog drained first) leaves, as does a connection that reaches
 ## FAILED or CLOSED, or a channel that closes under a live connection. DISCONNECTED is transient.
 ## Nothing is ever written to a channel that is not open: that prints an engine error (M6-1).
+## Nor into a connection the other side is shutting down, which can still read open for a moment
+## (a send then prints "SCTP sending failed, errno=32", #950): close() sends each live peer BYE on
+## RELIABLE and leaves the connection to it; a side that reads BYE sends nothing more, ends that
+## peer (a leave, host_lost) and closes it, and the closing side closes it after CLOSE_WAIT_MS if
+## the other never did.
 ##
 ## The own connection for the debug overlay (the M6 design §3 item 4, #431): webrtc-native reports
 ## neither the selected candidate pair nor a round trip (webrtc_native_addon_test). So own_route()
@@ -59,7 +64,12 @@ const JOIN_TIMEOUT_MS := 15000
 ## a poll before the second.
 const CHANNEL_GRACE_MS := 1000
 ## disconnect_peer: the connection closes once the client closed its side, or after this long.
+## close(): a peer sent BYE is left to close the connection itself for this long.
 const CLOSE_WAIT_MS := 5000
+## BYE: a side's close (#950), on RELIABLE: the kind-0 frame with the 1-byte payload 3 (after the
+## probes' PING and PONG), read after everything sent before it and consumed before the inbox; any
+## other kind-0 packet on RELIABLE but ADMIT is still rejected there.
+const BYE: Array[int] = [0, 1, 0, 3]
 ## take_upload's cost of one packet beyond its bytes (E56, M6-1): 57 B of SCTP and DTLS, 48 B of
 ## IPv6 and UDP, and at most 3 B of padding. Over IPv4 it errs high by at most 23 B.
 const PACKET_OVERHEAD_BYTES := 108
@@ -100,6 +110,7 @@ var signal_connect_timeout_ms := Signaller.CONNECT_TIMEOUT_MS
 
 var _signaller: Signaller = null
 var _keepalive := PackedByteArray(KEEPALIVE)
+var _bye := PackedByteArray(BYE)
 var _order := LaneOrder.new()
 var _faults: FaultShim = null
 ## Host: every connection by peer id, half-made and closing ones included. Client: its one
@@ -360,7 +371,7 @@ func _backend_close() -> void:
 	if signaller != null:
 		signaller.close()
 	for conn: Conn in _conns.values():
-		conn.pc.close()
+		_say_bye(conn)
 	_conns.clear()
 	_by_joiner.clear()
 	_order.clear()
@@ -373,6 +384,22 @@ func _backend_close() -> void:
 	_round_trip_ms = -1.0
 	_found_refused = false
 	# found_protocol and found_content stay: the menu names them after a join ends on them.
+
+
+## close() of a connection (#950). A live one gets BYE and is left to the other side, which sends
+## nothing more once it read it and closes the connection: a connection shut down from this side
+## can still read open over there for a moment, and a send into it prints an engine error ("SCTP
+## sending failed, errno=32"; the bots lanes fail on any). It is closed from this side after
+## CLOSE_WAIT_MS if the other never did, kept until then by a SceneTree timer (none: at once, as
+## any connection not live or whose BYE did not go out). A process that quits in the frame it closes
+## frees the timer and the connection with it: it must keep running until the other side closed.
+func _say_bye(conn: Conn) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or not _is_live(conn) or _put(conn, NetKindTable.Lane.RELIABLE, _bye) != OK:
+		conn.pc.close()
+		return
+	# The connection's channels too: freeing one closes it.
+	tree.create_timer(CLOSE_WAIT_MS / 1000.0).timeout.connect(func() -> void: conn.pc.close())
 
 
 ## The reason was sent before this call; poll() closes the RELIABLE channel next, then the
@@ -620,6 +647,15 @@ func _take_reliable(conn: Conn, bytes: PackedByteArray, now: int) -> void:
 		# The service is done with this join: leaving frees the joiner's place in the room.
 		if _signaller != null:
 			_signaller.close()
+	elif bytes == _bye:
+		# The other side closes (#950): what it sent before came first, nothing behind it is read,
+		# nothing more goes to it, and this side closes the connection.
+		for frame: PackedByteArray in released:
+			_push_packet(conn.peer_id, frame, NetKindTable.Lane.LATEST)
+		conn.delayed.clear()
+		conn.delayed_due.clear()
+		_lose(conn, JOIN_FAILED)
+		return
 	else:
 		_push_packet(conn.peer_id, bytes, NetKindTable.Lane.RELIABLE)
 	for frame: PackedByteArray in released:
@@ -708,6 +744,8 @@ func _lose(conn: Conn, reason: StringName) -> void:
 		var late: PackedByteArray = conn.delayed.pop_front()
 		conn.delayed_due.remove_at(0)
 		_take_reliable(conn, late, Time.get_ticks_msec())
+	if _conns.get(conn.peer_id) != conn:
+		return  # one of them ended it already (BYE, a bad ADMIT), and said so
 	_drop(conn)
 	if is_host():
 		if conn.open:

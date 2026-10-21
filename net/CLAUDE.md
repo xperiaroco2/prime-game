@@ -43,6 +43,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   the host's own client decodes exactly what a remote one does (a superseded LATEST packet is checked the same way
   but not delivered). Signals fire from `poll()` only.
 - WebRTC: never write to a channel that is not open (an engine `ERROR:` line); check its ready state first.
+  A close says `BYE` and leaves the connection to the other side (#950): one shut down from the far side can
+  still read open for a moment, and a send into it prints `SCTP sending failed, errno=32`.
   Keepalive, silence and join timeouts live in `WebRtcTransport` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
   D3D12 process can freeze 5 s (#21); Vulkan, the Windows driver since #124, did not, but other freezes remain.

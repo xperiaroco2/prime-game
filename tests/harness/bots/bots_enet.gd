@@ -55,6 +55,12 @@ const RELAY_WINDOW_S := 5
 ## instance's transports.
 const SHIM_SEED := 371000
 const SHIM_SEED_STRIDE := 100
+## The file the host writes in `dir` once it serves (its session started; over WebRTC its room is
+## up): a remote bot's clock starts when it reads it (#950).
+const HOST_UP_FILE := "host-up"
+## A remote bot starts its clock this long after its own start at the latest, the host's file read
+## or not (a host that never came up: its joins then fail as before). Well under the runner's kill.
+const HOST_UP_WAIT_S := 30
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
@@ -86,6 +92,12 @@ var _next_window_usec := 0
 var _signalling: LanSignalling
 var _host_rtc: BotWebRtc
 var _transports_made := 0
+## A remote bot: when this instance started, and whether its clock has (_wait_for_host).
+var _launched_usec := 0
+var _clock_started := false
+var _next_host_check_usec := 0
+## The host: its clock starts at its first step, once its start is done (_sync_host_clock).
+var _host_clock_pending := false
 
 
 func _init(
@@ -125,14 +137,64 @@ func start(now: int) -> bool:
 	var bot := ScenarioBot.new(instance, 0, scenario.steps_of(instance), peers)
 	bots.append(bot)
 	if is_host():
-		return _start_host(bot)
-	if not bot.joins_late():
-		_connect(bot)
+		_clock_started = true
+		_host_clock_pending = true
+		return _start_host(bot) and _write_host_up()
+	_launched_usec = now
+	_wait_for_host(now)
+	return true
+
+
+## A remote bot's clock (its scenario's times, its time limit) and its first join start once the
+## host serves (#950). The host's start takes seconds (it reads the levels and hashes the files they
+## reach, ContentFingerprint), and its instances start their processes apart: a clock started with
+## the process ran the scenario's spacing out meanwhile (leave_and_return_keep_the_number's bot 3
+## joins 3 s in, after bot 2, and bot 2 then joined after it: 4 runs of 4 on the engineer's PC).
+## Read every PEERS_READ_USEC, given up on after HOST_UP_WAIT_S.
+func _wait_for_host(now: int) -> void:
+	if _clock_started or now < _next_host_check_usec:
+		return
+	_next_host_check_usec = now + PEERS_READ_USEC
+	var waited := now - _launched_usec >= HOST_UP_WAIT_S * USEC_PER_SECOND
+	if not waited and not FileAccess.file_exists(dir.path_join(HOST_UP_FILE)):
+		return
+	_clock_started = true
+	now_usec = now
+	_start_usec = now
+	if not bots[0].joins_late():
+		_connect(bots[0])
+
+
+## The host's clock starts at its first step, as the remote bots' do at host-up (#950): its start
+## (the levels, the content hash, over WebRTC the room) takes seconds, and its time limit has no
+## margin, so a clock started with the process ran the remote bots' windows short by that time.
+func _sync_host_clock(now: int) -> void:
+	if not _host_clock_pending:
+		return
+	_host_clock_pending = false
+	_start_usec = now
+
+
+## The host's sign that it serves (HOST_UP_FILE); false with a failure when it cannot write it.
+func _write_host_up() -> bool:
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		failures.append("cannot create %s" % dir)
+		return false
+	var file := FileAccess.open(dir.path_join(HOST_UP_FILE), FileAccess.WRITE)
+	if file == null:
+		failures.append("cannot write %s" % dir.path_join(HOST_UP_FILE))
+		return false
+	file.close()
 	return true
 
 
 ## One frame at `now` (microseconds of the real clock).
 func step(now: int) -> void:
+	if not _clock_started:
+		_wait_for_host(now)
+		if not _clock_started:
+			return
+	_sync_host_clock(now)
 	now_usec = now
 	@warning_ignore("integer_division")
 	tick_now = (now - _start_usec) * Ticks.RATE / USEC_PER_SECOND
@@ -336,9 +398,24 @@ func _shim_seed() -> int:
 	return SHIM_SEED + instance * SHIM_SEED_STRIDE + _transports_made
 
 
+## A bot's join starts once its client is made (#950): a ClientSession hashes the mode's level
+## files as it is made (ContentFingerprint: 2016 files, 5.5 s on the engineer's PC), and a join
+## started before that ran out its real-time limits meanwhile. Over WebRTC every join of a remote
+## bot ended at the signalling's 5 s cap (`service_unreachable`), each one joined again the same
+## way, and the run failed with no remote bot in the lobby.
 func _join_host(bot: ScenarioBot) -> String:
-	add_client(bot, _joining())
+	var transport := _unjoined()
+	add_client(bot, transport)
+	# add_client started the retry's clock before the client was made (and hashed): the join's own
+	# starts now, or a refusal within a poll would look unanswered and be joined again.
+	_join_retry(bot.number).start(_join_started_usec())
+	_start_join(transport)
 	return ""
+
+
+## The real clock a join starts on (_join_clock_usec is the frame's, from before the client).
+func _join_started_usec() -> int:
+	return Time.get_ticks_usec()
 
 
 ## The lurker and the refused bot, once made (on the host only).
@@ -355,17 +432,29 @@ func _log_label() -> String:
 
 
 func _joining() -> NetTransport:
+	var transport := _unjoined()
+	_start_join(transport)
+	return transport
+
+
+## A new transport to the host, its join not started yet (_start_join).
+func _unjoined() -> NetTransport:
 	if webrtc:
-		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
-		var joined_room := rtc.join(BotWebRtc.CODE, 0)
+		return BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+	return EnetTransport.new(schema.kind_table())
+
+
+## Starts `transport`'s join of the host (of its room over WebRTC); one that cannot start is a
+## failure of the run.
+func _start_join(transport: NetTransport) -> void:
+	if webrtc:
+		var joined_room := transport.join(BotWebRtc.CODE, 0)
 		if joined_room != OK:
 			failures.append("cannot join room %s: %s" % [BotWebRtc.CODE, error_string(joined_room)])
-		return rtc
-	var transport := EnetTransport.new(schema.kind_table())
+		return
 	var joined := transport.join(ADDRESS, port)
 	if joined != OK:
 		failures.append("cannot join %s:%d: %s" % [ADDRESS, port, error_string(joined)])
-	return transport
 
 
 func _peer_known(bot: ScenarioBot) -> void:
