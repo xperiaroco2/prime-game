@@ -415,12 +415,14 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)
 	var to := bot.position + direction * travel
 	# The claim stands on the fake world's floor there, as a client's capsule would: found from a
-	# step above the bot's feet, so it climbs a step or a flight of stairs and walks down one (the
-	# House's storeys, #1209). A drop past a step and the steepest floor (45°, MovementRule's
-	# FLOOR_MAX_ANGLE) over the claim's travel is a fall, which the host does not bound (§7.1) and no
-	# scenario takes: it fails, so a walk changes storey only over the stairs.
-	var below := world.floor_below(Vector3(to.x, bot.position.y + rules.step_height_m, to.z))
-	var falls := _fall(bot, to, below, rules.step_height_m + travel)
+	# step and the steepest floor (45°, MovementRule's FLOOR_MAX_ANGLE) over the claim's travel above
+	# the bot's feet, so it climbs a step or a flight of stairs (however many ticks one claim covers
+	# after a stall) and walks down one (the House's storeys, #1209). A drop past that same reach is a
+	# fall, which the host does not bound (§7.1) and no scenario takes: it fails, so a walk changes
+	# storey only over the stairs.
+	var reach := rules.step_height_m + travel
+	var below := world.floor_below(Vector3(to.x, bot.position.y + reach, to.z))
+	var falls := _fall(bot, to, below, reach)
 	if not falls.is_empty():
 		return _fail_step(bot, falls)
 	to.y = below.y

@@ -103,6 +103,16 @@ func test_the_house_s_stairs_join_its_storeys_for_a_walk() -> void:
 	assert_float(fell.y).is_less(-1.0)
 
 
+func test_a_stalled_walk_of_several_ticks_a_claim_still_climbs_the_stairs() -> void:
+	# After a stall over ENet one claim covers several ticks (two sprint ticks 0.7 m, three 1.05 m):
+	# the lookup reaches a step and the claim's travel up, so the flight is found, not the floor
+	# under it.
+	var house := ScenarioLevels.world_of(load(HOUSE_SCENARIO) as BotScenario)
+	for claim_m: float in [0.7, 1.05]:
+		assert_float(_walk(house, UPSTAIRS, true, claim_m).y).is_equal_approx(3.2, 0.0001)
+		assert_float(_walk(house, PANTRY_DOWN, true, claim_m).y).is_equal_approx(-3.2, 0.0001)
+
+
 func test_a_walk_that_would_fall_fails_and_names_the_stairs() -> void:
 	# A House scenario's bot walks to the pantry's stairwell, then across it on the ground floor.
 	var scenario := load(HOUSE_SCENARIO).duplicate(true) as BotScenario
@@ -126,18 +136,20 @@ func test_a_walk_that_would_fall_fails_and_names_the_stairs() -> void:
 	)
 
 
-## Walks `points` in claims of CLAIM_M, each standing on the floor found from a step above the last
-## claim's feet, as ScenarioPlay's walk does; asserts no claim falls (unless `honest` is false) and
-## returns where it ends.
-func _walk(world: WorldQuery, points: Array[Vector3], honest: bool = true) -> Vector3:
+## Walks `points` in claims of `claim_m`, each standing on the floor found from a step and the
+## claim's travel above the last claim's feet, as ScenarioPlay's walk
+## does; asserts no claim falls (unless `honest` is false) and returns where it ends.
+func _walk(
+	world: WorldQuery, points: Array[Vector3], honest: bool = true, claim_m: float = CLAIM_M
+) -> Vector3:
 	var at := points[0]
 	var lowest_drop := 0.0
 	for target: Vector3 in points.slice(1):
 		while Vector2(target.x - at.x, target.z - at.z).length() > 0.0001:
 			var flat := Vector3(target.x - at.x, 0.0, target.z - at.z)
-			var travel := minf(CLAIM_M, flat.length())
+			var travel := minf(claim_m, flat.length())
 			var to := at + flat.normalized() * travel
-			var below := world.floor_below(Vector3(to.x, at.y + STEP_M, to.z))
+			var below := world.floor_below(Vector3(to.x, at.y + STEP_M + travel, to.z))
 			assert_vector(below).is_not_equal(WorldQuery.NO_FLOOR)
 			if below == WorldQuery.NO_FLOOR:
 				return at
