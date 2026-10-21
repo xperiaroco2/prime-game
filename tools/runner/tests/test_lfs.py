@@ -639,6 +639,7 @@ class RealPointerTest(unittest.TestCase):
             check_script = root / "tools/check/check_project.gd"
             check_script.parent.mkdir(parents=True)
             shutil.copyfile(common.ROOT / "tools/check/check_project.gd", check_script)
+            shutil.copyfile(common.ROOT / "tools/check/content_keys.gd", check_script.parent / "content_keys.gd")
             # What the PC with LFS committed: the texture's .import file as Godot 4.7.2 wrote it (an import less to
             # wait for), a scene that refers to it by its uid as the editor writes it, a script that preloads it.
             # A fresh checkout without LFS content: a pointer file and no .godot/.
@@ -688,6 +689,7 @@ class RealPointerTest(unittest.TestCase):
             check_script = root / "tools/check/check_project.gd"
             check_script.parent.mkdir(parents=True)
             shutil.copyfile(common.ROOT / "tools/check/check_project.gd", check_script)
+            shutil.copyfile(common.ROOT / "tools/check/content_keys.gd", check_script.parent / "content_keys.gd")
             names = sorted(f"art/a{suffix}" for suffix in lfs.STAND_INS)
             for name in names:
                 write(root, name, lfs.stand_in(name) or b"")
