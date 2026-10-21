@@ -90,6 +90,31 @@ func test_past_the_newest_snapshot_a_player_holds_with_the_newest_velocity() -> 
 	assert_object(buffer.pose_of(9, 10.5)).is_null()
 
 
+## The bracket is the peer's own snapshots: one it is missing from (out of reach, joined late) is
+## stepped over on both sides, and the velocity is its newest's, not the buffer's newest (#1245).
+func test_a_peer_missing_from_some_snapshots_is_drawn_between_its_own() -> void:
+	var buffer := SnapshotBuffer.new()
+	var other := 7
+	for tick in range(10, 16):
+		var avatars := {other: _avatar(Vector3(0, 0, tick), Vector3.RIGHT)}
+		if tick == 11 or tick == 14:
+			var moving := _avatar(Vector3(tick, 0, 0), Vector3.RIGHT)
+			moving["velocity"] = Vector3(tick, 0, 0)
+			avatars[PEER] = moving
+		buffer.add(tick, avatars, 500000 + (tick - 10) * USEC_PER_TICK)
+	assert_vector(buffer.pose_of(PEER, 9.0).position).is_equal(Vector3(11, 0, 0))
+	assert_vector(buffer.pose_of(PEER, 11.0).position).is_equal(Vector3(11, 0, 0))
+	assert_vector(buffer.pose_of(PEER, 12.5).position).is_equal_approx(
+		Vector3(12.5, 0, 0), Vector3.ONE * 1e-5
+	)
+	assert_vector(buffer.pose_of(PEER, 12.5).velocity).is_equal(Vector3(14, 0, 0))
+	assert_vector(buffer.pose_of(PEER, 20.0).position).is_equal(Vector3(14, 0, 0))
+	assert_vector(buffer.pose_of(other, 12.5).position).is_equal_approx(
+		Vector3(0, 0, 12.5), Vector3.ONE * 1e-5
+	)
+	assert_vector(buffer.pose_of(other, 12.5).velocity).is_equal(Vector3.ZERO)
+
+
 func test_the_crouch_is_the_snapshots_at_or_before_the_drawn_tick_never_blended() -> void:
 	# The crouch ADR, KE7: a flag is never blended, so a body crouches at the snapshot that says so.
 	var buffer := SnapshotBuffer.new()
