@@ -49,9 +49,9 @@ garage's driveway at y 11. North and west: forest.
 | House | 68.4, 11 | 12 x 10; the basement 20 x 16, under the yard to the south (§5c) | 12 | -1, 0, 1, roof |
 | Bonfire | 65.3, 41 | fire pit r 2, benches r 7 | 13 | 0 |
 | Summer kitchen | 82.8, 30 | 8 x 5, open, roofed | 9 | 0 |
-| Pantry | 48, 27 | 6 x 5 | 8 | 0 |
+| Pantry | 48, 27 | 8 x 6 (§5d) | 8 | 0 |
 | Greenhouse | 30, 12 | 10 x 6, glass | 10 | 0 |
-| Garage | 101.4, 11 | 8 x 8 | 10 | 0 |
+| Garage | 101.4, 11 | 10 x 8, the long side east-west (§5d) | 10 | 0 |
 | Gazebo (photo) | 114.9, 34 | r 3.5, open | 8 | 0 |
 | Well | 24.9, 72 | r 1.2 | 7 | 0 |
 | Ship (a manta, §5a) | 116, 72 | 26 wide x 14 deep, its mouth ramp facing north | 16 | 0 and its interior |
@@ -147,6 +147,25 @@ from the house's centre (68.4, 11): x east, z south; placeholders.
 - **The parts printer and the healing pod stand 16 m apart,** so the laboratory's ends do not talk over each other.
 - **Walls muffle the voice, openings do not** (GDD §11, "Voice through walls"): the vent grates and the manhole are where you eavesdrop.
 - Open: what the camera wall shows.
+
+## 5d. The outbuildings inside (the engineer, 2026-10-21)
+
+Approved on [#1035 c6318742185](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6318742185); the
+design track's draft: prime-game-design `ideas/2026-10-21-outbuildings-inside.md`. Local metres from each module's
+centre (§3): x east, z south; placeholders. The gazebo and the well stay open, one thing each.
+
+| Building | What stands where | Ways out |
+|---|---|---|
+| Garage (10 x 8) | The car in the middle, its nose to the roll-up door, over the inspection pit (its ladder at the car's back, the tunnel to the laboratory from the pit's west wall, §5b); the order board on the west wall, facing the car; the tools on cables on two ceiling rails, one on each side of the car; hazard tape on both thresholds marks where a tool drops from the hand; a workbench with a boombox (north-west corner), music always on | the roll-up door (east, always open: the driveway, the road and the neighbours in sight); a side door (south wall, west end); the pit's tunnel |
+| Pantry (8 x 6) | Party-stock shelves along the north wall (beer, chips, toilet paper, pizza boxes); the food printer at the west wall; the paint mixer with its spray stand in the middle of the east wall; the fireworks crates along the south wall; the duct's grate low in the east wall's north end (§5b's 53, 25.5 moves in to this wall) | doors in the south ends of the west wall (the greenhouse path) and the east wall (the bonfire and the house); the grate |
+| Greenhouse (10 x 6, glass) | Five flower beds in a row along the long axis, one colour each; a rack of watering cans inside the east door, always holding one | the east door (toward the house); a door in the middle of the south side (toward the pantry) |
+| Summer kitchen (8 x 5, open, roofed) | Posts and a roof, no walls; a long counter along the north side with the numbered plates and the order board above; the microwave charger at the counter's east end; the bins at the west end, the duct's grate on the ground behind them (§5b) | open all round |
+
+- **Every passage end has its place:** the pit's tunnel, the pantry's grate, the grate behind the bins.
+- **The pantry is one room on purpose:** the cook and the painter meet there and see what the other carries.
+- **The voice rule shapes them** (GDD §11): the garage and the pantry are closed rooms, muffled from outside and clean
+  at the grate; the greenhouse's glass is seen through and not heard; the summer kitchen is open to all.
+- **The grill stays at the bonfire,** 21 m from the summer kitchen: the meat run is intended.
 
 ## 6. Task stations
 
