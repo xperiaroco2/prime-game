@@ -65,15 +65,13 @@ const FOR_ONE: Array[StringName] = [
 ## The events every player present for a whole match decodes alike (check_tasks). TaskState
 ## (M4-5) is public to the living, the downed and the dead alike: the task screen is everyone's;
 ## so is ZoneProgress (#647), the zone task's progress, ItemVanished (#779), an item left
-## lying going (the bot folds it once a scenario plays Cooking, the cooking ADR CE22), ItemChanged
-## (#771), an item turning another kind (folded the same way), and the Generator's SwitchChanged and
-## ButtonPressed (#797), and Cooking's OrderPosted and HerbsDealt (#772: the bot folds them once
-## a scenario plays Cooking, CE22), the car repair's LiftChanged and PartNeeded (#807; read
-## once bots play the House, its RD13), the photo task's FilmLoaded and ShotTaken (#781),
-## Cooking's GrillLoaded and IngredientPlaced (#773: folded once a scenario plays Cooking, CE22),
-## the car repair's FitChanged and PartFitted (#808; read once bots play the House) and the photo
-## task's PhotoPrinted and PhotoHung (#782; read once bots play the House, PE18), and Cooking's
-## BurgerPlated and BurgerServed (#1101: folded once a scenario plays Cooking, CE22).
+## lying going (#779), ItemChanged (#771), an item turning another kind, the Generator's
+## SwitchChanged and ButtonPressed (#797), Cooking's OrderPosted and HerbsDealt (#772), the car
+## repair's LiftChanged and PartNeeded (#807), the photo task's FilmLoaded and ShotTaken (#781),
+## Cooking's GrillLoaded and IngredientPlaced (#773), the car repair's FitChanged and PartFitted
+## (#808), the photo task's PhotoPrinted and PhotoHung (#782) and Cooking's BurgerPlated and
+## BurgerServed (#1101). Since #1197 the House scenarios play them over the wire, but the UNREACHED
+## ones (check_coverage).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
