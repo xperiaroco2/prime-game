@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## fields at the wire's maxima, the transport's table built from it, the debug rows, the frozen
 ## rows 1 and 32 byte for byte, and the version.
 
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 const CLIENT_TO_HOST := NetKindTable.Direction.CLIENT_TO_HOST
 ## A usable return key (#638): 32 lowercase hex characters, 32 bytes on the wire.
 const KEY := "0123456789abcdef0123456789abcdef"
@@ -328,3 +329,27 @@ func _every_name(fields: Array[WireField]) -> PackedStringArray:
 			if inner != null:
 				found.append_array(_every_name([inner]))
 	return found
+
+
+## A row declared twice is logged and the first stays (the assert is stripped in a release build).
+func test_a_row_declared_twice_is_logged_and_the_first_stays() -> void:
+	var errors := EngineErrors.new()
+	errors.start()
+	var first := WireSchema.game(true).rows()[0]
+	var schema := WireSchema.new()
+	schema._declare(first)
+	var same_kind := WireRow.new(
+		first.kind, &"twin", first.direction, first.lane, first.cap, first.fields
+	)
+	schema._declare(same_kind)
+	var same_name := WireRow.new(
+		first.kind + 1000, first.name, first.direction, first.lane, first.cap, first.fields
+	)
+	schema._declare(same_name)
+	errors.stop()
+	assert_int(errors.count()).is_equal(2)
+	assert_int(schema.rows().size()).is_equal(1)
+	assert_object(schema.row(first.kind)).is_same(first)
+	assert_object(schema.row_named(&"twin")).is_null()
+	assert_object(schema.row_named(first.name)).is_same(first)
+	assert_object(schema.row(first.kind + 1000)).is_null()

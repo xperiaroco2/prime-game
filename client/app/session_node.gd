@@ -47,6 +47,14 @@ func _init(client: ClientSession = null) -> void:
 		Engine.physics_ticks_per_second % Ticks.RATE == 0,
 		"the physics rate must be a multiple of the client tick rate (Ticks.RATE)"
 	)
+	_report_rate(Engine.physics_ticks_per_second)
+
+
+## The assert in `_init` is stripped in a release build: this logs a physics rate that is no
+## multiple of the client tick rate.
+static func _report_rate(rate: int) -> void:
+	if rate % Ticks.RATE != 0:
+		push_error("the physics rate must be a multiple of the client tick rate (Ticks.RATE)")
 
 
 ## Physics steps per client tick: 3 at 60 Hz.

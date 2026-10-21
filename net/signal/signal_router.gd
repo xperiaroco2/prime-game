@@ -72,6 +72,15 @@ func _init(ice_servers: Array, next_code: Callable) -> void:
 ## would inherit the old socket's place in a room.
 func opened(socket: int) -> void:
 	assert(not _peers.has(socket), "signal: socket %d opened twice" % socket)
+	_admit(socket)
+
+
+## The assert in `opened` is stripped in a release build: this logs a number opened twice and keeps
+## its first place instead of overwriting it.
+func _admit(socket: int) -> void:
+	if _peers.has(socket):
+		push_error("signal: socket %d opened twice" % socket)
+		return
 	_peers[socket] = Peer.new()
 
 

@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 ## netcode review of PR #154).
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 
 var _harness: Harness
 var _node: SessionNode
@@ -137,3 +138,15 @@ func _claim_ticks() -> Array[int]:
 
 func _real_clock() -> int:
 	return _real
+
+
+## A physics rate that is no multiple of the tick rate is logged (the assert is stripped in a
+## release build).
+func test_a_physics_rate_off_the_tick_rate_is_logged() -> void:
+	var errors := EngineErrors.new()
+	errors.start()
+	SessionNode._report_rate(Ticks.RATE * 3)
+	assert_int(errors.count()).is_equal(0)
+	SessionNode._report_rate(Ticks.RATE * 2 + 10)
+	errors.stop()
+	assert_int(errors.count()).is_equal(1)
