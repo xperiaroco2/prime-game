@@ -37,9 +37,13 @@ var mode: GameMode
 var level: Node:
 	set(value):
 		level = value
+		_searched = false
 		_scenes.clear()
 		_bound_ids.clear()
 
+## Whether the level now was searched for scenes: one that holds none is searched once, not on
+## every frame (#1198).
+var _searched := false
 var _scenes: Array[Scene] = []
 ## The station ids of the last bind, sorted: a new deal binds again.
 var _bound_ids: Array[int] = []
@@ -102,7 +106,8 @@ func scene_roots() -> Array[Node3D]:
 func _process(delta: float) -> void:
 	if model == null or level == null or not is_instance_valid(level):
 		return
-	if _scenes.is_empty():
+	if not _searched and mode != null:
+		_searched = true
 		_find_scenes()
 	var ids := _station_ids()
 	if ids != _bound_ids:

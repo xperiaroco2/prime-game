@@ -14,8 +14,22 @@ extends RefCounted
 ## travel in SelfStatus.
 
 
-## What `viewer` is entitled to see at host tick `at_tick` (the tick whose state it shows).
+## What `viewer` is entitled to see at host tick `at_tick` (the tick whose state it shows): the
+## avatars, the items and the bodies. Match records it for view_of() (keep_history); the snapshot
+## the host sends each tick is avatars_for() alone (#1198).
 static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
+	var item_data := {}
+	for id: int in state.items:
+		var item := state.items[id]
+		item_data[id] = {"where": item.where, "holder": item.holder, "position": item.position}
+	var body_data := {}
+	for peer: int in state.bodies:
+		body_data[peer] = state.bodies[peer]
+	return {"avatars": avatars_for(state, viewer, at_tick), "items": item_data, "bodies": body_data}
+
+
+## The avatars `viewer` is entitled to see at host tick `at_tick`, by peer.
+static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
 	var avatars := {}
 	for peer: int in state.present_peers():
 		var player := state.players[peer]
@@ -34,11 +48,4 @@ static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary
 			"held_item": player.held_item,
 			"belt_item": player.belt_item,
 		}
-	var item_data := {}
-	for id: int in state.items:
-		var item := state.items[id]
-		item_data[id] = {"where": item.where, "holder": item.holder, "position": item.position}
-	var body_data := {}
-	for peer: int in state.bodies:
-		body_data[peer] = state.bodies[peer]
-	return {"avatars": avatars, "items": item_data, "bodies": body_data}
+	return avatars

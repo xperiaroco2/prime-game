@@ -89,8 +89,8 @@ func test_the_nineteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
 
 
 func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
-	assert_int(Controls.PHASES[&"give_up"]).is_equal(Controls.Phase.DOWNED)
-	assert_int(Controls.PHASES[&"ready"]).is_equal(Controls.Phase.LOBBY)
+	assert_int(Controls.PHASES[&"give_up"]).is_equal(Controls.ControlContext.DOWNED)
+	assert_int(Controls.PHASES[&"ready"]).is_equal(Controls.ControlContext.LOBBY)
 	assert_int(Controls.PHASES[&"give_up"] & Controls.PHASES[&"ready"]).is_zero()
 	# So their shared F is no clash, and no default is one.
 	var controls := Controls.new()
@@ -102,7 +102,7 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 	# #645's throw on the physical G, acting while living. A Settings row since #851 (deck key
 	# `control.throw`), as every living action.
 	assert_str(String(Controls.ACTIONS[&"throw"])).is_equal("control.throw")
-	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.Phase.ALIVE)
+	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.ControlContext.ALIVE)
 	assert_bool(Controls.UNLISTED.has(&"throw")).is_false()
 	assert_str(Controls.name_of(&"throw")).is_equal("Toss")
 	TranslationServer.set_locale("uk")
@@ -135,7 +135,8 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	# #990: `sneak` on the physical left Alt, held, acting wherever the player walks (the lobby and
 	# the round). A Settings row since #1009 (deck key `control.sneak`), as every living action.
 	assert_str(String(Controls.ACTIONS[&"sneak"])).is_equal("control.sneak")
-	assert_int(Controls.PHASES[&"sneak"]).is_equal(Controls.Phase.LOBBY | Controls.Phase.ALIVE)
+	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
+	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
 	assert_dict(Controls.UNLISTED).is_empty()
 	assert_str(Controls.name_of(&"sneak")).is_equal("Sneak")
 	TranslationServer.set_locale("uk")
@@ -186,7 +187,8 @@ func test_the_crouch_is_a_row_on_ctrl_that_rebinds_and_clashes_with_living_actio
 	# in the lobby and while living (#991). A Settings row since #951 (deck key `control.crouch`),
 	# as every living action.
 	assert_str(String(Controls.ACTIONS[&"crouch"])).is_equal("control.crouch")
-	assert_int(Controls.PHASES[&"crouch"]).is_equal(Controls.Phase.LOBBY | Controls.Phase.ALIVE)
+	var crouch_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
+	assert_int(Controls.PHASES[&"crouch"]).is_equal(crouch_contexts)
 	assert_bool(Controls.UNLISTED.has(&"crouch")).is_false()
 	assert_str(Controls.name_of(&"crouch")).is_equal("Crouch")
 	TranslationServer.set_locale("uk")

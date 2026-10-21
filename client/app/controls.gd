@@ -26,8 +26,8 @@ extends RefCounted
 ## - Never sent to anyone.
 
 ## Where an action acts: the lobby screen (the lobby and the countdown) or the round by the own
-## life. Bit flags, so an action may act in several.
-enum Phase { LOBBY = 1, ALIVE = 2, DOWNED = 4, DEAD = 8 }
+## life. Bit flags, so an action may act in several. Not core's match Phase (#1198).
+enum ControlContext { LOBBY = 1, ALIVE = 2, DOWNED = 4, DEAD = 8 }
 
 const FILE := "user://controls.cfg"
 const SECTION := "bindings"
@@ -78,25 +78,25 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 ## dead (LifeView), and the map on any life (Game, #253). Talk sends while the own life is living,
 ## in the lobby too, whose VoiceRule hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
-	&"move_forward": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
-	&"move_back": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
-	&"move_left": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
-	&"move_right": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
-	&"sprint": Phase.LOBBY | Phase.ALIVE,
-	&"jump": Phase.LOBBY | Phase.ALIVE,
-	&"crouch": Phase.LOBBY | Phase.ALIVE,
-	&"sneak": Phase.LOBBY | Phase.ALIVE,
-	&"interact": Phase.ALIVE,
-	&"use": Phase.ALIVE,
-	&"put_down": Phase.ALIVE,
-	&"swap": Phase.ALIVE,
-	&"throw": Phase.ALIVE,
-	&"map": Phase.ALIVE | Phase.DOWNED | Phase.DEAD,
-	&"give_up": Phase.DOWNED,
-	&"ready": Phase.LOBBY,
-	&"voice_talk": Phase.LOBBY | Phase.ALIVE,
-	&"spectate_next": Phase.DEAD,
-	&"spectate_previous": Phase.DEAD,
+	&"move_forward": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
+	&"move_back": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
+	&"move_left": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
+	&"move_right": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
+	&"sprint": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"jump": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"crouch": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"sneak": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"interact": ControlContext.ALIVE,
+	&"use": ControlContext.ALIVE,
+	&"put_down": ControlContext.ALIVE,
+	&"swap": ControlContext.ALIVE,
+	&"throw": ControlContext.ALIVE,
+	&"map": ControlContext.ALIVE | ControlContext.DOWNED | ControlContext.DEAD,
+	&"give_up": ControlContext.DOWNED,
+	&"ready": ControlContext.LOBBY,
+	&"voice_talk": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"spectate_next": ControlContext.DEAD,
+	&"spectate_previous": ControlContext.DEAD,
 }
 
 ## The file, under user://; "" keeps the bindings in memory only (read() and write() touch no file).

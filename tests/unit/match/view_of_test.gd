@@ -197,3 +197,16 @@ func test_snapshot_for_gives_a_player_who_left_or_a_newcomer_nothing() -> void:
 	# The control: a present player's snapshot holds the others present, never who left.
 	var avatars: Dictionary = game.snapshot_for(P1)["avatars"]
 	assert_array(avatars.keys()).is_equal([P3])
+
+
+func test_snapshot_for_builds_the_avatars_alone_the_history_keeps_items_and_bodies() -> void:
+	# #1198: the host sends a snapshot's avatars only (items are not on the wire, E3), so
+	# snapshot_for, called for every peer on every tick, builds nothing else; view_of's recorded
+	# snapshots (keep_history) still hold the items and the bodies the tests read.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	FixtureModes.run_ticks(game, 1)
+	var snapshot := game.snapshot_for(P1)
+	assert_array(snapshot.keys()).is_equal(["avatars"])
+	var recorded: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]
+	assert_array(recorded.keys()).contains_exactly_in_any_order(["avatars", "items", "bodies"])
+	assert_dict(snapshot["avatars"] as Dictionary).is_equal(recorded["avatars"] as Dictionary)
