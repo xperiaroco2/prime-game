@@ -210,6 +210,12 @@ countdown changes no scene and places nobody.
   no command of `server/`'s: §7.1.16, proposed). A replay reads the answers from the log instead of asking the
   level, and refuses to run when the mode's hash differs (after an edit in `content/`, say the knife's damage, it
   would silently diverge); unit tests use a fake `WorldQuery`. Seeds and RNG state never leave the host (§5).
+  The log grows with the session (a `MoveClaim` per player at 20 Hz, idle or not, and the answers it asks), so `Match`
+  keeps it only with `recording` on (the default: the tests, `Match.replay`, the bots, the leak check): off, it keeps
+  the log's header but no command, no answer and no event once `take_outbox` handed it out (unless `keep_history`).
+  `HostSession` leaves it on only in a debug build, the one that writes a replay (§4.5.10), and
+  `HostNode.skip_replay` turns it off; once off it stays off, since a log with a gap does not replay (#1191). The
+  log is one per session, never trimmed at `End -> Lobby`: every later match's seed derives from the session seed.
 
 ### 3.4 Win conditions (base mode)
 Content parts (§9.5), checked in Round only, in the mode's order, after every fact and at the end of every step
@@ -1242,8 +1248,9 @@ no public path makes such a listener today, so the test marks it by hand) and th
 
 #### 4.5.6 Rate limits and malformed packets
 (E7; the numbers are placeholders, "not a decision"). The accident they bound:
-a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
-log for the whole match (§3.3), so one looping client grows the host's memory and work without end.
+a client bug sends an intent every frame; on a host that records (a debug build, §3.3) every command, and every
+`WorldQuery` answer it causes, stays in the command log for the whole session, and on any host each costs work, so one
+looping client grows the host's memory and work without end.
 - Per peer, three token buckets, refilled for the host time elapsed in step 2, before the poll:
   - **voice frames** (`VoiceUp`): 500, refilled at 50 per second (one 20 ms frame each); the relay's newest 5 per
     speaker per poll bounds a backlog further;
@@ -1342,7 +1349,7 @@ round).
   `WorldQuery.THROW_RADIUS_MARGIN_M` is 0.01 m: a throw radius at most `min(capsule_radius_m, capsule_height_m -
   eye_height_m, crouch_height_m - crouch_eye_height_m)` (the crouched pair since #790) less it leaves the sphere at
   a pressed capsule's eye clear of the wall or ceiling (a technical
-  constant, not a game number). `core/` records every answer in the command log (§3.3).
+  constant, not a game number). `core/` records every answer in the command log while it records (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
   gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
   query misses, the host waits one physics step after building the worlds, before `MarkerReader` asks them for the
@@ -1378,7 +1385,10 @@ round).
   the rest time. Tests: that suite, on `tests/fixtures/levels/body_rest_course.tscn` (§7.1.18).
 
 #### 4.5.10 The command log and replays (E13)
-The host keeps the log in memory (§3.3). A debug-build host writes the session's
+The host keeps the log in memory (§3.3), only where it can write it: a release-build host, and one that skips its
+replay (`HostNode.skip_replay`), keeps no command, no `WorldQuery` answer and no delivered event (`Match.recording`
+off, #1191; `tests/unit/match/match_recording_test.gd`, `tests/integration/server/host_session_recording_test.gd`).
+A debug-build host writes the session's
 log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
 seed, from which every later match's seed is derived (§3.3), so a log written after match 1 would let the host's human
 or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
@@ -5245,7 +5255,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. What a dead player saw while spectating, all of it
   public, is fair game after the respawn (vision revision 1, V1): nothing is narrowed then.
-- **Projection.** `Match` records the recipients of every event it emits, and per tick each peer's snapshot and the
+- **Projection.** `Match` records the recipients of every event it emits (with `Match.recording` or `keep_history`
+  on; with both off, `emitted()` and `view_of(peer).events` hold only the events `take_outbox` has not handed out
+  yet, so never read `view_of` on a host's match), and per tick each peer's snapshot and the
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players

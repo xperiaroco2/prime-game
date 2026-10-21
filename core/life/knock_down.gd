@@ -19,9 +19,6 @@ extends RuleEffect
 ## (server), Died (everyone), the dropped items' ItemPlaced (death, everyone); raises player_died,
 ## then item_rested per item. No demands.
 
-## The host's peer id (§4: the host is always peer 1).
-const HOST := 1
-
 ## 0: the host's player; n: the n-th other present player in peer-id order.
 @export var pick := 0
 ## Dies at once after the knockdown (LifeRules.die).
@@ -44,10 +41,10 @@ func run(ctx: MatchContext) -> void:
 func picked(state: MatchState) -> int:
 	var others: Array[int] = []
 	for peer: int in state.present_peers():
-		if peer != HOST:
+		if peer != MatchState.HOST_PEER:
 			others.append(peer)
 	if pick == 0:
-		return HOST if state.is_present(HOST) else -1
+		return MatchState.HOST_PEER if state.is_present(MatchState.HOST_PEER) else -1
 	if pick < 0 or pick > others.size():
 		return -1
 	return others[pick - 1]

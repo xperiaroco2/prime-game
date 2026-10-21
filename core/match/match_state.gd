@@ -11,6 +11,9 @@ extends RefCounted
 ## The highest item id: the wire's `item` type is a u16 whose all-ones value means none (§4.3.1,
 ## a test pins the two), so ids run from 1 to 0xFFFE.
 const MAX_ITEM_ID := 0xFFFE
+## The host's own player's peer id (§4: the host is always peer 1): the transport's
+## NetTransport.HOST_ID, which core/ cannot name, so a test pins the two.
+const HOST_PEER := 1
 
 ## Peer id -> player; iterate with peers() for peer-id order.
 var players: Dictionary[int, PlayerState] = {}

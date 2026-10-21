@@ -118,6 +118,9 @@ func _start_host(mode: GameMode, schema: WireSchema) -> void:
 	if not _session.start(mode, _options.port, mode.max_players, HostNode.now_usec()):
 		_finish(EXIT_FAILED, "cannot host: %s" % "; ".join(_session.errors))
 		return
+	if not _options.replay:
+		# This host writes no replay, so its match keeps no command log either (#1191).
+		_session.game.recording = false
 	_host_node = HostNode.new(_session)
 	root.add_child(_host_node)
 	_client = ClientSession.new(_session.own_client, mode, schema)
