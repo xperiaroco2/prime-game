@@ -66,6 +66,7 @@ static func wire_voice(game: Game, control: VoiceControl) -> void:
 		panel.threshold_changed.connect(control.set_threshold)
 		panel.denoise_toggled.connect(control.set_denoise)
 		panel.volume_changed.connect(control.set_volume)
+		panel.sliders_settled.connect(control.save_sliders)
 		panel.tone_toggled.connect(control.set_tone)
 		panel.mute_toggled.connect(control.set_muted)
 

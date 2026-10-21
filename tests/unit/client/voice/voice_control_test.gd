@@ -129,6 +129,7 @@ func test_the_threshold_is_kept_above_digital_silence_and_saved() -> void:
 	control.start()
 	control.set_threshold(0.0)
 	assert_float(control.sender.gate.threshold).is_equal(VoiceGate.MIN_THRESHOLD)
+	control.save_sliders()
 	assert_float(_saved().threshold).is_equal(VoiceGate.MIN_THRESHOLD)
 	control.set_threshold(0.3)
 	assert_float(control.sender.gate.threshold).is_equal_approx(0.3, 0.0001)
@@ -159,6 +160,7 @@ func test_a_volume_at_the_bottom_mutes_its_bus() -> void:
 	control.set_volume(AudioBuses.VOICE, -10.0)
 	assert_bool(AudioServer.is_bus_mute(voice)).is_false()
 	assert_float(AudioServer.get_bus_volume_db(voice)).is_equal(-10.0)
+	control.save_sliders()
 	assert_float(_saved().volume_db(AudioBuses.VOICE)).is_equal(-10.0)
 
 
@@ -174,6 +176,7 @@ func test_mute_this_window_and_the_test_tone_are_debug_only_and_never_saved() ->
 	assert_bool(control.sender.capture.microphone is VoiceToneMicrophone).is_true()
 	assert_bool(mic.is_open).is_false()
 	control.set_volume(AudioBuses.EFFECTS, -8.0)
+	control.save_sliders()
 	var file := ConfigFile.new()
 	file.load(PATH)
 	for key: String in file.get_section_keys("voice"):
@@ -249,3 +252,35 @@ func _saved() -> UserSettings:
 	var settings := UserSettings.new(PATH)
 	settings.read()
 	return settings
+
+
+func test_many_slider_changes_write_the_file_once_when_the_sliders_settle() -> void:
+	var settings := CountingSettings.new(PATH)
+	var control := _control(settings)
+	_mic(control)
+	control.start()
+	var writes := settings.writes
+	for step in 20:
+		control.set_threshold(0.1 + step * 0.01)
+		control.set_volume(AudioBuses.MUSIC, -30.0 + step)
+	# Applied live, not yet written.
+	assert_float(control.sender.gate.threshold).is_equal_approx(0.29, 0.0001)
+	assert_float(AudioServer.get_bus_volume_db(AudioBuses.index_of(AudioBuses.MUSIC))).is_equal(
+		-11.0
+	)
+	assert_int(settings.writes).is_equal(writes)
+	control.save_sliders()
+	control.save_sliders()
+	assert_int(settings.writes).is_equal(writes + 1)
+	assert_float(_saved().threshold).is_equal_approx(0.29, 0.0001)
+	assert_float(_saved().volume_db(AudioBuses.MUSIC)).is_equal(-11.0)
+
+
+## Counts its writes.
+class CountingSettings:
+	extends UserSettings
+	var writes := 0
+
+	func write() -> Error:
+		writes += 1
+		return super.write()
