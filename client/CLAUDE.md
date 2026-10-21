@@ -9,27 +9,16 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   screen, in one persistent main scene that swaps levels under itself (§4.7).
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
   and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
-- UI: lobby, HUD, the map and tasks screen on M (#253), end screen, the Esc menu with tabs (#169).
-- Audio: each remote speaker's voice on its avatar (M5), world sounds, footsteps and UI clicks (#525), the lift music.
+- UI: lobby, HUD, the map and tasks screen on M, end screen, the Esc menu with tabs.
+- Audio: each remote speaker's voice on its avatar, world sounds, footsteps and UI clicks, the lift music.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 
 ## Map
-- `net/` (3g, §4.6): `ClientSession`, which every client and bot runs over a `NetTransport` (Hello, intents, claims,
-  loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel` (what it knows now). Game
-  code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
-  default; bots and the leak test turn it on).
-- `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`,
-  M4-9), `RemotePlayerBody`, `RagdollView` (a knocked-down body, #848), `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks), `BodyColours` (body colour index to Color, #551), `AvatarClips` (the pure state-to-clip table, #522, §4.7.53) and `character/`: `CharacterSet` (the injected art character; null: the greybox capsule, so no test needs LFS content), `CharacterRig` (its clips on an `AnimationTree`, its sockets and tint) and `ragdoll_builder.gd` (the art's ragdoll builder, preloaded by `RagdollView`, whose ragdoll is the skeleton's with a character).
-- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `UiOverlays` (pure: what Esc closes, one per press, #488,
-  §4.7.35), `EscMenuState` (pure), `EscMenu` (the Toy menu, #491, §4.7.46), its pages `LobbyPanel` (`LobbyPresets`, `SettingStepper`), `RolePage` (the pure `RoleFacts`), `GuidePanel` and `SettingsPage` (also the main menu's: `SettingRows`, `VoicePanel` M5-6, `ControlsPanel` #211, §4.7.28: `app/Controls`, `ui/KeyLabel`; wired by `app/GameSettings`), and the lobby's `LobbyHud`.
-- `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
-  level per phase, pure), `GamePlayer`, `GameJoin` and `GameLevel` (Game's wiring of the local player, the join under way and the level swap, #1249), `GameWindow` (fullscreen and Alt+Enter, #517), `OverlayFeed` (the debug overlay's numbers, #254), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words and its failure state on the connecting screen, #494; add a new one
-  there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room), `GameTutorial` (the solo tutorial's session with `tutorial/StandIns`, its two stand-in clients; only `stand_ins.gd` names their sessions, a source test holds it; #601, §4.7.43; and the pure `tutorial/LessonRunner`, which plays `content/tutorial/`'s lessons, fed only by that wiring; #602, §4.7.45). `ui/`: the screens under `GameUi`, built
-  in code (`MainMenu`: the items, the code, Direct and Settings panels and the name row, #493, §4.7.38; `ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD (M4-8), the map and tasks screen `MapScreen` with its pure `MapData` (#253, §4.7.33; its Toy look and focus #490, §4.7.41), the how-to cards (their data `content/howto/` of the content API's `HowtoCard` and `HowtoFrame` in `core/content/howto/`, `HowtoCardView`, `HowtoCards`, the Esc menu's `GuidePanel`, `app/HowtoProgress`, `app/GameHowto` (Game's wiring of them); #254, §4.7.36), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the teammate-mark plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, names removed by #756, §4.7.29), the Toy round HUD (`Hud`, `HudSlot`, the pure `HudText`, the pack's icons `ToyIcons`; #489, §4.7.37), the Toy pregame role reveal (`PregameScreen`; #496, §4.7.39), `HostTextView` (host text, an id plus arguments, in the client's language: the lobby's shortfalls; #548, §4.7.47), the downed, dead and respawn plates `LifeScreen` (#497, §4.7.44), `ContentNames` (a role's, item's, task type's, room's or map's name as its deck key, else its display name; #549, §4.7.48), the tutorial's invite and lesson plates `TutorialScreen` (#492, §4.7.49). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
-  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds: `WorldSounds`, `FootstepCadence`, `FootstepSurface`, #525; `ZoneViews`, #650; throws, #645; the photo flash `PhotoFlashes`, #785; the Generator's `StationUse`, `StationViews`, `StationHums`, #801, §4.7.54; Cooking's `CookingUse`, `CookingViews`, `CookingLooks`, #776, §4.7.55; the photo task's `PhotoUse` and `PhotoViewfinder`, #786, §4.7.56, and `PhotoLayers`, `PhotoLooks`, `PhotoViews`, `PhotoPictures`, #787, §4.7.58; car repair's `CarRepairUse`, `CarRepairViews`, #811, §4.7.57). `life/` (M4-9): `LifeView` (the cameras,
-  inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud` (what `LifeScreen` shows).
-- Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
-  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `audio/SfxSet`, `ui/UiSounds` (#525). `dev/`: dev rooms, previews.
+Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 for `net/`).
+- Game code talks to the host only through a `ClientSession` (`net/`); its `view` stays empty unless `keep_history` is on
+  (off by default; bots and the leak test turn it on).
+- `app/EndReasons` holds every end reason (#494); a new one goes there. Voice code uses `res://voice/`, never the
+  reverse.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -52,7 +41,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera);
-  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525); a step at the crouch walk's speed is quieter and nearer, eased to a walk's at the fast crouch's, by its speed, never the crouch flag (#792, #991); a sneaking pose's step is silent only at that speed (plus a jitter margin), the sneak flag AND the drawn step's speed, so a claimed sneak at a walk is heard (#990).
+  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525); a step at the crouch walk's speed is quieter and nearer, eased to a walk's at the fast crouch's, by its speed, never the crouch flag; a sneaking pose's step is silent only at that speed (plus a jitter margin), the sneak flag AND the drawn step's speed, so a claimed sneak at a walk is heard.
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
@@ -67,7 +56,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.52).
 - Collision layers come from `PhysicsLayers`. Visual layers: every live `Camera3D` culls with `PhotoLayers.LIVE_VIEW` and every live avatar part (remote bodies, a downed live ragdoll, the hands, carried item views) sits on `LIVE_AVATAR`, so a picture draws the record's puppets instead (#787, §4.7.58; `photo_isolation_test.gd`). Movement numbers (speeds, jump, capsule, eye and step height, stamina,
-  the crouch's numbers, #791; the crouch plays everywhere, #991) come from the client's own copy of the mode's `PlayerRules`;
+  the crouch's numbers; the crouch plays everywhere) come from the client's own copy of the mode's `PlayerRules`;
   `PlayerTuning` keeps client feel only (the push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
 - Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity (their clips too: `AvatarClips` takes the drawn move), and every head or
   basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be

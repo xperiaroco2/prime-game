@@ -177,6 +177,21 @@ class BudgetTest(unittest.TestCase):
             [".claude/rules/big.md: 61 lines, budget 60", "content/CLAUDE.md: 101 lines, budget 100"],
         )
 
+    def test_nested_byte_budget_counts_long_lines_not_comments(self) -> None:
+        # #1242: a few very long lines meet the line cap and still cost every agent that reads a file in the folder.
+        long_line = "x" * (instructions.NESTED_BYTES // 10) + "\n"
+        report = self.check(
+            {
+                "CLAUDE.md": lines(10),
+                "client/CLAUDE.md": long_line * 11,
+                "server/CLAUDE.md": long_line * 9,
+                "net/CLAUDE.md": "<!-- " + "x" * instructions.NESTED_BYTES + " -->\n" + lines(5),
+            }
+        )
+        self.assertEqual(len(report.errors), 1, report.errors)
+        self.assertIn("client/CLAUDE.md:", report.errors[0])
+        self.assertIn(f"budget {instructions.NESTED_BYTES}", report.errors[0])
+
     def test_missing_root_claude_md(self) -> None:
         self.assertIn("CLAUDE.md is missing at the repo root", self.check({}).errors)
 
