@@ -120,7 +120,7 @@ func frames_label(id: int) -> Label3D:
 func _process(_delta: float) -> void:
 	if model == null or mode == null or level == null or not is_instance_valid(level):
 		return
-	if not _searched and mode != null:
+	if not _searched:
 		_searched = true
 		_find_scenes()
 	var ids := _station_ids()
