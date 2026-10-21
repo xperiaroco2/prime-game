@@ -139,11 +139,12 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 
 
 func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_decoded() -> void:
-	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot.
+	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot;
+	# since #1209 none is unreached.
+	assert_dict(LeakCheck.UNREACHED).is_empty()
 	var seen: Dictionary[StringName, bool] = {}
 	for event: StringName in LeakCheck.TASK_EVENTS:
-		if not LeakCheck.UNREACHED.has(event):
-			seen[event] = true
+		seen[event] = true
 	assert_array(Array(LeakCheck.check_coverage(seen))).is_empty()
 	# A scenario that stops reaching the Generator's switches fails the run.
 	var lost: Dictionary[StringName, bool] = seen.duplicate()
@@ -151,11 +152,18 @@ func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_de
 	assert_str(_text(LeakCheck.check_coverage(lost))).contains(
 		"no bot decoded the task event SwitchChanged"
 	)
-	# A scenario that starts reaching an unreached event asks to take it off the list.
-	var more: Dictionary[StringName, bool] = seen.duplicate()
-	more[&"PhotoPrinted"] = true
-	assert_str(_text(LeakCheck.check_coverage(more))).contains(
+	# With an event listed as unreached (a test list): missing it passes, and a scenario that
+	# starts reaching it asks to take it off the list; a listed name that is no task event fails.
+	var unreached: Dictionary[StringName, String] = {&"PhotoPrinted": "a test reason"}
+	var short: Dictionary[StringName, bool] = seen.duplicate()
+	short.erase(&"PhotoPrinted")
+	assert_array(Array(LeakCheck.check_coverage(short, unreached))).is_empty()
+	assert_str(_text(LeakCheck.check_coverage(seen, unreached))).contains(
 		"a bot decoded PhotoPrinted, listed as unreached"
+	)
+	var stray: Dictionary[StringName, String] = {&"NoSuchEvent": "a test reason"}
+	assert_str(_text(LeakCheck.check_coverage(seen, stray))).contains(
+		"UNREACHED lists NoSuchEvent, which is no task event"
 	)
 	# The decoded view's task events, and only those, count.
 	var view := DecodedView.new()

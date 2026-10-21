@@ -1,0 +1,696 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" path="res://content/modes/base_mode.tres" id="1_obhkj"]
+[ext_resource type="Script" path="res://core/content/scenario/never_event.gd" id="2_ti2lq"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_scenario.gd" id="3_fl1wx"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_script.gd" id="4_mt71n"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_step.gd" id="5_hcgav"]
+[ext_resource type="Script" path="res://core/content/scenario/step_ready.gd" id="6_ve55g"]
+[ext_resource type="Script" path="res://core/content/scenario/step_wait_for.gd" id="7_j28js"]
+[ext_resource type="Script" path="res://core/content/scenario/step_walk_to.gd" id="8_huudx"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_target.gd" id="9_ashu3"]
+[ext_resource type="Script" path="res://core/content/scenario/step_interact.gd" id="10_bcjch"]
+[ext_resource type="Script" path="res://core/content/scenario/step_swap.gd" id="11_xausk"]
+[ext_resource type="Script" path="res://core/content/scenario/step_pick_up.gd" id="12_gn8pj"]
+
+[sub_resource type="Resource" id="Resource_f3eue"]
+script = ExtResource("6_ve55g")
+
+[sub_resource type="Resource" id="Resource_r222d"]
+script = ExtResource("7_j28js")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_un68b"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_l5572"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_un68b")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_seh13"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_acjmv"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_seh13")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_m6hj2"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_r434w"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_m6hj2")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_d71xs"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_s6oow"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_d71xs")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_wfcl4"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"box_bun_white"
+
+[sub_resource type="Resource" id="Resource_863fv"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_wfcl4")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Resource_idynh"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"box_bun_white"
+
+[sub_resource type="Resource" id="Resource_uyniy"]
+script = ExtResource("10_bcjch")
+item = SubResource("Resource_idynh")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_v2du6"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"box_patty_light"
+
+[sub_resource type="Resource" id="Resource_ibpwt"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_v2du6")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Resource_g4003"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"box_patty_light"
+
+[sub_resource type="Resource" id="Resource_u4ne0"]
+script = ExtResource("10_bcjch")
+item = SubResource("Resource_g4003")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_7s1lj"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_t0eg0"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_7s1lj")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_0aik3"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_p6mif"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_0aik3")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_aayw5"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_klr2k"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_aayw5")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_52tb8"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_wmwcs"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_52tb8")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_8iksq"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"grill"
+
+[sub_resource type="Resource" id="Resource_elpmt"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_8iksq")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_v5k2f"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"grill"
+
+[sub_resource type="Resource" id="Resource_sixjy"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_v5k2f")
+until = &"GrillLoaded"
+
+[sub_resource type="Resource" id="Resource_3m1mt"]
+script = ExtResource("7_j28js")
+event = &"ItemChanged"
+
+[sub_resource type="Resource" id="Resource_xpmbg"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"grill"
+
+[sub_resource type="Resource" id="Resource_ui3xn"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_xpmbg")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_bstif"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_4m812"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_bstif")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_qb44c"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_vrcc6"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_qb44c")
+until = &"IngredientPlaced"
+
+[sub_resource type="Resource" id="Resource_saq26"]
+script = ExtResource("11_xausk")
+
+[sub_resource type="Resource" id="Resource_43b7d"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_sfqpw"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_43b7d")
+until = &"IngredientPlaced"
+
+[sub_resource type="Resource" id="Resource_4uxh5"]
+script = ExtResource("9_ashu3")
+kind = 5
+index = 4
+station_kind = &"herb_bed"
+
+[sub_resource type="Resource" id="Resource_lnj22"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_4uxh5")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_qtbr7"]
+script = ExtResource("9_ashu3")
+kind = 5
+index = 4
+station_kind = &"herb_bed"
+
+[sub_resource type="Resource" id="Resource_lkj6j"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_qtbr7")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_joujc"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_dt5n4"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_joujc")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_y7oif"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_kcrou"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_y7oif")
+until = &"IngredientPlaced"
+
+[sub_resource type="Resource" id="Resource_8r5mx"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_0h3ug"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_8r5mx")
+until = &"BurgerPlated"
+
+[sub_resource type="Resource" id="Resource_mo33j"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"order_board"
+
+[sub_resource type="Resource" id="Resource_gllnh"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_mo33j")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_ccngs"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"order_board"
+
+[sub_resource type="Resource" id="Resource_07j80"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_ccngs")
+until = &"BurgerServed"
+
+[sub_resource type="Resource" id="Resource_ke8r3"]
+script = ExtResource("4_mt71n")
+steps = Array[ExtResource("5_hcgav")]([SubResource("Resource_f3eue"), SubResource("Resource_r222d"), SubResource("Resource_l5572"), SubResource("Resource_acjmv"), SubResource("Resource_r434w"), SubResource("Resource_s6oow"), SubResource("Resource_863fv"), SubResource("Resource_uyniy"), SubResource("Resource_ibpwt"), SubResource("Resource_u4ne0"), SubResource("Resource_t0eg0"), SubResource("Resource_p6mif"), SubResource("Resource_klr2k"), SubResource("Resource_wmwcs"), SubResource("Resource_elpmt"), SubResource("Resource_sixjy"), SubResource("Resource_3m1mt"), SubResource("Resource_ui3xn"), SubResource("Resource_4m812"), SubResource("Resource_vrcc6"), SubResource("Resource_saq26"), SubResource("Resource_sfqpw"), SubResource("Resource_lnj22"), SubResource("Resource_lkj6j"), SubResource("Resource_dt5n4"), SubResource("Resource_kcrou"), SubResource("Resource_0h3ug"), SubResource("Resource_gllnh"), SubResource("Resource_07j80")])
+
+[sub_resource type="Resource" id="Resource_ce5i0"]
+script = ExtResource("6_ve55g")
+
+[sub_resource type="Resource" id="Resource_ewhqr"]
+script = ExtResource("7_j28js")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_ck5cr"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_m2vmy"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_ck5cr")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_bftwn"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_5ke5b"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_bftwn")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_d2o8r"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_jryyc"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_d2o8r")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_5pewr"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_2mkeq"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_5pewr")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_na2lv"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"part_bin_1"
+
+[sub_resource type="Resource" id="Resource_dg7ke"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_na2lv")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_itax6"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"part_bin_1"
+
+[sub_resource type="Resource" id="Resource_1e32v"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_itax6")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_vrpkl"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_44dhj"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_vrpkl")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_kqvq2"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_kc6me"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_kqvq2")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_hp7xf"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_y705j"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_hp7xf")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_va371"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_xfdoc"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_va371")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_t6uap"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"car"
+
+[sub_resource type="Resource" id="Resource_stkbq"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_t6uap")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_0twia"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"car"
+
+[sub_resource type="Resource" id="Resource_caxoa"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_0twia")
+until = &"PartFitted"
+
+[sub_resource type="Resource" id="Resource_1upix"]
+script = ExtResource("4_mt71n")
+steps = Array[ExtResource("5_hcgav")]([SubResource("Resource_ce5i0"), SubResource("Resource_ewhqr"), SubResource("Resource_m2vmy"), SubResource("Resource_5ke5b"), SubResource("Resource_jryyc"), SubResource("Resource_2mkeq"), SubResource("Resource_dg7ke"), SubResource("Resource_1e32v"), SubResource("Resource_44dhj"), SubResource("Resource_kc6me"), SubResource("Resource_y705j"), SubResource("Resource_xfdoc"), SubResource("Resource_stkbq"), SubResource("Resource_caxoa")])
+
+[sub_resource type="Resource" id="Resource_2uwk0"]
+script = ExtResource("6_ve55g")
+
+[sub_resource type="Resource" id="Resource_s5nx0"]
+script = ExtResource("7_j28js")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_t08gj"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"film"
+
+[sub_resource type="Resource" id="Resource_edabo"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_t08gj")
+sprint = true
+
+[sub_resource type="Resource" id="Resource_5og5b"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"film"
+
+[sub_resource type="Resource" id="Resource_d4bru"]
+script = ExtResource("12_gn8pj")
+target = SubResource("Resource_5og5b")
+
+[sub_resource type="Resource" id="Resource_x85b8"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_w0ec4"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_x85b8")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_ggoub"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_woykg"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_ggoub")
+until = &"FilmLoaded"
+
+[sub_resource type="Resource" id="Resource_uipa4"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_q51l0"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_uipa4")
+until = &"ShotTaken"
+
+[sub_resource type="Resource" id="Resource_dqfhh"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"film"
+
+[sub_resource type="Resource" id="Resource_ig1ty"]
+script = ExtResource("12_gn8pj")
+target = SubResource("Resource_dqfhh")
+
+[sub_resource type="Resource" id="Resource_bw6mg"]
+script = ExtResource("9_ashu3")
+point = Vector3(39, 0, 13.8)
+
+[sub_resource type="Resource" id="Resource_53t23"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_bw6mg")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_xfah1"]
+script = ExtResource("9_ashu3")
+point = Vector3(39, 3.2, 22.2)
+
+[sub_resource type="Resource" id="Resource_2fg21"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_xfah1")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_qw34b"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"printer"
+
+[sub_resource type="Resource" id="Resource_pjby4"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_qw34b")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_7g06q"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"printer"
+
+[sub_resource type="Resource" id="Resource_ywkvp"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_7g06q")
+until = &"PhotoPrinted"
+
+[sub_resource type="Resource" id="Resource_6jm5j"]
+script = ExtResource("9_ashu3")
+kind = 2
+item_kind = &"photo"
+
+[sub_resource type="Resource" id="Resource_i4w4r"]
+script = ExtResource("12_gn8pj")
+target = SubResource("Resource_6jm5j")
+
+[sub_resource type="Resource" id="Resource_l1lod"]
+script = ExtResource("9_ashu3")
+point = Vector3(39, 3.2, 22.2)
+
+[sub_resource type="Resource" id="Resource_w2nv0"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_l1lod")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_qngmh"]
+script = ExtResource("9_ashu3")
+point = Vector3(39, 0, 13.8)
+
+[sub_resource type="Resource" id="Resource_gsrmn"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_qngmh")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_7de04"]
+script = ExtResource("9_ashu3")
+point = Vector3(28.5, 0, 30)
+
+[sub_resource type="Resource" id="Resource_03fu2"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_7de04")
+sprint = true
+
+[sub_resource type="Resource" id="Resource_52o36"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_dd1bk"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_52o36")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_qujv2"]
+script = ExtResource("9_ashu3")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_eonhq"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_qujv2")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_cc4jl"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_mg3pe"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_cc4jl")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_epub5"]
+script = ExtResource("9_ashu3")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_s4b65"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_epub5")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_m6mb2"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"photo_board"
+
+[sub_resource type="Resource" id="Resource_mjqn7"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_m6mb2")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_ljbs1"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"photo_board"
+
+[sub_resource type="Resource" id="Resource_176dt"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_ljbs1")
+until = &"PhotoHung"
+
+[sub_resource type="Resource" id="Resource_b2sfy"]
+script = ExtResource("4_mt71n")
+steps = Array[ExtResource("5_hcgav")]([SubResource("Resource_2uwk0"), SubResource("Resource_s5nx0"), SubResource("Resource_edabo"), SubResource("Resource_d4bru"), SubResource("Resource_w0ec4"), SubResource("Resource_woykg"), SubResource("Resource_q51l0"), SubResource("Resource_ig1ty"), SubResource("Resource_53t23"), SubResource("Resource_2fg21"), SubResource("Resource_pjby4"), SubResource("Resource_ywkvp"), SubResource("Resource_i4w4r"), SubResource("Resource_w2nv0"), SubResource("Resource_gsrmn"), SubResource("Resource_03fu2"), SubResource("Resource_dd1bk"), SubResource("Resource_eonhq"), SubResource("Resource_mg3pe"), SubResource("Resource_s4b65"), SubResource("Resource_mjqn7"), SubResource("Resource_176dt")])
+
+[sub_resource type="Resource" id="Resource_kbt8y"]
+script = ExtResource("6_ve55g")
+
+[sub_resource type="Resource" id="Resource_cmswf"]
+script = ExtResource("7_j28js")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_7lgtq"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"lift_panel"
+
+[sub_resource type="Resource" id="Resource_nkek1"]
+script = ExtResource("8_huudx")
+target = SubResource("Resource_7lgtq")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_0x5rx"]
+script = ExtResource("9_ashu3")
+kind = 5
+station_kind = &"lift_panel"
+
+[sub_resource type="Resource" id="Resource_708eh"]
+script = ExtResource("10_bcjch")
+station = SubResource("Resource_0x5rx")
+until = &"LiftChanged"
+
+[sub_resource type="Resource" id="Resource_fyjny"]
+script = ExtResource("7_j28js")
+event = &"PartFitted"
+
+[sub_resource type="Resource" id="Resource_5m0ip"]
+script = ExtResource("4_mt71n")
+steps = Array[ExtResource("5_hcgav")]([SubResource("Resource_kbt8y"), SubResource("Resource_cmswf"), SubResource("Resource_nkek1"), SubResource("Resource_708eh"), SubResource("Resource_fyjny")])
+
+[resource]
+script = ExtResource("3_fl1wx")
+mode = ExtResource("1_obhkj")
+map = "res://levels/house/house.tscn"
+session_seed = 120900000001
+bots = 4
+forced_roles = Dictionary[int, StringName]({
+4: &"dissident"
+})
+scripts = Array[ExtResource("4_mt71n")]([SubResource("Resource_ke8r3"), SubResource("Resource_1upix"), SubResource("Resource_b2sfy"), SubResource("Resource_5m0ip")])
+expected_ends = Array[StringName]([&"dissidents"])
+clock_s = 56
+time_limit_s = 90.0
