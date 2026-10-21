@@ -1075,7 +1075,7 @@ The rules of the table:
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
   `ItemPickedUp`, `Swapped`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6.1);
-  a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item` and `belt_item`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests; the leak
+  a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item` and `belt_item`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests (recorded with `keep_history` only; `snapshot_for`, what the host sends, builds the avatars alone, #1198); the leak
   test compares the avatars. Prevents: a snapshot of every item and body (about 920 bytes with 10 players and 20 items)
   outgrowing the 1024-byte unreliable cap as a map gets more knives, with no way to split it, because the LATEST merge
   keeps only the last part.
@@ -5284,7 +5284,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
   over 10 minutes); the tests and the leak test turn it on, a real host does not. `snapshot_for(peer)`, what `server/`
-  sends each tick, is empty for anyone but a present player, and in a phase that sends no snapshots
+  sends each tick (its avatars alone; the recorded snapshots add the items and the bodies, #1198), is empty for anyone but a present player, and in a phase that sends no snapshots
   (`tests/unit/match/view_of_test.gd`). The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
   `view_of` does not hold is a leak (§4.6.4: the events exactly, the snapshots' avatars and the voice frames as
