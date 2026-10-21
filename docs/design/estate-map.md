@@ -46,7 +46,7 @@ garage's driveway at y 11. North and west: forest.
 
 | Module | Centre (x, y) | Footprint (m) | Clearing radius (m) | Levels |
 |---|---|---|---:|---|
-| House | 68.4, 11 | 12 x 10 | 12 | -1, 0, 1, roof |
+| House | 68.4, 11 | 12 x 10; the basement 20 x 16, under the yard to the south (§5c) | 12 | -1, 0, 1, roof |
 | Bonfire | 65.3, 41 | fire pit r 2, benches r 7 | 13 | 0 |
 | Summer kitchen | 82.8, 30 | 8 x 5, open, roofed | 9 | 0 |
 | Pantry | 48, 27 | 6 x 5 | 8 | 0 |
@@ -111,7 +111,7 @@ and times are placeholders.
 
 | Passage | Joins | Length, time | On the surface |
 |---|---|---|---|
-| The library's bookcase | The library (1) ⇄ the cellar (-1): a narrow stair inside the wall. Pressing a book swings the bookcase open; from below, pulling a bottle on the wine rack | about 20 m, 5 s | security room ⇄ library 50 m, 11 s |
+| The library's bookcase | The library (1) ⇄ the cellar (-1): a narrow stair inside the wall. Pressing a book swings the bookcase open; from below, pulling a bottle on the wine rack | about 10 m, 4 s | security room ⇄ library 50 m, 11 s |
 | The tunnel | The garage's inspection pit under the car ⇄ the laboratory | 22 m, 5 s | about 39 m, 9 s |
 | The sewer | The cellar ⇄ a manhole by the bonfire (65.3, 51) ⇄ a fork under the creek (67, 64) ⇄ manholes by the well (30, 68) and by the ship's side hatch (99, 73) | bonfire → ship 46 m, 10 s; well → ship 70 m, 16 s; cellar → bonfire 42 m, 9 s | 60 m, 13 s; 93 m, 21 s; about 36 m, 8 s |
 | The ducts | The laboratory ⇄ a grate in the pantry (53, 25.5); the security room ⇄ a grate by the summer kitchen's bins (76.4, 30.8) | 16 m, 8 s each | about 58 m, 13 s; about 30 m, 7 s |
@@ -128,6 +128,24 @@ and times are placeholders.
 - **Secret is not a hidden rule:** every passage is in the rules; a newcomer discovers it, a regular uses it.
 - **The watering stays a walk:** no passage shortens the greenhouse ⇄ well trip (§1.6).
 - Open: the basement's layout (the laboratory, the security room, the cellar) and where each passage starts in it.
+
+## 5c. The house inside (the engineer, 2026-10-21)
+
+Approved on [#1035 c6317165077](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6317165077); the design track's draft: prime-game-design `ideas/2026-10-21-house-inside.md`. Local metres
+from the house's centre (68.4, 11): x east, z south; placeholders.
+
+| Level | Rooms and what stands there | Ways out |
+|---|---|---|
+| roof | The terrace (12 x 10, railing): the fireworks crates; the chimney stack (west) | the hatch and ladder to the library (north-east); the chimney down to the fireplace |
+| 1 | The library (12 x 10): bookshelves, the decoder book on a lectern (middle), the house phone (west wall); the balcony (8 x 2, south) | the inner stairs (north, middle); the ladder to the roof; the secret bookcase (north-west, §5b); the balcony's outdoor stairs to the yard |
+| 0 | The living room (12 x 10, one room): the long party table, the burger serving board (east wall), the fireplace under the chimney (west wall), the stair well (north, middle) | doors south (the bonfire), east (the garage path) and west (the greenhouse path), so the upper loop runs through the house; the stairs up and down |
+| -1 | The basement (20 x 16, x -10..10, z -5..11), wider than the house: **the cellar** (north-west, 8 x 7: barrels, beer crates, the wine rack, the sewer's manhole); **the stair hall** (north, middle, 4 x 7); **the security room** (north-east, 8 x 7: the camera wall, the Wi-Fi computer and the house phone, the light breaker); **the laboratory** (the whole south, 20 x 9: the big parts printer at the west end, the battery printer, the mutation workbench, the healing pod at the east end) | the cellar: the hall, the outdoor cellar door (west), the secret stair, the sewer; the security room: the hall, a door into the laboratory, the duct to the summer kitchen; the laboratory: the hall, the security room, the duct to the pantry (west wall), the tunnel to the garage (east wall) |
+
+- **Every room has at least two ways out** (§1.3).
+- **The secret stair runs in the thick chimney wall:** the bookcase and the wine rack stand one above the other.
+- **The Wi-Fi spans the house:** the computer in the security room, the decoder book two floors up.
+- **The parts printer and the healing pod stand 16 m apart,** so the laboratory's ends do not talk over each other.
+- Open: whether walls muffle the voice (GDD §11); what the camera wall shows.
 
 ## 6. Task stations
 
