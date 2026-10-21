@@ -76,6 +76,30 @@ func most_layout_problems() -> int:
 	return 0
 
 
+## Whether `ctx` has the layout of the level being entered; else reports "`task`: no layout for
+## the level being entered". The first step of every type's fit at deal() (#1254); the lobby's fit
+## check (§9.4) keeps a match from getting there without one.
+static func has_layout(ctx: MatchContext, task: String) -> bool:
+	if ctx.layout != null:
+		return true
+	ctx.error("%s: no layout for the level being entered" % task)
+	return false
+
+
+## The tags of `needs` (a marker count per spawn tag) `layout` has fewer markers of than needed,
+## each with the count it has, in `needs` order: what a type's fit at deal() reports in its own
+## words (#1254). Empty when the layout has them all.
+static func short_markers(
+	layout: LevelLayout, needs: Dictionary[StringName, int]
+) -> Dictionary[StringName, int]:
+	var short: Dictionary[StringName, int] = {}
+	for tag: StringName in needs:
+		var have := layout.count(tag)
+		if have < needs[tag]:
+			short[tag] = have
+	return short
+
+
 ## The spawn tags of the level markers where this type's items may lie (Delivery: its package
 ## kind's), for the map screen's zones (#253): the client lights each room that holds a marker of
 ## such a tag. Level data every client has, never a place a deal chose. None by default.

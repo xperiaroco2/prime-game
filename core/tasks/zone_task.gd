@@ -204,8 +204,7 @@ func check(mode: GameMode) -> PackedStringArray:
 ## Whether the level being entered has the markers and the palette the colours for `count` zones;
 ## the lobby's fit check (§9.4) keeps a match from getting here without them.
 func _fits(ctx: MatchContext, count: int) -> bool:
-	if ctx.layout == null:
-		ctx.error("ZoneTask: no layout for the level being entered")
+	if not has_layout(ctx, "ZoneTask"):
 		return false
 	var markers := ctx.layout.count(zone.spawn_tag)
 	var colours := zone.palette.size()

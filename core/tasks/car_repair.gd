@@ -625,15 +625,15 @@ func _place(ctx: MatchContext, kind: StationKind) -> StationState:
 ## marker, and every part a bin; the lobby's fit check (§9.4) keeps a match from getting here
 ## without them.
 func _fits(ctx: MatchContext) -> bool:
-	if ctx.layout == null:
-		ctx.error("CarRepair: no layout for the level being entered")
+	if not has_layout(ctx, "CarRepair"):
 		return false
-	var missing := PackedStringArray()
+	var needs: Dictionary[StringName, int] = {}
 	for kind: StationKind in station_kinds():
-		if ctx.layout.count(kind.spawn_tag) < 1:
-			missing.append(kind.spawn_tag)
-	if ctx.layout.count(car_end_tag) < 1:
-		missing.append(car_end_tag)
+		needs[kind.spawn_tag] = 1
+	needs[car_end_tag] = 1
+	var missing := PackedStringArray()
+	for tag: StringName in short_markers(ctx.layout, needs):
+		missing.append(tag)
 	for part: ItemKind in parts:
 		if bin_of(part) == null:
 			missing.append("a bin of %s" % part.id)

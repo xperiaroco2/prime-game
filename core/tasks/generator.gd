@@ -305,8 +305,7 @@ static func _has_use_rule(kind: StationKind) -> bool:
 ## Whether the level being entered has the generator's marker and a marker for each of `count`
 ## switches; the lobby's fit check (§9.4) keeps a match from getting here without them.
 func _fits(ctx: MatchContext, count: int) -> bool:
-	if ctx.layout == null:
-		ctx.error("Generator: no layout for the level being entered")
+	if not has_layout(ctx, "Generator"):
 		return false
 	var generators := ctx.layout.count(generator.spawn_tag)
 	var markers := ctx.layout.count(switch.spawn_tag)

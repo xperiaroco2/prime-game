@@ -11,6 +11,7 @@ extends Node3D
 ## none yet) and preview-only fry and burn seconds; dev only, nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
+const Kit := preload("res://client/dev/preview_kit.gd")
 const SCENES := "res://levels/stations/%s.tscn"
 const OWN := 1
 const ORDER_BOARD := 10
@@ -50,13 +51,13 @@ func _ready() -> void:
 	for at: Vector3 in PLACES:
 		_add(&"place", at)
 	var beds := _add(&"herb_beds", AT[&"herb_beds"])
-	_place(model, ORDER_BOARD, &"order_board", _spot(_level.get_child(0)))
-	_place(model, HERB_BOARD, &"herb_board", _spot(_level.get_child(1)))
-	_place(model, GRILL, &"grill", _spot(_level.get_child(2)))
+	Kit.place(model, ORDER_BOARD, &"order_board", _spot(_level.get_child(0)))
+	Kit.place(model, HERB_BOARD, &"herb_board", _spot(_level.get_child(1)))
+	Kit.place(model, GRILL, &"grill", _spot(_level.get_child(2)))
 	for k: int in 5:
-		_place(model, FIRST_BED + k, &"herb_bed", _spot(beds.get_node("Bed%d" % (k + 1))))
+		Kit.place(model, FIRST_BED + k, &"herb_bed", _spot(beds.get_node("Bed%d" % (k + 1))))
 	for i: int in 2:
-		_place(model, FIRST_PLACE + i, &"place", _spot(_level.get_child(3 + i)))
+		Kit.place(model, FIRST_PLACE + i, &"place", _spot(_level.get_child(3 + i)))
 		model.fold(
 			&"OrderPosted",
 			{"station": FIRST_PLACE + i, "bun": BUNS[i], "patty": FRIED[i + 1], "icon": i * 2}
@@ -113,12 +114,6 @@ func _hold(model: ClientModel, id: int, kind: StringName) -> void:
 	model.fold(&"ItemPickedUp", {"peer": OWN, "item": id})
 
 
-func _place(model: ClientModel, id: int, kind: StringName, at: Vector3) -> void:
-	model.fold(
-		&"StationPlaced", {"station": id, "kind": kind, "colour": Color.WHITE, "position": at}
-	)
-
-
 func _add(scene: StringName, at: Vector3) -> Node3D:
 	var made := (load(SCENES % scene) as PackedScene).instantiate() as Node3D
 	made.position = at
@@ -173,9 +168,9 @@ func _items(ids: Array[StringName]) -> Array[ItemKind]:
 
 
 func _build_room() -> void:
-	_box(Vector3(0, -0.05, 0), Vector3(16, 0.1, 16), Color(0.45, 0.45, 0.47))
+	Kit.box(self, Vector3(0, -0.05, 0), Vector3(16, 0.1, 16), Color(0.45, 0.45, 0.47))
 	if wall:
-		_box(Vector3(2.6, 0.9, 1.5), Vector3(5.2, 1.8, 0.2), Color(0.6, 0.58, 0.55))
+		Kit.box(self, Vector3(2.6, 0.9, 1.5), Vector3(5.2, 1.8, 0.2), Color(0.6, 0.58, 0.55))
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(-0.9, 0.5, 0)
 	sun.shadow_enabled = true
@@ -187,15 +182,3 @@ func _build_room() -> void:
 	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.environment.ambient_light_color = Color(0.5, 0.5, 0.55)
 	add_child(environment)
-
-
-func _box(at: Vector3, size: Vector3, colour: Color) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	mesh.material = material
-	var view := MeshInstance3D.new()
-	view.mesh = mesh
-	view.position = at
-	add_child(view)

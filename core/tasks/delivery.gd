@@ -177,8 +177,7 @@ func check(mode: GameMode) -> PackedStringArray:
 ## Whether the level being entered has the markers and the palette the colours for `count`
 ## packages; the lobby's fit check (§9.4) keeps a match from getting here without them.
 func _fits(ctx: MatchContext, count: int) -> bool:
-	if ctx.layout == null:
-		ctx.error("Delivery: no layout for the level being entered")
+	if not has_layout(ctx, "Delivery"):
 		return false
 	var circles := ctx.layout.count(circle.spawn_tag)
 	var packages := Items.free_markers(ctx, package.spawn_tag).size()
