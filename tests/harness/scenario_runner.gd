@@ -51,7 +51,7 @@ func run() -> void:
 		failures.append("scenario: %s" % problem)
 	if not problems.is_empty():
 		return
-	var world := FlatWorldQuery.new()
+	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)

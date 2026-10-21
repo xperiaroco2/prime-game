@@ -52,6 +52,8 @@ var replay_path := ""
 ## The leak test over the host's match, fed by the observer (record_tick after every tick); null
 ## before the start's call.
 var leaks: LeakCheck
+## The task events some bot decoded, filled after the run (LeakCheck.check_coverage, #1197).
+var task_events_seen: Dictionary[StringName, bool] = {}
 
 var _invariants: ScenarioInvariants
 
@@ -83,7 +85,7 @@ func run() -> void:
 	if not scenario.steps_of(1).is_empty() and scenario.steps_of(1)[0] is StepJoin:
 		failures.append("scenario: bot 1 is the host's own client, connected at the start")
 		return
-	var world := FlatWorldQuery.new()
+	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)
@@ -255,6 +257,8 @@ func _check_after() -> void:
 		if client != null:
 			_check_client("bot %d" % bot.number, bot.peer, client, bot.gone, views)
 	failures.append_array(leaks.check_tasks(views))
+	for label: String in views:
+		LeakCheck.add_task_events(views[label], task_events_seen)
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(leaks.check_watcher(watcher))
 		failures.append_array(

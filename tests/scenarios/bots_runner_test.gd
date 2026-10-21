@@ -138,6 +138,34 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(_text(leaks.check_tasks(views))).contains("different task events in match 1")
 
 
+func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_decoded() -> void:
+	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot.
+	var seen: Dictionary[StringName, bool] = {}
+	for event: StringName in LeakCheck.TASK_EVENTS:
+		if not LeakCheck.UNREACHED.has(event):
+			seen[event] = true
+	assert_array(Array(LeakCheck.check_coverage(seen))).is_empty()
+	# A scenario that stops reaching the Generator's switches fails the run.
+	var lost: Dictionary[StringName, bool] = seen.duplicate()
+	lost.erase(&"SwitchChanged")
+	assert_str(_text(LeakCheck.check_coverage(lost))).contains(
+		"no bot decoded the task event SwitchChanged"
+	)
+	# A scenario that starts reaching an unreached event asks to take it off the list.
+	var more: Dictionary[StringName, bool] = seen.duplicate()
+	more[&"PhotoPrinted"] = true
+	assert_str(_text(LeakCheck.check_coverage(more))).contains(
+		"a bot decoded PhotoPrinted, listed as unreached"
+	)
+	# The decoded view's task events, and only those, count.
+	var view := DecodedView.new()
+	view.events.append(WireMessage.new(&"LoadMatch", {"match_id": 1}))
+	view.events.append(WireMessage.new(&"FilmLoaded", {"station": 9}))
+	var found: Dictionary[StringName, bool] = {}
+	LeakCheck.add_task_events(view, found)
+	assert_array(found.keys()).contains_exactly([&"FilmLoaded"])
+
+
 func test_a_teammates_for_a_role_that_does_not_know_them_is_a_leak() -> void:
 	# Bot 2 is forced crew, which does not know its teammates (§5), bot 1 dissident.
 	var scenario := _scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])

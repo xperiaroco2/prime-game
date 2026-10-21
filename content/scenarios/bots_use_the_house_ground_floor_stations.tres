@@ -1,0 +1,176 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" path="res://content/modes/base_mode.tres" id="1_q45wr"]
+[ext_resource type="Script" path="res://core/content/scenario/never_event.gd" id="2_fh6bx"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_scenario.gd" id="3_jo3vh"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_script.gd" id="4_kahdr"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_step.gd" id="5_ydvb6"]
+[ext_resource type="Script" path="res://core/content/scenario/step_ready.gd" id="6_kreml"]
+[ext_resource type="Script" path="res://core/content/scenario/step_wait_for.gd" id="7_fp8r4"]
+[ext_resource type="Script" path="res://core/content/scenario/step_walk_to.gd" id="8_55gt2"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_target.gd" id="9_g2ddy"]
+[ext_resource type="Script" path="res://core/content/scenario/step_pick_up.gd" id="10_fb3k3"]
+[ext_resource type="Script" path="res://core/content/scenario/step_interact.gd" id="11_t3k16"]
+
+[sub_resource type="Resource" id="Resource_yi0qw"]
+script = ExtResource("6_kreml")
+
+[sub_resource type="Resource" id="Resource_brcqa"]
+script = ExtResource("7_fp8r4")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_uwnut"]
+script = ExtResource("9_g2ddy")
+kind = 2
+item_kind = &"film"
+
+[sub_resource type="Resource" id="Resource_1wn20"]
+script = ExtResource("8_55gt2")
+target = SubResource("Resource_uwnut")
+sprint = true
+
+[sub_resource type="Resource" id="Resource_l0y8w"]
+script = ExtResource("10_fb3k3")
+target = SubResource("Resource_uwnut")
+
+[sub_resource type="Resource" id="Resource_edsj7"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_hxrjn"]
+script = ExtResource("8_55gt2")
+target = SubResource("Resource_edsj7")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_pch5h"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_fw0if"]
+script = ExtResource("11_t3k16")
+station = SubResource("Resource_pch5h")
+until = &"FilmLoaded"
+
+[sub_resource type="Resource" id="Resource_gjuhy"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"camera"
+
+[sub_resource type="Resource" id="Resource_gikwf"]
+script = ExtResource("11_t3k16")
+station = SubResource("Resource_gjuhy")
+until = &"ShotTaken"
+
+[sub_resource type="Resource" id="Resource_t4nln"]
+script = ExtResource("4_kahdr")
+steps = Array[ExtResource("5_ydvb6")]([SubResource("Resource_yi0qw"), SubResource("Resource_brcqa"), SubResource("Resource_1wn20"), SubResource("Resource_l0y8w"), SubResource("Resource_hxrjn"), SubResource("Resource_fw0if"), SubResource("Resource_gikwf")])
+
+[sub_resource type="Resource" id="Resource_pxosl"]
+script = ExtResource("6_kreml")
+
+[sub_resource type="Resource" id="Resource_sw8js"]
+script = ExtResource("7_fp8r4")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_lqljt"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"herb_bed"
+
+[sub_resource type="Resource" id="Resource_7caf1"]
+script = ExtResource("8_55gt2")
+target = SubResource("Resource_lqljt")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_sd4nb"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"herb_bed"
+
+[sub_resource type="Resource" id="Resource_837ga"]
+script = ExtResource("11_t3k16")
+station = SubResource("Resource_sd4nb")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_rwk15"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_mgwuy"]
+script = ExtResource("8_55gt2")
+target = SubResource("Resource_rwk15")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_o04am"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"place"
+
+[sub_resource type="Resource" id="Resource_h54ap"]
+script = ExtResource("11_t3k16")
+station = SubResource("Resource_o04am")
+until = &"IngredientPlaced"
+
+[sub_resource type="Resource" id="Resource_eje1b"]
+script = ExtResource("4_kahdr")
+steps = Array[ExtResource("5_ydvb6")]([SubResource("Resource_pxosl"), SubResource("Resource_sw8js"), SubResource("Resource_7caf1"), SubResource("Resource_837ga"), SubResource("Resource_mgwuy"), SubResource("Resource_h54ap")])
+
+[sub_resource type="Resource" id="Resource_rt6kt"]
+script = ExtResource("6_kreml")
+
+[sub_resource type="Resource" id="Resource_t7nci"]
+script = ExtResource("7_fp8r4")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_juf65"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"lift_panel"
+
+[sub_resource type="Resource" id="Resource_1nkha"]
+script = ExtResource("8_55gt2")
+target = SubResource("Resource_juf65")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_nuqhs"]
+script = ExtResource("9_g2ddy")
+kind = 5
+station_kind = &"lift_panel"
+
+[sub_resource type="Resource" id="Resource_7wu20"]
+script = ExtResource("11_t3k16")
+station = SubResource("Resource_nuqhs")
+until = &"LiftChanged"
+
+[sub_resource type="Resource" id="Resource_l28vg"]
+script = ExtResource("4_kahdr")
+steps = Array[ExtResource("5_ydvb6")]([SubResource("Resource_rt6kt"), SubResource("Resource_t7nci"), SubResource("Resource_1nkha"), SubResource("Resource_7wu20")])
+
+[resource]
+script = ExtResource("3_jo3vh")
+mode = ExtResource("1_q45wr")
+map = "res://levels/house/house.tscn"
+session_seed = 119700000001
+bots = 3
+forced_roles = Dictionary[int, StringName]({
+3: &"dissident"
+})
+scripts = Array[ExtResource("4_kahdr")]([SubResource("Resource_t4nln"), SubResource("Resource_eje1b"), SubResource("Resource_l28vg")])
+expected_ends = Array[StringName]([&"dissidents"])
+clock_s = 20
+time_limit_s = 55.0
