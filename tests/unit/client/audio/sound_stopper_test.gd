@@ -19,7 +19,7 @@ func test_stop_stops_every_kind_of_player_under_the_root() -> void:
 	for player: Node in [flat, three, two]:
 		player.set(&"stream", _tone())
 		player.call(&"play")
-	assert_bool(flat.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(flat)).is_true()
 	var playbacks := SoundStopper.stop(root)
 	assert_int(playbacks.size()).is_equal(3)
 	assert_bool(flat.playing).is_false()

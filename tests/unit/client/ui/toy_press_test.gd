@@ -159,7 +159,7 @@ func test_a_press_clicks_on_the_ui_bus_and_hover_release_and_toggle_do_not() -> 
 	assert_str(String(clicker.bus)).is_equal(String(AudioBuses.UI))
 	var stream := clicker.stream as AudioStreamRandomizer
 	assert_int(stream.streams_count).is_equal(SfxSet.paths_for(SfxSet.UI_CLICK).size())
-	assert_bool(clicker.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(clicker)).is_true()
 	press.on_button_up()
 	press.on_toggled(true)
 	assert_int(UiSounds.clicks).is_equal(before + 1)
@@ -178,7 +178,7 @@ func test_the_click_outlives_its_button() -> void:
 	raised.free()
 	var clicker := UiSounds.player_in(get_tree())
 	assert_object(clicker).is_not_null()
-	assert_bool(clicker.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(clicker)).is_true()
 
 
 func test_a_button_outside_the_tree_clicks_nothing() -> void:
