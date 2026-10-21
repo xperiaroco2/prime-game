@@ -170,3 +170,15 @@ func _walk(
 	if not honest:
 		assert_float(lowest_drop).is_greater(STEP_M)
 	return at
+
+
+func test_the_nearest_item_is_nearest_in_three_dimensions_not_on_another_storey() -> void:
+	# An item straight above or below the bot is on another storey, out of its reach: it ranks far.
+	var bot := ScenarioBot.new(1, 0, [] as Array[ScenarioStep])
+	bot.position = Vector3(27, 0, 20)
+	bot.receive(&"ItemSpawned", {"item": 1, "kind": "box", "position": Vector3(27, 3.2, 20)})
+	bot.receive(&"ItemSpawned", {"item": 2, "kind": "box", "position": Vector3(27, 0.9, 22)})
+	var target := ScenarioTarget.new()
+	target.kind = ScenarioTarget.Kind.NEAREST
+	target.item_kind = &"box"
+	assert_int(bot.item_of(target)).is_equal(2)

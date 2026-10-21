@@ -337,7 +337,8 @@ func item_of(target: ScenarioTarget) -> int:
 			if items[id]["where"] != Where.GROUND:
 				continue
 			var at: Vector3 = items[id]["position"]
-			var distance := _flat(at - position).length()
+			# In three dimensions: an item straight above or below, on another storey, is far.
+			var distance := (at - position).length()
 			if distance < best_distance:
 				best = id
 				best_distance = distance
