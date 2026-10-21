@@ -77,6 +77,11 @@ Each idea answers these (GDD §1 is the source; numbers are placeholders until a
   ([#1095 comment 6313151159](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6313151159)).
 
 ## 5. How an idea moves
+**Foundations first** (the engineer, 2026-10-21, [#1035 comment 6315895910](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6315895910);
+approved: [#1095 comment 6316440165](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6316440165)): first
+what later work depends on (the map, its passages and geometry, the rules), so nothing has to be redone; what can be
+added at any time (small moments, easter eggs) waits.
+
 1. **One-liners:** 5 to 8 ideas, one line each, each past the tone test; no numbers, no tables.
 2. **He picks** one, mixes some or rejects all; a rejection is information: ask what missed.
 3. **Expand the pick:** the fantasy, the player's steps, what others see and hear, the humans' deniable
