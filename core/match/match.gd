@@ -4,7 +4,8 @@ extends RefCounted
 ## is given, owns the MatchState, creates a fresh phase object on every phase entry, sends each
 ## accepted intent to the phase class, the movement rule or a rule, handles facts depth first,
 ## checks the win conditions, resolves outcomes through the mode's transition table, emits
-## events with their recipients, and records everything it is given in the command log.
+## events with their recipients, and records everything it is given in the command log (while
+## `recording`).
 ##
 ## server/ (and the tests) drive it: start(tick) once, then for every host tick first apply()
 ## each command stamped with that tick, in the order received, then tick(tick). Each of these is
@@ -35,7 +36,30 @@ var diagnostics := PackedStringArray()
 ## Records each peer's snapshot and speakers per tick for view_of() (tests, the leak test). Off
 ## by default: on, a 10-player, 10-minute match at 20 Hz keeps about 1 GiB.
 var keep_history := false
+## Keeps what a replay needs (§3.3, §4.5.10): every command and every WorldQuery answer in
+## command_log, and every event after take_outbox() handed it out (emitted()). On by default (the
+## tests, Match.replay, the bots and the leak check); HostSession turns it off where no replay is
+## written (a release build, a host that skips its replay). Off, the log keeps its header (seed,
+## mode, layouts, ticks) and nothing that grows with time, and emitted() holds only the events
+## take_outbox() has not handed out yet, unless keep_history keeps them for view_of(). Turning it
+## off drops what was kept; it never comes back on: a log with a gap does not replay.
+var recording := true:
+	set(value):
+		if value == recording:
+			return
+		if value:
+			record_error("recording: it cannot come back on; the log has a gap")
+			return
+		recording = false
+		_world = _given_world
+		command_log.commands.clear()
+		command_log.world_answers.clear()
+		if not keep_history:
+			_emitted = _emitted.slice(_outbox_from)
+			_outbox_from = 0
 
+## The WorldQuery Match was given; _world wraps it in a RecordingWorldQuery while `recording`.
+var _given_world: WorldQuery
 var _world: WorldQuery
 var _layouts: Dictionary[String, LevelLayout] = {}
 var _movement := MovementRule.new()
@@ -82,6 +106,7 @@ func _init(
 	command_log.content_hash = host_content_hash
 	command_log.layouts = layouts.duplicate()
 	_layouts = layouts.duplicate()
+	_given_world = world
 	_world = RecordingWorldQuery.new(world, command_log)
 	if mode == null:
 		refusals.append("no game mode")
@@ -162,7 +187,7 @@ func start(at_tick: int) -> bool:
 
 ## One command, stamped with the next tick to run: an intent or a server command. False when it
 ## cannot be applied (not started, or the wrong tick); a rejected intent still returns true.
-## The command log keeps `command` itself: never change it after this call.
+## The command log keeps `command` itself (while `recording`): never change it after this call.
 func apply(command: MatchCommand) -> bool:
 	if not _started:
 		record_error("apply: the match has not started")
@@ -176,7 +201,8 @@ func apply(command: MatchCommand) -> bool:
 		)
 		return false
 	_now = command.tick
-	command_log.commands.append(command)
+	if recording:
+		command_log.commands.append(command)
 	_begin_step()
 	_dispatch(command)
 	_settle_kills()
@@ -248,15 +274,21 @@ func layout(path: String) -> LevelLayout:
 	return _layouts.get(path)
 
 
-## Every event emitted so far, in order, with its recipients.
+## Every event emitted so far, in order, with its recipients; with `recording` and keep_history
+## both off, only those take_outbox() has not handed out yet.
 func emitted() -> Array[EmittedEvent]:
 	return _emitted.duplicate()
 
 
 ## The events emitted since the last call: what server/ sends next, one message per recipient.
+## With `recording` and keep_history both off, Match keeps none of them once handed out.
 func take_outbox() -> Array[EmittedEvent]:
 	var batch := _emitted.slice(_outbox_from)
-	_outbox_from = _emitted.size()
+	if recording or keep_history:
+		_outbox_from = _emitted.size()
+	else:
+		_emitted.clear()
+		_outbox_from = 0
 	return batch
 
 

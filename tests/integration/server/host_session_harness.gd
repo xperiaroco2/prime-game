@@ -147,6 +147,7 @@ func _init(
 	with_own_client := true,
 	host_schema: WireSchema = null,
 	game_layouts: Dictionary[String, LevelLayout] = {},
+	release := false,
 ) -> void:
 	mode = game_mode if game_mode != null else fixture_mode()
 	var wire := host_schema if host_schema != null else schema
@@ -154,10 +155,13 @@ func _init(
 	session = HostSession.new(transport, wire)
 	session.replay_dir = ""
 	session.observer = _on_call
+	# A host that takes itself for a release build (#1191): no observer, no history, no log.
+	if release:
+		session._debug = false
 	var levels := game_layouts if not game_layouts.is_empty() else layouts()
 	started = session.start_with(mode, FlatWorldQuery.new(), levels, PORT, 8, now, SEED)
 	if started:
-		session.game.keep_history = true
+		session.game.keep_history = not release
 		if with_own_client:
 			own = _client_on(session.own_client, mode)
 

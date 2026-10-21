@@ -73,7 +73,7 @@ var errors := PackedStringArray()
 ## Why the session ended; empty while it runs.
 var end_reason: StringName = &""
 ## The match; null until a start succeeded. Its keep_history stays off unless the owner turns it
-## on (the bots runner does, right after start()).
+## on (the bots runner does, right after start()); its recording is on only in a debug build.
 var game: Match
 ## The host's content hash (§4.3, E1): ContentFingerprint of the mode, its level files and every
 ## scene and resource a level reaches (#118), the same as every client computes from its own copy
@@ -202,6 +202,9 @@ func start_with(
 		errors.append("cannot host on port %d: %s" % [port, error_string(hosted)])
 		return false
 	content_hash = fingerprint
+	# Only a debug build writes a replay (here or the bots runner's own), so a release host keeps no
+	# log that grows with the session (#1191).
+	made.recording = _debug
 	game = made
 	# A world with no physics (the bots' FlatWorldQuery) holds each launched body still (HostBodies).
 	_bodies = (world as HostWorldQuery).bodies if world is HostWorldQuery else HostBodies.new()
@@ -509,7 +512,7 @@ func _end(reason: StringName) -> void:
 		_bodies.clear()
 	if reason != CLOSED:
 		push_error("host: the session ended (%s): %s" % [reason, "; ".join(errors)])
-	if _debug and _started and not replay_dir.is_empty():
+	if _debug and _started and game.recording and not replay_dir.is_empty():
 		replay_path = ReplayFiles.write(game.command_log, replay_dir)
 	_transport.close()
 	ended.emit(reason)

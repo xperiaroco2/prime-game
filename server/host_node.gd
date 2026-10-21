@@ -73,10 +73,13 @@ func is_running() -> bool:
 	return _session != null and _session.is_running()
 
 
-## Writes no replay when the session ends (the runner's selftest keeps the developer's newest).
+## Writes no replay when the session ends (the runner's selftest keeps the developer's newest), so
+## its match keeps no command log either (Match.recording, #1191).
 func skip_replay() -> void:
 	if _session != null:
 		_session.replay_dir = ""
+		if _session.game != null:
+			_session.game.recording = false
 
 
 ## Debug builds only (invariant 8): the session's counters of budgets and malformed messages for

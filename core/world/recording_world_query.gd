@@ -1,7 +1,8 @@
 class_name RecordingWorldQuery
 extends WorldQuery
 ## Wraps the WorldQuery Match is given and appends every answer to the command log, in order, so
-## a replay can answer from the log without a level (ARCHITECTURE §3.3).
+## a replay can answer from the log without a level (ARCHITECTURE §3.3). Match asks through it only
+## while it records (Match.recording).
 
 var _inner: WorldQuery
 var _log: CommandLog
