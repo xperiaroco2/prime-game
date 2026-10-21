@@ -41,7 +41,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
   uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()`
   (debug builds), `skip_replay()` and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new`
-  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceBatchEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
+  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceBatchEncoder`, `SnapshotEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
   builds) gets `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, not a change here.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
@@ -56,8 +56,8 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   `peer_left(p)` but before the call that applied `PeerLeft(p)` (ids are reused). Carry out a directive where it
   stands in the outbox.
 - Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
-  events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
-  `Hello`, so nothing overtakes the transport's `ADMIT`.
+  events; an empty `snapshot_for` sends nothing; each avatar is encoded once (`SnapshotEncoder`). Unreliable
+  messages go only to players: a player has sent its `Hello`, so nothing overtakes the transport's `ADMIT`.
 - Voice: relay a `VoiceUp` at once, along the routing refreshed after every tick, in each listener's `VoiceBatch` of
   the poll (M5-4b) with the stream's own seq (per speaker and listener, never the speaker's) and `ticked_through()`,
   each frame encoded once, each listener's seq written in place (`VoiceBatchEncoder`). Never decode Opus. Only present players speak; after a
