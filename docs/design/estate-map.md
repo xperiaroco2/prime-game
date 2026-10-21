@@ -146,7 +146,9 @@ from the house's centre (68.4, 11): x east, z south; placeholders.
 - **The Wi-Fi spans the house:** the computer in the security room, the decoder book two floors up.
 - **The parts printer and the healing pod stand 16 m apart,** so the laboratory's ends do not talk over each other.
 - **Walls muffle the voice, openings do not** (GDD §11, "Voice through walls"): the vent grates and the manhole are where you eavesdrop.
-- Open: what the camera wall shows.
+- **The camera wall** (GDD §12): six screens for six fixed cameras, one each in a corner of the bonfire, the summer
+  kitchen, the pantry, the greenhouse, the garage and the roof terrace, each in sight with a red lamp; no camera on
+  the paths, the passages, the house's rooms, the laboratory or the ship.
 
 ## 5d. The outbuildings inside (the engineer, 2026-10-21)
 

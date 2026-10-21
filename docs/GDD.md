@@ -904,7 +904,22 @@ placeholders); who hears whom stays distance only.
 
 ## 12. Information tools
 
-- Which tools give players information (cameras, logs, vitals, trackers)?
+**The camera wall** (decided by the engineer on 2026-10-21,
+[#1035 comment 6319598316](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6319598316), from his
+direction of 2026-10-20, [comment 6290259889](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6290259889)),
+in the security room ([estate-map](design/estate-map.md) §5c):
+1. Six screens, six fixed cameras: the bonfire, the summer kitchen, the pantry, the greenhouse, the garage and the roof
+   terrace, the places where the aliens search for mischief and spoils.
+2. A live picture only: no sound, no recording, no rewind, no names over the players (§3). A player is known by their
+   look, at night, on a small grainy screen, so a picture proves nothing on its own.
+3. No cameras on the paths, the passages, the house's rooms, the laboratory or the ship.
+4. The screens are in the world: E sits you in the chair and the wall fills the view; any move gets you up. The
+   watcher sits with their back to the door.
+5. Every camera is a thing on the map with a red lamp, in sight. E turns it to face the wall (its screen shows planks);
+   E turns it back. Anyone may do either.
+6. The blackout darkens the whole wall (§7); the house phone beside it reaches the library (§8, the Wi-Fi).
+
+- Which tools give players information (cameras, logs, vitals, trackers)? (The camera wall above; others open.)
 - How reliable is each, and can it be faked?
 
 ## 13. Maps
