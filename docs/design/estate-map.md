@@ -74,22 +74,23 @@ over (found by the design track's walk-through, 2026-10-21; a working fix for hi
 ## 5a. The ship (the engineer, 2026-10-20)
 
 The aliens' ship is a **wide metal manta** (#1035 comment 6299338851): broad flat wings, two eye-like cockpit bubbles,
-a mouth-shaped front ramp, a side hatch; wider than it is long. Its interior is one deck, built for the ship's engine
-(GDD §8), approved on #1035 comment 6300127535:
-- **The mouth ramp** (north side, the ship's centre) leads into **the central hall** under the two cockpit bubbles:
-  the start console with the start lever, the battery slot, the stage display (one lamp per stage) and the mimic
+a mouth-shaped front ramp; wider than it is long. Its interior is one deck, built for the ship's engine (GDD §8),
+approved on #1035 comment 6300127535 and revised on 2026-10-22 with the approved 2D, whose top view is the source of
+truth (#1095 comments 6326838901 to 6327093164; prime-game-design `ideas/ship-components/2d/`):
+- **One entrance:** the mouth ramp; no side hatch, no other way in or out.
+- **The cockpit bubbles are on the outside only:** inside, the hall has a closed ceiling; no ladders, no seats.
+- **The mouth ramp** (north side, the ship's centre) leads into **the central hall**: the start console with the start lever, the battery slot, the stage display (one lamp per stage) and the mimic
   board of the breakers, which shows their order (GDD §8, 2026-10-21).
 - **Two corridors** run from the hall along the wings, across the whole width of the ship (about 2.5 m wide, curving
-  with the wing).
+  with the wing), each ending in **a round tip room** with a big curved window onto the clearing (glass, not an exit).
 - **Five problem stations** stand along the corridors: in the west wing a vent (overheat), a cartridge socket and the
   power board (four coloured breakers, a lamp over each; about 10 m from the console); in the east wing a vent and a
   cartridge socket.
-- **The cartridge renewer** stands at the east wing's tip; **the side hatch** at the west wing's tip is the ship's
-  second way out. A burnt cartridge from the west wing runs the whole width of the ship to be renewed (about 22 m,
+- **The cartridge renewer** stands in the east tip room, the power board in the west one. A burnt cartridge from the west wing runs the whole width of the ship to be renewed (about 22 m,
   5 s each way at a walk), well inside the cartridge's 30 s.
 - Positions inside, from the ship's centre (x east, y south): the console (0, 1); the west vent (-5, -1), the west
-  socket (-8, -1), the panel (-10.5, 0); the east vent (5, -1), the east socket (8, -1); the renewer (12, 0); the side
-  hatch (-12.5, 1). Working draft.
+  socket (-8, -1), the panel (-10.5, 0); the east vent (5, -1), the east socket (8, -1); the renewer (12, 0). Working
+  draft.
 
 ## 5. Links between levels
 
@@ -115,7 +116,7 @@ and times are placeholders.
 |---|---|---|---|
 | The library's bookcase | The library (1) ⇄ the cellar (-1): a narrow stair inside the wall. Pressing a book swings the bookcase open; from below, pulling a bottle on the wine rack | about 10 m, 4 s | security room ⇄ library 50 m, 11 s |
 | The tunnel | The garage's inspection pit under the car ⇄ the laboratory | 22 m, 5 s | about 39 m, 9 s |
-| The sewer | The cellar ⇄ a manhole by the bonfire (65.3, 51) ⇄ a fork under the creek (67, 64) ⇄ manholes by the well (30, 68) and by the ship's side hatch (99, 73) | bonfire → ship 46 m, 10 s; well → ship 70 m, 16 s; cellar → bonfire 42 m, 9 s | 60 m, 13 s; 93 m, 21 s; about 36 m, 8 s |
+| The sewer | The cellar ⇄ a manhole by the bonfire (65.3, 51) ⇄ a fork under the creek (67, 64) ⇄ manholes by the well (30, 68) and by the ship's west wing (99, 73) | bonfire → ship 46 m, 10 s; well → ship 70 m, 16 s; cellar → bonfire 42 m, 9 s | 60 m, 13 s; 93 m, 21 s; about 36 m, 8 s |
 | The ducts | The laboratory ⇄ a grate in the pantry (53, 25.5); the security room ⇄ a grate by the summer kitchen's bins (76.4, 30.8) | 16 m, 8 s each | about 58 m, 13 s; about 30 m, 7 s |
 | The chimney | The roof terrace → the living room's fireplace, down only | at once | roof → hatch → library → stairs |
 
