@@ -283,7 +283,7 @@ func join_code(code: String) -> void:
 
 ## Joins `target`; a problem with it is printed and kept in last_words, and no screen shows it:
 ## the menu's fields admit none (Join stays off), and a --join= that does not parse waits in the
-## Direct field (_fill_menu).
+## Direct field (GameJoin.fill_menu).
 func join_target(target: JoinTarget) -> void:
 	if _client != null:
 		return
@@ -419,7 +419,7 @@ func _on_map_opened() -> void:
 
 ## The map closed by its key or Esc: the round's mouse is captured again, as after the Esc menu.
 ## Not under the Esc menu (it closes the map as it opens), not off the round (the next screen's
-## mouse is _point_for's), and only while the window has the focus.
+## mouse is GamePlayer.point_for's), and only while the window has the focus.
 func _on_map_closed() -> void:
 	if screen() == GameFlow.Screen.ROUND and not ui.esc_open() and pointer.focused():
 		pointer.capture(true)
