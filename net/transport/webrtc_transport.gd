@@ -393,13 +393,30 @@ func _backend_close() -> void:
 ## CLOSE_WAIT_MS if the other never did, kept until then by a SceneTree timer (none: at once, as
 ## any connection not live or whose BYE did not go out). A process that quits in the frame it closes
 ## frees the timer and the connection with it: it must keep running until the other side closed.
+## One the other side has dropped or is about to (_given_up) gets no BYE either (#1231).
 func _say_bye(conn: Conn) -> void:
 	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null or not _is_live(conn) or _put(conn, NetKindTable.Lane.RELIABLE, _bye) != OK:
+	if (
+		tree == null
+		or not _is_live(conn)
+		or _given_up(conn)
+		or _put(conn, NetKindTable.Lane.RELIABLE, _bye) != OK
+	):
 		conn.pc.close()
 		return
 	# The connection's channels too: freeing one closes it.
 	tree.create_timer(CLOSE_WAIT_MS / 1000.0).timeout.connect(func() -> void: conn.pc.close())
+
+
+## Whether the other side has dropped `conn` or is about to: it is no longer connected, or nothing
+## came from that side for nearly SILENCE_MS (its own silence rule ends it within a keepalive). This
+## side may not have been polled meanwhile, so its channels can still read open: a BYE written into
+## the closed association prints "SCTP sending failed, errno=32" (webrtc-stall, #1231).
+func _given_up(conn: Conn) -> bool:
+	return (
+		conn.state() != WebRTCPeerConnection.STATE_CONNECTED
+		or Time.get_ticks_msec() - conn.last_heard_ms > SILENCE_MS - KEEPALIVE_MS
+	)
 
 
 ## The reason was sent before this call; poll() closes the RELIABLE channel next, then the

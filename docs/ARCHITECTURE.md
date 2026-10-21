@@ -562,7 +562,8 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of Â
     (`bots-webrtc` failed on it three times, a client's leave while the host sent snapshots). So `close()` (either
     role) sends each live peer `BYE` on RELIABLE (the kind-0 frame with the 1-byte payload 3, consumed before the
     inbox) and leaves the connection to it, kept by a SceneTree timer for `CLOSE_WAIT_MS` (5 s) and then closed
-    (with no SceneTree, or a peer not live, at once; a process that quits in the frame it closes frees the timer and
+    (with no SceneTree, or a peer not live, at once; a peer no longer connected or silent for over `SILENCE_MS`
+    less one keepalive gets no `BYE` and is closed at once too: it has dropped the connection or is about to, #1231; a process that quits in the frame it closes frees the timer and
     drops the connection at once, so it keeps running for a moment first). A side that reads `BYE` has read all sent before it, sends
     nothing more, ends that peer (a leave on the host, `host_lost` on a client) and closes the connection itself.
   - **`disconnect_peer`** never blocks: the reason the caller sent goes out first; the next `poll()` closes that
