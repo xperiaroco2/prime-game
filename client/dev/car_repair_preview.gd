@@ -10,6 +10,7 @@ extends Node3D
 ## placeholder and its rise seconds the preview's; dev only, nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
+const Kit := preload("res://client/dev/preview_kit.gd")
 const SCENES := "res://levels/stations/%s.tscn"
 const OWN := 1
 const CAR := 1
@@ -44,14 +45,14 @@ func _ready() -> void:
 	_level.name = "Level"
 	add_child(_level)
 	_build_room()
-	_place(model, CAR, &"car", _spot(_add(&"car", CAR_AT)))
-	_place(model, PANEL, &"lift_panel", _spot(_add(&"lift_panel", PANEL_AT)))
+	Kit.place(model, CAR, &"car", _spot(_add(&"car", CAR_AT)))
+	Kit.place(model, PANEL, &"lift_panel", _spot(_add(&"lift_panel", PANEL_AT)))
 	var shelf := _add(&"parts_shelf", SHELF_AT)
 	for i: int in PARTS.size():
 		var bin := shelf.get_node("Bin%d" % (i + 1))
-		_place(model, FIRST_BIN + i, StringName("bin_%s" % PARTS[i]), _spot(bin))
+		Kit.place(model, FIRST_BIN + i, StringName("bin_%s" % PARTS[i]), _spot(bin))
 		var picture := _add(&"part_picture", PICTURES_AT[i])
-		_place(model, FIRST_PICTURE + i, &"part_picture", _spot(picture))
+		Kit.place(model, FIRST_PICTURE + i, &"part_picture", _spot(picture))
 		_fold(model, PartNeededEvent.new(FIRST_PICTURE + i, PARTS[i]))
 	if lift > 0.0:
 		var rise_tick := NOW - roundi(clampf(lift, 0.0, 1.0) * type.rise_ticks())
@@ -70,10 +71,6 @@ func _ready() -> void:
 	else:
 		camera.look_at_from_position(Vector3(-2.2, 3.4, 7.4), Vector3(-2.6, 0.9, -0.5))
 	camera.current = true
-
-
-func _place(model: ClientModel, id: int, kind: StringName, at: Vector3) -> void:
-	_fold(model, StationPlacedEvent.new(id, kind, Color.WHITE, at))
 
 
 ## Folds `event` into `model`, as the session does with what it decodes.
@@ -133,7 +130,7 @@ func _station(id: StringName, tag: StringName) -> StationKind:
 
 
 func _build_room() -> void:
-	_box(Vector3(0, -0.05, 0), Vector3(20, 0.1, 16), Color(0.45, 0.45, 0.47))
+	Kit.box(self, Vector3(0, -0.05, 0), Vector3(20, 0.1, 16), Color(0.45, 0.45, 0.47))
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(-0.9, 0.5, 0)
 	sun.shadow_enabled = true
@@ -145,15 +142,3 @@ func _build_room() -> void:
 	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.environment.ambient_light_color = Color(0.5, 0.5, 0.55)
 	add_child(environment)
-
-
-func _box(at: Vector3, size: Vector3, colour: Color) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	mesh.material = material
-	var view := MeshInstance3D.new()
-	view.mesh = mesh
-	view.position = at
-	add_child(view)

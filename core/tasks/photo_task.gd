@@ -476,17 +476,16 @@ static func _pays_cooldown(kind: StationKind) -> bool:
 ## Whether the level being entered has a marker of each station kind and of the film's and the
 ## photo's tags; the fit check keeps a match from getting here without them.
 func _fits(ctx: MatchContext) -> bool:
-	if ctx.layout == null:
-		ctx.error("PhotoTask: no layout for the level being entered")
+	if not has_layout(ctx, "PhotoTask"):
 		return false
-	var tags: Array[StringName] = [film.spawn_tag, photo.spawn_tag]
+	var needs: Dictionary[StringName, int] = {film.spawn_tag: 1, photo.spawn_tag: 1}
 	for kind: StationKind in _kinds():
-		tags.append(kind.spawn_tag)
-	for tag: StringName in tags:
-		if ctx.layout.count(tag) < 1:
-			ctx.error("PhotoTask: the map has no %s marker" % tag)
-			return false
-	return true
+		needs[kind.spawn_tag] = 1
+	var lacking := short_markers(ctx.layout, needs)
+	if lacking.is_empty():
+		return true
+	ctx.error("PhotoTask: the map has no %s marker" % lacking.keys()[0])
+	return false
 
 
 ## The camera's refusal (ADR §2.2, §2.3): at a loaded camera `no_frames_left` once its film has

@@ -813,21 +813,19 @@ static func _ids(listed: Array[ItemKind]) -> PackedStringArray:
 ## the grill, a bed per herb, `count` places and a free marker per box. The lobby's fit check
 ## (§9.4) keeps a match from getting here without them.
 func _fits(ctx: MatchContext, count: int) -> bool:
-	if ctx.layout == null:
-		ctx.error("Cooking: no layout for the level being entered")
+	if not has_layout(ctx, "Cooking"):
 		return false
 	var short := PackedStringArray()
-	var needs := {
+	var needs: Dictionary[StringName, int] = {
 		order_board.spawn_tag: 1,
 		herb_board.spawn_tag: 1,
 		grill.spawn_tag: 1,
 		herb_bed.spawn_tag: herbs.size(),
 		place.spawn_tag: count,
 	}
-	for tag: StringName in needs:
-		var have := ctx.layout.count(tag)
-		if have < (needs[tag] as int):
-			short.append("%d %s markers, the map has %d" % [needs[tag], tag, have])
+	var lacking := short_markers(ctx.layout, needs)
+	for tag: StringName in lacking:
+		short.append("%d %s markers, the map has %d" % [needs[tag], tag, lacking[tag]])
 	for box: ItemKind in boxes:
 		if Items.free_markers(ctx, box.spawn_tag).is_empty():
 			short.append("a free %s marker, the map has none" % box.spawn_tag)

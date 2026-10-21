@@ -8,6 +8,7 @@ extends Node3D
 ## dev only, nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
+const Kit := preload("res://client/dev/preview_kit.gd")
 const PLAYER := preload("res://client/player/player.tscn")
 const TICK_USEC := 50000
 
@@ -159,8 +160,8 @@ func _fold_by_meaning(model: ClientModel) -> void:
 
 ## A floor, a wall in front of the blue circle, light and a sky.
 func _build_room() -> void:
-	_box(Vector3(0, -0.05, -4), Vector3(16, 0.1, 22), Color(0.45, 0.45, 0.47))
-	_box(Vector3(1.5, 1.5, -9.5), Vector3(6, 3, 0.3), Color(0.6, 0.58, 0.55))
+	Kit.box(self, Vector3(0, -0.05, -4), Vector3(16, 0.1, 22), Color(0.45, 0.45, 0.47), true)
+	Kit.box(self, Vector3(1.5, 1.5, -9.5), Vector3(6, 3, 0.3), Color(0.6, 0.58, 0.55), true)
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(-0.9, 0.5, 0)
 	sun.shadow_enabled = true
@@ -172,23 +173,3 @@ func _build_room() -> void:
 	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.environment.ambient_light_color = Color(0.5, 0.5, 0.55)
 	add_child(environment)
-
-
-func _box(at: Vector3, size: Vector3, colour: Color) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	mesh.material = material
-	var view := MeshInstance3D.new()
-	view.mesh = mesh
-	view.position = at
-	add_child(view)
-	var body := StaticBody3D.new()
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	shape.shape = box
-	body.add_child(shape)
-	body.position = at
-	add_child(body)

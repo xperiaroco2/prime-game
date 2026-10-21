@@ -10,6 +10,7 @@ extends Node3D
 ## stand-in of the preview's own (radius 1.5 m, 10 s), not content and not a decision.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
+const Kit := preload("res://client/dev/preview_kit.gd")
 ## The preview's host tick: the counting zones extrapolate to it.
 const NOW := 400
 const STAND_IN_RADIUS := 1.5
@@ -115,8 +116,8 @@ static func _zone_task(mode: GameMode) -> ZoneTask:
 
 ## A floor, a wall in front of the last zone, light and a sky.
 func _build_room() -> void:
-	_box(Vector3(0, -0.05, -5), Vector3(20, 0.1, 20), Color(0.45, 0.45, 0.47))
-	_box(Vector3(0, 1.5, -8.5), Vector3(6, 3, 0.3), Color(0.6, 0.58, 0.55))
+	Kit.box(self, Vector3(0, -0.05, -5), Vector3(20, 0.1, 20), Color(0.45, 0.45, 0.47))
+	Kit.box(self, Vector3(0, 1.5, -8.5), Vector3(6, 3, 0.3), Color(0.6, 0.58, 0.55))
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(-0.9, 0.5, 0)
 	sun.shadow_enabled = true
@@ -128,15 +129,3 @@ func _build_room() -> void:
 	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.environment.ambient_light_color = Color(0.5, 0.5, 0.55)
 	add_child(environment)
-
-
-func _box(at: Vector3, size: Vector3, colour: Color) -> void:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	mesh.material = material
-	var view := MeshInstance3D.new()
-	view.mesh = mesh
-	view.position = at
-	add_child(view)
