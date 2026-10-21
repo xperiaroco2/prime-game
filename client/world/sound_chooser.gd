@@ -186,7 +186,7 @@ static func source(
 				return null
 			return Sound.new(id, changed.position, COUNTER_AIM_M)
 		&"LiftChanged":
-			if fields["up"] as bool or model.phase != &"round":
+			if fields["up"] as bool or not in_play(model):
 				return null
 			var car := _car_of(model, mode, fields["station"] as int)
 			return Sound.new(LIFT_CRASH, car.position, CAR_AIM_M) if car != null else null
@@ -194,6 +194,17 @@ static func source(
 			var fitted: ClientModel.Station = model.stations.get(fields["station"] as int)
 			return Sound.new(PART_FITTED, fitted.position, CAR_AIM_M) if fitted != null else null
 	return null
+
+
+## Whether the model's current phase is the play phase, asked of the client's copy of the mode's
+## PhaseSpec, not of a phase id: the one whose match clock runs (`clock_runs`: the round's time is
+## what a lift crash belongs to; `checks_wins` is the win rule, a different question). False for no
+## model or an unknown phase.
+static func in_play(model: ClientModel) -> bool:
+	if model == null:
+		return false
+	var spec := model.phase_spec()
+	return spec != null and spec.clock_runs
 
 
 ## The car of the car repair whose station `id` is (its lift panel), or null; null without a mode.
