@@ -6519,7 +6519,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
     (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
     condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
-    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside
+    nor any rule handles; two rules on one trigger in one owner; an action that is never reached, on `MoveClaim` (the
+    movement rule takes it) or on an intent the class of every phase that accepts it handles (`RuleReachCheck`,
+    #1236; a reaction with no effects is a warning); a number outside its part's bounds; an id outside
     the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
     `spawn_tag` and `tag` a part holds, every condition's rejection reason and every reason a task type lists in
     `use_reasons()` (#780), is 1 to 32 characters of `a-z`, `0-9`
