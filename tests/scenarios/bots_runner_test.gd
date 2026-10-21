@@ -141,9 +141,9 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_decoded() -> void:
 	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot.
 	var seen: Dictionary[StringName, bool] = {}
-	for name: StringName in LeakCheck.TASK_EVENTS:
-		if not LeakCheck.UNREACHED.has(name):
-			seen[name] = true
+	for event: StringName in LeakCheck.TASK_EVENTS:
+		if not LeakCheck.UNREACHED.has(event):
+			seen[event] = true
 	assert_array(Array(LeakCheck.check_coverage(seen))).is_empty()
 	# A scenario that stops reaching the Generator's switches fails the run.
 	var lost: Dictionary[StringName, bool] = seen.duplicate()
