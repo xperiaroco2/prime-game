@@ -455,17 +455,24 @@ func _send_voice() -> void:
 		_meter.add_voice_upload(_transport.take_upload())
 
 
-## The routing table after a Match.tick call (§4.5 Voice relay): speakers_for every present player.
+## The routing after a Match.tick call (§4.5 Voice relay), built only when a frame is held or
+## flushed (#1251): every Match.apply is followed by a Match.tick and this refresh, so the state
+## the relay reads it from is still the one of the tick it is for.
 func _refresh_routes() -> void:
-	var table: Dictionary[int, PackedInt32Array] = {}
-	for peer: int in game.state.present_peers():
-		table[peer] = game.speakers_for(peer)
 	var still_out := {}
 	for peer: int in _leaving:
 		still_out[peer] = true
 	for peer: int in _disconnected:
 		still_out[peer] = true
-	_relay.refresh(table, still_out)
+	_relay.refresh_lazily(_route_table, still_out)
+
+
+## speakers_for every present player.
+func _route_table() -> Dictionary[int, PackedInt32Array]:
+	var table: Dictionary[int, PackedInt32Array] = {}
+	for peer: int in game.state.present_peers():
+		table[peer] = game.speakers_for(peer)
+	return table
 
 
 func _check_deadlines() -> void:

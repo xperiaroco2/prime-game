@@ -88,6 +88,33 @@ func test_a_peer_that_left_is_out_until_the_refresh_after_its_leave() -> void:
 	assert_array(_describe(relay.flush(7))).is_equal(["1>2 seq 0 tick 7 01"])
 
 
+func test_a_lazy_refresh_builds_the_table_once_and_only_when_a_frame_needs_it() -> void:
+	var relay := VoiceRelay.new()
+	var builds: Array[int] = [0]
+	var build := func() -> Dictionary[int, PackedInt32Array]:
+		builds[0] += 1
+		return _table({1: [2], 2: [1]})
+	relay.refresh(_table({1: [2], 2: [1]}), {})
+	relay.leave(2)
+	# The muted peers change at the refresh itself, as refresh() does; the table waits.
+	relay.refresh_lazily(build, {})
+	relay.refresh_lazily(build, {})
+	assert_int(builds[0]).is_equal(0)
+	assert_array(relay.flush(3)).is_empty()
+	assert_int(builds[0]).is_equal(1)
+	relay.hold(1, 0, PackedByteArray([1]))
+	assert_array(_describe(relay.flush(4))).is_equal(["1>2 seq 0 tick 4 01"])
+	assert_int(builds[0]).is_equal(1)
+	# A peer muted while a refresh is pending stays out until a refresh no longer keeps it.
+	relay.refresh_lazily(build, {})
+	relay.leave(1)
+	relay.refresh_lazily(build, {1: true})
+	relay.hold(1, 1, PackedByteArray([1]))
+	relay.hold(2, 0, PackedByteArray([1]))
+	assert_array(relay.flush(5)).is_empty()
+	assert_int(builds[0]).is_equal(2)
+
+
 func _table(entries: Dictionary) -> Dictionary[int, PackedInt32Array]:
 	var table: Dictionary[int, PackedInt32Array] = {}
 	for listener: int in entries:
