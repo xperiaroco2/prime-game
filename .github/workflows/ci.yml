@@ -20,7 +20,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A pull request's runs share one group and cancel each other; every other run (a push to main, a dispatch, the nightly)
+  # gets its own, so a merge burst does not cancel the main runs still pending (#1241).
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
