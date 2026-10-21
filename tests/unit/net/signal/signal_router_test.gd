@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## reach another joiner, and change no room.
 
 const Transcripts := preload("res://tests/unit/net/signal/signal_transcripts.gd")
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 
 
 func test_there_is_a_transcript_per_flow_and_per_forged_type() -> void:
@@ -83,3 +84,19 @@ func _replay(file: String, transcript: Dictionary) -> PackedStringArray:
 		if got != expected:
 			failures.append("%s step %d: expected %s, got %s" % [file, index, expected, got])
 	return failures
+
+
+## A socket number opened twice is logged and changes nothing (the assert is stripped in a release
+## build): the first socket keeps its room.
+func test_a_socket_opened_twice_is_logged_and_keeps_its_place() -> void:
+	var errors := EngineErrors.new()
+	errors.start()
+	var router := SignalRouter.new([], func() -> String: return "ABCDEF")
+	router.opened(1)
+	var join := SignalCodec.encode(SignalCodec.Side.UNSET, "join", {"code": "ABCDEF"})
+	router.received(1, join.to_ascii_buffer())
+	var rooms := router.room_count()
+	router._admit(1)
+	errors.stop()
+	assert_int(errors.count()).is_greater(0)
+	assert_int(router.room_count()).is_equal(rooms)

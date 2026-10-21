@@ -239,6 +239,15 @@ func _read(kind: int, reader: WireReader) -> WireMessage:
 
 func _add(added: WireRow) -> void:
 	assert(not _by_kind.has(added.kind) and not _by_name.has(added.name))
+	_declare(added)
+
+
+## The assert in `_add` is stripped in a release build: this logs a row declared twice and keeps
+## the first instead of overwriting it.
+func _declare(added: WireRow) -> void:
+	if _by_kind.has(added.kind) or _by_name.has(added.name):
+		push_error("wire: row %d (%s) is already declared" % [added.kind, added.name])
+		return
 	_by_kind[added.kind] = added
 	_by_name[added.name] = added
 
