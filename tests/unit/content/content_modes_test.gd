@@ -129,25 +129,30 @@ func test_players_always_play_the_house_and_the_greybox_is_a_test_bench() -> voi
 			assert_str(scenario.played_map()).override_failure_message(file).is_equal(GREYBOX)
 
 
-func test_a_scenario_plays_a_storey_that_holds_markers_and_a_flat_map_at_y_0() -> void:
-	# #1197: the fake world is one flat floor at the scenario's floor_y. On a flat level it is the
-	# level's floor, y = 0; on a map with storeys (the House) some marker of the map stands on it,
-	# so the storey the scenario names is one of the map's.
+func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -> void:
+	# #1209: the scenarios on a map with storeys (the House) play in a fake world with its storeys
+	# and stairs (ScenarioLevels.world_of); some marker of the map stands on each of those storeys,
+	# so each is one of the map's. A flat map's scenarios play on one floor at y = 0, the level's
+	# floor (test_the_scenarios_levels_are_flat).
+	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([ScenarioLevels.HOUSE])
+	var layout := _layouts_for(_base_mode())[ScenarioLevels.HOUSE]
+	for storey: float in ScenarioLevels.HOUSE_STOREYS:
+		var on_it := 0
+		for tag: StringName in layout.tags():
+			for at: Vector3 in layout.positions(tag):
+				if is_equal_approx(at.y, storey):
+					on_it += 1
+		assert_int(on_it).override_failure_message("storey %s" % storey).is_greater(0)
 	for file in DirAccess.get_files_at(SCENARIOS_DIR):
 		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
 		if scenario == null or scenario.mode == null:
 			continue
-		var played := scenario.played_map()
-		if not ScenarioLevels.STOREYED_MAPS.has(played):
-			assert_float(scenario.floor_y).override_failure_message(file).is_equal(0.0)
-			continue
-		var layout := _layouts_for(scenario.mode)[played]
-		var on_it := 0
-		for tag: StringName in layout.tags():
-			for at: Vector3 in layout.positions(tag):
-				if is_equal_approx(at.y, scenario.floor_y):
-					on_it += 1
-		assert_int(on_it).override_failure_message(file).is_greater(0)
+		var world := ScenarioLevels.world_of(scenario)
+		if ScenarioLevels.STOREYED_MAPS.has(scenario.played_map()):
+			assert_bool(world is FlatWorldQuery and world.get_script() != FlatWorldQuery).is_true()
+		else:
+			assert_object(world.get_script()).override_failure_message(file).is_same(FlatWorldQuery)
+			assert_float((world as FlatWorldQuery).floor_y).is_equal(0.0)
 
 
 func test_the_levels_no_scenario_plays_are_the_runners_unsnapped_ones() -> void:
@@ -166,7 +171,7 @@ func test_the_scenarios_levels_are_flat() -> void:
 	# lobby, a scenario's default map: the greybox, a test bench (#767); a map a scenario names) is
 	# a floor collider whose top is at y = 0 and covers every marker, and every marker stands on it.
 	# A map with storeys (the House, ScenarioLevels.STOREYED_MAPS) is no level of these: its scenarios
-	# play one storey on the flat fake (floor_y, #1197), people play it in the host's world (#626).
+	# play in the fake world with its storeys (#1209), people play it in the host's world (#626).
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in ScenarioLevels.of(mode):

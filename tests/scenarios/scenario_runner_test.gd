@@ -447,6 +447,15 @@ func test_an_interact_step_uses_the_n_th_station_of_its_kind_and_waits_for_its_e
 	scenario.mode = _panel_mode()
 	runner = ScenarioRunner.play(scenario)
 	assert_str(_text(runner)).contains("step 3 (Interact)").contains("cannot know")
+	# An item of a kind it was told of none of (#1209): it cannot know which, and sends nothing.
+	var no_item := StepInteract.new()
+	no_item.item = _target(ScenarioTarget.Kind.NEAREST)
+	no_item.item.item_kind = &"box_bun_white"
+	no_item.until = &"ItemPickedUp"
+	scenario = _scenario([[StepReady.new(), _round(), no_item]])
+	scenario.mode = _panel_mode()
+	runner = ScenarioRunner.play(scenario)
+	assert_str(_text(runner)).contains("step 3 (Interact)").contains("which item")
 
 
 func test_the_setup_sends_the_bans_and_refuses_unknown_ones_or_too_few_types_left() -> void:

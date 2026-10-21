@@ -21,6 +21,46 @@ fields = {
 "phase": "round"
 }
 
+[sub_resource type="Resource" id="Resource_fxiq5"]
+script = ExtResource("9_d0xrl")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_64kfd"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_fxiq5")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_m2uui"]
+script = ExtResource("9_d0xrl")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_b4n2n"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_m2uui")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_n327n"]
+script = ExtResource("9_d0xrl")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_2ebvg"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_n327n")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_vpkhh"]
+script = ExtResource("9_d0xrl")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_sese7"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_vpkhh")
+sprint = true
+stop_m = 0.0
+
 [sub_resource type="Resource" id="Resource_af82d"]
 script = ExtResource("9_d0xrl")
 kind = 5
@@ -111,7 +151,7 @@ until = &"ButtonPressed"
 
 [sub_resource type="Resource" id="Resource_8fmw0"]
 script = ExtResource("4_b4n2n")
-steps = Array[ExtResource("5_n327n")]([SubResource("Resource_yxvy3"), SubResource("Resource_j0y8l"), SubResource("Resource_pmnhq"), SubResource("Resource_6mt31"), SubResource("Resource_4w72e"), SubResource("Resource_gm5jv"), SubResource("Resource_e0jjh"), SubResource("Resource_lekli"), SubResource("Resource_6v3yn"), SubResource("Resource_c3nlc")])
+steps = Array[ExtResource("5_n327n")]([SubResource("Resource_yxvy3"), SubResource("Resource_j0y8l"), SubResource("Resource_64kfd"), SubResource("Resource_b4n2n"), SubResource("Resource_2ebvg"), SubResource("Resource_sese7"), SubResource("Resource_pmnhq"), SubResource("Resource_6mt31"), SubResource("Resource_4w72e"), SubResource("Resource_gm5jv"), SubResource("Resource_e0jjh"), SubResource("Resource_lekli"), SubResource("Resource_6v3yn"), SubResource("Resource_c3nlc")])
 
 [sub_resource type="Resource" id="Resource_3s1ks"]
 script = ExtResource("6_2ebvg")
@@ -122,6 +162,46 @@ event = &"PhaseChanged"
 fields = {
 "phase": "round"
 }
+
+[sub_resource type="Resource" id="Resource_d0xrl"]
+script = ExtResource("9_d0xrl")
+point = Vector3(27, 0, 29.6)
+
+[sub_resource type="Resource" id="Resource_s54yh"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_d0xrl")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_nyjii"]
+script = ExtResource("9_d0xrl")
+point = Vector3(27, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_u66ov"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_nyjii")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_mk5q0"]
+script = ExtResource("9_d0xrl")
+point = Vector3(25, -1.6, 25)
+
+[sub_resource type="Resource" id="Resource_uvyta"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_mk5q0")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_rv8dv"]
+script = ExtResource("9_d0xrl")
+point = Vector3(25, -3.2, 30)
+
+[sub_resource type="Resource" id="Resource_megum"]
+script = ExtResource("8_sese7")
+target = SubResource("Resource_rv8dv")
+sprint = true
+stop_m = 0.0
 
 [sub_resource type="Resource" id="Resource_ic4x2"]
 script = ExtResource("9_d0xrl")
@@ -146,7 +226,7 @@ until = &"ItemPickedUp"
 
 [sub_resource type="Resource" id="Resource_r8gi6"]
 script = ExtResource("4_b4n2n")
-steps = Array[ExtResource("5_n327n")]([SubResource("Resource_3s1ks"), SubResource("Resource_cckix"), SubResource("Resource_agnox"), SubResource("Resource_ltwe8")])
+steps = Array[ExtResource("5_n327n")]([SubResource("Resource_3s1ks"), SubResource("Resource_cckix"), SubResource("Resource_s54yh"), SubResource("Resource_u66ov"), SubResource("Resource_uvyta"), SubResource("Resource_megum"), SubResource("Resource_agnox"), SubResource("Resource_ltwe8")])
 
 [resource]
 script = ExtResource("3_m2uui")
@@ -160,5 +240,4 @@ forced_roles = Dictionary[int, StringName]({
 scripts = Array[ExtResource("4_b4n2n")]([SubResource("Resource_8fmw0"), SubResource("Resource_r8gi6")])
 expected_ends = Array[StringName]([&"dissidents"])
 clock_s = 20
-floor_y = -3.2
 time_limit_s = 55.0

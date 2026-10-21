@@ -4,15 +4,44 @@ extends RefCounted
 ## map a scenario in content/scenarios/ of that mode names, but the maps with storeys.
 ## These are the levels the scenarios' fake world, one flat floor at y = 0, must describe truly.
 ## The maps with storeys (STOREYED_MAPS, the House, #626) are played by people, and by the scenarios
-## that play their stations one storey at a time (#1197).
+## that play their stations (#1197) in a fake world with storeys (world_of(), #1209).
 
+const StoreyedWorld := preload("res://tests/fixtures/storeyed_world.gd")
 const SCENARIOS_DIR := "res://content/scenarios/"
+const HOUSE := "res://levels/house/house.tscn"
 ## The maps a scenario may name that are not flat (#1197): the House (#626), the one map the station
-## tasks play on (TaskType.maps). The fake world stays one flat floor, at the scenario's floor_y, so
-## a scenario plays one storey of it (the ground floor at 0, the basement at -3.2): the markers are
-## read where the scene places them, never snapped (GE12), and the bots reach only the stations
-## whose cylinders stand on that floor.
-const STOREYED_MAPS: Array[String] = ["res://levels/house/house.tscn"]
+## tasks play on (TaskType.maps). The scenarios play it in a fake world with its storeys and stairs
+## (world_of(), #1209): the markers are read where the scene places them, never snapped (GE12), and
+## a bot reaches a station on another storey only by a walk over the stairs.
+const STOREYED_MAPS: Array[String] = [HOUSE]
+## The House's storeys the fake world joins (house.tscn's levels): the basement, the ground floor
+## and the second floor. The attic, which no task uses, is left out.
+const HOUSE_STOREYS: Array[float] = [-3.2, 0.0, 3.2]
+## The House's stairs in the fake world, each flight by its two ends in turn (StoreyedWorld): the
+## pantry stairs from storage up to the ground floor (two flights and the landing between them) and
+## the external stairs from the terrace up to the balcony (one flight). The ends follow the walks
+## over the real stairs in house_cooking_test's PANTRY_UP and house_photo_test's UPSTAIRS, so a
+## scenario's waypoints over them are the ones a player takes; the fake knows nothing else of them.
+const HOUSE_FLIGHTS: Array[Vector3] = [
+	Vector3(25, -3.2, 29),
+	Vector3(25, -1.6, 25),
+	Vector3(24.4, -1.6, 25),
+	Vector3(27.6, -1.6, 25),
+	Vector3(27, -1.6, 25),
+	Vector3(27, 0, 29),
+	Vector3(39, 0, 14.4),
+	Vector3(39, 3.2, 21.6),
+]
+## Every flight's width in the fake world: the bots walk up its middle.
+const FLIGHT_WIDTH_M := 1.2
+
+
+## The fake world a scenario plays in (ARCHITECTURE §9.7): the House's storeys and stairs on the
+## House (#1209), else one flat floor at y = 0.
+static func world_of(scenario: BotScenario) -> WorldQuery:
+	if scenario != null and scenario.mode != null and scenario.played_map() == HOUSE:
+		return StoreyedWorld.new(HOUSE, HOUSE_STOREYS, HOUSE_FLIGHTS, FLIGHT_WIDTH_M)
+	return FlatWorldQuery.new()
 
 
 ## The paths, the lobby first, each once.

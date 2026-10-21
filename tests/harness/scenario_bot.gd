@@ -425,8 +425,34 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			var item := fields["item"] as int
 			if items.has(item):
 				items[item]["where"] = Where.LOCKED
+		# The station tasks lay an item from a hand at a station with no ItemPlaced (#1209): a film
+		# in the camera lies there to be picked up again once shot (FilmLoaded); a patty on the grill,
+		# an ingredient on a place, a hung photo and a fitted part are locked there.
+		&"FilmLoaded":
+			var item := fields["item"] as int
+			_let_go(item)
+			if items.has(item):
+				items[item]["where"] = Where.GROUND
+				items[item]["position"] = stations.get(fields["station"] as int, Vector3.INF)
+		&"GrillLoaded", &"IngredientPlaced", &"PhotoHung", &"PartFitted":
+			var item := fields["item"] as int
+			_let_go(item)
+			if items.has(item):
+				items[item]["where"] = Where.LOCKED
+		&"ItemVanished":
+			var item := fields["item"] as int
+			_let_go(item)
+			items.erase(item)
 		&"SelfStatus":
 			sprint_available = fields["sprint_available"] as bool
+
+
+## The bot no longer holds or belts `item`.
+func _let_go(item: int) -> void:
+	if held == item:
+		held = -1
+	if belted == item:
+		belted = -1
 
 
 func _ids_of_kind(kind: StringName) -> Array[int]:
