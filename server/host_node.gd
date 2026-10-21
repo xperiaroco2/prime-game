@@ -74,7 +74,8 @@ func is_running() -> bool:
 
 
 ## Writes no replay when the session ends (the runner's selftest keeps the developer's newest), so
-## its match keeps no command log either (Match.recording, #1191).
+## its match keeps no command log either (Match.recording, #1191). Call it once the session has
+## started: before that there is no match to switch off, and start() would turn the log on again.
 func skip_replay() -> void:
 	if _session != null:
 		_session.replay_dir = ""

@@ -19,7 +19,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   kinds (or any kind that is not in `Intents.ALL`) from a client's message, except a debug kind from peer 1 in a debug
   build, which becomes the command it names (Boundaries below; §4.3, E17); `MoveClaimReliable` is `MoveClaim` (#429).
   `Match` does not check who made a command. Its log (about 20 MiB per player per 10 minutes) and per-tick views
-  (`keep_history`) grow: a host records only in a debug build, never `keep_history` (`Match.recording`, #1191).
+  (`keep_history`) grow: a host leaves `keep_history` off (the bots runner turns it on) and records only in a debug build, and not after `HostNode.skip_replay`, a runner's `--no-replay` or the perf run; the bots runner clears `replay_dir` but reads the log, so it records (`Match.recording`, #1191).
 - Carry out the directives whose audience is *server* (`RefuseJoins`, `AllowJoins`, `DisconnectPeer`), in the
   outbox's order: a `DisconnectPeer` comes after the `Rejected` that explains it, which must be sent first.
   Pass `PeerConnected` as soon as the transport admits a peer: `core/` takes a `Hello` only from a peer it knows is

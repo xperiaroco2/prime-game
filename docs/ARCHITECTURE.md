@@ -5255,7 +5255,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. What a dead player saw while spectating, all of it
   public, is fair game after the respawn (vision revision 1, V1): nothing is narrowed then.
-- **Projection.** `Match` records the recipients of every event it emits, and per tick each peer's snapshot and the
+- **Projection.** `Match` records the recipients of every event it emits (with `Match.recording` or `keep_history`
+  on; with both off, `emitted()` and `view_of(peer).events` hold only the events `take_outbox` has not handed out
+  yet, so never read `view_of` on a host's match), and per tick each peer's snapshot and the
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
