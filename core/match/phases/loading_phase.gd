@@ -12,8 +12,6 @@ extends Phase
 ## `all_loaded` when every remaining player confirmed.
 
 const ALL_LOADED := &"all_loaded"
-## The host's own player (§4): never dropped at the deadline.
-const HOST := 1
 
 ## Peer -> true: the players who confirmed.
 var _acks: Dictionary[int, bool] = {}
@@ -70,7 +68,7 @@ func on_tick(ctx: MatchContext) -> void:
 		return
 	_deadline_passed = true
 	for peer: int in ctx.state.present_peers():
-		if _acks.has(peer) or peer == HOST:
+		if _acks.has(peer) or peer == MatchState.HOST_PEER:
 			continue
 		ctx.emit(DisconnectingEvent.new(peer, DisconnectingEvent.LOAD_DEADLINE))
 		ctx.emit(DisconnectPeerEvent.new(peer))

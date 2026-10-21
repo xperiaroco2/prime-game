@@ -1,12 +1,17 @@
 extends GdUnitTestSuite
 ## MatchState: reset_match (ResetMatch, 2b), the join count and the return keys' numbers (#638), and
-## part_state (ARCHITECTURE §3.1, §3.5, §9.1).
+## part_state (ARCHITECTURE §3.1, §3.5, §9.1), and HOST_PEER pinned to the transport's (#1191).
 
 const P1 := 1
 const P2 := 2
 const P3 := 3
 const KEY := "0123456789abcdef0123456789abcdef"
 const OTHER_KEY := "fedcba9876543210fedcba9876543210"
+
+
+func test_the_host_peer_is_the_transports_host_id() -> void:
+	# core/ cannot name net/ (core_purity_test); the rules that spare the host's player use this.
+	assert_int(MatchState.HOST_PEER).is_equal(NetTransport.HOST_ID)
 
 
 func test_reset_match_clears_the_match_and_drops_who_left() -> void:

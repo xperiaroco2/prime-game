@@ -594,7 +594,7 @@ func _accepts(command: MatchCommand) -> bool:
 		return from & AcceptSpec.From.NEWCOMER != 0
 	if not player.is_present():
 		return false
-	var host := from & AcceptSpec.From.HOST != 0 and command.peer == 1
+	var host := from & AcceptSpec.From.HOST != 0 and command.peer == MatchState.HOST_PEER
 	if player.life == PlayerState.Life.DEAD:
 		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
 	var living := from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE
