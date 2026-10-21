@@ -146,6 +146,9 @@ var as_string := false
 var list_type: Variant.Type = TYPE_ARRAY
 ## MAP: a typed Dictionary of the decoded key and value types, or an untyped one.
 var typed := true
+## keys(), built at its first call (#1234): a schema does not change a field it writes through.
+var _keys := PackedStringArray()
+var _keys_built := false
 
 
 static func of(field_name: String, field_type: Type) -> WireField:
@@ -306,19 +309,27 @@ static func is_name_char(code: int) -> bool:
 
 
 ## Writes `fields` from `source`; the problem, or empty. Every key of `source` must be one the
-## fields fill. `message` gives the SEQ and PEER slots (null inside a record).
+## fields fill: when fewer of their keys are in `source` than it holds, one is undeclared.
+## `message` gives the SEQ and PEER slots (null inside a record).
 static func write_all(
 	fields: Array[WireField], source: Dictionary, writer: WireWriter, message: WireMessage
 ) -> String:
-	var known := {}
+	var declared := 0
 	for field: WireField in fields:
 		for filled: String in field.keys():
-			known[filled] = true
+			if source.has(filled):
+				declared += 1
 		var problem := field._write_part(source, writer, message)
 		if not problem.is_empty():
 			return problem
+	if declared == source.size():
+		return ""
 	for given: Variant in source:
-		if not (given is String or given is StringName) or not known.has(str(given)):
+		var known := false
+		if given is String or given is StringName:
+			for field: WireField in fields:
+				known = known or field.keys().has(str(given))
+		if not known:
 			return "an undeclared field %s" % str(given)
 	return ""
 
@@ -336,17 +347,19 @@ static func read_all(
 
 ## The payload keys this field fills, the flags and guarded parts included; none for a slot.
 func keys() -> PackedStringArray:
+	if _keys_built:
+		return _keys
+	_keys_built = true
 	if slot != Slot.FIELD:
-		return PackedStringArray()
-	match type:
-		Type.FLAGS:
-			return flags
-		Type.OPTIONAL:
-			var found := PackedStringArray()
-			for part: WireField in parts:
-				found.append_array(part.keys())
-			return found
-	return PackedStringArray([name])
+		_keys = PackedStringArray()
+	elif type == Type.FLAGS:
+		_keys = flags
+	elif type == Type.OPTIONAL:
+		for part: WireField in parts:
+			_keys.append_array(part.keys())
+	else:
+		_keys = PackedStringArray([name])
+	return _keys
 
 
 ## The bytes this field takes whatever its value (a number, a bool, a float, a vector, a colour or
@@ -585,19 +598,24 @@ func _write_map(value: Variant, writer: WireWriter) -> String:
 	var entries: Dictionary = value
 	if entries.size() > max_count:
 		return "%s: %d entries, at most %d" % [name, entries.size(), max_count]
-	var ordered: Array = []
+	# Each key is checked and written once, into `keyed`; its bytes are copied in key order.
+	var keyed := WireWriter.new()
+	var spans := {}
 	for entry_key: Variant in entries:
-		var problem := key._write_value(entry_key, WireWriter.new())
+		var at := keyed.bytes.size()
+		var problem := key._write_value(entry_key, keyed)
 		if not problem.is_empty():
 			return "%s: key %s" % [name, problem]
-		ordered.append(entry_key)
+		spans[entry_key] = Vector2i(at, keyed.bytes.size())
+	var ordered := entries.keys()
 	if key.type == Type.ID:
 		ordered.sort_custom(func(a: Variant, b: Variant) -> bool: return str(a) < str(b))
 	else:
 		ordered.sort()
 	writer.u8(ordered.size())
 	for entry_key: Variant in ordered:
-		key._write_value(entry_key, writer)
+		var span: Vector2i = spans[entry_key]
+		writer.raw(keyed.bytes.slice(span.x, span.y))
 		var problem := element._write_value(entries[entry_key], writer)
 		if not problem.is_empty():
 			return "%s: %s" % [name, problem]
