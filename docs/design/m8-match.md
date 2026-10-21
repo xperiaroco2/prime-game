@@ -112,7 +112,8 @@ Designed in the chat from research round 2 and the engineer's idea of calling th
 - **The aliens** win by finishing their tasks before the timer and before the cops arrive (#1031).
 - **The humans** win **by the timer** (the aliens' goal unfinished when time is up) **or when the cops arrive**: a
   siren, "busted: the party is over" (#1031).
-- **An average match lasts about 10 minutes** (GDD §2). Open: a finale beyond the cops' minute (research round 2: a
+- **An average match lasts about 10 minutes** (GDD §2), **with the humans' spoiling;** a clean team of aliens would
+  finish in about 7.5 (the engineer, 2026-10-21, [#1095 c6315676554](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6315676554)). Open: a finale beyond the cops' minute (research round 2: a
   shorter respawn in the last minutes, a capped overtime).
 
 ## 6a. The tasks get harder
@@ -121,6 +122,28 @@ Designed in the chat from research round 2 and the engineer's idea of calling th
   without humans; the humans tip the balance and hide in honest mistakes.
 - **Harder steps:** find something, look something up, remember something (#1033). Today the House holds only about 3
   to 4 minutes of work for 6 or more aliens (#1089).
+
+## 6a2. The MVP's work per player count (2026-10-21)
+
+- **The counts scale with the players by default, and the host may change them** (the engineer, 2026-10-21,
+  [#1095 c6315676554](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6315676554); every task type has its own count, #256).
+- **The defaults** come from the design track's balance model of the night of 2026-10-21 (prime-game-design
+  `ideas/2026-10-21-mvp-balance.md`): placeholders until a playtest. The humans column is the model's assumption (§2
+  keeps that open).
+
+| Players | Humans | Car parts | Burgers | Engine stages | Passwords | Photos |
+|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 1 | 4 | 3 | 3 | 3 | 2 |
+| 5 | 1 | 6 | 4 | 3 | 4 | 3 |
+| 6 | 2 | 6 | 4 | 3 | 4 | 3 |
+| 7 | 2 | 6 | 5 | 4 | 5 | 4 |
+| 8 | 2 | 7 | 6 | 5 | 5 | 4 |
+| 9 | 3 | 7 | 6 | 5 | 5 | 4 |
+| 10 | 3 | 7 | 6 | 5 | 6 | 4 |
+
+- **What the model showed:** the engine is the floor (its stages cannot go faster with more people, about 2.5 to 3.5
+  minutes); at 10 players the caps run out, so a tenth player needs another task; parts and burgers need up to 13
+  flowers from 5 beds, so watering matters.
 
 ## 6b. What the balance model showed (#1089)
 
@@ -159,7 +182,8 @@ From #1040, not yet rules:
 - Sabotages tied to each task, global ones, or both; the humans' tools against the aliens' talk (§6b).
 - Points: the unit of work per chain (an item, a switch, a burger, a photo, a car part) (§4).
 - How the aliens learn what raises the anger: no hint, or the type of problem without its place (§5).
-- Filling 10 minutes: more work that scales with the lobby, a stream of guests' requests, or both (§6a).
+- Filling 10 minutes: the work scales with the lobby (§6a2); at 10 players another task, or a stream of guests'
+  requests (§6a).
 - The defaults for the number of humans (§2); the anger threshold, rises, jumps and the cops' minute (§5): the balance
   model #1089.
 - A finale beyond the cops' minute (§6).
