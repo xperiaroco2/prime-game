@@ -27,7 +27,8 @@ extends RefCounted
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
 ## carries an item), else the condition finds no target and its answer never changes (#379);
-## two rules on one trigger in one owner; a station kind's rule on an intent that names no station,
+## two rules on one trigger in one owner; an action that is never reached (RuleReachCheck);
+## a station kind's rule on an intent that names no station,
 ## and an item kind's on one that does (the hand item never owns Interact, the Generator ADR's
 ## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
 ## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
@@ -48,7 +49,8 @@ extends RefCounted
 ## (§9.2); in a mode with a channel, any role-owned or role-gated action, since applying it stops
 ## its actor's channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2);
 ## a row whose KnockDown without then_die enters a phase with no LifeTicks, whose downed stays
-## downed for good (#599: the tutorial's raise_stage wants that, so a warning, not an error).
+## downed for good (#599: the tutorial's raise_stage wants that, so a warning, not an error); a
+## reaction with no effects (RuleReachCheck).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -65,8 +67,9 @@ const _ID_ALPHABET := "abcdefghijklmnopqrstuvwxyz0123456789_"
 var errors := PackedStringArray()
 var warnings := PackedStringArray()
 
-## Whether any action of the mode starts a channel (_check_rules).
+## Whether any action starts a channel; the intents only phase classes take (_check_rules).
 var _has_channel := false
+var _phase_taken: Array[StringName] = []
 
 
 static func run(mode: GameMode) -> ModeCheck:
@@ -147,6 +150,7 @@ static func _holds_set(resource: Resource, property: String) -> bool:
 ## warning about public events of role-owned or role-gated rules.
 func _check_rules(mode: GameMode) -> void:
 	_has_channel = _any_channel(mode)
+	_phase_taken = RuleReachCheck.taken_by_phases(mode)
 	# A UseStation in a role's or the mode's rule may use any station, so any type's use_emits().
 	var types := mode.task_types
 	_check_owner("mode.actions", mode.actions, Intents.ALL, false, types)
@@ -289,6 +293,8 @@ func _check_owner(
 		if seen_triggers.has(rule.trigger):
 			errors.append("%s: two rules on %s" % [owner, rule.trigger])
 		seen_triggers.append(rule.trigger)
+		errors.append_array(RuleReachCheck.unreached(owner, rule, on_intent, _phase_taken))
+		warnings.append_array(RuleReachCheck.no_effects(owner, rule, on_intent))
 		var gated := role_owned
 		for condition: Condition in rule.conditions:
 			if condition == null:
@@ -696,7 +702,7 @@ func _check_phases(mode: GameMode) -> void:
 		for entry: AcceptSpec in spec.accepts:
 			if entry == null or not Intents.ALL.has(entry.intent):
 				continue
-			if not _handled(mode, phase, entry.intent):
+			if not RuleReachCheck.handled(phase, entry.intent, _actions_on(mode, entry.intent)):
 				errors.append(
 					(
 						"phase %s accepts %s, which neither its class nor any rule handles"
@@ -866,14 +872,6 @@ static func _holds_effect(rule: Rule, effect_class: Script) -> bool:
 		if effect != null and is_instance_of(effect, effect_class):
 			return true
 	return false
-
-
-static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:
-	return (
-		phase.handles(intent)
-		or intent == Intents.MOVE_CLAIM
-		or not _actions_on(mode, intent).is_empty()
-	)
 
 
 ## Every rule on `intent` among the mode's, the roles', the item kinds' (their actions and their
