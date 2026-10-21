@@ -8,6 +8,7 @@
 # Adding a night job: copy the `flaky` job, change its command, the options its check needs, its artifact name and
 # timeout, and add its id to `report`'s `needs`. `perf` (#187) also keeps its report for the next night of the same
 # ref in a cache. `chaos` (#188) is the long chaos run with random seeds, each printed in its log.
+# `lfs` (#1213) runs the two suites that need LFS content, with only their LFS files pulled (CI has none).
 # Scheduled runs use this file and the latest commit of main and start late at busy times; a release ref's jobs still
 # run the release's own tools/run.sh and tests. GitHub disables the schedule of a public repository after 60 days
 # without activity (docs.github.com, "Events that trigger workflows").
@@ -309,9 +310,98 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  # The two suites that need LFS content (#1213, #877 e6): CI checks out with no LFS (the LFS ADR), so there they
+  # print "skip" and check only that the GLB is a pointer. This job pulls the LFS files these suites load and nothing
+  # else (11,938,695 bytes a ref: assets/characters/slice_m1/ and two House kit GLBs, about 12 MB a night, against
+  # the 10 GiB of free LFS bandwidth a month), imports and runs them through the runner; red when either fails.
+  lfs:
+    name: lfs suites on ${{ matrix.ref }} (the art-bound tests, only their LFS files)
+    needs: refs
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      REF: ${{ matrix.ref }}
+      LFS_INCLUDE: assets/characters/slice_m1/**,assets/environment/house_kit/beam_concrete_1m.glb,assets/environment/house_kit/dormer_gable.glb
+      LFS_SUITES: tests/integration/client/player/character_rig_art_test.gd tests/integration/levels/house_wrapper_test.gd
+    steps:
+      # The ref's commit, not this run's: the ref's own tools/run.sh, setup action and tests. No LFS content yet.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.sha }}
+          lfs: false
+
+      - uses: ./.github/actions/setup-toolchain
+
+      # The TwoVoIP extension out and the ref's runner asked for the job's command (the action says why).
+      - name: The ref's runner has the job's options
+        uses: ./.github/actions/night-ref
+        with:
+          calls: test
+
+      - name: doctor
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
+
+      # Only the paths of LFS_INCLUDE are downloaded and checked out in place of their pointer files; every other LFS
+      # file stays a pointer, which `test`'s import sets aside in CI as in any CI job (#515). A suite without LFS
+      # content prints "skip" and passes, so the pulled files are checked to be real content, not pointers: a failed
+      # pull must turn this job red, not green. A ref older than the suites (no such test file) has nothing to run.
+      - name: Pull only the LFS files of the suites
+        id: pull
+        run: |
+          missing=0
+          for suite in $LFS_SUITES; do
+            if [ ! -f "$suite" ]; then
+              echo "::notice::$REF has no $suite: nothing to run on it."
+              missing=1
+            fi
+          done
+          if [ "$missing" = 1 ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git lfs install --local
+          git lfs pull --include="$LFS_INCLUDE"
+          total=0
+          count=0
+          while IFS= read -r -d '' file; do
+            if head -c 40 "$file" | grep -q '^version https://git-lfs'; then
+              echo "::error::$file is still an LFS pointer file after git lfs pull."
+              exit 1
+            fi
+            total=$((total + $(stat -c %s "$file")))
+            count=$((count + 1))
+          done < <(find assets/characters/slice_m1 assets/environment/house_kit/beam_concrete_1m.glb \
+            assets/environment/house_kit/dormer_gable.glb \
+            -type f \( -name '*.glb' -o -name '*.png' \) -print0)
+          if [ "$count" -lt 3 ]; then
+            echo "::error::Only $count LFS files with content after git lfs pull."
+            exit 1
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "Pulled $count LFS files, $total bytes." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The import is the runner's own (`test` imports first). Named paths run in one process, in real time.
+      - name: The LFS-bound suites
+        if: steps.pull.outputs.run == 'true'
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh test $LFS_SUITES
+
+      - name: Upload the reports and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-lfs-${{ matrix.slug }}
+          path: |
+            tools/out/gdunit
+            tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 30
+
   report:
     name: report on the Night jobs issue
-    needs: [refs, flaky, perf, chaos]
+    needs: [refs, flaky, perf, chaos, lfs]
     # A failed or timed-out night job of any ref, or no refs at all; a skipped one is not news. A matrix job's result
     # in `needs` is one for all its refs: the run's job list names the ref of each.
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
