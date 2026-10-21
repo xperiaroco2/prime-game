@@ -87,16 +87,18 @@ func _replay(file: String, transcript: Dictionary) -> PackedStringArray:
 
 
 ## A socket number opened twice is logged and changes nothing (the assert is stripped in a release
-## build): the first socket keeps its room.
+## build): the first socket keeps its host role, so its closing still closes its room.
 func test_a_socket_opened_twice_is_logged_and_keeps_its_place() -> void:
 	var errors := EngineErrors.new()
 	errors.start()
 	var router := SignalRouter.new([], func() -> String: return "ABCDEF")
 	router.opened(1)
-	var join := SignalCodec.encode(SignalCodec.Side.UNSET, "join", {"code": "ABCDEF"})
-	router.received(1, join.to_ascii_buffer())
-	var rooms := router.room_count()
+	var open := {"protocol": 7, "content": "0123456789abcdef", "max": 9}
+	var text := SignalCodec.encode(SignalCodec.Side.UNSET, "open", open).to_ascii_buffer()
+	router.received(1, text)
+	assert_int(router.room_count()).is_equal(1)
 	router._admit(1)
+	router.closed(1)
 	errors.stop()
 	assert_int(errors.count()).is_greater(0)
-	assert_int(router.room_count()).is_equal(rooms)
+	assert_int(router.room_count()).is_equal(0)
