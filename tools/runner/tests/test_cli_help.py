@@ -27,6 +27,7 @@ OLD_ROWS = {
         "warnings policy",
         "UID lint",
         "parse and load of every script and scene",
+        "unknown property key in a content/ .tres",
         "LFS asset without a docs/credits/ entry",
     ],
     "credits": ["CREDITS.md from docs/credits/", "an LFS asset has no entry"],

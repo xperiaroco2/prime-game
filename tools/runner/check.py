@@ -1,5 +1,5 @@
 """`check`: headless import, warnings policy, UID lint, credits, the text colliders, the level scenes' editable paths
-(editables.py) and the project-wide parse/load check."""
+(editables.py) and the project-wide parse/load check, content .tres property keys included (#1238)."""
 
 from __future__ import annotations
 

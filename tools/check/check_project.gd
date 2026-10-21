@@ -5,6 +5,8 @@ extends SceneTree
 ## and prints one line per problem:
 ##   CHECK error <message>
 ##   CHECK warning <message>
+## A content .tres (ContentKeys.ROOTS) is also read as text: each property key no stored
+## property of its section's class has is an error (#1238), since Godot ignores it on load.
 ## Exits 1 when any error was found, 0 otherwise. Run it with `-d --ignore-error-breaks` so that
 ## Warn-level GDScript warnings reach the logger; never with a bare `-d` (it hangs on errors).
 
@@ -17,6 +19,7 @@ const SKIP_DIRS: PackedStringArray = [
 	"res://tests/scratch",
 ]
 const EXTENSIONS: PackedStringArray = ["gd", "tscn", "tres"]
+const ContentKeys := preload("res://tools/check/content_keys.gd")
 
 
 class ProblemLogger:
@@ -65,6 +68,7 @@ func _initialize() -> void:
 		files = requested
 
 	var broken: PackedStringArray = []
+	var keys: ContentKeys = ContentKeys.new()
 	for path: String in files:
 		if not ResourceLoader.exists(path):
 			broken.append("%s: file not found" % path)
@@ -74,6 +78,8 @@ func _initialize() -> void:
 			broken.append("%s: failed to load" % path)
 		elif res is Script and not (res as Script).can_instantiate():
 			broken.append("%s: script does not compile" % path)
+		elif ContentKeys.applies_to(path):
+			broken.append_array(keys.unknown_keys(path))
 
 	OS.remove_logger(logger)
 
