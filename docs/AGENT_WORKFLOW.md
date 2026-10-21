@@ -1148,7 +1148,9 @@ readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normali
 re-saves them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the
 header uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
 after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
-the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
+the file and fails. `check` reads each `content/**/*.tres` as text and fails on a key no stored property of its
+section's class has, with file and line (`tools/check/content_keys.gd`, #1238), so a misspelled key that skipped
+`normalize` still fails CI. `check` also fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
 uid that resolves to a different file than its `path=`. Godot 4.7.2 sometimes dies of an access violation (exit
 3221225477, 0xC0000005) while it shuts down after `check_project.gd` printed a clean summary (#442: 2 of 326 check
 steps, the summary their last line, none of the shutdown lines every run prints after it): `check` passes such a run
