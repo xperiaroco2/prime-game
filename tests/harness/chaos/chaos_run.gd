@@ -58,6 +58,15 @@ const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const QUIET_BEFORE_AWAY := "before its walk away"
 const QUIET_MOVING := "moving on the host"
 const QUIET_BEHIND := "host position behind its bot"
+## The host's phases in which the hostile sends no claim until bot 4 has walked away (#1194): the
+## round, and the pregame before it. The pregame takes no claim (E15), but one sent in its last
+## frames can reach the host in the round's first ticks (over WebRTC some frames late), before bot
+## 4's first claim of its epoch: its Correction leaves the new epoch without a client-tick
+## baseline, so bot 4's first claim of it counts one tick (MovementRule's fresh claim) while its
+## walk to STAND_AT, begun as its client saw the round start, has gone on for the round trip:
+## corrected, and with it every later claim of a script that adopts no Correction (seed 188001,
+## main's run 39501028446).
+const QUIET_PHASES: Array[StringName] = [&"pregame", &"round"]
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
@@ -929,9 +938,10 @@ func _frozen() -> bool:
 	return bots.size() >= HOSTILE and ChaosScenario.is_freeze(bots[HOSTILE - 1].current_step())
 
 
-## No hostile claim in the round until bot 4 has walked away from its freeze: a
+## No hostile claim in the pregame or the round until bot 4 has walked away from its freeze: a
 ## Correction puts it back where it last stood, which its walks (one in flight as a walk starts
-## too) would show every honest bot, unlike the baseline's. Standing still
+## too) would show every honest bot, unlike the baseline's, and a pregame claim the host takes in
+## the round gets bot 4's walk corrected (QUIET_PHASES, #1194). Standing still
 ## afterwards, downed or dead, it claims as before.
 func _hostile_quiet() -> bool:
 	var reason := _quiet_reason()
@@ -948,7 +958,7 @@ func _quiet_reason() -> String:
 	if game == null or bots.size() < HOSTILE:
 		return ""
 	var bot := bots[HOSTILE - 1]
-	if game.phase_id() == &"round" and bot.step_index <= ChaosScenario.away_index(bot.steps):
+	if game.phase_id() in QUIET_PHASES and bot.step_index <= ChaosScenario.away_index(bot.steps):
 		return QUIET_BEFORE_AWAY
 	var player := game.state.player(peers.peer_of(HOSTILE))
 	if player == null:

@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 ## difference. The runs themselves: tools\run.cmd bots --chaos (a verify step).
 
 const NOW := 5_000_000
+## The chaos match's four bots as peers of a match without a network, bot 4 the hostile's.
+const BOT_PEERS: Array[int] = [1, 2, 3, 4]
 
 
 func test_a_burst_past_the_intents_bucket_is_over_budget_from_the_hundred_and_first() -> void:
@@ -356,6 +358,95 @@ func test_the_run_reports_a_corrected_honest_claim_of_bot_4_and_counts_the_accep
 	var found := run.honest_claims.failures()
 	assert_int(found.size()).is_equal(1)
 	assert_str(found[0]).contains("chaos seed 188001: the host corrected an honest claim of bot 4")
+
+
+## #1194, the race behind main's red chaos-webrtc run (seed 188001: bot 4 corrected at client tick
+## 175, epoch 5, 1.05 m into its walk from its spawn, 75 times): the pregame takes no claim (E15),
+## but a hostile claim sent in its last frames can reach the host in the round, before bot 4's
+## first claim of its epoch. Its Correction leaves the new epoch without a client-tick baseline,
+## bot 4's claims still in flight in the old one are stale, and its first claim of the new epoch,
+## a round trip into the walk it began as its client saw the round start, counts one tick
+## (MovementRule's fresh claim): corrected, and its script adopts no Correction (#693), so every
+## claim after it too. The host is right (an honest client adopts the Correction); the quiet rule
+## below keeps such a claim from going.
+func test_a_pregame_claim_taken_in_the_round_gets_bot_4s_walk_corrected() -> void:
+	var game := FixtureBaseMode.in_pregame(BOT_PEERS)
+	var player := game.state.player(4)
+	var spawn := player.position
+	var epoch := player.epoch
+	var teleport := Vector3(ChaosFrames.TELEPORT_M, 0, 0)
+	var tagged := Vector3(0, ChaosFrames.CLAIM_TAG + ChaosFrames.Claim.TELEPORT, 0)
+	assert_array(_apply(game, _move_claim(epoch, 111, spawn + teleport, tagged))).is_empty()
+	FixtureBaseMode.through_pregame(game)
+	assert_str(game.phase_id()).is_equal("round")
+	var late := _apply(game, _move_claim(epoch, 111, spawn + teleport, tagged))
+	assert_int(late.size()).is_equal(1)
+	var correction := late[0].event as CorrectionEvent
+	assert_object(correction).is_not_null()
+	assert_int(correction.epoch).is_equal(epoch + 1)
+	assert_vector(correction.position).is_equal(spawn)
+	# A step of its walk to STAND_AT (Vector3(-9, 0, 7)) per tick, as at walk speed.
+	var step := (ChaosScenario.STAND_AT - spawn).normalized() * 0.2
+	var walking := Vector3(step.x * Ticks.RATE, 0, step.z * Ticks.RATE)
+	assert_array(_apply(game, _move_claim(epoch, 171, spawn + step, walking))).is_empty()
+	var claims := ChaosHonestClaims.new()
+	var walked := _move_claim(epoch + 1, 175, spawn + step * 5, walking)
+	claims.check(walked, _apply(game, walked), player, 4, 188001)
+	assert_int(claims.corrected).is_equal(1)
+	assert_int(claims.accepted).is_equal(0)
+
+
+## #1194: bot 4 is quiet before its walk away from the pregame on, not from the round's start
+## alone: the pregame's claims are dropped anyway (E15), so no hostile claim can be taken in the
+## round's first ticks (above). In the countdown and loading it claims as before (it stands, and
+## the placement into the pregame starts a new epoch), and after its walk away too.
+func test_the_hostile_sends_no_claim_from_the_pregame_until_its_walk_away() -> void:
+	var run := ChaosRun.new(false, ChaosRun.Mode.CHAOS, 188001)
+	run.peers.set_peer(ChaosScenario.HOSTILE, 4)
+	run.game = FixtureBaseMode.in_countdown(BOT_PEERS)
+	for number in range(1, ChaosScenario.BOTS + 1):
+		run.bots.append(ScenarioBot.new(number, number, run.scenario.steps_of(number), run.peers))
+	var bot := run.bots[ChaosScenario.HOSTILE - 1]
+	bot.position = run.game.state.player(4).position
+	assert_str(run._quiet_reason()).is_empty()
+	while run.game.phase_id() == &"countdown":
+		FixtureModes.run_ticks(run.game, 1)
+	assert_str(run.game.phase_id()).is_equal("loading")
+	assert_str(run._quiet_reason()).is_empty()
+	for peer: int in BOT_PEERS:
+		FixtureBaseMode.load_ack(run.game, peer)
+	assert_str(run.game.phase_id()).is_equal("pregame")
+	bot.position = run.game.state.player(4).position
+	assert_str(run._quiet_reason()).is_equal(ChaosRun.QUIET_BEFORE_AWAY)
+	FixtureBaseMode.through_pregame(run.game)
+	assert_str(run.game.phase_id()).is_equal("round")
+	assert_str(run._quiet_reason()).is_equal(ChaosRun.QUIET_BEFORE_AWAY)
+	bot.step_index = ChaosScenario.away_index(bot.steps) + 1
+	assert_str(run._quiet_reason()).is_empty()
+
+
+## A MoveClaim of bot 4's peer (4) as its client sends one, with `velocity` (a chaos claim's tag).
+func _move_claim(epoch: int, tick: int, position: Vector3, velocity: Vector3) -> MatchCommand:
+	var fields := {
+		"epoch": epoch,
+		"client_tick": tick,
+		"position": position,
+		"velocity": velocity,
+		"facing": Vector3.FORWARD,
+		"sprint": false,
+		"moving": not velocity.is_zero_approx(),
+		"on_floor": true,
+		"jumps": 0,
+	}
+	return MatchCommand.new(Intents.MOVE_CLAIM, 4, 0, fields)
+
+
+## Applies `command` stamped with the next tick; the events it emitted.
+func _apply(game: Match, command: MatchCommand) -> Array[EmittedEvent]:
+	var before := game.emitted().size()
+	command.tick = game.ticked_through() + 1
+	game.apply(command)
+	return game.emitted().slice(before)
 
 
 func _claim_fields(tick: int) -> Dictionary:
