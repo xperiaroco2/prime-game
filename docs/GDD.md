@@ -354,20 +354,30 @@ the expert knows every fix by heart.
 - **Stages:** 3 in the MVP (3 to 5 later). Each stage spawns problems, their kinds random, their count fixed: 2, then
   4, then 6. A stage passes when every one of its problems is fixed.
 - **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
-  the panel 15 s, a cartridge 30 s).
+  the breakers 30 s, a cartridge 30 s).
 - **Overheat** (reaction): hold the vent; a needle rises; let go inside the green band. A miss coughs steam; try again.
 - **A burnt cartridge** (speed): pull it out, run it to the renewer in another compartment, along the whole ship, put
   it in, take back a good one and fit it. There are no spare cartridges to spam.
-- **A sparking panel** (memory), in one place: four big coloured switches with a lamp over each; the lamps blink a
-  sequence (3, 4, then 5 long by stage) and go dark; press the switches in that order. A wrong click zaps and the
-  sequence plays again, with no damage. A friend beside you may read it out.
+- **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
+  to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307), a concept until the
+  playtest): the engine's power board in the west wing has four big breakers, red, yellow, green and blue, a lamp of
+  its colour over each. A problem trips some of them: 2, then 3, then all 4 by stage; they pop out and smoke.
+  - **The order** shows in the hall, on the start console's mimic board: a small copy of the four breakers, which drop
+    when theirs trip. A press on its button blinks all four twice, then lights them once in the order to switch them
+    back on, and they go dark; a press shows the same order again. Remember it, or a friend at the console reads it
+    out by voice, and run to the board.
+  - **The chain:** a breaker switched on ramps up, its lamp from yellow to green; the next one goes on while that lamp
+    is green. Too late, and the previous breaker trips again.
+  - **A short circuit** (a wrong breaker, or one switched too early) zaps the player at the board into a knockdown,
+    raised by someone; the tripped breakers stay tripped.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
   aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
   drops one stage; the battery is not needed again; a fail on stage 1 restarts stage 1.
 - **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
   task is done.
-- **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, letting a timer
-  run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
+- **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, reading out a
+  wrong order at the console (the friend at the board is knocked down: raise them, "I mixed it up", or run away
+  laughing), switching a wrong breaker on purpose, letting a timer run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
   outing moment").
 
 ### The Wi-Fi (2026-10-20)
