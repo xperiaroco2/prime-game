@@ -612,6 +612,27 @@ func test_a_clients_close_says_bye_and_leaves_the_connection_to_the_host() -> vo
 	fake_host.pc.close()
 
 
+## A close after nearly SILENCE_MS without a word from the other side sends no BYE and shuts the
+## connection down at once (#1231): that side has dropped it or is about to, and a BYE written into
+## a closed association prints "SCTP sending failed, errno=32" (the webrtc-stall step's ending).
+func test_a_close_after_a_long_silence_sends_no_bye_and_closes_at_once() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	var conn: WebRtcTransport.Conn = client._conns[NetTransport.HOST_ID]
+	conn.last_heard_ms = Time.get_ticks_msec() - WebRtcTransport.SILENCE_MS
+	client.close()
+	var reliable: Array[PackedByteArray] = []
+	var closed := func() -> bool:
+		reliable.append_array(fake_host.take(NetKindTable.Lane.RELIABLE))
+		return _ended(fake_host)
+	assert_bool(await _until(closed)).is_true()
+	assert_array(reliable).is_empty()
+
+
 ## A client's BYE is its leave, after what it sent before: the host reports the leave unrejected
 ## and closes the connection itself (#950).
 func test_a_clients_bye_is_its_leave_and_the_host_closes_the_connection() -> void:
