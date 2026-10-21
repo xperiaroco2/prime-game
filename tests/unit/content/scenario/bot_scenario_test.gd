@@ -298,6 +298,52 @@ func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
 		assert_array(Array(throw.problems())).is_empty()
 
 
+## #1235: a misspelled event or field key in a `never`, an Expect, an ExpectNone or a WaitFor never
+## matches, so it is a problem when the runner hands in the events a bot receives.
+func test_events_and_fields_are_checked_against_the_receivable_events() -> void:
+	var events: Dictionary[StringName, PackedStringArray] = {
+		&"Died": PackedStringArray(["peer", "position"]),
+		&"PhaseChanged": PackedStringArray(["phase"]),
+	}
+	var scenario := _scenario()
+	var expect := StepExpect.new()
+	expect.event = &"Died"
+	expect.fields = {"peer": 2}
+	var none := StepExpectNone.new()
+	none.event = &"PhaseChanged"
+	none.fields = {"phase": &"round"}
+	var wait := StepWaitFor.new()
+	wait.event = &"Died"
+	var never := NeverEvent.new()
+	never.event = &"Died"
+	never.fields = {"peer": 1}
+	scenario.scripts[0].steps.append_array([expect, none, wait])
+	scenario.never = [never]
+	assert_array(Array(scenario.problems(events))).is_empty()
+	never.event = &"Dieed"
+	none.fields = {"phsae": &"round"}
+	expect.fields = {"peer": 2, "cause": &"fall"}
+	wait.event = &"PhaseChange"
+	(
+		assert_array(Array(scenario.problems(events)))
+		. contains_exactly(
+			[
+				"bot 1, Expect: event Died has no field cause",
+				"bot 1, ExpectNone: event PhaseChanged has no field phsae",
+				"bot 1, WaitFor: event PhaseChange is none a bot receives",
+				"never 0: event Dieed is none a bot receives",
+			]
+		)
+	)
+	# Without the catalogue (a core-only caller) only the data's own shape is checked.
+	assert_array(Array(scenario.problems())).is_empty()
+	never.event = &""
+	scenario.never.append(null)
+	assert_array(Array(scenario.problems())).contains_exactly(
+		["never 0 has no event", "never 1 is empty"]
+	)
+
+
 func _scenario() -> BotScenario:
 	var scenario := BotScenario.new()
 	scenario.mode = FixtureBaseMode.mode()

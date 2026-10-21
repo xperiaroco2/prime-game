@@ -8076,7 +8076,10 @@ told. One format runs in two runners.
   - the expected ends, one per match the scenario plays, in order: a winning side, or `none`. `none` passes when every
     script has finished within the time limit and no further `MatchEnded` arrived. Steps may follow an end, so a
     scenario can go back to the lobby and play a second match (seed *k*+1, §3.3). A time limit for the whole run;
-  - `never`: events that one bot, or every bot, must never receive;
+  - `never`: events that one bot, or every bot, must never receive. Every runner hands `problems()` the events a bot
+    can receive (`ScenarioBot.receivable_events()`: the wire schema's event rows, their fields, and `peer` on the
+    events for one peer), so a `never`, `Expect`, `ExpectNone` or `WaitFor` that names another event or a field its
+    event lacks is refused before the run (#1235: a misspelled one never matches and would pass forever);
   - `voice` (M5-1, #215): how the bots' synthetic voice talks, in talk spurts (the default, a pattern per bot) or
     continuously (§4.6.2); every bot talks from its join until a `Talk` step silences it;
   - `measurement` (M5-4, #218): a load measurement, which the bots runner plays only when it is named, never in its
