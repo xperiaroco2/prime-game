@@ -36,7 +36,25 @@ const FORBIDDEN_NAMES := [
 	"ProjectSettings",
 	"Audio\\w*",
 	"Input",
+	# Node-derived 3D classes, timers and the engine servers (scene, physics, render, nav, display).
+	"Area3D",
+	"CharacterBody3D",
+	"RigidBody3D",
+	"StaticBody3D",
+	"VehicleBody3D",
+	"CollisionObject3D",
+	"PhysicsBody3D",
+	"CollisionShape3D",
+	"Camera3D",
+	"MeshInstance3D",
+	"Timer",
+	"PhysicsServer\\dD",
+	"RenderingServer",
+	"NavigationServer\\dD",
+	"DisplayServer",
 ]
+## The one core/ script that may construct a RandomNumberGenerator (seeded, one stream per purpose).
+const RNG_OWNER := "res://core/match/rng_streams.gd"
 ## Global functions that use the global RNG or load files; allowed only as methods of an object.
 const FORBIDDEN_CALLS := [
 	"randi",
@@ -52,21 +70,27 @@ const FORBIDDEN_CALLS := [
 ]
 ## Array methods that use the global RNG; hash() (no documented algorithm, §3.3) and
 ## get_instance_id() (differs between runs), which would break a replay.
-const FORBIDDEN_METHODS := ["shuffle", "pick_random", "hash", "get_instance_id"]
+## `randomize()` on a RandomNumberGenerator seeds it from the clock.
+const FORBIDDEN_METHODS := ["shuffle", "pick_random", "hash", "get_instance_id", "randomize"]
+const RNG_NEW := "RandomNumberGenerator\\s*\\.\\s*new\\s*\\("
 
 
 func test_core_names_no_engine_class_it_must_not_use() -> void:
 	var names := RegEx.create_from_string("\\b(%s)\\b" % "|".join(FORBIDDEN_NAMES))
 	var calls := RegEx.create_from_string("(?<![.\\w])(%s)\\s*\\(" % "|".join(FORBIDDEN_CALLS))
 	var methods := RegEx.create_from_string("\\.(%s)\\s*\\(" % "|".join(FORBIDDEN_METHODS))
+	var rng_new := RegEx.create_from_string(RNG_NEW)
 	var found: Array[String] = []
 	var scripts := _scripts(CORE)
 	assert_int(scripts.size()).is_greater(30)
 	for path: String in scripts:
 		var lines := FileAccess.get_file_as_string(path).split("\n")
+		var patterns: Array[RegEx] = [names, calls, methods]
+		if path != RNG_OWNER:
+			patterns.append(rng_new)
 		for i in lines.size():
 			var code := _code_of(lines[i])
-			for pattern: RegEx in [names, calls, methods]:
+			for pattern: RegEx in patterns:
 				var hit := pattern.search(code)
 				if hit != null:
 					found.append("%s:%d: %s" % [path, i + 1, hit.get_string()])
@@ -90,6 +114,33 @@ func test_the_check_sees_a_forbidden_name_and_method() -> void:
 	assert_object(methods.search("\tvar s := String(purpose).hash()")).is_not_null()
 	assert_object(methods.search("\tvar i := item.get_instance_id()")).is_not_null()
 	assert_object(methods.search("\tvar h := ContentHash.of(mode)")).is_null()
+
+
+func test_the_check_sees_a_randomized_rng_and_more_engine_classes() -> void:
+	var names := RegEx.create_from_string("\\b(%s)\\b" % "|".join(FORBIDDEN_NAMES))
+	var calls := RegEx.create_from_string("(?<![.\\w])(%s)\\s*\\(" % "|".join(FORBIDDEN_CALLS))
+	var methods := RegEx.create_from_string("\\.(%s)\\s*\\(" % "|".join(FORBIDDEN_METHODS))
+	var rng_new := RegEx.create_from_string(RNG_NEW)
+	assert_object(methods.search("\trng.randomize()")).is_not_null()
+	assert_object(calls.search("\trng.randomize()")).is_null()
+	assert_object(methods.search("\trng.seed = 5")).is_null()
+	assert_object(rng_new.search("\tvar r := RandomNumberGenerator.new()")).is_not_null()
+	assert_object(rng_new.search("\tfunc stream() -> RandomNumberGenerator:")).is_null()
+	assert_str(RNG_OWNER).is_equal("res://core/match/rng_streams.gd")
+	assert_bool(FileAccess.file_exists(RNG_OWNER)).is_true()
+	for planted: String in [
+		"\tvar a := Area3D.new()",
+		"\tvar c := CharacterBody3D.new()",
+		"\tvar r := RigidBody3D.new()",
+		"\tvar t := Timer.new()",
+		"\tPhysicsServer3D.body_create()",
+		"\tRenderingServer.free_rid(rid)",
+		"\tAudioServer.get_bus_count()",
+		"\tNavigationServer3D.map_get_path()",
+		"\tDisplayServer.window_set_title(s)",
+	]:
+		assert_object(names.search(planted)).override_failure_message(planted).is_not_null()
+	assert_object(names.search("\tvar t := TimerState.new()")).is_null()
 
 
 ## The line without its comment; a `#` inside a string ends nothing.
