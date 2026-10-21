@@ -27,8 +27,8 @@ extends RefCounted
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
 ## carries an item), else the condition finds no target and its answer never changes (#379);
-## two rules on one trigger in one owner; an action that is never reached (RuleReachCheck);
-## a station kind's rule on an intent that names no station,
+## two rules on one trigger in one owner; an action that is never reached (RuleReachCheck); two
+## win conditions with one id; a station kind's rule on an intent that names no station,
 ## and an item kind's on one that does (the hand item never owns Interact, the Generator ADR's
 ## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
 ## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
@@ -50,7 +50,7 @@ extends RefCounted
 ## its actor's channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2);
 ## a row whose KnockDown without then_die enters a phase with no LifeTicks, whose downed stays
 ## downed for good (#599: the tutorial's raise_stage wants that, so a warning, not an error); a
-## reaction with no effects (RuleReachCheck).
+## reaction with no effects (RuleReachCheck). Who can win: WinCondition.mode_errors/_warnings.
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -86,6 +86,9 @@ func _check_mode(mode: GameMode) -> void:
 	_check_unique("item kind", _ids(mode.item_kinds))
 	_check_unique("task type", _ids(mode.task_types))
 	_check_unique("phase", _ids(mode.phases))
+	_check_unique("win condition", _ids(mode.win_conditions))
+	errors.append_array(WinCondition.mode_errors(mode))
+	warnings.append_array(WinCondition.mode_warnings(mode))
 	_walk(mode, "mode", mode, {})
 	_check_stations(mode)
 	_check_ticking(mode)
