@@ -122,7 +122,10 @@ func test_players_always_play_the_house_and_the_greybox_is_a_test_bench() -> voi
 		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
 		if scenario == null or scenario.mode == null:
 			continue
-		if scenario.mode.resource_path == BASE_MODE and scenario.played_map() != HOUSE:
+		if (
+			scenario.mode.resource_path == BASE_MODE
+			and not ScenarioLevels.STOREYED_MAPS.has(scenario.played_map())
+		):
 			assert_str(scenario.played_map()).override_failure_message(file).is_equal(GREYBOX)
 
 
@@ -162,7 +165,8 @@ func test_the_scenarios_levels_are_flat() -> void:
 	# The scenarios' fake world (§9.7) is one floor at y = 0: each level a scenario plays on (the
 	# lobby, a scenario's default map: the greybox, a test bench (#767); a map a scenario names) is
 	# a floor collider whose top is at y = 0 and covers every marker, and every marker stands on it.
-	# The mode's other maps (the House) are played by people only, in the host's real world (#626).
+	# A map with storeys (the House, ScenarioLevels.STOREYED_MAPS) is no level of these: its scenarios
+	# play one storey on the flat fake (floor_y, #1197), people play it in the host's world (#626).
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in ScenarioLevels.of(mode):
