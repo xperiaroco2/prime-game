@@ -77,11 +77,13 @@ The aliens' ship is a **wide metal manta** (#1035 comment 6299338851): broad fla
 a mouth-shaped front ramp, a side hatch; wider than it is long. Its interior is one deck, built for the ship's engine
 (GDD §8), approved on #1035 comment 6300127535:
 - **The mouth ramp** (north side, the ship's centre) leads into **the central hall** under the two cockpit bubbles:
-  the start console with the start lever, the battery slot and the stage display (one lamp per stage).
+  the start console with the start lever, the battery slot, the stage display (one lamp per stage) and the mimic
+  board of the breakers, which shows their order (GDD §8, 2026-10-21).
 - **Two corridors** run from the hall along the wings, across the whole width of the ship (about 2.5 m wide, curving
   with the wing).
 - **Five problem stations** stand along the corridors: in the west wing a vent (overheat), a cartridge socket and the
-  switch panel (four coloured switches, a lamp over each); in the east wing a vent and a cartridge socket.
+  power board (four coloured breakers, a lamp over each; about 10 m from the console); in the east wing a vent and a
+  cartridge socket.
 - **The cartridge renewer** stands at the east wing's tip; **the side hatch** at the west wing's tip is the ship's
   second way out. A burnt cartridge from the west wing runs the whole width of the ship to be renewed (about 22 m,
   5 s each way at a walk), well inside the cartridge's 30 s.
