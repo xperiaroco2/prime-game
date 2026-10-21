@@ -1042,14 +1042,16 @@ The rules of the table:
   `ResourceLoader.get_dependencies`, recursively and each once (a cycle, a piece two levels share), is hashed too,
   sorted by `res://` path, so a wall moved inside a room the map instances counts. A dependency with a known uid is
   the file the uid names, as Godot loads it, else its fallback path; a missing file is hashed as `missing`, and
-  `ContentFingerprint.of` logs a warning naming it, on the host and on each client. Left out: scripts (`ContentHash` covers them by path) and Godot's generated
+  `ContentFingerprint.of` logs a warning naming it, on each walk (once per process and mode, below).
+  Left out: scripts (`ContentHash` covers them by path) and Godot's generated
   files under `res://.godot/`; an imported asset counts by its source bytes and its `.import` settings. Levels that
   instance nothing hash as they did before the walk.
   The walk is computed once per process and mode (#1172): `ContentFingerprintCache` (`net/messages/`) keeps the
   value per mode hash and level list, and computes it again when a level file's modified time or size changed. The
   House's 2016 reached files took about 5.5 s per walk on the engineer's PC, and a join asked twice (`Game.join_target`,
   then its `ClientSession`), a host start twice (`HostSession.start_with`, then its own client): an 11 s freeze. Only
-  the level files are stamped (the engineer's decision): stamping every reached file cost about 0.3 s, and a running
+  the level files are stamped (the engineer asked for a recompute when a level file's modified time changes, #1169):
+  stamping every reached file cost about 0.3 s, and a running
   game reads its scenes once (the editor's Run starts a new process), so a room or asset edited while a process runs
   keeps its old hash there until a level changes or the process restarts. `ContentFingerprint.of` never caches (its
   tests rewrite files and expect another value at once); the check itself is unchanged. Tests:
@@ -1604,10 +1606,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
   admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
   the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
-  time. A `BotsEnet` remote bot's join starts once its client is made (#950): a process's first `ClientSession` of a mode computes
-  its `ContentFingerprint` as it is made (5.5 s on the engineer's PC since the House assets; later ones take it from
-  `ContentFingerprintCache`, #1172), and a join started
-  before that ran out the signalling's 5 s cap meanwhile, every time (`bots_enet_test.gd`). Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
+  time. A `BotsEnet` remote bot's join starts once its client is made (#950): a process's first `ClientSession` of a
+  mode computes its `ContentFingerprint` as it is made (5.5 s on the engineer's PC since the House assets; later
+  ones take it from `ContentFingerprintCache`, #1172), and a join started before that ran out the signalling's 5 s cap meanwhile, every time (`bots_enet_test.gd`). Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
   gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
   chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
   cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots

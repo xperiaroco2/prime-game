@@ -7,11 +7,12 @@ extends RefCounted
 ## asked for it twice (game.gd's join_target, then its ClientSession), a host start twice
 ## (HostSession.start_with, then its own client's session): an 11 s freeze per join.
 ##
-## Only the level files are checked (the engineer's decision on #1172): reading the modified time
-## and size of every file the levels reach costs about 0.3 s, a freeze of its own, and a running
-## game reads its scenes once anyway (the editor's Run starts a new process). So a room or an asset
-## edited while a process runs keeps its old hash until a level file changes or the process
-## restarts. `ContentFingerprint.of` itself never caches: its tests rewrite files and expect
+## Only the level files are checked (the engineer asked for a recompute when a level file's
+## modified time changes, PR #1169; the size too is this class's addition): reading the modified
+## time and size of every file the levels reach costs about 0.3 s, a freeze of its own, and a
+## running game reads its scenes once anyway (the editor's Run starts a new process). So a room or
+## an asset edited while a process runs keeps its old hash until a level file changes or the
+## process restarts. `ContentFingerprint.of` itself never caches: its tests rewrite files and expect
 ## another value at once.
 ##
 ## The host's server/ and every client call it the same way, from their own copy of the mode:
