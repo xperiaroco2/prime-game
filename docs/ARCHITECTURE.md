@@ -1045,6 +1045,16 @@ The rules of the table:
   `ContentFingerprint.of` logs a warning naming it, on the host and on each client. Left out: scripts (`ContentHash` covers them by path) and Godot's generated
   files under `res://.godot/`; an imported asset counts by its source bytes and its `.import` settings. Levels that
   instance nothing hash as they did before the walk.
+  The walk is computed once per process and mode (#1172): `ContentFingerprintCache` (`net/messages/`) keeps the
+  value per mode hash and level list, and computes it again when a level file's modified time or size changed. The
+  House's 2016 reached files took about 5.5 s per walk on the engineer's PC, and a join asked twice (`Game.join_target`,
+  then its `ClientSession`), a host start twice (`HostSession.start_with`, then its own client): an 11 s freeze. Only
+  the level files are stamped (the engineer's decision): stamping every reached file cost about 0.3 s, and a running
+  game reads its scenes once (the editor's Run starts a new process), so a room or asset edited while a process runs
+  keeps its old hash there until a level changes or the process restarts. `ContentFingerprint.of` never caches (its
+  tests rewrite files and expect another value at once); the check itself is unchanged. Tests:
+  `tests/unit/net/messages/content_fingerprint_cache_test.gd`, and the session tests that a host start and its own
+  client, and `content_of` and a session, hash once.
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
   (3e): a change to the content API that the designer took (D1 (a) in the ADR): ids lowercase snake_case of at most 32
@@ -1471,6 +1481,8 @@ Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record,
 - `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
   (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
   no `core/` class (a test pins it). Each level's file and every scene and resource it reaches are hashed (§4.3).
+  `ClientSession.content_of` and `HostSession` take it through `ContentFingerprintCache`, once per process and mode
+  (§4.3, #1172).
 - The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
   the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
 - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
@@ -1592,8 +1604,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
   admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
   the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
-  time. A `BotsEnet` remote bot's join starts once its client is made (#950): a `ClientSession` computes its
-  `ContentFingerprint` as it is made (5.5 s on the engineer's PC since the House assets), and a join started
+  time. A `BotsEnet` remote bot's join starts once its client is made (#950): a process's first `ClientSession` of a mode computes
+  its `ContentFingerprint` as it is made (5.5 s on the engineer's PC since the House assets; later ones take it from
+  `ContentFingerprintCache`, #1172), and a join started
   before that ran out the signalling's 5 s cap meanwhile, every time (`bots_enet_test.gd`). Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
   gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
   chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
