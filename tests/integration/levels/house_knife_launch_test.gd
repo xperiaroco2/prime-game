@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## The base mode's knife launch on its maps (728e, #849; the knockdown rework's KD10 (A), KD11,
 ## KE1 (b), KE12, §9), in the host's world of each map (LevelWorld and HostWorldQuery, as
-## house_markers_test.gd builds them, and HostBodies), since bots do not play the House
-## (ARCHITECTURE §9.7). A match of content/modes/base_mode.tres itself, its knife
+## house_markers_test.gd builds them, and HostBodies), since bots play the House only on a flat
+## fake floor (ARCHITECTURE §9.7). A match of content/modes/base_mode.tres itself, its knife
 ## (content/items/knife.tres: launch_mps and launch_up_mps, placeholders "not a decision") and its
 ## PlayerRules (the crouching capsule, the rest, the longest motion), with the host's loop written
 ## out as host_bodies_test.gd writes it: three physics frames per host tick, the bodies' reports at
