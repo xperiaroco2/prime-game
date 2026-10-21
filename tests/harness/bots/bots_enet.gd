@@ -317,7 +317,7 @@ func _start_host(bot: ScenarioBot) -> bool:
 	if not scenario.steps_of(1).is_empty() and scenario.steps_of(1)[0] is StepJoin:
 		failures.append("scenario: bot 1 is the host's own client, connected at the start")
 		return false
-	var world := FlatWorldQuery.new()
+	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)

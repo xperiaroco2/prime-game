@@ -53,6 +53,11 @@ const HINT := ": bans that leave fewer task types than tasks need the lower task
 ## (debug builds only, invariant 8) in place of the match duration setting's whole minutes; 0
 ## keeps the setting. A scenario that ends by time up then need not wait a whole minute.
 @export var clock_s := 0
+## The height of the runners' fake world's one floor (§9.7): 0, the flat levels' floor. A map with
+## storeys (the House, #1197) is played one storey per scenario, the bots walking on this floor and
+## reaching only the stations whose cylinders stand on it: the House's ground floor at 0, its
+## basement at -3.2.
+@export var floor_y := 0.0
 ## Seconds of match time for the whole run.
 @export var time_limit_s := 120.0
 @export var never: Array[NeverEvent] = []

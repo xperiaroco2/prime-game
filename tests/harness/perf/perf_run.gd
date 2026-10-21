@@ -73,7 +73,7 @@ func start() -> bool:
 		failures.append("perf runs in debug builds only (ForceClock, the observer)")
 	if not failures.is_empty():
 		return false
-	var world := FlatWorldQuery.new()
+	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)
