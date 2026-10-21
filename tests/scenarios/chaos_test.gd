@@ -360,8 +360,8 @@ func test_the_run_reports_a_corrected_honest_claim_of_bot_4_and_counts_the_accep
 	assert_str(found[0]).contains("chaos seed 188001: the host corrected an honest claim of bot 4")
 
 
-## #1194, the race behind main's red chaos-webrtc run (seed 188001: bot 4 corrected at client tick
-## 175, epoch 5, 1.05 m into its walk from its spawn, 75 times): the pregame takes no claim (E15),
+## #1194, the race behind a red chaos-webrtc run (seed 188001: bot 4 corrected 1.05 m into its walk
+## from its spawn, 75 times): the pregame takes no claim (E15),
 ## but a hostile claim sent in its last frames can reach the host in the round, before bot 4's
 ## first claim of its epoch. Its Correction leaves the new epoch without a client-tick baseline,
 ## bot 4's claims still in flight in the old one are stale, and its first claim of the new epoch,
@@ -389,6 +389,8 @@ func test_a_pregame_claim_taken_in_the_round_gets_bot_4s_walk_corrected() -> voi
 	var step := (ChaosScenario.STAND_AT - spawn).normalized() * 0.2
 	var walking := Vector3(step.x * Ticks.RATE, 0, step.z * Ticks.RATE)
 	assert_array(_apply(game, _move_claim(epoch, 171, spawn + step, walking))).is_empty()
+	# Dropped as stale, not accepted (an accepted claim emits nothing either, but moves the player).
+	assert_vector(game.state.player(4).position).is_equal(spawn)
 	var claims := ChaosHonestClaims.new()
 	var walked := _move_claim(epoch + 1, 175, spawn + step * 5, walking)
 	claims.check(walked, _apply(game, walked), player, 4, 188001)

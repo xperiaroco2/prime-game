@@ -64,8 +64,7 @@ const QUIET_BEHIND := "host position behind its bot"
 ## 4's first claim of its epoch: its Correction leaves the new epoch without a client-tick
 ## baseline, so bot 4's first claim of it counts one tick (MovementRule's fresh claim) while its
 ## walk to STAND_AT, begun as its client saw the round start, has gone on for the round trip:
-## corrected, and with it every later claim of a script that adopts no Correction (seed 188001,
-## main's run 39501028446).
+## corrected, and with it every later claim of a script that adopts no Correction (seed 188001).
 const QUIET_PHASES: Array[StringName] = [&"pregame", &"round"]
 
 var chaos_mode := Mode.CHAOS
