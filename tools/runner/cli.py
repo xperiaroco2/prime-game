@@ -82,7 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
         "check",
         help="import, warnings policy, UID lint, parse and load check",
         description="Headless import, the warnings policy, UID lint, then parse and load of every script and scene "
-        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits). "
+        "(or of the named res:// paths), and an unknown property key in a content/ .tres, which Godot ignores on load "
+        "(#1238). It also fails on an LFS asset without a docs/credits/ entry (see credits). "
         "In CI (no LFS content) the LFS pointer files stay out of the import and the project check, in one summary "
         "line (#515).",
     )

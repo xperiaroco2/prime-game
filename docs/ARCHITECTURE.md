@@ -6534,6 +6534,11 @@ part is usable in data once its row or entry names the PR that built it. Every n
     the mode's levels, read by the marker reader (2j, `server/levels/marker_reader.gd`), and checks that the
     greybox fits 10 players at the default settings and at the most packages
     (`tests/unit/content/content_modes_test.gd`).
+- **Checked as text** (#1238). Godot loads a `.tres` key that no property has (`negate_ = true`) without an error and
+  keeps the default, which neither part above can tell from a deliberate one. `check` (`tools/check/content_keys.gd`,
+  run by `check_project.gd`) reads every `.tres` under `content/` and fails on each `[resource]` or `[sub_resource]`
+  key that is not a stored property of its section's class (type and script), naming file and line; `script` and
+  `metadata/` keys pass. Tests: `tests/unit/tools/content_keys_test.gd`.
 - **Where a value comes from.** A part reads its own settings. A value the host changes in the lobby is a **match
   setting**: the mode declares it (`SettingSpec`: id, kind, default, bounds), and a part names it in a property
   ending in `_setting` (`count_setting = knives`). A part never reads another part's settings. Two kinds: a whole
