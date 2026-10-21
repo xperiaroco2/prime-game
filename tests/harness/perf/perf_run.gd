@@ -105,6 +105,9 @@ func start() -> bool:
 		for error: String in session.errors:
 			failures.append("host: %s" % error)
 		return false
+	# Like the shipped game, whose release host keeps no command log (#1191): the run reads neither
+	# the log nor the events, so its host-step times and memory leave out their cost.
+	session.game.recording = false
 	for number in range(1, scenario.bots + 1):
 		bots.append(ScenarioBot.new(number, 0, scenario.steps_of(number), peers))
 	bots[0].connected = true
