@@ -98,6 +98,36 @@ a mouth-shaped front ramp, a side hatch; wider than it is long. Its interior is 
 | Inner stairs: living room ↔ library | 0 ↔ 1 | |
 | Outdoor stairs: the library's balcony ↔ the yard | 1 ↔ 0 | the second floor's second exit |
 | Ladder through a hatch: library ↔ roof terrace | 1 ↔ roof | the fireworks' launch point |
+| The library's bookcase: a secret stair inside the wall, library ↔ cellar | 1 ↔ -1 | §5b |
+| The chimney: roof terrace → the living room's fireplace, down only | roof → 0 | the roof's second way down (§5b) |
+
+## 5b. Passages (the engineer, 2026-10-21)
+
+The network approved on [#1035 c6316439474](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6316439474) (from his word on the secret passages, the vents and the sewer,
+[c6315895910](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6315895910)); the design track's draft:
+prime-game-design `ideas/2026-10-21-estate-passages.md`. **Everything underground meets in the house's basement.**
+Underground players walk at 4.5 m/s without sprinting; the ducts are gone through crouched (GDD §3, 2.0 m/s). Lengths
+and times are placeholders.
+
+| Passage | Joins | Length, time | On the surface |
+|---|---|---|---|
+| The library's bookcase | The library (1) ⇄ the cellar (-1): a narrow stair inside the wall. Pressing a book swings the bookcase open; from below, pulling a bottle on the wine rack | about 20 m, 5 s | security room ⇄ library 50 m, 11 s |
+| The tunnel | The garage's inspection pit under the car ⇄ the laboratory | 22 m, 5 s | about 39 m, 9 s |
+| The sewer | The cellar ⇄ a manhole by the bonfire (65.3, 51) ⇄ a fork under the creek (67, 64) ⇄ manholes by the well (30, 68) and by the ship's side hatch (99, 73) | bonfire → ship 46 m, 10 s; well → ship 70 m, 16 s; cellar → bonfire 42 m, 9 s | 60 m, 13 s; 93 m, 21 s; about 36 m, 8 s |
+| The ducts | The laboratory ⇄ a grate in the pantry (53, 25.5); the security room ⇄ a grate by the summer kitchen's bins (76.4, 30.8) | 16 m, 8 s each | about 58 m, 13 s; about 30 m, 7 s |
+| The chimney | The roof terrace → the living room's fireplace, down only | at once | roof → hatch → library → stairs |
+
+- **No dead ends:** every passage has two ends, each opening from inside and outside.
+- **A passage is a way where nobody sees you,** not a teleport: mostly only a little faster than the surface; the
+  tunnel and the sewer between far clearings are clearly faster.
+- **An exit is seen and heard:** the bookcase opens in front of whoever is in the library; a manhole cover clangs.
+- **Every passage takes anything, and the movement stays arcade** (the engineer, 2026-10-21,
+  [c6316401602](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6316401602)): no refusal for a
+  two-handed item; a ladder is climbed with anything in the hands, with no climbing animation.
+- **Hiding things in the passages only costs time** (the compass §3).
+- **Secret is not a hidden rule:** every passage is in the rules; a newcomer discovers it, a regular uses it.
+- **The watering stays a walk:** no passage shortens the greenhouse ⇄ well trip (§1.6).
+- Open: the basement's layout (the laboratory, the security room, the cellar) and where each passage starts in it.
 
 ## 6. Task stations
 
@@ -142,8 +172,6 @@ house–summer kitchen 24 m.
 
 ## 8. Open
 
-- A tunnel from the garage to the basement (not drawn).
-- The roof's second way down.
 - The tree strips' density and the night's sight distance: from walking the greybox.
 - The amount of work per match: at this scale a clean expert team finishes in about 5 minutes; the host's counts and
   the engine's stages are the lever (the balance model, #1089).
