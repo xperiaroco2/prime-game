@@ -1,6 +1,6 @@
 # Delivery by meaning (#683): items carried to their own places instead of colour-matched circles
 
-- **Status:** Proposed on 2026-10-10; the engineer answered DD1 to DD9 the same day and approved the design
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10; the engineer answered DD1 to DD9 the same day and approved the design
   ([PR #713, comment 6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677)); DD10,
   raised by the review after, he answered on 2026-10-11
   ([PR #713, comment 6108665402](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402)): the
@@ -34,7 +34,7 @@
   session's to decide and report (tier (a)): decided here, each revertible in its issue.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing here is built" above is history. On main: D2a and D3a (#827, #829); the rest of §8 is open.
+  "nothing here is built" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §8.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules: DD1 to DD8, answered on 2026-10-10 in PR #713's comment 6095445718; DD9 and
   §5.1's drafts in its comment 6100696677, which approved the design; DD10 on 2026-10-11 in its comment 6108665402,

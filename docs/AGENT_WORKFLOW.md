@@ -1956,7 +1956,7 @@ waits on him; the engineer's sessions do the content work otherwise.
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 
 **Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
-version, and the PATH `claude` are done, checked live 2026-09-29; LFS in CI decided 2026-10-07, §10): usage
+version, and the PATH `claude` are done, checked live 2026-09-29; LFS in CI decided 2026-10-07: no LFS content in CI, stand-ins, [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md) amendment): usage
 credits off on both accounts; invite the designer to the repo and to project 1 (the designer's handle is in
 CODEOWNERS since #85).
 

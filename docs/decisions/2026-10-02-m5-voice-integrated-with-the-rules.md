@@ -603,7 +603,7 @@ boundary). Every number marked so is a placeholder, "not a decision".
   history); (c) the game keeps its generated placeholders where a file is an LFS pointer (CI). Recommendation: (a). Under
   (c) Godot's import of a pointer file is not an audio file, and a run that loads it prints errors that fail `verify`;
   (b) goes against KICKOFF §2's routing for a small saving. **Answer (the engineer, 2026-10-02): (a)**; M5-7 (#221)
-  adds the CI step with the first audio file.
+  adds the CI step with the first audio file. **Reversed by** the [LFS ADR](2026-09-29-git-lfs-for-binary-assets.md)'s amendment of 2026-10-07 (#515): CI checks out with `lfs: false` and `check` swaps in stand-ins, so CI never fetches LFS content.
 
 **Game rules no ADR settles:** none beyond D11 to D15 and the two readings below (Off, and the default device). Not
 reopened: vision revision 1's voice rules (V11), the MVP's 8 m, the phase table of ARCHITECTURE §6.

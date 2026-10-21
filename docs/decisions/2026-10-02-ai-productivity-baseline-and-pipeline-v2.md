@@ -32,6 +32,11 @@
   disabled; the meta manager runs the lens as a workflow from its own session before each night (the engineer's
   choice (a), [#302 comment 6107272934](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6107272934);
   AGENT_WORKFLOW §15).
+- **Amended 2026-10-22 (#1243):** the amendment of 2026-10-11 (#302, #905) is reversed: the scheduled task runs the lens
+  again. The Desktop scheduled task `night-audit` (daily at 23:30 local, about 20:30Z) starts the audit, and the meta
+  manager no longer launches it before the night (the engineer's answer, [#302 comment
+  6166579802](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6166579802), 2026-10-14, item 2;
+  `.claude/skills/night-audit/SKILL.md`, AGENT_WORKFLOW §15).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
