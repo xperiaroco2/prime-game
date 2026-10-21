@@ -64,7 +64,10 @@
 - **A completed task is locked:** it cannot be undone or farmed (#1040).
 - **The scoring must stop abuse:** if sabotage paid, aliens would sabotage just for the points (#1040); that is why
   only work and mischief pay.
-- **A killed alien tells everyone who killed him,** so a kill outs the killer (#1040).
+- **Kills are not revealed** (the engineer, 2026-10-21,
+  [#1095 c6313108955](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6313108955)): no banner of
+  who killed whom and no killer line; the game never shows who killed you. It replaces "a killed alien tells everyone
+  who killed him" (#1040). How the return from the dead's room is shown: later.
 - **What points buy:** a mutation, a global sabotage, or a weapon (§7); calming the neighbours (§5) and stalling the
   cops (§5) also cost points (#1031, #1040).
 - **In the MVP points buy three positive mutations** (the engineer, 2026-10-20,
