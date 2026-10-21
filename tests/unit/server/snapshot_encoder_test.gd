@@ -28,6 +28,14 @@ func test_it_takes_the_snapshot_rows_kind_cap_and_most_avatars() -> void:
 	assert_int(encoder.max_avatars).is_equal(WireSchema.MAX_AVATARS)
 
 
+## The header shortcut patches the last byte of the empty payload: avatars must be the row's last
+## field and its count one byte.
+func test_avatars_is_the_last_field_of_the_row_and_counted_in_one_byte() -> void:
+	var row := _schema.row_named(&"Snapshot")
+	assert_str((row.fields.back() as WireField).name).is_equal(SnapshotEncoder.AVATARS)
+	assert_bool(row.field_named(SnapshotEncoder.AVATARS).max_count <= 255).is_true()
+
+
 func test_every_viewers_payload_is_the_codecs_for_its_snapshot_tick_after_tick() -> void:
 	var game := _full_round()
 	var peers := game.state.present_peers()
