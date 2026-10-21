@@ -22,7 +22,6 @@ extends NetPlay
 ## Fails on a step's failure, the session ending, an end other than the scenario's, or the host
 ## counting a message over budget or a rejected packet: honest bots trip neither.
 
-const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const ADDRESS := "127.0.0.1"
 const LOOPBACK_PORT := 7400
 ## One frame of the simulated clock: 60 steps per simulated second, as BotsRunner.
@@ -73,7 +72,6 @@ func start() -> bool:
 		failures.append("perf runs in debug builds only (ForceClock, the observer)")
 	if not failures.is_empty():
 		return false
-	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)

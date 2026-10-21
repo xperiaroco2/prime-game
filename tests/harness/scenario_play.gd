@@ -17,6 +17,7 @@ extends RefCounted
 
 enum Result { DONE, WAITING, FAILED }
 
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const MATCH_ENDED := &"MatchEnded"
 ## A WalkTo is done within this much of its stop distance: float noise.
 const ARRIVED_SLACK_M := 0.001
@@ -41,11 +42,15 @@ var ends: Array[StringName] = []
 var peers: ScenarioPeers
 ## The tick of the runner's clock now, for a failure's report.
 var tick_now := 0
+## The fake world the host's match asks and the bots walk on (ScenarioLevels.world_of): one flat
+## floor, or the House's storeys and stairs (#1209). A runner hands it to its match.
+var world: WorldQuery
 
 
 func _init(bot_scenario: BotScenario, bot_peers: ScenarioPeers) -> void:
 	scenario = bot_scenario
 	peers = bot_peers
+	world = ScenarioLevels.world_of(scenario)
 
 
 ## Whether an event named `name` with payload `fields`, received by `receiver`, is `want_name`
@@ -397,10 +402,9 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	var distance := offset.length()
 	if distance <= step.stop_m + ARRIVED_SLACK_M:
 		return Result.DONE
-	if bot.dead:
-		return _fail_step(bot, "a dead bot cannot walk: the dead send no claims")
-	if bot.downed:
-		return _fail_step(bot, "a knocked-down bot cannot walk: the host takes only its look (KE4)")
+	var cannot := _cannot_walk(bot)
+	if not cannot.is_empty():
+		return _fail_step(bot, cannot)
 	var ticks := _travel_ticks(bot)
 	if ticks <= 0:
 		return Result.WAITING
@@ -410,12 +414,42 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	var direction := offset / distance
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)
 	var to := bot.position + direction * travel
-	# Placed above the fake world's floor (the House's basement storey, BotScenario.floor_y, #1197),
-	# the bot drops onto it with its first claim: a fall, which the host does not bound (§7.1; #1209
-	# would take the stairs). Only lowered: a bot the host sets below floor_y keeps its y.
-	to.y = minf(to.y, scenario.floor_y)
+	# The claim stands on the fake world's floor there, as a client's capsule would: found from a
+	# step and the steepest floor (45°, MovementRule's FLOOR_MAX_ANGLE) over the claim's travel above
+	# the bot's feet, so it climbs a step or a flight of stairs (however many ticks one claim covers
+	# after a stall) and walks down one (the House's storeys, #1209). A drop past that same reach is a
+	# fall, which the host does not bound (§7.1) and no scenario takes: it fails, so a walk changes
+	# storey only over the stairs.
+	var reach := rules.step_height_m + travel
+	var below := world.floor_below(Vector3(to.x, bot.position.y + reach, to.z))
+	var falls := _fall(bot, to, below, reach)
+	if not falls.is_empty():
+		return _fail_step(bot, falls)
+	to.y = below.y
 	_claim(bot, to, direction * speed, sprinting)
 	return Result.WAITING
+
+
+## Why a bot cannot walk now, or "": the dead send no claims, and the downed only their look.
+func _cannot_walk(bot: ScenarioBot) -> String:
+	if bot.dead:
+		return "a dead bot cannot walk: the dead send no claims"
+	if bot.downed:
+		return "a knocked-down bot cannot walk: the host takes only its look (KE4)"
+	return ""
+
+
+## Why a claim at `to` standing on `below` would fall, or "": no floor under it, or a drop deeper
+## than `most_m` (a step and the claim's travel) below the bot's feet.
+func _fall(bot: ScenarioBot, to: Vector3, below: Vector3, most_m: float) -> String:
+	if below == WorldQuery.NO_FLOOR:
+		return "no floor under the walk at %s" % to
+	if bot.position.y - below.y > most_m:
+		return (
+			"the walk falls from %.2f to %.2f m at %s: route it over the stairs"
+			% [bot.position.y, below.y, to]
+		)
+	return ""
 
 
 func _pick_up(bot: ScenarioBot, step: StepPickUp) -> Result:
@@ -510,10 +544,17 @@ func _use(bot: ScenarioBot, step: StepUse) -> Result:
 	return _intent_result(bot, step, done != null)
 
 
-## Sends Interact naming the station the bot knows by the step's kind and index; done when the
-## step's `until` event arrives for this bot (or one that names no peer), as for Use.
+## Sends Interact naming the station the bot knows by the step's kind and index, or the item it
+## names (the nearest of its kind, #1209); done when the step's `until` event arrives for this bot
+## (or one that names no peer), as for Use.
 func _interact(bot: ScenarioBot, step: StepInteract) -> Result:
 	if bot.sent_seq < 0:
+		if step.item != null:
+			var item := bot.item_of(step.item)
+			if item < 0:
+				return _fail_step(bot, "the bot cannot know which item to use")
+			_send(bot, Intents.INTERACT, {"station": -1, "item": item})
+			return Result.WAITING
 		var station := bot.station_of(step.station)
 		if station < 0:
 			return _fail_step(bot, "the bot cannot know which station to use")

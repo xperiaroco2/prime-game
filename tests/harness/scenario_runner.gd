@@ -21,8 +21,6 @@ extends ScenarioPlay
 ## the body still where it starts; its BodyMoved reports head each tick's commands, as HostSession
 ## puts them (KE14), so the body rests after the rest time.
 
-const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
-
 var game: Match
 var ticks_run := 0
 
@@ -51,7 +49,6 @@ func run() -> void:
 		failures.append("scenario: %s" % problem)
 	if not problems.is_empty():
 		return
-	var world := FlatWorldQuery.new(scenario.floor_y)
 	var levels := MarkerReader.read_levels(
 		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
 	)

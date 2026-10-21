@@ -265,6 +265,26 @@ func test_an_interact_step_names_a_station_and_the_event_its_use_emits() -> void
 	assert_array(Array(interact.problems())).is_empty()
 
 
+func test_an_interact_step_may_name_the_nearest_item_of_a_kind_instead() -> void:
+	# #1209: Cooking's boxes are items a take names in place of a station.
+	var interact := StepInteract.new()
+	interact.until = &"ItemPickedUp"
+	interact.item = ScenarioTarget.new()
+	assert_array(Array(interact.problems())).is_equal(
+		["an Interact's item is the nearest of a kind: nearest(item_kind)"]
+	)
+	interact.item.kind = ScenarioTarget.Kind.NEAREST
+	assert_array(Array(interact.problems())).is_equal(["nearest names no item kind"])
+	interact.item.item_kind = &"box_bun_white"
+	assert_array(Array(interact.problems())).is_empty()
+	interact.station = ScenarioTarget.new()
+	interact.station.kind = ScenarioTarget.Kind.STATION
+	interact.station.station_kind = &"grill"
+	assert_array(Array(interact.problems())).is_equal(
+		["an Interact names a station or an item, not both"]
+	)
+
+
 func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
 	var throw := StepThrow.new()
 	assert_array(Array(throw.problems())).is_equal(["no towards"])

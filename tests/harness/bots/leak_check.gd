@@ -70,8 +70,8 @@ const FOR_ONE: Array[StringName] = [
 ## repair's LiftChanged and PartNeeded (#807), the photo task's FilmLoaded and ShotTaken (#781),
 ## Cooking's GrillLoaded and IngredientPlaced (#773), the car repair's FitChanged and PartFitted
 ## (#808), the photo task's PhotoPrinted and PhotoHung (#782) and Cooking's BurgerPlated and
-## BurgerServed (#1101). Since #1197 the House scenarios play them over the wire, but the UNREACHED
-## ones (check_coverage).
+## BurgerServed (#1101). Since #1197 the House scenarios play them over the wire, and since #1209
+## every one of them (check_coverage).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -98,23 +98,11 @@ const TASK_EVENTS: Array[StringName] = [
 	&"BurgerPlated",
 	&"BurgerServed",
 ]
-## The task events no scenario reaches (#1197), each with why (check_coverage). The scenarios play
-## the House one storey at a time (BotScenario.floor_y, ARCHITECTURE §9.7): its ground floor (the
-## photo camera, the herb beds and places, the lift panel) and its basement (the Generator's
-## switches and button, the part bins). A chain that carries an item between storeys stays unplayed
-## until bots change storey; an item vanishes only after it lies loose longer than a scenario's time
-## limit. Both are #1209's.
-const UNREACHED: Dictionary[StringName, String] = {
-	&"ItemVanished": "a loose item vanishes past a scenario's 55 s (a herb's 60 s)",
-	&"ItemChanged": "a patty fries on the ground floor's grill, from the basement's boxes",
-	&"GrillLoaded": "the grill on the ground floor takes a patty from the basement's boxes",
-	&"BurgerPlated": "a burger takes a bun and a patty from the basement's boxes",
-	&"BurgerServed": "a burger takes a bun and a patty from the basement's boxes",
-	&"FitChanged": "the car on the ground floor takes a part from the basement's bins",
-	&"PartFitted": "the car on the ground floor takes a part from the basement's bins",
-	&"PhotoPrinted": "the printer stands upstairs, the camera on the ground floor",
-	&"PhotoHung": "the board in the basement hangs a photo printed upstairs",
-}
+## The task events no scenario reaches, each with why (check_coverage, #1197): none since the bots
+## change storey over the House's stairs (#1209, ARCHITECTURE §9.7), which played the nine chains
+## across storeys #1197 listed here. A task event added later that no scenario reaches comes here
+## with its reason, until a scenario plays it.
+const UNREACHED: Dictionary[StringName, String] = {}
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
 ## in length like Opus speech at 24 kbit/s (the M5 ADR §4: a mean near 45 B).
@@ -405,20 +393,22 @@ static func add_task_events(decoded: DecodedView, seen: Dictionary[StringName, b
 			seen[event.name] = true
 
 
-## The coverage of a run of every scenario (#1197): every task event but the UNREACHED ones was
-## decoded by some bot (`seen`, add_task_events over every view), so a scenario that stops reaching
-## one fails the run; an UNREACHED event some bot decoded fails too, to be taken off the list, and
-## so does an UNREACHED name that is no task event.
-static func check_coverage(seen: Dictionary[StringName, bool]) -> PackedStringArray:
+## The coverage of a run of every scenario (#1197): every task event but the `unreached` ones
+## (UNREACHED by default) was decoded by some bot (`seen`, add_task_events over every view), so a
+## scenario that stops reaching one fails the run; an unreached event some bot decoded fails too, to
+## be taken off the list, and so does an unreached name that is no task event.
+static func check_coverage(
+	seen: Dictionary[StringName, bool], unreached: Dictionary[StringName, String] = UNREACHED
+) -> PackedStringArray:
 	var found := PackedStringArray()
 	for name: StringName in TASK_EVENTS:
-		if not UNREACHED.has(name) and not seen.has(name):
+		if not unreached.has(name) and not seen.has(name):
 			found.append("coverage: no bot decoded the task event %s in any scenario" % name)
-		elif UNREACHED.has(name) and seen.has(name):
+		elif unreached.has(name) and seen.has(name):
 			found.append(
 				"coverage: a bot decoded %s, listed as unreached: take it off UNREACHED" % name
 			)
-	for name: StringName in UNREACHED:
+	for name: StringName in unreached:
 		if not TASK_EVENTS.has(name):
 			found.append("coverage: UNREACHED lists %s, which is no task event" % name)
 	return found
