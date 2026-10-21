@@ -232,6 +232,21 @@ Open questions, for the engineer (built as today until he answers):
 
 ## 6. Items
 
+### The hand and the belt (2026-10-21)
+- A player has one hand and **two belt slots** (the engineer, 2026-10-21,
+  [#1040 c6315467567](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6315467567); the rule:
+  [c6315451657](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6315451657)). It replaces the belt
+  of one: a player carries up to three one-handed items, task items and others alike.
+- A two-handed item fills the hands and never goes onto the belt, so a bulky thing (a story item, a weapon) is always
+  seen in the hands and nothing serious can be stashed.
+- A take with an item in the hand puts the hand item into a free belt slot; with both slots full (full hands: an item
+  in the hand and two on the belt), the hand item drops at the player's feet. Every "the belt" below means a free
+  belt slot, and "the belt is full" both slots taken.
+- How a player draws a given belt item into the hand (a key per slot, or one key that cycles) is the controls' to
+  settle.
+- Consumables (a medkit, an energy drink) and rare two-handed gadgets come after the MVP (#1040).
+
+### Open
 - How are items found or given, and can they be traded or stolen?
 - Which items affect voice (for example radios, which the brief mentions)?
 - Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
@@ -464,7 +479,7 @@ Closer to a real photography process where it helps. Later, not now: special pos
 - The path: the film is carried to the computer and printer in the study (the second floor), where one use prints
   every frame shot on it, at once; a printed photo is carried to the darkroom (the basement) and hung on its board.
 - A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot. A
-  film and a photo each take one hand: a player can hold one in the hand and one on the belt.
+  film and a photo each take one hand: a player can hold one in the hand and two on the belt (§6).
 - Who counts as a person in the photo: any living player whose head is in the frame and in the camera's sight,
   anywhere in the frame, whatever the role. Nobody standing within the camera's reach (where it can be used) is in
   the photo, neither counted nor drawn, so another player is always needed (the engineer: "you cannot photograph
@@ -480,7 +495,7 @@ Closer to a real photography process where it helps. Later, not now: special pos
   or the board, or a film or a photo from the floor: the new item goes onto the belt; if the belt is full, its item
   drops at the player's feet; the two-handed item stays in the hands. What is not a take is refused while the hands
   are busy: loading the camera, a shot, a print, a hang. Taking a film from the box with full hands (an item in the
-  hand and one on the belt) puts the hand item down at the player's feet, and the film goes into the hand.
+  hand and two on the belt) puts the hand item down at the player's feet, and the film goes into the hand.
 
 **Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
 Generator. The flat greybox, the bots' test map, gets no photo task and none of the House's chains: it keeps what it
@@ -580,8 +595,8 @@ greenhouse, where a board decodes the order's herb icon.
   through once every burger is done (there is no shared total of all tasks, #738).
 - Kinds: 3 buns (white, sesame, and dark, rye-like), 3 patties (light, a bit redder, and redder still) and 5 herbs.
   The patties are not named after animals: they are told apart by look, so a player may read them as vegetarian.
-- Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds one,
-  like any one-handed item.
+- Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds two,
+  like any one-handed item (§6).
 - Boxes: one per kind, 3 bun boxes and 3 patty boxes, starting in storage. A box is a two-handed item that gives its
   ingredient wherever it stands, storage included: one per tap of E, without limit, to anyone; holding E picks the box
   up. A player may take a patty straight from storage, or carry the box to the kitchen so nobody steals it (worth it
@@ -596,7 +611,7 @@ greenhouse, where a board decodes the order's herb icon.
   using a station that gives no item, a hit. (The engineer's reason: the rule does for the player the routine of
   putting the box down, swapping and picking it up again.) Picking up a second two-handed item still swaps it with
   the one in the hands, since the belt holds only a one-handed item.
-- Taking with full hands (an item in the hand and one on the belt) puts the hand item down at the player's feet, and
+- Taking with full hands (an item in the hand and two on the belt) puts the hand item down at the player's feet, and
   the new one goes into the hand. This holds at the boxes, the beds and the grill.
 - An ingredient left lying vanishes after a while. Spamming takes is fine: nothing in the rules stops players covering
   the map in buns. (A short technical wait between one player's takes only guards the host against a flooding client;
@@ -786,8 +801,8 @@ cannot see who is under the car.
   row. (Later, ideally, something nicer: a player crawls under the car to see what it needs; not now.)
 - The part is taken from the parts shelf in storage, one place per part kind with the same picture, as many as the
   players like, and carried to the garage in one hand.
-- Taking a part works as at the kitchen's boxes (the belt rule): with an item in the hand and the belt empty, the
-  hand item goes onto the belt; with full hands (an item in the hand and one on the belt), the hand item drops at the
+- Taking a part works as at the kitchen's boxes (the belt rule): with an item in the hand and a belt slot free, the
+  hand item goes onto the belt; with full hands (an item in the hand and two on the belt), the hand item drops at the
   player's feet; then the part goes into the hand. A player holding a two-handed item, such as a package, can still
   take a part: it goes onto the belt (a full belt's item drops at the player's feet), and the two-handed item stays
   in the hands.
@@ -902,7 +917,7 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
 - What is the reference look (a few games or images)?
 - What must be readable at a glance: roles, items, dead bodies, open doors? Under
   [vision revision 1](decisions/2026-10-01-vision-revision-1.md) everyone sees a downed player, a body (it stays until
-  its player respawns), the item in a player's hand and the one on their belt, and a player's few seconds of
+  its player respawns), the item in a player's hand and the ones on their belt, and a player's few seconds of
   invulnerability, so each must read at a glance; how they look is open.
 
 ## 15. Tutorial
