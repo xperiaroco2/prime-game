@@ -1942,11 +1942,14 @@ sections named:
    walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
    Since #1194 it sends none in the pregame either (`ChaosRun.QUIET_PHASES`): the pregame takes no claim
    (E15), but one sent in its last frames reached the host in the round, before bot 4's first claim of its
-   epoch (main's WebRTC seed 188001, 2026-10-20). Its `Correction` left the new epoch without a client-tick
-   baseline, bot 4's claims in flight in the old one were stale, and its first claim of the new one, a round
-   trip into the walk to `STAND_AT` it began on the round's start, counted one tick (the first of a client-tick baseline, §7.1):
-   corrected, 1.05 m off its spawn, and 74 times after (its script adopts no `Correction`). The host was right
-   (an honest client adopts it); `chaos_test.gd` pins both the race on a `Match` and the quiet pregame.
+   epoch (WebRTC seed 188001). Its `Correction` left the new epoch without a client-tick baseline, bot 4's
+   claims in flight in the old one were stale, and its first claim of the new one, a round trip into the
+   walk to `STAND_AT` it began on the round's start, counted one tick (the first of a client-tick baseline,
+   §7.1): corrected, 1.05 m off its spawn, and 74 times after (its script adopts no `Correction`). The host
+   was right (an honest client adopts it); `chaos_test.gd` pins both the race on a `Match` and the quiet
+   pregame. Item 5's "else nothing" for the pregame is thus no longer checked over the wire by the chaos
+   runs (the loading phase and the End still are); `host_session_end_to_end_test.gd`, the `ChaosOracle`
+   `pregame` row and the `Match`-level assertion in `chaos_test.gd` cover it.
    Over every transport (#674), `ChaosRun` fails a run in which no hostile claim went out while its client knew it
    alive in the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 12 to 24 over seeds
    188001 to 188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot
