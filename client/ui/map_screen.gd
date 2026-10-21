@@ -486,13 +486,13 @@ func _retext() -> void:
 func _retext_rows() -> void:
 	var plates := rows_box.get_children()
 	for i in mini(plates.size(), _shown.size()):
-		var shown_name := plates[i].find_child("Name", true, false) as Label
+		var shown_name := plates[i].get_node(^"H/Name") as Label
 		shown_name.text = name_of(_shown[i])
 		_set_struck(shown_name, is_done(_shown[i]))
 		if _shown[i].bar:
-			_fill(plates[i].find_child("Charge", true, false) as ProgressBar, _shown[i])
+			_fill(plates[i].get_node(^"H/Charge") as ProgressBar, _shown[i])
 		else:
-			(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
+			(plates[i].get_node(^"H/Count") as Label).text = counter_text(_shown[i])
 
 
 func _rebuild_rows() -> void:
@@ -570,7 +570,10 @@ static func _fill(bar: ProgressBar, row: Row) -> void:
 
 ## A done task's name is struck through: a placeholder line until the UI milestone (#150);
 ## a Label has no strikethrough (only RichTextLabel does), so the line is drawn over the text.
+## The map refreshes every frame while open: a redraw only when the line comes or goes (#1245).
 func _set_struck(label: Label, struck: bool) -> void:
+	if label.get_meta(&"struck", false) == struck:
+		return
 	label.set_meta(&"struck", struck)
 	label.queue_redraw()
 
