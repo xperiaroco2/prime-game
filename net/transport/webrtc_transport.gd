@@ -790,13 +790,13 @@ func _fail_join(reason: StringName) -> void:
 ## Writes to a connection's channel, only while it is open (the M6 ADR §2.6); LATEST gets
 ## LaneOrder's header and RELIABLE is counted for it. Counts the upload (E56).
 ## A channel the other side closed is a peer on its way out (CHANNEL_GRACE_MS: a leaving client
-## closes its channels just before its connection): ERR_DOES_NOT_EXIST, as for a peer gone (#639).
+## closes its channels just before its connection): ERR_DOES_NOT_EXIST, as for a peer gone (#639);
+## failed_put() says which failure is which.
 func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var channel := conn.channels[lane]
-	if _is_going(channel):
-		return ERR_DOES_NOT_EXIST
-	if channel.get_ready_state() != WebRTCDataChannel.STATE_OPEN:
-		return ERR_CONNECTION_ERROR
+	var state := channel.get_ready_state()
+	if state != WebRTCDataChannel.STATE_OPEN:
+		return failed_put(conn.open, state, ERR_CONNECTION_ERROR)
 	# An empty message never reached the peer's get_packet() in the chaos runs (observed, not
 	# in the docs), but one put on RELIABLE would be counted for LaneOrder all the same, and every
 	# later LATEST packet would wait for one reliable packet more, arriving behind one sent after
@@ -811,7 +811,7 @@ func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var err := channel.put_packet(packet)
 	if err != OK:
 		# libdatachannel's threads can close the channel between the check and the send.
-		return ERR_DOES_NOT_EXIST if _is_going(channel) else err
+		return failed_put(conn.open, channel.get_ready_state(), err)
 	if lane == NetKindTable.Lane.RELIABLE:
 		_order.count_reliable_sent(conn.peer_id)
 	conn.last_sent_ms = Time.get_ticks_msec()
@@ -820,10 +820,16 @@ func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	return OK
 
 
-## Whether `channel` is closing or closed.
-static func _is_going(channel: WebRTCDataChannel) -> bool:
-	var state := channel.get_ready_state()
-	return state == WebRTCDataChannel.STATE_CLOSING or state == WebRTCDataChannel.STATE_CLOSED
+## What a write that failed with `err` on a channel in `state` returns (#1232). On a connection that
+## `opened`, a channel no longer OPEN is its peer on its way out, ERR_DOES_NOT_EXIST, whatever state
+## it reads for a moment: one the client closed just before leaving can read neither OPEN nor
+## CLOSING on a loaded runner. So is a channel closing or closed before the connection opened.
+## Otherwise `err` stands: a failure on an OPEN channel, or on one of a connection still opening.
+static func failed_put(opened: bool, state: WebRTCDataChannel.ChannelState, err: Error) -> Error:
+	if state == WebRTCDataChannel.STATE_OPEN:
+		return err
+	var going := state == WebRTCDataChannel.STATE_CLOSING or state == WebRTCDataChannel.STATE_CLOSED
+	return ERR_DOES_NOT_EXIST if opened or going else err
 
 
 ## Open, admitted where it matters, and not being closed by the host.
