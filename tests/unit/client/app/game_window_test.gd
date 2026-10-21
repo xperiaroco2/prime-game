@@ -18,8 +18,9 @@ func test_an_export_template_starts_fullscreen_and_not_exclusive() -> void:
 
 
 func test_the_editors_binary_starts_in_a_window() -> void:
-	# `shot`, `playcheck`, `host` and `join` place their windows with --position and --resolution,
-	# which do not undo a fullscreen mode; Godot 4.7.2's --windowed does not either.
+	# `host` and `join` place their windows with --position and --resolution; `shot`, `playcheck`
+	# and `run --offscreen` start at 1x1 and Offscreen.place() moves and sizes them. Neither undoes a
+	# fullscreen mode (window_set_position does not), and Godot 4.7.2's --windowed does not either.
 	assert_bool(OS.has_feature("template")).is_false()
 	var here: int = ProjectSettings.get_setting_with_override(MODE)
 	assert_int(here).is_equal(DisplayServer.WINDOW_MODE_WINDOWED)

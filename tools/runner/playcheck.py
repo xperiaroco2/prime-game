@@ -4,8 +4,8 @@
 8); usage in docs/AGENT_WORKFLOW.md §11. It catches what only a playtest saw before (#168, #169).
 
 A scenario, tools/playcheck/scenarios/<name>.txt, names its players: the first `windows` are the game,
-client/app/game.tscn, each in a real window at `shot`'s off-screen position (never headless or minimized: Godot then
-draws nothing), started by tools/playcheck/playcheck_window.gd with the command line `host` gives a host (window 1:
+client/app/game.tscn, each in a real window kept off-screen as `shot`'s (tools/runner/offscreen.py; never headless or
+minimized: Godot then draws nothing), started by tools/playcheck/playcheck_window.gd with the command line `host` gives a host (window 1:
 --host --local) and its local clients (--join=127.0.0.1); the players after them are bots, one headless process of
 tests/harness/playcheck/playcheck_bots_main.gd that plays the scripts of a BotScenario over ENet. Each window runs
 its own steps. A wait reads only that window's own client: its ClientSession and ClientModel (the host's own client
@@ -96,7 +96,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import hostjoin, launch, shot
+from . import hostjoin, launch, offscreen, shot
 from .common import IS_CI, LOGS, OUT, ROOT, Failure, bad, ensure_out, ok, rel, require_godot, say
 
 SCENARIOS = ROOT / "tools" / "playcheck" / "scenarios"
@@ -647,8 +647,9 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
 
 
 def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
-    """Windows: the window script in a real window at shot's off-screen position with the dummy audio driver. The
-    console exe opens them too, and relays the lines the runner reads. The bots: their script headless."""
+    """Windows: the window script in a real window off-screen (offscreen.START, its SIZE in the environment) with the
+    dummy audio driver. The console exe opens them too, and relays the lines the runner reads. The bots: their script
+    headless."""
     for part in parts:
         bots = part.label == "bots"
         part.cmd = launch.command(
@@ -659,8 +660,8 @@ def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
             offscreen=not bots,
             audio="dummy",
             user_args=part.user_args,
-            window=None if bots else ["--resolution", SIZE],
         )
+        part.env = {} if bots else offscreen.env(SIZE)
 
 
 def failed_line(part: hostjoin.Part) -> str:
@@ -691,6 +692,11 @@ def problem(part: hostjoin.Part, *, others_failed: bool = False) -> str:
         return line.removeprefix(FAIL)
     if part.problem:
         return part.problem
+    placed = "" if part.label == "bots" else offscreen.problem(part.lines)
+    if placed and others_failed and not done(part) and not any(offscreen.LINE_RE.search(x) for x in part.lines):
+        placed = ""  # stopped before its place() ran: the process that failed first is the cause (below)
+    if placed:
+        return f"its window was {placed}"
     if part.label != "bots" and not done(part):
         where = last_step(part)
         why = "stopped before its steps were done, since another process failed" if others_failed else (

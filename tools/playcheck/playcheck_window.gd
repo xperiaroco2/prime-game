@@ -1,9 +1,9 @@
 extends SceneTree
 ## One window of `tools\run.cmd playcheck` (#186; docs/AGENT_WORKFLOW.md §11): the game,
-## client/app/game.tscn, with the command line `host` and `join` give it, in a real window that
-## the runner puts off-screen (never headless or minimized: Godot then draws nothing), running
-## this window's steps from the runner's plan (tools/playcheck/playcheck_steps.gd).
-##   godot --position -30000,-30000 --resolution 1280x720 --audio-driver Dummy
+## client/app/game.tscn, with the command line `host` and `join` give it, in a real window off
+## every screen (never headless or minimized: Godot then draws nothing; Offscreen.place() first,
+## #1141), running this window's steps from the runner's plan (tools/playcheck/playcheck_steps.gd).
+##   PRIME_WINDOW=1280x720 godot --position 30000,-30000 --resolution 1x1 --audio-driver Dummy
 ##       -s res://tools/playcheck/playcheck_window.gd
 ##       -- --plan=<plan.json> --window=<n> <--host --local, --join=... or --tutorial>
 ## (LaunchOptions' arguments; --tutorial: the solo tutorial's one window, #601).
@@ -25,6 +25,7 @@ extends SceneTree
 ## window <n>, or PLAYCHECK fail step <n> (...): <why> (after saving failed-window-<n>.png) and
 ## exits 1. Done, it keeps running until the runner's stop file (Game's own check) ends it.
 
+const Offscreen := preload("res://tools/offscreen/offscreen.gd")
 const Steps := preload("res://tools/playcheck/playcheck_steps.gd")
 const GAME_SCENE := "res://client/app/game.tscn"
 const PREFIX := "PLAYCHECK "
@@ -244,6 +245,11 @@ func _initialize() -> void:
 		_quit_failed(
 			"running headless; playcheck needs a real window (Godot draws nothing headless)"
 		)
+		return
+	# First: Godot opened the window clamped onto the screen's corner (#1141).
+	var placed: String = Offscreen.place()
+	if placed != "":
+		_quit_failed(placed)
 		return
 	var plan_path := ""
 	var game_args := PackedStringArray()

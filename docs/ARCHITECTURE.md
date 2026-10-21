@@ -3048,8 +3048,10 @@ would. The pick-up hint stops a walking margin short of the host's reach (#319, 
 presses `interact` the moment the hint shows, with no settle step (`items.txt`, #353). Keys go in through
 `Input.parse_input_event`, before the frame's `_process`, so actions polled there (`interact`, `swap`, `put_down`)
 see them as just pressed; holds through `Input.action_press`, screenshots through
-`Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
-off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
+`Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows stay off every
+screen as `shot`'s does (never headless: Godot then draws nothing; `playcheck_window.gd` calls
+`tools/offscreen/offscreen.gd` `place()` first, since Godot clamps `--position` onto the screen, #1141, AGENT_WORKFLOW
+§11.4), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured. The item keys read the game's pointer
 (`ItemInteractions.mouse_captured`, which `Game` gives `pointer.captured`, #1114), so `hold use` (the left button has
 no key to press) uses the hand item and takes the viewfinder's shot (`house_photo`). Spectate cycling reads the
@@ -3115,7 +3117,8 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   the size the UI pack's mock-ups and Toy tokens are drawn at, so one mock-up px is one Godot px and no int token
   (border, radius, shadow, font size) is scaled and rounded. It still stretches to the window (`canvas_items`,
   `expand`; the 3D view renders at the window's size), and `window_width_override` and `_height_override` keep the
-  start window at 1152x648 (`shot`, `playcheck`, `host` and `join` size theirs with `--resolution`). Mouse look reads
+  start window at 1152x648 (`host` and `join` size theirs with `--resolution`; `shot`, `playcheck` and
+  `run --offscreen` start at 1x1 and `Offscreen.place()` sizes theirs, #1141). Mouse look reads
   `screen_relative`, which the stretch does not scale.
 - Until the screen issues (#489-#498) move each screen to Toy variations, its sizes are those of the old 1152x648
   base times 5/3, rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so

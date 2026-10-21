@@ -1158,16 +1158,28 @@ reaches the summary row (`passed  check  28.3s  (Godot crashed at exit, #442)`, 
 body carry it), the step's history record (`exit_crash: true`) and `metrics`' crash rate over the window (#449).
 
 ### 11.4 `shot <scene>` [applied]
-A real window at `--position -30000,-30000` (off-screen), never headless or minimized
-(Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
-one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
-forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
+A real window off every screen, never headless or minimized (Godot then never draws). `--position -30000,-30000`
+alone does not do it: Godot 4.7.2 on Windows clamps a new window into the primary screen, so each shot window stood
+at the top-left corner at full size (1282x752) for 1.5 to 3.9 s (#1141). The runner (`tools/runner/offscreen.py`)
+starts it as one pixel at `--position 30000,-30000 --resolution 1x1` with the size it wants in `PRIME_WINDOW`; the
+window script calls `tools/offscreen/offscreen.gd` `place()` first, which moves it to -30000,-30000 with
+`DisplayServer.window_set_position` (no clamp), grows it and prints an `OFFSCREEN window <x>,<y> <w>x<h> screens ...`
+line. The runner fails a run whose line is missing or whose window meets a screen. What a window watcher still saw:
+the frame's 1 px left border, 2 px tall at the top-right corner, until `place()` (0.5 to 0.8 s for a shot, 3.7 and
+4.9 s for playcheck's two windows); the game keeps its title bar and focus (no command-line flag makes a window
+borderless or unfocused). The pictures are unchanged: pixel-identical for `probe.tscn` and the attic; the End
+screen of `client/dev/end_preview.tscn` fades in over 0.4 s of real time, so its background differs by 1 to 2 levels
+between two runs of the same code too. A 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level
+piece) gets one that frames all its geometry, plus a light if it has none. It prints the driver it drew with
+(`renderer: vulkan forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
 gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
 Runs a scene, or a `-s` script that extends `SceneTree`, with the
 pinned Godot; arguments after `--` reach `OS.get_cmdline_user_args()`. `--headless` uses `GODOT_BIN`; a window
-uses `GODOT_GUI_BIN` (else `GODOT_BIN`), and `--offscreen` puts it at `shot`'s off-screen position. `--seconds N`
+uses `GODOT_GUI_BIN` (else `GODOT_BIN`), and `--offscreen` keeps it off-screen as `shot` does (§11.4): a scene runs under
+`tools/offscreen/offscreen_scene.gd`, which places the window first; a `.gd` target calls `Offscreen.place()` itself or
+the run fails with "no OFFSCREEN line". `--seconds N`
 (default 60) kills the process tree; `--instances N` (up to 8) starts N copies at once, each with
 `PRIME_INSTANCE=<i>` in its environment and its own log `tools/out/logs/run/<name>-<i>.log` (the next run of the
 same name replaces them). `--audio dummy` (default) or `default`; `--headless --audio default` keeps the real
@@ -1522,8 +1534,9 @@ paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads 
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
 stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
 edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` holds at once on a hidden field
-(it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
-off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
+(it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows stay off-screen as
+`shot`'s does (§11.4: `playcheck_window.gd` calls `Offscreen.place()` first) with the dummy audio driver, never
+headless. The game gets a pointer that only remembers, and
 playcheck presses keys only, so the real mouse is never captured. The item keys read that pointer, so `hold use` (the
 left button has no key for `press`) uses the hand item and shoots from the viewfinder (#1114); spectate cycling,
 which reads Input's mouse mode, is out of its reach, and `aim` is the only way to turn. PNGs:
