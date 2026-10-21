@@ -36,13 +36,18 @@ the examples come only from his references, never from other works):
 2. **Slay.** The aliens are masters: what they make is stylish, fashionable and modern, as on the makeover show; a job
    ends in a "wow" reveal for the whole party.
 3. **Tech with a character and its own problem.** One mania or drama per device, its job taken literally to the
-   absurd; it speaks only when something happens, never non-stop.
+   absurd; the character shows in what the device does, not in lines it says (2026-10-21, below).
 4. **A gadget for a small thing that blows everything up,** in front of the party.
 5. **The body, the high and the gross as the joke.** High, drunk, swollen, transformed, puked on: dumb and funny,
    never scary, no guts.
 6. **References everywhere.** Earth pop culture in an alien version, played straight; parody only (§3).
 
 **Not the vibe:** a shy, childish party ("we party, we bake pies"); jokes dragged in by the ears; slow, careful work.
+
+**A sandbox, not a show** (the engineer, 2026-10-21, [#1095 comment 6313177753](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6313177753);
+approved: [comment 6315676554](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6315676554)): the fun
+comes from many mechanics, moments and easter eggs that players play with; the players make the jokes, the game never
+scripts them or leads by the hand.
 
 ## 3. The pillars as a checklist
 Each idea answers these (GDD §1 is the source; numbers are placeholders until a balance model and a playtest):
@@ -67,11 +72,14 @@ Each idea answers these (GDD §1 is the source; numbers are placeholders until a
 - **The tone came from the session, not the game:** ideas from old films and a dacha (#1120, the intervention entry
   of 2026-10-15).
 - **Too much at once:** four detailed variants with tables lost him; maths before the fun is backwards.
+- **Written gags:** six cards of jokes for the MVP's tasks (a host's voice, talking devices, reveal lines) were
+  rejected as "some stand-up show": the game must be fun from being in it and from what its models are like
+  ([#1095 comment 6313151159](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6313151159)).
 
 ## 5. How an idea moves
 1. **One-liners:** 5 to 8 ideas, one line each, each past the tone test; no numbers, no tables.
 2. **He picks** one, mixes some or rejects all; a rejection is information: ask what missed.
-3. **Expand the pick:** the fantasy and the joke, the player's steps, what others see and hear, the humans' deniable
+3. **Expand the pick:** the fantasy, the player's steps, what others see and hear, the humans' deniable
    spoils, the clip moment, what it needs from the map.
 4. **Check it:** holes, fairness, balance, the numbers as placeholders. The careful thinking belongs here, not in
    step 1, where it turns ideas cautious.
