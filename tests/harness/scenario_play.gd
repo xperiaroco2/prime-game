@@ -411,7 +411,8 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)
 	var to := bot.position + direction * travel
 	# Placed above the fake world's floor (the House's basement storey, BotScenario.floor_y, #1197),
-	# the bot drops onto it with its first claim: a fall, which the host does not bound.
+	# the bot drops onto it with its first claim: a fall, which the host does not bound (§7.1; #1209
+	# would take the stairs). Only lowered: a bot the host sets below floor_y keeps its y.
 	to.y = minf(to.y, scenario.floor_y)
 	_claim(bot, to, direction * speed, sprinting)
 	return Result.WAITING

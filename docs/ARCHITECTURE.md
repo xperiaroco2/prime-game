@@ -8182,7 +8182,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     circle, a zone, a basement device) may stand below it there, and markers of different tags may share an
     (x, z). A House scenario sets `floor_y` to the storey it plays (the ground floor 0, the basement -3.2): the fake
     world's one floor stands there, a bot set down at y 0 drops onto it with its first claim (`scenario_play.gd` caps
-    a walk's target at `floor_y`), and it reaches only that storey's stations; the fake has none of the House's walls,
+    the y of each position a walk claims at `floor_y`; the walk's target and its x-z distance are unchanged), and it reaches only that storey's stations; the fake has none of the House's walls,
     so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (a flat map's scenarios keep `floor_y` 0); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
