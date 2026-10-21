@@ -662,7 +662,7 @@ class NightlyScriptsTest(unittest.TestCase):
 
     def test_the_options_check_passes_on_this_runner(self) -> None:
         calls = self.jobs_calls()
-        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos"})
+        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos", "lfs"})
         for call in calls:
             command = call[2].split()[0]
             res = self.check_options(call, {command: self.real_help(command)})
