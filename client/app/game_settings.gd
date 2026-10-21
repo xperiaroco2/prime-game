@@ -6,7 +6,11 @@ extends RefCounted
 ## Large text swaps GameUi's theme, reduced motion sets UiPrefs, the window mode goes to
 ## GameWindow, the language to Languages.choose (saved only when picked, #208). The saved large
 ## text and reduced motion apply at the start; the saved window mode only with the command line
-## read (a test's or a playcheck window keeps its window as it is).
+## read and no runner window asked for (a test's or a runner's window keeps its window as it is).
+
+## The environment variable a runner launch sets (tools/offscreen/offscreen.gd ENV, #1141): the
+## window script places its window off-screen, and a restored fullscreen would cover the screen.
+const RUNNER_WINDOW := "PRIME_WINDOW"
 
 
 ## Both Settings pages: the Esc menu's and the main menu's.
@@ -24,7 +28,9 @@ static func setup(game: Game) -> void:
 		if saved.reduced_motion >= 0
 		else UiPrefs.system_reduced_motion()
 	)
-	if game.read_command_line and not saved.window_mode.is_empty():
+	if restores_window(
+		saved.window_mode, game.read_command_line, OS.get_environment(RUNNER_WINDOW)
+	):
 		game.window.set_mode(_window_mode(saved.window_mode == UserSettings.WINDOW_FULLSCREEN))
 	for page: SettingsPage in pages(game):
 		page.bind(saved, game.window, func() -> bool: return game.ui.large_text)
@@ -36,6 +42,14 @@ static func setup(game: Game) -> void:
 	# The Lobby tab's own preset (Save your own) is the player's too.
 	game.ui.esc.lobby.set_own_preset(saved.own_preset)
 	game.ui.esc.lobby.preset_saved.connect(save_own_preset.bind(game))
+
+
+## Whether the saved window mode is restored at the start: only with the command line read, a
+## saved mode, and no `runner_window` (PRIME_WINDOW; #1175). The other saved settings apply anyway.
+static func restores_window(
+	saved_mode: String, read_command_line: bool, runner_window: String
+) -> bool:
+	return read_command_line and not saved_mode.is_empty() and runner_window.is_empty()
 
 
 static func save_own_preset(values: Dictionary, game: Game) -> void:
