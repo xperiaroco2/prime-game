@@ -26,20 +26,21 @@ extends RefCounted
 ## condition holding a condition that reads the rule's target (Condition.needs_target:
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
-## carries an item), else the condition finds no target and its answer never changes (#379);
-## two rules on one trigger in one owner; an action that is never reached (RuleReachCheck); two
-## win conditions with one id; a station kind's rule on an intent that names no station,
-## and an item kind's on one that does (the hand item never owns Interact, the Generator ADR's
-## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
-## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
-## an AtStation, StationInSight or StationUsable on an intent that names no station (a dead rule);
-## a HoldStation on an intent that names no station (and, as every ChannelEffect, without its
-## required AtStation and ChannelFree; the car repair ADR's RE9, #805), without StationInSight, or
-## with ChannelFree before AtStation or StationInSight (its busy would leak); two station kinds
-## among the task types with one id or one spawn tag, one kind held twice included (stations take
-## markers without asking whether one stands there, and Demands keys palettes by the kind's id); a
-## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
-## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
+## carries an item), else the condition finds no target and its answer never changes (#379;
+## ActorConditionCheck); two rules on one trigger in one owner; an action that is never reached
+## (RuleReachCheck); two win conditions with one id; a station kind's rule on an intent that names
+## no station, and an item kind's on one that does (the hand item never owns Interact, the
+## Generator ADR's GE2); a UseStation on an intent that names no station or without AtStation,
+## StationInSight and StationUsable, a StationUsable (negated too) without AtStation and
+## StationInSight before it, and an AtStation, StationInSight or StationUsable on an intent that
+## names no station (a dead rule); a HoldStation on an intent that names no station (and, as every
+## ChannelEffect, without its required AtStation and ChannelFree; the car repair ADR's RE9, #805),
+## without StationInSight, or with ChannelFree before AtStation or StationInSight (its busy would
+## leak); two station kinds among the task types with one id or one spawn tag, one kind held twice
+## included (stations take markers without asking whether one stands there, and Demands keys
+## palettes by the kind's id; these station checks are StationRuleCheck's); a task type that
+## ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would never count; an
+## item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
 ## its items would never vanish (the cooking ADR, C10); an item kind's target_actions holding a
 ## UseStation, AtStation, StationInSight or StationUsable (an item names no station), and a
 ## GiveItem anywhere but in an action on an intent that names a target (C1); a number outside its
@@ -90,7 +91,7 @@ func _check_mode(mode: GameMode) -> void:
 	errors.append_array(WinCondition.mode_errors(mode))
 	warnings.append_array(WinCondition.mode_warnings(mode))
 	_walk(mode, "mode", mode, {})
-	_check_stations(mode)
+	errors.append_array(StationRuleCheck.kind_problems(mode))
 	_check_ticking(mode)
 	_check_vanishing(mode)
 	_check_rules(mode)
@@ -163,8 +164,9 @@ func _check_rules(mode: GameMode) -> void:
 			_check_owner("role %s.actions" % role.id, role.actions, Intents.ALL, true, types)
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
-			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
-			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
+			var actions := "item kind %s.actions" % kind.id
+			_check_owner(actions, kind.actions, Intents.ALL, false, types)
+			errors.append_array(StationRuleCheck.hand_item_problems(actions, kind.actions))
 			var targets := "item kind %s.target_actions" % kind.id
 			_check_owner(targets, kind.target_actions, station_intents(), false, [], true)
 			errors.append_array(ItemTargetCheck.target_rules(targets, kind.target_actions))
@@ -172,108 +174,7 @@ func _check_rules(mode: GameMode) -> void:
 		var owner := "station kind %s.actions" % kind.id
 		var type := Stations.owner_of(mode, kind)
 		_check_owner(owner, kind.actions, station_intents(), false, [type])
-	_check_actor_conditions(mode)
-
-
-## A reaction runs, and a win condition is checked, for no player (actor 0, which has no
-## PlayerState; §9.2): a condition that reads the actor (Condition.reads_actor_state) tests no
-## player there, so its answer never changes. A cost of that kind always refuses, so its reaction
-## would silently never run its effects (#283) and its win condition never hold (#299). A negated
-## cost in a win condition passes for actor 0 (a win condition pays nothing), so it gets the
-## condition's words; in a reaction only the "negates a cost" error. A condition that reads no
-## actor may still read the rule's target, which nothing supplies there (_check_target_condition).
-func _check_actor_conditions(mode: GameMode) -> void:
-	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
-	for index: int in mode.reactions.size():
-		var rule := mode.reactions[index]
-		if rule == null:
-			continue
-		var owner := "mode.reactions[%d]: the reaction on %s of %s" % [index, rule.trigger, where]
-		for condition: Condition in rule.conditions:
-			# A negated cost passes for actor 0 and is never paid: _check_owner's "negates a cost"
-			# covers it, and the reaction would run.
-			if condition is Cost and condition.negate:
-				continue
-			if not _check_actor_condition(
-				owner, condition, "a reaction runs", "the reaction never runs"
-			):
-				_check_target_condition(owner, condition, rule.trigger)
-	for index: int in mode.win_conditions.size():
-		var win := mode.win_conditions[index]
-		if win == null:
-			continue
-		var owner := "mode.win_conditions[%d]: the win condition %s of %s" % [index, win.id, where]
-		for condition: Condition in win.conditions:
-			if not _check_actor_condition(
-				owner, condition, "a win condition is checked", "the win condition never holds"
-			):
-				_check_target_condition(owner, condition, &"")
-
-
-## The error for `condition` of `owner` when it reads the rule's target (Condition.needs_target)
-## and nothing supplies one (#379): a reaction has only its fact `fact`, which may carry it
-## (Condition.target_facts); a win condition (`fact` empty) has no intent, channel or fact. A
-## condition that also reads the actor got that error already, and gets no second one.
-func _check_target_condition(owner: String, condition: Condition, fact: StringName) -> void:
-	if condition == null or not condition.needs_target():
-		return
-	var why_none := "a win condition is checked with no intent, channel or fact to supply one"
-	if not fact.is_empty():
-		if condition.target_facts().has(fact):
-			return
-		why_none = "a reaction runs with no intent or channel and its fact %s supplies none" % fact
-	errors.append(
-		(
-			(
-				"%s holds the condition %s, which reads the rule's target: %s, so the condition"
-				+ " finds no target and its answer never changes"
-			)
-			% [owner, _class_of(condition), why_none]
-		)
-	)
-
-
-## The error for `condition` of `owner` when it reads the actor, and whether there was one. A
-## cost that is not negated always refuses actor 0; any other such condition passes always or
-## never.
-func _check_actor_condition(
-	owner: String, condition: Condition, runs: String, never: String
-) -> bool:
-	if condition == null or not condition.reads_actor_state():
-		return false
-	if condition is Cost and not condition.negate:
-		errors.append(
-			(
-				(
-					"%s holds the cost %s, which reads the actor's player state: %s for no player"
-					+ " (actor 0), so the cost always refuses and %s"
-				)
-				% [owner, _class_of(condition), runs, never]
-			)
-		)
-		return true
-	errors.append(
-		(
-			(
-				"%s holds the condition %s, which reads the actor: %s for no player (actor 0), so"
-				+ " the condition tests no player and its answer never changes"
-			)
-			% [owner, _class_of(condition), runs]
-		)
-	)
-	return true
-
-
-## The global class name of `condition`'s script; for a script without a class_name (an inner
-## class), "a <the nearest named class it extends> with no class_name".
-static func _class_of(condition: Condition) -> String:
-	var script := condition.get_script() as Script
-	if not script.get_global_name().is_empty():
-		return String(script.get_global_name())
-	while script != null and script.get_global_name().is_empty():
-		script = script.get_base_script()
-	var base := script.get_global_name() if script != null else &"Condition"
-	return "a %s with no class_name" % base
+	errors.append_array(ActorConditionCheck.problems(mode))
 
 
 ## The rules of one owner. `uses`: the task types whose use_emits() a UseStation in them can
@@ -307,7 +208,7 @@ func _check_owner(
 			gated = gated or condition.gates_on_role()
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
-		_check_station_rule(owner, rule)
+		errors.append_array(StationRuleCheck.rule_problems(owner, rule))
 		errors.append_array(ItemTargetCheck.give_rule(owner, rule, at_item))
 		if gated and _has_channel and on_intent:
 			warnings.append(
@@ -389,135 +290,6 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 				)
 
 
-## A station's rule (the Generator ADR's GE2, #796): a UseStation only on an intent that names a
-## station, with AtStation, StationInSight and StationUsable (UseStation.required_conditions); and
-## a StationUsable only after AtStation and StationInSight, so its reason only ever tells about a
-## station the actor has in reach and in sight (§9.4.1). A HoldStation only on an intent that names
-## a station too (the car repair ADR's RE9, #805; its required conditions _check_channel_rule's).
-func _check_station_rule(owner: String, rule: Rule) -> void:
-	var uses_station := false
-	for effect: RuleEffect in rule.effects:
-		uses_station = uses_station or effect is UseStation or effect is HoldStation
-		if effect is HoldStation and not Stations.names_station(rule.trigger):
-			errors.append(
-				(
-					"%s: rule %s holds a station, which only an intent naming one (%s) can"
-					% [owner, rule.trigger, station_intents()]
-				)
-			)
-	if _holds_effect(rule, HoldStation):
-		_check_hold_order(owner, rule)
-	if not uses_station and not Stations.names_station(rule.trigger):
-		# A dead rule (#379): on an intent with no station they find none and always refuse.
-		for condition: Condition in rule.conditions:
-			if _is_station_condition(condition):
-				(
-					errors
-					. append(
-						(
-							"%s: rule %s holds %s, which finds a station only on an intent naming one (%s)"
-							% [
-								owner,
-								rule.trigger,
-								(condition.get_script() as Script).get_global_name(),
-								station_intents()
-							]
-						)
-					)
-				)
-				break
-	for effect: RuleEffect in rule.effects:
-		if not effect is UseStation:
-			continue
-		if not Stations.names_station(rule.trigger):
-			errors.append(
-				(
-					"%s: rule %s uses a station, which only an intent naming one (%s) can"
-					% [owner, rule.trigger, station_intents()]
-				)
-			)
-		for required: Script in (effect as UseStation).required_conditions():
-			if not _has_condition(rule, required):
-				(
-					errors
-					. append(
-						(
-							"%s: rule %s uses a station, which requires the condition %s, which it lacks"
-							% [owner, rule.trigger, required.get_global_name()]
-						)
-					)
-				)
-	# A negated StationUsable too: its not_allowed answers by the same use_problem.
-	var usable := _index_of(rule, StationUsable, true)
-	if usable < 0:
-		return
-	for before: Script in [AtStation, StationInSight]:
-		var at := _index_of(rule, before)
-		if at < 0 or at > usable:
-			(
-				errors
-				. append(
-					(
-						(
-							"%s: rule %s holds StationUsable without %s before it: its reason would tell"
-							+ " about a station out of reach or out of sight"
-						)
-						% [owner, rule.trigger, before.get_global_name()]
-					)
-				)
-			)
-
-
-## A HoldStation's rule holds StationInSight (a station's cylinder can reach through a thin wall,
-## GE4: the re-check only runs the rule's own conditions, so a hold started through one would go
-## on), and ChannelFree only after AtStation and StationInSight: its `busy` tells that another
-## player holds the station, which only a player with the station in reach and in sight may hear
-## (§9.4.1). A missing AtStation or ChannelFree is _check_channel_rule's.
-func _check_hold_order(owner: String, rule: Rule) -> void:
-	var free := _index_of(rule, ChannelFree)
-	if _index_of(rule, StationInSight) < 0:
-		errors.append(
-			(
-				(
-					"%s: rule %s holds a station without StationInSight: a station behind a wall"
-					+ " could be held through it"
-				)
-				% [owner, rule.trigger]
-			)
-		)
-	if free < 0:
-		return
-	for before: Script in [AtStation, StationInSight]:
-		var at := _index_of(rule, before)
-		if at > free or (at < 0 and before == StationInSight):
-			errors.append(
-				(
-					(
-						"%s: rule %s holds ChannelFree without %s before it: its busy would tell"
-						+ " about a station out of reach or out of sight"
-					)
-					% [owner, rule.trigger, before.get_global_name()]
-				)
-			)
-
-
-## The hand item never owns an intent that names a station (GE2): the station's kind, the role
-## and the mode do, so §9.2's order (the hand item's, the role's, the mode's) holds for every other
-## intent, and a later item cannot silently override or lose to a station.
-func _check_no_station_rule(owner: String, rules: Array[Rule]) -> void:
-	for rule: Rule in rules:
-		if rule != null and Stations.names_station(rule.trigger):
-			errors.append(
-				(
-					(
-						"%s: rule %s names a station, which a hand item never owns: the station's"
-						+ " kind, the role or the mode does (§9.2)"
-					)
-					% [owner, rule.trigger]
-				)
-			)
-
-
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.
 static func station_intents() -> Array[StringName]:
 	var found: Array[StringName] = []
@@ -533,25 +305,6 @@ static func _all_intents(triggers: Array[StringName]) -> bool:
 		if not Intents.ALL.has(trigger):
 			return false
 	return not triggers.is_empty()
-
-
-## The index of the first condition of `condition_class` in `rule` that is not negated (or, with
-## `negated_too`, any), or -1.
-static func _index_of(rule: Rule, condition_class: Script, negated_too := false) -> int:
-	for i in rule.conditions.size():
-		var condition := rule.conditions[i]
-		if (
-			condition != null
-			and (negated_too or not condition.negate)
-			and is_instance_of(condition, condition_class)
-		):
-			return i
-	return -1
-
-
-## Whether `condition` is one of the three that look for the station an intent names.
-static func _is_station_condition(condition: Condition) -> bool:
-	return condition is AtStation or condition is StationInSight or condition is StationUsable
 
 
 ## Whether `rule` holds a condition of `condition_class` that is not negated: a negated one
@@ -574,42 +327,6 @@ static func _any_channel(mode: GameMode) -> bool:
 			if rule != null and _holds_effect(rule, ChannelEffect):
 				return true
 	return false
-
-
-## Two station kinds of the mode's task types with one id or one spawn tag (ZE3 of the zone task
-## ADR): each task type places its stations on markers of its kind's tag without asking whether a
-## station stands there already, so two kinds on one tag would share spots, and Demands counts
-## palette colours per kind id. One entry per StationKind property of a task type, not per kind:
-## one kind held by two properties (a zone and a circle) would share spots the same way.
-func _check_stations(mode: GameMode) -> void:
-	var paths: Array[String] = []
-	var kinds: Array[StationKind] = []
-	for i in mode.task_types.size():
-		var type := mode.task_types[i]
-		if type == null:
-			continue
-		var held := type.station_kinds()
-		var names := Stations.property_names_of(type)
-		for k in held.size():
-			# The default finder is the reflection: its k-th kind is the k-th property's.
-			var name := names[k] if names.size() == held.size() else "station_kinds()[%d]" % k
-			paths.append("mode.task_types[%d].%s" % [i, name])
-			kinds.append(held[k])
-	for i in kinds.size():
-		for j in range(i + 1, kinds.size()):
-			var pair := "%s and %s" % [paths[i], paths[j]]
-			if kinds[i] == kinds[j]:
-				errors.append("%s hold one station kind, %s" % [pair, kinds[i].id])
-				continue
-			if not kinds[i].id.is_empty() and kinds[i].id == kinds[j].id:
-				errors.append("%s: two station kinds with the id %s" % [pair, kinds[i].id])
-			if not kinds[i].spawn_tag.is_empty() and kinds[i].spawn_tag == kinds[j].spawn_tag:
-				errors.append(
-					(
-						"%s: station kinds %s and %s share spawn tag %s"
-						% [pair, kinds[i].id, kinds[j].id, kinds[i].spawn_tag]
-					)
-				)
 
 
 ## A task type that ticks (TaskType.has_tick: #36's zone task) where no phase lists TaskTicks:
