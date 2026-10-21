@@ -273,7 +273,7 @@ func test_the_own_sides_sound_plays_once_per_reveal_on_the_ui_bus() -> void:
 	var player := UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)
 	assert_object(player).is_not_null()
 	assert_str(String(player.bus)).is_equal(String(AudioBuses.UI))
-	assert_bool(player.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(player)).is_true()
 	var stream := player.stream as AudioStreamRandomizer
 	assert_int(stream.streams_count).is_equal(1)
 	assert_object(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_ENGINEERS)).is_null()
@@ -286,7 +286,12 @@ func test_the_own_sides_sound_plays_once_per_reveal_on_the_ui_bus() -> void:
 	assert_array(_played_since(played_before)).is_equal(
 		[SfxSet.UI_ROLE_DISSIDENTS, SfxSet.UI_ROLE_ENGINEERS]
 	)
-	assert_bool(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_ENGINEERS).playing).is_true()
+	(
+		assert_bool(
+			FixtureSoundStarted.of(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_ENGINEERS))
+		)
+		. is_true()
+	)
 	# A third pregame as a dissident again: its player is the one made the first time.
 	screen.lift()
 	screen.reveal()
@@ -337,14 +342,14 @@ func test_the_role_sound_stops_when_the_pregame_ends() -> void:
 	screen.reveal()
 	screen.refresh(_pregame(&"dissident"), _mode)
 	var player := UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)
-	assert_bool(player.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(player)).is_true()
 	screen.lift()
 	assert_bool(player.playing).is_false()
 	# Any other screen (stop) ends it too.
 	var other := _screen()
 	other.reveal()
 	other.refresh(_pregame(&"dissident"), _mode)
-	assert_bool(player.playing).is_true()
+	assert_bool(FixtureSoundStarted.of(player)).is_true()
 	other.stop()
 	assert_bool(player.playing).is_false()
 
