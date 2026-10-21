@@ -1864,7 +1864,7 @@ nothing", both failed, reverted) and `photo_check_test` (neither `ShotTaken` nor
 over the wire, and added a coverage check so that cannot silently drop: after a run of every scenario (`bots` with no
 names; `BotsRunner.task_events_seen`, `bots_main` prints `BOTS coverage: passed` or `FAILED` with a line each)
 `LeakCheck.check_coverage` fails a task event no bot decoded, unless `LeakCheck.UNREACHED` lists it with why (the
-nine a chain across storeys or a vanishing item would reach), and fails an UNREACHED event some bot decoded (take it off
+nine a chain across storeys or a longer-lying item would reach, #1209), and fails an UNREACHED event some bot decoded (take it off
 the list) or that is no task event. Seen failing: `check_coverage` planted to skip the missing branch failed
 `bots_runner_test`'s coverage case; with the basement scenario taken out, `bots` printed `BOTS 18 of 18 scenarios
 passed`, then `BOTS coverage: FAILED` (`no bot decoded the task event SwitchChanged in any scenario`, the same for
@@ -8357,8 +8357,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   panel (`LiftChanged`, `PartNeeded`); `bots_use_the_house_basement_stations` (2 bots, `floor_y` -3.2): the Generator's
   three switches, then its button (`SwitchChanged`, `ButtonPressed`), and a part from a bin. Every bot decodes them
   alike (`LeakCheck.check_tasks`, `ScenarioInvariants`). A chain that carries an item between storeys (the grill and
-  the burger, the car's fit, the printer and the board) or waits a minute for an item to vanish stays unplayed until
-  bots climb stairs: `LeakCheck.UNREACHED` names those nine events, each with why (§4.6.4.1).
+  the burger, the car's fit, the printer and the board) stays unplayed until bots change storey, and a loose item
+  vanishes only after its `vanish_seconds` (a herb's 60 s), past a scenario's 55 s time limit, though one storey
+  would do: `LeakCheck.UNREACHED` names those nine events, each with why (§4.6.4.1); #1209 is to reach them.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each

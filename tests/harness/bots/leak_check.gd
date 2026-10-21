@@ -101,10 +101,11 @@ const TASK_EVENTS: Array[StringName] = [
 ## The task events no scenario reaches (#1197), each with why (check_coverage). The scenarios play
 ## the House one storey at a time (BotScenario.floor_y, ARCHITECTURE §9.7): its ground floor (the
 ## photo camera, the herb beds and places, the lift panel) and its basement (the Generator's
-## switches and button, the part bins); a chain that carries an item between storeys, or waits a
-## minute for an item to vanish, stays unplayed until bots climb stairs.
+## switches and button, the part bins). A chain that carries an item between storeys stays unplayed
+## until bots change storey; an item vanishes only after it lies loose longer than a scenario's time
+## limit. Both are #1209's.
 const UNREACHED: Dictionary[StringName, String] = {
-	&"ItemVanished": "an item vanishes a minute after it lies loose, or in a chain no storey holds",
+	&"ItemVanished": "a loose item vanishes past a scenario's 55 s (a herb's 60 s)",
 	&"ItemChanged": "a patty fries on the ground floor's grill, from the basement's boxes",
 	&"GrillLoaded": "the grill on the ground floor takes a patty from the basement's boxes",
 	&"BurgerPlated": "a burger takes a bun and a patty from the basement's boxes",
