@@ -338,8 +338,18 @@ func test_a_row_declared_twice_is_logged_and_the_first_stays() -> void:
 	var first := WireSchema.game(true).rows()[0]
 	var schema := WireSchema.new()
 	schema._declare(first)
-	schema._declare(first)
+	var same_kind := WireRow.new(
+		first.kind, &"twin", first.direction, first.lane, first.cap, first.fields
+	)
+	schema._declare(same_kind)
+	var same_name := WireRow.new(
+		first.kind + 1000, first.name, first.direction, first.lane, first.cap, first.fields
+	)
+	schema._declare(same_name)
 	errors.stop()
-	assert_int(errors.count()).is_greater(0)
+	assert_int(errors.count()).is_equal(2)
 	assert_int(schema.rows().size()).is_equal(1)
 	assert_object(schema.row(first.kind)).is_same(first)
+	assert_object(schema.row_named(&"twin")).is_null()
+	assert_object(schema.row_named(first.name)).is_same(first)
+	assert_object(schema.row(first.kind + 1000)).is_null()
