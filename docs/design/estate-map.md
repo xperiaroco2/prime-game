@@ -145,7 +145,8 @@ from the house's centre (68.4, 11): x east, z south; placeholders.
 - **The secret stair runs in the thick chimney wall:** the bookcase and the wine rack stand one above the other.
 - **The Wi-Fi spans the house:** the computer in the security room, the decoder book two floors up.
 - **The parts printer and the healing pod stand 16 m apart,** so the laboratory's ends do not talk over each other.
-- Open: whether walls muffle the voice (GDD §11); what the camera wall shows.
+- **Walls muffle the voice, openings do not** (GDD §11, "Voice through walls"): the vent grates and the manhole are where you eavesdrop.
+- Open: what the camera wall shows.
 
 ## 6. Task stations
 

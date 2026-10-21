@@ -172,7 +172,7 @@ From #1040, not yet rules:
 ## 8. The House (M8.2)
 
 - **Spaciousness decides it:** even a single room should feel spacious, not a box (#1035).
-- **Walls muffle voice:** heard through a wall, but muffled (#1035). Today voice is pure distance (8 m).
+- **Walls muffle voice:** heard through a wall, but muffled (#1035); the full rule is GDD §11, "Voice through walls".
 - The level work, its openings and traversal are #1035, #1036 and #1037; research round 2's level report has the
   options (two rings and a double-height void, chase-breaker geometry, dead ends with one-way escapes, a measurement
   kit first).

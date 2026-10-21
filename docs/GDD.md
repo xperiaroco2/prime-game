@@ -883,7 +883,22 @@ The brief lists distance, walls, death, meetings, radios and role abilities as i
 [vision revision 1](decisions/2026-10-01-vision-revision-1.md): nobody hears a downed or dead player, under any rule;
 a downed player hears the living from where they lie; the dead hear no voice, only the world sounds around the player
 they watch and lift music. There are no meetings.
-- How far does a voice carry, and how much do walls muffle it?
+
+**Voice through walls** (decided by the engineer on 2026-10-21,
+[#1035 comment 6318368598](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6318368598), completing
+his answer of 2026-10-15, [comment 6191454275](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6191454275)):
+1. A voice carries 8 m, through walls and floors too (a placeholder until a playtest).
+2. A wall or a floor between the listener and the speaker muffles it: quieter and dull, like a party in the next
+   room; you hear that someone talks, the words are hard to catch.
+3. An opening lets it through clean: a doorway, a window, a stairwell, a hatch, a vent grate, a manhole. So an ear to
+   a grate is how you eavesdrop.
+4. One wall or three, the same muffle: no materials, no counting.
+5. Stations stay about 20 m apart ([estate-map](design/estate-map.md) rule 8), so one station's voice never reaches
+   the next.
+
+The client already plays this (the M5 ADR's muffle, D13 (a): about 8 dB quieter and a low-pass near 1 kHz, both
+placeholders); who hears whom stays distance only.
+- How far does a voice carry, and how much do walls muffle it? (Answered above.)
 - Can the dead hear the living, and can they talk to each other? (Answered above: no and no.)
 - Which abilities or items change who hears whom?
 
