@@ -23,8 +23,8 @@ extends RefCounted
 
 signal connected(own_id: int)
 ## A join failed, for `reason`: one of the JOIN_ constants below, as precise as the backend can
-## tell (ENet and the loopback cannot tell a refusal from no answer: JOIN_FAILED). ClientSession
-## ends with it as its reason.
+## tell (the loopback cannot tell a refusal from no answer: JOIN_FAILED; ENet tells a host refusing
+## new connections, JOIN_STARTED, but not a full one). ClientSession ends with it as its reason.
 signal connect_failed(reason: StringName)
 signal peer_joined(peer_id: int)
 signal peer_left(peer_id: int)
@@ -49,11 +49,13 @@ const HOST_ID := 1
 ## At most one summary line of rejected packets per interval, so one peer cannot flood the log.
 const REJECT_SUMMARY_INTERVAL_MS := 10000
 ## connect_failed's reasons (the M6 ADR §2.3; EndReasons says each in words). No host, a full
-## or refusing one, no answer within the join timeout, or a bad admission.
+## one, a refusing one (the loopback; ENet's ends with JOIN_STARTED, an id in use with this), no
+## answer within the join timeout, or a bad admission.
 const JOIN_FAILED := &"connect_failed"
 ## WebRTC: the signalling service has no room with that code.
 const JOIN_NO_ROOM := &"no_room"
-## WebRTC: the room is closed, its match has started (the reason a Rejected Hello gives too).
+## WebRTC: the room is closed, its match has started (the reason a Rejected Hello gives too); ENet:
+## the host refuses new connections (EnetTransport.REFUSED_JOINS_CLOSED).
 const JOIN_STARTED := &"joins_closed"
 ## WebRTC: the room has as many joiners as its host allows (a Rejected Hello's reason too).
 const JOIN_FULL := &"full"

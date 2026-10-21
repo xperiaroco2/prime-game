@@ -408,8 +408,9 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of �
   `peers`, `set_refuse_new_connections`, `disconnect_peer`; signals `connected`, `connect_failed(reason)`,
   `peer_joined`, `peer_left`, `host_lost` and `packet_received`, fired only from `poll()`. A client sends only to the
   host (peer 1). The host's own client is peer 1 too. `connect_failed`'s reason is one of `NetTransport`'s `JOIN_`
-  ids, as precise as the backend can tell (M6-4, #370): ENet and the loopback cannot tell a refusal from no answer
-  and give `connect_failed`; WebRTC adds `no_room`, `joins_closed`, `full` (the service's answers),
+  ids, as precise as the backend can tell (M6-4, #370): the loopback cannot tell a refusal from no answer and gives
+  `connect_failed`, ENet gives `joins_closed` for a host refusing new connections (§4 "Joining") and `connect_failed`
+  otherwise; WebRTC adds `no_room`, `joins_closed`, `full` (the service's answers),
   `service_unreachable` (its socket closed, or not open after the Signaller's 5 s connect timeout, §4.8),
   `service_refused` and `host_unreachable` (no direct path, or no answer in 15 s).
   `ClientSession` ends with it, and `EndReasons` (`client/app/`) says each in words.
@@ -607,8 +608,10 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of �
     included, drops 10 % of LATEST and makes 20 % of it 120 ms late.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
-  left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
-  client gets `connect_failed` at once; with no answer at all (no host, or a full one) the join gives up after 5 s.
+  left a refused client "connected" until a timeout. A refusing host sends the new peer `REFUSED_JOINS_CLOSED` on
+  RELIABLE instead (kind 0 with a 1-byte payload, the reason: 1, joins closed) and disconnects it later, and the
+  client gets `connect_failed` with `joins_closed` at once, as over WebRTC (#1233); an id in use is disconnected
+  with no frame (`connect_failed`); with no answer at all (no host, or a full one) the join gives up after 5 s.
   Unreliable packets can overtake the `ADMIT` and are then rejected as from an unknown peer: the host sends a
   new peer only reliable messages until that peer has sent its first message.
 - **Peer ids are chosen by the client** (Godot refuses only 0, 1 and ids in use): they are neither secret nor
@@ -1004,8 +1007,8 @@ directive has no row, because it reaches no peer.
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
 The rules of the table:
-- **Kinds.** 0 is the transport's `ADMIT`; 1 to 23 are intents, 24 to 31 debug commands (a debug build's table only,
-  E17), 32 to 95 events, 96 to 111 state, 112 to 127 voice.
+- **Kinds.** 0 is the transport's (`ADMIT`, and ENet's refusal, §4 "Joining"); 1 to 23 are intents, 24 to 31 debug
+  commands (a debug build's table only, E17), 32 to 95 events, 96 to 111 state, 112 to 127 voice.
 - **Frozen:** two whole rows never change. Kind 1 (`Hello`): C→H, RELIABLE, `version: u16` as its first two bytes,
   and its cap at `NetKindTable.MAX_PAYLOAD` (8192), which never shrinks. Kind 32 (`Rejected`): H→C, RELIABLE,
   `seq: u32` then `reason: id`, cap 37. A client of any version can then send its version and read
@@ -1604,8 +1607,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
   countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
   more after it started is tried again: a host that refuses a join answers at once, before the admission with
-  `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-  both stay failures. A join `_join_again` does not join again is lost for good (`NetPlay._lost_join`, #483): its
+  `joins_closed` (refusing new connections) or `connect_failed` (an id in use) within a poll or two (§4
+  "Joining") and after it with `host_lost` (a rejected `Hello`), and all stay failures. A join `_join_again` does
+  not join again is lost for good (`NetPlay._lost_join`, #483): its
   bot's step fails at once, naming the reason it ended and those of its earlier joins; a remote bot then writes its
   view file with that line at once, and the host reports it as that bot's failure when its own time limit ends
   the run (it reads the view files only then). A runner that
