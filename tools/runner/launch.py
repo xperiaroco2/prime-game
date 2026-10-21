@@ -248,6 +248,7 @@ def main(
     audio: str = "dummy",
     user_args: list[str] | None = None,
     engine_args: list[str] | None = None,
+    log_name: str | None = None,
 ) -> int:
     say("run")
     if headless and offscreen:
@@ -278,7 +279,7 @@ def main(
     env = offscreen_env(res_path) if off else None
     # The environment is part of the command: by hand, without PRIME_WINDOW the window script fails at once.
     say(f"        {shown(env)}{' '.join(cmd[1:])}" + (f"  x{instances}" if instances > 1 else ""))
-    name = Path(res_path).stem
+    name = log_name or Path(res_path).stem
     results = launch(
         [cmd] * instances,
         seconds=seconds,
