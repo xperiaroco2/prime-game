@@ -26,6 +26,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
   `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes;
   it hashes the level files and every scene and resource they reach, scripts left out (#118).
+  `ContentFingerprintCache` (#1172): keeps the fingerprint once per process and mode, computes it again after a
+  level file's modified time or size changed; `ClientSession.content_of` and `HostSession` use it, `ContentFingerprint.of` never caches.
 - `signal/`: the signalling protocol (§4.8, M6): `SignalCodec` (messages and checks), `SignalRouter` (the
   service's rooms and routing, no sockets), `LanSignalling` (the router over ws://) and `Signaller` (the client).
   The transcripts and decoding cases in `tests/fixtures/signal/` are shared with the Worker (`tools/signal/`, #368):

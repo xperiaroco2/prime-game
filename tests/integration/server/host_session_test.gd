@@ -23,7 +23,10 @@ func test_the_real_mode_starts_with_its_content_hash_and_welcomes_its_own_client
 	var hub := LoopbackHub.new()
 	var session := HostSession.new(LoopbackTransport.new(schema.kind_table(), hub), schema)
 	session.replay_dir = ""
+	var cache := ContentFingerprintCache.shared()
+	var host_asked := cache.asked
 	assert_bool(session.start(mode, 7301, 8, 0)).is_true()
+	assert_int(cache.asked).is_equal(host_asked + 1)
 	assert_array(Array(session.errors)).is_empty()
 	var fingerprint := ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	assert_int(session.content_hash).is_equal(fingerprint)
@@ -31,7 +34,12 @@ func test_the_real_mode_starts_with_its_content_hash_and_welcomes_its_own_client
 	assert_int(session.game.command_log.content_hash).is_equal(fingerprint)
 	assert_str(String(session.game.phase_id())).is_equal(String(mode.first_phase))
 	assert_int(session.game.ticked_through()).is_equal(-1)
+	# The own client takes the host's fingerprint from the process's cache (#1172): no second walk.
+	var asked := cache.asked
+	var computed := cache.computed
 	var own := ClientSession.new(session.own_client, mode, schema)
+	assert_int(cache.asked).is_equal(asked + 1)
+	assert_int(cache.computed).is_equal(computed)
 	own.load_levels = false
 	var now := 0
 	for _i in 10:

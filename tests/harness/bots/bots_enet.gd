@@ -398,11 +398,12 @@ func _shim_seed() -> int:
 	return SHIM_SEED + instance * SHIM_SEED_STRIDE + _transports_made
 
 
-## A bot's join starts once its client is made (#950): a ClientSession hashes the mode's level
-## files as it is made (ContentFingerprint: 2016 files, 5.5 s on the engineer's PC), and a join
-## started before that ran out its real-time limits meanwhile. Over WebRTC every join of a remote
-## bot ended at the signalling's 5 s cap (`service_unreachable`), each one joined again the same
-## way, and the run failed with no remote bot in the lobby.
+## A bot's join starts once its client is made (#950): a process's first ClientSession hashes the
+## mode's level files as it is made (ContentFingerprint: 2016 files, 5.5 s on the engineer's PC;
+## later ones take it from ContentFingerprintCache, #1172), and a join started before that ran
+## out its real-time limits meanwhile. Over WebRTC every join of a remote bot ended at the
+## signalling's 5 s cap (`service_unreachable`), each one joined again the same way, and the run
+## failed with no remote bot in the lobby.
 func _join_host(bot: ScenarioBot) -> String:
 	var transport := _unjoined()
 	add_client(bot, transport)

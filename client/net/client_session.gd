@@ -185,9 +185,10 @@ func _init(
 
 
 ## The content hash Hello carries for `mode`: a code host's `open` and a joiner's version check
-## against the service's `found` use the same (the M6 ADR §2.5).
+## against the service's `found` use the same (the M6 ADR §2.5). Computed once per process and
+## mode, again after a level file changed (ContentFingerprintCache, #1172).
 static func content_of(mode: GameMode) -> int:
-	return ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+	return ContentFingerprintCache.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 
 
 ## A random return key of this session alone (16 bytes from Crypto, hex): it binds the number, but

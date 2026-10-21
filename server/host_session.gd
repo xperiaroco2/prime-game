@@ -77,7 +77,8 @@ var end_reason: StringName = &""
 var game: Match
 ## The host's content hash (§4.3, E1): ContentFingerprint of the mode, its level files and every
 ## scene and resource a level reaches (#118), the same as every client computes from its own copy
-## of the mode; Match.content_hash.
+## of the mode; Match.content_hash. Taken from ContentFingerprintCache (#1172): the host's own
+## client and a later start of the same mode in this process reuse it.
 var content_hash := 0
 ## The host's own client, peer 1, linked to the hosting transport: its owner runs a ClientSession
 ## on it.
@@ -191,7 +192,7 @@ func start_with(
 	errors.append_array(WireBudget.check(mode))
 	if not errors.is_empty():
 		return false
-	var fingerprint := ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+	var fingerprint := ContentFingerprintCache.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	var made := Match.new(mode, session_seed, world, layouts, fingerprint)
 	if not made.refusals.is_empty():
 		errors.append_array(made.refusals)
