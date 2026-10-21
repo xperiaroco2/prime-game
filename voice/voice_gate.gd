@@ -44,9 +44,23 @@ var mode := Mode.VOICE_ACTIVITY
 var threshold := DEFAULT_THRESHOLD:
 	set(value):
 		threshold = clamp_threshold(value)
-## The latest chunk's peak, for the Voice tab's meter.
-var last_peak := 0.0
+## The latest chunk's peak, for the Voice tab's meter. Measured when first read after feed(), so
+## a chunk nobody reads it for (push-to-talk, an unspeakable player, no meter shown) costs no pass
+## over its samples; the value is the same as if measured in feed().
+var last_peak := 0.0:
+	get:
+		if _peak_pending:
+			last_peak = peak_of(_latest)
+			_peak_pending = false
+			_latest = PackedVector2Array()
+		return last_peak
+	set(value):
+		last_peak = value
+		_peak_pending = false
+		_latest = PackedVector2Array()
 
+var _latest := PackedVector2Array()
+var _peak_pending := false
 var _open := false
 var _hangover := 0
 ## The newest frames captured while the gate was closed and the player could be heard.
@@ -63,11 +77,10 @@ func feed(
 	chunk: PackedVector2Array, frame: PackedByteArray, may_speak: bool, talk_held: bool
 ) -> Array[PackedByteArray]:
 	var out: Array[PackedByteArray] = []
-	last_peak = peak_of(chunk)
+	_latest = chunk
+	_peak_pending = true
 	if not may_speak:
-		_open = false
-		_hangover = 0
-		_ring.clear()
+		silence()
 		return out
 	var wants := _wants_open(talk_held)
 	if frame.is_empty():
@@ -88,6 +101,14 @@ func feed(
 		_ring.clear()
 	out.append(frame)
 	return out
+
+
+## Closes the gate, ends the hangover and empties the pre-roll, as feed() does for a player who may
+## not speak, without a chunk; `last_peak` stays.
+func silence() -> void:
+	_open = false
+	_hangover = 0
+	_ring.clear()
 
 
 ## Whether the gate is open: the last feed() sent its frame, unless that frame was empty.

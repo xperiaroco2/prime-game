@@ -4,6 +4,9 @@ extends GdUnitTestSuite
 ## the device opens, cleared after its first second, a clean close or a refusal). Through
 ## FakeMicrophone: no test opens a microphone.
 
+## Frames in one 20 ms chunk at 44.1 kHz (voice_codec_test pins the encoder's chunk_frames()).
+const CHUNK_44K := 882
+
 var _marks: PackedStringArray
 
 
@@ -26,9 +29,8 @@ func test_it_opens_the_chosen_device_and_reads_20_ms_chunks_at_its_rate() -> voi
 	assert_str(mic.opened_device).is_equal("Headset Microphone")
 	assert_str(capture.device).is_equal("Headset Microphone")
 	assert_int(capture.rate()).is_equal(44100)
-	assert_int(capture.chunk_frames()).is_equal(882)
 	mic.capture(882 * 3 + 100, 0.2)
-	var chunks := capture.read(capture.chunk_frames())
+	var chunks := capture.read(CHUNK_44K)
 	assert_int(chunks.size()).is_equal(3)
 	for chunk: VoiceCapture.Chunk in chunks:
 		assert_int(chunk.frames.size()).is_equal(882)
@@ -37,23 +39,23 @@ func test_it_opens_the_chosen_device_and_reads_20_ms_chunks_at_its_rate() -> voi
 	assert_int(chunks[2].age_usec).is_less(chunks[0].age_usec)
 	# What is left is less than a chunk: it waits for the next read.
 	assert_int(mic.frames_available()).is_equal(100)
-	assert_array(capture.read(capture.chunk_frames())).is_empty()
+	assert_array(capture.read(CHUNK_44K)).is_empty()
 
 
 func test_the_mark_names_the_device_before_it_opens_and_clears_after_one_second() -> void:
 	var capture := _capture()
 	var mic := capture.microphone as FakeMicrophone
 	capture.mark_changed.connect(func(device: String) -> void: _note(device, mic))
+	var chunk := int(mic.rate / 50.0)
 	assert_bool(capture.open("Default")).is_true()
 	# Named before the device opened (the note records whether it was open then).
 	assert_array(Array(_marks)).contains_exactly(["Default (closed)"])
-	assert_bool(capture.is_settling()).is_true()
 	mic.capture_chunks(49, 0.0)
-	capture.read(capture.chunk_frames())
-	assert_bool(capture.is_settling()).is_true()
+	capture.read(chunk)
+	# Still settling: the mark is not cleared yet.
+	assert_array(Array(_marks)).contains_exactly(["Default (closed)"])
 	mic.capture_chunks(1, 0.0)
-	capture.read(capture.chunk_frames())
-	assert_bool(capture.is_settling()).is_false()
+	capture.read(chunk)
 	assert_array(Array(_marks)).contains_exactly(["Default (closed)", " (open)"])
 	# Closing a settled device leaves the mark alone.
 	capture.close()
@@ -92,16 +94,17 @@ func test_a_device_without_a_usable_rate_does_not_open() -> void:
 	var capture := _capture()
 	var mic := capture.microphone as FakeMicrophone
 	mic.rate = 0
+	capture.mark_changed.connect(func(device: String) -> void: _marks.append(device))
 	assert_bool(capture.open("Default")).is_false()
 	assert_str(capture.error).contains("rate")
 	assert_bool(mic.is_open).is_false()
-	assert_bool(capture.is_settling()).is_false()
+	# The mark was named and cleared again: nothing is left settling.
+	assert_array(Array(_marks)).contains_exactly(["Default", ""])
 
 
 func test_a_closed_capture_reads_nothing() -> void:
 	var capture := _capture()
 	assert_array(capture.read(960)).is_empty()
-	assert_int(capture.chunk_frames()).is_equal(0)
 
 
 func test_the_test_tone_sets_no_mark_and_runs_in_real_time() -> void:

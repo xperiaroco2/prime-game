@@ -108,19 +108,9 @@ func is_open() -> bool:
 	return not device.is_empty()
 
 
-## Whether the open device has not yet delivered its first second (its mark is still set).
-func is_settling() -> bool:
-	return _settling
-
-
 ## The open device's rate in Hz; 0 while closed.
 func rate() -> int:
 	return _rate
-
-
-## Frames in one 20 ms chunk at the device's rate; 0 while closed.
-func chunk_frames() -> int:
-	return int(_rate / 50.0)
 
 
 ## Every whole chunk of `frames` frames waiting, oldest first; none while closed. Reading the first

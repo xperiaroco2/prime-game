@@ -46,9 +46,12 @@ var listening := true
 var talk_held := false
 ## Why the last open() failed; "" after a success.
 var error := ""
-## For the F3 overlay (debug builds, E47): the latest chunk's peak, its age when it was read, the
-## time its encoding took, and the frames sent since the start.
-var peak := 0.0
+## For the F3 overlay (debug builds, E47) and the Voice tab's meter: the latest chunk's peak (the
+## gate measures it when this is read), its age when it was read, the time its encoding took, and
+## the frames sent since the start.
+var peak: float:
+	get:
+		return gate.last_peak
 var frame_age_usec := 0
 var encode_usec := 0
 var sent := 0
@@ -114,8 +117,8 @@ func open(device: String, denoise: bool) -> bool:
 func close() -> void:
 	capture.close()
 	_encoder = null
-	gate.feed(PackedVector2Array(), PackedByteArray(), false, false)
-	peak = 0.0
+	gate.silence()
+	gate.last_peak = 0.0
 
 
 func is_open() -> bool:
@@ -182,9 +185,7 @@ func step() -> void:
 	var chunks := capture.read(_encoder.chunk_frames())
 	if chunks.is_empty():
 		if not speak:
-			var shown := gate.last_peak
-			gate.feed(PackedVector2Array(), PackedByteArray(), false, false)
-			gate.last_peak = shown
+			gate.silence()
 		return
 	var held := _talk_held()
 	for chunk: VoiceCapture.Chunk in chunks:
@@ -197,7 +198,6 @@ func step() -> void:
 		for out: PackedByteArray in gate.feed(chunk.frames, frame, fresh, held):
 			if send.is_valid() and send.call(out) == OK:
 				sent += 1
-	peak = gate.last_peak
 
 
 func _talk_held() -> bool:
