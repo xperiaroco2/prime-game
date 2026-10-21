@@ -1,7 +1,7 @@
 # The main menu (#493) in the game's real windows. Window 1 hosts and window 2 joins it from the
 # command line; in the lobby the guest opens its Esc menu, picks Game and leaves at once (a guest's Leave asks
 # nothing). The menu shows with the Join by address panel open on the address the command line
-# gave (Game._fill_menu: Back after a failure finds it there too); Esc closes the panel and its
+# gave (GameJoin.fill_menu: Back after a failure finds it there too); Esc closes the panel and its
 # item keeps the focus. Enter on the Settings item opens the Settings panel, Esc closes it; Enter on
 # Join opens the code panel, empty and focused. Keys only (playcheck clicks nothing): `button`
 # focuses a Button by its text, here the deck key, and presses ui_accept.

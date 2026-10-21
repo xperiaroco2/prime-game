@@ -7,10 +7,54 @@ extends RefCounted
 ## GameWindow, the language to Languages.choose (saved only when picked, #208). The saved large
 ## text and reduced motion apply at the start; the saved window mode only with the command line
 ## read and no runner window asked for (a test's or a runner's window keeps its window as it is).
+## Game's _ready sets up its settings, its own voice and its controls here too (#1249).
 
 ## The environment variable a runner launch sets (tools/offscreen/offscreen.gd ENV, #1141): the
 ## window script places its window off-screen, and a restored fullscreen would cover the screen.
 const RUNNER_WINDOW := "PRIME_WINDOW"
+
+
+## Game's settings, and their interface language applied (#208): the player's choice, or on a
+## first launch the system's when it is Ukrainian and English otherwise. A Game with no command
+## line (a test, a playcheck window) ignores the machine's language: it speaks English unless its
+## settings say otherwise, so a run reads the same on every machine.
+static func ready_settings(game: Game) -> void:
+	if game.settings == null:
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		game.settings = (
+			UserSettings.for_this_window() if game.read_command_line else UserSettings.new()
+		)
+	Languages.apply(
+		game.settings, OS.get_locale_language() if game.read_command_line else Languages.ENGLISH
+	)
+
+
+## The buses (D15), the voices' node under `world`, and the own voice: the sender, Game's settings
+## applied, and both Sound and voice pages (the Esc menu's, the main menu's, #301) wired to them.
+## Returns the VoiceControl, started.
+static func start_voice(game: Game, world: Node3D) -> VoiceControl:
+	AudioBuses.ensure()
+	if game.voice_codec == null:
+		game.voice_codec = TwoVoipCodec.new()
+	world.add_child(game.voices())
+	var sender := game.sender()
+	sender.codec = game.voice_codec
+	game.add_child(sender)
+	var control := VoiceControl.new(game.settings, sender)
+	wire_voice(game, control)
+	control.start()
+	return control
+
+
+## The player's controls applied (a test's or a playcheck window's stay the project's: the player's
+## file in user:// would rebind the process's keys), and both Settings pages wired (setup).
+static func ready_controls(game: Game) -> void:
+	if game.controls == null:
+		game.controls = Controls.for_this_player() if game.read_command_line else Controls.new()
+		if game.read_command_line:
+			game.controls.apply()
+	setup(game)
 
 
 ## Both Settings pages: the Esc menu's and the main menu's.

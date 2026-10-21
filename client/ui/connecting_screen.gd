@@ -155,7 +155,7 @@ func set_step(step: JoinProgress.Step) -> void:
 	step_label.text = STEP_KEYS[step]
 
 
-## The host's lobby name for the title (#214: Game's _refresh_join, once welcomed): `typed`, the
+## The host's lobby name for the title (#214: GameJoin.refresh, once welcomed): `typed`, the
 ## name the host typed, or while it is the default the deck's default name with `host_name`;
 ## both empty: connect.connecting_unnamed.
 func set_lobby(typed: String, host_name := "") -> void:
