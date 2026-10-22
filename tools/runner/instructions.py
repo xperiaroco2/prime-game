@@ -17,6 +17,7 @@ from pathlib import Path
 ROOT_BUDGET = 150  # root CLAUDE.md plus every rule without paths: (all of them load at launch)
 ROOT_BYTES = 9216  # the same files' loaded bytes (9 KiB, #561; the engineer raised it from 8.5 KiB for headroom): every agent pays them on every call
 NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its folder is read)
+NESTED_BYTES = 10240  # the same files' loaded bytes (10 KiB, #1242): the largest area files sit near 9.9 KB, a long-line map got client/ to 14.7 KB
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
 READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent but the lean writers is read-only (§5)
@@ -243,13 +244,23 @@ def check(root: Path) -> Report:
     else:
         report.notes.append(f"launch-time instructions {size}/{ROOT_BYTES} bytes ({detail})")
 
-    nested = [(rel(p), loaded_lines(parse(p.read_text(encoding="utf-8")).body)) for p in _nested_claude_files(root)]
-    for name, lines in nested:
+    nested = []
+    for path in _nested_claude_files(root):
+        body = parse(path.read_text(encoding="utf-8")).body
+        nested.append((rel(path), loaded_lines(body), loaded_bytes(body)))
+    for name, lines, size in nested:
         if lines > NESTED_BUDGET:
             report.errors.append(f"{name}: {lines} lines, budget {NESTED_BUDGET}")
+        if size > NESTED_BYTES:
+            report.errors.append(
+                f"{name}: {size} bytes, budget {NESTED_BYTES}: every agent that reads a file in its folder carries it; "
+                "point to the doc that lists the parts instead of cataloguing them (docs/AGENT_WORKFLOW.md §3)"
+            )
     if nested:
-        name, lines = max(nested, key=lambda item: item[1])
+        name, lines, _ = max(nested, key=lambda item: item[1])
         report.notes.append(f"{len(nested)} nested CLAUDE.md, largest {name} {lines}/{NESTED_BUDGET} lines")
+        name, _, size = max(nested, key=lambda item: item[2])
+        report.notes.append(f"largest nested by bytes {name} {size}/{NESTED_BYTES}")
 
     report.errors += control_characters(root)
 
