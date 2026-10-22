@@ -112,6 +112,10 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	items.mode = game_mode
 	items.avatars = views
 	for view: Node3D in task_views.values():
+		# Object.set does nothing on a missing member: a view without these draws nothing, so say so.
+		if not (&"model" in view and &"mode" in view):
+			push_error("%s has no model and mode member (TaskClient.make_view)" % view.name)
+			continue
 		view.set(&"model", _model)
 		view.set(&"mode", game_mode)
 		if &"host_tick" in view:
