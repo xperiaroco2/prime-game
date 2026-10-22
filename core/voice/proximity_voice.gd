@@ -11,9 +11,17 @@ extends VoiceRule
 
 
 func hears(state: MatchState, listener: int, speaker: int) -> bool:
+	return hears_at(
+		state, listener, speaker, state.player(listener).position, state.player(speaker).position
+	)
+
+
+func hears_at(
+	state: MatchState, listener: int, speaker: int, listener_at: Vector3, speaker_at: Vector3
+) -> bool:
 	if not state.is_present(listener) or not state.is_present(speaker):
 		return false
-	return within(state, listener, speaker, radius_m)
+	return within_at(listener_at, speaker_at, radius_m)
 
 
 func hearing_radius_m() -> float:
