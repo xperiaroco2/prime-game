@@ -5,7 +5,7 @@
 | **Owner** | The engineer. The **content API** section is the contract between engine and content; since #518 the engineer owns both sides, and the optional designer reviews a change to it only when he wants to. |
 | **Status** | The code as built. The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the M4 rework updated the sections that describe them (the ADR's Consequences list each section). The windowed client (§4.7) and the split of that rework into M4 issues: M4 design, #125, accepted ([ADR](decisions/2026-10-01-m4-first-person-client.md)). |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
-| **A contract, not a changelog** | A finished task updates the text that its change makes stale, so each section says what is true now, and adds no "Built in #n" section. Its history (which PR, which tests, what changed when) goes in its ADR's Consequences, the PR and git log (#1244). §10 holds only the questions still open: a settled one leaves it. |
+| **A contract, not a changelog** | A finished task updates the text that its change makes stale, so each section says what is true now, and adds no "Built in #n" section. Its history (which PR built it, what changed when) goes in its ADR's Consequences, the PR and git log (#1244); a section's Tests paragraph is the test map and stays, kept current. §10 holds only the questions still open: a settled one leaves it. |
 
 ## 1. Layers and boundaries
 
@@ -5525,7 +5525,7 @@ target's head, the own body without a target. Godot measures a 3D player's dista
 `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
 docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
-concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
+concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Hearing voice.
 A crouched speaker or target (#792, the crouch ADR's KE7): the mouth hangs on the body's head, lowered with its
 crouched eye, and a spectator's ears and spectate camera sit at the target body's head (`Ears.point`'s `target_eye_m`),
 crouched or not, never the mode's standing eye; tests `ears_test.gd` and `life_ears_test.gd` (§7.1.17).
@@ -5555,7 +5555,7 @@ world layer of the client's own level, never a player's capsule; the host keeps 
 level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
 Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
 and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
-measurement (§4.7.16 Built in M5-7). Beyond one ray (several rays, thickness, portals) is not built.
+measurement (§4.7.16 Occlusion's muffle). Beyond one ray (several rays, thickness, portals) is not built.
 
 #### 6.5.8 The wire (E44; **measured in M5-4**, #218, and again after #245)
 Unchanged in M5 so far. The leak test gained a
