@@ -8,7 +8,6 @@ const MODES := "res://content/modes/"
 ## The core task type classes whose client is not built yet (#1260's migration moves one a
 ## commit): the checks skip them and fail when one has a client.
 const UNMIGRATED: Array[String] = [
-	"PhotoTask",
 ]
 ## Today's core task type classes, so the global class list's walk is seen to find them.
 const CORE_TYPES: Array[String] = [

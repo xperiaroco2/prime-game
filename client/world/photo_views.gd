@@ -242,11 +242,7 @@ func _wrap(root: Node3D, spot: Node3D, parts: Array) -> StationViews.StationSigh
 
 
 func _types() -> Array[PhotoTask]:
-	var found: Array[PhotoTask] = []
-	for type: TaskType in mode.task_types:
-		if type is PhotoTask:
-			found.append(type as PhotoTask)
-	return found
+	return PhotoTaskClient.types_of(mode)
 
 
 ## Whether `kind` is a photo task's photo kind.

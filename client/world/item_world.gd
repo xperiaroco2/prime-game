@@ -49,7 +49,8 @@ var cooking := task_views.get(Cooking) as CookingViews
 var viewfinder := PhotoViewfinder.new()
 ## The car repair's scenes (its TaskClient's view): station_of_hit and the near hit ask it.
 var car_repair := task_views.get(CarRepair) as CarRepairViews
-var photos := PhotoViews.new()
+## The photo task's scenes and items (its TaskClient's view): drawn_point and aim_point ask it.
+var photos := task_views.get(PhotoTask) as PhotoViews
 var pictures := PhotoPictures.new()
 
 var _model: ClientModel
@@ -66,7 +67,6 @@ func _init() -> void:
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
 	hums.name = "StationHums"
-	photos.name = "PhotoViews"
 	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
@@ -75,7 +75,6 @@ func _init() -> void:
 		flashes,
 		hums,
 		viewfinder,
-		photos,
 		pictures,
 	]:
 		add_child(each)
@@ -115,8 +114,6 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 		if &"host_tick" in view:
 			view.set(&"host_tick", views.host_tick)
 	_host_tick = views.host_tick
-	photos.model = _model
-	photos.mode = game_mode
 	pictures.model = _model
 	pictures.mode = game_mode
 	pictures.avatars = views
@@ -158,7 +155,6 @@ func reset() -> void:
 			view.set(&"host_tick", Callable())
 	items.model = null
 	_host_tick = Callable()
-	photos.model = null
 	pictures.clear()
 	pictures.model = null
 	hums.clear()
@@ -230,7 +226,6 @@ func set_level(level: Node) -> void:
 	for view: Node3D in task_views.values():
 		if &"level" in view:
 			view.set(&"level", level)
-	photos.level = level
 
 
 ## The station a ray hit names (ItemInteractions.station_of_hit): StationViews' by the body, then

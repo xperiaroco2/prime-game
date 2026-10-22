@@ -24,11 +24,8 @@ enum Film { ANY_ITEM, FRESH, EXPOSED }
 
 ## The PhotoTask of `mode` one of whose five station kinds is `kind_id`, or null.
 static func type_of(mode: GameMode, kind_id: StringName) -> PhotoTask:
-	if mode == null:
-		return null
-	for type: TaskType in mode.task_types:
-		var photo := type as PhotoTask
-		if photo != null and role_of(photo, kind_id) != Role.NONE:
+	for photo: PhotoTask in PhotoTaskClient.types_of(mode):
+		if role_of(photo, kind_id) != Role.NONE:
 			return photo
 	return null
 
@@ -136,8 +133,7 @@ static func _carries(model: ClientModel, kind: ItemKind, film: Film) -> bool:
 static func is_photo(mode: GameMode, kind_id: StringName) -> bool:
 	if mode == null or kind_id == &"":
 		return false
-	for type: TaskType in mode.task_types:
-		var photo := type as PhotoTask
-		if photo != null and photo.photo != null and photo.photo.id == kind_id:
+	for photo: PhotoTask in PhotoTaskClient.types_of(mode):
+		if photo.photo != null and photo.photo.id == kind_id:
 			return true
 	return false

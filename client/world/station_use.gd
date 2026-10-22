@@ -8,14 +8,13 @@ extends RefCounted
 ## holds no two-handed item where that rule has HandNotTwoHanded (but for a photo camera holding a
 ## film: taking it out is a PickUp, a take, which a two-handed item does not refuse, the photo
 ## ADR's §2.4; only its viewfinder asks hand_allows_at()), and its task type says it can still be
-## used. Only the task types this client draws a station view for answer that (today the
-## Generator, #801: neither its generator nor a switch once the charge is done, the host's
-## StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair, #811:
-## CarRepairUse); a kind of any other type is never offered until its client issue adds its row
-## here. The other conditions of a rule (AtStation, StationInSight) are TargetChoice's and
-## ItemInteractions'; one this client does not know is left to the host. A fixed switch is no
-## station at all (GE14), so it is never offered, and nothing here reads a switch's `on`: the hint
-## never names a switch's state.
+## used: the first of the mode's types whose TaskClient owns the kind answers (#1260, §4.7.59;
+## today the Generator, #801: neither its generator nor a switch once the charge is done, the
+## host's StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair,
+## #811: CarRepairUse); a kind no client owns is never offered. The other conditions of a rule
+## (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client does not
+## know is left to the host. A fixed switch is no station at all (GE14), so it is never offered,
+## and nothing here reads a switch's `on`: the hint never names a switch's state.
 
 
 ## The station kind `kind_id` of one of `mode`'s task types, or null.
@@ -99,9 +98,6 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 		return true
 	if not _hand_allows(model, mode, rule):
 		return false
-	var photo := PhotoUse.type_of(mode, station.kind)
-	if photo != null:
-		return PhotoUse.usable(model, photo, id)
 	# The first of the mode's types whose TaskClient owns the kind answers (#1260).
 	for type: TaskType in mode.task_types:
 		var client := TaskClients.of(type)
