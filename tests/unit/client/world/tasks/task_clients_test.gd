@@ -8,7 +8,6 @@ const MODES := "res://content/modes/"
 ## The core task type classes whose client is not built yet (#1260's migration moves one a
 ## commit): the checks skip them and fail when one has a client.
 const UNMIGRATED: Array[String] = [
-	"Delivery",
 	"DeliveryByMeaning",
 	"ZoneTask",
 	"Generator",
@@ -31,6 +30,11 @@ const CORE_TYPES: Array[String] = [
 ## A task type class with no row (and no global name, so the class list never lists it).
 class StrayType:
 	extends TaskType
+
+
+## A subclass of a class with a row, with none of its own.
+class SubDelivery:
+	extends Delivery
 
 
 func test_every_global_task_type_class_has_a_client() -> void:
@@ -68,6 +72,12 @@ func test_every_task_type_of_every_mode_has_a_client() -> void:
 				problems.append("%s: %s has no TaskClient" % [mode.resource_path, type.id])
 	assert_int(types).is_greater(0)
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
+
+
+func test_a_subclass_falls_back_to_its_base_class_client() -> void:
+	assert_object(TaskClients.client_script_of(SubDelivery)).is_same(DeliveryClient)
+	assert_object(TaskClients.of(SubDelivery.new())).is_same(TaskClients.of(Delivery.new()))
+	assert_bool(TaskClients.of(Delivery.new()) is DeliveryClient).is_true()
 
 
 func test_a_class_with_no_row_has_no_client_and_is_reported_once() -> void:

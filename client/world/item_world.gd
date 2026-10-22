@@ -11,9 +11,33 @@ extends Node3D
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
+##
+## A task type's view is its TaskClient's (TaskClients.make_views, #1260, §4.7.59): every row's,
+## not only the mode's types', each given the model, the mode and, where it has them, the host
+## tick and the level, and cleared at a reset. The lookups by a hit or an item below
+## (station_of_hit, drawn_point, aim_point) stay per type.
+
+## ItemWorld's children by name in their tree order (the order they process in), the task types'
+## views among them; a view not named here comes after them all.
+const _ORDER: Array[StringName] = [
+	&"ItemViews",
+	&"CircleViews",
+	&"ZoneViews",
+	&"ItemInteractions",
+	&"WorldSounds",
+	&"PhotoFlashes",
+	&"StationViews",
+	&"StationHums",
+	&"CookingViews",
+	&"PhotoViewfinder",
+	&"CarRepairViews",
+	&"PhotoViews",
+	&"PhotoPictures",
+]
 
 var items := ItemViews.new()
-var circles := CircleViews.new()
+## The task types' views, keyed by their core script (TaskClients.make_views).
+var task_views: Dictionary[Script, Node3D] = TaskClients.make_views()
 var zones := ZoneViews.new()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
@@ -36,7 +60,6 @@ var _host_tick := Callable()
 func _init() -> void:
 	name = "Items"
 	items.name = "ItemViews"
-	circles.name = "CircleViews"
 	zones.name = "ZoneViews"
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
@@ -49,7 +72,6 @@ func _init() -> void:
 	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
-		circles,
 		zones,
 		interactions,
 		sounds,
@@ -58,11 +80,19 @@ func _init() -> void:
 		hums,
 		cooking,
 		viewfinder,
-		car_repair
+		car_repair,
+		photos,
+		pictures,
 	]:
 		add_child(each)
-	add_child(photos)
-	add_child(pictures)
+	for view: Node3D in task_views.values():
+		add_child(view)
+	var at := 0
+	for child_name: StringName in _ORDER:
+		var child := get_node_or_null(NodePath(child_name))
+		if child != null:
+			move_child(child, at)
+			at += 1
 	items.pictures = pictures
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
@@ -85,8 +115,11 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	items.model = _model
 	items.mode = game_mode
 	items.avatars = views
-	circles.model = _model
-	circles.mode = game_mode
+	for view: Node3D in task_views.values():
+		view.set(&"model", _model)
+		view.set(&"mode", game_mode)
+		if &"host_tick" in view:
+			view.set(&"host_tick", views.host_tick)
 	zones.model = _model
 	zones.mode = game_mode
 	zones.host_tick = views.host_tick
@@ -134,10 +167,14 @@ func set_player(player: PlayerController) -> void:
 ## Forgets the session (it ended).
 func reset() -> void:
 	items.clear()
-	circles.clear()
+	for view: Node3D in task_views.values():
+		if view.has_method(&"clear"):
+			view.call(&"clear")
+		view.set(&"model", null)
+		if &"host_tick" in view:
+			view.set(&"host_tick", Callable())
 	zones.clear()
 	items.model = null
-	circles.model = null
 	zones.model = null
 	zones.host_tick = Callable()
 	stations.model = null
@@ -215,6 +252,9 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 ## The level now (Game's), or null: StationViews finds the Generator's station scenes in it,
 ## CookingViews Cooking's.
 func set_level(level: Node) -> void:
+	for view: Node3D in task_views.values():
+		if &"level" in view:
+			view.set(&"level", level)
 	stations.level = level
 	cooking.level = level
 	car_repair.level = level

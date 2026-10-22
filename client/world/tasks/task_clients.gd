@@ -9,7 +9,9 @@ extends RefCounted
 
 ## The core script of each task type class to its TaskClient script, in the order ItemWorld adds
 ## their views (make_views).
-static var _by_script: Dictionary[Script, GDScript] = {}
+static var _by_script: Dictionary[Script, GDScript] = {
+	Delivery: DeliveryClient,
+}
 ## One client per TaskClient script, made on first use (a client holds no state).
 static var _clients: Dictionary[GDScript, TaskClient] = {}
 ## The core scripts report_missing has named, so each is named once.

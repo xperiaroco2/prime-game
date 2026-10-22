@@ -88,7 +88,8 @@ static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 		for kind: StationKind in type.station_kinds():
 			if kind.id != kind_id:
 				continue
-			if type is Delivery or type is DeliveryByMeaning:
+			var client := TaskClients.of(type)
+			if type is DeliveryByMeaning or (client != null and client.draws_circle(kind_id)):
 				return true
 			held = true
 	return not held
