@@ -16,7 +16,8 @@ extends RefCounted
 ## the rule's target where nothing supplies one.
 static func problems(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
-	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
+	# ModeCheck.run starts every error with the mode's file (#1253).
+	var where := "the mode"
 	for index: int in mode.reactions.size():
 		var rule := mode.reactions[index]
 		if rule == null:

@@ -116,8 +116,8 @@ func test_the_refusal_names_the_modes_file() -> void:
 	assert_array(Array(errors)).has_size(1)
 	assert_str(errors[0]).starts_with(
 		(
-			"mode.win_conditions[1]: the win condition dissidents of mode"
-			+ " res://tests/fixtures/match/winning_mode.tres holds the condition TargetDowned,"
+			"res://tests/fixtures/match/winning_mode.tres: mode.win_conditions[1]: the win"
+			+ " condition dissidents of the mode holds the condition TargetDowned,"
 		)
 	)
 

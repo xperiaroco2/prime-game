@@ -332,7 +332,8 @@ func emit_event(event: MatchEvent) -> void:
 	_emitted.append(EmittedEvent.new(_now, event, audience.recipients(state), directive))
 
 
-## Handles a fact at once, depth first (§9.2): the mode's reactions, then each task type's check
+## Handles a fact at once, depth first (§9.2): the mode's reactions (every one on the fact, in data
+## order), then each task type's check
 ## in the mode's order, then the win conditions. Parts call MatchContext.raise_fact().
 func raise_fact(fact: Fact) -> void:
 	if _fact_chain.size() >= MAX_FACT_DEPTH:

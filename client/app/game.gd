@@ -246,7 +246,7 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 func host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	var node := HostNode.host(transport, mode, port, clock)
 	if not node.is_running():
-		var why := "; ".join(node.errors)
+		var why := "\n".join(node.errors)
 		node.free()
 		_cannot_host(why)
 		return false
