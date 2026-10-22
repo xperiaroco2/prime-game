@@ -75,22 +75,26 @@ over (found by the design track's walk-through, 2026-10-21; a working fix for hi
 
 The aliens' ship is a **wide metal manta** (#1035 comment 6299338851): broad flat wings, two eye-like cockpit bubbles,
 a mouth-shaped front ramp; wider than it is long. Its interior is one deck, built for the ship's engine (GDD §8),
-approved on #1035 comment 6300127535 and revised on 2026-10-22 with the approved 2D, whose top view is the source of
-truth (#1095 comments 6326838901 to 6327093164; prime-game-design `ideas/ship-components/2d/`):
+approved on #1035 comment 6300127535 and revised on 2026-10-22 with the approved 2D (#1095 comments 6326838901 to
+6327093164; prime-game-design `ideas/ship-components/2d/`, which keeps the look) and **mirrored** the same day (#1033
+comments 6336844073 and 6336988967; the plan to scale: prime-game-design `ideas/ship-components/layout/`):
 - **One entrance:** the mouth ramp; no side hatch, no other way in or out.
 - **The cockpit bubbles are on the outside only:** inside, the hall has a closed ceiling; no ladders, no seats.
-- **The mouth ramp** (north side, the ship's centre) leads into **the central hall**: the start console with the start lever, the battery slot, the stage display (one lamp per stage) and the mimic
-  board of the breakers, which shows their order (GDD §8, 2026-10-21).
-- **Two corridors** run from the hall along the wings, across the whole width of the ship (about 2.5 m wide, curving
-  with the wing), each ending in **a round tip room** with a big curved window onto the clearing (glass, not an exit).
-- **Five problem stations** stand along the corridors: in the west wing a vent (overheat), a cartridge socket and the
-  power board (four coloured breakers, a lamp over each; about 10 m from the console); in the east wing a vent and a
-  cartridge socket.
-- **The cartridge renewer** stands in the east tip room, the power board in the west one. A burnt cartridge from the west wing runs the whole width of the ship to be renewed (about 22 m,
-  5 s each way at a walk), well inside the cartridge's 30 s.
-- Positions inside, from the ship's centre (x east, y south): the console (0, 1); the west vent (-5, -1), the west
-  socket (-8, -1), the panel (-10.5, 0); the east vent (5, -1), the east socket (8, -1); the renewer (12, 0). Working
-  draft.
+- **Mirrored:** the west half and the east half hold the same stations, so a player says "left" or "right" (as you
+  come in up the ramp, left is east). Every station hangs flat on a wall, no niches; whoever works at one leaves at
+  least 1.6 m of pass behind them.
+- **The mouth ramp** (north side, the ship's centre) leads into **the central hall**, round, about 8 m across
+  (50 m²): the start console in the middle with the start lever, the battery slot, the stage display (one lamp per
+  stage) and the mimic board of both breaker boards (GDD §8); on its wall the two vents (overheat), either side of the
+  mouth, and the two cartridge sockets, either side of the back.
+- **Two corridors**, straight, about 3 m wide and 2.5 m long, lead from the hall into the wings; on each one's front
+  wall hangs **a breaker board** (four coloured breakers, a lamp over each), in sight of the console.
+- **Two tip rooms**, round, about 3.6 m across (10 m²), each with a big curved window onto the clearing (glass, not an
+  exit) and **one cartridge renewer**. A burnt cartridge goes to the renewer on its own side, about 6 m, 1.5 s at a walk.
+- **The silhouette:** the tip rooms' outer walls stand about 10.1 m from the centre; the wing beyond them, about 3.6 m,
+  thins to 1 to 1.5 m and curls up, as on the 2D.
+- Positions inside, from the ship's centre (x east, y south): the console (0, 1); the vents (±2.6, -2.6); the sockets
+  (±2.6, 2.6); the boards (±5.25, -1.5); the tip rooms' centres (±8.3, 0), the renewers (±8.8, 0). Working draft.
 
 ## 5. Links between levels
 
@@ -189,7 +193,7 @@ centre (§3): x east, z south; placeholders. The gazebo and the well stay open, 
 | Cellar | basement | decor |
 | Fireworks launch point | roof terrace | mischief |
 | Camera and pose spot | gazebo | photo |
-| Start console (lever, battery slot, stage lamps), five problem stations, cartridge renewer (§5a) | ship | the ship's engine |
+| Start console (lever, battery slot, stage lamps, mimic board), two vents, two cartridge sockets, two breaker boards, two cartridge renewers (§5a) | ship | the ship's engine |
 | The dead's room | a separate scene | death (m8 §3) |
 
 ## 7. Routes and travel times

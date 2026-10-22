@@ -349,25 +349,37 @@ The engineer's spin-up ([#1033 c6235144451](https://github.com/xperiaroco2/prime
 for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652) to
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
-- **The start:** a charged battery into the starter. Everything else happens inside the ship, a wide manta whose
-  hall, wing corridors, five stations and renewer are laid out in [estate-map](design/estate-map.md) §5a.
-- **Stages:** 3 in the MVP (3 to 5 later). Each stage spawns problems, their kinds random, their count fixed: 2, then
-  4, then 6. A stage passes when every one of its problems is fixed.
+- **The start:** a charged battery into the starter. Everything else happens inside the ship, a wide manta with two
+  mirrored halves: the hall with the console, two vents and two cartridge sockets, a breaker board in each corridor,
+  a renewer in each tip room ([estate-map](design/estate-map.md) §5a).
+- **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
+  one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
+  each and fix both sides at once. The ship gives a lot of points (#1040; the number later).
+- **No difficulty scaling** (same comment): the engine is the same in every match, whatever the number of players;
+  a host only puts the ship on the map or leaves it off.
+- **Stages:** 3. Each stage spawns problems, their kinds random, their count fixed: 2, then 4, then 6. A stage passes
+  when every one of its problems is fixed.
 - **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
   the breakers 30 s, a cartridge 30 s).
 - **Overheat** (reaction): hold the vent; a needle rises; let go inside the green band. A miss coughs steam; try again.
-- **A burnt cartridge** (speed): pull it out, run it to the renewer in another compartment, along the whole ship, put
-  it in, take back a good one and fit it. There are no spare cartridges to spam.
+- **A burnt cartridge** (multitasking): pull it out of its socket in the hall, carry it to the renewer on its side
+  (about 6 m) and put it in. The renewer washes it for 10 s (placeholder) and holds it until someone takes it, so the
+  player can fix something else meanwhile; then take the clean one back and fit it. There are no spare cartridges to
+  spam.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
-  to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307), a concept until the
-  playtest): the engine's power board in the west wing has four big breakers, red, yellow, green and blue, a lamp of
-  its colour over each. A problem trips some of them: 2, then 3, then all 4 by stage; they pop out and smoke.
-  - **The order** shows in the hall, on the start console's mimic board: a small copy of the four breakers, which drop
-    when theirs trip. A press on its button blinks all four twice, then lights them once in the order to switch them
-    back on, and they go dark; a press shows the same order again. Remember it, or a friend at the console reads it
-    out by voice, and run to the board.
+  to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
+  2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
+  concept until the playtest): a breaker board in each corridor, both with the same four big breakers, red, yellow,
+  green and blue, a lamp of its colour over each, eight in all. A problem trips some of them, easy first and harder
+  later (placeholders: 2 on one board, then 4 with one change of side, then 6 alternating sides); they pop out and
+  smoke.
+  - **The order** shows in the hall, on the start console's mimic board: a small copy of both boards, a left row and
+    a right row of four, which drop when theirs trip. A press on its button blinks them twice, then lights them once
+    in the order to switch them back on, each with its side (green left, blue right, red left, red right), and they
+    go dark; a press shows the same order again. Remember it, or a friend at the console reads it out by voice.
   - **The chain:** a breaker switched on ramps up, its lamp from yellow to green; the next one goes on while that lamp
-    is green. Too late, and the previous breaker trips again.
+    is green. Too late, and the previous breaker trips again. The green lasts long enough for one player to run
+    across the hall to the other board; two players, one at each board, call the order to each other.
   - **A short circuit** (a wrong breaker, or one switched too early) zaps the player at the board into a knockdown,
     raised by someone; the tripped breakers stay tripped.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
