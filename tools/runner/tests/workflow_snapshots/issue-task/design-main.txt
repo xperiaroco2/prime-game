@@ -32,7 +32,7 @@ This is a DESIGN task: documents only (docs/ARCHITECTURE.md, a new ADR in docs/d
 
 If the issue asks for a split into later issues, return it in proposed_issues (each: title, goal, acceptance criteria, depends on, files); do not open issues.
 
-Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
+ARCHITECTURE is a contract (its preamble says so): update what is true now and the "Tests" lines your work changes, and anything it makes stale in docs/ARCHITECTURE.md and other durable docs, in the same branch; add no "Built in" line. Commit as you go.
 
 `tools\run.cmd verify --changed` in the worktree until green: the fast verify (#605: doctor, lint and check, a minute or two). Every test runs on GitHub CI once the publisher pushes, so never run `verify --full` or the whole `test` suite here; while you build and debug, run the tests your change touches by path (`tools\run.cmd test <path>`).
 

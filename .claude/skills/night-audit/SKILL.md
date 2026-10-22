@@ -112,7 +112,7 @@ or classes: root and nested `CLAUDE.md`, `.claude/rules/`, `.claude/skills/`, `.
 `docs/AGENT_WORKFLOW.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`. Checks: a path in backticks that does not exist;
 a runner command or flag missing from `tools/run.sh <command> --help`; a class, function, signal or constant the
 code no longer has (Grep); a number (timeout, port, budget, count) that differs from the code's constant; a link
-to a missing file; a "Built in" or "Tests" line naming a test that does not exist.
+to a missing file; a "Tests" line naming a test that does not exist.
 
 **decisions.** An engineer's answer of the last 7 days that changes a documented flow, rule or number while an ADR,
 a doc, a skill or a `CLAUDE.md` on `main` still says the old thing (MANAGERS.md §10). List the answers (`<date>`:
