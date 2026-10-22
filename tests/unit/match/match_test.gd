@@ -154,6 +154,25 @@ func test_the_match_clock_ends_on_the_announced_tick() -> void:
 	)
 
 
+func test_two_reactions_on_one_fact_both_run_in_data_order() -> void:
+	# Conditions are ANDed, so two mechanics reacting to one fact need a rule each (#1253).
+	var mode := FixtureModes.basic()
+	mode.reactions = [
+		FixtureModes.rule(Facts.CLOCK_ENDED, [], [FixtureNote.of("first")]),
+		FixtureModes.rule(Facts.CLOCK_ENDED, [], [FixtureNote.of("second")]),
+	]
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+	var game := FixtureModes.started(mode, [P1])
+	game.state.clock_ticks_left = 2
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	FixtureModes.run_ticks(game, 2)
+	assert_bool(game.state.clock_ended).is_true()
+	var notes := FixtureModes.notes(game).filter(
+		func(n: String) -> bool: return n == "first" or n == "second"
+	)
+	assert_array(notes).contains_exactly(["first", "second"])
+
+
 func test_the_clock_does_not_run_in_a_phase_whose_clock_is_stopped() -> void:
 	var game := FixtureModes.started(FixtureModes.basic(), [P1])
 	game.state.clock_ticks_left = 5

@@ -27,7 +27,8 @@ extends RefCounted
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
 ## carries an item), else the condition finds no target and its answer never changes (#379;
-## ActorConditionCheck); two rules on one trigger in one owner; an action that is never reached
+## ActorConditionCheck); two actions on one intent in one owner (reactions on one fact all run, in
+## data order); an action that is never reached
 ## (RuleReachCheck); two win conditions with one id; a station kind's rule on an intent that names
 ## no station, and an item kind's on one that does (the hand item never owns Interact, the
 ## Generator ADR's GE2); a UseStation on an intent that names no station or without AtStation,
@@ -150,7 +151,7 @@ static func _holds_set(resource: Resource, property: String) -> bool:
 	return resource is ContentPart and (resource as ContentPart).set_settings().has(property)
 
 
-## Every owner's rules: known triggers, one rule per trigger, costs not negated, and the
+## Every owner's rules: known triggers, one action per intent, costs not negated, and the
 ## warning about public events of role-owned or role-gated rules.
 func _check_rules(mode: GameMode) -> void:
 	_has_channel = _any_channel(mode)
@@ -194,7 +195,9 @@ func _check_owner(
 			continue
 		if not triggers.has(rule.trigger):
 			errors.append("%s: trigger %s is not one of %s" % [owner, rule.trigger, triggers])
-		if seen_triggers.has(rule.trigger):
+		# Reactions (rules on facts) all run, in data order (Match.raise_fact), and conditions are
+		# ANDed, so two mechanics reacting to one fact need two rules.
+		if seen_triggers.has(rule.trigger) and on_intent:
 			errors.append("%s: two rules on %s" % [owner, rule.trigger])
 		seen_triggers.append(rule.trigger)
 		errors.append_array(RuleReachCheck.unreached(owner, rule, on_intent, _phase_taken))

@@ -6523,7 +6523,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
     (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
     condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
-    nor any rule handles; two rules on one trigger in one owner; an action that is never reached, on `MoveClaim` (the
+    nor any rule handles; two actions on one intent in one owner (reactions are exempt: conditions are ANDed, so two
+    mechanics reacting to one fact need a rule each, and all of them run, #1253); an action that is never reached, on `MoveClaim` (the
     movement rule takes it) or on an intent the class of every phase that accepts it handles (`RuleReachCheck`,
     #1236; a reaction with no effects is a warning); a number outside its part's bounds; an id outside
     the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
@@ -6591,8 +6592,8 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
-- **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
-  then each task type's check, in the mode's order), then the current phase's win conditions are checked, and only
+- **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (every reaction of the
+  mode on that fact, in data order, then each task type's check, in the mode's order), then the current phase's win conditions are checked, and only
   then does the raising effect go on. A chain deeper than 16 facts is a bug: `Match` stops it with an error in every
   build.
 
