@@ -7244,6 +7244,7 @@ swapped onto its circle is delivered; beside a two-handed item a full belt's ite
 and `item_rested`.
 Visible to: everyone; a refusal (`unavailable`, `out_of_reach`, `blocked`) only the sender. A mode rule: its public
 events reveal no role.
+Code: the rule in `content/modes/base_mode.tres`; `core/items/take_into_hand.gd`, `core/items/item_on_ground.gd`.
 Tests: `tests/unit/items/take_into_hand_test.gd`,
 `tests/unit/items/in_sight_test.gd` (`InSight` refuses an item that is not there),
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
@@ -7253,6 +7254,7 @@ What it does: puts the hand item down in front of the player (§7.1.12); a belt 
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
 Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its public events reveal no role.
+Code: the rule in `content/modes/base_mode.tres`; `core/items/put_down_in_front.gd`, `core/items/holds_item.gd`.
 Tests: `tests/unit/items/put_down_in_front_test.gd`; the drops at a
 death or a leave: `tests/unit/items/items_test.gd`.
 
@@ -7261,6 +7263,7 @@ What it does: uses the hand item, as its kind's rule says, never the belt item; 
 #32's `Hit` intent, so that a new held item is data, not a new intent.
 Settings, Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Round accepts it
 from the living only); an empty hand (a knife on the belt too), or a package, is `nothing_to_do`.
+Code: the knife's (above); the rule is the item kind's, `Use` is in Round's allowlist in `content/modes/base_mode.tres`.
 Tests: the knife's; a downed or dead player's `Use`:
 `tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
 `tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
@@ -7280,6 +7283,9 @@ Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Die
 Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
 the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `moving` (the body still in motion, #847), `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
+Code: the rules in `content/modes/base_mode.tres`; `core/life/raise_downed.gd`, `core/life/die.gd`, the conditions
+`core/life/target_downed.gd`, `core/life/target_in_reach.gd`, `core/life/target_in_sight.gd`, `core/channel/channel_free.gd`
+and `core/channel/channeling.gd`, the channel primitive in `core/channel/`.
 Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
 `tests/unit/life/absent_target_test.gd` (`TargetInReach` and `TargetInSight` refuse a target that is not there);
 the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
@@ -7293,6 +7299,8 @@ Round accepts it from the living only: the downed and the dead get `not_accepted
 Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every applied action does (§9.2).
 Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
 reveal no role.
+Code: the rule in `content/modes/base_mode.tres`; `core/items/swap_hands.gd`, `core/items/carries_item.gd`,
+`core/items/hand_not_two_handed.gd`.
 Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
 the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel/channels_test.gd` (a swap refused
 by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
@@ -7887,6 +7895,7 @@ Settings: none of its own since #991 (the engineer's change on #989: no per-map 
 `PlayerRules.crouch_maps`, KE10, is gone).
 Why not a part: as for sprint.
 Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player.
+Code: `core/movement/movement_rule.gd`; the numbers are `PlayerRules` in `core/content/player_rules.gd`.
 Tests:
 `tests/unit/movement/movement_rule_crouch_test.gd`, `tests/integration/server/host_session_crouch_test.gd`,
 `tests/unit/content/content_modes_test.gd`.
@@ -7904,6 +7913,7 @@ puts `project.godot`'s located event in the InputMap for a default binding, a re
 Why not a part: as for sprint.
 Visible to: the avatar's `sneaking` flag is public in the snapshot, only for a living, uncrouched player; never the
 own avatar's (a living viewer never gets its own).
+Code: `core/movement/movement_rule.gd`; the listener's side, `FootstepCadence` and `WorldSounds` in `client/world/`.
 Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
 `tests/integration/server/host_session_sneak_test.gd`, `tests/integration/client/player/player_controller_sneak_test.gd`,
 `tests/unit/client/world/footstep_cadence_test.gd`, `tests/integration/client/world/world_sounds_steps_test.gd`.
