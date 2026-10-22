@@ -2720,7 +2720,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   destination marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by
   what it is. Since #801 it draws only Delivery's circles and the fallback cylinder of a kind no type holds
   (`CircleViews.draws`, §4.7.54): a zone is `ZoneViews`' (§4.7.51), the Generator's stations are their level
-  scenes, and another task's station kind waits for its own client issue.
+  scenes, and each task type's view is its `TaskClient`'s (§4.7.59).
   Delivery by meaning's looks (DE11 of its ADR, #830; greybox placeholders until the art): `CircleViews.is_drop_off`
   tells a drop-off from a circle by which of the client's own Delivery types lists its kind (a `DeliveryByMeaning`'s
   `station_kinds()`), never by a colour or a name; a drop-off is an open tube (no caps) of its kind's radius and
@@ -4783,8 +4783,8 @@ The client side of the Generator (the [Generator ADR](decisions/2026-10-10-gener
 from the own `ClientModel`'s StationPlaced, SwitchChanged, ButtonPressed and ZoneProgress folds only; the wire is
 unchanged.
 - **What E offers.** `StationUse` (pure) offers a placed station whose kind has an Interact rule, whose hand rule
-  (HandNotTwoHanded) holds, and whose task type this client draws: today only a Generator's generator and switch,
-  neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Cooking's are
+  (HandNotTwoHanded) holds, and whose task type's `TaskClient` owns the kind and offers it (§4.7.59): a Generator's
+  generator and switch, neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Cooking's are
   `CookingUse`'s (§4.7.55), the photo task's `PhotoUse`'s (§4.7.56), car repair's `CarRepairUse`'s (§4.7.57); every
   kind with an Interact rule is offered.
 - **The target.** `TargetChoice.choose_target` weighs the item against the offered stations: a station counts where
@@ -5028,6 +5028,44 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   view's `visible` touched, headless), `character_rig_test.gd` (`pose_now`),
   `photo_close_up_test.gd`, `tests/integration/client/player/first_person_hand_test.gd`,
   `tests/integration/client/life/spectate_cycle_test.gd` (the spectate hand's picture).
+
+#### 4.7.59 The task types' clients (#1260)
+What the client does for each core task type class sits behind one table, client-only: `core/` and the content
+`.tres` name no client, and nothing here travels on the wire.
+- **The client.** `TaskClient` (`client/world/tasks/`, pure, a `RefCounted`) answers for one core `TaskType` class:
+  `owns(type, kind)` (E is this client's to answer for that station kind), `usable(model, type, id)` (E offers the
+  placed station now), `draws_circle(kind)` (`CircleViews` draws it as a circle) and `make_view()` (the class's view
+  under `ItemWorld`, named as its child, or none). The base answers no, draws no circle and makes no view. One
+  subclass per class: `DeliveryClient` (the circles, `CircleViews`), `DeliveryByMeaningClient` (its drop-offs as
+  circles), `ZoneTaskClient` (`ZoneViews`), `GeneratorClient` (`StationViews`; the generator and the switches until
+  the charge is done), `CookingClient` (`CookingViews`, `CookingUse`), `CarRepairClient` (`CarRepairViews`,
+  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`). Each but `DeliveryClient` also has the static
+  `types_of(mode)`, the mode's types of its class in the mode's order: the one place outside `core/` an `is` or `as`
+  of a task type class stands; the `*Use` helpers (`CookingUse.types_of`, `StationUse.generators_of`, `PhotoUse.type_of`, ...) and the
+  views call it.
+- **The table.** `TaskClients` (`task_clients.gd`) holds the one dictionary from the core script to its
+  `TaskClient` script; `of(type)` takes the type's class row, else its nearest base's along `get_base_script()`
+  (a subclass falls back to its base), else null. A client holds no state: one is made per script, on first use.
+- **The views.** `ItemWorld` adds `TaskClients.make_views()`: a view of every row's client that makes one, not
+  only the mode's types', as before; its children keep their names and tree order (`ItemWorld._ORDER`). It gives
+  each the model and the mode and, where the view has them, the host tick and the level, and at a reset calls its
+  `clear()` if it has one and forgets the model and the host tick. The lookups by a hit or an item
+  (`station_of_hit`, `drawn_point`, `aim_point`, the car's near hit) stay per type, through the views it takes from
+  the table by class.
+- **What E offers.** `StationUse.usable` checks the kind's Interact rule, the loaded camera's take-out (a take,
+  §4.7.56) and the hand rule, then asks the first of the mode's types whose client owns the station's kind; a kind
+  no client owns is never offered (a Delivery circle, a zone). Content today shares no station kind between two
+  types of one mode, so the mode's order gives the same answer as the per-type order before.
+- **A missing row.** `ItemWorld.setup` calls `TaskClients.report_missing(mode)`: a `push_error` per mode type with
+  no client, once per class for the process, so a type is never skipped silently. The hums, the sound choice, the
+  camera and box keys and the item looks (`station_hums.gd`, `sound_chooser.gd`, `item_interactions.gd`,
+  `item_view.gd`, `item_views.gd`) stay per-type code outside the table, through the `*Use` helpers.
+- **Tests.** `tests/unit/client/world/tasks/task_clients_test.gd` (every global class outside the tests whose base
+  chain reaches `TaskType`, from `ProjectSettings.get_global_class_list()`, has a client; so does every task type of
+  `content/modes/`; the base fallback; a class with no row reported once), `task_clients_source_test.gd` (no
+  `is`/`as` of such a class in `client/` outside `client/world/tasks/`, comments and strings stripped, the five
+  files above named exceptions), `tests/integration/client/world/item_world_children_test.gd` (`ItemWorld`'s
+  children: names, classes, order); each `*_use_test.gd` unchanged.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -8464,7 +8502,9 @@ change to an existing part is a new setting (`PlacePlayers`' `who`). The revive 
 for every later timed action: `RuleRunner` stops the actor's channel when another of its actions applies, and the
 movement rule holds a raised player in place.
 Outside `core/`, every new event class and intent also costs a wire schema row (M3, §4) and its presentation on the
-client (M4). That is the price of any mechanic that shows something new, not a gap in the content API.
+client (M4). That is the price of any mechanic that shows something new, not a gap in the content API. A new
+task type's client is one `TaskClient` subclass in `client/world/tasks/` plus its row in `TaskClients` (§4.7.59);
+`task_clients_test.gd` is red while it is missing.
 
 ## 10. Open questions
 

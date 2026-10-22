@@ -67,11 +67,8 @@ class FillSight:
 ## The ZoneTask of `game_mode` whose zone is the station kind `kind_id`, or null: such a station
 ## is a zone.
 static func zone_task(game_mode: GameMode, kind_id: StringName) -> ZoneTask:
-	if game_mode == null:
-		return null
-	for type: TaskType in game_mode.task_types:
-		var zone_type := type as ZoneTask
-		if zone_type != null and zone_type.zone != null and zone_type.zone.id == kind_id:
+	for zone_type: ZoneTask in ZoneTaskClient.types_of(game_mode):
+		if zone_type.zone != null and zone_type.zone.id == kind_id:
 			return zone_type
 	return null
 

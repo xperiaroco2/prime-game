@@ -5,13 +5,13 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-person-client.md` and of the M5 ADR.
 
 ## Job
-- The windowed game: the main menu, hosting and joining, the lobby, loading, the pregame, the round and the end
-  screen, in one persistent main scene that swaps levels under itself (§4.7).
-- The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
-  and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
-- UI: lobby, HUD, the map and tasks screen on M, end screen, the Esc menu with tabs.
-- Audio: each remote speaker's voice on its avatar, world sounds, footsteps and UI clicks, the lift music.
-- The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
+- The windowed game: menu, host, join, lobby, loading, pregame, round, end screen, in one persistent main
+  scene that swaps levels under itself (§4.7).
+- The first-person player controller, its cameras (first person, downed, the dead's spectate) and interactions;
+  the own movement is client-side, remote players interpolated from snapshots.
+- UI: lobby, HUD, the map and tasks screen (M), end screen, the tabbed Esc menu.
+- Audio: remote voices on their avatars, world sounds, footsteps and UI clicks, the lift music.
+- The dev console and debug commands (bots, forced roles, phase skips, hidden info) for solo testing.
 
 ## Map
 Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 for `net/`).
@@ -19,6 +19,7 @@ Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 f
   (off by default; bots and the leak test turn it on).
 - `app/EndReasons` holds every end reason (#494); a new one goes there. Voice code uses `res://voice/`, never the
   reverse.
+- A task type's client: a `TaskClient` in `world/tasks/` and its `TaskClients` row (§4.7.59), or a test fails.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,

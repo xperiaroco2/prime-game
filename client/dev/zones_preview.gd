@@ -108,10 +108,8 @@ static func _with_zones(base: GameMode) -> GameMode:
 
 
 static func _zone_task(mode: GameMode) -> ZoneTask:
-	for type: TaskType in mode.task_types:
-		if type is ZoneTask:
-			return type as ZoneTask
-	return null
+	var found := ZoneTaskClient.types_of(mode)
+	return found[0] if not found.is_empty() else null
 
 
 ## A floor, a wall in front of the last zone, light and a sky.

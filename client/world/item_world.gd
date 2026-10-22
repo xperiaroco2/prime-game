@@ -11,19 +11,47 @@ extends Node3D
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
+##
+## A task type's view is its TaskClient's (TaskClients.make_views, #1260, §4.7.59): every row's,
+## not only the mode's types', each given the model, the mode and, where it has them, the host
+## tick and the level, and cleared at a reset; a mode's type with none is reported at setup
+## (TaskClients.report_missing). The lookups by a hit or an item below
+## (station_of_hit, drawn_point, aim_point) stay per type.
+
+## ItemWorld's children by name in their tree order (the order they process in), the task types'
+## views among them; a view not named here comes after them all.
+const _ORDER: Array[StringName] = [
+	&"ItemViews",
+	&"CircleViews",
+	&"ZoneViews",
+	&"ItemInteractions",
+	&"WorldSounds",
+	&"PhotoFlashes",
+	&"StationViews",
+	&"StationHums",
+	&"CookingViews",
+	&"PhotoViewfinder",
+	&"CarRepairViews",
+	&"PhotoViews",
+	&"PhotoPictures",
+]
 
 var items := ItemViews.new()
-var circles := CircleViews.new()
-var zones := ZoneViews.new()
+## The task types' views, keyed by their core script (TaskClients.make_views).
+var task_views: Dictionary[Script, Node3D] = TaskClients.make_views()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
 var flashes := PhotoFlashes.new()
-var stations := StationViews.new()
+## The Generator's station scenes (its TaskClient's view): station_of_hit asks it first.
+var stations := task_views.get(Generator) as StationViews
 var hums := StationHums.new()
-var cooking := CookingViews.new()
+## Cooking's scenes (its TaskClient's view): station_of_hit, drawn_point and aim_point ask it.
+var cooking := task_views.get(Cooking) as CookingViews
 var viewfinder := PhotoViewfinder.new()
-var car_repair := CarRepairViews.new()
-var photos := PhotoViews.new()
+## The car repair's scenes (its TaskClient's view): station_of_hit and the near hit ask it.
+var car_repair := task_views.get(CarRepair) as CarRepairViews
+## The photo task's scenes and items (its TaskClient's view): drawn_point and aim_point ask it.
+var photos := task_views.get(PhotoTask) as PhotoViews
 var pictures := PhotoPictures.new()
 
 var _model: ClientModel
@@ -36,33 +64,29 @@ var _host_tick := Callable()
 func _init() -> void:
 	name = "Items"
 	items.name = "ItemViews"
-	circles.name = "CircleViews"
-	zones.name = "ZoneViews"
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
-	stations.name = "StationViews"
 	hums.name = "StationHums"
-	cooking.name = "CookingViews"
-	car_repair.name = "CarRepairViews"
-	photos.name = "PhotoViews"
 	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
-		circles,
-		zones,
 		interactions,
 		sounds,
 		flashes,
-		stations,
 		hums,
-		cooking,
 		viewfinder,
-		car_repair
+		pictures,
 	]:
 		add_child(each)
-	add_child(photos)
-	add_child(pictures)
+	for view: Node3D in task_views.values():
+		add_child(view)
+	var at := 0
+	for child_name: StringName in _ORDER:
+		var child := get_node_or_null(NodePath(child_name))
+		if child != null:
+			move_child(child, at)
+			at += 1
 	items.pictures = pictures
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
@@ -82,25 +106,21 @@ func _init() -> void:
 func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> void:
 	_model = client.model
 	_mode = game_mode
+	# A type with no TaskClient is drawn and offered nothing: say so once, never silently.
+	TaskClients.report_missing(game_mode)
 	items.model = _model
 	items.mode = game_mode
 	items.avatars = views
-	circles.model = _model
-	circles.mode = game_mode
-	zones.model = _model
-	zones.mode = game_mode
-	zones.host_tick = views.host_tick
-	stations.model = _model
-	stations.mode = game_mode
-	cooking.model = _model
-	cooking.mode = game_mode
-	cooking.host_tick = views.host_tick
-	car_repair.model = _model
-	car_repair.mode = game_mode
-	car_repair.host_tick = views.host_tick
+	for view: Node3D in task_views.values():
+		# Object.set does nothing on a missing member: a view without these draws nothing, so say so.
+		if not (&"model" in view and &"mode" in view):
+			push_error("%s has no model and mode member (TaskClient.make_view)" % view.name)
+			continue
+		view.set(&"model", _model)
+		view.set(&"mode", game_mode)
+		if &"host_tick" in view:
+			view.set(&"host_tick", views.host_tick)
 	_host_tick = views.host_tick
-	photos.model = _model
-	photos.mode = game_mode
 	pictures.model = _model
 	pictures.mode = game_mode
 	pictures.avatars = views
@@ -134,19 +154,14 @@ func set_player(player: PlayerController) -> void:
 ## Forgets the session (it ended).
 func reset() -> void:
 	items.clear()
-	circles.clear()
-	zones.clear()
+	for view: Node3D in task_views.values():
+		if view.has_method(&"clear"):
+			view.call(&"clear")
+		view.set(&"model", null)
+		if &"host_tick" in view:
+			view.set(&"host_tick", Callable())
 	items.model = null
-	circles.model = null
-	zones.model = null
-	zones.host_tick = Callable()
-	stations.model = null
-	cooking.model = null
-	cooking.host_tick = Callable()
-	car_repair.model = null
-	car_repair.host_tick = Callable()
 	_host_tick = Callable()
-	photos.model = null
 	pictures.clear()
 	pictures.model = null
 	hums.clear()
@@ -215,10 +230,9 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 ## The level now (Game's), or null: StationViews finds the Generator's station scenes in it,
 ## CookingViews Cooking's.
 func set_level(level: Node) -> void:
-	stations.level = level
-	cooking.level = level
-	car_repair.level = level
-	photos.level = level
+	for view: Node3D in task_views.values():
+		if &"level" in view:
+			view.set(&"level", level)
 
 
 ## The station a ray hit names (ItemInteractions.station_of_hit): StationViews' by the body, then

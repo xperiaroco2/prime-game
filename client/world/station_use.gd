@@ -8,14 +8,13 @@ extends RefCounted
 ## holds no two-handed item where that rule has HandNotTwoHanded (but for a photo camera holding a
 ## film: taking it out is a PickUp, a take, which a two-handed item does not refuse, the photo
 ## ADR's §2.4; only its viewfinder asks hand_allows_at()), and its task type says it can still be
-## used. Only the task types this client draws a station view for answer that (today the
-## Generator, #801: neither its generator nor a switch once the charge is done, the host's
-## StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair, #811:
-## CarRepairUse); a kind of any other type is never offered until its client issue adds its row
-## here. The other conditions of a rule (AtStation, StationInSight) are TargetChoice's and
-## ItemInteractions'; one this client does not know is left to the host. A fixed switch is no
-## station at all (GE14), so it is never offered, and nothing here reads a switch's `on`: the hint
-## never names a switch's state.
+## used: the first of the mode's types whose TaskClient owns the kind answers (#1260, §4.7.59;
+## today the Generator, #801: neither its generator nor a switch once the charge is done, the
+## host's StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair,
+## #811: CarRepairUse); a kind no client owns is never offered. The other conditions of a rule
+## (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client does not
+## know is left to the host. A fixed switch is no station at all (GE14), so it is never offered,
+## and nothing here reads a switch's `on`: the hint never names a switch's state.
 
 
 ## The station kind `kind_id` of one of `mode`'s task types, or null.
@@ -30,27 +29,15 @@ static func kind_of(mode: GameMode, kind_id: StringName) -> StationKind:
 
 ## The Generator of `mode` whose generator or switch kind is `kind_id`, or null.
 static func generator_of(mode: GameMode, kind_id: StringName) -> Generator:
-	if mode == null:
-		return null
-	for type: TaskType in mode.task_types:
-		var generator := type as Generator
-		if generator == null:
-			continue
-		for kind: StationKind in [generator.generator, generator.switch]:
-			if kind != null and kind.id == kind_id:
-				return generator
+	for generator: Generator in GeneratorClient.types_of(mode):
+		if TaskClients.of(generator).owns(generator, kind_id):
+			return generator
 	return null
 
 
 ## Every Generator of `mode`, in the mode's order.
 static func generators_of(mode: GameMode) -> Array[Generator]:
-	var found: Array[Generator] = []
-	if mode == null:
-		return found
-	for type: TaskType in mode.task_types:
-		if type is Generator:
-			found.append(type as Generator)
-	return found
+	return GeneratorClient.types_of(mode)
 
 
 ## Whether `kind_id` is a Generator's generator kind (the station that charges and hums).
@@ -111,21 +98,12 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 		return true
 	if not _hand_allows(model, mode, rule):
 		return false
-	var cooking := CookingUse.type_of(mode, station.kind)
-	if cooking != null:
-		return CookingUse.usable(model, cooking, id)
-	var photo := PhotoUse.type_of(mode, station.kind)
-	if photo != null:
-		return PhotoUse.usable(model, photo, id)
-	var car_repair := CarRepairUse.type_of(mode, station.kind)
-	if car_repair != null:
-		return CarRepairUse.usable(model, car_repair, id)
-	var type := generator_of(mode, station.kind)
-	if type == null:
-		return false
-	# The charge done: neither the generator nor a switch can be used any more (StationUsable).
-	var charged: ClientModel.Station = model.stations.get(generator_station(model, type))
-	return charged == null or not charged.done
+	# The first of the mode's types whose TaskClient owns the kind answers (#1260).
+	for type: TaskType in mode.task_types:
+		var client := TaskClients.of(type)
+		if client != null and client.owns(type, station.kind):
+			return client.usable(model, type, id)
+	return false
 
 
 ## Whether the own hand passes the HandNotTwoHanded of station `id`'s Interact rule, if it has one
