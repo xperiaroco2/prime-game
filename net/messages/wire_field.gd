@@ -4,7 +4,8 @@ extends RefCounted
 ## a key of an event's to_dict(), written as a string: net/ references no core/ class), its wire
 ## type, and the Variant it decodes to. write() checks a value by the decoder's rules before it
 ## writes it, so the encoder refuses whatever the decoder would reject; read() rejects at the
-## first problem through its WireReader.
+## first problem through its WireReader. Its text checks are WireText's, and the write and read of
+## a LIST, a MAP and a SETTING WireCollection's (#1279).
 
 enum Type {
 	U8,
@@ -60,10 +61,6 @@ const U16_MAX := 0xFFFF
 const U32_MAX := 0xFFFFFFFF
 const S32_MIN := -0x80000000
 const S32_MAX := 0x7FFFFFFF
-## Per UTF-8 continuation count: the lead byte's bits of the code point, and the smallest code
-## point that needs that many bytes (anything smaller is an overlong form).
-const UTF8_LEAD_BITS := [0x7F, 0x1F, 0x0F, 0x07]
-const UTF8_SMALLEST := [0, 0x80, 0x800, 0x10000]
 ## How much of a refused value a refusal line shows.
 const WRONG_VALUE_MAX := 64
 ## The integer types and their bounds; one above the top is none (-1) where a field is optional.
@@ -248,64 +245,29 @@ static func sized_opus(field_name: String, most: int) -> WireField:
 	return field
 
 
-## Whether `text` is a wire id: 1 to 32 bytes of `a-z`, `0-9` and `_`.
+## Whether `text` is a wire id (WireText.is_id).
 static func is_id(text: String) -> bool:
-	if text.length() < 1 or text.length() > ID_MAX:
-		return false
-	for i: int in text.length():
-		if not _is_id_char(text.unicode_at(i)):
-			return false
-	return true
+	return WireText.is_id(text)
 
 
-## Whether `text` is a wire path: `res://` and bytes of `A-Z a-z 0-9 _ - . /`, no `..`, at most
-## 255 bytes.
+## Whether `text` is a wire path (WireText.is_path).
 static func is_path(text: String) -> bool:
-	if text.length() > PATH_MAX or not text.begins_with(PATH_PREFIX) or text.contains(".."):
-		return false
-	for i: int in range(PATH_PREFIX.length(), text.length()):
-		if not _is_path_char(text.unicode_at(i)):
-			return false
-	return true
+	return WireText.is_path(text)
 
 
-## Whether `text` is printable ASCII (0x20 to 0x7E) of at most `most` bytes.
+## Whether `text` is printable ASCII of at most `most` bytes (WireText.is_printable).
 static func is_printable(text: String, most: int) -> bool:
-	if text.length() > most:
-		return false
-	for i: int in text.length():
-		if not _is_printable_char(text.unicode_at(i)):
-			return false
-	return true
+	return WireText.is_printable(text, most)
 
 
-## Whether `text` is a `name` on the wire (#550): at most NAME_MAX_BYTES bytes of UTF-8, every
-## character one is_name_char allows. Empty is one (the host gives a fallback).
+## Whether `text` is a `name` on the wire (WireText.is_name).
 static func is_name(text: String) -> bool:
-	for i: int in text.length():
-		if not is_name_char(text.unicode_at(i)):
-			return false
-	return text.to_utf8_buffer().size() <= NAME_MAX_BYTES
+	return WireText.is_name(text)
 
 
-## Whether a `name` may hold the character `code`: not a C0 control, DEL or a C1 control, not a
-## surrogate, not U+FEFF (a UTF-8 decoder may drop it silently, so it would not decode back to the
-## same bytes), not an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to
-## U+2064, U+2066 to U+2069: a name that looks like another) and at most U+10FFFF. core/'s
-## PlayerNames.is_dropped refuses exactly these (net/ names no core/ class; a test pins the two), so
-## every name the host makes encodes.
+## Whether a `name` may hold the character `code` (WireText.is_name_char).
 static func is_name_char(code: int) -> bool:
-	return not (
-		code < 0x20
-		or (code >= 0x7F and code <= 0x9F)
-		or (code >= 0x200B and code <= 0x200F)
-		or (code >= 0x2028 and code <= 0x202E)
-		or (code >= 0x2060 and code <= 0x2064)
-		or (code >= 0x2066 and code <= 0x2069)
-		or (code >= 0xD800 and code <= 0xDFFF)
-		or code == 0xFEFF
-		or code > 0x10FFFF
-	)
+	return WireText.is_name_char(code)
 
 
 ## Writes `fields` from `source`; the problem, or empty. Every key of `source` must be one the
@@ -535,11 +497,11 @@ func _write_number(value: Variant, writer: WireWriter) -> String:
 func _write_container(value: Variant, writer: WireWriter) -> String:
 	match type:
 		Type.LIST:
-			return _write_list(value, writer)
+			return WireCollection.write_list(self, value, writer)
 		Type.MAP:
-			return _write_map(value, writer)
+			return WireCollection.write_map(self, value, writer)
 		Type.SETTING:
-			return _write_setting(value, writer)
+			return WireCollection.write_setting(self, value, writer)
 	if not value is Dictionary:
 		return _wrong(value)
 	var fields: Dictionary = value
@@ -576,68 +538,6 @@ func _write_name(value: Variant, writer: WireWriter) -> String:
 	var bytes := str(value).to_utf8_buffer()
 	writer.u8(bytes.size())
 	writer.raw(bytes)
-	return ""
-
-
-func _write_list(value: Variant, writer: WireWriter) -> String:
-	if not _is_list(value):
-		return _wrong(value)
-	var entries := _entries_of(value)
-	if entries.size() > max_count:
-		return "%s: %d entries, at most %d" % [name, entries.size(), max_count]
-	writer.u8(entries.size())
-	for entry: Variant in entries:
-		var problem := element._write_value(entry, writer)
-		if not problem.is_empty():
-			return "%s: %s" % [name, problem]
-	return ""
-
-
-func _write_map(value: Variant, writer: WireWriter) -> String:
-	if not value is Dictionary:
-		return _wrong(value)
-	var entries: Dictionary = value
-	if entries.size() > max_count:
-		return "%s: %d entries, at most %d" % [name, entries.size(), max_count]
-	# Each key is checked and written once, into `keyed`; its bytes are copied in key order.
-	var keyed := WireWriter.new()
-	var spans := {}
-	for entry_key: Variant in entries:
-		var at := keyed.bytes.size()
-		var problem := key._write_value(entry_key, keyed)
-		if not problem.is_empty():
-			return "%s: key %s" % [name, problem]
-		spans[entry_key] = Vector2i(at, keyed.bytes.size())
-	var ordered := entries.keys()
-	if key.type == Type.ID:
-		ordered.sort_custom(func(a: Variant, b: Variant) -> bool: return str(a) < str(b))
-	else:
-		ordered.sort()
-	writer.u8(ordered.size())
-	for entry_key: Variant in ordered:
-		var span: Vector2i = spans[entry_key]
-		writer.raw(keyed.bytes.slice(span.x, span.y))
-		var problem := element._write_value(entries[entry_key], writer)
-		if not problem.is_empty():
-			return "%s: %s" % [name, problem]
-	return ""
-
-
-func _write_setting(value: Variant, writer: WireWriter) -> String:
-	if value is int:
-		writer.u8(0)
-		return _as_s32()._write_value(value, writer)
-	if not _is_list(value):
-		return _wrong(value)
-	var entries := _entries_of(value)
-	if entries.size() > max_count:
-		return "%s: %d ids, at most %d" % [name, entries.size(), max_count]
-	writer.u8(1)
-	writer.u8(entries.size())
-	for entry: Variant in entries:
-		var problem := WireField.id(name)._write_value(entry, writer)
-		if not problem.is_empty():
-			return problem
 	return ""
 
 
@@ -734,11 +634,11 @@ func _read_sized_opus(reader: WireReader) -> PackedByteArray:
 func _read_container(reader: WireReader) -> Variant:
 	match type:
 		Type.LIST:
-			return _read_list(reader)
+			return WireCollection.read_list(self, reader)
 		Type.MAP:
-			return _read_map(reader)
+			return WireCollection.read_map(self, reader)
 		Type.SETTING:
-			return _read_setting(reader)
+			return WireCollection.read_setting(self, reader)
 	var fields := {}
 	read_all(parts, reader, fields, null)
 	return fields
@@ -753,7 +653,7 @@ func _read_string(reader: WireReader) -> Variant:
 	if reader.failed:
 		return ""
 	for byte: int in raw:
-		if not _is_printable_char(byte):
+		if not WireText.is_printable_char(byte):
 			reader.fail("%s: a byte %d" % [name, byte])
 			return ""
 	var text := raw.get_string_from_ascii()
@@ -779,7 +679,7 @@ func _read_name(reader: WireReader) -> String:
 	var raw := reader.raw(length)
 	if reader.failed:
 		return ""
-	var at := _utf8_problem(raw)
+	var at := WireText.utf8_problem(raw)
 	if at >= 0:
 		reader.fail("%s: not UTF-8 at byte %d" % [name, at])
 		return ""
@@ -788,90 +688,6 @@ func _read_name(reader: WireReader) -> String:
 		reader.fail("%s: not a name" % name)
 		return ""
 	return text
-
-
-func _read_list(reader: WireReader) -> Variant:
-	var count := reader.u8()
-	if count > max_count:
-		reader.fail("%s: %d entries, at most %d" % [name, count, max_count])
-		return null
-	var ints := PackedInt32Array()
-	var texts := PackedStringArray()
-	var entries: Array = []
-	if element.decoded_type() == TYPE_DICTIONARY:
-		entries = Array([], TYPE_DICTIONARY, &"", null)
-	for _entry: int in count:
-		var value: Variant = element._read_value(reader)
-		if reader.failed:
-			return null
-		match list_type:
-			TYPE_PACKED_INT32_ARRAY:
-				ints.append(value as int)
-			TYPE_PACKED_STRING_ARRAY:
-				texts.append(str(value))
-			_:
-				entries.append(value)
-	match list_type:
-		TYPE_PACKED_INT32_ARRAY:
-			return ints
-		TYPE_PACKED_STRING_ARRAY:
-			return texts
-	return entries
-
-
-func _read_map(reader: WireReader) -> Variant:
-	var count := reader.u8()
-	if count > max_count:
-		reader.fail("%s: %d entries, at most %d" % [name, count, max_count])
-		return null
-	var entries := {}
-	if typed:
-		entries = Dictionary({}, key.decoded_type(), &"", null, element.decoded_type(), &"", null)
-	var previous: Variant = null
-	for _entry: int in count:
-		var entry_key: Variant = key._read_value(reader)
-		if reader.failed:
-			return null
-		if previous != null and not _ascending(previous, entry_key):
-			reader.fail("%s: keys out of order" % name)
-			return null
-		previous = entry_key
-		var value: Variant = element._read_value(reader)
-		if reader.failed:
-			return null
-		entries[entry_key] = value
-	return entries
-
-
-func _read_setting(reader: WireReader) -> Variant:
-	var tag := reader.u8()
-	if tag == 0:
-		return reader.s32()
-	if tag != 1:
-		reader.fail("%s: a setting tagged %d" % [name, tag])
-		return null
-	var count := reader.u8()
-	if count > max_count:
-		reader.fail("%s: %d ids, at most %d" % [name, count, max_count])
-		return null
-	var ids := PackedStringArray()
-	var entry := WireField.id(name)
-	for _id: int in count:
-		var value: Variant = entry._read_value(reader)
-		if reader.failed:
-			return null
-		ids.append(str(value))
-	return ids
-
-
-func _ascending(previous: Variant, next: Variant) -> bool:
-	if key.type == Type.ID:
-		return str(previous) < str(next)
-	return (previous as int) < (next as int)
-
-
-func _as_s32() -> WireField:
-	return WireField.of(name, Type.S32)
 
 
 ## Why `value` was refused, in one short line: a voice bug at 50 frames a second must not flood the
@@ -903,28 +719,6 @@ func _is_opus_size(size: int) -> bool:
 	return size >= 1 and size <= max_count
 
 
-static func _is_list(value: Variant) -> bool:
-	return (
-		typeof(value)
-		in [TYPE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, TYPE_PACKED_STRING_ARRAY]
-	)
-
-
-## An Array or a packed array (_is_list) as one Array.
-static func _entries_of(value: Variant) -> Array:
-	match typeof(value):
-		TYPE_PACKED_INT32_ARRAY:
-			var ints: PackedInt32Array = value
-			return Array(ints)
-		TYPE_PACKED_INT64_ARRAY:
-			var longs: PackedInt64Array = value
-			return Array(longs)
-		TYPE_PACKED_STRING_ARRAY:
-			var texts: PackedStringArray = value
-			return Array(texts)
-	return value
-
-
 static func _is_finite_colour(colour: Color) -> bool:
 	return (
 		is_finite(colour.r) and is_finite(colour.g) and is_finite(colour.b) and is_finite(colour.a)
@@ -945,51 +739,3 @@ static func _same(a: Variant, b: Variant) -> bool:
 	if a_text or b_text:
 		return a_text and b_text and str(a) == str(b)
 	return typeof(a) == typeof(b) and a == b
-
-
-static func _is_id_char(c: int) -> bool:
-	return (c >= 0x61 and c <= 0x7A) or (c >= 0x30 and c <= 0x39) or c == 0x5F
-
-
-static func _is_path_char(c: int) -> bool:
-	# A-Z, then "-", "." and "/".
-	return _is_id_char(c) or (c >= 0x41 and c <= 0x5A) or c in [0x2D, 0x2E, 0x2F]
-
-
-static func _is_printable_char(c: int) -> bool:
-	return c >= 0x20 and c <= 0x7E
-
-
-## Where `raw` stops being well-formed UTF-8 (RFC 3629: the shortest form only, no surrogate,
-## nothing above U+10FFFF), or -1 when it is; a character is_name_char refuses is a problem too.
-static func _utf8_problem(raw: PackedByteArray) -> int:
-	var at := 0
-	while at < raw.size():
-		var tail := _utf8_tail(raw[at])
-		if tail < 0 or at + tail >= raw.size():
-			return at
-		var code: int = raw[at] & UTF8_LEAD_BITS[tail]
-		for i: int in range(1, tail + 1):
-			var byte := raw[at + i]
-			if byte & 0xC0 != 0x80:
-				return at
-			code = (code << 6) | (byte & 0x3F)
-		if code < UTF8_SMALLEST[tail] or not is_name_char(code):
-			return at
-		at += tail + 1
-	return -1
-
-
-## How many continuation bytes follow the lead byte `lead`; -1 when it cannot lead (a continuation
-## byte, C0 and C1, which only lead overlong forms, and F5 to FF, which lead nothing below
-## U+110000).
-static func _utf8_tail(lead: int) -> int:
-	if lead < 0x80:
-		return 0
-	if lead >= 0xC2 and lead <= 0xDF:
-		return 1
-	if lead >= 0xE0 and lead <= 0xEF:
-		return 2
-	if lead >= 0xF0 and lead <= 0xF4:
-		return 3
-	return -1
