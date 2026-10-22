@@ -94,6 +94,20 @@ class FreshnessTest(unittest.TestCase):
                 self.assertIn(f"res://{name} changed", check.freshness(self.root).why)
                 age(self.root / name, 60)
 
+    def test_a_file_a_few_milliseconds_ahead_of_the_clock_reads_changed(self) -> None:
+        # #1298: on Windows a just-saved file can be dated past time.time(); that is a change, not clock skew.
+        imported(self.root, at=time.time() - 30)
+        (self.root / "icon.png").write_bytes(b"x")
+        age(self.root / "icon.png", -0.005)
+        self.assertEqual(check.freshness(self.root).why, "res://icon.png changed after the last import")
+
+    def test_a_file_far_ahead_of_the_clock_reads_in_the_future(self) -> None:
+        imported(self.root, at=time.time() - 30)
+        (self.root / "icon.png").write_bytes(b"x")
+        age(self.root / "icon.png", -(check.FUTURE_TOLERANCE + 60))
+        self.assertIn("res://icon.png is dated ", check.freshness(self.root).why)
+        self.assertIn("in the future", check.freshness(self.root).why)
+
     def test_files_godot_never_imports_or_never_sees_do_not_count(self) -> None:
         imported(self.root, at=time.time() - 30)
         for name in ("docs/GDD.md", "tools/runner/x.py", ".claude/worktrees/9/a.gd", "tools/out/logs/run.log"):
