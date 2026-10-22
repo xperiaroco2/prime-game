@@ -187,6 +187,14 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   ADR's CE21 in PickUp; #775 Cooking; #784 the photo task; #800 the Generator and `Interact`; #810 car repair; #828
   the House's Delivery by meaning as `delivery`, today's moved to `colour_delivery`; #849 (728e) the knife's launch;
   #212 End's silent ticks; #647 the cylinder's edge test moved to `station_state_test.gd`.
+- 2026-10-22 (#1307): ARCHITECTURE §9's lead no longer says a part is usable once its row names the PR that built
+  it, and §9.4's tables' "Built in" column is "Code" (each part's file). What the column named beyond stage 2's tasks:
+  M4-1 to M4-5 (#137 to #141: the life parts, the channel, the belt, `SwapHands`, `CarriesItem`, `HandNotTwoHanded`,
+  `Respawn`), M5-1 (#215, the voice radii), T1 (#599: `ReportOutcome`, `KnockDown`, `PlacePlayers`' `ordered`), 37b
+  and 37c (#642, #643: `FlightTicks`, `OverFloor`, `ThrowItem`), #79 and #803 (`DealTasks` shared, drawn and per
+  map), #212 and #213 (End's end tick, `Pregame`), #551 (`SetProfile`), #737 (`ResetMatch`'s resent shortfalls),
+  #796 and #805 (the station parts, `HoldStation`, the channel per station), #647, #797 and #773 (the ticking task
+  types), #770 (`GiveItem`), #779 (`VanishTicks`), #780 to #782 (`StationUsable`'s own reasons).
 
 ## The engineer's answers
 The engineer answered **A on all five** (2026-09-30, in the chat with the manager session; comment on #33). Each was
