@@ -1976,6 +1976,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the same ref's last successful night's report | The same run, per ref | The run's summary page and artifact `nightly-perf-<ref>`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | `nightly.yml`, job `lfs` (#1213): `git lfs pull --include` of only `assets/characters/slice_m1/` and the two House kit GLBs that `character_rig_art_test.gd` and `house_wrapper_test.gd` load (11,938,695 bytes, about 12 MB a night), then `tools/run.sh test` of those two suites | As `flaky`, once per ref; they print "skip" in CI, which has no LFS content | Artifact `nightly-lfs-<ref>`; red when a pull leaves a pointer file or a suite fails; a failure comments like `flaky` |
+| `nightly.yml`, job `windows` (#1240): `tools\run.cmd selftest --group python` (the runner's tests that start no Godot, the `skipUnless(IS_WINDOWS)` ones among them) from Windows PowerShell 5.1, after CI's Python 3.12 and the pinned gdtoolkit (no Godot, so not the shared setup); not a required check (the [ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)'s amendment of 2026-10-22) | As `flaky` on `windows-latest`, once per ref | Artifact `nightly-windows-<ref>`; a failure comments like `flaky` |
 | The skill `night-audit`: one lens a night by weekday (docs drift, decisions vs docs, coverage, flaky, dead code) | The engineer's PC: the Desktop scheduled task `night-audit` (23:30 local) starts it in a detached worktree at `origin/main`; by hand, for a missed night, a manager runs it as a workflow (the skill's "Scheduled, and as a workflow") | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, in real time (the #222 class,
@@ -2008,7 +2009,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   The refs' jobs run side by side (`fail-fast: false`); each ref adds its jobs' runner minutes (`main`'s three took
   about 16 on 2026-10-03), free in this public repository.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite action
-  `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job is one job
+  `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py` (`windows`, which starts
+  no Godot, sets up Python and reads the gdtoolkit pin through `tools\run.cmd` itself). Each night job is one job
   in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an
   upload); the job `report` lists them and `refs` in `needs` and comments when one failed or timed out, creating the
   "Night jobs" issue (`area:tooling`) the first time; its comment lists every job of every ref with its conclusion (the
