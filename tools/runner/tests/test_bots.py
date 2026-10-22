@@ -1,5 +1,7 @@
 """`bots` (#102): its arguments, the folder it empties, and the run it starts in one process or over ENet."""
 
+import contextlib
+import io
 import re
 import tempfile
 import unittest
@@ -56,17 +58,21 @@ class ChaosTest(unittest.TestCase):
         )
 
     def test_chaos_plays_its_own_match(self) -> None:
-        with mock.patch.object(bots, "chaos", return_value=0) as run:
+        # The expected error lines go to a buffer, not the selftest log, where a grep for FAIL would hit them (#1256).
+        with mock.patch.object(bots, "chaos", return_value=0) as run, contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(cli.main(["bots", "--chaos", "refusals"]), 1)
             self.assertEqual(cli.main(["bots", "--chaos", "--instances", "2"]), 1)
         run.assert_not_called()
+        self.assertEqual(out.getvalue().count("FAIL  --chaos plays its own match"), 2, out.getvalue())
 
     def test_the_chaos_options_need_chaos(self) -> None:
-        with mock.patch.object(bots, "main", return_value=0) as run:
+        # The expected error lines go to a buffer, as above (#1256).
+        with mock.patch.object(bots, "main", return_value=0) as run, contextlib.redirect_stdout(io.StringIO()) as out:
             for extra in (["--seed", "5"], ["--runs", "2"], ["--long"], ["--enet"]):
                 self.assertEqual(cli.main(["bots", *extra]), 1, extra)
             self.assertEqual(cli.main(["bots"]), 0)
         run.assert_called_once()
+        self.assertEqual(out.getvalue().count("FAIL  --seed, --runs, --long and --enet need --chaos"), 4, out.getvalue())
 
     def test_a_seeded_run_passes_its_seed_and_a_timeout_per_seed(self) -> None:
         with mock.patch.object(bots.launch, "main", return_value=0) as run:
