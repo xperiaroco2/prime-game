@@ -12,6 +12,7 @@ extends RefCounted
 static var _by_script: Dictionary[Script, GDScript] = {
 	Delivery: DeliveryClient,
 	DeliveryByMeaning: DeliveryByMeaningClient,
+	ZoneTask: ZoneTaskClient,
 }
 ## One client per TaskClient script, made on first use (a client holds no state).
 static var _clients: Dictionary[GDScript, TaskClient] = {}

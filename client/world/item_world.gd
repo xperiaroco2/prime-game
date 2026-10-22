@@ -38,7 +38,6 @@ const _ORDER: Array[StringName] = [
 var items := ItemViews.new()
 ## The task types' views, keyed by their core script (TaskClients.make_views).
 var task_views: Dictionary[Script, Node3D] = TaskClients.make_views()
-var zones := ZoneViews.new()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
 var flashes := PhotoFlashes.new()
@@ -60,7 +59,6 @@ var _host_tick := Callable()
 func _init() -> void:
 	name = "Items"
 	items.name = "ItemViews"
-	zones.name = "ZoneViews"
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
@@ -72,7 +70,6 @@ func _init() -> void:
 	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
-		zones,
 		interactions,
 		sounds,
 		flashes,
@@ -120,9 +117,6 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 		view.set(&"mode", game_mode)
 		if &"host_tick" in view:
 			view.set(&"host_tick", views.host_tick)
-	zones.model = _model
-	zones.mode = game_mode
-	zones.host_tick = views.host_tick
 	stations.model = _model
 	stations.mode = game_mode
 	cooking.model = _model
@@ -173,10 +167,7 @@ func reset() -> void:
 		view.set(&"model", null)
 		if &"host_tick" in view:
 			view.set(&"host_tick", Callable())
-	zones.clear()
 	items.model = null
-	zones.model = null
-	zones.host_tick = Callable()
 	stations.model = null
 	cooking.model = null
 	cooking.host_tick = Callable()
