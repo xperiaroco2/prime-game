@@ -13,10 +13,11 @@ built from them would have no floors, walls or stairs. This step moves each hint
   them) or a ConcavePolygonShape3D (`col`: the mesh's triangles in Godot's winding, as the importer's trimesh);
 - the GLB's .import skips the importer's own bodies (`_subresources`, the Advanced Import Settings' Skip Import), so a
   checkout with LFS content holds each collider once;
-- every scene under levels/ that instanced such a GLB instances its wrapper instead (the ext_resource's path).
+- every scene of the project (SCENE_SKIP: not under addons/, tools/out/, levels/kit/ or a dot folder, #1256) that
+  instanced such a GLB instances its wrapper instead (the ext_resource's path).
 
 `colliders` writes all four from the GLBs' content; a pointer file (no LFS content) is skipped with a line. `check`
-runs problems(): no scene under levels/ instances a wrapped GLB directly, and each GLB with content has exactly the
+runs problems(): no such scene instances a wrapped GLB directly, and each GLB with content has exactly the
 files `colliders` would write. An override in a scene that reached into a GLB's collider (a door leaf's layer, a
 ground's surface tag) now names the wrapper's body: no step rewrites those. Each such override needs its instance's
 `[editable path]` entry, or a re-save drops it: `colliders` ends by adding the missing ones (editables.py, #1056).
@@ -31,6 +32,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import struct
 import zlib
@@ -43,7 +45,9 @@ from .common import ROOT, bad, ok, say
 
 ASSETS = "assets/environment"
 KIT = "levels/kit"
-LEVELS = "levels"
+# The folders _scenes never walks (#1256): third-party scenes, the runner's output, the wrappers themselves; and every
+# folder whose name starts with a dot (.godot/, .git/, .claude/ with the other worktrees).
+SCENE_SKIP: tuple[str, ...] = ("addons", "tools/out", KIT)
 # The importer's hints in the order its _pre_fix_node tests them (Godot 4.7.2, resource_importer_scene.cpp): the
 # collider-only pair first, then the pair that keeps the mesh. Each: (hint, convex, mesh kept).
 HINTS = (("colonly", False, False), ("convcolonly", True, False), ("col", False, True), ("convcol", True, True))
@@ -435,8 +439,14 @@ def known_wrappers(root: Path = ROOT) -> dict[str, str]:
 
 
 def _scenes(root: Path) -> list[Path]:
-    kit = root / KIT
-    return [path for path in sorted((root / LEVELS).rglob("*.tscn")) if kit not in path.parents]
+    """Every .tscn of the project but those under SCENE_SKIP or a dot folder, sorted (#1256: not only levels/, so a
+    scene under client/, tests/ or content/ that instances a wrapped GLB is caught too)."""
+    found = []
+    for folder, dirs, files in os.walk(root):
+        rel = Path(folder).relative_to(root)
+        dirs[:] = [d for d in dirs if not d.startswith(".") and (rel / d).as_posix() not in SCENE_SKIP]
+        found += [Path(folder) / name for name in files if name.endswith(".tscn")]
+    return sorted(found)
 
 
 def retarget(text: str, wrappers: dict[str, str], pattern: re.Pattern[str] = EXT_RE) -> str:

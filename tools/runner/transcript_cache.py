@@ -3,8 +3,9 @@
 The transcripts are over a gigabyte (every session, subagent and workflow agent of the project folders), and a report
 parses most of them again on every run, though only the live ones changed. So each transcript's parsed summary (what
 metrics.read_agent returns, from which every report is built: never a report itself) is kept in one pickle file per
-transcript under the folder `enable` names (the CLI's: tools/out/cache/transcripts/ of the checkout it runs in, which
-is gitignored), and served only while the transcript is unchanged:
+transcript under the folder `enable` names (the CLI's: shared_store, tools/out/cache/transcripts/ of the main checkout,
+gitignored, which every worktree shares, so a fresh worktree starts warm, #1256), and served only while the
+transcript is unchanged:
 - an entry holds the transcript's path, size and mtime (ns) as `os.stat` gave them before the parse, the format
   VERSION, and the parser's own source (`salt`: a hash of metrics.py), and one summary per window (since, until) read;
 - an entry whose path, size, mtime, VERSION or salt differs from now, or that cannot be read or unpickled (corrupt,
@@ -16,7 +17,8 @@ is gitignored), and served only while the transcript is unchanged:
 - each entry keeps at most WINDOWS windows, the newest last.
 Pickle, not JSON, so a hit returns the very types a parse does (Counter, tuples, sets), and every report is
 byte-identical with and without the cache. Writes go to a temporary file first, then `os.replace`; a write that fails
-(another process holds the file) leaves the cache as it was. Without `enable` or `enabled` (library calls, the
+(another process holds the file) leaves the cache as it was; the temporary file's name holds the writer's pid, so
+two worktrees' runs at once never share one. Without `enable` or `enabled` (library calls, the
 tests), nothing is cached.
 """
 
@@ -28,6 +30,8 @@ import pickle
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+
+from .common import ROOT, TRANSCRIPT_CACHE, git
 
 # Bump it when an entry's layout changes; a change of metrics.py (the parser) is caught by the salt.
 VERSION = 1
@@ -48,6 +52,16 @@ def enable(folder: Path | None) -> None:
 
 def folder() -> Path | None:
     return _folder
+
+
+def shared_store() -> Path:
+    """The CLI's cache folder (#1256): TRANSCRIPT_CACHE's place under the main checkout (the parent of git's common
+    dir, the same from every worktree), so no worktree parses the transcripts cold; else this checkout's."""
+    res = git("rev-parse", "--path-format=absolute", "--git-common-dir", timeout=30)
+    lines = [line.strip() for line in res.lines if line.strip()]
+    if res.rc == 0 and lines:
+        return Path(lines[-1]).parent / TRANSCRIPT_CACHE.relative_to(ROOT)
+    return TRANSCRIPT_CACHE
 
 
 @contextmanager

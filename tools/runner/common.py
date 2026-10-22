@@ -28,7 +28,8 @@ from . import pins
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tools" / "out"
 LOGS = OUT / "logs"
-# #1014: metrics' and wave's parsed transcripts, one entry per transcript (transcript_cache's docstring)
+# #1014: metrics' and wave's parsed transcripts, one entry per transcript (transcript_cache's docstring); the CLI uses
+# this folder of the main checkout from every worktree (transcript_cache.shared_store, #1256)
 TRANSCRIPT_CACHE = OUT / "cache" / "transcripts"
 # The gitignored folder for temporary files that must live under res:// (a probe test). The guard lets its deletes
 # pass; full lint, check and test runs skip it, a run that names a path in it covers that path. Godot still imports

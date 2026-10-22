@@ -168,7 +168,7 @@ class TranscriptCacheTest(unittest.TestCase):
 
         with mock.patch.object(metrics, "main", side_effect=main):
             self.assertEqual(cli.main(["metrics", "--compact"]), 0)
-        self.assertEqual(seen, [common.TRANSCRIPT_CACHE])
+        self.assertEqual(seen, [transcript_cache.shared_store()])
         self.assertIsNone(transcript_cache.folder())
 
     def test_the_cli_caches_only_while_wave_runs(self) -> None:
@@ -187,8 +187,19 @@ class TranscriptCacheTest(unittest.TestCase):
 
             with self.subTest(argv=argv), mock.patch.object(module, "main", side_effect=main):
                 self.assertEqual(cli.main(argv), 0)
-                self.assertEqual(seen, [common.TRANSCRIPT_CACHE])
+                self.assertEqual(seen, [transcript_cache.shared_store()])
                 self.assertIsNone(transcript_cache.folder())
+
+
+    def test_the_shared_store_is_the_main_checkouts_from_every_worktree(self) -> None:
+        # #1256: a fresh worktree starts warm; without git's answer the checkout's own folder.
+        main = Path(tempfile.gettempdir()) / "main-checkout"
+        answer = common.Result(0, (main / ".git").as_posix() + "\n", False, 0.0)
+        with mock.patch.object(transcript_cache, "git", return_value=answer) as git:
+            self.assertEqual(transcript_cache.shared_store(), main / "tools" / "out" / "cache" / "transcripts")
+        self.assertEqual(git.call_args.args, ("rev-parse", "--path-format=absolute", "--git-common-dir"))
+        with mock.patch.object(transcript_cache, "git", return_value=common.Result(128, "fatal: not a git\n", False, 0.0)):
+            self.assertEqual(transcript_cache.shared_store(), common.TRANSCRIPT_CACHE)
 
 
 class ReadGithubTest(unittest.TestCase):
