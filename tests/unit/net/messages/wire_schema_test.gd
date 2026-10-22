@@ -190,6 +190,21 @@ func test_debug_commands_exist_only_in_a_debug_builds_table() -> void:
 		assert_int(twin.direction).is_equal(each.direction)
 
 
+## WireField.write_all counts the declared keys a payload holds (#1234): a key two fields of one
+## row both fill would be counted twice and hide an undeclared one.
+func test_no_row_declares_one_payload_key_twice() -> void:
+	for each: WireRow in WireSchema.game(true).rows():
+		var seen := {}
+		for field: WireField in each.fields:
+			for filled: String in field.keys():
+				(
+					assert_bool(seen.has(filled))
+					. override_failure_message("%s declares %s twice" % [each.name, filled])
+					. is_false()
+				)
+				seen[filled] = true
+
+
 func test_every_row_has_a_field_and_no_field_names_a_seed() -> void:
 	for each: WireRow in WireSchema.game(true).rows():
 		assert_bool(each.fields.is_empty()).is_false()
