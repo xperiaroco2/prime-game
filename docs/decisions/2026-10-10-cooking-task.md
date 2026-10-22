@@ -562,7 +562,7 @@ answer changes the zone task's content alone, and nothing in C1 to C11 changes w
 - Built: Cooking's client view in C7 (#776, ARCHITECTURE §4.7.55).
 - 2026-10-22 (#1307): ARCHITECTURE §9.5.20 names its code, no longer its build tasks: `core/` in C3 (#772), the uses and
   the tick in C4 (#773), the station scenes in C5 (#774), the data in C6 (#775), the burger checked when served in
-  #1101.
+  #1101; and §9.8 its parts: C1 (#770), C2 (#771), C7 (#776), C9 (#778), C10 (#779), C11 (#780).
 
 ## Amendment 2026-10-15: a burger is checked when it is served (#1101)
 
