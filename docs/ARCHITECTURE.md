@@ -1230,8 +1230,8 @@ applied its `PeerLeft`. Peer ids are chosen by clients and can be reused (§4), 
 player's id must not speak or hear as that player before `core/` has seen the leave; the new peer is a newcomer, absent
 from `speakers_for`, until its `Hello` is accepted. 3f tests a leave and a join with one id between two ticks. The seq
 is renumbered per speaker and listener, so a listener cannot tell how much s sent to others (§6); the speaker's own seq
-only orders one poll's frames, so a frame lost or reordered before the host is not concealed (§6.5.1's known
-limit). After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
+only orders one poll's frames, so a frame lost or reordered before the host is not concealed (the speaker-to-host
+limit in §6.5.1). After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
 placeholder) per speaker in one poll are relayed and the older ones dropped and counted: 5 s of backlog played late is
 worse than a gap (M5 tunes it). Unreliable messages go only to players, and a player has sent its `Hello`, so none
 overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
