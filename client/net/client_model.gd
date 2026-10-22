@@ -483,12 +483,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			var changed: Item = items.get(fields["item"] as int)
 			if changed != null:
 				changed.kind = fields["kind"]
-		&"OrderPosted":
-			var place: Station = stations.get(fields["station"] as int)
-			if place != null:
-				place.bun = fields["bun"]
-				place.patty = fields["patty"]
-				place.icon = fields["icon"]
+		&"OrderPosted", &"BurgerPlated", &"BurgerServed":
+			_fold_cooking(event_name, fields)
 		&"HerbsDealt":
 			var code: PackedStringArray = fields["code"]
 			var beds: PackedStringArray = fields["beds"]
@@ -496,15 +492,6 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			herb_beds = beds.duplicate()
 		&"IngredientPlaced", &"GrillLoaded":
 			_fold_cooking_put(event_name, fields)
-		&"BurgerPlated":
-			var burger: Item = items.get(fields["item"] as int)
-			if burger != null:
-				burger.parts = PackedStringArray([fields["bun"], fields["patty"], fields["herb"]])
-				burger.place = fields["station"]
-		&"BurgerServed":
-			var served: Station = stations.get(fields["station"] as int)
-			if served != null and fields["right"] as bool:
-				served.done = true
 		&"FilmLoaded", &"ShotTaken":
 			_fold_camera(event_name, fields)
 			if event_name == &"ShotTaken":
@@ -543,37 +530,11 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			if station != null:
 				station.done = _all_delivered_to(station_id)
 		&"ZoneProgress":
-			var zone: Station = stations.get(fields["station"] as int)
-			if zone != null:
-				zone.ticks = fields["ticks"]
-				zone.needed = fields["needed"]
-				zone.counting = fields["counting"]
-				zone.progress_tick = fields["tick"]
-				zone.done = zone.needed > 0 and zone.ticks >= zone.needed
-		&"SwitchChanged":
-			var switch: Station = stations.get(fields["station"] as int)
-			if switch != null:
-				switch.on = fields["on"]
-		&"ButtonPressed":
-			var button: Station = stations.get(fields["station"] as int)
-			if button != null:
-				button.presses += 1
-		&"LiftChanged":
-			var panel: Station = stations.get(fields["station"] as int)
-			if panel != null:
-				panel.up = fields["up"]
-				panel.lift_tick = fields["tick"]
-				if panel.up:
-					panel.rise_tick = panel.lift_tick
-		&"PartNeeded":
-			var shown: Station = stations.get(fields["station"] as int)
-			if shown != null:
-				shown.part = fields["kind"]
-		&"FitChanged":
-			var fitting: Station = stations.get(fields["station"] as int)
-			if fitting != null:
-				fitting.fitter = fields["fitter"]
-				fitting.fit_tick = fields["tick"]
+			_fold_zone(fields)
+		&"SwitchChanged", &"ButtonPressed":
+			_fold_generator(event_name, fields)
+		&"LiftChanged", &"PartNeeded", &"FitChanged":
+			_fold_car_repair(event_name, fields)
 		&"PartFitted":
 			_fold_part_fitted(fields)
 		&"TaskProgress":
@@ -602,6 +563,76 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			ended_by = fields.get("reason", &"")
 			var numbers: Dictionary = fields.get("numbers", {})
 			round_seconds = numbers.get(&"time", -1)
+
+
+## The station `fields["station"]` names, or null when the model knows none of that id.
+func _station_of(fields: Dictionary) -> Station:
+	return stations.get(fields["station"] as int)
+
+
+## Cooking (#772, #1101): an order posted at its place, a burger plated, a burger served (only a
+## right one marks its place done).
+func _fold_cooking(event_name: StringName, fields: Dictionary) -> void:
+	if event_name == &"BurgerPlated":
+		var burger: Item = items.get(fields["item"] as int)
+		if burger != null:
+			burger.parts = PackedStringArray([fields["bun"], fields["patty"], fields["herb"]])
+			burger.place = fields["station"]
+		return
+	var station := _station_of(fields)
+	if station == null:
+		return
+	match event_name:
+		&"OrderPosted":
+			station.bun = fields["bun"]
+			station.patty = fields["patty"]
+			station.icon = fields["icon"]
+		&"BurgerServed":
+			if fields["right"] as bool:
+				station.done = true
+
+
+## ZoneProgress: a zone of the zone task (#36) or the Generator's charge (#797) counting or done.
+func _fold_zone(fields: Dictionary) -> void:
+	var zone := _station_of(fields)
+	if zone == null:
+		return
+	zone.ticks = fields["ticks"]
+	zone.needed = fields["needed"]
+	zone.counting = fields["counting"]
+	zone.progress_tick = fields["tick"]
+	zone.done = zone.needed > 0 and zone.ticks >= zone.needed
+
+
+## The Generator (#797): a switch toggled or its button pressed.
+func _fold_generator(event_name: StringName, fields: Dictionary) -> void:
+	var station := _station_of(fields)
+	if station == null:
+		return
+	match event_name:
+		&"SwitchChanged":
+			station.on = fields["on"]
+		&"ButtonPressed":
+			station.presses += 1
+
+
+## The car repair (#807, #808): the lift raised or lowered, the part needed next, a fit started or
+## stopped. A completed fit (PartFitted) is _fold_part_fitted's.
+func _fold_car_repair(event_name: StringName, fields: Dictionary) -> void:
+	var station := _station_of(fields)
+	if station == null:
+		return
+	match event_name:
+		&"LiftChanged":
+			station.up = fields["up"]
+			station.lift_tick = fields["tick"]
+			if station.up:
+				station.rise_tick = station.lift_tick
+		&"PartNeeded":
+			station.part = fields["kind"]
+		&"FitChanged":
+			station.fitter = fields["fitter"]
+			station.fit_tick = fields["tick"]
 
 
 ## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt
@@ -743,7 +774,7 @@ func _fold_throw(fields: Dictionary) -> void:
 ## PartFitted (#808): the part leaves the fitter's hand, locked at the car's use spot, and the
 ## car has no fitter any more.
 func _fold_part_fitted(fields: Dictionary) -> void:
-	var car: Station = stations.get(fields["station"] as int)
+	var car := _station_of(fields)
 	if car != null:
 		car.fitter = 0
 		car.fitted += 1
