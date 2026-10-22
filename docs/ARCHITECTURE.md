@@ -2805,7 +2805,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   keystroke, each of which the host would answer with a `SettingsChanged` to everyone. A sent name stays in the
   field until the model's name moves (its echo is a round trip away), so it never flicks back to the old one; with
   no host in the roster the default is "" (never "'s lobby"). `Game.change_lobby_name`
-  sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default); the
+  sends it (cleaned again). `LobbyPanel.default_name(model)` is the default name (#1247 removed the unused `lobby_title`); the
   lobby HUD (#495) builds the same from `LobbyText.title_text`, in the language of the moment. Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
   `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
 - #694 (main's #627 taken into the slice) puts the map's picker (`LobbyPanel.map_picker`, built once, its items

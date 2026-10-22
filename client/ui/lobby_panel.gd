@@ -246,30 +246,6 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := 
 	_show_presets()
 
 
-## The roster by name, one per line, with the host and the ready flags.
-static func roster_text(model: ClientModel) -> String:
-	var peers: Array[int] = []
-	peers.assign(model.roster.keys())
-	peers.sort()
-	var lines := PackedStringArray()
-	for peer in peers:
-		var member: ClientModel.Member = model.roster[peer]
-		var marks := PackedStringArray()
-		if peer == NetTransport.HOST_ID:
-			marks.append("host")
-		if peer == model.own_peer:
-			marks.append("you")
-		var who := member.name + (" (%s)" % ", ".join(marks) if not marks.is_empty() else "")
-		lines.append("%s  %s" % [who, "ready" if member.ready else "not ready"])
-	return "\n".join(lines)
-
-
-## The lobby's name as shown: the host's, or while it is the default, `lobby.default_name` with the
-## host's name in the current language (#214).
-static func lobby_title(model: ClientModel) -> String:
-	return model.lobby_name if not model.lobby_name.is_empty() else default_name(model)
-
-
 ## The default lobby name: `lobby.default_name` with the host's name, or "" while the roster has no
 ## host (never "'s lobby"), as ConnectingScreen.set_lobby does.
 static func default_name(model: ClientModel) -> String:
@@ -277,12 +253,6 @@ static func default_name(model: ClientModel) -> String:
 	if host.is_empty():
 		return ""
 	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": host})
-
-
-## The countdown in words, or that the start waits for everyone.
-static func countdown_text(model: ClientModel, host_tick: int) -> String:
-	var left := GameFlow.seconds_left(model.end_tick, host_tick)
-	return "Starting in %d s" % left if left >= 0 else "Waiting for everyone"
 
 
 ## A map's name for the picker (ContentNames.map: its scene's file name, "House").

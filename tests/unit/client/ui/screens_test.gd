@@ -20,14 +20,6 @@ func after_test() -> void:
 	TranslationServer.set_locale(_locale)
 
 
-func test_the_roster_names_the_host_the_own_player_and_who_is_ready() -> void:
-	var mode := load(MODE) as GameMode
-	var model := Preview.fake_model(mode, false)
-	assert_str(LobbyPanel.roster_text(model)).is_equal(
-		"Player1 (host)  ready\nPlayer2 (you)  ready\nPlayer3  not ready"
-	)
-
-
 func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them() -> void:
 	# #169: everyone sees the settings in the Esc menu's Lobby tab; only the host changes them
 	# (#491: the host's steppers and preset cards; a player's values and "Preset: …").
@@ -50,9 +42,6 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_bool(panel.presets.visible).is_true()
 	assert_bool(panel.preset_label.visible).is_false()
 	assert_str(panel.shortfalls_label.text).is_equal("1 more player to start")
-	assert_str(LobbyPanel.countdown_text(Preview.fake_model(mode, true), -1)).is_equal(
-		"Waiting for everyone"
-	)
 	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
 	# match_duration, tasks, packages, switches (the Generator, #800), photos (the photo task,
 	# #784), burgers (Cooking, #775), car_parts (car repair, #810), dissidents, knives.
