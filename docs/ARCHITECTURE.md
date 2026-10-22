@@ -1230,7 +1230,8 @@ applied its `PeerLeft`. Peer ids are chosen by clients and can be reused (§4), 
 player's id must not speak or hear as that player before `core/` has seen the leave; the new peer is a newcomer, absent
 from `speakers_for`, until its `Hello` is accepted. 3f tests a leave and a join with one id between two ticks. The seq
 is renumbered per speaker and listener, so a listener cannot tell how much s sent to others (§6); the speaker's own seq
-only orders one poll's frames. After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
+only orders one poll's frames, so a frame lost or reordered before the host is not concealed (§6.5.1's known
+limit). After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
 placeholder) per speaker in one poll are relayed and the older ones dropped and counted: 5 s of backlog played late is
 worse than a gap (M5 tunes it). Unreliable messages go only to players, and a player has sent its `Hello`, so none
 overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
@@ -5431,6 +5432,15 @@ M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale
 least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
 pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
 placeholder, "not a decision".
+A known limit, accepted by the engineer (#1239): loss concealment covers only the host-to-listener leg. The seq that
+`VoiceJitter` orders by is the relay's renumbering (§4.5.5), which has no gaps in what the relay forwarded, so a
+`VoiceUp` lost on the speaker-to-host leg (unsequenced, about one in a hundred over Wi-Fi or the internet), or one
+of the older frames above 5 per poll that the relay drops after a speaker's hitch, leaves no gap for it to see:
+`lost` and `concealed` stay 0, the missing 20 ms is spliced out with no concealment and the listener hears a click;
+two frames reordered across two polls are renumbered in relay order and play swapped. The relay does not carry the
+speaker's gaps into a stream, since doing so without showing a listener what the speaker sent while it was out of
+range needs a rule of its own; revisit if players report clicks. The jitter tests' loss and reordering model only
+the host-to-listener leg.
 Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
 `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
 60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,

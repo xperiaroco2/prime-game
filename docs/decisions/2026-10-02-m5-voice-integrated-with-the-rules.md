@@ -195,6 +195,13 @@ arrival_usec)` and asked every frame what to decode, given the decoded audio que
   missing frame is waited for until the queue would run dry before it, then decoded from the next packet with
   `conceal` (FEC or concealment, §1.3); two or more missing in a row are concealed once and skipped. A frame
   missing across a stop (the last of a spurt) is skipped, not concealed at the start of the next spurt.
+  **Amended 2026-10-22 (#1239, the engineer's answer A,
+  https://github.com/xperiaroco2/prime-game/issues/1239#issuecomment-6337216836):** this covers only the
+  host-to-listener leg. The renumbered seq has no gap where a `VoiceUp` was lost or reordered on the speaker-to-host
+  leg, or where the relay dropped a speaker's older frames above 5 per poll, so such a frame is not concealed: the
+  listener hears a click (a swap for a reorder across two polls). The limit is accepted; the relay carries no
+  speaker gaps into a stream (a rule for that must not show a listener what the speaker sent while it was out of
+  range). Revisit if players report clicks. ARCHITECTURE §6.5.1 states it.
 - **Start and stop:** playback starts (`set_running(true)`) when the queue reaches the prebuffer, and stops when the
   queue runs dry with nothing pending: a talk spurt ended, or an underrun. The next frame starts again with a fresh
   prebuffer. The spike's reset on a jump of 25 seqs would never fire now, since the renumbered seqs have no gaps across
@@ -668,3 +675,5 @@ setting:
   invariant in M5-1 (#215, §6.5.9); the codec boundary, the gate and the jitter buffer in M5-2 (#216, §6.5.1); the addon
   in M5-3 (#217, §6.5.2); the wire measured in M5-4 (#218, §6.5.8); hearing voice in M5-5 (#219, §6.5.4, §4.7.15);
   speaking in M5-6 (#220, §6.5.3, §4.7.17); occlusion's muffle in M5-7 (#221, §6.5.7, §4.7.16).
+- 2026-10-22 (#1239): §1.4's amendment, no loss concealment on the speaker-to-host leg, is accepted as a known limit
+  with no code change; ARCHITECTURE §6.5.1 and §4.5.5 state it.
