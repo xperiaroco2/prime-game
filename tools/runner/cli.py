@@ -1078,7 +1078,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "metrics":
             from . import metrics, transcript_cache
 
-            with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+            with transcript_cache.enabled(transcript_cache.shared_store()):
                 return metrics.main(
                     args.session, since=args.since, until=args.until, ci=args.ci, out=args.out,
                     compact=args.compact, no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
@@ -1095,13 +1095,13 @@ def main(argv: list[str] | None = None) -> int:
                          ("--notes", args.notes), ("--stage-since", args.stage_since)) if value is not None]  # fmt: skip
                 if given or not args.merge_check:
                     raise Failure(f"wave: {', '.join(given) or '--no-merge-check'} does not go with --stalled")
-                with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+                with transcript_cache.enabled(transcript_cache.shared_store()):
                     return wave_stall.main(
                         minutes=wave_stall.STALL_MINUTES if args.minutes is None else args.minutes
                     )
             if args.minutes is not None:
                 raise Failure("wave: --minutes goes with --stalled")
-            with transcript_cache.enabled(common.TRANSCRIPT_CACHE):
+            with transcript_cache.enabled(transcript_cache.shared_store()):
                 return wave.main(
                     session=args.session, since=args.since, args_issue=args.args, out=args.out,
                     workflow=args.workflow, base=args.base, plan=args.plan, title=args.title, notes=args.notes,

@@ -1494,14 +1494,18 @@ range in a bracket (`WEEK_BRACKET`). API list $ is a weight (one price table in 
 transcripts or an empty window is a message and exit 0 (and an empty report). It covers only this checkout's sessions
 that ran a workflow or that `--session` names.
 **Transcript cache** (#1014): each transcript's parsed summary (`metrics.read_agent`'s, which every table and `wave`
-are built from; never a report) is kept in `tools/out/cache/transcripts/` of the checkout that runs it, one pickle per
-transcript keyed by its path, size and mtime, a format version and a hash of `metrics.py`, with up to 8 windows each
-(`transcript_cache.py`'s docstring has the rules). A changed size or mtime (the live session's transcript), a corrupt
+are built from; never a report) is kept in `tools/out/cache/transcripts/` of the main checkout, which every worktree
+shares (`transcript_cache.shared_store`, #1256: a fresh worktree's cold cache parsed about 2.7k transcripts, over
+150 s), one pickle per transcript keyed by its path, size and mtime, a format version and a hash of `metrics.py`, with
+up to 8 windows each (`transcript_cache.py`'s docstring has the rules). A changed size or mtime (the live session's
+transcript), a corrupt
 entry or another parser parses the file again, so the output is the same with and without it; deleting the folder
 only makes the next run slow. Measured on 1.7 GB (#1014): a day's transcripts in 2.4 s instead of 60 s; the GitHub
 lists are read at once, the CI run list as its REST pages through `gh api` (`gh run list` reads them one after
 another, 36 s), so a warm `metrics --compact` over a day takes about 10 s instead of 85 s. `wave` over an hour spends
-its 11 s in its `gh` calls, which the cache does not touch. Library calls and the tests parse without it.
+its 11 s in its `gh` calls, which the cache does not touch. Library calls and the tests parse without it. A cold
+cache (a new transcript format, `metrics.py` changed) can take minutes, over the 180 s rule (§11.17): run `metrics` in
+the background, its output to a log, and wait for it with `wait <log>`.
 
 **`--track NAME ...`** (#409) with `--since <the weekly reset>`: a track's spend this week against its budget, over
 every session of the main checkout and its `-ui` and `-art` checkouts (`TRACK_CHECKOUTS`, #586), each API call counted
