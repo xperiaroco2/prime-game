@@ -96,10 +96,11 @@ hull's shape gate the tip rooms moved into the rear corners and lost their windo
   renewer** against its far wall. A burnt cartridge goes to the renewer on its own side, about 7 m, 1.6 s at a walk.
 - **The silhouette:** from the top an arrowhead, about 30 m across and 18.9 m long with the nozzles, the wing tips
   swept back to the rear corners and rounded in plan; flat wings thinning to a soft edge, no upcurl, no bulge over
-  the rooms.
-- Positions inside, from the ship's centre (x east, y south, so +y is aft): the console (0, 1); the vents
-  (±2.6, -2.6); the sockets (±1.6, 3.65); the boards (±5.8, 1.1); the tip rooms' centres (±8.3, 4.0), the renewers
-  (±9.4, 4.5). Working draft.
+  the rooms. The whole interior sits 1 m forward of the shape gate's blockout (the engineer, 2026-10-22: the rear
+  rooms stuck out of the hull), so about 1 m of hull stays behind the tip rooms.
+- Positions inside, from the ship's centre (x east, y south, so +y is aft): the hall's centre (0, -1); the console
+  (0, 0); the vents (±2.6, -3.6); the sockets (±1.6, 2.65); the boards (±5.8, 0.1); the tip rooms' centres
+  (±8.3, 3.0), the renewers (±9.4, 3.5). Working draft.
 
 ## 5. Links between levels
 
