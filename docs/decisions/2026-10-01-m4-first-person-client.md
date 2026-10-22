@@ -454,3 +454,8 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
   (§4.7.37) and #497 (§4.7.41) then removed `Hud.spectating_label`, `HudText.Local.watching` and `Shown.spectating`
   and moved the target's name to `LifeScreen`. Before #191, mouse motion while spectating turned the hidden body and
   tilted its head, which the respawn kept; before #240 a new match's placement kept a dead player's pitch.
+- 2026-10-22 (#1307): ARCHITECTURE §4.7.8 and §4.7.10 now describe the HUD and the screens as they are. M4-8's HUD
+  showed teammates, the shared progress and, while dead, "Spectating <name>" with the target's slots, until #489's Toy
+  HUD (§4.7.37) and #497 (§4.7.41); its hold-Tab `TaskScreen` (`task_screen_preview.tscn`) became #253's `MapScreen`
+  on M (§4.7.33). The world sounds were 0.15 s generated blips heard from the viewport's camera until M5-5 gave them
+  the ears, M5-7 the muffling and #525 (§4.7.43) Kenney's files and footsteps.

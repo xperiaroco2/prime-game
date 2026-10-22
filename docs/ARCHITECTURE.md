@@ -2602,18 +2602,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   §4.7.54); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
   `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
-- **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
-  display names, the shared progress (`TaskProgress`), the match
-  clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), and
-  what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
-  and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
-  destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
-  **Superseded by #489** (§4.7.37): the Toy HUD shows no teammates, task progress, destination swatch or hint, and
-  while dead only "Watching: <name>" over the watched player's slots (no clock or own role).
-  **The task screen** (Tab), for the living, the downed and the dead: each task of the
-  match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
-  progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
-  `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
+- **The HUD** (the Toy HUD, §4.7.37): health and stamina (`SelfStatus`, the stamina predicted), the hand and belt
+  items by their kinds' display names, the match clock, the own role by its display name, and what the crosshair
+  would do; no teammates, task progress, destination swatch or hint. While dead the HUD shows nothing (§4.7.12,
+  §4.7.41): no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
+  **The tasks** of the match (`TaskState`) are on the map and tasks screen (`MapScreen`, on M, §4.7.33). **A
+  circle** is a translucent cylinder of its station kind's radius and height in `StationPlaced`'s colour, dimmed
+  once `PackageDelivered` names it.
 
 #### 4.7.9 The life states in 3D (M4-9, #145)
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
@@ -2744,23 +2739,18 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   menu. The facing is the camera's look vector.
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
-  the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
-  sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
-  code until #525 (§4.7.43) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
-  and added footsteps.
+  the ears, and nothing beyond; every `AudioStreamPlayer3D` sets `max_distance` to it and plays muffled behind the
+  level. The sounds, footsteps included, are Kenney's CC0 files (§4.7.43), each passing `sfx-check` first
+  (AGENT_WORKFLOW §11.25).
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
-- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.37); `TaskScreen` (its rows pure: each `TaskState` by task
-  id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
-  `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
-  and hint under it. **Superseded by #253** (§4.7.33): the map and tasks screen `MapScreen`, opened and closed on M
-  (the action `map`); Tab has no action. **The shared theme:**
+- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (the Toy HUD, §4.7.37); the tasks are on `MapScreen`,
+  opened and closed on M (the action `map`, §4.7.33), and Tab has no action. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
-  variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
+  variation, the base controls a screen builds bare included, under their class's name (§4.7.30); `GameUi`
   gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the screens name
-  variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
-  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab; since #253 `map`, on M) are in
-  `project.godot`.
+  variations only. The file is generated from the UI pack (§4.7.25); the Toy components and the large-text swap are
+  §4.7.27. The input actions `swap` (X) and `map` (M) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2770,7 +2760,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
   first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
   margin) and `item_views_test.gd`. The `shot`s:
-  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn` (since #253 `map_preview.tscn`), `items_preview.tscn`
+  `client/dev/hud_preview.tscn`, `map_preview.tscn`, `items_preview.tscn`
   and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds (by ear on `sfx-check --page`'s listening page, AGENT_WORKFLOW
