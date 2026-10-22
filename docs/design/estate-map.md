@@ -79,36 +79,42 @@ approved on #1035 comment 6300127535 and revised on 2026-10-22 with the approved
 6327093164; prime-game-design `ideas/ship-components/2d/`, which keeps the look) and **mirrored** the same day (#1033
 comments 6336844073 and 6336988967; the plan to scale: prime-game-design `ideas/ship-components/layout/`); at the
 hull's shape gate the tip rooms moved into the rear corners and lost their windows (prime-game-art#263 comments
-6340304651 and 6340589162):
+6340304651 and 6340589162); the numbers below are **as built** (prime-game-art PR #280, `layouts/ship/ship.toml`), with
+the throat's option A and the inside moved only as far as the hall's ceiling fits (prime-game-art#263 comments
+6341553197 and 6342342554):
 - **One entrance:** the mouth ramp; no side hatch, no other way in or out.
 - **The cockpit bubbles are on the outside only:** inside, the hall has a closed ceiling; no ladders, no seats.
 - **Mirrored:** the west half and the east half hold the same stations, so a player says "left" or "right" (as you
   come in up the ramp, left is east). Every station hangs flat on a wall, no niches; whoever works at one leaves at
   least 1.6 m of pass behind them.
-- **The mouth ramp** (north side, the ship's centre) leads into **the throat** (the engineer, 2026-10-22): no
-  straight pass, its walls open as a funnel from about 3.3 m at the mouth to about 6 m where the hall begins, about
-  4.4 m deep (about 5 m² more floor), so the whole hall is seen from the mouth. On its two slanted walls hang **the
-  two vents** (overheat), right behind the mouth; with both worked about 3 m of pass stays between them. Under the
-  nose its ceiling may be lower than the hall's, never below a player's head room.
-- **The central hall**, round, about 8 m across (50 m²): the start console in the middle with the start lever, the
+- **The mouth ramp** (north side, 3.3 m wide, hinged at the nose edge) leads into **the throat** (the engineer,
+  2026-10-22): no straight pass, its walls open as a funnel from 3.3 m at the mouth to the hall, 4.05 m deep, so the
+  whole hall is seen from the mouth. Its front is an open notch in the nose, like a mouth with no upper lip; from
+  where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). On its
+  two slanted walls, under the roof, hang **the two vents** (overheat); with both worked about 3 m of pass stays
+  between them.
+- **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: the start
+  console 1 m aft of its centre with the start lever, the
   battery slot, the stage display (one lamp per stage) and the mimic board of both breaker boards (GDD §8); **four
   cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem count), two on the
   back wall between the two corridor mouths and two at the front sides, beside the throat and clear of its pass.
-- **Two corridors**, straight, about 3 m wide and 3.4 m long, run diagonally back from the hall into the rear
-  corners; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp over each), in sight of
+- **Two corridors**, straight, 3 m wide, 2.4 m clear, about 3.4 m long, run diagonally back from the hall into the
+  rear corners; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp over each), in sight of
   the console down the corridor.
 - **Two tip rooms** in the rear corners, round, about 3.6 m across (10 m²), with no window, each with **one cartridge
   renewer** against its far wall. A burnt cartridge goes to the renewer on its own side, about 7 m from a back socket
   and 8 m from a front one, under 2 s at a walk; with both sockets of a side burnt, the second runs across the hall
   to the other renewer or waits.
-- **The silhouette:** from the top an arrowhead, about 30 m across and 18.9 m long with the nozzles, the wing tips
-  swept back to the rear corners and rounded in plan; flat wings thinning to a soft edge, no upcurl, no bulge over
-  the rooms. The whole interior sits 1 m forward of the shape gate's blockout (the engineer, 2026-10-22: the rear
-  rooms stuck out of the hull), so about 1 m of hull stays behind the tip rooms.
-- Positions inside, from the ship's centre (x east, y south, so +y is aft): the hall's centre (0, -1); the console
-  (0, 0); the throat from the mouth (±1.65, -8) to the hall (±3, -3.4); the vents (±2.3, -5.8); the back sockets (±1.6, 2.65), the front
-  sockets (±3.5, -3.0); the boards (±5.8, 0.1); the tip rooms' centres (±8.3, 3.0), the renewers (±9.4, 3.5).
-  Working draft.
+- **The silhouette** (the art track's hull J): from the top an arrowhead, 30.00 × 18.91 m with the nozzles, 4.82 m
+  high, the wing tips swept back to the rear corners and rounded in plan (r 1.5 m); flat wings thinning to a soft
+  edge, no upcurl, no bulge over the rooms. The inside sits 0.4 m forward of the shape gate's blockout, as far as the
+  hall's full-height wall fits under the hull (the engineer, 2026-10-22: the rear rooms stuck out; "move it as much
+  as the ceiling needs"), so about 2.1 m of hull stays behind the tip rooms.
+- Positions inside, as built, from the ship's centre (x east, y south, so +y is aft): the hall's centre (0, -0.4);
+  the console (0, 0.6); the mouth (±1.65, -7.1) at the nose edge, the throat's walls to the hall's corners at
+  y -3.25, its roof from y -5.56; the vents (±2.41, -4.79); the back sockets (±1.80, 3.11), the front sockets
+  (±3.43, -2.36); the boards (±6.03, 0.84); the tip rooms' centres (±8.3, 3.6), the renewers (±9.92, 4.38). Each spot
+  is flat on a plain wall with a 1.6 m band.
 
 ## 5. Links between levels
 
