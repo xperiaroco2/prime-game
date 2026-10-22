@@ -36,7 +36,8 @@ to `core/`. Design: `docs/ARCHITECTURE.md` (§3 the loop, §5 entitlement, §7.1
 - Parts are stateless definitions: what changes lives in `MatchState` (items, tasks with their task state,
   stations, bodies, cooldowns, counters, `part_state`) or in the phase object, which `Match` creates fresh on every
   entry (§9.1). Adding or changing a part updates §9 of `docs/ARCHITECTURE.md` in the same PR (the content
-  contract), with the events it can emit and the reason each condition rejects with.
+  contract), with the events it can emit and the reason each condition rejects with: the contract text, no "Built
+  in #n" section (its preamble).
 
 ## Tests
 - Most of the project's tests belong here. Put them in `tests/unit/`, mirroring the `core/` path:
