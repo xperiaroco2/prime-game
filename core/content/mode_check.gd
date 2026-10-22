@@ -74,9 +74,13 @@ var _has_channel := false
 var _phase_taken: Array[StringName] = []
 
 
+## Each error starts with the mode's file when it has one (the host menu lists them all, #1253).
 static func run(mode: GameMode) -> ModeCheck:
 	var check := ModeCheck.new()
 	check._check_mode(mode)
+	if not mode.resource_path.is_empty():
+		for index: int in check.errors.size():
+			check.errors[index] = "%s: %s" % [mode.resource_path, check.errors[index]]
 	return check
 
 
@@ -113,10 +117,12 @@ func _walk(mode: GameMode, path: String, value: Variant, seen: Dictionary) -> vo
 	if seen.has(resource):
 		return
 	seen[resource] = true
+	# The index path names this part with its file or sub-resource id, its children without.
+	var where := path + _source(mode, resource)
 	if resource is ContentPart and resource != mode:
 		var part: ContentPart = resource
-		_add(path, part.check(mode))
-	_check_ids(path, resource)
+		_add(where, part.check(mode))
+	_check_ids(where, resource)
 	for property: Dictionary in resource.get_property_list():
 		var name: String = property["name"]
 		var usage: int = property["usage"]
@@ -130,19 +136,31 @@ func _walk(mode: GameMode, path: String, value: Variant, seen: Dictionary) -> vo
 				errors.append(
 					(
 						"%s.%s names setting %s, which the mode does not declare"
-						% [path, name, setting]
+						% [where, name, setting]
 					)
 				)
 			elif spec != null and not spec.is_number() and not _holds_set(resource, name):
 				errors.append(
 					(
 						"%s.%s names setting %s, which is a set of ids, not a whole number"
-						% [path, name, setting]
+						% [where, name, setting]
 					)
 				)
 		else:
 			_walk(mode, "%s.%s" % [path, name], child, seen)
-	_check_nulls(path, resource)
+	_check_nulls(where, resource)
+
+
+## Where `resource` comes from, for an error's path: " (res://content/items/knife.tres)" for its
+## own file, " (::Phase_round)" for a sub-resource of the mode's file (4.7 gives it the path
+## "<file>::<id>"), "" for the mode itself or a part built in code.
+static func _source(mode: GameMode, resource: Resource) -> String:
+	var source := resource.resource_path
+	if source.is_empty() or resource == mode:
+		return ""
+	if not mode.resource_path.is_empty() and source.begins_with(mode.resource_path + "::"):
+		source = source.substr(mode.resource_path.length())
+	return " (%s)" % source
 
 
 ## Whether `resource`'s `_setting` property `property` holds a set of ids

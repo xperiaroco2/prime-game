@@ -6532,7 +6532,11 @@ part is usable in data once its row or entry names the PR that built it. Every n
     `use_reasons()` (#780), is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
     every mode in `content/modes/` and runs this part (`ModeCheck`; its station checks are `StationRuleCheck`'s and
-    its checks of the conditions that read the actor or the target `ActorConditionCheck`'s, #1249).
+    its checks of the conditions that read the actor or the target `ActorConditionCheck`'s, #1249). Each error starts
+    with the mode's file, and a part's index path (`mode.item_kinds[17]`) carries the part's own file or its
+    sub-resource id in the mode's file (`mode.phases[1] (::Phase_round)`; Godot 4.7.2 gives a sub-resource loaded from
+    a `.tres` the path `<file>::<id>`); a host that cannot start prints them one per line (#1253,
+    `tests/unit/content/mode_check_sources_test.gd`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks (a task
     type only on the maps it plays on, `TaskType.maps`, #803); a marker with two tags; a lobby with fewer
     `lobby_player` markers than the mode's maximum of players; a level without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
@@ -6574,7 +6578,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   always refuses, so a reaction with one would never run its effects, record no cooldown and charge nobody (#201;
   `tests/unit/combat/costs_in_reactions_test.gd`) and a win condition with one would never hold; `HoldsItem` never
   passes and `HandNotTwoHanded` always does. The mode check therefore refuses such a condition in a reaction or a win
-  condition at load, naming the mode, the fact or the win condition, its index in `reactions` or `win_conditions` and
+  condition at load, naming the mode's file, the fact or the win condition, its index in `reactions` or `win_conditions` and
   the condition's class (#283, #299; `tests/unit/content/mode_check_test.gd`, `mode_check_actor_test.gd`). A negated
   cost in a reaction gets only the "negates a cost" error, since it passes there and is never paid. A condition says
   whether it reads the actor (`Condition.reads_actor_state`, true unless the class says otherwise, so a new condition

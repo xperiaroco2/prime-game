@@ -81,9 +81,12 @@ func test_the_refused_win_condition_names_the_modes_file_and_each_condition() ->
 	mode.resource_path = "res://tests/fixtures/match/winning_mode.tres"
 	var errors := ModeCheck.run(mode).errors
 	assert_array(Array(errors)).has_size(2)
-	var where := "the win condition dissidents of mode res://tests/fixtures/match/winning_mode.tres"
-	assert_str(errors[0]).contains(where + " holds the condition HoldsItem,")
-	assert_str(errors[1]).contains(where + " holds the condition Channeling,")
+	var where := (
+		"res://tests/fixtures/match/winning_mode.tres: mode.win_conditions[1]: the win condition"
+		+ " dissidents of the mode"
+	)
+	assert_str(errors[0]).starts_with(where + " holds the condition HoldsItem,")
+	assert_str(errors[1]).starts_with(where + " holds the condition Channeling,")
 
 
 func test_a_condition_that_does_not_say_is_refused_and_named_by_its_base() -> void:
