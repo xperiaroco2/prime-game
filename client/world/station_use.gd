@@ -30,27 +30,15 @@ static func kind_of(mode: GameMode, kind_id: StringName) -> StationKind:
 
 ## The Generator of `mode` whose generator or switch kind is `kind_id`, or null.
 static func generator_of(mode: GameMode, kind_id: StringName) -> Generator:
-	if mode == null:
-		return null
-	for type: TaskType in mode.task_types:
-		var generator := type as Generator
-		if generator == null:
-			continue
-		for kind: StationKind in [generator.generator, generator.switch]:
-			if kind != null and kind.id == kind_id:
-				return generator
+	for generator: Generator in GeneratorClient.types_of(mode):
+		if TaskClients.of(generator).owns(generator, kind_id):
+			return generator
 	return null
 
 
 ## Every Generator of `mode`, in the mode's order.
 static func generators_of(mode: GameMode) -> Array[Generator]:
-	var found: Array[Generator] = []
-	if mode == null:
-		return found
-	for type: TaskType in mode.task_types:
-		if type is Generator:
-			found.append(type as Generator)
-	return found
+	return GeneratorClient.types_of(mode)
 
 
 ## Whether `kind_id` is a Generator's generator kind (the station that charges and hums).
@@ -120,12 +108,12 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	var car_repair := CarRepairUse.type_of(mode, station.kind)
 	if car_repair != null:
 		return CarRepairUse.usable(model, car_repair, id)
-	var type := generator_of(mode, station.kind)
-	if type == null:
-		return false
-	# The charge done: neither the generator nor a switch can be used any more (StationUsable).
-	var charged: ClientModel.Station = model.stations.get(generator_station(model, type))
-	return charged == null or not charged.done
+	# The first of the mode's types whose TaskClient owns the kind answers (#1260).
+	for type: TaskType in mode.task_types:
+		var client := TaskClients.of(type)
+		if client != null and client.owns(type, station.kind):
+			return client.usable(model, type, id)
+	return false
 
 
 ## Whether the own hand passes the HandNotTwoHanded of station `id`'s Interact rule, if it has one

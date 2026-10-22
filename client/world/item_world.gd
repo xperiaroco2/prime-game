@@ -41,7 +41,8 @@ var task_views: Dictionary[Script, Node3D] = TaskClients.make_views()
 var interactions := ItemInteractions.new()
 var sounds := WorldSounds.new()
 var flashes := PhotoFlashes.new()
-var stations := StationViews.new()
+## The Generator's station scenes (its TaskClient's view): station_of_hit asks it first.
+var stations := task_views.get(Generator) as StationViews
 var hums := StationHums.new()
 var cooking := CookingViews.new()
 var viewfinder := PhotoViewfinder.new()
@@ -62,7 +63,6 @@ func _init() -> void:
 	interactions.name = "ItemInteractions"
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
-	stations.name = "StationViews"
 	hums.name = "StationHums"
 	cooking.name = "CookingViews"
 	car_repair.name = "CarRepairViews"
@@ -73,7 +73,6 @@ func _init() -> void:
 		interactions,
 		sounds,
 		flashes,
-		stations,
 		hums,
 		cooking,
 		viewfinder,
@@ -117,8 +116,6 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 		view.set(&"mode", game_mode)
 		if &"host_tick" in view:
 			view.set(&"host_tick", views.host_tick)
-	stations.model = _model
-	stations.mode = game_mode
 	cooking.model = _model
 	cooking.mode = game_mode
 	cooking.host_tick = views.host_tick
@@ -168,7 +165,6 @@ func reset() -> void:
 		if &"host_tick" in view:
 			view.set(&"host_tick", Callable())
 	items.model = null
-	stations.model = null
 	cooking.model = null
 	cooking.host_tick = Callable()
 	car_repair.model = null
@@ -246,7 +242,6 @@ func set_level(level: Node) -> void:
 	for view: Node3D in task_views.values():
 		if &"level" in view:
 			view.set(&"level", level)
-	stations.level = level
 	cooking.level = level
 	car_repair.level = level
 	photos.level = level
