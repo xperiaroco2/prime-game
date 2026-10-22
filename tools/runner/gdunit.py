@@ -663,7 +663,15 @@ def split_shards(costs: dict[str, float], fixed: set[str], count: int) -> list[t
 # 38525315154 (2026-10-14, 4 vCPUs, so 2 shards a job; the one `test` step took 757 s, a fixed-fps shard of 47 s
 # beside one real-time shard of every other suite): the first half is the fixed-fps shard beside the real-time suites
 # of life/ and player/ (243 s), the second the rest (493 s) in two real-time shards. A folder that outgrows it moves.
-HALF_ONE: tuple[str, ...] = ("res://tests/integration/client/life/", "res://tests/integration/client/player/")
+# By run 39751278836 (2026-10-22) the first half's real-time shard took 279 s beside a fixed-fps shard of 89 s, the
+# second half's shards 328 s and 367 s, so test-2 was the longer job by 86 s (#1256); a fixed-fps shard takes no
+# real-time suite, so the share moves to the first half's real-time shard: unit/net/messages/ (42 s there) moved,
+# which leaves about 321 s against two shards of about 326 s.
+HALF_ONE: tuple[str, ...] = (
+    "res://tests/integration/client/life/",
+    "res://tests/integration/client/player/",
+    "res://tests/unit/net/messages/",
+)
 HALF_IDS = (1, 2)
 
 
