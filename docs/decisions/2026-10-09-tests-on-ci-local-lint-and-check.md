@@ -29,7 +29,8 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - A task's local check takes a minute or two instead of 14; the tests run once, on CI.
 - A red test is found on the PR, not before the push: a red CI round costs about 8 minutes plus a fix and a push.
 - Windows-only failures (CI runs Linux, without the TwoVoIP addon) are no longer caught locally; run
-  `verify --full` locally before a release, or when a change touches Windows-only code.
+  `verify --full` locally before a release, or when a change touches Windows-only code. (Since #1240 the night
+  job `windows` runs the runner's tests there: the amendment of 2026-10-22 below.)
 - A push to `release/m<k>` ran no CI, so a merge there checked only lint and check locally until `merge` waited for
   CI on an up-to-date head, as the gate into `main` does, and CI ran on pushes to `release/**` (#622, #605's remaining
   criteria): `merge --base release/m<k>` and `--sync-main` run no local verify.
@@ -77,3 +78,7 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 ## Amendment (#859, 2026-10-11): an agent's lint checks only the changed GDScript
 
 Amendment 2026-10-11 (#859, approved by the engineer: https://github.com/xperiaroco2/prime-game/pull/867#issuecomment-6119234969): an agent's local lint (`verify --changed`, `lint --changed`, publish in a Claude Code shell) checks gdformat/gdlint only on the changed GDScript, the repo-wide checks whole; a lint config or tool change, an unknown base and CI lint every file; a human's verify and CI's `verify --full` stay whole.
+
+## Amendment (#1240, 2026-10-22): a night job runs the runner's tests on Windows
+
+Amendment 2026-10-22 (#1240, from the full analysis #1221, j5 and k3; approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6327392272, item 4): the manual step of the Consequences for Windows-only failures narrows to the Godot side. The night job `windows` (`.github/workflows/nightly.yml`, AGENT_WORKFLOW §15) runs the runner's tests that start no Godot (`selftest --group python`) on `windows-latest` every night, through `tools\run.cmd` from Windows PowerShell 5.1, so the runner tests that run only on Windows (`skipUnless(IS_WINDOWS)`: `run.cmd`, `wait` from cmd and PowerShell, the System log, `start`, the not-started detection) fail within a night, with a comment on the "Night jobs" issue, instead of when someone next runs them. It is not a required check: a pull request still waits only for CI's Linux run. Still manual: the Godot side on Windows (GdUnit4, the TwoVoIP extension, the runner tests that start Godot), `verify --full` locally before a release or when a change touches Windows-only Godot code.
