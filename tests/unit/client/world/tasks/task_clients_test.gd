@@ -5,14 +5,12 @@ extends GdUnitTestSuite
 ## Loads `content/` on purpose, as the how-to cards' check does (§9.6).
 
 const MODES := "res://content/modes/"
-## The core task type classes whose client is not built yet (#1260's migration moves one a
-## commit): the checks skip them and fail when one has a client.
-const UNMIGRATED: Array[String] = [
-]
 ## Today's core task type classes, so the global class list's walk is seen to find them.
 const CORE_TYPES: Array[String] = [
 	"Delivery",
 	"DeliveryByMeaning",
+	"ZoneTask",
+	"Generator",
 	"Cooking",
 	"CarRepair",
 	"PhotoTask",
@@ -42,10 +40,8 @@ func test_every_global_task_type_class_has_a_client() -> void:
 			continue
 		found.append(class_id)
 		var has_client := TaskClients.client_script_of(load(paths[class_id]) as Script) != null
-		if not has_client and not UNMIGRATED.has(class_id):
+		if not has_client:
 			problems.append("%s (%s) has no TaskClient" % [class_id, paths[class_id]])
-		elif has_client and UNMIGRATED.has(class_id):
-			problems.append("%s has a TaskClient: drop it from UNMIGRATED" % class_id)
 	assert_array(found).contains(CORE_TYPES)
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
 
@@ -58,8 +54,6 @@ func test_every_task_type_of_every_mode_has_a_client() -> void:
 	for mode: GameMode in modes:
 		types += mode.task_types.size()
 		for type: TaskType in mode.task_types:
-			if UNMIGRATED.has((type.get_script() as Script).get_global_name()):
-				continue
 			if TaskClients.of(type) == null:
 				problems.append("%s: %s has no TaskClient" % [mode.resource_path, type.id])
 	assert_int(types).is_greater(0)

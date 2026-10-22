@@ -14,7 +14,8 @@ extends Node3D
 ##
 ## A task type's view is its TaskClient's (TaskClients.make_views, #1260, §4.7.59): every row's,
 ## not only the mode's types', each given the model, the mode and, where it has them, the host
-## tick and the level, and cleared at a reset. The lookups by a hit or an item below
+## tick and the level, and cleared at a reset; a mode's type with none is reported at setup
+## (TaskClients.report_missing). The lookups by a hit or an item below
 ## (station_of_hit, drawn_point, aim_point) stay per type.
 
 ## ItemWorld's children by name in their tree order (the order they process in), the task types'
@@ -105,6 +106,8 @@ func _init() -> void:
 func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> void:
 	_model = client.model
 	_mode = game_mode
+	# A type with no TaskClient is drawn and offered nothing: say so once, never silently.
+	TaskClients.report_missing(game_mode)
 	items.model = _model
 	items.mode = game_mode
 	items.avatars = views
