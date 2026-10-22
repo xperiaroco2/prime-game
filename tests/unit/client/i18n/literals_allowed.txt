@@ -35,3 +35,4 @@ client/voice/voice_control.gd | test tone | the debug test tone's device name, o
 client/voice/voice_sender.gd | the voice codec made no encoder | the voice panel's notice when the voice codec is missing or fails (a technical line); deck key requested on #150 (comment 6096420162, item 11)
 client/voice/voice_sender.gd | voice is unavailable: the voice addon (TwoVoIP) is not installed | the voice panel's notice when the voice codec is missing or fails (a technical line); deck key requested on #150 (comment 6096420162, item 11)
 client/world/item_interactions.gd | %s: pick up %s | never on screen: hint() is kept for its tests; the HUD reads target() (#489)
+client/world/tasks/task_clients.gd | task type %s (%s) has no TaskClient | never on screen: the push_error and the message TaskClients.report_missing returns for its test (#1260)
