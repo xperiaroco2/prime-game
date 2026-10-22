@@ -614,3 +614,6 @@ none blocks an issue.
   run and the chaos rows against dealt stations.
 - Built: the viewfinder and the camera's state in P7 (#786, ARCHITECTURE §4.7.56); the pictures, the camera's counter
   and the photo's look in P8 (#787, ARCHITECTURE §4.7.58).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.22 names its code, no longer its build tasks: `core/` in P2 (#781), the box, the
+  print and the hang in P3 (#782), the station scenes in P4 (#783), the data in P5 (#784), the flash and sounds in
+  P6 (#785).

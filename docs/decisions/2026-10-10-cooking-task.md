@@ -560,6 +560,9 @@ answer changes the zone task's content alone, and nothing in C1 to C11 changes w
   adds none, and the Generator's G5 lists none either.
 - The meat run stays as long as house-map §7 measures it (135 m, about 30 s walking): nothing here shortens it.
 - Built: Cooking's client view in C7 (#776, ARCHITECTURE §4.7.55).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.20 names its code, no longer its build tasks: `core/` in C3 (#772), the uses and
+  the tick in C4 (#773), the station scenes in C5 (#774), the data in C6 (#775), the burger checked when served in
+  #1101.
 
 ## Amendment 2026-10-15: a burger is checked when it is served (#1101)
 

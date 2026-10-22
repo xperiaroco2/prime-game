@@ -508,3 +508,5 @@ Nothing is open. Each question this design put to the engineer is answered; his 
   the move); R6 after G5, G8 and R7; R9 after R4 and G8; the engine issues (R1 to R4, R7, R9) on `release/m7`, the
   level and content issues into `main` (§8's base).
 - Built: Car repair's view in R7 (#811, ARCHITECTURE §4.7.57).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.21 names its code, no longer its build tasks: `core/` in R3 (#807), the fitting
+  in R4 (#808), the level in R5 (#809), the data in R6 (#810), the client in R7 (#811).

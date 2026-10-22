@@ -122,3 +122,5 @@ answers.
 - `TasksDone` and `howto_opened` stay as parts no data uses; a task lesson that comes back reuses them.
 - 825a edits the tutorial room before #715 does; scenes are single-owner, so the later PR waits for the earlier's
   merge (the design's §9.6).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.17 no longer names its builds: the mode without tasks in 825a (#900), the
+  throw lesson's `Throw` and FlightTicks in 825b (#901).

@@ -6235,9 +6235,8 @@ there would not follow from the commands.
   thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
 #### 7.1.17 The crouch (#727; #790 to #792)
-Status: the host's part and the wire are built (#790), the local player's crouch (727b, #791) and others' crouch
-with the quiet steps (727c, #792); #522's crouch clips (`Crouch_Idle`, `Crouch_Fwd`) play on the character's remote
-avatars (§4.7.53).
+The crouch has the host's part and the wire, the local player's crouch and others' crouch with the quiet steps; the
+character's crouch clips (`Crouch_Idle`, `Crouch_Fwd`, #522) play on its remote avatars (§4.7.53).
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
 [crouch ADR](decisions/2026-10-10-crouch.md) designs it, and he answered its KD1 to KD8 on 2026-10-10 (PR #752,
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
@@ -7347,11 +7346,11 @@ Settings:
 - Map: `levels/tutorial/tutorial.tscn`, the room of §9.6.
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
-Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
-provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
-(#601, §4.7.44). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
-`SpawnItems`, designed in #825 ([ADR](decisions/2026-10-12-tutorial-without-tasks.md), `docs/design/tutorial.md` §9)
-and built in #900 (825a; the engineer's LD1 (a), LD2 (a), LD7 to LD10 (a) on PR #894), provisional for his approval; the throw lesson's `Throw` and FlightTicks in #901 (825b, LD3 (a)).
+Provisional under the MVP content ADR, for the engineer's approval (his answers D25 to D28, D33 and D34 (a) on
+PR #596; LD1 (a), LD2 (a), LD3 (a) and LD7 to LD10 (a) on PR #894). The solo session that hosts it: §4.7.44. It
+deals no tasks (DD10, the [tutorial without tasks ADR](decisions/2026-10-12-tutorial-without-tasks.md),
+`docs/design/tutorial.md` §9): no `DealTasks`, task types or `TaskTicks`; `SpawnItems` spawns the package; the
+throw lesson plays `Throw` with FlightTicks.
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
 `docs/design/tutorial.md` §2.3, no task dealt, and a match from `gather` to the respawn in `death_stage`
 (`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
@@ -7404,11 +7403,10 @@ done, and its last `ZoneProgress` tick with whether its counting changed since. 
 (the phase object dies with Round), so Round's end stops the count and `ResetMatch` clears it.
 Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, and counting reads no role: a public
 event that depended on a role would reveal it (§9.2, ZD3).
-Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
-(M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
-`MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
-provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.51);
-the House alone in its `maps`, the greybox's zones and those scenarios gone, in #804 (Generator G9).
+Designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) (#36, PR #619). Code: `core/tasks/zone_task.gd`,
+`core/events/zone_progress_event.gd`, `StationState.contains`, `MovementRule.claim_age` and `credit_gain`; its data
+(provisional for the engineer's approval) with the House alone in its `maps` (the greybox has no zones, and no
+scenario plays the zone task); the client's zones, their fill and the done look: §4.7.51.
 Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the House's fit at the most zones, the
 greybox asking none, ZE9's spacing on every map the zone task plays, each read in the host's collision world since
 #681, and the flat fake shown hiding a spawn point beside an upstairs zone), `tests/unit/content/zone_base_mode_test.gd`
@@ -7431,9 +7429,9 @@ What it does: one shared task (#679) whose subtasks are its N active switches, N
 `switches`): the players turn every active switch on, then press the generator's button, and its charge runs for
 `seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
 uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
-Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House (G4,
-#799), its client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.54 (#801, G6),
-its data in #800 (G5): the base mode deals it on the House alone.
+Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its station scenes stand in the House, its
+client (the E key, the scenes driven, the clicks and hum, the map's charge bar) is §4.7.54, and the base mode deals
+it on the House alone.
 Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
 effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
 `switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to
@@ -7465,22 +7463,22 @@ command runs before that tick's gain); one inside `WINDOW_TICKS` (`ZoneTask`'s 5
 end. Its task state (`Generator.State`): the generator's station, per active switch its station and whether it is
 on, the charge's ticks, whether it runs, done, and the window's bookkeeping, in `MatchState` (`ResetMatch` clears it).
 Visible to: everyone, all of it. No event names a player (the ADR's row 18), and nothing reads a role (§9.2).
-Status: `core/` built in #797 (Generator G2): `core/tasks/generator.gd`, `core/events/switch_changed_event.gd`,
+Code (`core/`): `core/tasks/generator.gd`, `core/events/switch_changed_event.gd`,
 `core/events/button_pressed_event.gd`, the exact demands (`Demands.exact`, `markers_exact`), wire kinds 70 and 71
-(protocol 18), `ClientModel.Station`'s `on` and `presses`. The station scenes in #799 (Generator G4, GE11; provisional
+(protocol 18), `ClientModel.Station`'s `on` and `presses`. The station scenes (GE11; provisional
 until the engineer approves them): `levels/stations/switch.tscn` (the active look, off and on, and GD5's fixed look)
 and `generator.tscn` (the button, four bars, the glow), each the art prop as its body, its own primitive collision
 and a use spot in `spawn_switch` or `spawn_generator`, instanced in the House's storage, boiler room, pump room,
 switch room and generator hall in place of the plain markers, their use spots at house-map §6's points (the
 convention: the [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes");
-read as plain points until G5's type snaps their tags. The data in #800 (Generator G5; provisional until the engineer
+read as plain points until the Generator's task type snaps their tags. The data (provisional until the engineer
 approves it): `content/tasks/generator.tres` (GD1's name "Charge the generator" and description, `seconds` 60,
 `switches` 4, `maps` the House alone, both kinds' `Interact` rule and GD6's 2 m radii and heights, placeholders) in the
 base mode with its `switches` setting (3, 2 to 4; §9.5.1); until the copy deck has `task.generator` the client names
 it by the deck's `task.switches` ("Switches", `ContentNames.TASK_EXCEPTIONS`) and its how-to card
 (`content/howto/tasks/generator.tres`) shows three word frames of existing keys, placeholders the engineer approves.
-Since #800 `LayoutCheck` also refuses a map on which no task type plays while a row deals tasks at the defaults.
-Tests: `tests/unit/content/generator_content_test.gd` (#800: the data, the fit of House with it and of the greybox
+`LayoutCheck` also refuses a map on which no task type plays while a row deals tasks at the defaults.
+Tests: `tests/unit/content/generator_content_test.gd` (the data, the fit of House with it and of the greybox
 without it, GD12's switch spacing in the host's world, fixture cases 13 m refused and 16 m accepted at 2 m, and the
 panel's bars matching `switches`); and `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
 table), `generator_progress_events_test.gd` (the window, the order, the ticks), `generator_check_test.gd` (GE10,
@@ -7568,10 +7566,10 @@ grill's patty with its fried and burnt ticks, the plated burgers by item id (`Co
 kinds, #1101), in `MatchState`. Visible to: everyone; an order carries its fried patty and its herb's icon, never
 the herb (CE9 (a)); no event names a player, nothing tells right or wrong before a serve (#1101), and nothing reads
 a role (§9.2).
-Status: `core/` built in #772 (cooking C3): `core/tasks/cooking.gd`, `core/events/order_posted_event.gd`,
-`core/events/herbs_dealt_event.gd`, wire kinds 73 and 74 (protocol 22), `WireBudget`'s `HerbsDealt`; the uses and the tick in
-#773 (cooking C4): `core/events/grill_loaded_event.gd`, `core/events/ingredient_placed_event.gd`, wire kinds 79 and
-80 (protocol 26); the burger checked when served in #1101: `core/events/burger_plated_event.gd`,
+Code (`core/`): `core/tasks/cooking.gd`, `core/events/order_posted_event.gd`,
+`core/events/herbs_dealt_event.gd`, wire kinds 73 and 74 (protocol 22), `WireBudget`'s `HerbsDealt`; the uses and the
+tick: `core/events/grill_loaded_event.gd`, `core/events/ingredient_placed_event.gd`, wire kinds 79 and
+80 (protocol 26); the burger checked when served: `core/events/burger_plated_event.gd`,
 `core/events/burger_served_event.gd`, wire kinds 85 and 86, kind 80 without `right` (protocol 35).
 Tests: `tests/unit/tasks/cooking_deal_test.gd`, `cooking_check_test.gd` (CE14, `emits`, the leak lists),
 `cooking_demands_test.gd` (the exact demands through `LayoutCheck` and the fit check),
@@ -7589,7 +7587,7 @@ ingredient on a place, finish the burger and leave what lay to vanish, and what 
 `Match.view_of` (planted: `IngredientPlaced`'s wire row without `right`, failed, reverted; since #1101 they plate
 and serve a wrong burger, then a right one); and the flood guard and
 the cap against one peer's burst of takes (§4.6.5.3).
-The station scenes, C5 built in #774 (provisional until the engineer approves them; the convention: the
+The station scenes (provisional until the engineer approves them; the convention: the
 [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes"):
 `levels/stations/order_board.tscn`
 (`spawn_order_board`; `Rows/Row1` to `Row3`, each a hidden `Number` `Label3D` and the `Bun`, `Patty` and `Herb`
@@ -7686,20 +7684,20 @@ Produces: `StationPlaced` and `PartNeeded` (everyone) in the deal; `LiftChanged`
 `car_end` position, the needed parts, the parts fitted, the tick the running hold began, in `MatchState` (`ResetMatch`
 clears it). Visible to: everyone, all of it. Only `FitChanged` names a player, the fitter (RD15 (a)); none names the
 lift's holder (the ADR's §3), and nothing reads a role (§9.2).
-Status: `core/` R3 built in #807: `core/tasks/car_repair.gd`, `core/events/lift_changed_event.gd`,
+Code (`core/`): `core/tasks/car_repair.gd`, `core/events/lift_changed_event.gd`,
 `core/events/part_needed_event.gd`, `TaskType.layout_problems` and `HostText.SHORT_AXIS`, wire kinds 75 and 76
-(protocol 23), `ClientModel.Station`'s `up`, `lift_tick` and `part`; R4 in #808: `core/events/fit_changed_event.gd`,
+(protocol 23), `ClientModel.Station`'s `up`, `lift_tick` and `part`; the fitting: `core/events/fit_changed_event.gd`,
 `core/events/part_fitted_event.gd`, wire kinds 81 and 82 (protocol 27), `ClientModel.Station`'s `fitter`, `fit_tick`
-and `fitted`, and `ClientModel.Item`'s `fitted`. The level, R5 in #809: `levels/stations/car.tscn` (the car and
+and `fitted`, and `ClientModel.Item`'s `fitted`. The level: `levels/stations/car.tscn` (the car and
 the lift arms on `Lift`, an `AnimatableBody3D` on layer 4, `movers`, with one box hull: no top within a jump's reach,
 its lowest point 0.16 m, under the 1.4 m `clearance_m`; the posts' frame on layer 1, clear of the use spot under the
 car), `lift_panel.tscn` (a hidden lamp), `parts_shelf.tscn` (three bins, each a use spot and a colour plate, RD2's
 placeholders) and `part_picture.tscn` (a hidden plate on the garage's east wall), instanced in the garage and in
 storage in place of the markers and the art's copies; a kit partition 1 m east of the panel's use spot hides the space
-under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client, R7 in #811: §4.7.57
+under the car (RE15); house-map §6 holds the use spots. Tags, plates and the partition are provisional. The client: §4.7.57
 (`ClientModel.Station`'s `rise_tick`, `Item.rests()` false when fitted, the `movers` mask, `CarRepairUse`,
-`CarRepairViews`, the hold's `StopRaise`). The data, R6 in #810: above.
-Tests: `tests/unit/content/car_repair_content_test.gd` (#810: the words and numbers, the rules, the parts and their
+`CarRepairViews`, the hold's `StopRaise`). The data: above.
+Tests: `tests/unit/content/car_repair_content_test.gd` (the words and numbers, the rules, the parts and their
 cap, `car_parts`, `tasks` at the House's five, Round's `Interact` and `StopRaise`, the House's fit with one marker of
 each tag and the greybox asked for none); `tests/integration/levels/stations/car_repair_stations_test.gd` and `station_scenes_test.gd` (the scenes),
 `tests/integration/levels/house_car_repair_test.gd` (#809: the use spots at §6's points, the car's on the garage
@@ -7810,10 +7808,10 @@ film and its move serial, the shots (film, tick, whether a person counted, who),
 printed photos and their shots, the counted shots, in `MatchState` (`ResetMatch` clears it).
 Visible to: everyone, all of what is sent. No event names a player as the shooter (PD13); the record holds what every
 player's snapshots show anyway, its own pose included (§5); nothing reads a role (§9.2).
-Status: `core/` P2 built in #781: `core/tasks/photo_task.gd`, `core/tasks/photo_frame.gd`,
+Code (`core/`): `core/tasks/photo_task.gd`, `core/tasks/photo_frame.gd`,
 `core/events/film_loaded_event.gd`, `core/events/shot_taken_event.gd`, `ItemState.moves`, `TaskType.layout_problems`,
 the three reasons in `StationUsable.REASONS`, wire kinds 77 and 78 (protocol 24) with `WireBudget`'s 15-row
-`ShotTaken` case. P3 built in #782: the box, the print and the hang in `core/tasks/photo_task.gd`,
+`ShotTaken` case; the box, the print and the hang in `core/tasks/photo_task.gd`,
 `core/events/photo_printed_event.gd`, `core/events/photo_hung_event.gd`, `TaskType.cap_tier` and
 `GiveItem.make_room` (§9.4.2), the reasons `nothing_to_print` and `no_photo`, wire kinds 83 and 84 (protocol 28).
 Tests: `tests/unit/tasks/photo_deal_test.gd` (the deal, the exact demands, the layout problem), `photo_load_test.gd` (the
@@ -7842,7 +7840,7 @@ invariant). As in
 cooking's C9, a server path that broadcasts what the filter should route stays unseen there (every photo event goes to
 every player, and Round refuses joins) until bots play the photo task. And the box's flood guard and the film cap
 against one peer's burst of takes (§4.6.5.3).
-The client's flash and sounds, P6 built in #785: `client/world/photo_flashes.gd` (`PhotoFlashes`, under `ItemWorld`):
+The client's flash and sounds: `client/world/photo_flashes.gd` (`PhotoFlashes`, under `ItemWorld`):
 each `ShotTaken` at a camera the model knows lights one `OmniLight3D` at its lens (the station's marker plus the
 client's own copy of the mode's eye height, as `PhotoTask`'s lens), `shadow_enabled` and `omni_range` 4 m (a light
 without shadows passes through walls and would light a room where no eye sees the camera), no mesh, sprite or marker;
@@ -7858,7 +7856,7 @@ no hold and no fallback, each failed, reverted), `photo_sounds_test.gd` (the pla
 the photo sounds uncut, failed, reverted), `tests/integration/client/world/item_world_photo_test.gd` (off the
 loopback wire through `ItemWorld`: the flash and the shutter at the lens, the print, the hang, the shutter muffled
 behind a wall (planted unmuffled, failed, reverted), none beyond 12 m, the session's end).
-The station scenes, P4 built in #783 (provisional until the engineer approves them; the convention: the
+The station scenes (provisional until the engineer approves them; the convention: the
 [level piece ADR](decisions/2026-10-09-level-piece-conventions.md)'s "Station scenes"): `levels/stations/camera.tscn`
 (the art's tripod turned so its lens looks along -Z, the shooter's use spot in `spawn_camera` behind it at +Z, its
 collision below the shooter's eye line; `FilmSlot`, where P8 draws the loaded film (§4.7.58), and the hidden, depth-tested
@@ -7888,7 +7886,7 @@ Settings: none of its own since #991 (the engineer's change on #989: no per-map 
 `PlayerRules.crouch_maps`, KE10, is gone).
 Why not a part: as for sprint.
 Visible to: the avatar's `crouched` flag is public in the snapshot, only for a living player.
-Status: designed in #727; the host's part and the wire built in #790. Tests:
+Tests:
 `tests/unit/movement/movement_rule_crouch_test.gd`, `tests/integration/server/host_session_crouch_test.gd`,
 `tests/unit/content/content_modes_test.gd`.
 
@@ -7905,7 +7903,7 @@ puts `project.godot`'s located event in the InputMap for a default binding, a re
 Why not a part: as for sprint.
 Visible to: the avatar's `sneaking` flag is public in the snapshot, only for a living, uncrouched player; never the
 own avatar's (a living viewer never gets its own).
-Status: built in #990. Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
+Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
 `tests/integration/server/host_session_sneak_test.gd`, `tests/integration/client/player/player_controller_sneak_test.gd`,
 `tests/unit/client/world/footstep_cadence_test.gd`, `tests/integration/client/world/world_sounds_steps_test.gd`.
 
@@ -7946,10 +7944,9 @@ Client: `ClientModel` sets a drop-off done only when no undelivered item names i
 the guide's cards and the loading card list only the types that play on the picked or the match's map, the mode's
 default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.42). Until D3 gives a drop-off its own
 look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
-Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
-`core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
-`parasol.tres` (provisional, the engineer approves them in the PR); the House's circles removed (the study's last in #1059) and its drop-offs'
-furniture in #831 (D4). Tests (fixtures, never the House's data, §9.6):
+Code: `core/tasks/delivery_by_meaning.gd`, `core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`,
+`content/items/wine.tres`, `oil.tres`, `gnome.tres`, `parasol.tres` (provisional, the engineer approves them in the
+PR); the House has no circles, and its drop-offs have their furniture (D4). Tests (fixtures, never the House's data, §9.6):
 `tests/unit/tasks/delivery_by_meaning_deal_test.gd`, `delivery_by_meaning_check_test.gd` (the on-rest check, DE7),
 `delivery_by_meaning_demands_test.gd`, `delivery_by_meaning_mode_check_test.gd`, `delivery_by_meaning_filter_test.gd`
 (every peer gets the same task events), on `tests/fixtures/tasks/fixture_meaning_modes.gd`;
