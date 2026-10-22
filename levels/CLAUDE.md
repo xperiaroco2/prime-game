@@ -9,8 +9,8 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - Small files mean two people rarely touch the same scene. Scenes are single-owner: never edit one in another's open PR.
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
 - **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
-  - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map),
-    `props/`, `kit/` (the art GLBs' wrappers in `kit/<pack>/`, the greybox role materials); `lobby/` and `greybox/` stay;
+  - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map), `props/`, `kit/` (art GLB wrappers in
+    `kit/<pack>/`, greybox role materials; unused `greybox_floor_*` (not `_house`), `greybox_stairs`: reserved, #1158); `lobby/` and `greybox/` stay;
   - one grid with the art kit: whole metres, 2 m and 1 m wall modules, 3.2 m floor to floor (Y -3.2, 0, 3.2; an
     attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
   - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
@@ -22,10 +22,10 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   No door opens in M7 (E4): a kit door or gate on a walk sets `collision_layer = 0` on its wrapper's collider bodies.
   An override inside an instance needs its `[editable path]`, or a re-save drops it: `colliders` adds them (#1056).
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
-  `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
-  `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1
-  body at all (#112). A look a player can hide behind (a partition, a tarp, a shelf) needs a layer-1 collider
-  covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
+  `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or `GridMap`
+  collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1 body (#112). A look a player
+  can hide behind (partition, tarp, shelf) needs a layer-1 collider over it, or name plates show through (`docs/ARCHITECTURE.md`
+  §4.7.29, #257). Voice muffling is a client ray on layer 1 (`client/world/muffle.gd`): openings and covers decide it.
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6): a `Marker3D` in exactly one persistent group `spawn_<tag>` (Groups
   dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`, `spawn_circle` (greybox only),
   `spawn_zone`; House only, provisional (DE10, #826): `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
