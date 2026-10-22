@@ -443,3 +443,8 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
   `host` and `join` (E20).
 - The `new-level-piece` skill's step 5 says "CSG greybox"; D4 writes "CSG for looks only, collision as
   `StaticBody3D`" into it (the designer's file, in L-1).
+- Built (the headings of ARCHITECTURE §4.7 named these until #1244): the shell in M4-6 (#142, §4.7.5), with
+  `tools/runner/hostjoin.py` (#149, §4.7.20); movement on the network in M4-7 (#143, §4.7.7); items, hands, the HUD and
+  the task screen in M4-8 (#144, §4.7.10); the life states in 3D in M4-9 (#145, §4.7.9). The one-PC playtest's
+  follow-ups: one Esc menu with tabs (#169, §4.7.11), the fixes of #168 on `release/m4` (PR #167, §4.7.12) and the view
+  after a respawn or a new match (#191, #240, §4.7.13).

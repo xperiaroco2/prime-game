@@ -1,6 +1,6 @@
 class_name LobbyHud
 extends Control
-## The lobby's HUD in the Toy style (#495; ARCHITECTURE §4.7.42): the UI handoff's tree, node for
+## The lobby's HUD in the Toy style (#495; ARCHITECTURE §4.7.47): the UI handoff's tree, node for
 ## node (prime-game-ui `ui-0.4.0` `docs/handoff/s04-lobby.md`), drawing what LobbyText says. HUD
 ## edges sit 40 px in (px at the 1920x1080 base, #287); the name plates are GameUi's `Plates`
 ## under it (#257), as in the round:

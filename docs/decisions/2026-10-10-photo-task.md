@@ -591,7 +591,7 @@ none blocks an issue.
 
 ## Consequences
 - GDD §8's photo section records the engineer's answers, every question settled; ARCHITECTURE §9.8's
-  row and §10's open row point here; house-map §6 gains the camera, the box of films and the first film's point (to be
+  row points here (its §10 row left the table once every question was settled, #1244); house-map §6 gains the camera, the box of films and the first film's point (to be
   placed by P4).
 - When P2 and P3 land, ARCHITECTURE gains the photo task's entry in §9.5 and its four events in §4.2, §4.3.4 and §5,
   with their `Built in` lines; `GiveItem`, the caps, `Items.give`, the moves at a station, the vanish and
@@ -612,3 +612,5 @@ none blocks an issue.
 - No bot plays the photo task until the engineer asks, with the map (PD14): what stands in for the scenarios is §8's
   (PE18). The scenarios that later play it bring the scenario bot's folds of `FilmLoaded` and `PhotoHung`, a lurker
   run and the chaos rows against dealt stations.
+- Built: the viewfinder and the camera's state in P7 (#786, ARCHITECTURE §4.7.56); the pictures, the camera's counter
+  and the photo's look in P8 (#787, ARCHITECTURE §4.7.58).

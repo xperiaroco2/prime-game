@@ -143,7 +143,7 @@ client, the bots and the leak test). The main choices:
   `HostSession` calls in debug builds with each outbox slice and its command, right after each `Match.apply` and
   `Match.tick` call, so `sender` and the live state are those of the call that emitted the event (§4.5).
 - **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
-  markers through its own worlds (ARCHITECTURE §10's reader question, the option recommended on #66).
+  markers through its own worlds (ARCHITECTURE §4.5 Starting, the option recommended on #66).
 - **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the
   level conventions, the designer's side of the contract (ARCHITECTURE §9), so a notice is not enough.
 - **`net/`** gains `net/messages/`; `NetKindTable.game()` stops being empty; the transport gives `server/` its
@@ -159,6 +159,7 @@ client, the bots and the leak test). The main choices:
   - A command that waited in the socket during a host freeze can lose to a timer (the countdown, the loading deadline).
   - The one-process bots runner does not exercise ENet's timing; the ENet run does, if it is fast enough for `verify`.
   - The rate-limit numbers are placeholders; a playtest with voice may need others.
+- Built: the host session's API in 3f (#100, ARCHITECTURE §4.5.13).
 
 ## The engineer's answers
 The engineer answered every choice with its recommendation (2026-10-01, in the chat with the M3 manager session;

@@ -3,8 +3,9 @@
 | | |
 |---|---|
 | **Owner** | The engineer. The **content API** section is the contract between engine and content; since #518 the engineer owns both sides, and the optional designer reviews a change to it only when he wants to. |
-| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the sections that describe them describe the code as built until the M4 rework updates them (the ADR's Consequences list each section). The windowed client (§4.7) and the split of that rework into M4 issues: M4 design, #125, accepted ([ADR](decisions/2026-10-01-m4-first-person-client.md)). |
+| **Status** | The code as built. The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the M4 rework updated the sections that describe them (the ADR's Consequences list each section). The windowed client (§4.7) and the split of that rework into M4 issues: M4 design, #125, accepted ([ADR](decisions/2026-10-01-m4-first-person-client.md)). |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
+| **A contract, not a changelog** | A finished task updates the text that its change makes stale, so each section says what is true now, and adds no "Built in #n" section. Its history (which PR built it, what changed when) goes in its ADR's Consequences, the PR and git log (#1244); a section's Tests paragraph is the test map and stays, kept current. §10 holds only the questions still open: a settled one leaves it. |
 
 ## 1. Layers and boundaries
 
@@ -15,7 +16,7 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.45; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.46; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
 | `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -207,7 +208,7 @@ countdown changes no scene and places nobody.
   of its content (every resource it loads, sub-resources included), every command with its tick and order (the ones
   `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `BodyMoved` with a body's report (§7.1.18), and in debug builds `ForceRole`, §9.4
   `DealRoles`), the levels' `LevelLayout`s (§9.1), and every `WorldQuery` answer (a throw's flight adds only answers,
-  no command of `server/`'s: §7.1.16, proposed). A replay reads the answers from the log instead of asking the
+  no command of `server/`'s: §7.1.16). A replay reads the answers from the log instead of asking the
   level, and refuses to run when the mode's hash differs (after an edit in `content/`, say the knife's damage, it
   would silently diverge); unit tests use a fake `WorldQuery`. Seeds and RNG state never leave the host (§5).
   The log grows with the session (a `MoveClaim` per player at 20 Hz, idle or not, and the answers it asks), so `Match`
@@ -882,7 +883,7 @@ content edit before a playtest instead of the encoder refusing a reliable event 
 **Host text** (#548). No row carries a sentence: what the host words for players travels as host text, `record{id:
 id, ids: list<id>, numbers: map<id, s32>}` (`core/`'s `HostText`: an id, its subjects such as a spawn tag or a station
 kind, and its whole-number arguments by name), and each client words it in its own language through the copy deck
-(§4.7.47), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
+(§4.7.45), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
 `MatchEnded`'s reason is the winning `WinCondition`'s id with its `numbers`. The other ids a client shows (`Rejected`'s,
 `CountdownCancelled`'s and `Disconnecting`'s `reason`) were ids already. A test (`wire_schema_test.gd`,
 `test_no_row_carries_free_text`) fails on any row with a `text` or `note` field.
@@ -1175,7 +1176,7 @@ client is a `ClientSession` on the loopback like any other (§4.6.1) and reads n
 (1) Load the game mode and every level it names (the lobby and the maps), build each level's collision
 world (3c, below), then read the markers with `MarkerReader.read_levels` (2j) through the host's `WorldQuery`, which
 `read_levels` points at each level with `use_level(path)` before reading it (3c; the flat fake ignores it). So the
-`circle` markers snap to the floor the host plays on: option (b) of §10's reader question, recommended on #66. A
+`circle` markers snap to the floor the host plays on: the reader reads each level in the host's space, as #66 recommended. A
 level with load errors stops the host with the errors shown. (2) The session seed: 8 bytes of
 `Crypto.generate_random_bytes`, the operating system's entropy, never the time (§3.3). (3) `Match.new`; a refused
 mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). (4) Host on the
@@ -1416,7 +1417,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
 `host_lost` (#40).
 
-#### 4.5.13 Built in 3f (#100)
+#### 4.5.13 The host session's API (3f, #100)
 The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comments.
 - `HostSession` (`server/host_session.gd`): `HostSession.new(transport, schema)` on a transport not yet hosting.
   `start(mode, port, max_clients, now_usec)` (the real levels and a `Crypto` seed) or `start_with(mode, world,
@@ -2244,7 +2245,7 @@ Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
 `ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`, but in the solo tutorial,
-which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.43). `client/app/` is the
+which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.44). `client/app/` is the
 only part of `client/` that names `server/`, and only through `HostNode` as a narrow façade:
 `HostNode.host(transport, mode, port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
 `end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
@@ -2296,11 +2297,11 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 |---|---|---|---|
 | no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
-| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
+| Lobby, Countdown | lobby HUD (s4, #495, §4.7.47): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
-| a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
+| a phase with no level (the tutorial's `gather`, #601, §4.7.44) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
-| Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
+| Round | HUD; the map and tasks screen on M (§4.7.33); in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
@@ -2314,7 +2315,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
   only the own `Respawned` (#191) and a `PlayersPlaced` naming the own player (`End -> Lobby` and the deal, #240)
   level the look (§4.7.13).
-- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.42: the
+- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.47: the
   status, the players with ready checks, the own ready chip; no key prompt) and nothing to click. The Esc menu's Lobby tab has the
   lobby's name (the host's to edit, #214, §4.7.11) with the map's picker right under it (#694), the roster, the
   Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
@@ -2324,17 +2325,18 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   test benches, #767), named by file name (#627), shows `ClientModel.map` and
   sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and there are
   two or more such maps); the demands and shortfalls come from `SettingsChanged` (the
-  shortfalls worded by `HostTextView`, §4.7.47). Everyone sees the settings; only
+  shortfalls worded by `HostTextView`, §4.7.45). Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
   (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
   #212: End returns everyone by itself).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (one Esc closes one overlay, the topmost first: a card (a how-to card, §4.7.36), the map, the host's Leave or Quit question before the menu, §4.7.35), and where
-  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Guide, in every screen, #254, §4.7.36; Lobby, in the lobby and the countdown;
-  Voice, in every screen, M5-6; Controls, in every screen, §4.7.28; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
-  there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or the Game tab's Resume, closes it (one Esc closes one overlay, the topmost first: a card (a how-to card, §4.7.36), the map, the host's Leave or Quit question before the menu, §4.7.35), and where
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Game: Resume, Leave, Quit; Role, in the round only; Guide, #254, §4.7.36; Lobby, on the lobby
+  screen, the lobby and the countdown, read-only in the round; Settings; the tutorial shows only Game, Guide and Settings;
+  #491, §4.7.42), the selected tab's page on the right; it opens on the tab chosen last on this kind of screen, else on
+  Lobby in the lobby and Game everywhere else. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   A new screen closes it, its question too, when it opened over another (`EscMenuState.over_screen`, #726): the
   match leaving the lobby, the end screen, the lobby again (the countdown is still the lobby's screen and keeps it;
@@ -2366,7 +2368,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
-  tutorial (§4.7.43) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
+  tutorial (§4.7.44) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
   leaving (`closed`, no failure shown), and its stand-ins go with the `HostNode`.
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
   the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu; the reason in words (printed, and kept in `Game.last_words` since #493) comes from one table, `client/app/end_reasons.gd`, which
@@ -2378,10 +2380,10 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
-  `--tutorial` (#601, §4.7.43) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
+  `--tutorial` (#601, §4.7.44) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
   the first launch from starting it.
 
-#### 4.7.5 Built in M4-6 (#142), the shell
+#### 4.7.5 The shell (M4-6, #142)
 `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
 `GameFlow` (the flow table above as a pure class: the screen and the level per session state and phase, read from
 the client's own `PhaseSpec`: a lobby level shows the lobby screen, a phase that accepts `LoadAck` the loading screen,
@@ -2471,7 +2473,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   heights' difference at `PlayerTuning.view_catch_up_seconds`' rate (a body drawn for the first time: at once). A
   downed body lies at standing size. The spectate camera stands at the target body's head, crouched or not.
 
-#### 4.7.7 Built in M4-7 (#143), movement on the network
+#### 4.7.7 Movement on the network: the code (M4-7, #143)
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
   `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
   `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
@@ -2612,7 +2614,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
 
-#### 4.7.9 Built in M4-9 (#145), the life states in 3D
+#### 4.7.9 The life states in 3D (M4-9, #145)
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
   life fold (`GamePlayer.sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), showing nothing
   (its body is the own avatar's ragdoll); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
@@ -2642,7 +2644,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel. (#168 adds the spectator's first-person
   hand and removes the panel's own invulnerability line and its "Watching" line: below.)
 - `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD; #497 replaced it with the Toy
-  `LifeScreen`, §4.7.44) and the shared greybox
+  `LifeScreen`, §4.7.41) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
@@ -2700,7 +2702,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
 
-#### 4.7.10 Built in M4-8 (#144), items, hands, the HUD and the task screen
+#### 4.7.10 Items, hands, the HUD and the task screen (M4-8, #144)
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
   `ItemInteractions` and `WorldSounds` (since #801 also `StationViews` and `StationHums`, §4.7.54) and gives the HUD what the model does not hold (`hud_local()`: the predicted
   stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
@@ -2743,7 +2745,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
   sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
-  code until #525 (§4.7.40) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
+  code until #525 (§4.7.43) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
   and added footsteps.
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
@@ -2773,12 +2775,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   ADR's §6), and a human picks the CC0 sounds (by ear on `sfx-check --page`'s listening page, AGENT_WORKFLOW
   §11.25).
 
-#### 4.7.11 Built in #169 (an M4 follow-up of the one-PC playtest), one Esc menu with tabs
+#### 4.7.11 One Esc menu with tabs (#169)
 - `client/ui/`: `EscMenuState` (pure: open or closed, the tabs per screen, the selected tab, the host's questions
   before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
   `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
   Lobby tab's page; read-only settings for everyone but the host) and `LobbyHud` (the lobby's corner: the hint, the
-  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.42). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
+  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.47). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
   longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
@@ -2792,7 +2794,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
-  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.46).
+  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.42).
   #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
   failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
 - #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
@@ -2825,10 +2827,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
-- Since #491 the menu is the Toy one of §4.7.46: the tabs Game, Role, Guide, Lobby and Settings; the host's
+- Since #491 the menu is the Toy one of §4.7.42: the tabs Game, Role, Guide, Lobby and Settings; the host's
   question is a dialog.
 
-#### 4.7.12 Built in #168, the follow-up of the one-PC playtest on `release/m4` (PR #167)
+#### 4.7.12 The one-PC playtest's fixes on `release/m4` (#168, PR #167)
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
   `tests/integration/client/life/spectate_network_test.gd` (NetPair; the joiner dies and watches the host's player
   while it walks and turns) finds the camera equal to the target's interpolated eye transform every physics frame,
@@ -2842,7 +2844,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `GamePlayer.hud_local()`), `HudText.spectates()`
   and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
   line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
-  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.44): `Hud.spectating_label`, `HudText.Local.watching` and
+  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.41): `Hud.spectating_label`, `HudText.Local.watching` and
   `Shown.spectating` are gone; while `HudText.spectates()` the HUD shows nothing (since #497 not even the target's
   hand and belt), the target's name is `LifeHud.Local.watching` and `Shown.watching`, and `LifeScreen`'s `Spectate`
   plate (#497) shows it in `watching_label`, so the "no Watching line" sentence above no longer holds.
@@ -2857,7 +2859,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
-#### 4.7.13 Built in #191 and #240, the player looked up after a respawn or a new match (fillers)
+#### 4.7.13 The view after a respawn or a new match (fillers; #191, #240)
 - `client/player/player_controller.gd`: the own `Respawned` (the controller's session events) calls
   `look_level()`: the head's pitch 0, the body's yaw kept (the engineer's answer on #191, no protocol change), and
   `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
@@ -2902,7 +2904,7 @@ the attacker beyond the accepted exceptions; hidden information in debug builds 
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
 follows the M5 ADR's checklist (its §3; §6 below).
 
-#### 4.7.15 Built in M5-5 (#219), hearing voice
+#### 4.7.15 Hearing voice (M5-5, #219)
 - `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
   `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
   `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6.5.4 Playback and the ears.
@@ -2927,8 +2929,8 @@ follows the M5 ADR's checklist (its §3; §6 below).
 - Not headless: how a voice sounds (the direction, the fade to 8 m, no pop at the edge, the downed hearing from the
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
-#### 4.7.16 Built in M5-7 (#221), occlusion's muffle
-(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.40;
+#### 4.7.16 Occlusion's muffle (M5-7, #221)
+(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.43;
 CI's LFS step with #515):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
@@ -2965,7 +2967,7 @@ CI's LFS step with #515):
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
-#### 4.7.17 Built in M5-6 (#220), speaking (§6.5.3 Capture and the gate)
+#### 4.7.17 Speaking (M5-6, #220; §6.5.3 Capture and the gate)
 - `voice/`: `VoiceCapture` (the device list, the chosen device opened, every whole 20 ms chunk at the device's rate
   with its age, errors in words, the "opening" mark through `mark_changed`) over a `VoiceMicrophone` (the machine's,
   through 4.7's `AudioServer` input API; `VoiceToneMicrophone`, the debug test tone; the tests' `FakeMicrophone`).
@@ -3023,7 +3025,7 @@ in windows, tiled on one PC with `--position`, with Vulkan as everywhere on Wind
 session of §4.6. In a shell where `CLAUDECODE` is set (an agent's) the default stays headless, so an unattended run
 never opens a window on a human's screen.
 
-#### 4.7.20 Built in #149 (M4-6) in `tools/runner/hostjoin.py`
+#### 4.7.20 `tools/runner/hostjoin.py` (#149, M4-6)
 Each window is `client/app/game.tscn` with the arguments of
 `LaunchOptions` after `--` (`--host [--local]` or `--join=<address>`, `--port=`, the runner's stop and alive files),
 so it skips the menu, and stops cleanly for the runner as the headless session does. The console exe (`GODOT_BIN`)
@@ -3093,7 +3095,7 @@ mode both fail as before; and every stand-in imported under the `.import` file a
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
 `tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
 --local --no-replay` on a free port; a scenario with the `tutorial` header has that one window only, started with
-`--tutorial`, #601, §4.7.43), up to two more windows join it, and the players after them are bots in one
+`--tutorial`, #601, §4.7.44), up to two more windows join it, and the players after them are bots in one
 headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
 window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
 with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
@@ -3180,7 +3182,7 @@ ADR's §6 check the rest. A thrown item's arc, stop and fall are pure (`ItemArc`
 core's `ItemFlight.point()` and a fixture match's real throw); the arcs in a physics world, the own arc's sweep
 against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/integration/client/world/` (§4.7.52).
 
-#### 4.7.24 Built in #287 (M6.2), the UI's base resolution
+#### 4.7.24 The UI's base resolution (#287)
 - `project.godot`: the UI is laid out on a 1920x1080 canvas (`display/window/size/viewport_width` and `_height`),
   the size the UI pack's mock-ups and Toy tokens are drawn at, so one mock-up px is one Godot px and no int token
   (border, radius, shadow, font size) is scaled and rounded. It still stretches to the window (`canvas_items`,
@@ -3203,7 +3205,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   `project.godot`. The `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size
   (PR of #287).
 
-#### 4.7.25 Built in #288 (M6.2), the generated theme
+#### 4.7.25 The generated theme (#288)
 - The flow: a tag `ui-<semver>` of xperiaroco2/prime-game-ui → `tools\run.cmd ui-sync <tag>` (AGENT_WORKFLOW
   §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
   → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
@@ -3254,9 +3256,9 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
   failing on a probe at 1152). `theme_test.gd` runs unchanged on the generated theme.
 
-#### 4.7.26 Built in #208 (a), English and Ukrainian
+#### 4.7.26 English and Ukrainian (#208 (a))
 The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
-host-made text as ids with arguments on the wire is #548 (§4.7.47), and the source test against literal strings, the content
+host-made text as ids with arguments on the wire is #548 (§4.7.45), and the source test against literal strings, the content
 names and the font's glyphs are #549 (§4.7.48).
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
@@ -3284,7 +3286,7 @@ outlives a restart, an unknown language), `user_settings_test.gd` (the language'
 `tests/integration/client/app/game_language_test.gd` (a saved choice is the locale at the start; seen failing
 without `Languages.apply`), and `tools/runner/tests/test_ui_copy.py`.
 
-#### 4.7.27 Built in #289 (M6.2), the Toy components
+#### 4.7.27 The Toy components (#289)
 The Toy look's behaviour that a theme cannot hold (prime-game-ui `ui-0.4.0`: its spec's sections 5, 6 and 19 and
 the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated theme only (no override, no
 `Color(...)`, no font size: `theme_test.gd`).
@@ -3332,7 +3334,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
   it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
   read it for the connecting spinner and the fades. Settings > Accessibility sets both and `UserSettings` saves
-  them (`large_text`, `reduced_motion`; #491, §4.7.46).
+  them (`large_text`, `reduced_motion`; #491, §4.7.42).
 - **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
   1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
   `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
@@ -3353,7 +3355,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
   large text, the page). The look: the four shots in the PR.
 
-#### 4.7.28 Built in #211 (M6.2), give-up on F and the controls the player rebinds
+#### 4.7.28 Give-up on F and the controls the player rebinds (#211)
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
 - `client/app/Controls`: the 19 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, and `throw` after `swap`, #851) in order with their `control.*` deck
@@ -3383,8 +3385,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
   through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
-  `downed.give_up_hold`, §4.7.44, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
-  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
+  `downed.give_up_hold`, §4.7.41, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
+  `tutorial.step.downed.how`, §4.7.41), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
   use it, so each follows a rebind (`LobbyHud`'s hint did until the Toy lobby HUD dropped it, #495). Known gap
   until the Toy screens (#491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
   they are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside
@@ -3415,9 +3417,9 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page
   with a same-key clash) and `life_give_up_preview.tscn` (the downed screen's "Hold F to give up", from a real
   window's layout; the Toy plates since #497).
-- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
+- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.42).
 
-#### 4.7.29 Built in #257 (M6.2), name plates; the names removed by #756
+#### 4.7.29 Name plates (#257; the names removed by #756)
 Plates over the other players' heads, in line of sight within about 10 m for now (the engineer as the designer,
 2026-10-03, on #257: to revisit after the playtests). Since #756 no player has a name over the head, in the lobby or the
 round, standing or crouching (the engineer's KD2 answer; names stay in the lobby's player list, the end screen and the
@@ -3459,7 +3461,7 @@ swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby
 lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a teammate with the mark and no name,
 a head over a wall and a player beyond 10 m without one).
 
-#### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls; #1020, ui-0.7.0's looks
+#### 4.7.30 The generated theme over the base controls, with ui-0.7.0's looks (#576, #1020)
 - The screens build bare `LineEdit` (the menu's code and address), `OptionButton` (the Voice tab's microphone and
   mode), `HSlider` (its threshold and volumes), `ScrollContainer` (the Esc menu's pages) and `Button` (the lobby's
   copy button, the Controls tab's reset button), with no type variation, so Godot's default theme drew them. No
@@ -3524,7 +3526,7 @@ a head over a wall and a player beyond 10 m without one).
   menu's tabs and the main menu's fields change (PR of #576); of the Settings and Lobby tabs at 1152x648, default
   and large text, before and after #1020 (its PR).
 
-#### 4.7.31 Built in #498 (M6.2), the post game screen
+#### 4.7.31 The post game screen (#498)
 `EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
 `docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
 (ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title` (`end.title`), the winner line,
@@ -3546,7 +3548,7 @@ a head over a wall and a player beyond 10 m without one).
   Godot translates.
 - **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
   its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
-  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.40). Every Control ignores the mouse and takes no focus. Voice is
+  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.43). Every Control ignores the mouse and takes no focus. Voice is
   silent in End by #213's rule, not by the screen.
 - **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
@@ -3559,7 +3561,7 @@ client; a language switch; no focus or input; the fade, its cut and the outro ho
 `end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
 own: `tools\run.cmd playcheck end`.
 
-#### 4.7.32 Built in #494 (M6.2), the connecting, failure and loading screen
+#### 4.7.32 The connecting, failure and loading screen (#494)
 prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; the issue linked `ui-0.2.0`, and
 where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
 - **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
@@ -3612,9 +3614,9 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   of each state in en and uk, default and large text, from `client/dev/screen_preview.gd` (`s3_state`, `language`,
   `large_text`) in the PR.
 
-#### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
+#### 4.7.33 The map and tasks screen on M (#253)
 The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
-the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.41), the how-to card
+the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.40), the how-to card
 #254's (§4.7.36).
 - **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
   for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
@@ -3631,7 +3633,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
   put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
   `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take the focus of
-  the arrows and the d-pad since #490 (§4.7.41); Space, which jumps, is out of `ui_accept` since #488, so a focused
+  the arrows and the d-pad since #490 (§4.7.40); Space, which jumps, is out of `ui_accept` since #488, so a focused
   one never presses with a jump.
 - **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`ContentNames.task`, §4.7.48: `task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
@@ -3640,7 +3642,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
   lights that type's zones, drawn under the room's pictogram and name, and their tag (`map.zone_hint.<type>`, else
-  `map.zone_hint`; under the first lit room since #490, §4.7.41). Words built in code are
+  `map.zone_hint`; under the first lit room since #490, §4.7.40). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
@@ -3675,9 +3677,9 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
   captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
-  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.41.
+  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.40.
 
-#### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
+#### 4.7.34 The pack's icons, the Delivery cards and the font hook (#520)
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
   icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`; at `ui-0.8.0` (#1020) 23 icons with the CheckBox
   and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the font hook's
@@ -3694,7 +3696,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
   Godot would make it from the path saved to and the stale test saves elsewhere.
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
-  §4.7.41); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
+  §4.7.40); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
 - **The font hook.** `mapping.font.file` is `res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (the pack's copy since #1045;
   `assets/ui/comfortaa/comfortaa.ttf` before), added in #684 (google/fonts'
@@ -3724,7 +3726,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   import with the pinned Godot, seen failing on a broken one). `client/dev/pack_preview.tscn`: a `shot` of the
   assets in English and Ukrainian.
 
-#### 4.7.35 Built in #488 (M6.2), the UI's input rules across the game
+#### 4.7.35 The UI's input rules across the game (#488)
 The «Layers and input (every screen)» section of the UI handoffs at `ui-0.4.0` (the engineer's standing decision for
 the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built the 16 actions, their phases and
 `KeyLabel`; #253 (§4.7.33) the map key and its mouse.
@@ -3778,7 +3780,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   `esc_menu` (the host's Leave question, one Esc back; the guest's menu left open closed by the pregame, #726) and
   `map`.
 
-#### 4.7.36 Built in #254 (M6.2), how-to cards per task type
+#### 4.7.36 How-to cards per task type (#254)
 Every task type has a **how-to card**: 3 to 4 wordless frames, one action each, like an airline safety card (the
 designer's answers on #254: cards for task types first, a calm tone; the engineer's ui-0.4.0 note: no captions, only
 the title and `howto.label`; the 2026-10-05 text decision: no NEW mark, no "new task" line). It shows in three places:
@@ -3835,7 +3837,7 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
 
-#### 4.7.37 Built in #489 (M6.2), the round HUD in the Toy style
+#### 4.7.37 The round HUD in the Toy style (#489)
 The round's HUD (§4.7.10's M4-8 HUD) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
 `docs/handoff/s07-hud.md` (not `ui-0.2.0`; since then the hand-slot icon is tinted by ToySlotText and the teammate mark
 by ToyNamePlateText, and the SVG scales come from the pack's `assets` list, prime-game-ui#44), node for node, px at
@@ -3861,14 +3863,14 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
   and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
   `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10), or the rescuer's raise cue over a downed
-  player E would raise (#497, §4.7.44); `Raising`, the own raise's progress
+  player E would raise (#497, §4.7.41); `Raising`, the own raise's progress
   (`LifeView.raise_shown()`: the countdowns' `raise_progress`, the same value as the downed player's bar), in
   place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
   hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
   knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
   swatch and the crosshair's "E: pick up" hint are gone (the destination is no longer shown: the world's marker went in #829, §4.7.10;
   the map the tasks' counters, §4.7.33; a dissident's teammates the plates' mark with no name, §4.7.29).
-- **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
+- **Downed and dead** (#497 settled s09 against this HUD, §4.7.41): downed, only `Vitals` > `Mic` (off) shows
   (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own
   nor, since #497, the watched player's hand and belt (#168 showed them until s9 was settled: the engineer's
   answer 3 on PR #675). The `Spectate` plate moved to `LifeScreen`; the raiser sees the `Raising` bar alone, as
@@ -3881,7 +3883,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
 - **Not built here:** separate CanvasLayers per the handoff's layer table for these (the screens stay children of
   one `Ui` layer, in the same order; only the black screens and the Esc menu have their own, §4.7.32); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
-  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.44's.
+  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.41's.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
   and the raise in its place, a dissident's and an engineer's HUD equal but the role; since #497 the downed see the
   mic alone and the dead nothing, none of the target's; the map's tests of §4.7.33), `hud_layout_test.gd` (the
@@ -3892,9 +3894,9 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   the raiser's HUD), `base_controls_test.gd` (TextureRect named). The teammate mark never on an engineer's client:
   §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and `hud_<state>_preview.tscn` for pack,
   tired, hurt, mate and raising, each with a `_uk` twin, and `hud_large_uk_preview.tscn`, at `--size 1920x1080`
-  (s09's states: §4.7.44); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
+  (s09's states: §4.7.41); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
 
-#### 4.7.38 Built in #493 (M6.2), the main menu
+#### 4.7.38 The main menu (#493)
 prime-game-ui's s2 at `ui-0.4.0` (its handoff `docs/handoff/s02-main-menu.md`; the issue linked `ui-0.2.0`, and
 where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.gd`.
 - **The tree.** `MainMenu` (GameUi's `menu`) holds `Backdrop` (ToyBackdrop, full rect, the mouse ignored), `Column`
@@ -3930,7 +3932,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
   player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
   "never empty, else the system user name" predates.
-- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.46), the same scene as the Esc menu's
+- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.42), the same scene as the Esc menu's
   Settings tab, opened on Sound and voice; its `VoicePanel` keeps #301's logic. `Game` feeds it as before
   (`shown_voice_panel`, `settings_open()`). It opens at its top: `follow_focus` scrolls to the focused first row
   before the panel's first sort, with the old sizes (290 px down under large text), so the menu scrolls it back once
@@ -3954,7 +3956,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
   scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
 
-#### 4.7.39 Built in #496 (M6.2), the pregame role reveal in the Toy style
+#### 4.7.39 The pregame role reveal in the Toy style (#496)
 `PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
 prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
 for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
@@ -3975,14 +3977,14 @@ wide, wrapped. Pack variations only, no override.
   `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
   the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
   match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
-  it at once. It draws over the HUD, the life screen (§4.7.44), the tutorial's plates and the map from the black layer
+  it at once. It draws over the HUD, the life screen (§4.7.41), the tutorial's plates and the map from the black layer
   `GameUi.black` (§4.7.32), under the post game screen; the Esc menu opens over it from `GameUi.above` (#656).
   Every Control ignores the mouse and takes no focus; the pregame is frozen
   and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
 - **Role sounds** (#716, #213 criterion 3, #175). `role_revealed(role, side)` is emitted once per pregame when the
   own role shows, with that role's side in the client's own mode (empty for a role it does not know), and never
   while Night fades out over the round (a role that arrives that late plays nothing in the round). The screen plays
-  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.40): `crew` the engineers' sound, `dissidents` the
+  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.43): `crew` the engineers' sound, `dissidents` the
   dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
   hears another's role sound (the bots test checks the wire).
 - **Not built here.** The Esc menu's Role tab (#491).
@@ -3998,7 +4000,7 @@ lift or for an unknown side (seen failing without the lift guard), its sources n
 frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
 `pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
 
-#### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
+#### 4.7.40 The map and tasks screen in the Toy style (#490)
 The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
 engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
 - **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
@@ -4045,7 +4047,7 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
   Enter and closes only the card with Esc.
 
-#### 4.7.44 Built in #497 (M6.2), the downed, dead and respawn screen in the Toy style
+#### 4.7.41 The downed, dead and respawn screen in the Toy style (#497)
 The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
@@ -4107,13 +4109,13 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
   too.
 
-#### 4.7.46 Built in #491 (M6.2), the Esc menu in the Toy style
+#### 4.7.42 The Esc menu in the Toy style (#491)
 - Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
   `Dim`, the raised 1600x880 `Menu` with the `Tabs` column (ToyTab toggles in one ButtonGroup) and the `Page`, whose
   title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
   `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
   round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
-  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.43); the default tab Lobby in the lobby
+  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.44); the default tab Lobby in the lobby
   and Game elsewhere; the last tab pressed is kept for the next opening on the same kind of screen (lobby or other).
   Character waits for #73 (M7): no tab, no placeholder.
 - Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
@@ -4160,7 +4162,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
   the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
   The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
-#### 4.7.40 Built in #525 (M6.2), basic sound from Kenney's CC0 packs
+#### 4.7.43 Basic sound from Kenney's CC0 packs (#525)
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
@@ -4233,7 +4235,7 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   crouch speeds a hard edge; the step's speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at
   crouch speed, a walk's at the fast crouch's (#991) and at the walk speed whatever the flag, eased between, cut
   beyond 6 m, the own slow steps too).
-#### 4.7.43 Built in #601 (M6.2), the solo tutorial session in the game
+#### 4.7.44 The solo tutorial session in the game (#601)
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
 - **`Game.start_tutorial(invite := false)`** (`client/app/game_tutorial.gd`, `GameTutorial`, held in `Game.tutorial`
@@ -4263,9 +4265,9 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   tutorial branch in `GameHowto`.
 - **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
   window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
-  Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
+  Esc menu shows its tutorial variant (#491, §4.7.42): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
   Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
-  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
+  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.46).
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
   `tutorial_requested` to `start_tutorial(false)` (the item was disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
@@ -4297,7 +4299,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the header, its refusals and its one window's
   command line).
 
-#### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
+#### 4.7.45 Host text as ids plus arguments (#548)
 Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the
 client words it in its own language, so two players of one lobby read the same shortfall or end reason each in theirs.
 Protocol 13 (§4.3.4).
@@ -4315,7 +4317,7 @@ Protocol 13 (§4.3.4).
 - **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
   and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
   pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
-  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.42) and the lobby HUD's status (§4.7.47) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.6.0).** The deck has keys for `players_few`, `players_many` (`lobby.too_many`, by `max`), `markers` (`lobby.need_markers`, by `have` and `need`), `no_layout`, `no_task_types` (#718; no plural form, so no `PLURAL_BY` entry) and the reasons `every_task_done` and `time_up`. `markers_exact` (#797), `colours`, `short_axis` (#807) and `photo_spot_near` have none, so `HostTextView.plain` shows the id, its
   subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
@@ -4336,7 +4338,7 @@ Protocol 13 (§4.3.4).
   the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
   decodes the same shortfall, and the same reason at the end, equal to `view_of`).
 
-#### 4.7.45 Built in #602 (M6.2), the lesson runner and the lessons (nine since #901)
+#### 4.7.46 The lesson runner and the lessons (#602; nine since #901)
 T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engineer's D29 to D33, D36 answers on PR
 #596). The plates, the lesson list and the invite (#492) read it.
 - **Data** (`core/content/tutorial/`, data only, §9.3): `TutorialLessons` (the root, `lessons`), `TutorialLesson`
@@ -4395,7 +4397,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
   runner); the `tutorial` playcheck scenario plays through lesson 4's throw to lesson 5's map.
 
-#### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
+#### 4.7.47 The lobby HUD in the Toy style (#495)
 The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
 `docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
 `check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
@@ -4413,7 +4415,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
   lobby's name are cut with an ellipsis inside the plate.
 - **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
-  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.47's
+  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.45's
   `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
   no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
   `lobby.player_count` against the mode's
@@ -4448,7 +4450,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
   (`esc_menu`, `end`).
 
-#### 4.7.48 Built in #549 (M6.2), no literal text, content names and the font's glyphs
+#### 4.7.48 No literal text, content names and the font's glyphs (#549)
 Part (c) of #208 (§4.7.26), after the Toy screens.
 - **No literal text.** `tests/unit/client/i18n/literal_strings_test.gd` reads every script and scene under `client/`
   (`client/dev/`'s previews left out) and fails on a string literal that reads as words but is no deck key and not
@@ -4493,9 +4495,9 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `client/dev/menu_uk_preview.tscn`: a
   `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
 
-#### 4.7.49 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
+#### 4.7.49 The tutorial's invite and lesson plates in the Toy style (#492)
 The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
-notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
+notes) over the tutorial session (§4.7.44) and its lesson runner (§4.7.46); `docs/design/tutorial.md` §1, §5.
 - **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
   and before the map: the `Ui` layer, the handoff's HUD layer 2 (its table names the lesson plates there and not
   the invite, which shows with them only in the round, where no black screen is up; #656), under the map and under
@@ -4543,7 +4545,7 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
   `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
   free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
   `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
-#### 4.7.50 Built in #551 (M6.2), the bodies in their players' colours
+#### 4.7.50 The bodies in their players' colours (#551)
 The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
 `ProfileChanged` (which also renames), and `ClientModel.colour_of(peer)` gives 0 for a peer not on the roster.
 `BodyColours` (`client/player/`) maps an index to what is drawn: the delivery circles' ten colours (the
@@ -4554,13 +4556,13 @@ array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics 
 colour set before the body is ready waits for its rules). Each ragdoll, the own one included, wears its player's colour (`RagdollView.set_colour`, 728d); a dead
 body's is `LifeLooks.BODY_COLOUR`, grey. No picker
 yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
-(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
+(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.47) shows no
 colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
 `tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
 material, the ragdolls' colours).
 
-#### 4.7.51 Built in M7-Z4 (#650), the zones, their fill and the done look
+#### 4.7.51 The zones, their fill and the done look (M7-Z4, #650)
 The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
 ZD11 (b) and ZE8, as the engineer answered them on #302).
 - **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
@@ -4599,9 +4601,9 @@ ZD11 (b) and ZE8, as the engineer answered them on #302).
   reverted). The `shot`s:
   `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
   `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
-  `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
+  `ZoneTask` (added in #649, M7-Z3), a stand-in of their own if a mode has none.
 
-#### 4.7.52 Built in #645 (37e), the throw key, the predicted arc and the remote arcs
+#### 4.7.52 The throw key, the predicted arc and the remote arcs (#645, 37e)
 The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
 TE5 (a)). The wire is unchanged.
 - **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
@@ -4679,7 +4681,7 @@ TE5 (a)). The wire is unchanged.
   built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
   a wall, and the own predicted knife held at a wall a step ahead.
 
-#### 4.7.53 Built in #522, the animated character
+#### 4.7.53 The animated character (#522)
 The art character (`assets/characters/slice_m1/`, §11.3) on the avatars, its clips from a pure mapping, and the
 knocked-down body as its skeleton's ragdoll. Not built: the cast (heads, hair, faces, art#42) and which parts take the
 body colour (a follow-up of #522), and a mirror or shadow of the own living player.
@@ -4775,7 +4777,7 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   `tests/integration/client/life/life_raise_ragdoll_network_test.gd` (a hit bone names its peer: seen failing on the
   old collider cast).
 
-#### 4.7.54 Built in #801 (Generator G6), the Generator's stations, switches and panel
+#### 4.7.54 The Generator's stations, switches and panel (#801, G6)
 The client side of the Generator (the [Generator ADR](decisions/2026-10-10-generator-task.md)'s GD4, GE11, GE14),
 from the own `ClientModel`'s StationPlaced, SwitchChanged, ButtonPressed and ZoneProgress folds only; the wire is
 unchanged.
@@ -4818,7 +4820,7 @@ unchanged.
   `station_hums_test.gd`, `tests/unit/client/ui/content_names_test.gd`, `map_screen_generator_test.gd`,
   `tests/unit/client/app/game_flow_test.gd` (`in_round`).
 
-#### 4.7.55 Built in #776 (cooking C7), Cooking's client view
+#### 4.7.55 Cooking's client view (#776, C7)
 The client side of Cooking (the [cooking ADR](decisions/2026-10-10-cooking-task.md)'s §8 C7, CD4, CD12, CD14,
 CE6, CE15), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged. #1101 (the
 ADR's amendment of 2026-10-15: a burger is checked when it is served) moved it to the new rule, as this section
@@ -4870,7 +4872,7 @@ reads now.
   `levels/stations/` scenes), `grill_sizzle_test.gd`; previews `client/dev/cooking_preview.tscn` and
   `cooking_wall_preview.tscn`.
 
-#### 4.7.56 Built in #786 (photo P7), the viewfinder and the camera's state
+#### 4.7.56 The viewfinder and the camera's state (#786, P7)
 The client side of the photo camera (the [photo ADR](decisions/2026-10-10-photo-task.md)'s §2, §3.1, §9 P7, PD17
 (a)), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged.
 - **The fold.** `ClientModel` folds `FilmLoaded` (the host sends no `ItemPlaced` for the load: the film leaves the
@@ -4914,7 +4916,7 @@ The client side of the photo camera (the [photo ADR](decisions/2026-10-10-photo-
   `tests/integration/client/player/player_controller_held_test.gd`,
   `tests/integration/client/life/life_view_camera_test.gd`.
 
-#### 4.7.57 Built in #811 (car repair R7), Car repair's view
+#### 4.7.57 Car repair's view (#811, R7)
 The client side of the car repair (the [car repair ADR](decisions/2026-10-10-car-repair-task.md)'s §8 R7, RE8,
 RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of the mode only; the wire is unchanged.
 - **The fold.** `ClientModel.Station.rise_tick` keeps the last hold's start through its stop (how high the car got
@@ -4963,7 +4965,7 @@ RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of t
   `car_repair_lowered_preview.tscn` and `car_repair_crouch_preview.tscn` (the crouched eye under the raised car), on a
   CarRepair built in `car_repair_preview.gd` (it does not read the shipped `content/tasks/car_repair.tres`, R6, #810).
 
-#### 4.7.58 Built in #787 (photo P8), the pictures, the camera's counter and the photo's look
+#### 4.7.58 The pictures, the camera's counter and the photo's look (#787, P8)
 The client side of the photo's pictures (the [photo ADR](decisions/2026-10-10-photo-task.md)'s §3.3, PE15, §9 P8),
 from the own `ClientModel`, the snapshot-free `ShotTaken` record and the client's own copy of the mode; the wire is
 unchanged and nothing hidden is drawn (each picture is rendered locally from what this client was sent).
@@ -5207,7 +5209,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **The lobby's code** (`LobbyHud`'s code row, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
   away, `room_code()` turns empty and the tab's line says the code is gone (no reclaim); the HUD's keycap reads "…"
-  while the host waits for its room and "—" once it is gone (#495, §4.7.42). No wire change.
+  while the host waits for its room and "—" once it is gone (#495, §4.7.47). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
   no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
   `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
@@ -5364,7 +5366,7 @@ data names each phase's rule (§3.1), so a new mode's rule is one more rule, not
 
 A player who left hears nobody and is heard by nobody.
 
-### 6.3 The voice invariant (vision revision 1; built in M4-1, #137)
+### 6.3 The voice invariant (vision revision 1; M4-1, #137)
 Nobody hears a downed or dead player, under
 any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
 and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
@@ -5372,7 +5374,7 @@ replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_
 `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5). The knockdown reworked
 (#728, §7.1.18) needs nothing here: "cannot talk" is this invariant.
 
-### 6.4 Built in 2i (#65, `core/voice/`)
+### 6.4 `core/voice/` (2i, #65)
 `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
 data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
 positions (§7.1.2), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
@@ -5385,7 +5387,7 @@ removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voic
 2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
 The lessons above, answered.
 
-#### 6.5.1 The codec boundary, the gate and the jitter buffer (E34, E37, E38, E39; built in M5-2, #216)
+#### 6.5.1 The codec boundary, the gate and the jitter buffer (E34, E37, E38, E39; M5-2, #216)
 `voice/`'s
 `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
 (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
@@ -5438,7 +5440,7 @@ names and to E46 (a). The real codec's round trip and FEC probe: `tests/integrat
 (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
 `verify` step). CI runs without the addon (§6.5.2).
 
-#### 6.5.2 The addon in the repo (E35 (a), the ADR §2; **built in M5-3**, #217)
+#### 6.5.2 The addon in the repo (E35 (a), the ADR §2; M5-3, #217)
 TwoVoIP v6.5 in `addons/twovoip/`,
 plain git files outside LFS: the `.gdextension` and its `.uid` as shipped and the two Windows libraries, nothing
 else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
@@ -5463,7 +5465,7 @@ setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a li
 then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
 2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
 
-#### 6.5.3 Capture and the gate (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7.17)
+#### 6.5.3 Capture and the gate (E36 as amended, E37, E38, D11; M5-6, #220; files and tests in §4.7.17)
 - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
   `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
   (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
@@ -5500,7 +5502,7 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   saved. F3 shows the own gate, peak, frame age and encode µs.
 - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
 
-#### 6.5.4 Playback and the ears (E40, E41, D12; **built in M5-5**, #219)
+#### 6.5.4 Playback and the ears (E40, E41, D12; M5-5, #219)
 `ClientSession.voice_received(speaker, seq,
 tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
 `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
@@ -5523,14 +5525,14 @@ target's head, the own body without a target. Godot measures a 3D player's dista
 `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
 docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
-concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
+concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Hearing voice.
 A crouched speaker or target (#792, the crouch ADR's KE7): the mouth hangs on the body's head, lowered with its
 crouched eye, and a spectator's ears and spectate camera sit at the target body's head (`Ears.point`'s `target_eye_m`),
 crouched or not, never the mode's standing eye; tests `ears_test.gd` and `life_ears_test.gd` (§7.1.17).
 
 #### 6.5.5 Buses and the mix (E43, D15)
 `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
-buttons' click at −6 dB with no slider of its own, §4.7.40),
+buttons' click at −6 dB with no slider of its own, §4.7.43),
 in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
 Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
@@ -5546,14 +5548,14 @@ speaker. No screen lists who is talking, and nothing tells a speaker who hears t
 F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
 through a mouth animation with the masks of #73 (after the MVP).
 
-#### 6.5.7 Occlusion (E42, D13 (a); **built in M5-7**, #221)
+#### 6.5.7 Occlusion (E42, D13 (a); M5-7, #221)
 On the listener only, one ray from the ears per audible
 speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
 world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
 level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
 Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
 and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
-measurement (§4.7.16 Built in M5-7). Beyond one ray (several rays, thickness, portals) is not built.
+measurement (§4.7.16 Occlusion's muffle). Beyond one ray (several rays, thickness, portals) is not built.
 
 #### 6.5.8 The wire (E44; **measured in M5-4**, #218, and again after #245)
 Unchanged in M5 so far. The leak test gained a
@@ -5591,8 +5593,8 @@ true cost may be under; a rerun of the same command on a quiet machine settles w
 what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
 `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
 20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
-ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
-the engineer's (§10).
+ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). M6-8 built it (#374,
+protocol 8).
 **Over WebRTC (M6-6, #371, for D24):** `tools/run.sh bots voice_load --instances 8 --transport webrtc` (the fault
 shim off for a measurement) in a cloud container (4 CPUs, Xeon at 2.8 GHz, the 8 bot processes on the same CPUs),
 2026-10-05, so every figure is an upper bound; three quiet runs (load average under 4) and two beside a `load` of 8
@@ -5620,7 +5622,7 @@ encoding per relayed frame. With two talkers: 0.71 to 0.73 ms and 0.65 Mbit/s. A
 per frame and listener took 2.4 to 2.7 ms, as much as before batching. Whether the relay's figure on a quiet PC is
 under 2 ms is the engineer's rerun.
 
-#### 6.5.9 The cutoff and the distance invariant (E41, E45; **built in M5-1**, #215)
+#### 6.5.9 The cutoff and the distance invariant (E41, E45; M5-1, #215)
 Every voice rule answers
 `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
 included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
@@ -6106,7 +6108,7 @@ have the player in the air), and §7.1.5's notes on the stamina prediction. Test
 (a lossy link end to end), `tests/unit/movement/movement_rule_claim_loss_test.gd`,
 `tests/unit/net/messages/wire_schema_test.gd`.
 
-#### 7.1.16 Throws (designed in #37; the flight built in #642, the intent and the effect in #643)
+#### 7.1.16 Throws (#37; #642, #643)
 The [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD1 to TD12 and TE1 are answered: the engineer took
 every recommendation ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719); TD1's
 speed and the gravity, radius and longest flight in the next two comments there; the numbers were approved as built on
@@ -6216,7 +6218,7 @@ there would not follow from the commands.
   (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
   thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
-#### 7.1.17 The crouch (designed in #727; the host's part and the wire built in #790, the local crouch in #791, others' in #792)
+#### 7.1.17 The crouch (#727; #790 to #792)
 Status: the host's part and the wire are built (#790), the local player's crouch (727b, #791) and others' crouch
 with the quiet steps (727c, #792); #522's crouch clips (`Crouch_Idle`, `Crouch_Fwd`) play on the character's remote
 avatars (§4.7.53).
@@ -6319,7 +6321,7 @@ reads, do not move.
   the mouth, hand, belt and carry points down by the eye heights' difference at the own view's catch-up rate
   (§4.7.6); a downed body lies at standing size. The spectate camera and the spectator's `Ears` sit at the target
   body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
-  its two placeholders, used by `WorldSounds` (§4.7.40); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
+  its two placeholders, used by `WorldSounds` (§4.7.43); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
   #522's crouch
   clips play on the character's remote avatars (§4.7.53); without the character the bodies stay capsules. A `shot` preview:
   `client/dev/crouch_preview.tscn`.
@@ -6347,7 +6349,7 @@ reads, do not move.
   `footstep_cadence_test.gd` and `world_sounds_steps_test.gd` (the fast crouch a walk's, the slow steps below
   `crouch_speed_mps`).
 
-#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846; the motion, the House only and who gets what built in 728b, #847; the ragdoll in 728d, #848)
+#### 7.1.18 The knockdown reworked (#728; #846 to #848)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
 knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
 and its body falls as a ragdoll that a hit can send flying. He answered every question of the
@@ -6829,7 +6831,7 @@ phase classes come in the task each row names.
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799), the House's photo tags `camera`, `photo_spot`, `film_box`, `printer`, `photo_board` (use spots) and `photo` (the printer's tray), `film` (the first film; #783), the House's cooking tags `order_board`, `herb_board`, `grill`, `place`, `herb_bed` (use spots) and the six `box_bun_*` and `box_patty_*` (the boxes; #774) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
-| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
+| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.46 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -6961,7 +6963,7 @@ count, true)`, kept in `Demands.exact`), which asks for that many markers of the
 the settings and the players: the Generator asks for exactly one `generator` and exactly `switches` `switch` markers,
 because every switch device of the map is either an active switch's station or a fixed switch. The exact set survives
 `DealTasks`' sum over its pool and `LayoutCheck.demands_of`'s merge of the tick systems' demands; `Demands.shortfalls`
-gives `markers_exact` (`need`, `have`; §4.7.47) for any other count of an exact tag, and `LayoutCheck`'s load check
+gives `markers_exact` (`need`, `have`; §4.7.45) for any other count of an exact tag, and `LayoutCheck`'s load check
 refuses such a map at the defaults (`_check_exact`), so a mode with one never starts on it. A task type's own
 problems with a layout come after the marker shortfalls (#807, RE14): `Demands.task_types` records the pool
 `DealTasks` sums, and `FitCheck.shortfalls` appends each type's `TaskType.layout_problems(layout)` (none by default;
@@ -7050,7 +7052,7 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25), Film and Photo (the photo task's, #784, §9.5.22), Cooking's 21 (#775, §9.5.20) and car repair's three parts (#810, §9.5.21).
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Cooking (`cooking`, the House's alone, §9.5.20, #775); car repair (`car_repair`, the House's alone, §9.5.21, #810); Hold
+- Actions: PickUp, PutDown, Throw (§7.1.16), Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Cooking (`cooking`, the House's alone, §9.5.20, #775); car repair (`car_repair`, the House's alone, §9.5.21, #810); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
@@ -7076,7 +7078,7 @@ between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) 
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.42). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
 #775 (the cooking ADR's C6) added Cooking (§9.5.20), on the House alone, with its `burgers` setting, its 21 item kinds and VanishTicks in Round, `tasks` going to 4 (1 to 4); `FixtureBaseModeWithZones` leaves Cooking, its setting and its item kinds out too.
 #810 (the car repair ADR's R6) added car repair (§9.5.21), on the House alone, with its `car_parts` setting and its three part kinds, `tasks` going to 5 (1 to 5); `FixtureBaseModeWithZones` leaves car repair and its setting out too (its part kinds stay, unused: no rule names them).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
@@ -7361,7 +7363,7 @@ Settings:
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
 provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
-(#601, §4.7.43). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
+(#601, §4.7.44). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
 `SpawnItems`, designed in #825 ([ADR](decisions/2026-10-12-tutorial-without-tasks.md), `docs/design/tutorial.md` §9)
 and built in #900 (825a; the engineer's LD1 (a), LD2 (a), LD7 to LD10 (a) on PR #894), provisional for his approval; the throw lesson's `Throw` and FlightTicks in #901 (825b, LD3 (a)).
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
@@ -7956,7 +7958,7 @@ Produces: `StationPlaced` (white, no palette, DE5 (b)), `ItemSpawned` (its drop-
 Visible to: everyone; it deals no private event (the leak test's per-peer filter holds by construction).
 Client: `ClientModel` sets a drop-off done only when no undelivered item names it (§4.6.1.2); the lobby's ban chips,
 the guide's cards and the loading card list only the types that play on the picked or the match's map, the mode's
-default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.46). Until D3 gives a drop-off its own
+default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.42). Until D3 gives a drop-off its own
 look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
 Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
 `core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
@@ -7999,7 +8001,7 @@ content/
   scenarios/                       bot scenarios (§9.7), one per file
   howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres, cooking.tres, car_repair.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
-  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
+  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.46; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
@@ -8412,20 +8414,20 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.18; the client's look in #650, M7-Z4, §4.7.51; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
-| Delivery by meaning (#683): items of several kinds, each to its own place, no colours, on the House only (designed in its [ADR](decisions/2026-10-10-delivery-by-meaning.md), proposed, not built; the engineer answered every question and approved the design on PR #713, DD9 (c) included: the greybox, a test bench only (#767), keeps today's colour Delivery for its bot scenarios and the leak test) | a second Delivery `.tres`, listing the House alone in `TaskType.maps` (the Generator's G8; today's lists the greybox alone): routes, each an item kind and its drop-off station kind; one item kind per kind of item; one drop-off station kind per place, with its own spawn tag and no palette; one marker per drop-off tag on the House | a second task type, `DeliveryByMeaning`, and one data class, `DeliveryRoute` (a sub-resource, no behaviour); today's `Delivery` unchanged; `TaskType.station_kinds()` replaces the four finders of a type's station kinds (`MarkerReader`, ModeCheck, `WireBudget`, the client) | none: `StationPlaced`, `ItemSpawned` (its colour white for these items), `PackageDelivered`, `TaskState` and `TaskProgress` stay | none in `Match` or the loop, and no wire change. Outside `core/`: the House gains drop-off markers and loses its circles; the client draws drop-offs and items by kind, and no marker through walls on any map (the engineer's DD4 (a)); the bots and the leak test keep today's Delivery on the greybox, and the House's is tested without bots (unit, House and wire-codec tests) |
-| Photo task (#687): load a film, shoot, print and hang on the House map (designed in the [photo task ADR](decisions/2026-10-10-photo-task.md); built so far: P2, the task type, `PhotoFrame`, the load and the shot, #781; P3, the box, the print and the hang, #782; P10, the wire test without bots, #789; P7, the viewfinder and the camera's state on the client, #786, §4.7.56; P8, the pictures, the camera's counter and the photo's look, #787, §4.7.58; §9.5.22; the engineer answered all its questions on 2026-10-10, the drafted words included) | a task type `.tres` (five station kinds, the camera, the photo spot, the box of films, the printer and the board, all but the photo spot with an `Interact` rule, the spot a display kind; `frames_per_film`; the frame's numbers; its own subtasks setting), two item kinds (the film, the photo, each with a cap), the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays the photo task; unit, House and wire tests stand in, the ADR's PE18), the mode's task types | on top of the Generator's `Interact` parts (#679, G1): one task type, `PhotoTask`, whose deal places a station on every marker of its five kinds and whose `use_station` loads a film or takes a shot by the camera's state, gives a film, prints and hangs; `PhotoFrame`, pure frustum math the host and the client share; the cooking design's parts by name (#682: `GiveItem.give_new` with its cap, tiered by a `TaskType.cap_tier` the photo task adds so a spammed box never vanishes the film in a camera, and the existing `Cooldown` cost for the box, as its herb beds; `Items.give`, a take beside a two-handed item going onto the belt, the engineer's rule for every take; the moves that lay or lock an item at a station for the camera's film and the board; `Items.vanish` for a printed film; a move serial per item, bumped by the cooking design's one move helper, from which the camera's film is derived; `TaskType.use_reasons()`) | four, all everyone: `FilmLoaded`, `ShotTaken` (with the record of the avatars near the lens at that tick, from which each client renders the picture), `PhotoPrinted`, `PhotoHung`; `ItemSpawned`, `ItemPickedUp`, `ItemVanished`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: the film is taken out by the existing `PickUp`. The host decides who is in the shot from its own world (the frame and `WorldQuery.line_of_sight`, invariant 1), never from a client's image; the picture is each client's render from public data, so no image crosses the wire and every player receives the same task events (§5). Outside `core/`: four wire rows and protocol bumps, the viewfinder, the camera's frames counter and the render on the client; no scenario on the greybox |
+| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.18; the client's look in #650, M7-Z4, §4.7.51; its data in #649, M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
+| Delivery by meaning (#683): items of several kinds, each to its own place, no colours, on the House only (designed in its [ADR](decisions/2026-10-10-delivery-by-meaning.md), accepted; built in D2 (#828) and D3, the client's view (#830); the engineer answered every question and approved the design on PR #713, DD9 (c) included: the greybox, a test bench only (#767), keeps today's colour Delivery for its bot scenarios and the leak test) | a second Delivery `.tres`, listing the House alone in `TaskType.maps` (the Generator's G8; today's lists the greybox alone): routes, each an item kind and its drop-off station kind; one item kind per kind of item; one drop-off station kind per place, with its own spawn tag and no palette; one marker per drop-off tag on the House | a second task type, `DeliveryByMeaning`, and one data class, `DeliveryRoute` (a sub-resource, no behaviour); today's `Delivery` unchanged; `TaskType.station_kinds()` replaces the four finders of a type's station kinds (`MarkerReader`, ModeCheck, `WireBudget`, the client) | none: `StationPlaced`, `ItemSpawned` (its colour white for these items), `PackageDelivered`, `TaskState` and `TaskProgress` stay | none in `Match` or the loop, and no wire change. Outside `core/`: the House gains drop-off markers and loses its circles; the client draws drop-offs and items by kind, and no marker through walls on any map (the engineer's DD4 (a)); the bots and the leak test keep today's Delivery on the greybox, and the House's is tested without bots (unit, House and wire-codec tests) |
+| Photo task (#687): load a film, shoot, print and hang on the House map (designed in the [photo task ADR](decisions/2026-10-10-photo-task.md); built: P2, the task type, `PhotoFrame`, the load and the shot, #781; P3, the box, the print and the hang, #782; P10, the wire test without bots, #789; P7, the viewfinder and the camera's state on the client, #786, §4.7.56; P8, the pictures, the camera's counter and the photo's look, #787, §4.7.58; §9.5.22; the engineer answered all its questions on 2026-10-10, the drafted words included) | a task type `.tres` (five station kinds, the camera, the photo spot, the box of films, the printer and the board, all but the photo spot with an `Interact` rule, the spot a display kind; `frames_per_film`; the frame's numbers; its own subtasks setting), two item kinds (the film, the photo, each with a cap), the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays the photo task; unit, House and wire tests stand in, the ADR's PE18), the mode's task types | on top of the Generator's `Interact` parts (#679, G1): one task type, `PhotoTask`, whose deal places a station on every marker of its five kinds and whose `use_station` loads a film or takes a shot by the camera's state, gives a film, prints and hangs; `PhotoFrame`, pure frustum math the host and the client share; the cooking design's parts by name (#682: `GiveItem.give_new` with its cap, tiered by a `TaskType.cap_tier` the photo task adds so a spammed box never vanishes the film in a camera, and the existing `Cooldown` cost for the box, as its herb beds; `Items.give`, a take beside a two-handed item going onto the belt, the engineer's rule for every take; the moves that lay or lock an item at a station for the camera's film and the board; `Items.vanish` for a printed film; a move serial per item, bumped by the cooking design's one move helper, from which the camera's film is derived; `TaskType.use_reasons()`) | four, all everyone: `FilmLoaded`, `ShotTaken` (with the record of the avatars near the lens at that tick, from which each client renders the picture), `PhotoPrinted`, `PhotoHung`; `ItemSpawned`, `ItemPickedUp`, `ItemVanished`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: the film is taken out by the existing `PickUp`. The host decides who is in the shot from its own world (the frame and `WorldQuery.line_of_sight`, invariant 1), never from a client's image; the picture is each client's render from public data, so no image crosses the wire and every player receives the same task events (§5). Outside `core/`: four wire rows and protocol bumps, the viewfinder, the camera's frames counter and the render on the client; no scenario on the greybox |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
-| Car repair (#688): hold the lift, fit the part, on the House map (designed in the [car repair ADR](decisions/2026-10-10-car-repair-task.md), proposed; being built: R1, the channels on stations and `HoldStation` (#805), R2, `LifeRules.kill` and the kill queue (#806), R3, the task type's deal, lift and drop (#807, §9.5.21), R4, the fit and the parts (#808), and R9, the wire test without bots (#813, §9.5.21, §4.6.5.3), are in; the engineer answered all its questions on 2026-10-10, the drafted words included, and approved it for the MVP only: a more interesting mechanic will replace it later) | a task type `.tres` (four station kinds, the car, the lift panel and one bin per part kind, each with its `Interact` rule, and the needed part's picture on a garage wall, a display kind; the list of part item kinds; the fit's and the rise's seconds; the car footprint's half-width and clearance; its own subtasks setting), one item kind per part kind, the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays car repair; unit, House and wire tests stand in, the ADR's §7), the mode's task types | on top of the Generator's `Interact` parts (#679, G1) and the cooking design's `GiveItem` and `Items.give` (#682, C1, C2; a take beside a two-handed item goes onto the belt, the engineer's rule for every take): one task type, `CarRepair`, whose deal draws the needed parts and whose hold hooks raise and drop the car and fit a part; one effect, `HoldStation`, a channel on a station (timed for the fit, with no end for the lift). The channel primitive gains a station as its subject, a channel with no end and a mark for a stop at the phase's end; `LifeRules` gains `kill`, a death with no knockdown, for the drop, with a queue of kills (`kill_later`, `settle_kills`) that `Match` drains after each command's dispatch and each tick system and `Channels.advance` after each channel's step (a change to `Match`'s step, ADR RE17); `FitCheck.shortfalls` appends a new `TaskType.layout_problems` (RE14); the mode check gains the `kills()` and `LifeTicks` rule (RE6); `LifeRules.damage` stops a channel only when its effect's `hit_stops` is set | four, all to everyone: `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`; a drop's deaths are `Died`, as every death | no new intent: `Interact` starts a hold, `StopRaise` (already "stop my channel") ends it. Outside `core/`: the wire rows and two protocol bumps; a client-only collision layer for the moving car, since the host's world reads layer 1 only (§4.5.9) and the host does not check movement through walls (§7.1.9); a House integration test of a drop that kills only the players under the car (bots do not play House, §9.7). It depends on two mechanics designed elsewhere: a crouch for every player (#727, the [crouch ADR](decisions/2026-10-10-crouch.md); the fitter works crouched, the raised car too low to stand under) and the reworked knockdown (#728) |
+| Car repair (#688): hold the lift, fit the part, on the House map (designed in the [car repair ADR](decisions/2026-10-10-car-repair-task.md), accepted; built: R1, the channels on stations and `HoldStation` (#805), R2, `LifeRules.kill` and the kill queue (#806), R3, the task type's deal, lift and drop (#807, §9.5.21), R4, the fit and the parts (#808), and R9, the wire test without bots (#813, §9.5.21, §4.6.5.3), the rest in R5 to R8 (#809 to #812); the engineer answered all its questions on 2026-10-10, the drafted words included, and approved it for the MVP only: a more interesting mechanic will replace it later) | a task type `.tres` (four station kinds, the car, the lift panel and one bin per part kind, each with its `Interact` rule, and the needed part's picture on a garage wall, a display kind; the list of part item kinds; the fit's and the rise's seconds; the car footprint's half-width and clearance; its own subtasks setting), one item kind per part kind, the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays car repair; unit, House and wire tests stand in, the ADR's §7), the mode's task types | on top of the Generator's `Interact` parts (#679, G1) and the cooking design's `GiveItem` and `Items.give` (#682, C1, C2; a take beside a two-handed item goes onto the belt, the engineer's rule for every take): one task type, `CarRepair`, whose deal draws the needed parts and whose hold hooks raise and drop the car and fit a part; one effect, `HoldStation`, a channel on a station (timed for the fit, with no end for the lift). The channel primitive gains a station as its subject, a channel with no end and a mark for a stop at the phase's end; `LifeRules` gains `kill`, a death with no knockdown, for the drop, with a queue of kills (`kill_later`, `settle_kills`) that `Match` drains after each command's dispatch and each tick system and `Channels.advance` after each channel's step (a change to `Match`'s step, ADR RE17); `FitCheck.shortfalls` appends a new `TaskType.layout_problems` (RE14); the mode check gains the `kills()` and `LifeTicks` rule (RE6); `LifeRules.damage` stops a channel only when its effect's `hit_stops` is set | four, all to everyone: `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`; a drop's deaths are `Died`, as every death | no new intent: `Interact` starts a hold, `StopRaise` (already "stop my channel") ends it. Outside `core/`: the wire rows and two protocol bumps; a client-only collision layer for the moving car, since the host's world reads layer 1 only (§4.5.9) and the host does not check movement through walls (§7.1.9); a House integration test of a drop that kills only the players under the car (bots do not play House, §9.7). It depends on two mechanics designed elsewhere: a crouch for every player (#727, the [crouch ADR](decisions/2026-10-10-crouch.md); the fitter works crouched, the raised car too low to stand under) and the reworked knockdown (#728) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), its answers given on #302, §7.1.16; the flying state, the arc and `FlightTicks` built in #642; the intent, `ThrowItem`, `OverFloor` and `ItemThrown` in #643; the base mode's rule in #646) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2): `HoldsItem`, `OverFloor`, `ThrowItem`; its numbers are the engineer's (TD1) | three: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact, and the `OverFloor` condition (`no_floor`), so no throw leaves its item in the air | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
-| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built so far: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1; C3, #772, `Cooking`'s data, deal, demands and checks, `OrderPosted` and `HerbsDealt`, §9.5.20; C4, #773, the grill, the beds and the places, the grill's tick, `GrillLoaded` and `IngredientPlaced`, §9.5.20; C9, #778, the wire test, §9.5.20, §4.6.5.3; C7, #776, the client's view, §4.7.55; C6, #775, the data in the base mode on House, §9.5.20, §9.5.1; #1101, a burger checked when it is served at the order board, `BurgerPlated` and `BurgerServed`, the ADR's amendment of 2026-10-15, §9.5.20, §4.7.55) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 22 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule, and the plated burger, #1101), the 15 ingredients and the burger vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | eight, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded`, `BurgerPlated`, `BurgerServed` (#1101) and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: eight wire rows (two since #1101) and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
+| Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), accepted; the engineer answered all its questions on 2026-10-10, the drafted words and looks included; built: C10, #779, `VanishTicks`, `ItemVanished`, `ItemKind.vanish_seconds` and the id reuse, §9.3; C2, #771, `Items.give`, `change_kind`, `lock_at`, `lay_on_station`, `ItemChanged` and CE21's take beside a two-handed item, §9.3, §7.1.11; C1, #770, `Interact`'s `item`, `ItemKind.target_actions` and `max_items`, `GiveItem` and `StationKind.display`, §9.2, §9.4.2; C11, #780, the optional `ItemKind.spawn_tag`, `TaskType.use_reasons()` and `wrong_item`, §9.4.1; C3, #772, `Cooking`'s data, deal, demands and checks, `OrderPosted` and `HerbsDealt`, §9.5.20; C4, #773, the grill, the beds and the places, the grill's tick, `GrillLoaded` and `IngredientPlaced`, §9.5.20; C9, #778, the wire test, §9.5.20, §4.6.5.3; C7, #776, the client's view, §4.7.55; C6, #775, the data in the base mode on House, §9.5.20, §9.5.1; #1101, a burger checked when it is served at the order board, `BurgerPlated` and `BurgerServed`, the ADR's amendment of 2026-10-15, §9.5.20, §4.7.55) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 22 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule, and the plated burger, #1101), the 15 ingredients and the burger vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | eight, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded`, `BurgerPlated`, `BurgerServed` (#1101) and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: eight wire rows (two since #1101) and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
 
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
 world by id, and owners for fixed interactables (a marker kind in `levels/`, such as a meeting button) and for
 bodies. It changes the intent catalogue (§4.1) and the owners once; after it, a new interactable is data plus at
 most one effect. The first mechanic that needs it is the House's Generator (#679): its
-[ADR](decisions/2026-10-10-generator-task.md) (proposed) designs the station half as `Interact(station)`, a station
+[ADR](decisions/2026-10-10-generator-task.md) (accepted) designs the station half as `Interact(station)`, a station
 kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationUsable`, `UseStation`), built in #796
 (G1: the intent, wire kind 18, `StationKind.actions`, `TaskType.use_problem`, `use_station` and `use_emits`, the
 four parts in `core/tasks/`, ModeCheck's station rules and the `Interact` scenario step; tests: `tests/unit/tasks/
@@ -8456,34 +8458,23 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 
 ## 10. Open questions
 
+Only the questions still open. A settled one leaves this table: its answer lives in its ADR and in the contract text
+above (#1244).
+
 | Question | When |
 |---|---|
-| Content API v1: the designer's review of v0 (§9) | #38, before M7 |
-| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations: designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), GE1 to GE4) and built in #796 (`Interact(station)`) and items on the ground by #770 (C1: `Interact`'s `item`, `ItemKind.target_actions`, `GiveItem`, `StationKind.display`); bodies with their own mechanic |
-| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them; the greybox's zones went with GD13 (b) of the Generator ADR (#804): the zone task plays on the House alone |
+| `Interact(target)` with a body as its target (§9.8; the fixed interactables are built: stations in #796, items on the ground in #770) | with a body's own mechanic |
+| Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2; deferred to #34 on #38) | before a role has a `Use` ability |
+| The zone task's numbers (ZD7 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8): the data (M7-Z3, #649) and House's three points (M7-Z5, #651) are provisional placeholders | until the engineer moves them |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
-| Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
-| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
-| The crouch (#727, §7.1.17): footsteps, the name plate, things only a crouch passes (the raised car), standing up under a low ceiling, what Shift costs, a jump while crouched, a smaller target, what a crouched player may do, where it plays (KD1 to KD8 and KE10 of the [crouch ADR](decisions/2026-10-10-crouch.md)) | Settled by the engineer on 2026-10-10 (PR #752, comments 6097878317 and 6098097098): KD1 (b), the steps quieter and slower; KD2, no name plates over any player (#756); KD5 and KD6 (b); the rest (a); the numbers placeholders marked "not a decision"; the crouch on the House only (KE10), changed by him on 2026-10-14 (#989, #991, the ADR's amendment): the crouch plays everywhere and the quiet step covers only the crouch walk's speed (KD1 (b)). Then the issues 727a to 727c (M7 backlog), none built until he says so. Open: KD6's landing (crouched again on landing while Ctrl is held, recommended, or only at a fresh press) |
+| The crouch's landing (KD6 of the [crouch ADR](decisions/2026-10-10-crouch.md), §7.1.17): crouched again on landing while Ctrl is held (recommended), or only at a fresh press | the engineer |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
-| Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (5 m/s since #646: the highest speed at which no throw rests on House's roof, less 0.5 m/s, #302 comment 6096074314), the item's radius (0.15 m) and the longest flight (3 s) were provisional, for the first playtest | Settled by the engineer on 2026-10-16 ([#879, comment 6202590193](https://github.com/xperiaroco2/prime-game/issues/879#issuecomment-6202590193)): the M7 playtests are skipped and the numbers are approved as built (5 m/s, 9.8 m/s², 0.15 m, 3 s); 37a to 37f (#641 to #646) are built |
-| The knockdown reworked (§7.1.18): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers, where the body's motion runs, the own avatar in a knocked-down player's snapshot, the slide while no House floor slopes, where a body may come to rest, a body launched out of everyone's reach, whether the host's body may turn, whether a table closes the space under it, a body raised in the lowered car (KD1 to KD15, KE1 and KE5 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md)) | Settled by the engineer on 2026-10-10 and 2026-10-11 (PR #754, comments 6097876326, 6100602989, 6108669765, 6109457234 and 6110171062): every recommendation but KD14's (he chose (a) over the recommended (b)), KD9's numbers placeholders marked "not a decision", and the launch on the House only (KE12); KD10 (A): the body is a real rigid body in the host's physics (`server/`), which rolls or slides it off any slope, roof or stairs by itself, with no slide rule, so KE1 is (b): `core/` keeps where the body is from the host's logged reports; KD11: the body's collider is a crouching player's, so it rests only where a crouching player fits, and a raised player gets up crouched there; KD12 (a): the levels keep every surface a launch can reach within a raise's reach of a spot a player can walk to, tables and the roof included (#646's reach convention applied to bodies, checked on the House by tests, no rule in `core/`); KD13 (a): the host's capsule never turns, so it slides and falls but never rolls (only each screen's ragdoll rolls) and slides off only a slope steeper than its friction angle. Then the issues 728a, 728b, 728d, 728e and 728f (M7 backlog; 728f the levels' convention for bodies and the House's check), none built until he says so. KD14 (a): the confirmed read-back stands, tables keep the space under them, and a body may rest under a table a crouching player fits under as long as a raise can reach it, with no level rule that closes tables; KD15 (a): a body launched into the lowered car, which only the clients collide with, and raised there is pushed out by the raised player's own client, the car's accepted quirk (RE8, RD6 (a)), with nothing new in code |
-| Delivery by meaning (§9.8; DD1 to DD10 of the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md)): the item kinds and their places, how many, what counts as at a place, what points to it, a wrong place, hands, the words, where each kind starts, what the flat greybox plays, and the tutorial | Settled by the engineer on 2026-10-10 and 2026-10-11: DD1 to DD8 ([PR #713, comment 6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718): every recommendation but DD4, which he answered by meaning alone, with no marker through walls); DD9 (c), the drafted words and the design approved ([comment 6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677): it plays on the House only, and the greybox, a test bench only (#767), keeps today's colour Delivery as far as its bot scenarios and the leak test need it); DD10 on 2026-10-11 ([comment 6108665402](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402): the tutorial deals no task, its rework #825, which comes before D2). Then the issues D1, D2a, D2, D3a, D3, D4 and D5 (M7 backlog), none built until he says so |
-| The photo task's game rules, numbers, names and look (the [photo task ADR](decisions/2026-10-10-photo-task.md), §9.8) | Settled by the engineer on 2026-10-10: PD1 to PD15 ([PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907): a film loaded into the camera; any living player counts, whatever the role; a photo with a person fixed on the board), then PD16 to PD18 and the drafted words ([comment 6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994): a one-way film used up at the printer; a hold of E over the camera takes it out; nobody within the camera's 2 m reach is in the photo, so another player is always needed; the words as drafted). It plays on House alone (PD14, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no photo scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
-| Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Decided in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), accepted): a return key per settings file, the old number back in the lobby only, nothing else restored (the engineer's answers on #302: P1 (c), P3 (a), P4 (a), P9 (b), P11 (a), the split (a), P12 (a), P13 (b)). 73-A built by #638; 73-B (#639) and 73-C (#640) in M7; a return into a running round only as its own design (73-D) |
-| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5.8 The wire): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. M5-4b (the batched voice row, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4) is built in M6-8 (#374, protocol 8) after M6-6 measured WebRTC over E44 (D24 (a)): in the cloud container about 2.5 ms per 20 ms and 3.5 Mbit/s at 10 players (§6.5.8 The wire), the upload under 4.5 Mbit/s and the relay still over 2 ms as an upper bound. Open: the engineer's rerun on a quiet PC |
-| Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
-| Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
-| LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled twice. 2026-10-02, the engineer: (a), CI fetches LFS content, cached by the list of LFS files (M5 ADR). Reversed 2026-10-07 (#515, the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s amendment): CI has no LFS content (`lfs: false`), and `check` swaps in stand-ins for the pointer files; a test that needs the real art skips in CI (a follow-up: M5-7, #221, built the muffle before the files arrived) |
+| A return into a running round (#73, 73-D of the [returning players ADR](decisions/2026-10-09-returning-players-keep-their-number.md)) | only as its own design |
+| The host's relay cost per `VoiceDown` on a quiet PC (§6.5.8 The wire: measured as upper bounds on a busy PC and in the cloud, over E44's 2 ms per 20 ms) | the engineer's rerun on a quiet PC |
 | Who is talking, shown in the world (D14 of the M5 ADR: no talking indicator in M5) | a mouth animation with the masks of #73, after the MVP |
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
-| Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
-| The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
-| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 (also before #900; 5 and 6 until #901) staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here. Its rework without tasks (DD10, #825): proposed on 2026-10-12 ([design](design/tutorial.md) §9, [ADR](decisions/2026-10-12-tutorial-without-tasks.md)); the engineer answered LD1 to LD10 as recommended on PR #894; 825a built in #900 (eight lessons, no task, §4.7.45, §9.5.17), 825b in #901 (the throw lesson, nine lessons), 825c in #902 |
-| The cooking chain's game rules, numbers, names and looks (CD1 to CD17 of the [cooking ADR](decisions/2026-10-10-cooking-task.md), §9.8) | Settled by the engineer on 2026-10-10 ([PR #701, comment 6095326743](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743)): every recommendation, except CD3 (b), CD5 (b), CD6 (c), CD8 (b) and CD13 (b), with his words for the buns and the patties; CD17 is technical, a flood guard. Then the four questions left ([comment 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400), its item 3 replaced by [6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)): the drafted words and looks and the five herbs as drafted (the ADR's §5.1); CD3 (b) reaching every take, so beside a two-handed item a take from a box, a bed, the grill or the floor puts the new item onto the belt, a full belt's item at the taker's feet, while what is not a take stays refused as today (`two_handed` at a plate, the grill or a station, `nothing_to_do` for a hit; the floor's pick-up is a change to `Items.take`, §7.1.11, in its C2); a displaced hand item at the taker's feet. It plays on House alone (CD15, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no cooking scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
 
 ## 11. Art assets: the handoff from the art repo (#519)
 
@@ -8512,7 +8503,7 @@ assets/
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).
-- The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
+- The sounds are three sets, one per Kenney pack (#525, §4.7.43): `audio/kenney_impact_sounds/` (the footsteps),
   `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
   file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
   listening page, in `audio/sfx-verdicts.json`.

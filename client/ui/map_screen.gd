@@ -3,7 +3,7 @@ extends Control
 ## The map and tasks screen (#253, ARCHITECTURE §4.7.33), opened and closed with the `map` action
 ## (M) in the round, for the living, the downed and the dead alike; it replaced the hold-Tab task
 ## screen of M4-8. Its look is the Toy one of prime-game-ui's s08 handoff at ui-0.4.0 (#490,
-## §4.7.41), node for node: `Dim`, then `Tasks` (raised, top left: the title, one row per task type
+## §4.7.40), node for node: `Dim`, then `Tasks` (raised, top left: the title, one row per task type
 ## with its name, its shared counter and a «?», then the clock) and `Board` (raised: `Rooms`, the
 ## level's rooms from MapData with their pictogram and name, the zones of the hovered or focused
 ## row's type and their tag, the own pin with "you are here"). A «?» opens its type's how-to card

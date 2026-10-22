@@ -507,3 +507,4 @@ Nothing is open. Each question this design put to the engineer is answered; his 
   merges later resolves them on purpose. Implementation: R1 after G1; R2 after G1; R4 after C1 (and C2, or it builds
   the move); R6 after G5, G8 and R7; R9 after R4 and G8; the engine issues (R1 to R4, R7, R9) on `release/m7`, the
   level and content issues into `main` (§8's base).
+- Built: Car repair's view in R7 (#811, ARCHITECTURE §4.7.57).

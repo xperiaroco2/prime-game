@@ -421,3 +421,4 @@ Later, not open now:
   Generator's client view knows. The cooking task (#682), which builds on these parts, shares only the generic ones
   (`Interact(station)`, `StationKind.actions`, the four parts, `TaskType.use_problem` and `use_station`, busy hands, G0's
   subtask count), and none of them changes with GD3 or GD5.
+- Built: the stations, switches and panel in G6 (#801, ARCHITECTURE §4.7.54).

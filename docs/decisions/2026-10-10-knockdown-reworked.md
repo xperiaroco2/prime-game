@@ -693,3 +693,5 @@ the box, so it can be deeper and the host may correct it back into the car; (a) 
   level with a gentler slope a body knocked down with no launch stays put; a body friction (KD13 (b)) can come then.
 - 728b no longer waits on the throwing issues #641 and #642: the host's physics needs neither the sweep nor the arc.
 - The playtest on the House tunes the launch and the rest; the bounds keep a forgotten number out.
+- Built (the heading of ARCHITECTURE §7.1.18 named these until #1244): "Still" in 728a (#846); the motion, the House
+  only and who gets what in 728b (#847); the ragdoll in 728d (#848).

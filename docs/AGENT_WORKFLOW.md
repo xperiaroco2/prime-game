@@ -222,7 +222,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    renders can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only
    such paths are under `client/ui/`, the screens: §7.1, #606); plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
-3. Update docs if durable knowledge changed; add intervention and credit entries if any.
+3. Update docs if durable knowledge changed; add intervention and credit entries if any. `docs/ARCHITECTURE.md` is a
+   contract, not a changelog: edit the section that is now stale, add no "Built in #n" section (its preamble).
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.

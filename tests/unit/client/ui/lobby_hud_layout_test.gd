@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The lobby HUD's Controls (client/ui/LobbyHud, #495; ARCHITECTURE §4.7.42) under the shared
+## The lobby HUD's Controls (client/ui/LobbyHud, #495; ARCHITECTURE §4.7.47) under the shared
 ## theme: the UI handoff's tree node for node (prime-game-ui `ui-0.4.0` `docs/handoff/s04-lobby.md`:
 ## names, classes, variations, anchors, offsets, grow directions, size flags and minimum sizes),
 ## every node ignoring the mouse and focus, the names cut with an ellipsis, the tints, each state

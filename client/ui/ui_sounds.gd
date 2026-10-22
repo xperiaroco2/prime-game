@@ -1,6 +1,6 @@
 class_name UiSounds
 extends RefCounted
-## The UI's sounds (#525, #657; ARCHITECTURE §4.7.40), on the UI bus (AudioBuses.UI), each from one
+## The UI's sounds (#525, #657; ARCHITECTURE §4.7.43), on the UI bus (AudioBuses.UI), each from one
 ## AudioStreamPlayer of its own under the window's root that is made at its first play and kept.
 ## - The click: ToyPress plays it as a Toy button goes down (`button_down`: a mouse or touch press,
 ##   or `ui_accept` on the focused button), never on hover, release or a toggle's change alone; a

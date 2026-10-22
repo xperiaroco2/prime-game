@@ -664,3 +664,7 @@ setting:
   records the amendment).
 - E46 (a): §1's rows for `client/` and `voice/` say so from this PR on, so M5-2 (#216) is reviewed against them.
 - The CC0 files close #144's and #145's open human steps once wired (M5-7).
+- Built in M5 (the headings of ARCHITECTURE §6.5 and §4.7 named these until #1244): the cutoff and the distance
+  invariant in M5-1 (#215, §6.5.9); the codec boundary, the gate and the jitter buffer in M5-2 (#216, §6.5.1); the addon
+  in M5-3 (#217, §6.5.2); the wire measured in M5-4 (#218, §6.5.8); hearing voice in M5-5 (#219, §6.5.4, §4.7.15);
+  speaking in M5-6 (#220, §6.5.3, §4.7.17); occlusion's muffle in M5-7 (#221, §6.5.7, §4.7.16).

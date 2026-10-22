@@ -486,6 +486,10 @@ The order below keeps `verify` green after every item. Two rules hold for each o
   a mechanic's edge cases; it follows `content/CLAUDE.md`'s new list in a follow-up, since this ADR's PR changes no
   file under `.claude/`.
 
+### Built
+
+- The voice invariant in M4-1 (#137, ARCHITECTURE §6.3).
+
 ## Amendment 2026-10-08: rare one-shot moments (#591)
 
 Decided by the engineer on 2026-10-08 in chat with his agent while agreeing the first map
