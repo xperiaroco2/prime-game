@@ -143,7 +143,7 @@ client, the bots and the leak test). The main choices:
   `HostSession` calls in debug builds with each outbox slice and its command, right after each `Match.apply` and
   `Match.tick` call, so `sender` and the live state are those of the call that emitted the event (§4.5).
 - **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
-  markers through its own worlds (ARCHITECTURE §10's reader question, the option recommended on #66).
+  markers through its own worlds (ARCHITECTURE §4.5 Starting, the option recommended on #66).
 - **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the
   level conventions, the designer's side of the contract (ARCHITECTURE §9), so a notice is not enough.
 - **`net/`** gains `net/messages/`; `NetKindTable.game()` stops being empty; the transport gives `server/` its

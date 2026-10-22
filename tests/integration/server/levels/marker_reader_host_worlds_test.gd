@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
-## MarkerReader through the host's worlds (ARCHITECTURE §4.5 Starting; §10's reader question,
-## option (b) on #66): read_levels points HostWorldQuery at each level before reading it, so each
+## MarkerReader through the host's worlds (ARCHITECTURE §4.5 Starting; the option recommended
+## on #66): read_levels points HostWorldQuery at each level before reading it, so each
 ## level's circle markers snap to that level's own floor. Fixture levels in
 ## tests/fixtures/levels/ (host_world_query_test.gd describes them), and 2j's flat levels.
 

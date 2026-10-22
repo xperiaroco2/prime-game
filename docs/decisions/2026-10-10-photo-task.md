@@ -591,7 +591,7 @@ none blocks an issue.
 
 ## Consequences
 - GDD §8's photo section records the engineer's answers, every question settled; ARCHITECTURE §9.8's
-  row and §10's open row point here; house-map §6 gains the camera, the box of films and the first film's point (to be
+  row points here (its §10 row left the table once every question was settled, #1244); house-map §6 gains the camera, the box of films and the first film's point (to be
   placed by P4).
 - When P2 and P3 land, ARCHITECTURE gains the photo task's entry in §9.5 and its four events in §4.2, §4.3.4 and §5,
   with their `Built in` lines; `GiveItem`, the caps, `Items.give`, the moves at a station, the vanish and
