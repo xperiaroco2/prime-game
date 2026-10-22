@@ -1,12 +1,14 @@
 class_name FixtureRoundVoicePastItsRadius
 extends RoundVoice
-## M5-1's planted leak (ARCHITECTURE §5, E45): a RoundVoice whose hears ignores its radius, so a
-## listener hears every present living speaker at any distance while hearing_radius_m() still says
-## living_m. view_of reads the same rule, so the leak test's routing subset check passes it; the
-## distance invariant, written apart from the rule, fails it.
+## M5-1's planted leak (ARCHITECTURE §5, E45): a RoundVoice whose hears_at (and so its hears)
+## ignores its radius, so a listener hears every present living speaker at any distance while
+## hearing_radius_m() still says living_m. view_of reads the same rule, so the leak test's routing
+## subset check passes it; the distance invariant, written apart from the rule, fails it.
 
 
-func hears(state: MatchState, listener: int, speaker: int) -> bool:
+func hears_at(
+	state: MatchState, listener: int, speaker: int, _listener_at: Vector3, _speaker_at: Vector3
+) -> bool:
 	return state.is_present(listener) and state.is_present(speaker)
 
 

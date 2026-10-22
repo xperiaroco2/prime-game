@@ -6988,7 +6988,10 @@ Every voice rule answers `hearing_radius_m()`, the farthest it
 routes a voice (3D, its edge included), 0 when it routes nobody; `VoiceRule.radius_of(rule)` gives 0 for a phase with
 no voice rule. The client fades a voice to silence there and the leak test fails any frame from farther away (§5,
 §6), so a new voice rule returns the radius its `hears` uses; one that routes past it fails every scenario where
-players stand beyond it.
+players stand beyond it. `VoiceRule.speakers_of` reads each player's last accepted position once per call and asks
+`hears_at(state, listener, speaker, listener_at, speaker_at)`, which defaults to `hears` (#1282): a rule that measures
+distance (`ProximityVoice`, `RoundVoice`) overrides `hears_at` and compares the positions handed in with
+`VoiceRule.within_at`, the comparison `within` makes, its `hears` reading the positions and calling `hears_at`.
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems
 (§3.3), and raises `clock_ended`.
