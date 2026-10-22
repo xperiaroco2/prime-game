@@ -231,12 +231,12 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 		)
 		return false
 	var lan_code := options.room if options != null else ""
-	var room := CodeRoom.open(_schema.kind_table(), mode, service, port, bind, lan_code)
-	if not room.problem.is_empty():
-		_cannot_host(room.problem)
+	var code_room := CodeRoom.open(_schema.kind_table(), mode, service, port, bind, lan_code)
+	if not code_room.problem.is_empty():
+		_cannot_host(code_room.problem)
 		return false
-	_room = room
-	if host_on(room.transport, port, bind):
+	_room = code_room
+	if host_on(code_room.transport, port, bind):
 		return true
 	_drop_room()
 	return false
@@ -661,8 +661,8 @@ func _on_welcomed(own_peer: int) -> void:
 	)
 
 
-func _on_snapshot(tick: int, avatars: Dictionary) -> void:
-	_buffer.add(tick, avatars, _avatars.now_usec())
+func _on_snapshot(tick: int, poses: Dictionary) -> void:
+	_buffer.add(tick, poses, _avatars.now_usec())
 
 
 func _on_corrected(position: Vector3, velocity: Vector3) -> void:

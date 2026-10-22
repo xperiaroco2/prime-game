@@ -559,9 +559,9 @@ func _hold_as_seen(peer: int) -> void:
 	var hidden: Array[int] = [model.hand_item(peer), model.belt_item(peer)]
 	hidden.append_array(items.flights.awaiting_launch_of(peer))
 	for item_id: int in hidden:
-		var view := items.view_of(item_id)
-		if view != null:
-			view.show_look(false)
+		var item_view := items.view_of(item_id)
+		if item_view != null:
+			item_view.show_look(false)
 
 
 ## Hides `body`'s meshes while watched from its eyes, and shows the one watched before.

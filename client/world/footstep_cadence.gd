@@ -81,13 +81,13 @@ static func quiet_of(speed_mps: float, quiet_mps: float, loud_mps: float) -> flo
 	return clampf((loud_mps - speed_mps) / (loud_mps - quiet_mps), 0.0, 1.0)
 
 
-## Whether a step at `step_speed_mps` is silent (#990): only while `sneaking` (the drawn pose's
+## Whether a step at `speed_mps` is silent (#990): only while `sneaking` (the drawn pose's
 ## flag) and at or below the mode's `crouch_speed_mps` (the sneak's speed, #989) plus
 ## SNEAK_SPEED_MARGIN_MPS; never in a mode with no crouch speed.
-static func silent_of(sneaking: bool, step_speed_mps: float, crouch_speed_mps: float) -> bool:
+static func silent_of(sneaking: bool, speed_mps: float, crouch_speed_mps: float) -> bool:
 	if not sneaking or crouch_speed_mps <= 0.0:
 		return false
-	return step_speed_mps <= crouch_speed_mps + SNEAK_SPEED_MARGIN_MPS
+	return speed_mps <= crouch_speed_mps + SNEAK_SPEED_MARGIN_MPS
 
 
 ## Whether a step falls in this frame, in which the feet moved `moved` in `delta` seconds; at most
