@@ -31,7 +31,7 @@ export const meta = {
 // all off by default, as in issue-task.js: with none of them every agent's prompt, label, phase, schema and options
 // stay as they were (tools/runner/tests/test_workflows.py snapshots them), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it, #1257's REVIEW_RULES without the hooks-path and wait lines). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -128,14 +128,16 @@ const FIX_EFFORT = set(EFFORTS, 'fix') || 'high'
 // same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
 // compares the two. It names no value of this run, so it is the same in every prompt.
 const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main\'s copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.'
-// #326 and #818, as in issue-task.js (test_workflows.py compares them): every agent, the read-only ones too.
+// #326 and #818, as in issue-task.js (test_workflows.py compares them): every agent of RULES (the read-only ones
+// have them from their agent files, #1257).
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
 // #815, as in issue-task.js (test_workflows.py compares them): the task's ADR, each section once per context;
 // #816: by section, never whole. #834: docs/ARCHITECTURE.md too.
 const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
-// The read-only agents' rules (reviewers, skeptics): no other line of RULES.
-const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
+// The read-only agents' rules (reviewers, skeptics): no other line of RULES. #1257, as in issue-task.js: no hooks-path
+// or wait line, which their agent types (code-reviewer, netcode-security-reviewer) already carry.
+const REVIEW_RULES = [READ_RULE, ADR_RULE].join('\n')
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,

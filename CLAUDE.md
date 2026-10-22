@@ -52,14 +52,13 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
 - File writes and `Remove-Item` go in separate commands (the delete guard misreads combined ones).
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Temporary files only in your scratchpad, or under `res://` in the gitignored `tests/scratch/`; no other temp folder.
-- Push only your task branch (`git push -u origin <branch>` or `publish`), never `main`,
-  no hand force push (hook-blocked): rebased, only `publish`.
+- Push only your task branch and only with `publish` (it rebases, verifies, pushes with a lease), never `main`; no
+  hand push, no hand force push (hook-blocked).
 - No `git stash` (one for all worktrees): a WIP commit, later `git reset --soft HEAD~1`; a fix: `git commit
   --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
 - verify, publish and mutants run in the background (`<cmd> > <log> 2>&1; echo "exit=$?" >> <log>`), polled with
   `wait <log>`, never rerun while running; workflow agents and subagents block no call over 180 s (AGENT_WORKFLOW §11.17).
-  A waiting long-lived session keeps its cache warm: background `sleep 3000`, `timeout` 3300000 (orchestrate-stage §7).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
@@ -74,9 +73,7 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
   (AGENT_WORKFLOW §11.2).
 
 ## Routing
-A code diff → `code-reviewer`, plus `netcode-security-reviewer` if `core/ server/ net/ voice/ tests/harness/` or
-`client/` (not `client/ui/`) changed; `.gd/.tscn/.tres` → `godot-api-checker`; tests, only failures back →
-`test-runner`. Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`); a design kickoff: `design-manager` (its skill is in `D:\prime-game-design`).
+Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voice/ tests/harness/ client/`, not `client/ui/`), `.gd/.tscn/.tres` → `godot-api-checker`, tests → `test-runner`; skills by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`), a design kickoff: `design-manager` (`D:\prime-game-design`).
 
 ## Definition of done (AGENT_WORKFLOW §4.2)
 1. `verify` (lint and check) green, its tail pasted; CI (the full suite) green on the PR; red → stop and report

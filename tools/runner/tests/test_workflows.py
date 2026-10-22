@@ -20,7 +20,7 @@ ended on 2026-10-13 and now throw. A deliberate change of a default prompt rewri
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
 commit it with the change, and run `selftest` again without the variable. Such a change merges between waves, with no
 issue-task run before its publisher, because a run that resumes after the merge replays its publisher fresh; the
-scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834, #920;
+scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834, #920, #1257;
 issue-task.js also records #555's 180 s wait, #563's Cross-area line, #572's reading a log by search and #574's
 `verify --fail-fast`).
 Each snapshot ends with the run's return value, which a resume does not replay (#386 made it compact).
@@ -318,9 +318,14 @@ class WorkflowTest(unittest.TestCase):
             self.assertIsNone(result["error"])
             for event in agents(result):
                 labels.add(f"{name}:{event['label'].rsplit(':#', 1)[0]}")
+                # #1257: issue-task's and pr-rebase's reviewers have both lines from their agent files instead.
+                carried = name != "quick-task.js" and options(event).get("agentType") in READ_ONLY_TYPES
                 for rule, lines in seen.items():
                     with self.subTest(workflow=name, agent=event["label"], rule=rule):
                         found = [line for line in event["prompt"].splitlines() if line.startswith(rule)]
+                        if carried:
+                            self.assertEqual(found, [])
+                            continue
                         self.assertEqual(len(found), 1, found)
                         lines.add(found[0])
         for rule, lines in seen.items():
@@ -336,6 +341,11 @@ class WorkflowTest(unittest.TestCase):
         sleep = next(iter(seen[SLEEP_RULE]))
         for way in ("`Start-Sleep N`", "blocks both", "`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
             self.assertIn(way, sleep)
+        for kind in READ_ONLY_TYPES:
+            with self.subTest(agent_file=kind):
+                text = (ROOT / ".claude" / "agents" / f"{kind}.md").read_text(encoding="utf-8")
+                for part in ("`Start-Sleep N`", "blocks both", "`tools/run.sh wait <log>`", "`core.hooksPath`"):
+                    self.assertIn(part, text)
 
     def test_every_agent_reads_each_section_of_the_tasks_adr_once_per_context(self) -> None:
         # #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960
@@ -985,7 +995,8 @@ class PipelineV2Test(unittest.TestCase):
         # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
         # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
         # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too,
-        # but issue-task's publisher (#696: its task-publisher agent type carries the line).
+        # but issue-task's publisher (#696) and, since #1257, its plan, implement and test-review agents: their
+        # task-publisher and task-implementer agent types carry the line.
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
@@ -1003,7 +1014,7 @@ class PipelineV2Test(unittest.TestCase):
                 labels.add(event["label"].rsplit(":#", 1)[0])
                 with self.subTest(workflow=name, agent=event["label"]):
                     found = [line for line in event["prompt"].splitlines() if line.startswith(READ_RULE)]
-                    if name == "issue-task.js" and event["label"].startswith("publish"):
+                    if name == "issue-task.js" and options(event).get("agentType") in LEAN_WRITERS:
                         self.assertEqual(found, [])
                         continue
                     self.assertEqual(len(found), 1, found)
@@ -1999,7 +2010,7 @@ class PublisherCopyTest(unittest.TestCase):
         self.assertIn(f"Fresh reviewers found: {json.dumps(reviews['review:code'] + reviews['review:netcode'] + [{'reviewer': 'r', 'verdict': 'ok', 'findings': []}], separators=(',', ':'))}", test_review)
 
     def test_the_publishers_preamble_leaves_out_its_unused_lines(self) -> None:
-        # The reading rule for code (the task-publisher agent type carries it), the Godot-windows line
+        # The Godot-windows line (the reading rule for code left the shared rules in #1257: both agent types carry it)
         # (unless the run is visual: its publisher may rerun playcheck) and the game-rule line: every other line of
         # the shared rules stays, in order, for both publishers (the full one and the one a mutants exit 2 stops).
         stopped = {"available": True, "exit_2": True, "findings": [], "mutants": []}
@@ -2009,9 +2020,9 @@ class PublisherCopyTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stopped]}}),
         ]
         dropped = [
-            (READ_RULE, GODOT_LINE, GAME_RULE),
-            (READ_RULE, GAME_RULE),  # visual: the playcheck line stays
-            (READ_RULE, GODOT_LINE, GAME_RULE),
+            (GODOT_LINE, GAME_RULE),
+            (GAME_RULE,),  # visual: the playcheck line stays
+            (GODOT_LINE, GAME_RULE),
         ]
         for result, gone in zip(run_jobs(jobs), dropped):
             self.assertIsNone(result["error"])

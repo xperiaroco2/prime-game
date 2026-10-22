@@ -74,7 +74,8 @@ export const meta = {
 // pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the read-only agents' hooks-path and wait lines, and
 // Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
 // 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`; #920's checkpoint
-// default: its rule paragraph and the implementer's handoff schema key in every launch without checkpoint: false).
+// default: its rule paragraph and the implementer's handoff schema key in every launch without checkpoint: false; #1257:
+// no reading line in RULES, no hooks-path or wait line in REVIEW_RULES, each carried by the agent type).
 // The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
@@ -257,13 +258,15 @@ const TEST_EFFORT = EFFORTS.test_review || 'high'
 const PUB_EFFORT = EFFORTS.publish || 'high'
 const SERIOUS = /blocker|major/i
 
-// #468: the reading rule for code, every agent's (the token audit of 2026-10-06: big code files read whole, the
-// same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
-// compares the two. It names no value of this run, so it is the same in every prompt.
+// #468: the reading rule for code (the token audit of 2026-10-06: big code files read whole, the same content read
+// twice, one read per turn), the read-only agents' (REVIEW_RULES) since #1257: the lean writers' agent files carry it.
+// The same text in issue-task.js and pr-rebase.js; test_workflows.py compares the two. It names no value of this run,
+// so it is the same in every prompt.
 const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main\'s copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.'
-// #326 and #818: the two calls Claude Code or the guard refuses at once, a wasted turn each. Every agent gets both,
-// the read-only ones too (7 of 12 refusals from 2026-10-07 to 11 were reviewers', 2 a PowerShell Start-Sleep). The
-// same text in issue-task.js, pr-rebase.js and quick-task.js; test_workflows.py compares them.
+// #326 and #818: the two calls Claude Code or the guard refuses at once, a wasted turn each (7 of 12 refusals from
+// 2026-10-07 to 11 were reviewers', 2 a PowerShell Start-Sleep). Every agent of RULES gets both; the read-only ones
+// have them from their agent files since #1257. The same text in issue-task.js, pr-rebase.js and quick-task.js;
+// test_workflows.py compares them.
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
 // #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960 of
@@ -273,8 +276,9 @@ const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start
 // the line also says to read the ADR by section, never whole. #834: docs/ARCHITECTURE.md too, about $20 over
 // 1471 reads since 2026-10-08T12:25Z (51% of it the implementer's), which the ADR line left out.
 const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
-// The read-only agents' rules (reviewers, the plan critique, the skeptics): no other line of RULES.
-const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
+// The read-only agents' rules (reviewers, the plan critique, the skeptics): no other line of RULES. #1257: no hooks-path
+// or wait line, which their agent types (code-reviewer, netcode-security-reviewer, godot-api-checker) already carry.
+const REVIEW_RULES = [READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL
   ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
   : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).'
@@ -296,7 +300,8 @@ const RULE_LINES = [
   '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
   GODOT_RULE,
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
-  READ_RULE,
+  // #1257: no READ_RULE here: every agent of RULES (plan, implement, test review) runs as task-implementer and every
+  // one of PUB_RULES as task-publisher, and both agent files carry the reading rule ("Code like docs (#468)").
   ADR_RULE,
   '- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).',
   GAME_RULE,
@@ -307,11 +312,10 @@ const RULE_LINES = [
 ].filter(Boolean)
 const RULES = RULE_LINES.join('\n')
 // #696: the publisher's preamble leaves out lines it never uses (about 1.5k characters; its median launch prompt was
-// 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it), no Godot windows unless the
-// run is visual (it runs check, publish and CI, nothing that opens one; a visual publisher may rerun playcheck, so it
-// keeps the line) and the game-rule line
-// (it fixes review findings, and the implementer's needs_engineer reaches it in full).
-const PUB_DROPS = [READ_RULE, GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
+// 28.8k in #470's table): no Godot windows unless the run is visual (it runs check, publish and CI, nothing that opens
+// one; a visual publisher may rerun playcheck, so it keeps the line) and the game-rule line (it fixes review findings,
+// and the implementer's needs_engineer reaches it in full). The reading rule for code left RULE_LINES itself (#1257).
+const PUB_DROPS = [GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
 const PUB_RULES = RULE_LINES.filter(l => !PUB_DROPS.includes(l)).join('\n')
 
 // #470: the implementer's summary is capped (3,552 characters on average in the token audit of 2026-10-06, written
