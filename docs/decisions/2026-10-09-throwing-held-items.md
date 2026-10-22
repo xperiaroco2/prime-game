@@ -276,3 +276,6 @@ keeps the flying state with `ItemRested` as a command of `server/`'s, and 37e dr
   instead of one (the effect, and the flight's tick system) and no simulation in `server/`.
 - Whatever the answers, the rest of a throw goes through `Items.place` and `item_rested`, so the delivery check, the
   win check and the drops at a death stay as they are.
+- Built (the heading of ARCHITECTURE §7.1.16 named these until #1244): 37a to 37f (#641 to #646); the flight in #642,
+  the intent and the effect in #643 (§7.1.16); the throw key, the predicted arc and the remote arcs in 37e (#645,
+  §4.7.52).

@@ -559,6 +559,7 @@ answer changes the zone task's content alone, and nothing in C1 to C11 changes w
   exception to the `new-mechanic` skill's step 7 ("each mechanic gets a bot scenario in `content/scenarios/`"): C6
   adds none, and the Generator's G5 lists none either.
 - The meat run stays as long as house-map §7 measures it (135 m, about 30 s walking): nothing here shortens it.
+- Built: Cooking's client view in C7 (#776, ARCHITECTURE §4.7.55).
 
 ## Amendment 2026-10-15: a burger is checked when it is served (#1101)
 

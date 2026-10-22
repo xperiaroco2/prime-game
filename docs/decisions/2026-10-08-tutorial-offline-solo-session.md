@@ -145,3 +145,6 @@ One batch; each item's options and the failure each leaves are in the design's �
   the tutorial too, and its tests (T3's integration test, T2's scenario, #492's `playcheck`) catch it.
 - The UI track gets a request for D29 (b) and D30 (b) if the engineer takes them.
 - `docs/ARCHITECTURE.md` §10 points at this design until T1 to T4 write their sections.
+- Built (the headings of ARCHITECTURE §4.7 named these until #1244): the solo session in the game (#601, §4.7.44); the
+  lesson runner and the lessons (#602, §4.7.46; nine since #901, under the [tutorial without tasks
+  ADR](2026-10-12-tutorial-without-tasks.md)); the invite and lesson plates in the Toy style (#492, §4.7.49).

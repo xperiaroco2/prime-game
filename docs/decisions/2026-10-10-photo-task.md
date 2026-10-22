@@ -612,3 +612,5 @@ none blocks an issue.
 - No bot plays the photo task until the engineer asks, with the map (PD14): what stands in for the scenarios is §8's
   (PE18). The scenarios that later play it bring the scenario bot's folds of `FilmLoaded` and `PhotoHung`, a lurker
   run and the chaos rows against dealt stations.
+- Built: the viewfinder and the camera's state in P7 (#786, ARCHITECTURE §4.7.56); the pictures, the camera's counter
+  and the photo's look in P8 (#787, ARCHITECTURE §4.7.58).

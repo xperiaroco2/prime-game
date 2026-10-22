@@ -168,3 +168,4 @@ encoding about 4.6× cheaper); voice activity detection or Opus DTX; possibly 10
   on the server, or unreliable packets are throttled to 1/32.
 
 The spike's lessons for the real code are in `docs/ARCHITECTURE.md` §4 (protocol), §6 (voice) and §7 (movement).
+- Built: `core/voice/` in 2i (#65, ARCHITECTURE §6.4).

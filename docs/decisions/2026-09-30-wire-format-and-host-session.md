@@ -159,6 +159,7 @@ client, the bots and the leak test). The main choices:
   - A command that waited in the socket during a host freeze can lose to a timer (the countdown, the loading deadline).
   - The one-process bots runner does not exercise ENet's timing; the ENet run does, if it is fast enough for `verify`.
   - The rate-limit numbers are placeholders; a playtest with voice may need others.
+- Built: the host session's API in 3f (#100, ARCHITECTURE §4.5.13).
 
 ## The engineer's answers
 The engineer answered every choice with its recommendation (2026-10-01, in the chat with the M3 manager session;
