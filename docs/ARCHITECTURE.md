@@ -95,7 +95,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
   and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
   whose clock does not run pauses the match clock by its phase flag. `Match` does not change.
-- **Life states** (vision revision 1; built in M4-1, #137, and M4-2, #138): `PlayerState.Life` is ALIVE, DOWNED,
+- **Life states** (vision revision 1): `PlayerState.Life` is ALIVE, DOWNED,
   DEAD and LEFT, and `is_alive()` means ALIVE only. 0 health knocks a living player down for the knockdown time
   (`LifeRules.knock_down`); when it runs out the player dies (`LifeTicks`, §9.4), and the respawn time later it
   respawns at a `respawn` marker, invulnerable for a while (M4-3, #139); a player who leaves mid-round is left (§3.5).
@@ -239,9 +239,9 @@ fixture win conditions in the base mode's order (`tests/unit/life/life_rules_tes
 (`tests/unit/win/none_alive_test.gd`), with the control that the same package put down wins for the crew.
 
 Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
-everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
+everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). The checks are in `core/win/`, tested through seeded matches in
 `tests/unit/win/` (the crew wins on the last delivery only, a delivery on the end tick counts, time up with 0
-dissidents, no crew present only once every crew member left, End widens nothing; M4-2).
+dissidents, no crew present only once every crew member left, End widens nothing).
 
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |

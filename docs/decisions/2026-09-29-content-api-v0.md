@@ -170,6 +170,8 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   hidden state (§9.2 asks each condition and rule to say so, and validation warns on role-gated public events; v0
   has none); scenario steps that walk in straight lines need waypoints on levels with walls until M4 brings
   navigation.
+- Built in stage 2 (the history ARCHITECTURE named inline until #1307, 2026-10-22): the win conditions in 2h (#64,
+  `core/win/`, ARCHITECTURE §3.4).
 
 ## The engineer's answers
 The engineer answered **A on all five** (2026-09-30, in the chat with the manager session; comment on #33). Each was
