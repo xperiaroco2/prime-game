@@ -1,7 +1,7 @@
 class_name GameTutorial
 extends RefCounted
 ## Game's solo tutorial session (docs/design/tutorial.md §2.1, §5: E62, E69, E70; ARCHITECTURE
-## §4.7.43), out of game.gd to keep it under lint's 1000 lines. Game.start_tutorial() hosts the
+## §4.7.44), out of game.gd to keep it under lint's 1000 lines. Game.start_tutorial() hosts the
 ## tutorial mode the way Game.host() hosts the base mode, through the same HostNode façade, but on
 ## a LoopbackTransport of a private LoopbackHub: no socket opens and nobody else can join. The own
 ## ClientSession runs on HostNode.own_client as when hosting; the two StandIns join the same hub.
@@ -22,7 +22,7 @@ extends RefCounted
 ## applies and saves the language. Every frame the plates draw the runner's lesson, step and done
 ## set.
 ##
-## The lessons (#602, §4.7.45): a LessonRunner over the own session's model plays
+## The lessons (#602, §4.7.46): a LessonRunner over the own session's model plays
 ## content/tutorial/tutorial.tres. Without the invite they begin as the first lesson phase comes
 ## in; with it, #492's Start calls begin(). This wiring feeds the runner, so no screen knows the
 ## tutorial exists: the session's own events and claims, the map opening (GameUi.map_opened), a

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## What the lobby HUD shows (client/ui/LobbyText, #495; ARCHITECTURE §4.7.42): the rows in join
+## What the lobby HUD shows (client/ui/LobbyText, #495; ARCHITECTURE §4.7.47): the rows in join
 ## order with the host first, the status (the ready count, the host's shortfalls through
 ## HostTextView, #548, the countdown from 5 to 1), the count against the mode's limit, the lobby's
 ## name and each row's name, in English and Ukrainian (the plural of `lobby.need_more` for 1, 2, 5,

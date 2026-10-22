@@ -1,6 +1,6 @@
 class_name LobbyText
 extends RefCounted
-## What the lobby's HUD shows (ARCHITECTURE §4.7.42, #495), pure: from the own ClientModel, the
+## What the lobby's HUD shows (ARCHITECTURE §4.7.47, #495), pure: from the own ClientModel, the
 ## client's own copy of the mode and the estimated host tick. The Toy lobby HUD (prime-game-ui
 ## `ui-0.4.0` `docs/handoff/s04-lobby.md`, `LobbyHud`) draws it: the keys are the copy deck's
 ## (#208), names and numbers are data.

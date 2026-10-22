@@ -15,7 +15,7 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.45; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.46; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
 | `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -882,7 +882,7 @@ content edit before a playtest instead of the encoder refusing a reliable event 
 **Host text** (#548). No row carries a sentence: what the host words for players travels as host text, `record{id:
 id, ids: list<id>, numbers: map<id, s32>}` (`core/`'s `HostText`: an id, its subjects such as a spawn tag or a station
 kind, and its whole-number arguments by name), and each client words it in its own language through the copy deck
-(§4.7.47), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
+(§4.7.45), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
 `MatchEnded`'s reason is the winning `WinCondition`'s id with its `numbers`. The other ids a client shows (`Rejected`'s,
 `CountdownCancelled`'s and `Disconnecting`'s `reason`) were ids already. A test (`wire_schema_test.gd`,
 `test_no_row_carries_free_text`) fails on any row with a `text` or `note` field.
@@ -2244,7 +2244,7 @@ Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
 `ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`, but in the solo tutorial,
-which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.43). `client/app/` is the
+which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.44). `client/app/` is the
 only part of `client/` that names `server/`, and only through `HostNode` as a narrow façade:
 `HostNode.host(transport, mode, port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
 `end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
@@ -2296,9 +2296,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 |---|---|---|---|
 | no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
-| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
+| Lobby, Countdown | lobby HUD (s4, #495, §4.7.47): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
-| a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
+| a phase with no level (the tutorial's `gather`, #601, §4.7.44) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
@@ -2314,7 +2314,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
   only the own `Respawned` (#191) and a `PlayersPlaced` naming the own player (`End -> Lobby` and the deal, #240)
   level the look (§4.7.13).
-- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.42: the
+- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.47: the
   status, the players with ready checks, the own ready chip; no key prompt) and nothing to click. The Esc menu's Lobby tab has the
   lobby's name (the host's to edit, #214, §4.7.11) with the map's picker right under it (#694), the roster, the
   Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
@@ -2324,7 +2324,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   test benches, #767), named by file name (#627), shows `ClientModel.map` and
   sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and there are
   two or more such maps); the demands and shortfalls come from `SettingsChanged` (the
-  shortfalls worded by `HostTextView`, §4.7.47). Everyone sees the settings; only
+  shortfalls worded by `HostTextView`, §4.7.45). Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
@@ -2366,7 +2366,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
-  tutorial (§4.7.43) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
+  tutorial (§4.7.44) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
   leaving (`closed`, no failure shown), and its stand-ins go with the `HostNode`.
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
   the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu; the reason in words (printed, and kept in `Game.last_words` since #493) comes from one table, `client/app/end_reasons.gd`, which
@@ -2378,7 +2378,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
-  `--tutorial` (#601, §4.7.43) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
+  `--tutorial` (#601, §4.7.44) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
   the first launch from starting it.
 
 #### 4.7.5 Built in M4-6 (#142), the shell
@@ -2642,7 +2642,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel. (#168 adds the spectator's first-person
   hand and removes the panel's own invulnerability line and its "Watching" line: below.)
 - `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD; #497 replaced it with the Toy
-  `LifeScreen`, §4.7.44) and the shared greybox
+  `LifeScreen`, §4.7.41) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
@@ -2743,7 +2743,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
   sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
-  code until #525 (§4.7.40) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
+  code until #525 (§4.7.43) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
   and added footsteps.
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
@@ -2778,7 +2778,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
   `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
   Lobby tab's page; read-only settings for everyone but the host) and `LobbyHud` (the lobby's corner: the hint, the
-  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.42). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
+  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.47). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
   longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
@@ -2792,7 +2792,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
-  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.46).
+  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.42).
   #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
   failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
 - #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
@@ -2825,7 +2825,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
-- Since #491 the menu is the Toy one of §4.7.46: the tabs Game, Role, Guide, Lobby and Settings; the host's
+- Since #491 the menu is the Toy one of §4.7.42: the tabs Game, Role, Guide, Lobby and Settings; the host's
   question is a dialog.
 
 #### 4.7.12 Built in #168, the follow-up of the one-PC playtest on `release/m4` (PR #167)
@@ -2842,7 +2842,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `GamePlayer.hud_local()`), `HudText.spectates()`
   and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
   line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
-  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.44): `Hud.spectating_label`, `HudText.Local.watching` and
+  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.41): `Hud.spectating_label`, `HudText.Local.watching` and
   `Shown.spectating` are gone; while `HudText.spectates()` the HUD shows nothing (since #497 not even the target's
   hand and belt), the target's name is `LifeHud.Local.watching` and `Shown.watching`, and `LifeScreen`'s `Spectate`
   plate (#497) shows it in `watching_label`, so the "no Watching line" sentence above no longer holds.
@@ -2928,7 +2928,7 @@ follows the M5 ADR's checklist (its §3; §6 below).
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
 #### 4.7.16 Built in M5-7 (#221), occlusion's muffle
-(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.40;
+(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.43;
 CI's LFS step with #515):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
@@ -3093,7 +3093,7 @@ mode both fail as before; and every stand-in imported under the `.import` file a
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
 `tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
 --local --no-replay` on a free port; a scenario with the `tutorial` header has that one window only, started with
-`--tutorial`, #601, §4.7.43), up to two more windows join it, and the players after them are bots in one
+`--tutorial`, #601, §4.7.44), up to two more windows join it, and the players after them are bots in one
 headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
 window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
 with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
@@ -3256,7 +3256,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
 
 #### 4.7.26 Built in #208 (a), English and Ukrainian
 The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
-host-made text as ids with arguments on the wire is #548 (§4.7.47), and the source test against literal strings, the content
+host-made text as ids with arguments on the wire is #548 (§4.7.45), and the source test against literal strings, the content
 names and the font's glyphs are #549 (§4.7.48).
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
@@ -3332,7 +3332,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
   it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
   read it for the connecting spinner and the fades. Settings > Accessibility sets both and `UserSettings` saves
-  them (`large_text`, `reduced_motion`; #491, §4.7.46).
+  them (`large_text`, `reduced_motion`; #491, §4.7.42).
 - **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
   1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
   `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
@@ -3383,8 +3383,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
   through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
-  `downed.give_up_hold`, §4.7.44, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
-  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
+  `downed.give_up_hold`, §4.7.41, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
+  `tutorial.step.downed.how`, §4.7.41), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
   use it, so each follows a rebind (`LobbyHud`'s hint did until the Toy lobby HUD dropped it, #495). Known gap
   until the Toy screens (#491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
   they are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside
@@ -3415,7 +3415,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page
   with a same-key clash) and `life_give_up_preview.tscn` (the downed screen's "Hold F to give up", from a real
   window's layout; the Toy plates since #497).
-- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
+- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.42).
 
 #### 4.7.29 Built in #257 (M6.2), name plates; the names removed by #756
 Plates over the other players' heads, in line of sight within about 10 m for now (the engineer as the designer,
@@ -3546,7 +3546,7 @@ a head over a wall and a player beyond 10 m without one).
   Godot translates.
 - **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
   its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
-  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.40). Every Control ignores the mouse and takes no focus. Voice is
+  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.43). Every Control ignores the mouse and takes no focus. Voice is
   silent in End by #213's rule, not by the screen.
 - **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
@@ -3614,7 +3614,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
 
 #### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
 The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
-the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.41), the how-to card
+the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.40), the how-to card
 #254's (§4.7.36).
 - **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
   for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
@@ -3631,7 +3631,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
   put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
   `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take the focus of
-  the arrows and the d-pad since #490 (§4.7.41); Space, which jumps, is out of `ui_accept` since #488, so a focused
+  the arrows and the d-pad since #490 (§4.7.40); Space, which jumps, is out of `ui_accept` since #488, so a focused
   one never presses with a jump.
 - **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`ContentNames.task`, §4.7.48: `task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
@@ -3640,7 +3640,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
   lights that type's zones, drawn under the room's pictogram and name, and their tag (`map.zone_hint.<type>`, else
-  `map.zone_hint`; under the first lit room since #490, §4.7.41). Words built in code are
+  `map.zone_hint`; under the first lit room since #490, §4.7.40). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
@@ -3675,7 +3675,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
   captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
-  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.41.
+  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.40.
 
 #### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
@@ -3694,7 +3694,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
   Godot would make it from the path saved to and the stale test saves elsewhere.
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
-  §4.7.41); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
+  §4.7.40); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
 - **The font hook.** `mapping.font.file` is `res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (the pack's copy since #1045;
   `assets/ui/comfortaa/comfortaa.ttf` before), added in #684 (google/fonts'
@@ -3861,14 +3861,14 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
   and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
   `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10), or the rescuer's raise cue over a downed
-  player E would raise (#497, §4.7.44); `Raising`, the own raise's progress
+  player E would raise (#497, §4.7.41); `Raising`, the own raise's progress
   (`LifeView.raise_shown()`: the countdowns' `raise_progress`, the same value as the downed player's bar), in
   place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
   hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
   knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
   swatch and the crosshair's "E: pick up" hint are gone (the destination is no longer shown: the world's marker went in #829, §4.7.10;
   the map the tasks' counters, §4.7.33; a dissident's teammates the plates' mark with no name, §4.7.29).
-- **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
+- **Downed and dead** (#497 settled s09 against this HUD, §4.7.41): downed, only `Vitals` > `Mic` (off) shows
   (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own
   nor, since #497, the watched player's hand and belt (#168 showed them until s9 was settled: the engineer's
   answer 3 on PR #675). The `Spectate` plate moved to `LifeScreen`; the raiser sees the `Raising` bar alone, as
@@ -3881,7 +3881,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
 - **Not built here:** separate CanvasLayers per the handoff's layer table for these (the screens stay children of
   one `Ui` layer, in the same order; only the black screens and the Esc menu have their own, §4.7.32); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
-  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.44's.
+  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.41's.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
   and the raise in its place, a dissident's and an engineer's HUD equal but the role; since #497 the downed see the
   mic alone and the dead nothing, none of the target's; the map's tests of §4.7.33), `hud_layout_test.gd` (the
@@ -3892,7 +3892,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   the raiser's HUD), `base_controls_test.gd` (TextureRect named). The teammate mark never on an engineer's client:
   §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and `hud_<state>_preview.tscn` for pack,
   tired, hurt, mate and raising, each with a `_uk` twin, and `hud_large_uk_preview.tscn`, at `--size 1920x1080`
-  (s09's states: §4.7.44); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
+  (s09's states: §4.7.41); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
 
 #### 4.7.38 Built in #493 (M6.2), the main menu
 prime-game-ui's s2 at `ui-0.4.0` (its handoff `docs/handoff/s02-main-menu.md`; the issue linked `ui-0.2.0`, and
@@ -3930,7 +3930,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
   player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
   "never empty, else the system user name" predates.
-- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.46), the same scene as the Esc menu's
+- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.42), the same scene as the Esc menu's
   Settings tab, opened on Sound and voice; its `VoicePanel` keeps #301's logic. `Game` feeds it as before
   (`shown_voice_panel`, `settings_open()`). It opens at its top: `follow_focus` scrolls to the focused first row
   before the panel's first sort, with the old sizes (290 px down under large text), so the menu scrolls it back once
@@ -3975,14 +3975,14 @@ wide, wrapped. Pack variations only, no override.
   `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
   the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
   match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
-  it at once. It draws over the HUD, the life screen (§4.7.44), the tutorial's plates and the map from the black layer
+  it at once. It draws over the HUD, the life screen (§4.7.41), the tutorial's plates and the map from the black layer
   `GameUi.black` (§4.7.32), under the post game screen; the Esc menu opens over it from `GameUi.above` (#656).
   Every Control ignores the mouse and takes no focus; the pregame is frozen
   and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
 - **Role sounds** (#716, #213 criterion 3, #175). `role_revealed(role, side)` is emitted once per pregame when the
   own role shows, with that role's side in the client's own mode (empty for a role it does not know), and never
   while Night fades out over the round (a role that arrives that late plays nothing in the round). The screen plays
-  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.40): `crew` the engineers' sound, `dissidents` the
+  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.43): `crew` the engineers' sound, `dissidents` the
   dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
   hears another's role sound (the bots test checks the wire).
 - **Not built here.** The Esc menu's Role tab (#491).
@@ -3998,7 +3998,7 @@ lift or for an unknown side (seen failing without the lift guard), its sources n
 frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
 `pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
 
-#### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
+#### 4.7.40 Built in #490 (M6.2), the map and tasks screen in the Toy style
 The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
 engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
 - **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
@@ -4045,7 +4045,7 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
   Enter and closes only the card with Esc.
 
-#### 4.7.44 Built in #497 (M6.2), the downed, dead and respawn screen in the Toy style
+#### 4.7.41 Built in #497 (M6.2), the downed, dead and respawn screen in the Toy style
 The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
@@ -4107,13 +4107,13 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
   too.
 
-#### 4.7.46 Built in #491 (M6.2), the Esc menu in the Toy style
+#### 4.7.42 Built in #491 (M6.2), the Esc menu in the Toy style
 - Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
   `Dim`, the raised 1600x880 `Menu` with the `Tabs` column (ToyTab toggles in one ButtonGroup) and the `Page`, whose
   title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
   `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
   round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
-  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.43); the default tab Lobby in the lobby
+  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.44); the default tab Lobby in the lobby
   and Game elsewhere; the last tab pressed is kept for the next opening on the same kind of screen (lobby or other).
   Character waits for #73 (M7): no tab, no placeholder.
 - Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
@@ -4160,7 +4160,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
   the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
   The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
-#### 4.7.40 Built in #525 (M6.2), basic sound from Kenney's CC0 packs
+#### 4.7.43 Built in #525 (M6.2), basic sound from Kenney's CC0 packs
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
@@ -4233,7 +4233,7 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   crouch speeds a hard edge; the step's speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at
   crouch speed, a walk's at the fast crouch's (#991) and at the walk speed whatever the flag, eased between, cut
   beyond 6 m, the own slow steps too).
-#### 4.7.43 Built in #601 (M6.2), the solo tutorial session in the game
+#### 4.7.44 Built in #601 (M6.2), the solo tutorial session in the game
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
 - **`Game.start_tutorial(invite := false)`** (`client/app/game_tutorial.gd`, `GameTutorial`, held in `Game.tutorial`
@@ -4263,9 +4263,9 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   tutorial branch in `GameHowto`.
 - **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
   window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
-  Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
+  Esc menu shows its tutorial variant (#491, §4.7.42): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
   Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
-  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
+  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.46).
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
   `tutorial_requested` to `start_tutorial(false)` (the item was disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
@@ -4297,7 +4297,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the header, its refusals and its one window's
   command line).
 
-#### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
+#### 4.7.45 Built in #548 (M6.2), host text as ids plus arguments
 Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the
 client words it in its own language, so two players of one lobby read the same shortfall or end reason each in theirs.
 Protocol 13 (§4.3.4).
@@ -4315,7 +4315,7 @@ Protocol 13 (§4.3.4).
 - **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
   and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
   pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
-  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.42) and the lobby HUD's status (§4.7.47) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.6.0).** The deck has keys for `players_few`, `players_many` (`lobby.too_many`, by `max`), `markers` (`lobby.need_markers`, by `have` and `need`), `no_layout`, `no_task_types` (#718; no plural form, so no `PLURAL_BY` entry) and the reasons `every_task_done` and `time_up`. `markers_exact` (#797), `colours`, `short_axis` (#807) and `photo_spot_near` have none, so `HostTextView.plain` shows the id, its
   subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
@@ -4336,7 +4336,7 @@ Protocol 13 (§4.3.4).
   the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
   decodes the same shortfall, and the same reason at the end, equal to `view_of`).
 
-#### 4.7.45 Built in #602 (M6.2), the lesson runner and the lessons (nine since #901)
+#### 4.7.46 Built in #602 (M6.2), the lesson runner and the lessons (nine since #901)
 T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engineer's D29 to D33, D36 answers on PR
 #596). The plates, the lesson list and the invite (#492) read it.
 - **Data** (`core/content/tutorial/`, data only, §9.3): `TutorialLessons` (the root, `lessons`), `TutorialLesson`
@@ -4395,7 +4395,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
   runner); the `tutorial` playcheck scenario plays through lesson 4's throw to lesson 5's map.
 
-#### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
+#### 4.7.47 Built in #495 (M6.2), the lobby HUD in the Toy style
 The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
 `docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
 `check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
@@ -4413,7 +4413,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
   lobby's name are cut with an ellipsis inside the plate.
 - **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
-  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.47's
+  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.45's
   `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
   no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
   `lobby.player_count` against the mode's
@@ -4495,7 +4495,7 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
 
 #### 4.7.49 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
 The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
-notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
+notes) over the tutorial session (§4.7.44) and its lesson runner (§4.7.46); `docs/design/tutorial.md` §1, §5.
 - **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
   and before the map: the `Ui` layer, the handoff's HUD layer 2 (its table names the lesson plates there and not
   the invite, which shows with them only in the round, where no black screen is up; #656), under the map and under
@@ -4554,7 +4554,7 @@ array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics 
 colour set before the body is ready waits for its rules). Each ragdoll, the own one included, wears its player's colour (`RagdollView.set_colour`, 728d); a dead
 body's is `LifeLooks.BODY_COLOUR`, grey. No picker
 yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
-(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
+(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.47) shows no
 colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
 `tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
@@ -5207,7 +5207,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **The lobby's code** (`LobbyHud`'s code row, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
   away, `room_code()` turns empty and the tab's line says the code is gone (no reclaim); the HUD's keycap reads "…"
-  while the host waits for its room and "—" once it is gone (#495, §4.7.42). No wire change.
+  while the host waits for its room and "—" once it is gone (#495, §4.7.47). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
   no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
   `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
@@ -5530,7 +5530,7 @@ crouched or not, never the mode's standing eye; tests `ears_test.gd` and `life_e
 
 #### 6.5.5 Buses and the mix (E43, D15)
 `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
-buttons' click at −6 dB with no slider of its own, §4.7.40),
+buttons' click at −6 dB with no slider of its own, §4.7.43),
 in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
 Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
@@ -6319,7 +6319,7 @@ reads, do not move.
   the mouth, hand, belt and carry points down by the eye heights' difference at the own view's catch-up rate
   (§4.7.6); a downed body lies at standing size. The spectate camera and the spectator's `Ears` sit at the target
   body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
-  its two placeholders, used by `WorldSounds` (§4.7.40); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
+  its two placeholders, used by `WorldSounds` (§4.7.43); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
   #522's crouch
   clips play on the character's remote avatars (§4.7.53); without the character the bodies stay capsules. A `shot` preview:
   `client/dev/crouch_preview.tscn`.
@@ -6829,7 +6829,7 @@ phase classes come in the task each row names.
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle`, the House's `drop_*` (one marker each), the House's `switch` and `generator` (station scenes' use spots, #799), the House's photo tags `camera`, `photo_spot`, `film_box`, `printer`, `photo_board` (use spots) and `photo` (the printer's tray), `film` (the first film; #783), the House's cooking tags `order_board`, `herb_board`, `grill`, `place`, `herb_bed` (use spots) and the six `box_bun_*` and `box_patty_*` (the boxes; #774) |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
-| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
+| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.46 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -6961,7 +6961,7 @@ count, true)`, kept in `Demands.exact`), which asks for that many markers of the
 the settings and the players: the Generator asks for exactly one `generator` and exactly `switches` `switch` markers,
 because every switch device of the map is either an active switch's station or a fixed switch. The exact set survives
 `DealTasks`' sum over its pool and `LayoutCheck.demands_of`'s merge of the tick systems' demands; `Demands.shortfalls`
-gives `markers_exact` (`need`, `have`; §4.7.47) for any other count of an exact tag, and `LayoutCheck`'s load check
+gives `markers_exact` (`need`, `have`; §4.7.45) for any other count of an exact tag, and `LayoutCheck`'s load check
 refuses such a map at the defaults (`_check_exact`), so a mode with one never starts on it. A task type's own
 problems with a layout come after the marker shortfalls (#807, RE14): `Demands.task_types` records the pool
 `DealTasks` sums, and `FitCheck.shortfalls` appends each type's `TaskType.layout_problems(layout)` (none by default;
@@ -7076,7 +7076,7 @@ between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) 
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
 the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.46). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.42). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
 #775 (the cooking ADR's C6) added Cooking (§9.5.20), on the House alone, with its `burgers` setting, its 21 item kinds and VanishTicks in Round, `tasks` going to 4 (1 to 4); `FixtureBaseModeWithZones` leaves Cooking, its setting and its item kinds out too.
 #810 (the car repair ADR's R6) added car repair (§9.5.21), on the House alone, with its `car_parts` setting and its three part kinds, `tasks` going to 5 (1 to 5); `FixtureBaseModeWithZones` leaves car repair and its setting out too (its part kinds stay, unused: no rule names them).
 `FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
@@ -7361,7 +7361,7 @@ Settings:
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
 provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
-(#601, §4.7.43). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
+(#601, §4.7.44). Its tasks went (DD10): no `DealTasks`, task types or `TaskTicks`, the package spawned by
 `SpawnItems`, designed in #825 ([ADR](decisions/2026-10-12-tutorial-without-tasks.md), `docs/design/tutorial.md` §9)
 and built in #900 (825a; the engineer's LD1 (a), LD2 (a), LD7 to LD10 (a) on PR #894), provisional for his approval; the throw lesson's `Throw` and FlightTicks in #901 (825b, LD3 (a)).
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
@@ -7956,7 +7956,7 @@ Produces: `StationPlaced` (white, no palette, DE5 (b)), `ItemSpawned` (its drop-
 Visible to: everyone; it deals no private event (the leak test's per-peer filter holds by construction).
 Client: `ClientModel` sets a drop-off done only when no undelivered item names it (§4.6.1.2); the lobby's ban chips,
 the guide's cards and the loading card list only the types that play on the picked or the match's map, the mode's
-default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.46). Until D3 gives a drop-off its own
+default map before one is known (DE16, `HowtoCards.shown_map`, §4.7.36, §4.7.42). Until D3 gives a drop-off its own
 look (DE11), `CircleViews` draws it as a circle in the white it is placed with.
 Status: designed in #683 (the ADR, approved on PR #713); built in #828: `core/tasks/delivery_by_meaning.gd`,
 `core/tasks/delivery_route.gd`; `content/tasks/delivery.tres`, `content/items/wine.tres`, `oil.tres`, `gnome.tres`,
@@ -7999,7 +7999,7 @@ content/
   scenarios/                       bot scenarios (§9.7), one per file
   howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres, cooking.tres, car_repair.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
-  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
+  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.46; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
@@ -8482,7 +8482,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
-| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 (also before #900; 5 and 6 until #901) staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here. Its rework without tasks (DD10, #825): proposed on 2026-10-12 ([design](design/tutorial.md) §9, [ADR](decisions/2026-10-12-tutorial-without-tasks.md)); the engineer answered LD1 to LD10 as recommended on PR #894; 825a built in #900 (eight lessons, no task, §4.7.45, §9.5.17), 825b in #901 (the throw lesson, nine lessons), 825c in #902 |
+| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 (also before #900; 5 and 6 until #901) staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.44, the lesson runner and the lessons §4.7.46) and #492, which then writes its section here. Its rework without tasks (DD10, #825): proposed on 2026-10-12 ([design](design/tutorial.md) §9, [ADR](decisions/2026-10-12-tutorial-without-tasks.md)); the engineer answered LD1 to LD10 as recommended on PR #894; 825a built in #900 (eight lessons, no task, §4.7.46, §9.5.17), 825b in #901 (the throw lesson, nine lessons), 825c in #902 |
 | The cooking chain's game rules, numbers, names and looks (CD1 to CD17 of the [cooking ADR](decisions/2026-10-10-cooking-task.md), §9.8) | Settled by the engineer on 2026-10-10 ([PR #701, comment 6095326743](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743)): every recommendation, except CD3 (b), CD5 (b), CD6 (c), CD8 (b) and CD13 (b), with his words for the buns and the patties; CD17 is technical, a flood guard. Then the four questions left ([comment 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400), its item 3 replaced by [6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)): the drafted words and looks and the five herbs as drafted (the ADR's §5.1); CD3 (b) reaching every take, so beside a two-handed item a take from a box, a bed, the grill or the floor puts the new item onto the belt, a full belt's item at the taker's feet, while what is not a take stays refused as today (`two_handed` at a plate, the grill or a station, `nothing_to_do` for a hit; the floor's pick-up is a change to `Items.take`, §7.1.11, in its C2); a displaced hand item at the taker's feet. It plays on House alone (CD15, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no cooking scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
 
 ## 11. Art assets: the handoff from the art repo (#519)
@@ -8512,7 +8512,7 @@ assets/
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).
-- The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
+- The sounds are three sets, one per Kenney pack (#525, §4.7.43): `audio/kenney_impact_sounds/` (the footsteps),
   `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
   file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
   listening page, in `audio/sfx-verdicts.json`.

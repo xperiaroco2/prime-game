@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## Footsteps on the House sound its floors (#1042, #525; ARCHITECTURE §4.7.40): over each piece of
+## Footsteps on the House sound its floors (#1042, #525; ARCHITECTURE §4.7.43): over each piece of
 ## house.tscn (the nodes under a floor group that declare size_m), on a grid of points STEP_M apart
 ## inside its footprint at its floor's height (its origin's), FootstepSurface's own ray down (from
 ## ABOVE_M over the feet to BELOW_M under them, on the world layer) hits a collider that carries a

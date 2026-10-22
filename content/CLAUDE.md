@@ -16,7 +16,7 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   bot scenarios (§9.7). `howto/` holds the how-to cards (#254, §4.7.36): one per task type in `howto/tasks/`
   (a content test fails a task type without one) and the Esc menu Guide's basics in `howto/basics/`; they are what
   the client draws, not rules (their classes, `HowtoCard` and `HowtoFrame`, are content API in `core/content/howto/`, §9.3). `tutorial/` holds the tutorial's lessons, client data on the parts
-  of `core/content/tutorial/` (#602, §4.7.45). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
+  of `core/content/tutorial/` (#602, §4.7.46). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
   content ADR, each PR approved by the engineer and marked provisional.
 
 ## The designer's agent never edits engine code

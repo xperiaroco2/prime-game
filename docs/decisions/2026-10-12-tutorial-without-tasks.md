@@ -25,7 +25,7 @@
   and E items keep their numbers and meaning
 
 ## Context
-Today's tutorial (built by T1 to T4 and #492; ARCHITECTURE §4.7.43, §4.7.45, §9.5.17) runs nine lessons in a room of
+Today's tutorial (built by T1 to T4 and #492; ARCHITECTURE §4.7.44, §4.7.46, §9.5.17) runs nine lessons in a room of
 its own. Two of them need a task: lesson 4 ("Delivery") is done when the own Delivery task is (`TasksDone`, a
 `PackageDelivered`), and lesson 5's second step opens a task's how-to card from the map's «?». The package of
 lesson 2 exists only because Delivery's deal spawns it. The engineer decided that the tutorial deals no task
