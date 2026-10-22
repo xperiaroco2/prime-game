@@ -27,7 +27,7 @@ paths:
 | `KinematicBody`, `PoolStringArray` | `CharacterBody3D`, `PackedStringArray` |
 
 Do not trust memory for any other API: grep `tools/out/godot-api/4.7.2/extension_api.json` (it has the docs) or
-read `docs.godotengine.org/en/4.7/`. Agent `godot-api-checker` reviews `.gd` changes.
+read `docs.godotengine.org/en/4.7/`.
 
 ## Style (gdformat and gdlint check most of it)
 - gdformat: tabs, lines up to 100 characters. Fix with `tools\run.cmd lint --fix` (everything) or

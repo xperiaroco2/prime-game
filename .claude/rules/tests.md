@@ -36,26 +36,9 @@ paths:
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
 ## Running
-- One file: `tools\run.cmd test tests/unit/match/intents_test.gd`. Everything: `tools\run.cmd test`, which with no
-  paths runs in shards: K GdUnit4 processes at once, each with its own `user://` (K from the CPU count, at most 4;
-  `--shards K` sets it, 1 is one at a time). Named paths run one process unless `--shards K`; `--repeat`: so per run.
-- No paths (`verify --full`, CI): frame-bound suites at `--fixed-fps 60` (#341); paths, `--repeat`, `--real-time`: real time.
-- The runner trusts only GdUnit4's exit code and `results.xml` (never the console summary). Zero tests is a failure.
-  Reports: `tools/out/gdunit/`; log: `tools/out/logs/test.log`.
-- Flaky hunt: `tools\run.cmd test --repeat N [paths]` runs them N times in a row; per-run reports in
-  `tools/out/gdunit-runs/`, the flaky comparison in its `summary.json` (`docs/AGENT_WORKFLOW.md` §15).
-- Perf matches live in `tests/harness/perf/` and run with `tools\run.cmd perf` (host tick time and bytes per peer
-  with 10 bots, compared with the last run; not a `verify` step; `docs/ARCHITECTURE.md` §9.7).
-- Chaos bots live in `tests/harness/chaos/` and run with `tools\run.cmd bots --chaos [--seed N]` (a hostile player
-  and a malformed peer against the host; a failure prints the seed that replays it; the `verify --full` steps
-  `chaos` and `chaos-webrtc` (`--transport webrtc`); `docs/ARCHITECTURE.md` §4.6 "Chaos bots").
-- Agent `test-runner` runs them and returns only failures.
-- A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
-  `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with its `.gd.uid` (`rm -r tests/scratch/...`, no
-  prompt). Full `check` (its UID lint too, #264), `test` and `lint` runs leave the folder out, but Godot imports it:
-  no `class_name` there, and no uid copied from a project file (a `.tscn` or `.tres` header, a suite's `.gd.uid`),
-  which clashes with the real file and fails `check`. No link or junction there: a recursive delete through one
-  removes its target.
+- One file: `tools\run.cmd test tests/unit/match/intents_test.gd`; everything: `tools\run.cmd test`. Shards, clocks,
+  `--repeat` and reports: `tools\run.cmd test --help` and `docs/AGENT_WORKFLOW.md` §11.19, §11.20; a probe test in
+  `tests/scratch/`: AGENT_WORKFLOW §8.2.4.
 
 ## Never
 - Weaken, skip or delete a test to make it pass without the human's explicit approval. That includes loosening an

@@ -33,7 +33,7 @@ SHELL_RULES = (
     "`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`",
     "`wait <log>`",
     "block no call over 180 s",
-    "`sleep 3000`",
+    "only with `publish`",
     "AGENT_WORKFLOW §2.2",
 )
 SKILL = common.ROOT / ".claude" / "skills" / "orchestrate-stage"
@@ -71,6 +71,9 @@ class RootClaudeMdTest(unittest.TestCase):
         shell = next(text for title, text in self.sections.items() if title.startswith("Shell"))
         for rule in SHELL_RULES:
             self.assertIn(rule, shell)
+        # #1257: the keep-alive timer left root (workflow agents never wait that long); the manager docs keep it.
+        for doc in (common.ROOT / "docs" / "MANAGERS.md", SKILL / "SKILL.md"):
+            self.assertIn("background `sleep 3000`", doc.read_text(encoding="utf-8"), doc)
 
     def test_talking_to_the_humans_is_a_pointer_to_the_doc_that_holds_the_rules(self) -> None:
         # #836: no workflow agent acts on these lines, so a human's chat reads them from the doc, found by this pointer.
