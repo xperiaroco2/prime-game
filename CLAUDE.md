@@ -53,7 +53,7 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Temporary files only in your scratchpad, or under `res://` in the gitignored `tests/scratch/`; no other temp folder.
 - Push only your task branch and only with `publish` (it rebases, verifies, pushes with a lease), never `main`; no
-  hand push, no hand force push (hook-blocked).
+  hand push (but `quick-task`'s agent: CI is its gate), no hand force push (hook-blocked).
 - No `git stash` (one for all worktrees): a WIP commit, later `git reset --soft HEAD~1`; a fix: `git commit
   --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
