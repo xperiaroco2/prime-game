@@ -5,20 +5,13 @@ extends GdUnitTestSuite
 ## a new task type's client code goes into its TaskClient. Comments and strings are stripped first
 ## ("as PhotoTask's" in a doc line passes) and the names matched word-bounded (CookingViews
 ## passes). The per-type special cases that stay outside the registry (#1260's proposal: the hums,
-## the sound choice, the camera and box keys, the item looks) are the named EXCEPTIONS; they reach
-## their types through the *Use helpers, whose scans are the clients'.
+## the sound choice, the camera and box keys, the item looks) test no class today and reach their
+## types through the *Use helpers, whose scans are the clients': no file is exempt, so a new
+## `is Cooking` in them fails here too.
 
 const BOUNDARY := preload("res://tests/unit/client/app/client_boundary_test.gd")
 const CLIENT := "res://client"
 const TASKS := "res://client/world/tasks/"
-## The files that keep per-type code outside client/world/tasks/ (each must still exist).
-const EXCEPTIONS: Array[String] = [
-	"res://client/world/station_hums.gd",
-	"res://client/world/sound_chooser.gd",
-	"res://client/world/item_interactions.gd",
-	"res://client/world/item_view.gd",
-	"res://client/world/item_views.gd",
-]
 
 
 func test_no_client_file_outside_the_task_clients_tests_a_task_type_class() -> void:
@@ -27,17 +20,11 @@ func test_no_client_file_outside_the_task_clients_tests_a_task_type_class() -> v
 	var files := BOUNDARY._client_files(CLIENT)
 	var found := PackedStringArray()
 	for path: String in files:
-		if path.begins_with(TASKS) or EXCEPTIONS.has(path):
+		if path.begins_with(TASKS):
 			continue
 		for hit: String in problems(FileAccess.get_file_as_string(path), classes):
 			found.append("%s: %s" % [path, hit])
 	assert_array(found).override_failure_message("\n".join(found)).is_empty()
-
-
-func test_every_exception_exists() -> void:
-	var files := BOUNDARY._client_files(CLIENT)
-	for path: String in EXCEPTIONS:
-		assert_bool(files.has(path)).override_failure_message(path + " is gone").is_true()
 
 
 func test_it_rejects_the_planted_tests_and_accepts_the_look_alikes() -> void:
