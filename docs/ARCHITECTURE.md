@@ -6364,7 +6364,7 @@ measured 3 `Correction`s (with a stand-in car until the car repair's R5 and R7),
 engineer then chose **KD15 (b2)** ([#976, comment 6162445237](https://github.com/xperiaroco2/prime-game/issues/976#issuecomment-6162445237)): the raised player's own client walks
 its capsule out of the car at walk speed over its first claims, ignoring the car until clear (§4.7's revive), with
 no `core/` change; the stand-in test now measures no sink and no `Correction`.
-- **Still** (built in 728a, #846: §7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
+- **Still** (§7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
   takes its facing only (a spectator watching a knocked-down target looks through it) and ignores the rest, with no
   movement check and no `Correction` (KE4). §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's
   hold went; `revive` sends a `Correction` (KE6). Prevents: an old or hostile client crawling, and a correction
@@ -6416,7 +6416,7 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   marked "not a decision" (KD9 (b)), each with bounds in its data; the gravity, mass, friction and bounce are the
   physics engine's. The base mode's: 0.1 m/s for 0.5 s, 8 s at the longest; the knife's launch 4 m/s away and
   2 m/s up (728e), which moves a body on the House alone (`motion_maps`).
-- **Built in 728b (#847).** `core/`: `BodyMotion` (`core/life/body_motion.gd`), `LifeRules.knock_down`, `body_moved`,
+- **The motion.** `core/`: `BodyMotion` (`core/life/body_motion.gd`), `LifeRules.knock_down`, `body_moved`,
   `count_motion`, `rest`, `stop_motion`; `LaunchBody`, `StopBody`; `Intents.BODY_MOVED`; `Strike`'s launch; `TargetDowned`'s
   `moving`; `PlayerRules.motion_maps` and the rest's numbers; `Snapshots.for_peer`'s own avatar (protocol 30).
   `server/`: `HostBodies` in `HostWorldQuery`, `HostSession`'s reports and directives. Every launch ships at 0 (the
@@ -6426,9 +6426,9 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   `tests/scenarios/body_motion_invariants_test.gd` (the invariants through a motion, the own-avatar check's plants) and
   `tests/integration/server/host_bodies_test.gd` (the probe; the ledge, ramp, stairs, wall, hole, low table, low
   ceiling, nosing and railing of `tests/fixtures/levels/body_rest_course.tscn`).
-- **Built in 728d (#848).** The ragdolls, the own camera and ears from the own avatar, KE8's clamps and the dead body
+- **The client.** The ragdolls, the own camera and ears from the own avatar, KE8's clamps and the dead body
   (KD7): §4.7.9's "Ragdolls". The client's `AvatarViews` draws the own avatar since.
-- **Built in 728e (#849).** The knife launches: `content/items/knife.tres`'s `Strike` 4 m/s away and 2 m/s up
+- **The knife's launch:** `content/items/knife.tres`'s `Strike` 4 m/s away and 2 m/s up
   (placeholders, "not a decision", provisional for the engineer's approval, §9.5.6); `motion_maps` stays the House
   alone (KE12). Tests: `tests/integration/levels/house_knife_launch_test.gd` (the base mode on the House in the
   host's world: launches in 8 directions from the yard, the terrace, the balcony and the top of the outside stairs,
@@ -6438,7 +6438,7 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   for the lowered car on layer 4: under (a) it measured the capsule pushed down into the floor on its own screen,
   not out, and 3 `Correction`s on the way out; under (b2), #976, it asserts no sink, the capsule out of the
   footprint and at most one `Correction`, measured 0).
-- **Built in 728f (#850).** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
+- **Thrown items and the levels.** KD12 (a) kept by the levels, no rule in `core/`: `levels/CLAUDE.md`'s "Thrown items"
   convention names launched bodies too. `tests/integration/levels/house_body_reach_test.gd` checks the House: its
   `WALKABLE` list names the pieces of `house.tscn` whose floors players walk (every piece, a node declaring
   `size_m`, is listed there or in `LOCKED`, which is empty: the art's walkable attic stair under a 3.125 x 1.14 m
