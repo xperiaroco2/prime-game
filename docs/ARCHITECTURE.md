@@ -2422,7 +2422,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
   stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
   (a bot falling straight down claims (0, -1, 0)): `MovementRule` stores a unit facing, keeps the last one when a
-  claim's has no direction and clamps the pitch to ±89° (built in M4-2, §7.1), and every camera, head or basis the client builds from a
+  claim's has no direction and clamps the pitch to ±89° (§7.1), and every camera, head or basis the client builds from a
   remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
 - **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and the crouch's two
   heights and two speeds (#791; the crouch plays everywhere, #991) come from
@@ -2450,7 +2450,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
 - **The knocked-down hold still** (M4-9; the crawl went with #728, KE4): a downed controller moves nothing, with no
   gravity, no sprint and no jump (`PlayerController._hold` every physics step), and claims where it lay with its
-  look; it keeps the standing capsule for collision, and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
+  look; it keeps the standing capsule for collision, and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`),
   which no push search looks at: the downed collide with no player.
 - **The crouch** (#791, §7, §7.1.17): the controller claims its crouch as the pose of the step it sends (the claim's
   `crouched` flag), wherever the player moves (the lobby included, #991), as the host's `MovementRule` keeps the
@@ -2507,9 +2507,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 #### 4.7.8 The revision in 3D
 - **The life fold** (E25): `ClientModel` keeps each player's life from the public events (`KnockedDown` downed,
   `Revived` living, `Died` dead with a body, `Respawned` living with the body removed, `PlayerLeft` gone with any
-  body; everyone living at `RoundStarted` and in the lobby). `life_of(peer)` (built in M4-2 with the knockdown,
-  the death and the leave; `is_alive()` now reads it, no longer "has no body", which would keep a respawned player
-  dead). `ClientSession` claims while its own copy of the phase accepts
+  body; everyone living at `RoundStarted` and in the lobby). `life_of(peer)` (the knockdown, the death and the
+  leave; `is_alive()` reads it, not "has no body", which would keep a respawned player dead). `ClientSession` claims while its own copy of the phase accepts
   `MoveClaim` from its life, and never while dead. Each fold lands in the core issue that adds its event, because the
   bots are `ClientSession`s.
 - **The own player**, by life:
@@ -3042,7 +3041,7 @@ alone 0 of 100 each; the cause is open in #949.
 Tests: `tools/runner/tests/test_lfs.py` (`CheckTest`: over a faked Godot, a crash twice, a crash and then an import,
 a timeout, an import that printed nothing, and the attempt logs each leaves).
 
-Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), amendment of 2026-10-07): in CI
+The [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s amendment of 2026-10-07 (#515): in CI
 (`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
 `check.run_import` keeps the LFS pointer files from Godot's import (`lfs.aside`), whose import of one fails and
 rewrites its `.import` file. Each pointer file goes into `tools/out/lfs-aside/` (behind a `.gdignore`); a type with a
@@ -3214,9 +3213,9 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the issue's ToyTab, whose ink text is
   unreadable on the Esc menu's dark panel. The names the issue does not map (the containers' margins and separations,
   DebugText, HudCrosshair, Shortfalls) keep their greybox values at #287's sizes in the mapping's `keep`.
-- Built in #520 (§4.7.34): the theme icons from the pack's `textures` (an imported copy of the pack's assets under
-  the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per label weight); the file
-  landed in #684.
+- The pack also gives (#520, the font file #684; §4.7.34) the theme icons from its `textures` (an imported copy of
+  the pack's assets under the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per
+  label weight).
 - Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, a
   binary outside the assets list deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
   fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the

@@ -489,7 +489,9 @@ The order below keeps `verify` green after every item. Two rules hold for each o
 ### Built
 
 - The voice invariant in M4-1 (#137, ARCHITECTURE §6.3).
-- The life states in M4-1 (#137) and M4-2 (#138), ARCHITECTURE §3.1 (named inline there until #1307, 2026-10-22).
+- The life states in M4-1 (#137) and M4-2 (#138), ARCHITECTURE §3.1 (named inline there until #1307, 2026-10-22);
+  on the client, M4-2 built `ClientModel.life_of` and the claim's pitch clamp, M4-9 (#145) the `downed` physics layer
+  (ARCHITECTURE §4.7). Before M4-2, `is_alive()` read "has no body".
 
 ## Amendment 2026-10-08: rare one-shot moments (#591)
 
