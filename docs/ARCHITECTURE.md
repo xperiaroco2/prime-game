@@ -2831,65 +2831,55 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Since #491 the menu is the Toy one of §4.7.42: the tabs Game, Role, Guide, Lobby and Settings; the host's
   question is a dialog.
 
-#### 4.7.12 The one-PC playtest's fixes on `release/m4` (#168, PR #167)
-- The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
+#### 4.7.12 Spectating from the target's eyes (#168, PR #167)
+- The spectate camera has no offset: it is the target's interpolated eye transform every physics frame, so it
+  retraces the poses of the target's own camera, later by the interpolation delay (about 0.15 s on the loopback:
+  some 0.7 m behind a walking target). `LifeView` shows the watched target's hand item in a `FirstPersonHand` under
+  the spectate camera (`spectate_hand()`) and hides the views of its hand and belt items after `ItemViews` (1)
+  placed them in the same physics step (`LifeView.items`, given by `Game`); a downed target, another target or the
+  own respawn shows them at the body again.
+- `client/ui/`: while `HudText.spectates()` the HUD shows nothing, not even the target's hand and belt (§4.7.37,
+  §4.7.41). The target's name is `LifeHud.Local.watching` (from `LifeView.target()`) and `Shown.watching`, shown by
+  `LifeScreen`'s `Spectate` plate (#497) in `watching_label`. `LifeHud` has no own invulnerability line; the respawn
+  countdown and the cycling keys stay.
+- Tests: `tests/unit/client/ui/hud_test.gd` (from a fake `ClientModel`: a dead spectator sees nothing of the HUD,
+  `test_a_dead_spectator_sees_nothing_of_the_hud`), `tests/unit/client/life/life_hud_test.gd`,
+  `life_network_test.gd` (the target's name on `LifeScreen.watching_label`, on the network),
   `tests/integration/client/life/spectate_network_test.gd` (NetPair; the joiner dies and watches the host's player
-  while it walks and turns) finds the camera equal to the target's interpolated eye transform every physics frame,
-  and retracing the poses of the target's own camera within a few millimetres, later by the interpolation delay
-  (about 0.15 s on the loopback: some 0.7 m behind a walking target); both fail with a planted 5 cm offset. What
-  the playtest likely saw instead: from the eyes, the target's items hung at its hidden body (the hand item 0.65 m
-  under the eye, seen only when the target looks down, and never where its own screen shows it). `LifeView` now
-  shows the watched target's hand item in a `FirstPersonHand` under the spectate camera (`spectate_hand()`) and hides the
-  views of its hand and belt items after `ItemViews` (1) placed them in the same physics step (`LifeView.items`,
-  given by `Game`); a downed target, another target or the own respawn shows them at the body again.
-- `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `GamePlayer.hud_local()`), `HudText.spectates()`
-  and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
-  line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
-  stay. **Superseded by #489** (§4.7.37) and #497 (§4.7.41): `Hud.spectating_label`, `HudText.Local.watching` and
-  `Shown.spectating` are gone; while `HudText.spectates()` the HUD shows nothing (since #497 not even the target's
-  hand and belt), the target's name is `LifeHud.Local.watching` and `Shown.watching`, and `LifeScreen`'s `Spectate`
-  plate (#497) shows it in `watching_label`, so the "no Watching line" sentence above no longer holds.
-- Tests: `tests/unit/client/ui/hud_test.gd` (from a fake `ClientModel`; superseded: it now checks that a dead
-  spectator sees nothing of the HUD, `test_a_dead_spectator_sees_nothing_of_the_hud`; the target's name is checked in
-  `life_hud_test.gd` and `life_network_test.gd` on `LifeScreen.watching_label`),
-  `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network),
-  `spectate_network_test.gd` (above; the target's meshes and items not drawn from its eyes, drawn again when it
-  goes down or the spectator respawns; the retrace measured to the segment between two recorded poses, so the
-  render tick's phase cannot fail it) and `spectate_cycle_test.gd` (no network: a dead player cycles between two
-  living targets of a hand-folded model, and the one it leaves is drawn with its items again). The `shot`:
-  `client/dev/spectate_preview.tscn`.
+  while it walks and turns: the camera equals the target's interpolated eye transform every physics frame and
+  retraces the poses of the target's own camera within a few millimetres, both failing with a planted 5 cm offset,
+  the retrace measured to the segment between two recorded poses, so the render tick's phase cannot fail it; the
+  target's meshes and items not drawn from its eyes, drawn again when it goes down or the spectator respawns) and
+  `spectate_cycle_test.gd` (no network: a dead player cycles between two living targets of a hand-folded model, and
+  the one it leaves is drawn with its items again). The `shot`: `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
-#### 4.7.13 The view after a respawn or a new match (fillers; #191, #240)
-- `client/player/player_controller.gd`: the own `Respawned` (the controller's session events) calls
-  `look_level()`: the head's pitch 0, the body's yaw kept (the engineer's answer on #191, no protocol change), and
-  `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
-  look, since the first claim after the respawn can go out in the same session step as its `Correction`, before
-  the controller steps again; so other players see a level head from the first claim. A `Correction` alone (a
-  refused claim, a knockdown) and a revive keep the look. `look()` does nothing while dead or left:
-  before, mouse motion while spectating still turned the hidden body and tilted its head (the controller reads
-  the mouse while `Game` only stops its physics step), up to 89°, which the respawn kept, as it kept a downed
-  player's look up. `LifeView` is unchanged: the downed camera follows the downed look, the camera above the own
-  body keeps the look at death, and spectating reads the target's interpolated pose only.
-- Tests: `life_network_test.gd` (the downed joiner turns and looks up, gives up, moves the mouse while dead
-  without effect, and respawns level with the downed yaw: its camera's forward horizontal, the facing at the
-  respawn's `Correction` and in the first claim after it level, and a level head on the host's screen; seen
-  failing first; its raise test now also keeps the look through the knockdown's `Correction` and the revive),
-  `player_network_test.gd` (a refused claim's `Correction` keeps the look), `player_controller_downed_test.gd`
-  (the dead and the left neither turn nor tilt; `look_level()`), `client_session_claims_test.gd` (`set_facing`).
+#### 4.7.13 The view after a respawn or a new match (#191, #240)
+- `client/player/player_controller.gd`: every placement starts level, the yaw kept (the engineer's answers on #191,
+  no protocol change, and on #240, option (b)). The own `Respawned` (the controller's session events) and a
+  `PlayersPlaced` that names the own player (`End -> Lobby`'s and the deal's, the only two, both naming everyone
+  present; `PlayerController._places_level`) call `look_level()`: the head's pitch 0, the body's yaw kept, and
+  `ClientSession.set_facing` (the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that look,
+  since the first claim after it can go out in the same session step as its `Correction`, before the controller
+  steps again; the placement's call comes right before its `Correction`, so that `Correction`'s facing is level
+  too, and other players see a level head from the first claim. A `Correction` alone (a refused claim, a
+  knockdown), a revive, and another player's respawn or placement keep the look. `look()` does nothing while dead
+  or left (the controller reads the mouse while `Game` only stops its physics step, so mouse motion while
+  spectating would turn the hidden body and tilt its head). `LifeView` is unchanged: the downed camera follows the
+  downed look, the camera above the own body keeps the look at death, and spectating reads the target's
+  interpolated pose only.
+- Tests: `life_network_test.gd` (the downed joiner turns and looks up, gives up, moves the mouse while dead without
+  effect, and respawns level with the downed yaw: its camera's forward horizontal, the facing at the respawn's
+  `Correction` and in the first claim after it level, and a level head on the host's screen; its raise test also
+  keeps the look through the knockdown's `Correction` and the revive; a joiner who died looking up, the round won
+  before its respawn, is level with the yaw it had after `End -> Lobby`'s placement and its `Correction`'s facing,
+  and after looking up in the lobby the next deal levels it again; `NetPair.win()` ends the round, the fixture's
+  crew win), `player_network_test.gd` (a refused claim's `Correction` keeps the look),
+  `player_controller_downed_test.gd` (the dead and the left neither turn nor tilt; `look_level()`; only a
+  `PlayersPlaced` naming the own player or the own `Respawned` levels, another's keep the look),
+  `client_session_claims_test.gd` (`set_facing`).
 - Not headless: the mouse itself (headless keeps no mouse mode, so the tests call `look()`, which the mouse's
   `_unhandled_input` calls); the respawn part of the one-PC playtest.
-- #240: a player who died looking up and was next placed by a new match, not a respawn, kept that pitch. A
-  `PlayersPlaced` that names the own player (`End -> Lobby`'s and the deal's, the only two, both naming everyone
-  present) now calls `look_level()` as the own `Respawned` does (`PlayerController._places_level`; the engineer's
-  answer on #240, option (b): every placement (the lobby's and a new round's) starts level, the yaw kept). It
-  comes right before the placement's `Correction`, so that `Correction`'s facing is level too. A `Correction`
-  alone (a refused claim, a knockdown), a revive, and another player's respawn or placement keep the look.
-- Tests (#240): `life_network_test.gd` (a joiner who died looking up, the round won before its respawn, is level
-  with the yaw it had after `End -> Lobby`'s placement and its `Correction`'s facing; it looks up in the lobby and
-  the next deal levels it again; seen failing first), `player_controller_downed_test.gd` (only a `PlayersPlaced`
-  naming the own player or the own `Respawned` levels; another's keep the look). `NetPair.win()` ends the round
-  (the fixture's crew win) for it.
 
 #### 4.7.14 What the client renders
 What the client renders follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
