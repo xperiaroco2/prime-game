@@ -85,22 +85,30 @@ hull's shape gate the tip rooms moved into the rear corners and lost their windo
 - **Mirrored:** the west half and the east half hold the same stations, so a player says "left" or "right" (as you
   come in up the ramp, left is east). Every station hangs flat on a wall, no niches; whoever works at one leaves at
   least 1.6 m of pass behind them.
-- **The mouth ramp** (north side, the ship's centre) leads into **the central hall**, round, about 8 m across
-  (50 m²): the start console in the middle with the start lever, the battery slot, the stage display (one lamp per
-  stage) and the mimic board of both breaker boards (GDD §8); on its wall the two vents (overheat), either side of the
-  mouth, and the two cartridge sockets on the back wall, between the two corridor mouths.
+- **The mouth ramp** (north side, the ship's centre) leads into **the throat** (the engineer, 2026-10-22): no
+  straight pass, its walls open as a funnel from about 3.3 m at the mouth to about 6 m where the hall begins, about
+  4.4 m deep (about 5 m² more floor), so the whole hall is seen from the mouth. On its two slanted walls hang **the
+  two vents** (overheat), right behind the mouth; with both worked about 3 m of pass stays between them. Under the
+  nose its ceiling may be lower than the hall's, never below a player's head room.
+- **The central hall**, round, about 8 m across (50 m²): the start console in the middle with the start lever, the
+  battery slot, the stage display (one lamp per stage) and the mimic board of both breaker boards (GDD §8); **four
+  cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem count), two on the
+  back wall between the two corridor mouths and two at the front sides, beside the throat and clear of its pass.
 - **Two corridors**, straight, about 3 m wide and 3.4 m long, run diagonally back from the hall into the rear
   corners; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp over each), in sight of
   the console down the corridor.
 - **Two tip rooms** in the rear corners, round, about 3.6 m across (10 m²), with no window, each with **one cartridge
-  renewer** against its far wall. A burnt cartridge goes to the renewer on its own side, about 7 m, 1.6 s at a walk.
+  renewer** against its far wall. A burnt cartridge goes to the renewer on its own side, about 7 m from a back socket
+  and 8 m from a front one, under 2 s at a walk; with both sockets of a side burnt, the second runs across the hall
+  to the other renewer or waits.
 - **The silhouette:** from the top an arrowhead, about 30 m across and 18.9 m long with the nozzles, the wing tips
   swept back to the rear corners and rounded in plan; flat wings thinning to a soft edge, no upcurl, no bulge over
   the rooms. The whole interior sits 1 m forward of the shape gate's blockout (the engineer, 2026-10-22: the rear
   rooms stuck out of the hull), so about 1 m of hull stays behind the tip rooms.
 - Positions inside, from the ship's centre (x east, y south, so +y is aft): the hall's centre (0, -1); the console
-  (0, 0); the vents (±2.6, -3.6); the sockets (±1.6, 2.65); the boards (±5.8, 0.1); the tip rooms' centres
-  (±8.3, 3.0), the renewers (±9.4, 3.5). Working draft.
+  (0, 0); the throat from the mouth (±1.65, -8) to the hall (±3, -3.4); the vents (±2.3, -5.8); the back sockets (±1.6, 2.65), the front
+  sockets (±3.5, -3.0); the boards (±5.8, 0.1); the tip rooms' centres (±8.3, 3.0), the renewers (±9.4, 3.5).
+  Working draft.
 
 ## 5. Links between levels
 
