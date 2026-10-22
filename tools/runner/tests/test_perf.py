@@ -22,6 +22,14 @@ def raw(**changes: object) -> dict:
         "frames": 120,
         "host_ticks": 40,
         "tick_usec": [100, 200, 300, 400, 1000],
+        # The timed steps' due ticks and stages (#1255); "other" is then [20, 40, 50, 400, 50].
+        "tick_at": [0, 0, 1, 2, 3],
+        "stage_usec": {
+            "match_tick": [60, 120, 180, 0, 700],
+            "apply": [10, 20, 30, 0, 100],
+            "voice": [5, 10, 15, 0, 50],
+            "snapshots": [5, 10, 25, 0, 100],
+        },
         "physics_usec": [5000, 7000],
         "events_per_tick": [3, 0, 0, 1],
         "memory_static": {"end": 900, "max": 1000},
@@ -118,6 +126,33 @@ class ReportTest(unittest.TestCase):
         for part in ("cap 1024 B", "E16", "E7 budget 16384 B/s", "E7 budget 50/s", "E11", "headroom 61%"):
             self.assertIn(part, text)
         self.assertIn("compared: no baseline", text)
+
+    def test_the_host_step_by_stage_and_its_slowest_step(self) -> None:
+        got = report()
+        m = got["metrics"]
+        self.assertEqual(m["stage_match_tick_usec"], {"p50": 120, "p95": 700, "max": 700})
+        self.assertEqual(m["stage_snapshots_usec"]["max"], 100)
+        self.assertEqual(m["stage_other_usec"], {"p50": 50, "p95": 400, "max": 400})
+        self.assertEqual(
+            got["slowest_step"],
+            {"tick": 3, "usec": 1000, "events": 1, "match_tick": 700, "apply": 100, "voice": 50, "snapshots": 100,
+             "other": 50},  # fmt: skip
+        )
+        got["comparison"] = perf.compare(got, None)
+        text = "\n".join(perf.lines(got))
+        self.assertIn("stage_voice_usec: p50 10, p95 50, max 50 us", text)
+        self.assertIn(
+            "slowest host step: tick 3, 1000 us, 1 events at that tick; match_tick 700, apply 100, voice 50, "
+            "snapshots 100, other 50 us (most: match_tick)",
+            text,
+        )
+
+    def test_a_run_with_no_timed_step_names_no_slowest(self) -> None:
+        got = report(tick_usec=[], tick_at=[], stage_usec={name: [] for name in perf.STAGES})
+        self.assertEqual(got["slowest_step"], {})
+        self.assertEqual(got["metrics"]["stage_other_usec"], {"p50": 0, "p95": 0, "max": 0})
+        got["comparison"] = perf.compare(got, None)
+        self.assertIn("slowest host step: none timed", "\n".join(perf.lines(got)))
 
 
 class CompareTest(unittest.TestCase):

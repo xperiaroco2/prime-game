@@ -10,9 +10,13 @@ over ENet, `-<N>b<S>s` for other than 10 bots and a 60 s round) and summary.md, 
 fails only when the match fails, never on a change. Not a `verify` step; the nightly workflow runs it (docs/AGENT_WORKFLOW.md §15).
 
 Each metric is p50/p95/max (nearest rank) over its samples: the host step's time (Time.get_ticks_usec around
-HostSession.step, the steps that ran a host tick; the harness's meter only appends to a buffer inside it),
-Performance's TIME_PHYSICS_PROCESS read about once a second of real time (the whole process: host and bots; how the
-engine refreshes it between reads is not documented in the 4.7.2 API), the events per host tick,
+HostSession.step, the steps that ran a host tick; the harness's meter only appends to a buffer inside it), the same
+steps by stage (#1255: HostSession's StepMeter, set by the perf run only, times its Match.tick calls, queue applies,
+voice relay and snapshot sends; "other" is the rest of the step: refill, poll, the bodies' reports, deadlines) with
+the slowest step named by its due tick, Performance's TIME_PHYSICS_PROCESS read once per 60 frames over the loopback
+(a simulated second; before #1255 once a real second, which gave about 14 samples, so p95 was the max) and about once
+a second of real time over ENet (the whole process: host and bots; how the engine refreshes it between reads is not
+documented in the 4.7.2 API), the events per host tick,
 each Snapshot's payload bytes per remote peer per tick, and per remote peer per second of host time: frame bytes sent
 (all, snapshots, voice) and what it sent (payload bytes that are not voice, voice frames). MEMORY_STATIC: at the end
 and the most seen. Peer 1, the host's own client, is not counted. The pinned Godot is a debug build: compare runs
@@ -47,6 +51,8 @@ TIMEOUT_MARGIN_SECONDS = 240
 THRESHOLD = 0.20
 VERSION = 1
 STATS = ("p50", "p95", "max")
+# The host step's stages in perf_run.gd's raw "stage_usec", in step order; "other" is the step's rest.
+STAGES = ("match_tick", "apply", "voice", "snapshots")
 
 
 def check_args(bots: int, seconds: int) -> None:
@@ -91,6 +97,26 @@ def per_peer_seconds(table: dict[str, dict[str, int]], rate: int, extra: int = 0
     return [value for by_tick in table.values() for value in per_second(by_tick, rate, extra)]
 
 
+def stage_samples(raw: dict) -> dict[str, list[int]]:
+    """Each stage's microseconds per timed step, and "other": the step's time the stages leave."""
+    stages = {name: list(raw["stage_usec"][name]) for name in STAGES}
+    whole = raw["tick_usec"]
+    stages["other"] = [whole[at] - sum(stages[name][at] for name in STAGES) for at in range(len(whole))]
+    return stages
+
+
+def slowest_step(raw: dict) -> dict:
+    """The timed step that took longest (the first such): its due tick, time, events and stages; {} without steps."""
+    whole = raw["tick_usec"]
+    if not whole:
+        return {}
+    at = max(range(len(whole)), key=whole.__getitem__)
+    tick = raw["tick_at"][at]
+    events = raw["events_per_tick"]
+    stages = {name: values[at] for name, values in stage_samples(raw).items()}
+    return {"tick": tick, "usec": whole[at], "events": events[tick] if 0 <= tick < len(events) else 0, **stages}
+
+
 def summarize(raw: dict, *, date: str, commit: str) -> dict:
     """The report of one run from perf_main.gd's raw samples."""
     rate = raw["ticks_per_second"]
@@ -101,6 +127,7 @@ def summarize(raw: dict, *, date: str, commit: str) -> dict:
     voice_frames = per_peer_seconds(raw["up_voice_frames"], rate)
     metrics = {
         "host_tick_usec": stats(raw["tick_usec"]),
+        **{f"stage_{name}_usec": stats(values) for name, values in stage_samples(raw).items()},
         "physics_process_usec": stats(raw["physics_usec"]),
         "events_per_tick": {**stats(events), "mean": round(sum(events) / len(events), 2) if events else 0},
         "snapshot_payload_bytes": stats(snapshot_sizes),
@@ -124,6 +151,7 @@ def summarize(raw: dict, *, date: str, commit: str) -> dict:
         "host_ticks": raw["host_ticks"],
         "remote_peers": len(raw["down"]),
         "metrics": metrics,
+        "slowest_step": slowest_step(raw),
         "budgets": {
             "snapshot_payload": headroom(metrics["snapshot_payload_bytes"]["max"], budgets["snapshot_payload_cap"]),
             "up_bytes_per_second": headroom(metrics["up_bytes_per_second"]["max"], budgets["peer_bytes_per_second"]),
@@ -215,6 +243,19 @@ def read_json(path: Path) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def slowest_line(step: dict) -> str:
+    """The slowest host step: its tick, time and events, then its stages, the largest named."""
+    if not step:
+        return "slowest host step: none timed"
+    parts = {name: step[name] for name in (*STAGES, "other")}
+    largest = max(parts, key=parts.__getitem__)
+    return (
+        f"slowest host step: tick {step['tick']}, {step['usec']} us, {step['events']} events at that tick; "
+        + ", ".join(f"{name} {value}" for name, value in parts.items())
+        + f" us (most: {largest})"
+    )
+
+
 def lines(report: dict) -> list[str]:
     """The summary printed and written to summary.md."""
     m = report["metrics"]
@@ -230,7 +271,10 @@ def lines(report: dict) -> list[str]:
         f"a {report['seconds']} s round, seed {report['seed']}; {report['host_ticks']} host ticks, "
         f"{report['remote_peers']} remote peers",
         row("host_tick_usec", "us (the host step, ticks only; debug build: compare runs, not release cost)"),
-        row("physics_process_usec", "us (TIME_PHYSICS_PROCESS read about once a second, host and bots)"),
+        *[row(f"stage_{name}_usec", "us (of each such step)") for name in (*STAGES, "other")],
+        slowest_line(report.get("slowest_step", {})),
+        row("physics_process_usec", "us (TIME_PHYSICS_PROCESS once per 60 frames, ENet: about once a second; host and "
+            "bots)"),  # fmt: skip
         row("events_per_tick", f"(mean {m['events_per_tick']['mean']})"),
         row("snapshot_payload_bytes", f"B per peer per tick; cap {snap['limit']} B (§4.3: unreliable payloads, so "
             f"ENet never fragments; WireBudget, E16), headroom {snap['headroom']:.0%}"),  # fmt: skip

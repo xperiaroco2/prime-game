@@ -1317,8 +1317,10 @@ in one headless process: over the loopback on the simulated clock at `--fixed-fp
 round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It writes
 `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
 `summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
-inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a
-second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
+inside it the harness's meter only appends to a buffer, folded after) and of its stages (#1255: `StepMeter`, set by
+the perf run only, times `Match.tick`, the apply, voice and snapshots; "other" is the rest), the slowest step named by
+its due tick, `TIME_PHYSICS_PROCESS` (once per 60 frames over the loopback, about once a second over ENet; host and
+bots together; how the engine refreshes it between reads is not documented), events per tick, each
 `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
 the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
 and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceBatch`). It compares
