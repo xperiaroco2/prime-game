@@ -99,9 +99,6 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 		return true
 	if not _hand_allows(model, mode, rule):
 		return false
-	var cooking := CookingUse.type_of(mode, station.kind)
-	if cooking != null:
-		return CookingUse.usable(model, cooking, id)
 	var photo := PhotoUse.type_of(mode, station.kind)
 	if photo != null:
 		return PhotoUse.usable(model, photo, id)

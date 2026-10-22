@@ -8,7 +8,6 @@ const MODES := "res://content/modes/"
 ## The core task type classes whose client is not built yet (#1260's migration moves one a
 ## commit): the checks skip them and fail when one has a client.
 const UNMIGRATED: Array[String] = [
-	"Cooking",
 	"CarRepair",
 	"PhotoTask",
 ]

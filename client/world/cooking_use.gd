@@ -23,13 +23,7 @@ enum Role { NONE, ORDER_BOARD, HERB_BOARD, GRILL, BED, PLACE }
 
 ## Every Cooking of `mode`, in the mode's order.
 static func types_of(mode: GameMode) -> Array[Cooking]:
-	var found: Array[Cooking] = []
-	if mode == null:
-		return found
-	for type: TaskType in mode.task_types:
-		if type is Cooking:
-			found.append(type as Cooking)
-	return found
+	return CookingClient.types_of(mode)
 
 
 ## The Cooking of `mode` one of whose five station kinds is `kind_id`, or null.
