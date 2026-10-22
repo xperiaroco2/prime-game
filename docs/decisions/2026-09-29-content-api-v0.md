@@ -170,8 +170,6 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   hidden state (§9.2 asks each condition and rule to say so, and validation warns on role-gated public events; v0
   has none); scenario steps that walk in straight lines need waypoints on levels with walls until M4 brings
   navigation.
-- Built in stage 2 (the history ARCHITECTURE named inline until #1307, 2026-10-22): the win conditions in 2h (#64,
-  `core/win/`, ARCHITECTURE §3.4).
 - 2026-10-22 (#1307): ARCHITECTURE §9.5's entries say "Code:" and "Tests:", no longer "Status: designed in #33;
   built in ...". What their status lines said: the base mode's skeleton in 2a (#49), filled by 2b to 2i: 2b (#58)
   the phases Lobby, Countdown, Loading and End, the join rules, the fit check, the mode check with layouts and
