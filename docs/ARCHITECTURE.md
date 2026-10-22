@@ -5259,7 +5259,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   the last two only for a living player and never together (#990, §9.5.24), `crouched` in any phase since #991, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
-  fields; they travel in `SelfStatus`. #728's design (§7.1.18, built in 728b, #847) adds one exception: the own avatar while
+  fields; they travel in `SelfStatus`. #728's design (§7.1.18) adds one exception: the own avatar while
   knocked down, on every map (the greybox included, where the body stays at rest), decided from the life state alone,
   not from whether the host moves the body (KE5). The photo task's `ShotTaken` (#781, §9.5.22) is another: its record
   holds a row for each living or downed player near the camera at the shot, the recipient's own pose included; it
@@ -5549,15 +5549,13 @@ crouched eye, and a spectator's ears and spectate camera sit at the target body'
 crouched or not, never the mode's standing eye; tests `ears_test.gd` and `life_ears_test.gd` (§7.1.17).
 
 #### 6.5.5 Buses and the mix (E43, D15)
-`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
-buttons' click at −6 dB with no slider of its own, §4.7.43),
-in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
-Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
+`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and UI for the Toy buttons' click
+at −6 dB with no slider of its own, §4.7.43), in code (`AudioBuses.ensure()` at `Game._ready`, each bus once; the
+world sounds on Effects, the lift music on Music, its −14 dB the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
-the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Settings panel (#301, #493).
-`host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (M5-6), as `run --instances` and
+the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (`UserSettings`, `VoiceControl`, `VoicePanel`) or, before any session, the main menu's Settings panel (#301, #493).
+`host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`, as `run --instances` and
 `bots --instances` do from `launch.launch`.
 
 #### 6.5.6 No talking indicator in M5 (D14, the engineer's answer)
@@ -6089,7 +6087,7 @@ fallback, and at the death the items then drop at the body (`Items.place_carried
 #### 7.1.14 Delivery
 The rule is "the package rests inside its circle, however it got there". So one check runs whenever
 an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and a throw, whose rest
-`core/` finds at the end of its flight (§7.1.16; the flight built in #642, the cause `thrown`; a thrown package
+`core/` finds at the end of its flight (§7.1.16; the cause `thrown`; a thrown package
 counts, the engineer's TD4 (a): `tests/unit/tasks/delivery_throw_test.gd`). A package resting inside its own circle is delivered: it
 stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
 never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
