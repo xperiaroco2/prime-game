@@ -63,21 +63,18 @@ static func station_kind(game_mode: GameMode, kind_id: StringName) -> StationKin
 ## DeliveryByMeaning types lists it among its station kinds. Any other station kind (today's
 ## Delivery's `circle`) is a circle.
 static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
-	if game_mode == null:
-		return false
-	for type: TaskType in game_mode.task_types:
-		if type is DeliveryByMeaning:
-			for kind: StationKind in type.station_kinds():
-				if kind.id == kind_id:
-					return true
+	for type: DeliveryByMeaning in DeliveryByMeaningClient.types_of(game_mode):
+		for kind: StationKind in type.station_kinds():
+			if kind.id == kind_id:
+				return true
 	return false
 
 
-## Whether a station of `kind_id` is drawn here (#801's G6: only Delivery's circles): a kind a
-## Delivery or a DeliveryByMeaning holds, or one no task type of the mode holds (the fallback
-## cylinder). A zone is ZoneViews'; a Generator's generator and switch are the level's station
-## scenes (StationViews); another task type's stations wait for its client issue (photo P7 #786,
-## cooking C7 #776, car repair R7 #811).
+## Whether a station of `kind_id` is drawn here (#801's G6: only Delivery's circles): a kind of a
+## task type whose TaskClient draws it as a circle (Delivery's and Delivery by meaning's, #1260),
+## or one no task type of the mode holds (the fallback cylinder). A zone is ZoneViews'; a
+## Generator's generator and switch are the level's station scenes (StationViews); every other
+## task type's stations are its own view's.
 static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 	if game_mode == null:
 		return true
@@ -89,7 +86,7 @@ static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 			if kind.id != kind_id:
 				continue
 			var client := TaskClients.of(type)
-			if type is DeliveryByMeaning or (client != null and client.draws_circle(kind_id)):
+			if client != null and client.draws_circle(kind_id):
 				return true
 			held = true
 	return not held
