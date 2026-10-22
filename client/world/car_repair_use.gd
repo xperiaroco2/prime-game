@@ -23,13 +23,7 @@ const DROP_SECONDS := 0.25
 
 ## Every CarRepair of `mode`, in the mode's order.
 static func types_of(mode: GameMode) -> Array[CarRepair]:
-	var found: Array[CarRepair] = []
-	if mode == null:
-		return found
-	for type: TaskType in mode.task_types:
-		if type is CarRepair:
-			found.append(type as CarRepair)
-	return found
+	return CarRepairClient.types_of(mode)
 
 
 ## The CarRepair of `mode` one of whose station kinds is `kind_id`, or null.

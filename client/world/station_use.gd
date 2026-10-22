@@ -102,9 +102,6 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 	var photo := PhotoUse.type_of(mode, station.kind)
 	if photo != null:
 		return PhotoUse.usable(model, photo, id)
-	var car_repair := CarRepairUse.type_of(mode, station.kind)
-	if car_repair != null:
-		return CarRepairUse.usable(model, car_repair, id)
 	# The first of the mode's types whose TaskClient owns the kind answers (#1260).
 	for type: TaskType in mode.task_types:
 		var client := TaskClients.of(type)

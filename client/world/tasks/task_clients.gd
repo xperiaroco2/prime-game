@@ -15,6 +15,7 @@ static var _by_script: Dictionary[Script, GDScript] = {
 	ZoneTask: ZoneTaskClient,
 	Generator: GeneratorClient,
 	Cooking: CookingClient,
+	CarRepair: CarRepairClient,
 }
 ## One client per TaskClient script, made on first use (a client holds no state).
 static var _clients: Dictionary[GDScript, TaskClient] = {}
