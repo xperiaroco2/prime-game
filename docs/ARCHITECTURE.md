@@ -7005,8 +7005,10 @@ What it does: one sentence.
 Settings: name: value or type (allowed values, default).
 Produces: events (audience), facts, outcomes, state changes.
 Visible to: who learns the result, and when.
-Status: designed in #33 · built in <PR>. Tests: path.
+Code: the files that hold it. Tests: path.
 ```
+
+The task or PR that built an entry is in its ADR's Consequences (stage 2's: the content API v0 ADR), never here.
 
 #### 9.5.1 Base mode (game mode)
 What it does: the MVP match, Lobby → Countdown → Loading → Pregame → Round → End → Lobby (§3.2).
@@ -7059,34 +7061,30 @@ Settings:
   End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers` (`lobby_player`).
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
-Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
-Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
-`ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
-2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
-accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; M4-2 (#138)
-LifeTicks before it, the crawl speed (gone since #728) and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
-between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
-the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
-shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
-the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
-mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)). #828 (the delivery-by-meaning ADR's D2) made `delivery` the House's Delivery by meaning and moved today's to `colour_delivery`, the greybox's, adding the four item kinds; each map's lobby, guide and loading card list its own type alone (DE16, §4.7.36, §4.7.42). #800 (the Generator ADR's G5) added the Generator (House only), the `switches` setting, `tasks` 2 (1 to 2) and Round's `Interact` from the living; `FixtureBaseModeWithZones` leaves the Generator, its setting and Round's `Interact` out, so the zone tests keep Delivery beside the zone. Its tests: `tests/unit/content/generator_content_test.gd` (§9.5.19). #784 (the photo ADR's P5) added the photo task (House only), its Film and Photo item kinds, the `photos` setting and `tasks` 3 (1 to 3); `FixtureBaseModeWithZones` leaves the photo task and its setting out too (its two item kinds stay, unused). Its tests: `tests/unit/content/photo_content_test.gd` (§9.5.22).
-#775 (the cooking ADR's C6) added Cooking (§9.5.20), on the House alone, with its `burgers` setting, its 21 item kinds and VanishTicks in Round, `tasks` going to 4 (1 to 4); `FixtureBaseModeWithZones` leaves Cooking, its setting and its item kinds out too.
-#810 (the car repair ADR's R6) added car repair (§9.5.21), on the House alone, with its `car_parts` setting and its three part kinds, `tasks` going to 5 (1 to 5); `FixtureBaseModeWithZones` leaves car repair and its setting out too (its part kinds stay, unused: no rule names them).
-`FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
-from the shipped one when it loads, for the zone task's tests (its scenarios, chaos and perf runs too until #804, which took them off the zones). Tests: the mode check of 2a,
-the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
-(`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
-(`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
-scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and
-greybox of §9.6. A lone player (#719): `tests/unit/content/lone_player_test.gd` (Crew for 32 seeds at 1 and 9
-`dissidents`, and a round alone in which no win condition fires in its first minute and delivering every package wins it for the
-crew, `every_task_done`).
-2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
-`Loading, all_loaded → Round` row until #213 moved it to `Pregame, pregame_done → Round`) and `EndMatch`
-(`Round, won → End`); `content_modes_test.gd` plays a whole match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
-on any of its ticks, #212), and a round with 0 dissidents set in its lobby.
-Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd` (End silent on every tick until its return).
-End's end tick: `tests/unit/match/phases/end_phase_test.gd`. The pregame (#213): §3.6.
+Code: `content/modes/base_mode.tres`. The mode check refuses an accepted intent
+that no rule handles, so every intent a phase accepts comes with its rule (Round's `Use` with the knife's, §9.5.6).
+Each map's lobby, guide and loading card list its own task type alone (DE16, §4.7.36, §4.7.42). The zone task's code,
+its tests and the House's zones stay while the mode plays no zone task (the engineer's
+[answer on #842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513): "only from the mode,
+now").
+`FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode with Hold the zone
+among its task types, its `zones` setting (1 to 1) and `tasks` 2 (1 to 2), read from the shipped one when it loads, for the
+zone task's tests (not its scenarios, chaos or perf runs, which play without zones since #804). It leaves out the
+Generator, its `switches` setting and Round's `Interact`, so the zone tests keep Delivery beside the zone; the photo
+task and its `photos` setting (its Film and Photo kinds stay, unused); Cooking, its `burgers` setting and its item
+kinds; and car repair and its `car_parts` setting (its part kinds stay, unused: no rule names them).
+Tests: the mode check, the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering
+the round (`tests/unit/content/content_modes_test.gd`, §9.1), which also plays a whole match from this data to the
+end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard on any of its ticks), and
+a round with 0 dissidents set in its lobby; the phases with a mode built in code (`tests/unit/match/phases/`,
+`tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the scenarios in
+`content/scenarios/` (`tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and greybox of §9.6. The
+Generator's content: `tests/unit/content/generator_content_test.gd` (§9.5.19); the photo task's:
+`tests/unit/content/photo_content_test.gd` (§9.5.22). A lone player (#719): `tests/unit/content/lone_player_test.gd`
+(Crew for 32 seeds at 1 and 9 `dissidents`, and a round alone in which no win condition fires in its first minute
+and delivering every package wins it for the crew, `every_task_done`). Voice rules through the phases:
+`tests/unit/voice/voice_by_phase_test.gd` (End silent on every tick until its return). End's end tick:
+`tests/unit/match/phases/end_phase_test.gd`. The pregame (#213): §3.6.
 
 #### 9.5.2 Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
@@ -7094,7 +7092,7 @@ Settings: id `crew`; display name "Engineer" (its side's "Engineers"; vision rev
 its teammates: no; actions: none. The default role of `DealRoles`.
 Produces: `RoleAssigned(crew)`.
 Visible to: that player only (§5); `MatchEnded` names the winning side and the win condition, never a player's role.
-Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`; named Engineer in M4-1 (#137). Tests:
+Code: `content/roles/crew.tres`. Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (which pins both names).
 
 #### 9.5.3 Dissident (role)
@@ -7103,12 +7101,12 @@ Settings: id `dissident`; display name "Dissident"; side `dissidents`; knows its
 Dealt by the quota `dissidents`, leaving at least one other player.
 Produces: `RoleAssigned(dissident)`; `Teammates(dissident, peers)`.
 Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to nobody else.
-Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Tests:
+Code: `content/roles/dissident.tres`. Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
 #### 9.5.4 Delivery by colours (task type)
 **The greybox's Delivery** (#683, the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md),
-answered and approved by the engineer on PR #713; built in #828): the House plays a second task type,
+answered and approved by the engineer on PR #713): the House plays a second task type,
 `DeliveryByMeaning` (§9.5.25): items of several kinds, each carried to its own drop-off by what it is, with no
 colours and no marker through walls. It took the id `delivery` and the file `content/tasks/delivery.tres` (DE15 (i)),
 so the copy deck's `task.delivery` and the how-to card follow the Delivery players play. This entry, today's Delivery,
@@ -7154,12 +7152,12 @@ state (`Delivery.State`): per subtask its package, its circle and whether it is 
 (§9.5.18, #647) is the task type that ticks.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
-Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional;
-`content/tasks/colour_delivery.tres` since #828); shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
+Code: `core/tasks/delivery.gd`, `content/tasks/colour_delivery.tres` (provisional); its subtasks shared, with the
+cylinder (#79). DealTasks calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
-private task event), `tests/unit/tasks/delivery_test.gd` (the check; a done subtask is never delivered again; the cylinder's
-edges moved with the test to `tests/unit/match/station_state_test.gd` in #647), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
-`tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
+private task event), `tests/unit/tasks/delivery_test.gd` (the check; a done subtask is never delivered again), the
+cylinder's edges in `tests/unit/match/station_state_test.gd`, `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
+`tests/unit/content/layout_check_test.gd` (its demands reach the fit check); the description and
 `TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's mode
 check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 
@@ -7173,8 +7171,7 @@ Placed by Delivery.
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; once delivered, `PackageDelivered`, and `PickUp` gets
 `unavailable`.
 Visible to: everyone.
-Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f (#62, Delivery); `hands` in M4-5
-(#141, provisional). Tests: the parts' in `tests/unit/items/` (a package built in code, two-handed); its delivery in
+Code: `content/items/package.tres` (its `hands` provisional). Tests: the parts' in `tests/unit/items/` (a package built in code, two-handed); its delivery in
 `tests/unit/tasks/delivery_test.gd`; the base mode's `hands` in `tests/unit/content/item_intents_test.gd`.
 
 #### 9.5.6 Knife (item kind)
@@ -7191,15 +7188,14 @@ Visible to: `Swung` and `KnockedDown` everyone; `Damaged` only the victim; the a
 but the public knockdown (an accepted exception, vision revision 1); a
 refusal (`too_soon`, `tired`) only the attacker. The public `Swung` reveals no role: the rule belongs to the item
 kind, which any living player may hold (§9.2).
-Status: designed in #33; the item kind (id, name, spawn tag) and its `SpawnItems` in 2c (#59):
-`content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
-`tests/unit/content/content_modes_test.gd`; the parts built in 2g (#63): `Cooldown`, `Strike` (`core/combat/`) and
-the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the living in Round's allowlist
-(provisional under the MVP content ADR, for the engineer's approval); the launch in 728e (#849), provisional the same
-way.
+Code: the item kind (id, name, spawn tag) in `content/items/knife.tres`, spawned by `SpawnItems`, tested by
+`tests/unit/deal/spawn_items_test.gd` and `tests/unit/content/content_modes_test.gd`; the parts `Cooldown`, `Strike`
+(`core/combat/`) and the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the living in Round's
+allowlist (provisional under the MVP content ADR, for the engineer's approval); the launch (§7.1.18), provisional the
+same way.
 Tests: `tests/integration/levels/house_knife_launch_test.gd` (the launch on the House rests a body where a crouching
 player fits; none on the greybox, §7.1.18), `tests/integration/levels/house_body_reach_test.gd` (every rest within a
-raise's reach of a spot walked to from the spawn, 728f), `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
+raise's reach of a spot walked to from the spawn, §7.1.18), `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped, a target dead at its turn skipped, #806), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
@@ -7213,7 +7209,7 @@ What it does: the crew's only win.
 Settings: side `crew`; conditions: `AllSubtasksDone`.
 Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)` with the reason `every_task_done` and the round's time.
 Visible to: everyone: the side, this condition's id and the time (#548).
-Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_done.tres`. Tests:
+Code: `content/win_conditions/every_task_done.tres`. Tests:
 `tests/unit/win/all_subtasks_done_test.gd`, `tests/unit/win/clock_ended_test.gd` (a delivery on the end tick),
 `tests/unit/content/content_modes_test.gd` (the base mode's data).
 
@@ -7223,8 +7219,7 @@ member is still present: killing takes time from the crew, it does not end the r
 Settings: side `dissidents`; conditions: `NoneAlive` (side `crew`; the class keeps its old name).
 Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `no_crew_present` and the round's time.
 Visible to: everyone: the side, this condition's id and the time (#548).
-Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 (#138):
-`content/win_conditions/no_crew_present.tres` (provisional), in `no_crew_alive.tres`'s place in the order. Tests:
+Code: `content/win_conditions/no_crew_present.tres` (provisional). Tests:
 `tests/unit/win/none_alive_test.gd` (a knockdown and a death end nothing, the leaves, the §3.4 order),
 `tests/unit/content/content_modes_test.gd`.
 
@@ -7233,7 +7228,7 @@ What it does: the dissidents win when the clock ends with a subtask not done, wi
 Settings: side `dissidents`; conditions: `ClockEnded`, `AllSubtasksDone` negated.
 Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `time_up` and the round's time.
 Visible to: everyone: the side, this condition's id and the time (#548).
-Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres`. Tests:
+Code: `content/win_conditions/time_up.tres`. Tests:
 `tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
 `tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).
 
@@ -7249,7 +7244,7 @@ swapped onto its circle is delivered; beside a two-handed item a full belt's ite
 and `item_rested`.
 Visible to: everyone; a refusal (`unavailable`, `out_of_reach`, `blocked`) only the sender. A mode rule: its public
 events reveal no role.
-Status: designed in #33; built in 2e (#61); the belt in M4-5 (#141); CE21 in #771. Tests: `tests/unit/items/take_into_hand_test.gd`,
+Tests: `tests/unit/items/take_into_hand_test.gd`,
 `tests/unit/items/in_sight_test.gd` (`InSight` refuses an item that is not there),
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
 
@@ -7258,7 +7253,7 @@ What it does: puts the hand item down in front of the player (§7.1.12); a belt 
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
 Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its public events reveal no role.
-Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/put_down_in_front_test.gd`; the drops at a
+Tests: `tests/unit/items/put_down_in_front_test.gd`; the drops at a
 death or a leave: `tests/unit/items/items_test.gd`.
 
 #### 9.5.12 Use (action; the knife's hit)
@@ -7266,7 +7261,7 @@ What it does: uses the hand item, as its kind's rule says, never the belt item; 
 #32's `Hit` intent, so that a new held item is data, not a new intent.
 Settings, Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Round accepts it
 from the living only); an empty hand (a knife on the belt too), or a package, is `nothing_to_do`.
-Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; a downed or dead player's `Use`:
+Tests: the knife's; a downed or dead player's `Use`:
 `tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
 `tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
 
@@ -7285,7 +7280,7 @@ Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Die
 Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
 the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `moving` (the body still in motion, #847), `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
-Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
+Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
 `tests/unit/life/absent_target_test.gd` (`TargetInReach` and `TargetInSight` refuse a target that is not there);
 the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
 `crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
@@ -7298,7 +7293,7 @@ Round accepts it from the living only: the downed and the dead get `not_accepted
 Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every applied action does (§9.2).
 Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
 reveal no role.
-Status: built in M4-5 (#141). Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
+Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
 the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel/channels_test.gd` (a swap refused
 by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
 mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
@@ -7313,7 +7308,7 @@ Why not a part: a rule fires once per trigger, while sprint cost and speed apply
 continuous claim. A mechanic that changes movement (a faster role, a slowing item) needs a movement modifier that the
 movement rule reads: a new kind, v1 (§10).
 Visible to: the player's own stamina in `SelfStatus`; speed is public through positions.
-Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`; per-tick masks in #155. Tests:
+Code: `MovementRule` (with its per-tick masks) and `StaminaLedger`. Tests:
 `tests/unit/movement/movement_rule_test.gd`, `tests/unit/movement/movement_rule_masks_test.gd`,
 `tests/unit/stamina/stamina_ledger_test.gd`.
 
@@ -7323,7 +7318,7 @@ What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accept
 The downed never jump: their jumps are ignored, never corrected (§7.1.7, #728 KE4).
 Why not a part: as for sprint.
 Visible to: as for sprint.
-Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
+Code: `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
 
 #### 9.5.17 Tutorial mode (game mode)
 What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68): `gather` → `loading` →
