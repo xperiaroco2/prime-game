@@ -695,3 +695,6 @@ the box, so it can be deeper and the host may correct it back into the car; (a) 
 - The playtest on the House tunes the launch and the rest; the bounds keep a forgotten number out.
 - Built (the heading of ARCHITECTURE §7.1.18 named these until #1244): "Still" in 728a (#846); the motion, the House
   only and who gets what in 728b (#847); the ragdoll in 728d (#848).
+- 2026-10-22 (#1307): ARCHITECTURE §7.1.18's two paragraphs no longer carry "Built in 728e (#849)" and "Built in 728f
+  (#850)". 728e (#849) built the knife's launch on the House (its paragraph "The knife's launch"); 728f (#850) built
+  KD12 (a) in the levels and the House's body-reach check (its paragraph "Thrown items and the levels").
