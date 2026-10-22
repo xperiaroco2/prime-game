@@ -2012,7 +2012,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py` (`windows`, which starts
   no Godot, sets up Python and reads the gdtoolkit pin through `tools\run.cmd` itself). Each night job is one job
   in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an
-  upload); the job `report` lists them and `refs` in `needs` and comments when one failed or timed out, creating the
+  upload; `windows` differs in its setup and runs two runner commands); the job `report` lists them and `refs` in `needs` and comments when one failed or timed out, creating the
   "Night jobs" issue (`area:tooling`) the first time; its comment lists every job of every ref with its conclusion (the
   job names hold the refs). `report` alone gets `issues: write` and `actions: read` (the run's job list); the rest has
   `contents: read`. `perf` (#187) keeps its report for the next night of the same ref in an `actions/cache` entry

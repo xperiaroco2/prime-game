@@ -10,7 +10,8 @@
 # ref in a cache. `chaos` (#188) is the long chaos run with random seeds, each printed in its log.
 # `lfs` (#1213) runs the two suites that need LFS content, with only their LFS files pulled (CI has none).
 # `windows` (#1240) runs the runner's tests that start no Godot on windows-latest, through tools\run.cmd: its own
-# setup (no Godot), so not the shared action.
+# setup (setup-python and PYTHON_BIN, no Godot, so not the shared action) and two runner calls (the gdtoolkit pin,
+# then `selftest --group python`); the rest of the pattern above holds.
 # Scheduled runs use this file and the latest commit of main and start late at busy times; a release ref's jobs still
 # run the release's own tools/run.sh and tests. GitHub disables the schedule of a public repository after 60 days
 # without activity (docs.github.com, "Events that trigger workflows").
