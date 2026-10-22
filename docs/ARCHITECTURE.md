@@ -822,20 +822,12 @@ wire schemas of the events and the snapshot are §4.3.
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `LaunchBody(peer, epoch, origin, velocity)` and `StopBody(peer)` (the host's body of a knocked-down player on a map
 `PlayerRules.motion_maps` lists starts and is freed, §7.1.18; a replay ignores both; #847),
-`DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
-`CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
-sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
-`KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
-`RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
-(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
-reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
-(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
-in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`. #779: `ItemVanished`. #797 (Generator G2): `SwitchChanged` and
-`ButtonPressed`, and the Generator's `ZoneProgress`. #771: `ItemChanged`, and
-`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`. #781 (photo P2): `FilmLoaded` and `ShotTaken`. #773 (cooking C4): `GrillLoaded` and `IngredientPlaced`. #808 (car repair R4): `FitChanged` and `PartFitted`. #782 (photo P3): `PhotoPrinted` and `PhotoHung`. #1101 (cooking, checked when served): `BurgerPlated` and `BurgerServed`.
+`DisconnectPeer(peer)`. `DisconnectPeer` follows the `Rejected` it explains, and `server/` sends what came before
+it (§4, `disconnect_peer`); Loading's waiting newcomers get it too. `StartClock` emits `RoundStarted` on the
+row into the round. `LeakCheck.FOR_ONE` lists `Disconnecting` by hand (§4.6.4).
 
 ### 4.3 Wire schemas (M3 design, #89)
-[ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
+[ADR](decisions/2026-09-30-wire-format-and-host-session.md): every row below is a row of
 `WireSchema` (`net/messages/`), and `WireBudget` is `server/wire_budget.gd`. Each message is one row: its kind
 byte (the frame header, §4 Transport), its direction (C→H: a client to the host; H→C: the host to a client), its lane,
 its fields in order and its payload cap. **The field names are `core/`'s**: an intent's are the `args` its rules read
