@@ -97,6 +97,9 @@ var bad_payloads := 0
 var malformed_disconnects := 0
 ## Of over_budget, the VoiceUp frames over a speaker's voice bucket.
 var voice_over_budget := 0
+## The perf run's (#1255): while set, step() times its stages into it (StepMeter). Null in play,
+## where step() reads no clock for it.
+var step_meter: StepMeter = null
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -265,12 +268,12 @@ func step(now_usec: int) -> void:
 	var due := tick_of(now_usec)
 	# 1. Catch up: what an earlier step queued goes on the next tick, then the skipped ticks run.
 	if not _queue.is_empty() and game.ticked_through() + 1 < due:
-		if not _apply_queue(game.ticked_through() + 1):
+		if not _metered_apply(game.ticked_through() + 1):
 			return
-		if not _run_tick(game.ticked_through() + 1):
+		if not _metered_tick(game.ticked_through() + 1):
 			return
 	while game.ticked_through() < due - 1:
-		if not _run_tick(game.ticked_through() + 1):
+		if not _metered_tick(game.ticked_through() + 1):
 			return
 	# 2. Refill, before any packet of this step is read.
 	for info: _Peer in _peers.values():
@@ -281,7 +284,7 @@ func step(now_usec: int) -> void:
 	if not _end_after_poll.is_empty():
 		_end(_end_after_poll)
 		return
-	_send_voice()
+	_metered_voice()
 	# 4. Apply, when the due tick has not run yet; else the queue waits for the next one.
 	if game.ticked_through() < due:
 		# The bodies' reports head the batch (KE14): applied before every command stamped `due`.
@@ -289,10 +292,10 @@ func step(now_usec: int) -> void:
 			var batch := _bodies.reports()
 			batch.append_array(_queue)
 			_queue = batch
-		if not _apply_queue(due) or not _run_tick(due):
+		if not _metered_apply(due) or not _metered_tick(due):
 			return
 		# 6. Snapshots for this step's own tick only, after its events.
-		_send_snapshots(due)
+		_metered_snapshots(due)
 		# 7. Deadlines, only after an apply: a queued Hello (one that waited out a host freeze, or
 		# read in a step with no tick due) is applied first.
 		_check_deadlines()
@@ -301,6 +304,46 @@ func step(now_usec: int) -> void:
 ## Ends the session: the owner's choice (the host quits, or its own client's load failed).
 func close() -> void:
 	_end(CLOSED)
+
+
+## _apply_queue, timed into step_meter while it is set (the perf run); else the call alone.
+func _metered_apply(at_tick: int) -> bool:
+	if step_meter == null:
+		return _apply_queue(at_tick)
+	var began := Time.get_ticks_usec()
+	var applied := _apply_queue(at_tick)
+	step_meter.apply_usec += Time.get_ticks_usec() - began
+	return applied
+
+
+## _run_tick, timed into step_meter while it is set (the perf run); else the call alone.
+func _metered_tick(at_tick: int) -> bool:
+	if step_meter == null:
+		return _run_tick(at_tick)
+	var began := Time.get_ticks_usec()
+	var ran := _run_tick(at_tick)
+	step_meter.match_tick_usec += Time.get_ticks_usec() - began
+	return ran
+
+
+## _send_voice, timed into step_meter while it is set (the perf run); else the call alone.
+func _metered_voice() -> void:
+	if step_meter == null:
+		_send_voice()
+		return
+	var began := Time.get_ticks_usec()
+	_send_voice()
+	step_meter.voice_usec += Time.get_ticks_usec() - began
+
+
+## _send_snapshots, timed into step_meter while it is set (the perf run); else the call alone.
+func _metered_snapshots(at_tick: int) -> void:
+	if step_meter == null:
+		_send_snapshots(at_tick)
+		return
+	var began := Time.get_ticks_usec()
+	_send_snapshots(at_tick)
+	step_meter.snapshots_usec += Time.get_ticks_usec() - began
 
 
 func _apply_queue(at_tick: int) -> bool:

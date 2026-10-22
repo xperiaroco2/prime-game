@@ -10,13 +10,18 @@ extends NetPlay
 ## - the host step: Time.get_ticks_usec() around HostSession.step(), kept for the steps that ran at
 ##   least one host tick (a frame between two ticks only polls). Inside that window the meter and
 ##   the observer only append to buffers; they are folded after it (WireMeter.flush, _fold_calls);
+## - the same steps by stage (#1255): HostSession's StepMeter, set here and nowhere in play, times
+##   its Match.tick calls, its queue applies, its voice relay and its snapshot sends; what is left
+##   of the step (refill, poll, the bodies' reports, deadlines) is the runner's "other";
 ## - what the host's transport sent and received per remote peer and tick (WireMeter, through
 ##   MeteredLoopback or MeteredEnet and packet_received);
 ## - the events per host tick: the slices HostSession's observer (debug builds) hands over, counted
 ##   and nothing else, so the host's Match keeps keep_history off, as in the game;
 ## - with sample() once per physics frame (PerfMain): Performance's TIME_PHYSICS_PROCESS ("time it
-##   took to complete one physics frame"), read about once a second of real time, and
-##   MEMORY_STATIC; both cover the whole process, the bots' clients included.
+##   took to complete one physics frame"), read once every SAMPLE_FRAMES frames over the loopback
+##   (its simulated clock runs faster than real time, so a read per real second gave too few
+##   samples for a p95, #1255) and about once a second of real time over ENet, and MEMORY_STATIC;
+##   both cover the whole process, the bots' clients included.
 ## The numbers come from the debug build the runner pins (start() refuses others): compare runs
 ## with each other, not with a release host's cost.
 ## Fails on a step's failure, the session ending, an end other than the scenario's, or the host
@@ -29,6 +34,8 @@ const FRAME_USEC := 16667
 const START_USEC := 1000000
 const USEC_PER_SECOND := 1000000.0
 const MSEC_PER_SECOND := 1000
+## Over the loopback, one TIME_PHYSICS_PROCESS read per this many frames: a simulated second.
+const SAMPLE_FRAMES := 60
 ## The transport's room besides the bots.
 const EXTRA_CLIENTS := 1
 
@@ -41,7 +48,14 @@ var hub := LoopbackHub.new()
 var frames_run := 0
 ## Host step durations in microseconds, of the steps that ran at least one host tick.
 var tick_usec := PackedInt64Array()
-## TIME_PHYSICS_PROCESS about once per second of real time, in microseconds (how the engine
+## Of the same steps, in the same order: the due tick of each, and its time by stage (StepMeter).
+var tick_at := PackedInt64Array()
+var stage_match_tick_usec := PackedInt64Array()
+var stage_apply_usec := PackedInt64Array()
+var stage_voice_usec := PackedInt64Array()
+var stage_snapshots_usec := PackedInt64Array()
+var step_meter := StepMeter.new()
+## TIME_PHYSICS_PROCESS per sample (see sample()), in microseconds (how the engine
 ## refreshes the monitor between two reads is not documented in the 4.7.2 API).
 var physics_usec := PackedInt64Array()
 var memory_static_max := 0
@@ -89,6 +103,7 @@ func start() -> bool:
 	session = HostSession.new(host_transport, schema)
 	session.replay_dir = ""
 	session.observer = _on_call
+	session.step_meter = step_meter
 	now_usec = Time.get_ticks_usec() if enet else START_USEC
 	var started := session.start_with(
 		scenario.mode,
@@ -121,6 +136,7 @@ func frame() -> void:
 	var due := session.tick_of(now_usec)
 	meter.tick = due
 	var before := session.game.ticked_through()
+	step_meter.clear()
 	var began := Time.get_ticks_usec()
 	session.step(now_usec)
 	var took := Time.get_ticks_usec() - began
@@ -135,6 +151,11 @@ func frame() -> void:
 		return
 	if session.game.ticked_through() > before:
 		tick_usec.append(took)
+		tick_at.append(due)
+		stage_match_tick_usec.append(step_meter.match_tick_usec)
+		stage_apply_usec.append(step_meter.apply_usec)
+		stage_voice_usec.append(step_meter.voice_usec)
+		stage_snapshots_usec.append(step_meter.snapshots_usec)
 	step_clients()
 	tick_now = due
 	play_frame(tick_now)
@@ -145,13 +166,19 @@ func frame() -> void:
 		_finished = true
 
 
-## Performance's monitors; once per physics frame.
+## Performance's monitors; once per physics frame, before frame().
 func sample() -> void:
-	var now_ms := Time.get_ticks_msec()
-	if _sampled_ms < 0:
-		_sampled_ms = now_ms
-	elif now_ms - _sampled_ms >= MSEC_PER_SECOND:
-		_sampled_ms = now_ms
+	var due := false
+	if not enet:
+		due = frames_run > 0 and frames_run % SAMPLE_FRAMES == 0
+	else:
+		var now_ms := Time.get_ticks_msec()
+		if _sampled_ms < 0:
+			_sampled_ms = now_ms
+		elif now_ms - _sampled_ms >= MSEC_PER_SECOND:
+			_sampled_ms = now_ms
+			due = true
+	if due:
 		var physics := Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
 		physics_usec.append(roundi(physics * USEC_PER_SECOND))
 	memory_static_end = roundi(Performance.get_monitor(Performance.MEMORY_STATIC))
@@ -203,6 +230,14 @@ func to_dict() -> Dictionary:
 		"host_ticks":
 		session.game.ticked_through() if session != null and session.game != null else 0,
 		"tick_usec": Array(tick_usec),
+		"tick_at": Array(tick_at),
+		"stage_usec":
+		{
+			"match_tick": Array(stage_match_tick_usec),
+			"apply": Array(stage_apply_usec),
+			"voice": Array(stage_voice_usec),
+			"snapshots": Array(stage_snapshots_usec),
+		},
 		"physics_usec": Array(physics_usec),
 		"events_per_tick": events,
 		"memory_static": {"end": memory_static_end, "max": memory_static_max},

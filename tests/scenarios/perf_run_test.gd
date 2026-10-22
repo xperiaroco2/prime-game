@@ -11,6 +11,31 @@ func test_a_short_match_ends_by_time_up_and_every_table_is_filled() -> void:
 	assert_array(run.ends).contains_exactly([&"dissidents"])
 	assert_bool(run.done()).is_true()
 	assert_int(run.tick_usec.size()).is_greater(0)
+	# Each timed step has its due tick and its stages (#1255), which lie inside its window.
+	var steps := run.tick_usec.size()
+	for stage: PackedInt64Array in [
+		run.tick_at,
+		run.stage_match_tick_usec,
+		run.stage_apply_usec,
+		run.stage_voice_usec,
+		run.stage_snapshots_usec,
+	]:
+		assert_int(stage.size()).is_equal(steps)
+	var match_tick_total := 0
+	for index in steps:
+		var staged := (
+			run.stage_match_tick_usec[index]
+			+ run.stage_apply_usec[index]
+			+ run.stage_voice_usec[index]
+			+ run.stage_snapshots_usec[index]
+		)
+		assert_int(staged).is_less_equal(run.tick_usec[index])
+		match_tick_total += run.stage_match_tick_usec[index]
+	assert_int(match_tick_total).is_greater(0)
+	# The loopback reads TIME_PHYSICS_PROCESS once per SAMPLE_FRAMES frames (sample() comes first).
+	@warning_ignore("integer_division")
+	var samples := (run.frames_run - 1) / PerfRun.SAMPLE_FRAMES
+	assert_int(run.physics_usec.size()).is_equal(samples)
 	var data := run.to_dict()
 	assert_str(str(data["transport"])).is_equal("loopback")
 	var host_ticks: int = data["host_ticks"]
@@ -107,6 +132,8 @@ func _play(bots: int, seconds: int, legs := 0) -> PerfRun:
 	var run := PerfRun.new(PerfScenario.build(bots, seconds, legs))
 	assert_bool(run.start()).is_true()
 	while not run.done():
+		# As PerfMain: the monitors first, then the frame.
+		run.sample()
 		run.frame()
 	run.finish()
 	return run

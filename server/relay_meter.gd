@@ -12,6 +12,8 @@ extends RefCounted
 ## gets what went out during it (Godot's put_packet flushes, one datagram per send); whatever went
 ## out in between (events, and ENet's acknowledgements and pings sent while it polls) counts as
 ## other. An acknowledgement or ping that rides in a datagram a send flushes counts with that send.
+## These are totals of the voice relay alone; the time of each step's stages (Match.tick, the apply,
+## voice, snapshots) per step is StepMeter's, set by the perf run only (#1255).
 
 ## Frames the transport took towards their listeners (one per listener a frame went to).
 var sent := 0
