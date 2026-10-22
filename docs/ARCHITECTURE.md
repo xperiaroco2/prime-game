@@ -5039,9 +5039,9 @@ What the client does for each core task type class sits behind one table, client
   subclass per class: `DeliveryClient` (the circles, `CircleViews`), `DeliveryByMeaningClient` (its drop-offs as
   circles), `ZoneTaskClient` (`ZoneViews`), `GeneratorClient` (`StationViews`; the generator and the switches until
   the charge is done), `CookingClient` (`CookingViews`, `CookingUse`), `CarRepairClient` (`CarRepairViews`,
-  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`). Each also has the static `types_of(mode)`, the
-  mode's types of its class in the mode's order: the one place outside `core/` an `is` or `as` of a task type class
-  stands; the `*Use` helpers (`CookingUse.types_of`, `StationUse.generators_of`, `PhotoUse.type_of`, ...) and the
+  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`). Each but `DeliveryClient` also has the static
+  `types_of(mode)`, the mode's types of its class in the mode's order: the one place outside `core/` an `is` or `as`
+  of a task type class stands; the `*Use` helpers (`CookingUse.types_of`, `StationUse.generators_of`, `PhotoUse.type_of`, ...) and the
   views call it.
 - **The table.** `TaskClients` (`task_clients.gd`) holds the one dictionary from the core script to its
   `TaskClient` script; `of(type)` takes the type's class row, else its nearest base's along `get_base_script()`

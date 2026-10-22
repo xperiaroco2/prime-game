@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## ItemWorld's children (#1260, ARCHITECTURE §4.7.59): the task types' views come from
 ## TaskClients, yet the children keep their names, classes and tree order (the order they process
-## in), and every view has the model, the mode and the level after setup and set_level.
+## in), and every view has the level after set_level (ItemWorld.setup gives each view its model and
+## mode generically and push_errors for a view without them).
 
 ## Today's children of ItemWorld, by name and class, in their tree order.
 const CHILDREN: Array[Array] = [
