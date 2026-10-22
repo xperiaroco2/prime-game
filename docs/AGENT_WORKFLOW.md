@@ -1799,7 +1799,7 @@ not be removed keeps its folder). The folders left before the fix are a human's 
 lists them).
 
 ### 11.22 No Godot MCP server
-Before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
+Not needed: the bots and `playcheck` cover what a Godot MCP server would (the engineer, 2026-10-22; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md) amendment, §14). API facts come
 from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
 `docs.godotengine.org/en/4.7/`.
 
@@ -1910,23 +1910,23 @@ checkout, and the committed deck against its lock).
 
 ## 12. The designer's agent
 
-Optional since #518 (§9): the designer contributes when he wants, his PRs go to the engineer, and nothing below
-waits on him; the engineer's sessions do the content work otherwise.
+Optional since #518 (§9): the designer contributes when wanted, the designer's PRs go to the engineer, and nothing below
+waits on them; the engineer's sessions do the content work otherwise.
 
 - **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
-  `onboard` runs `doctor` (which sets `core.hooksPath`), writes her user settings (`env`, `language`, `defaultMode`)
-  after she approves the exact content, installs gdtoolkit via a real Python with her OK, and runs
+  `onboard` runs `doctor` (which sets `core.hooksPath`), writes the designer's user settings (`env`, `language`, `defaultMode`)
+  after the designer approves the exact content, installs gdtoolkit via a real Python with the designer's OK, and runs
   `git lfs install --skip-repo` (§8.3). It explains the save-first rule (§11.2) and the one-time answer to a guard
-  prompt (§8.2.8). Then it prints the clicks only she can make: Git for Windows (required), Python 3.11+, Godot 4.7.2,
-  repo and project invites, `gh auth login` + `gh auth refresh -s project`, trusting the folder, checking her Claude
-  plan, usage credits off. It ends with a one-page summary for her sign-off, where she may reopen any decision that
-  binds her.
+  prompt (§8.2.8). Then it prints the clicks only the designer can make: Git for Windows (required), Python 3.11+, Godot 4.7.2,
+  repo and project invites, `gh auth login` + `gh auth refresh -s project`, trusting the folder, checking their Claude
+  plan, usage credits off. It ends with a one-page summary for the designer's sign-off, where the designer may reopen any decision that
+  binds the designer.
 - **Reads:** root `CLAUDE.md`, `content/CLAUDE.md`, `levels/CLAUDE.md`, `docs/GDD.md`, and the content API section
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
   `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
   screenshots; "запусти хост і двох клієнтів" is `tools\run.cmd host --clients 2`, which M4 gives windows (#149):
-  the agent hands her that command for her own PowerShell (with the `cd`), since in the agent's shell the runner
+  the agent hands the designer that command for the designer's own PowerShell (with the `cd`), since in the agent's shell the runner
   stays headless; a second machine runs `tools\run.cmd join <address>`. For its own check the agent runs
   `host --clients 2 --local --seconds S` headless (§11.8).
 
@@ -1951,23 +1951,20 @@ waits on him; the engineer's sessions do the content work otherwise.
   machine), then the options; jargon comes after. Before designing enforcement, it asks how the humans actually work.
 - Human-reserved decisions (KICKOFF §0) come as one batched question.
 
-## 14. Open questions (deferred past M0)
+## 14. Open questions
+
+Godot MCP: not needed, the bots and `playcheck` cover it (the engineer, 2026-10-22; §11.22, the [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). Still open:
 
 | Question | When |
 |---|---|
-| Godot MCP server; if needed, prefer an in-game debug autoload plus the bot harness | M4 revisit |
 | GDScript LSP bridge; Context7 (off; if ever used, pin `/websites/godotengine_en_4_7`) | After M2 |
-| Trial the Superpowers plugin, engineer-only, on the M1 throwaway spike | M1, optional |
 | Auto permission mode | After the M0 guard tests pass |
-| The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 
 **Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
 version, and the PATH `claude` are done, checked live 2026-09-29; LFS in CI decided 2026-10-07: no LFS content in CI, stand-ins, [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md) amendment): usage
 credits off on both accounts; invite the designer to the repo and to project 1 (the designer's handle is in
 CODEOWNERS since #85).
 
-**Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
-agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.
 
 ## 15. Night jobs
 

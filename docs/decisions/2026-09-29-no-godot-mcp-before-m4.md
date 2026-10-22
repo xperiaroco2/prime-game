@@ -24,3 +24,10 @@ runtime MCP scoped to one subagent.
 
 ## Consequences
 The GDScript LSP bridge and Context7 stay off too (AGENT_WORKFLOW §14).
+
+## Amendment 2026-10-22 (#1258)
+The engineer answered the M4 revisit in advance
+([#1258](https://github.com/xperiaroco2/prime-game/issues/1258#issuecomment-6337218172)): a Godot MCP server is not
+needed, the bots and `playcheck` cover it. The revisit at M4 is dropped and AGENT_WORKFLOW §14 no longer lists the
+question; the decision reads as "No Godot MCP server" until the engineer says otherwise. The LSP bridge and Context7
+stay off.
