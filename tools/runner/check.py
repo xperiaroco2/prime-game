@@ -103,6 +103,8 @@ def user_dir_policy() -> list[str]:
 # script goes with an edit of what used it.
 STAMP = ".godot/runner_import.stamp"
 CLASS_CACHE = ".godot/global_script_class_cache.cfg"
+# Windows can date a just-saved file a few ms past time.time() (NTFS stamps at 100 ns, the clock read is coarser).
+FUTURE_TOLERANCE = 2.0
 # Files Godot neither imports nor loads as a resource: a change to them never needs an import. Anything else counts,
 # so an unknown kind of file costs at most one import more than needed.
 NOT_IMPORTED = frozenset((".md", ".py", ".pyc", ".cmd", ".sh", ".ps1", ".txt", ".log", ".yml", ".yaml", ".html"))
@@ -183,7 +185,7 @@ def freshness(root: Path | None = None) -> Freshness:
     if stamp is None:
         return Freshness(f"no {STAMP} (the last import was not the runner's)", newest, where, count)
     ahead = newest - time.time()
-    if ahead > 0:
+    if ahead > FUTURE_TOLERANCE:
         # Clock skew, or a file copied or extracted with its original time: the stamp never takes a future time
         # (run_import), so this file makes every launch import, loudly, until it is touched.
         return Freshness(
