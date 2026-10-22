@@ -350,8 +350,8 @@ for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
 - **The start:** a charged battery into the starter. Everything else happens inside the ship, a wide manta with two
-  mirrored halves: the hall with the console, two vents and two cartridge sockets, a breaker board in each corridor,
-  a renewer in each tip room ([estate-map](design/estate-map.md) §5a).
+  mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
+  breaker board in each corridor, a renewer in each tip room ([estate-map](design/estate-map.md) §5a).
 - **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
   one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
   each and fix both sides at once. The ship gives a lot of points (#1040; the number later).
@@ -362,10 +362,12 @@ the expert knows every fix by heart.
 - **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
   the breakers 30 s, a cartridge 30 s).
 - **Overheat** (reaction): hold the vent; a needle rises; let go inside the green band. A miss coughs steam; try again.
-- **A burnt cartridge** (multitasking): pull it out of its socket in the hall, carry it to the renewer on its side
-  (about 6 m) and put it in. The renewer washes it for 10 s (placeholder) and holds it until someone takes it, so the
-  player can fix something else meanwhile; then take the clean one back and fit it. There are no spare cartridges to
-  spam.
+- **A burnt cartridge** (multitasking): pull it out of one of the hall's four sockets (two a side, the engineer,
+  2026-10-22: more places to burn; the problem count per stage stays), carry it to the renewer on its side (7 to 8 m)
+  and put it in. The renewer washes one cartridge at a time for 10 s (placeholder) and holds it until someone takes
+  it, so the player can fix something else meanwhile; then take the clean one back and fit it. With both sockets of
+  a side burnt, the second cartridge waits for that renewer or runs across the hall to the other one. There are no
+  spare cartridges to spam.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
   to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
   2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
