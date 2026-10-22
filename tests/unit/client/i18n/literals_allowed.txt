@@ -23,9 +23,6 @@ client/ui/howto_cards.gd | the card of task type %s says it is %s's | never on s
 client/ui/howto_cards.gd | the card of task type %s: %s | never on screen: a content check's problem for the test and the log
 client/ui/key_label.gd | Mouse %d | a mouse button the deck has no word for (key.mouse_left and key.mouse_right only); deck key requested on #150 (comment 6096420162, item 8)
 client/ui/lobby_panel.gd | Map | the lobby's map row label: deck key requested on #150 (comment 6095875901, item 1)
-client/ui/lobby_panel.gd | Starting in %d s | never on screen since the Toy lobby HUD (#495): LobbyPanel.roster_text and countdown_text are called only by screens_test.gd (the HUD words its roster and countdown with deck keys)
-client/ui/lobby_panel.gd | Waiting for everyone | never on screen since the Toy lobby HUD (#495): LobbyPanel.roster_text and countdown_text are called only by screens_test.gd (the HUD words its roster and countdown with deck keys)
-client/ui/lobby_panel.gd | not ready | never on screen since the Toy lobby HUD (#495): LobbyPanel.roster_text and countdown_text are called only by screens_test.gd (the HUD words its roster and countdown with deck keys)
 client/ui/voice_panel.gd |  back to them. Wear headphones. | the voice panel's greybox notes: deck key requested on #150 (comment 6096420162, item 10)
 client/ui/voice_panel.gd |  laptop's microphone array can freeze the game. Prefer 48 kHz and turn off Windows' sound | the voice panel's greybox notes: deck key requested on #150 (comment 6096420162, item 10)
 client/ui/voice_panel.gd | A headset microphone works best. Godot 4.7.2 reads only mono or stereo microphones (#22): a | the voice panel's greybox notes: deck key requested on #150 (comment 6096420162, item 10)

@@ -113,21 +113,18 @@ func test_a_refresh_keeps_what_the_host_is_typing() -> void:
 	assert_str(_panel.name_edit.text).is_equal("Renamed")
 
 
-func test_the_title_is_the_hosts_name_or_the_default() -> void:
+func test_the_default_name_is_the_hosts_name_in_the_current_language() -> void:
 	var model := _model(false)
-	assert_str(LobbyPanel.lobby_title(model)).is_equal("Player1's lobby")
-	model.lobby_name = "Den"
-	assert_str(LobbyPanel.lobby_title(model)).is_equal("Den")
+	assert_str(LobbyPanel.default_name(model)).is_equal("Player1's lobby")
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	model.lobby_name = ""
-	assert_str(LobbyPanel.lobby_title(model)).is_equal("Лобі: Player1")
+	assert_str(LobbyPanel.default_name(model)).is_equal("Лобі: Player1")
 
 
 func test_no_host_in_the_roster_gives_no_default_name() -> void:
 	var model := _model(false)
 	model.roster.erase(NetTransport.HOST_ID)
 	assert_str(LobbyPanel.default_name(model)).is_empty()
-	assert_str(LobbyPanel.lobby_title(model)).is_empty()
 	_panel.refresh(model, -1, false)
 	assert_str(_panel.name_edit.placeholder_text).is_empty()
 

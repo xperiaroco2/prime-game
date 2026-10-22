@@ -61,16 +61,6 @@ func _init() -> void:
 	process_physics_priority = PHYSICS_PRIORITY
 
 
-## The item whose destination the own player carries (D10 (b); nothing draws it since D3a): the
-## own hand's package, else the belt's; -1 for none.
-static func destination_item(known: ClientModel) -> int:
-	for item_id: int in [known.hand_item(known.own_peer), known.belt_item(known.own_peer)]:
-		var item: ClientModel.Item = known.items.get(item_id)
-		if item != null and item.station >= 0 and not item.delivered:
-			return item_id
-	return -1
-
-
 ## The view of item `id`, or null.
 func view_of(id: int) -> ItemView:
 	return _views.get(id)

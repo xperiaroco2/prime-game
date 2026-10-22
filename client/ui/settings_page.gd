@@ -157,11 +157,6 @@ func is_capturing() -> bool:
 	return controls.is_capturing()
 
 
-## Whether the Sound and voice rows are on screen (the game feeds them then).
-func voice_shown() -> bool:
-	return voice.is_visible_in_tree()
-
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED and is_visible_in_tree() and sub != null:
 		show_values()
