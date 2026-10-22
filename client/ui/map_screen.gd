@@ -248,12 +248,12 @@ func set_data(data: MapData) -> void:
 
 
 ## The rows, the counters, the clock and the pin from `model` (its tasks and clock only), the own
-## mode (the types' names), the newest host tick and the own place in `local`.
-func refresh(model: ClientModel, mode: GameMode, host_tick: float, local: HudText.Local) -> void:
+## mode (the types' names), the newest host tick and the own place in `place`.
+func refresh(model: ClientModel, mode: GameMode, host_tick: float, place: HudText.Local) -> void:
 	_model = model
 	_mode = mode
 	_host_tick = host_tick
-	_local = local
+	_local = place
 	_refresh_now()
 
 

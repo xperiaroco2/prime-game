@@ -26,7 +26,7 @@ extends RefCounted
 ##
 ## The numbers are placeholders, "not a decision".
 
-const USEC_PER_TICK := 1000000 / Ticks.RATE
+@warning_ignore("integer_division") const USEC_PER_TICK := 1000000 / Ticks.RATE
 ## Arrivals older than this, in microseconds, leave the estimate and the jitter: 2 s.
 const WINDOW_USEC := 2000000
 ## The delay's bounds, in host ticks: 100 ms and 250 ms (E23).

@@ -178,7 +178,9 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 	var body := avatars.body_of(item.holder) if avatars != null and not own else null
 	if model.life_of(item.holder) == ClientModel.Life.DOWNED:
 		# Downed, the own player too: the downed camera looks at the own body from outside.
-		var lying: Node3D = player if own else body
+		var lying: Node3D = body
+		if own:
+			lying = player
 		if lying != null and lying.is_inside_tree():
 			var at := lying.global_position
 			if own and avatars != null:

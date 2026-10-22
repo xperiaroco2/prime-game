@@ -433,7 +433,7 @@ func _on_snapshot(fields: Dictionary) -> void:
 	snapshot_received.emit(fields["tick"] as int, fields["avatars"] as Dictionary)
 
 
-func _count_correction(_position: Vector3, _velocity: Vector3) -> void:
+func _count_correction(_corrected_position: Vector3, _corrected_velocity: Vector3) -> void:
 	if _placement_due:
 		_placement_due = false
 		placements += 1
