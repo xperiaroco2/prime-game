@@ -1,4 +1,4 @@
-# Night jobs (docs/AGENT_WORKFLOW.md §15): long deterministic runs on GitHub's free Linux runners while nobody works.
+# Night jobs (docs/AGENT_WORKFLOW.md §15): long deterministic runs on GitHub's free runners while nobody works.
 # `refs` picks the refs of the night: the run's own (main, on the schedule) and the newest remote release/* branch
 # (#272), or only the ref given to workflow_dispatch. Each night job is a matrix over them: it checks out the ref's
 # commit, sets up the toolchain like CI (.github/actions/setup-toolchain, the ref's own copy), checks that the ref's
@@ -9,6 +9,9 @@
 # timeout, and add its id to `report`'s `needs`. `perf` (#187) also keeps its report for the next night of the same
 # ref in a cache. `chaos` (#188) is the long chaos run with random seeds, each printed in its log.
 # `lfs` (#1213) runs the two suites that need LFS content, with only their LFS files pulled (CI has none).
+# `windows` (#1240) runs the runner's tests that start no Godot on windows-latest, through tools\run.cmd: its own
+# setup (setup-python and PYTHON_BIN, no Godot, so not the shared action) and two runner calls (the gdtoolkit pin,
+# then `selftest --group python`); the rest of the pattern above holds.
 # Scheduled runs use this file and the latest commit of main and start late at busy times; a release ref's jobs still
 # run the release's own tools/run.sh and tests. GitHub disables the schedule of a public repository after 60 days
 # without activity (docs.github.com, "Events that trigger workflows").
@@ -399,9 +402,74 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  # The runner's own tests on Windows (#1240; the full analysis #1221, j5): every human and agent runs the runner
+  # there (tools\run.cmd, PowerShell 5.1, taskkill, the sleep log), but CI runs Linux and a local verify runs no tests
+  # (#605), so the tests that run only on Windows (skipUnless(IS_WINDOWS): run.cmd, `wait` from cmd and PowerShell,
+  # the System log, `start`, the not-started detection) ran on no CI. This job runs the tests that start no Godot
+  # (`selftest --group python`, as CI's minimum-Python job) through tools\run.cmd from Windows PowerShell 5.1, as a
+  # human types it. No Godot, so not the shared setup (a Linux build): CI's Python 3.12 and the pinned gdtoolkit, and
+  # no doctor (it checks the Godot build). Not a required check: a failure comments on the Night jobs issue.
+  windows:
+    name: windows on ${{ matrix.ref }} (the runner's tests that start no Godot, through tools\run.cmd)
+    needs: refs
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      REF: ${{ matrix.ref }}
+    steps:
+      # The ref's commit, not this run's: the ref's own tools\run.cmd and tests. No LFS content, as in CI.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.sha }}
+          lfs: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # tools\run.cmd takes PYTHON_BIN first, else the py launcher, which the image has with other Pythons beside it:
+      # every later step, the night-ref action's bash too, runs the interpreter set up above.
+      - name: Hand the Python to the runner
+        shell: bash
+        run: |
+          python=$(python -c 'import sys; print(sys.executable)')
+          test "$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')" = "3.12"
+          echo "PYTHON_BIN=$python" >> "$GITHUB_ENV"
+
+      # The TwoVoIP extension out (no Godot starts here: only so every night job is alike) and the ref's runner asked
+      # for the job's options (the action says why).
+      - name: The ref's runner has the job's options
+        uses: ./.github/actions/night-ref
+        with:
+          calls: selftest --group
+
+      # The pin read through tools\run.cmd: a broken wrapper fails here, before the tests.
+      - name: Install gdtoolkit
+        shell: powershell
+        run: |
+          $pin = tools\run.cmd pins --get gdtoolkit
+          if ($LASTEXITCODE -ne 0 -or -not $pin) { throw "tools\run.cmd pins --get gdtoolkit failed (exit $LASTEXITCODE)" }
+          python -m pip install --disable-pip-version-check "gdtoolkit==$pin"
+
+      - name: Runner tests that start no Godot
+        shell: powershell
+        run: tools\run.cmd selftest --group python
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-windows-${{ matrix.slug }}
+          path: tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 30
+
   report:
     name: report on the Night jobs issue
-    needs: [refs, flaky, perf, chaos, lfs]
+    needs: [refs, flaky, perf, chaos, lfs, windows]
     # A failed or timed-out night job of any ref, or no refs at all; a skipped one is not news. A matrix job's result
     # in `needs` is one for all its refs: the run's job list names the ref of each.
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))

@@ -32,6 +32,8 @@ GITHUB = ROOT / ".github"
 SETUP = "./.github/actions/setup-toolchain"
 # The two steps each night job runs after SETUP (repo-1, #884): the TwoVoIP extension out, the runner's options checked.
 NIGHT_REF = "./.github/actions/night-ref"
+# The night job on Windows (#1240): the runner's tests that start no Godot, through tools\run.cmd.
+WINDOWS_JOB = "windows"
 # CI's part jobs run this (#857); PART is the job's matrix.part.
 VERIFY_PART = 'GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full --part "$PART"'
 # The actions CI used when the night jobs came (#189). Another one from the marketplace is a new dependency: the
@@ -258,7 +260,10 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertIn("timeout-minutes", job, name)
             self.assertNotIn("permissions", job, f"{name}: the workflow's contents: read is enough")
             uses = [step.get("uses", "") for step in job["steps"]]
-            self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP], name)
+            # The Linux jobs share CI's setup; `windows` (#1240) starts no Godot and has its own (its test below).
+            linux = name != WINDOWS_JOB
+            self.assertEqual(job["runs-on"], "ubuntu-24.04" if linux else "windows-latest", name)
+            self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP if linux else "actions/setup-python@v7"], name)
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
             # #272: once per ref of the night, each ref's own commit, its artifacts named with the ref.
             self.assertEqual(job["needs"], "refs", name)
@@ -276,16 +281,18 @@ class GithubWorkflowsTest(unittest.TestCase):
             check = names.index("The ref's runner has the job's options")
             self.assertEqual(job["steps"][check]["uses"], NIGHT_REF, name)
             self.assertIn("REF", job["env"], f"{name}: the action's error message names the ref by $REF")
-            self.assertLess(check, names.index("doctor"), name)
+            if linux:
+                self.assertLess(check, names.index("doctor"), name)
             command, *options = job["steps"][check]["with"]["calls"].split()
             later = "".join(step.get("run", "") for step in job["steps"][check + 1 :])
-            self.assertIn(f"tools/run.sh {command} ", later, name)
+            self.assertIn(f"tools/run.sh {command} " if linux else f"tools\\run.cmd {command} ", later, name)
             for option in options:
                 self.assertIn(option, later, f"{name}: checks {option}, which it calls")
         self.assertEqual(len(set(artifacts)), len(artifacts), "one artifact name per job")
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
         self.assertIn("perf", jobs)
+        self.assertIn(WINDOWS_JOB, jobs)
         chaos = [step.get("run", "") for step in jobs["chaos"]["steps"]]
         self.assertTrue(any("tools/run.sh bots --chaos --long --runs" in run for run in chaos))
         self.assertTrue(any("tools/run.sh bots --chaos --long --enet" in run for run in chaos))
@@ -299,6 +306,37 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertIn(command, script)
         self.assertEqual(report["env"]["TITLE"], "Night jobs")
         self.assertEqual(report["env"]["REFS"], "${{ needs.refs.outputs.list }}")
+
+    def test_the_windows_job_runs_the_runners_python_tests_through_run_cmd_in_powershell_5_1(self) -> None:
+        # #1240 (#1221 j5): the tests that run only on Windows (skipUnless(IS_WINDOWS)) ran on no CI.
+        job = load(GITHUB / "workflows" / "nightly.yml")["jobs"][WINDOWS_JOB]
+        steps = job["steps"]
+        self.assertNotIn(SETUP, [step.get("uses") for step in steps], "the shared setup installs a Linux Godot")
+        setup = next(i for i, step in enumerate(steps) if step.get("uses") == "actions/setup-python@v7")
+        shared = next(s for s in steps_of(load(ROOT / SETUP / "action.yml")) if s.get("uses") == steps[setup]["uses"])
+        version = shared["with"]["python-version"]
+        self.assertEqual(steps[setup]["with"]["python-version"], version, "CI's Python (the shared setup's)")
+        # Every later step runs that interpreter: tools\run.cmd would take the image's py launcher without PYTHON_BIN.
+        hand = next(i for i, step in enumerate(steps) if "PYTHON_BIN" in step.get("run", ""))
+        self.assertLess(setup, hand)
+        self.assertEqual(steps[hand]["shell"], "bash")
+        self.assertIn('echo "PYTHON_BIN=$python" >> "$GITHUB_ENV"', steps[hand]["run"])
+        self.assertIn(f'= "{version}"', steps[hand]["run"], "the job checks it runs that Python")
+        names = [step.get("name", "") for step in steps]
+        check = names.index("The ref's runner has the job's options")
+        self.assertLess(hand, check)
+        self.assertEqual(steps[check]["with"]["calls"], "selftest --group")
+        # The pin and the tests through tools\run.cmd from Windows PowerShell 5.1, as a human types them.
+        gdtoolkit = names.index("Install gdtoolkit")
+        tests = names.index("Runner tests that start no Godot")
+        self.assertLess(check, gdtoolkit)
+        self.assertLess(gdtoolkit, tests)
+        self.assertIn("tools\\run.cmd pins --get gdtoolkit", steps[gdtoolkit]["run"])
+        self.assertIn("$LASTEXITCODE", steps[gdtoolkit]["run"], "a failed pin read stops the step")
+        self.assertEqual(steps[tests]["run"].strip(), "tools\\run.cmd selftest --group python")
+        for index in (gdtoolkit, tests):
+            self.assertEqual(steps[index]["shell"], "powershell", names[index])
+        self.assertGreaterEqual(job["timeout-minutes"], 30, "Windows runs the group slower than CI's 15 minutes")
 
     def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
         steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
@@ -662,7 +700,7 @@ class NightlyScriptsTest(unittest.TestCase):
 
     def test_the_options_check_passes_on_this_runner(self) -> None:
         calls = self.jobs_calls()
-        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos", "lfs"})
+        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos", "lfs", WINDOWS_JOB})
         for call in calls:
             command = call[2].split()[0]
             res = self.check_options(call, {command: self.real_help(command)})
