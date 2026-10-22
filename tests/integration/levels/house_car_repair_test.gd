@@ -12,7 +12,7 @@ extends GdUnitTestSuite
 
 const MAP := "res://levels/house/house.tscn"
 const DOC := "res://docs/design/house-map.md"
-const ROOMS := "res://levels/house/rooms/"
+const HouseStationRooms := preload("res://tests/integration/levels/house_station_rooms.gd")
 const STATIONS_DIR := "res://levels/stations/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 ## The station kinds' tags, all floor markers (snapped); provisional, "not a decision".
@@ -93,26 +93,7 @@ func test_the_car_s_use_spot_lies_on_the_garage_floor_and_car_end_along_its_axis
 
 
 func test_each_room_instances_its_station_scenes_and_no_art_copy_of_them() -> void:
-	for room: String in STATIONS:
-		var root := auto_free((load(ROOMS + room + ".tscn") as PackedScene).instantiate()) as Node
-		var stations: Dictionary = STATIONS[room]
-		for station_name: String in stations:
-			var where := "%s: Stations/%s" % [room, station_name]
-			var station := root.get_node_or_null("Stations/" + station_name)
-			assert_object(station).override_failure_message(where).is_not_null()
-			if station == null:
-				continue
-			assert_str(station.scene_file_path).override_failure_message(where).is_equal(
-				STATIONS_DIR + str(stations[station_name])
-			)
-			for copy: Node in _with_station_meta(root, station_name):
-				(
-					assert_bool(copy == station)
-					. override_failure_message(
-						"%s: %s still stands the art's device" % [where, root.get_path_to(copy)]
-					)
-					. is_true()
-				)
+	HouseStationRooms.check(self, STATIONS, STATIONS_DIR)
 
 
 func test_the_panel_s_use_spot_sees_nothing_under_the_car_from_the_crouch_band() -> void:
@@ -259,15 +240,6 @@ func _doc_points() -> Array[Array]:
 				)
 				points.append([ROWS[words], at])
 	return points
-
-
-func _with_station_meta(node: Node, station: String) -> Array[Node]:
-	var found: Array[Node] = []
-	if str(node.get_meta(&"station", "")) == station:
-		found.append(node)
-	for child: Node in node.get_children():
-		found.append_array(_with_station_meta(child, station))
-	return found
 
 
 func _world(level: LevelWorld) -> HostWorldQuery:
