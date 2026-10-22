@@ -208,6 +208,16 @@ class WriteAndCheckTest(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertIn("levels/rooms/room.tscn: instances res://assets/environment/pack/gate.glb", found[0])
 
+    def test_check_reports_a_scene_outside_levels_and_skips_addons_tools_out_and_dot_folders(self) -> None:
+        # #1256: every scene of the project is walked, not only levels/.
+        colliders.write(self.root)
+        for rel in ("client/hud/hud.tscn", "addons/x/x.tscn", "tools/out/x.tscn", ".godot/x.tscn", ".claude/w/x.tscn"):
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_bytes(SCENE.encode())
+        found = colliders.problems(self.root)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("client/hud/hud.tscn: instances res://assets/environment/pack/gate.glb", found[0])
+
     def test_check_reports_a_stale_a_missing_and_a_left_over_file(self) -> None:
         colliders.write(self.root)
         kit = self.root / "levels/kit/pack"
