@@ -6143,7 +6143,7 @@ there would not follow from the commands.
   (§7.1.10). The host launches from `Items.eye_of` (the floor below the last accepted position plus
   the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity (TD10). Prevents: a throw
   farther than the rule, from somewhere else, or through a wall. `Throw` is one of `Intents.PLAYER_ACTIONS`, so the
-  dead never throw and the client sends its claim's twin right before it (§7.1.15). **Built in #643:**
+  dead never throw and the client sends its claim's twin right before it (§7.1.15). **The intent and the effect:**
   `Intents.THROW` (wire kind 17); `ThrowItem` (`core/items/throw_item.gd`, §9.4): `speed_mps`, `gravity_mps2`,
   `radius_m` and `longest_flight_s` (seconds, converted once with `Ticks.from_seconds` at the throw), each defaulting
   to 0 so a rule that forgot one fails the mode check; the bounds are placeholders, "not a decision" (the base mode's values: #646,
@@ -6164,7 +6164,7 @@ there would not follow from the commands.
   in. The mode check keeps the throw's sphere inside the player's capsule at the eye, with a margin, so a thrower pressed against a
   wall can still throw away from it. A living player other than the thrower stops it too (their capsule at the last
   accepted position, as hits read it); the downed are flown over (TD12). Prevents: an item through a crack or a ceiling, and
-  a landing that differs between two runs of the same commands. **Built in #642:** `ItemState.Where.FLYING` (after
+  a landing that differs between two runs of the same commands. **The flight:** `ItemState.Where.FLYING` (after
   `BELT`) keeps an `ItemFlight` (`core/items/item_flight.gd`): o, v, g, the ticks flown n, the fallback f, and what the
   throw's rule sets at the launch: the thrower's id, the radius, the longest flight in ticks and the launch tick L
   (`Items.launch` stamps it). The item's `position` is o while it flies. `ItemFlight.point(o, v, g, n)` is the one arc
@@ -6181,7 +6181,7 @@ there would not follow from the commands.
   past the longest flight stops at its last point. With no floor below the stop, the item rests where the thrower stood (TD11):
   on `floor_below` of the thrower's feet, asked once at the throw and logged, and the match logs an error, as for a drop
   (§7.1.13): a level with a hole. A thrower over no floor is refused (`no_floor`), and the item stays in the hand.
-  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach. **Built in #642:**
+  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach. **The rest:**
   `FlightTicks` rests the item through `Items.place` with `Items.THROWN` (`place` clears the flight), at
   `floor_below(Items.lifted(stop))`, else at the flight's fallback with an error logged. `Items.fallback_rest(ctx,
   feet)` is the fallback's question, which `ThrowItem` asks at the launch. A fallback that is itself no floor rests
@@ -6201,7 +6201,7 @@ there would not follow from the commands.
   avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
   sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
-  **Built in #644:** `ClientModel` folds `ItemThrown` (§4.6.1.2; `client_model_test.gd`), and `ItemViews`,
+  **The client:** `ClientModel` folds `ItemThrown` (§4.6.1.2; `client_model_test.gd`), and `ItemViews`,
   `TargetChoice` and `PlaycheckSteps` skip a flying item (`item_views_test.gd`, `target_choice_test.gd`,
   `playcheck_steps_test.gd`); `ScenarioBot` folds it into `Where.FLYING`, whose place it cannot know, and the
   `Throw` step (§9.7) sends it (`scenario_runner_test.gd`); `throw_scenarios_test.gd` throws a package end to end
@@ -6243,8 +6243,8 @@ The engineer decided a crouch for every player (#727: hold Ctrl; Shift while cro
 comments 6097878317 and 6098097098). A crouch shrinks the capsule from the top: the feet, which every movement check
 reads, do not move.
 - **Where.** Everywhere: the lobby, the tutorial, the House and the greybox (the engineer, 2026-10-14, #989, #991:
-  movement basics are never blocked anywhere, and no per-map option; the crouch ADR's amendment reverses KE10 (a),
-  which had kept it to the House by `PlayerRules.crouch_maps`). `MovementRule` keeps a living claim's bit in every
+  movement basics are never blocked anywhere, and no per-map option; the crouch ADR's amendment reverses KE10 (a)).
+  `MovementRule` keeps a living claim's bit in every
   phase that accepts a `MoveClaim` (`PhaseSpec.accepts`), the lobby included, and a crouch lasts across a phase
   change like any pose (a placement, a knockdown and a respawn stand the player up). Bots never crouch, so the
   scenarios, the chaos run and the perf run on the greybox are unchanged.
@@ -6276,94 +6276,69 @@ reads, do not move.
   speed as every step is, never the flag: at or below `crouch_speed_mps` 6 dB quieter and heard within 6 m
   (placeholders), eased to a walk's at `crouch_fast_speed_mps` (#991: the fast crouch sounds like a walk; the ease a
   placeholder), anywhere; the cadence's held stride makes
-  them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8); since #791 it acts on Ctrl but has no
-  Settings row until #951 (`control.crouch`; `Controls.UNLISTED` until then, as `throw`, #851).
+  them slower. The input is a held, rebindable `crouch` action on Ctrl (KE8) with its Settings row
+  (`control.crouch`, #951).
 - **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
   height alone asks for the crouch (KD3 (a), the engineer's, which also answers the car repair ADR's RD1). A crouched
   player may hold the lift (KD8), so the car repair ADR's "no view of who is under the car" test (its RE15, in R8)
   runs from the panel's use spot at every eye height from `crouch_eye_height_m` to `eye_height_m` (every 0.1 m, both
-  ends), and the level's walls block that whole band; R8 (#812) landed after 727a and runs that band from every point
+  ends), and the level's walls block that whole band; R8 (#812) runs that band from every point
   of the panel's cylinder where a player fits and sees the panel (`house_car_repair_match_test`, §9.7). Prevents: a
   dissident crouching at the panel and seeing the fitter's legs under the car.
-- **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
-  numbers, `crouch_maps` (removed by #991); #790, built), 727b (the local crouch; #791, built), 727c (others'
-  crouch: pose, voice, the quiet steps; #792, built); #991 (the crouch everywhere, the quiet edge moved; built).
-- **Built in #790 (727a)** (#991 removed `crouch_maps`, `crouch_plays_on`, both `crouch_plays()`, the phase-entry
-  clearing and the invariant's phase and map clauses below), the host's part and the wire: `PlayerRules`' four
-  crouch numbers and `crouch_maps`
-  (checked: each a mode's map), `height_of`, `eye_height_of` and `crouch_plays_on`; `Match.crouch_plays` and
-  `MatchContext.crouch_plays` (a phase on the match's map that the list holds); `PlayerState.crouched`, kept by
-  `MovementRule` from an accepted living claim only where the crouch plays, never from a downed one, false at each
-  placement, knockdown and respawn and on entering a phase where it does not play; the snapshot avatar's `crouched`;
-  `Items.eye_of`, `Strike`, `FlightTicks` and `ThrowItem`'s largest radius reading the crouched eye and capsule; the
-  photo task's subject head and `ShotTaken`'s record row (§9.5.22); the protocol bump to 29 (§4.3.5);
-  `ClientSession.set_motion`'s `crouched` (the controller's since #791) and `ClientModel.is_crouched`; the base mode's
-  numbers and the House alone (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem`, run on every
-  tick's snapshots by `check_tick`. Bots play the House only on a flat fake floor (§9.7), and the greybox carries no new mechanic
-  (the engineer's answer (a) on #790): the wire is tested through the host session harness on a fixture mode instead,
-  as cooking C9 did. The car repair's RE15 eye band runs in R8's House test (#812), which landed second.
-- **Tests:** `tests/unit/movement/movement_rule_crouch_test.gd` (kept where it plays, ignored on an unlisted map, in
-  the lobby and from the downed, cleared by placement and by a phase off the map, the walk bound and the sprint
-  charge), `tests/unit/content/player_rules_test.gd` (bounds, `crouch_maps`, the helpers), `strike_test.gd`,
+- **The host's part and the wire.** The crouch plays everywhere (the crouch ADR's amendment of 2026-10-14):
+  `PlayerRules`' four crouch numbers, `height_of` and `eye_height_of`, with no per-map option (§7.1.18's
+  `motion_maps` is a separate list); `PlayerState.crouched`, kept by `MovementRule` from an accepted living claim in
+  every phase that takes a claim, never from a downed one, false at each placement, knockdown and respawn; the
+  snapshot avatar's `crouched`; `Items.eye_of`, `Strike`, `FlightTicks` and `ThrowItem`'s largest radius reading the
+  crouched eye and capsule; the photo task's subject head and `ShotTaken`'s record row (§9.5.22); the avatar's
+  flag bit on the wire (§4.3.5); `ClientSession.set_motion`'s `crouched` (the controller's) and `ClientModel.is_crouched`; the base
+  mode's numbers (§9.5.1). The scenario invariant is `ScenarioInvariants.crouch_problem` (a crouched player who is
+  not alive), run on every tick's snapshots by `check_tick`. Bots play the House only on a flat fake floor (§9.7),
+  and the greybox carries no new mechanic (the engineer's answer (a) on #790): the wire is tested through the host
+  session harness on a fixture mode instead, as cooking C9 did. The car repair's RE15 eye band runs in R8's House
+  test (#812).
+- **Tests:** `tests/unit/movement/movement_rule_crouch_test.gd` (kept and shown, in the lobby too, kept across a
+  phase change, ignored from the downed, cleared by placement, the walk bound and the sprint charge),
+  `tests/unit/content/player_rules_test.gd` (bounds, no per-map option, the helpers), `strike_test.gd`,
   `flight_ticks_test.gd`, `mode_check_throw_test.gd`, `photo_shot_test.gd`, `respawn_test.gd`, `view_of_test.gd`,
   the client's `client_session_claims_test.gd` and `client_model_test.gd`, `chaos_frames_test.gd` (each flag bit
-  past `crouched`), `tests/scenarios/crouch_invariant_test.gd` (the invariant), `content_modes_test.gd` (the base mode
-  crouches on the House alone) and `tests/integration/server/host_session_crouch_test.gd` (over the real wire: a
-  crouched avatar shown, a downed claim's bit, an unlisted map's and the lobby's ignored, a raw client's crouched
-  claim alike; each client's decode equals its `view_of`).
-- **Built in #791 (727b)** (#991 removed `PlayerController.crouch_plays` and `GameFlow.crouch_plays`), the local
-  player's crouch (§7's controller, §4.7.6): the `crouch` action on physical
-  Ctrl in `project.godot`, in `Controls.UNLISTED` (alive) until #951 made it a row, so `bind()` put no
-  living action on Ctrl; `PlayerController`'s `crouch_held`, `crouch_plays`, `is_crouched()` and `release_keys()`,
-  the capsule switched with the feet kept, the eased eye, the `test_move` stand-up test, the crouched speeds, the
-  jump from the crouch, the crouched capsule first after every teleport and life change, and `set_motion`'s
-  `crouched`; `GameFlow.crouch_plays`, which `Game` sets on the controller with the other player flags. The test
-  level is `tests/fixtures/client/crouch_room.tscn` (a slab under 1.4 m), never the greybox (#767, the engineer's
-  answer (a) on #790).
-- **Tests (#791):** `tests/integration/client/player/player_controller_crouch_test.gd` (blocked standing and
-  passing crouched, letting go underneath, a teleport and a life change underneath, Shift's speed and stamina and
-  the slow walk without it, the crouched jump and none under the slab, landing crouched again, where it does not
-  play, never downed or dead, each body its own capsule),
-  `player_network_crouch_test.gd` (over the loopback, `NetPair.with_crouch_room`: 0 `Correction`s, also with
-  packets held back and with jitter, the host relaying the pose; Ctrl with W and Shift through
-  `Input.parse_input_event`; the Esc menu releasing Ctrl; nothing in the lobby or on a map the list leaves out),
-  `tests/unit/client/app/game_flow_test.gd` (`crouch_plays`) and `controls_test.gd` (the crouch on Ctrl, no living
-  action on it).
-- **Built in #792 (727c)** (#991 removed `WorldSounds.crouch_plays` and moved the quiet edge to `crouch_speed_mps`),
-  others' crouch and the quiet steps (KE7, KD1 (b)): `SnapshotBuffer.Pose.crouched`, the
-  flag of the snapshot at or before the drawn tick (never blended); `AvatarViews` calls
-  `RemotePlayerBody.set_crouched` before `set_pose` (at once for a body drawn for the first time), which switches
-  the capsule, the greybox look (`LifeLooks.capsule`, `shell`) and the sight point at once and eases the head with
-  the mouth, hand, belt and carry points down by the eye heights' difference at the own view's catch-up rate
-  (§4.7.6); a downed body lies at standing size. The spectate camera and the spectator's `Ears` sit at the target
-  body's head (§6.5.4). The quiet step: `FootstepCadence.quiet_of` of a step's speed (averaged over the step) and
-  its two placeholders, used by `WorldSounds` (§4.7.43); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990);
-  #522's crouch
-  clips play on the character's remote avatars (§4.7.53); without the character the bodies stay capsules. A `shot` preview:
-  `client/dev/crouch_preview.tscn`.
-- **Tests (727c):** `tests/unit/client/world/snapshot_buffer_test.gd` (the pose's flag),
+  past `crouched`), `tests/scenarios/crouch_invariant_test.gd` (the invariant; a lobby crouch passes),
+  `content_modes_test.gd` and `tests/integration/server/host_session_crouch_test.gd` (over the real wire: a
+  crouched avatar shown, a downed claim's bit ignored, the crouch kept on the second map, in the lobby and from a raw
+  client there; each client's decode equals its `view_of`).
+- **The local player's crouch** (§7's controller, §4.7.6): the `crouch` action on physical Ctrl in `project.godot`,
+  a row of Settings › Controls (#951), and no living action on Ctrl; `PlayerController`'s `crouch_held`,
+  `is_crouched()` and `release_keys()`, the capsule switched with the feet kept, the eased eye, the `test_move`
+  stand-up test, the crouched speeds, the jump from the crouch, the crouched capsule first after every teleport and
+  life change, and `set_motion`'s `crouched`. The test level is `tests/fixtures/client/crouch_room.tscn` (a slab
+  under 1.4 m), never the greybox (#767, the engineer's answer (a) on #790).
+- **Tests:** `tests/integration/client/player/player_controller_crouch_test.gd` (blocked standing and passing
+  crouched, letting go underneath, a teleport and a life change underneath, Shift's speed and stamina and the slow
+  walk without it, the crouched jump and none under the slab, landing crouched again, never downed or dead, each body
+  its own capsule), `player_network_crouch_test.gd` (over the loopback, `NetPair.with_crouch_room`: 0 `Correction`s,
+  also with packets held back and with jitter, the host relaying the pose; Ctrl with W and Shift through
+  `Input.parse_input_event`; the Esc menu releasing Ctrl; Ctrl crouches in the lobby) and `controls_test.gd` (the
+  crouch on Ctrl, no living action on it).
+- **Others' crouch and the quiet steps** (KE7, KD1 (b)): `SnapshotBuffer.Pose.crouched`, the flag of the snapshot
+  at or before the drawn tick (never blended); `AvatarViews` calls `RemotePlayerBody.set_crouched` before `set_pose`
+  (at once for a body drawn for the first time), which switches the capsule, the greybox look (`LifeLooks.capsule`,
+  `shell`) and the sight point at once and eases the head with the mouth, hand, belt and carry points down by the eye
+  heights' difference at the own view's catch-up rate (§4.7.6); a downed body lies at standing size. The spectate
+  camera and the spectator's `Ears` sit at the target body's head (§6.5.4). The quiet step:
+  `FootstepCadence.quiet_of(speed, quiet_mps, loud_mps)` of a step's speed (averaged over the step), from
+  `crouch_speed_mps` (quiet) to `crouch_fast_speed_mps` (a walk's), a hard edge when the two are equal, used by
+  `WorldSounds` (§4.7.43); the sneak's silent step: `FootstepCadence.silent_of` (§9.5.24, #990); #522's crouch clips
+  play on the character's remote avatars (§4.7.53); without the character the bodies stay capsules. A `shot`
+  preview: `client/dev/crouch_preview.tscn`.
+- **Tests:** `tests/unit/client/world/snapshot_buffer_test.gd` (the pose's flag),
   `tests/integration/client/world/avatar_views_test.gd` (the push search finds the crouched capsule in the frame it
   crouches; the head, mouth, points and look lowered and eased; a body first drawn crouched at once),
   `tests/unit/client/life/ears_test.gd` and `tests/integration/client/life/life_ears_test.gd` (the dead see and hear
   from a crouched target's crouched eye), `tests/unit/client/world/footstep_cadence_test.gd` (`quiet_of` at, below,
   between and above the speeds, a mode without them; the step's speed over the step) and
-  `tests/integration/client/world/world_sounds_steps_test.gd` (the quiet step at crouch speed, today's at the walk
-  speed whatever the flag, eased between, cut beyond 6 m, the own slow steps quiet too, and today's step where the
-  crouch does not play, on a fixture world); `player_network_crouch_test.gd` (each `Game`'s
-  `WorldSounds.crouch_plays` set in the Round on a listed map, clear in the lobby and on an unlisted map).
-- **Built in #991** (the crouch ADR's amendment of 2026-10-14, the engineer's change on #989): the crouch plays
-  everywhere. Removed: `PlayerRules.crouch_maps` and `crouch_plays_on` with their mode check and the KD11 loop
-  (§7.1.18's `motion_maps` stays), `Match.crouch_plays`, `MatchContext.crouch_plays` and `_enter_phase`'s clearing,
-  `GameFlow.crouch_plays`, `PlayerController.crouch_plays` and `WorldSounds.crouch_plays`, the `crouch_maps` lines
-  of the base and tutorial modes. `MovementRule` keeps a living claim's bit in every phase that takes a claim;
-  `ScenarioInvariants.crouch_problem` keeps its "not alive" clause alone. The quiet step: `FootstepCadence.quiet_of
-  (speed, quiet_mps, loud_mps)` from `crouch_speed_mps` (quiet) to `crouch_fast_speed_mps` (a walk's), a hard edge
-  when the two are equal. Tests whose expectations the engineer changed: `movement_rule_crouch_test.gd` (kept and
-  shown in the lobby, kept across a phase change), `host_session_crouch_test.gd` (kept on the second map, in the
-  lobby and from a raw client there), `crouch_invariant_test.gd` (a lobby crouch passes),
-  `player_network_crouch_test.gd` (Ctrl crouches in the lobby), `player_rules_test.gd` (no per-map option),
-  `footstep_cadence_test.gd` and `world_sounds_steps_test.gd` (the fast crouch a walk's, the slow steps below
-  `crouch_speed_mps`).
+  `tests/integration/client/world/world_sounds_steps_test.gd` (the quiet step at crouch speed, the fast crouch a
+  walk's, the slow steps below `crouch_speed_mps`, eased between, cut beyond 6 m, the own slow steps quiet too, on a
+  fixture world).
 
 #### 7.1.18 The knockdown reworked (#728; #846 to #848)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
