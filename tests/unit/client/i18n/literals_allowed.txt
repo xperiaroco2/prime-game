@@ -18,6 +18,7 @@ client/app/join_progress.gd | Code: waiting for the code service | never on scre
 client/app/join_progress.gd | another build: the host's content is %s, this game's %s | never on screen: Game.last_words and the log (the failure screen shows both versions, #494)
 client/app/join_progress.gd | the host runs protocol %d, this game %d | never on screen: Game.last_words and the log (the failure screen shows both versions, #494)
 client/life/life_hud.gd | Player %d | a player who left the roster, by peer id (LifeHud.name_of: the dead's Watching, the downed's raiser); deck key requested on #150 (comment 6096420162, item 9)
+client/ui/controls_panel.gd | Reserved key | the chip of a refused key until the deck has it: deck key settings.controls.reserved requested in xperiaroco2/prime-game-ui#116 (#1248)
 client/ui/howto_cards.gd | task type %s has no how-to card at %s%s.tres | never on screen: a content check's problem for the test and the log
 client/ui/howto_cards.gd | the card of task type %s says it is %s's | never on screen: a content check's problem for the test and the log
 client/ui/howto_cards.gd | the card of task type %s: %s | never on screen: a content check's problem for the test and the log

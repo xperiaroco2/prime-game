@@ -165,6 +165,32 @@ func test_a_key_of_a_fixed_action_ends_the_capture_and_binds_nothing() -> void:
 	assert_int(_changes).is_equal(0)
 
 
+func test_a_refused_key_shows_the_reserved_chip_until_the_next_action() -> void:
+	# Enter (Alt+Enter's key) and F3 are fixed; the capture ends, nothing binds, and the row says why.
+	for code: Key in [KEY_ENTER, KEY_F3]:
+		_panel.start_capture(&"ready")
+		assert_bool(_panel.capture(_key(code, true))).is_true()
+		assert_bool(_panel.is_capturing()).is_false()
+		assert_str(_panel.key_buttons[&"ready"].text).is_equal("F")
+		assert_bool(_panel.clash_chips[&"ready"].visible).is_true()
+		assert_str(_panel.clash_labels[&"ready"].text).is_equal("Reserved key")
+		assert_bool(_panel.clash_chips[&"jump"].visible).is_false()
+		assert_int(_changes).is_equal(0)
+		# A new capture takes the chip away.
+		_panel.start_capture(&"ready")
+		assert_bool(_panel.clash_chips[&"ready"].visible).is_false()
+		_panel.cancel_capture()
+	# A binding afterwards leaves no chip, and the next clash reads "Same key" again.
+	_panel.start_capture(&"ready")
+	_panel.capture(_key(KEY_F3, true))
+	_panel.start_capture(&"ready")
+	_panel.capture(_key(KEY_G, true))
+	assert_bool(_panel.clash_chips[&"ready"].visible).is_false()
+	_panel.start_capture(&"jump")
+	_panel.capture(_key(KEY_G, true))
+	assert_str(_panel.clash_labels[&"jump"].text).is_equal("Same key")
+
+
 func test_the_words_follow_a_language_switch_after_the_panel_was_built() -> void:
 	# GameUi builds the panel before Game applies the player's language (Languages.apply), and
 	# Languages.choose() switches it live: the words follow NOTIFICATION_TRANSLATION_CHANGED.
