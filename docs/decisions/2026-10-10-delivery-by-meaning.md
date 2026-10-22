@@ -438,3 +438,5 @@ so.
   gets them with its level pieces (`new-level-piece`). The greybox keeps its circles.
 - Between D2 and D3 the client draws the House's items as labelled boxes and its drop-offs in today's circle look, in
   white, and until D3a the marker still points through walls: playable, but no playtest until D3a and D3 land.
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.25 names its code, no longer its builds: D2 (#828), the House's drop-off
+  furniture in D4 (#831), the client's view in D3 (#830), the study's last circle removed in #1059.

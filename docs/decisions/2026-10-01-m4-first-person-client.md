@@ -448,3 +448,14 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
   the task screen in M4-8 (#144, §4.7.10); the life states in 3D in M4-9 (#145, §4.7.9). The one-PC playtest's
   follow-ups: one Esc menu with tabs (#169, §4.7.11), the fixes of #168 on `release/m4` (PR #167, §4.7.12) and the view
   after a respawn or a new match (#191, #240, §4.7.13).
+- 2026-10-22 (#1307): ARCHITECTURE §4.7.12 and §4.7.13 now state what is true, not how it got there. The one-PC
+  playtest saw the spectate camera "at another point than the target's eyes"; headless it had no offset, and what it
+  likely saw was the target's items hung at its hidden body, which PR #167 fixed with the spectate hand. #489
+  (§4.7.37) and #497 (§4.7.41) then removed `Hud.spectating_label`, `HudText.Local.watching` and `Shown.spectating`
+  and moved the target's name to `LifeScreen`. Before #191, mouse motion while spectating turned the hidden body and
+  tilted its head, which the respawn kept; before #240 a new match's placement kept a dead player's pitch.
+- 2026-10-22 (#1307): ARCHITECTURE §4.7.8 and §4.7.10 now describe the HUD and the screens as they are. M4-8's HUD
+  showed teammates, the shared progress and, while dead, "Spectating <name>" with the target's slots, until #489's Toy
+  HUD (§4.7.37) and #497 (§4.7.41); its hold-Tab `TaskScreen` (`task_screen_preview.tscn`) became #253's `MapScreen`
+  on M (§4.7.33). The world sounds were 0.15 s generated blips heard from the viewport's camera until M5-5 gave them
+  the ears, M5-7 the muffling and #525 (§4.7.43) Kenney's files and footsteps.

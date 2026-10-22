@@ -422,3 +422,7 @@ Later, not open now:
   (`Interact(station)`, `StationKind.actions`, the four parts, `TaskType.use_problem` and `use_station`, busy hands, G0's
   subtask count), and none of them changes with GD3 or GD5.
 - Built: the stations, switches and panel in G6 (#801, ARCHITECTURE §4.7.54).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.19 names its code, no longer its build tasks: `core/` in G2 (#797), the station
+  scenes in G4 (#799), the data and `LayoutCheck`'s refusal of a map no task type plays in G5 (#800), the client in
+  G6 (#801), the zone task on the House alone in G9 (#804); and §9.8 the `Interact(station)` intent and its four
+  parts in G1 (#796).

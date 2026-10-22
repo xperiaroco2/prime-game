@@ -148,3 +148,5 @@ One batch; each item's options and the failure each leaves are in the design's �
 - Built (the headings of ARCHITECTURE §4.7 named these until #1244): the solo session in the game (#601, §4.7.44); the
   lesson runner and the lessons (#602, §4.7.46; nine since #901, under the [tutorial without tasks
   ADR](2026-10-12-tutorial-without-tasks.md)); the invite and lesson plates in the Toy style (#492, §4.7.49).
+- 2026-10-22 (#1307): ARCHITECTURE §9.5.17 no longer names its builds: the tutorial mode in T2 (#600), its solo
+  session in T3 (#601).

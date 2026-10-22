@@ -170,6 +170,29 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   hidden state (§9.2 asks each condition and rule to say so, and validation warns on role-gated public events; v0
   has none); scenario steps that walk in straight lines need waypoints on levels with walls until M4 brings
   navigation.
+- 2026-10-22 (#1307): ARCHITECTURE §9.5's entries say "Code:" and "Tests:", no longer "Status: designed in #33;
+  built in ...". What their status lines said: the base mode's skeleton in 2a (#49), filled by 2b to 2i: 2b (#58)
+  the phases Lobby, Countdown, Loading and End, the join rules, the fit check, the mode check with layouts and
+  `ResetMatch`; 2c (#59) Crew, Dissident, the Knife's kind and `SpawnItems`, and the `Loading, all_loaded` actions;
+  2d (#60) sprint, jump and `StaminaLedger` (the per-tick masks in #155); 2e (#61) the Package, PickUp and PutDown;
+  2f (#62) Delivery and TaskTicks; 2g (#63) `Use`, `Cooldown`, `Strike` and the knife's rule, with Round's `Use`
+  (the mode check refuses an accepted intent no rule handles); 2h (#64) the win conditions, `StartClock` (moved to
+  `Pregame, pregame_done → Round` by #213) and `EndMatch`; 2i (#65) every phase's voice rule; 2j (#66) the
+  scenarios. Later: #79 shared, drawn tasks (`tasks`, `banned_task_types`, `packages`) and the cylinder; M4-1 (#137)
+  the name Engineer; M4-2 (#138) LifeTicks, the knockdown time and "no crew present" in "no crew alive"'s place;
+  M4-4 (#140) the raise and the give-up with ChannelTicks; M4-5 (#141) the Swap, the belt, `hands` and Delivery's
+  description and `TaskState`; #649 (M7-Z3) Hold the zone in the mode, taken out again on #842; #771 the cooking
+  ADR's CE21 in PickUp; #775 Cooking; #784 the photo task; #800 the Generator and `Interact`; #810 car repair; #828
+  the House's Delivery by meaning as `delivery`, today's moved to `colour_delivery`; #849 (728e) the knife's launch;
+  #212 End's silent ticks; #647 the cylinder's edge test moved to `station_state_test.gd`.
+- 2026-10-22 (#1307): ARCHITECTURE §9's lead no longer says a part is usable once its row names the PR that built
+  it, and §9.4's tables' "Built in" column is "Code" (each part's file). What the column named beyond stage 2's tasks:
+  M4-1 to M4-5 (#137 to #141: the life parts, the channel, the belt, `SwapHands`, `CarriesItem`, `HandNotTwoHanded`,
+  `Respawn`), M5-1 (#215, the voice radii), T1 (#599: `ReportOutcome`, `KnockDown`, `PlacePlayers`' `ordered`), 37b
+  and 37c (#642, #643: `FlightTicks`, `OverFloor`, `ThrowItem`), #79 and #803 (`DealTasks` shared, drawn and per
+  map), #212 and #213 (End's end tick, `Pregame`), #551 (`SetProfile`), #737 (`ResetMatch`'s resent shortfalls),
+  #796 and #805 (the station parts, `HoldStation`, the channel per station), #647, #797 and #773 (the ticking task
+  types), #770 (`GiveItem`), #779 (`VanishTicks`), #780 to #782 (`StationUsable`'s own reasons).
 
 ## The engineer's answers
 The engineer answered **A on all five** (2026-09-30, in the chat with the manager session; comment on #33). Each was

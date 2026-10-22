@@ -118,3 +118,16 @@ client notices that the host is gone is the transport's (#40), not this ADR's.
 - Risks: without lag compensation, knife hits may feel unfair at 1.5 m reach (the playtest decides); corrections at
   the edge of the sprint threshold, where the client's predicted stamina and the host's differ (M4 tolerances);
   `World3D` queries from a space the host builds itself are untested under Jolt (stage 2).
+- 2026-10-22 (#1307): which task added which event of ARCHITECTURE §4.2, moved here from its text. 2b (#58): the
+  events from `Welcome` to `PlayerLoaded`, `ReadyChanged`, `CountdownCancelled` and the three directives; 2c: the
+  deal events and the `RoundStarted` class; 2g (#63): `Swung`, `Damaged` and `Died`; 2h (#64): `MatchEnded`, and
+  `RoundStarted` emitted; 3e (#97): the reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer`
+  for Loading's waiting newcomers; M4-2 (#138): `KnockedDown`, and `Died` moved to the end of the knockdown; M4-3
+  (#139): `Respawned`; M4-4 (#140): `RaiseStarted`, `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState`
+  and `ItemPickedUp`'s `belted`; M4-6 (#142): `Disconnecting`; #551: `ProfileChanged`, and the body colour in
+  `PlayerJoined` and the `Welcome` roster; #647 (M7-Z1): `ZoneProgress`; #771: `ItemChanged`, and `belted` naming the
+  item itself; #772 (cooking C3): `OrderPosted` and `HerbsDealt`; #773 (C4): `GrillLoaded` and `IngredientPlaced`;
+  #779: `ItemVanished`; #781 (photo P2): `FilmLoaded` and `ShotTaken`; #782 (P3): `PhotoPrinted` and `PhotoHung`;
+  #797 (Generator G2): `SwitchChanged`, `ButtonPressed` and the Generator's `ZoneProgress`; #808 (car repair R4):
+  `FitChanged` and `PartFitted`; #1101: `BurgerPlated` and `BurgerServed`. The wire schemas of §4.3 were built in 3d
+  (#98).
