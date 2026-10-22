@@ -37,7 +37,7 @@ c
 
 Plan, then implement every acceptance criterion. t If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish `git fetch` and check whether it reached origin/release/m5; if it did, rebase on it inside your worktree and use it.
 
-Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
+ARCHITECTURE is a contract (its preamble says so): update what is true now and the "Tests" lines your work changes, and anything it makes stale in docs/ARCHITECTURE.md and other durable docs, in the same branch; add no "Built in" line. Commit as you go.
 
 `tools\run.cmd verify --changed` in the worktree until green: the fast verify (#605: doctor, lint and check, a minute or two). Every test runs on GitHub CI once the publisher pushes, so never run `verify --full` or the whole `test` suite here; while you build and debug, run the tests your change touches by path (`tools\run.cmd test <path>`).
 
