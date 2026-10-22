@@ -1,6 +1,6 @@
 # The Generator task (#679): its engine parts, a station-use intent, and the split
 
-- **Status:** Proposed on 2026-10-10. Nothing here is built, and nothing will be until the engineer says so: for now
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10. Nothing here is built, and nothing will be until the engineer says so: for now
   the track only designs (PR #695's comment 6096108206; §8). The rules are the engineer's: #679's "Decided" list
   (chat, 2026-10-09). The GD items are game rules and taste that list leaves open: they are his (the
   [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (c)), each with options and a
@@ -20,7 +20,7 @@
   its issue.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing here is built" above is history. On main: G1 to G3 and G8 (#796 to #798, #803); the rest of §8 is open.
+  "nothing here is built" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §8.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules; GD1 to GD13 and the two read-backs, answered on 2026-10-10: GD1's name and
   description in #679's comments, the rest in PR #695's comments); the game-design manager session of #676 (GE1 to

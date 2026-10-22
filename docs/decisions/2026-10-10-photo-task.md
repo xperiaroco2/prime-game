@@ -1,6 +1,6 @@
 # The photo task (#687): shoot, print, hang: its engine parts, who is in the frame, and the split
 
-- **Status:** Proposed on 2026-10-10. Nothing here is built, and nothing is built now: the track only designs, its
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10. Nothing here is built, and nothing is built now: the track only designs, its
   issues proposals for the M7 backlog
   ([PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). That
   comment's read-back answer on the Generator's GD7 also keeps every House chain off the flat greybox, so the photo
@@ -25,7 +25,7 @@
   issue.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing is built now" above is history. On main: P2 and P3 (#781, #782); the rest is open (§9).
+  "nothing is built now" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §9.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules; PD1 to PD18 and §6.1's drafts, answered on 2026-10-10 in PR #704's comments
   6095444907 and 6096344994); the game-design manager session of #676 (PE1 to PE18). Designed by the agent of #687,

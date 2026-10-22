@@ -1,6 +1,6 @@
 # The knockdown reworked (#728): still and mute, a ragdoll, and the body a rigid body in the host's physics
 
-- **Status:** Proposed on 2026-10-10. Nothing here is built, and nothing will be until the engineer says so: for now
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10. Nothing here is built, and nothing will be until the engineer says so: for now
   the track only designs
   ([PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). The
   rules are his: #728's "Decided" list and his answer A in its comment 6095620279 (first given as RD7 on PR #709,
@@ -45,7 +45,7 @@
   `movers` until clear, with no `core/` change (§2).
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing here is built" above is history. On main: 728a (#846); the rest is open (§10).
+  "nothing here is built" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §10.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the decided rules; his answers to KD1 to KD9, KE1 and KE5, and the House only, in PR
   #754's comment 6097876326; KD10 (A) and KE1 (b) in its comment 6100602989; KD11 in its comment 6108669765; KD12

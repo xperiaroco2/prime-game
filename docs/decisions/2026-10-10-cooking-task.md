@@ -1,6 +1,6 @@
 # The cooking task (#682): its engine parts, an item source, items on stations, and the split
 
-- **Status:** Proposed on 2026-10-10, for the engineer's approval in its PR (#701). Nothing here is built, and
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10, for the engineer's approval in its PR (#701). Nothing here is built, and
   nothing is built now: the track only designs, its issues proposals for the M7 backlog. The rules are the
   engineer's: #682's "Decided" list, his answers on #682 (comment 6089351713; chat with the game-design manager
   session of 2026-10-10, read back), his answers to CD1 to CD17
@@ -22,8 +22,7 @@
   decided here, each revertible in its issue.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing is built now" above is history. On main: C1 to C5 and C9 to C11 (#770 to #774, #778 to #780); the rest
-  of §8 is open.
+  "nothing is built now" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §8.
 - **Amended 2026-10-15 (#1101):** a burger is checked when it is served at the order board, not on the plate (the
   engineer's answers on #1101); see the amendment at the end.
 - **Date:** 2026-10-10

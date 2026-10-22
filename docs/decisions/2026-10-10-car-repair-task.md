@@ -1,6 +1,6 @@
 # The car repair task (#688): its engine parts, a hold on a station, the drop, and the split
 
-- **Status:** Proposed on 2026-10-10; the engineer answered every question the same day and approved the design
+- **Status:** Accepted; built in part, see the issues (amended 2026-10-22, #1243). First written as: Proposed on 2026-10-10; the engineer answered every question the same day and approved the design
   **for the MVP only**: a much more interesting mechanic will replace it later
   ([PR #709, comment 6100556321](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6100556321)).
   Nothing here is built, and nothing is built now: the issues of §8 go to the M7 backlog until he says otherwise
@@ -18,7 +18,7 @@
   revertible in its issue. Option labels are letters, continued across the sub-questions of one row.
 - **Amended 2026-10-13 (#925):** the engineer lifted "backlog for now" on 2026-10-11, "Implementation starts now"
   ([#676, comment 6109559003](https://github.com/xperiaroco2/prime-game/issues/676#issuecomment-6109559003)), so
-  "nothing is built now" above is history. On main: R1 to R4 and R9 (#805 to #808, #813); the rest of §8 is open.
+  "nothing is built now" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §8.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules; RD1 to RD17, answered on 2026-10-10 in PR #709's comments 6095445261,
   6097878738 and 6100556321; the approval for the MVP only); the game-design manager session of #676 (RE1 to RE17). Designed by the agent of #688,
