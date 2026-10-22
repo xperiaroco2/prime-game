@@ -160,6 +160,10 @@ client, the bots and the leak test). The main choices:
   - The one-process bots runner does not exercise ENet's timing; the ENet run does, if it is fast enough for `verify`.
   - The rate-limit numbers are placeholders; a playtest with voice may need others.
 - Built: the host session's API in 3f (#100, ARCHITECTURE §4.5.13).
+- 2026-10-22 (#1307), the rest of M3, which ARCHITECTURE named inline until then: the host's level worlds in 3c (#99,
+  `LevelWorld`, §4.5.9); the wire schemas in 3d (#98, §4.3); `WorldQuery.use_level` and `Match.row_error_count()` in
+  3e (#97, §4.5.9, §4.5.11); `client/net/` in 3g (#101, §4.6.1); the bots in 3h (#102, §4.6.2); `host` and `join` in
+  3i (#103, §4.6.6).
 
 ## The engineer's answers
 The engineer answered every choice with its recommendation (2026-10-01, in the chat with the M3 manager session;

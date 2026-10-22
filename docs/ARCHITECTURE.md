@@ -1093,7 +1093,7 @@ The rules of the table:
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
   longest shortfall of each kind, as host text, encodes within its cap or is refused by `WireBudget` first (#548); and a synthetic mode at
   the declared maxima is refused with the kind named.
-- **Voice batching** (M5-4b, built in M6-8, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
+- **Voice batching** (M5-4b, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
   frame it hears in that poll, in the relay's order (per speaker in peer-id order, each speaker's in its seq order);
   frames that would pass the 1024-byte cap start a second batch. `sized_opus` is the only Opus type that may stand
   before another field (`opus`, the rest of the payload, is a row's last field only). The client turns each frame
@@ -1276,8 +1276,7 @@ looping client grows the host's memory and work without end.
 - The counters join the transport's summary line (at most one per 10 s, §4).
 
 #### 4.5.7 The host's counters
-(debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4; built in M5-4,
-#218). `HostNode.counters()` gives the budgets' and the codec's counts (`over_budget`, `bad_payloads`,
+(debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4). `HostNode.counters()` gives the budgets' and the codec's counts (`over_budget`, `bad_payloads`,
 `malformed_disconnects`), which the F3 overlay may show at any time; its `over_budget` leaves out the voice frames
 over budget (`HostSession.over_budget_but_voice()`), which only the relay's counters give. The voice relay's are apart:
 `HostSession.relay_counters()` (and `HostNode.relay_counters()`) gives, as totals since the session started,
@@ -1327,7 +1326,7 @@ round).
   nothing. The level conventions (4e) then give collision as `StaticBody3D` nodes (the designer took D2 (a), 2026-10-01,
   #96; `levels/CLAUDE.md`).
 - **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
-  `WorldQuery.use_level(path)` on start and in each transition (built in 3e, #97: the path of the lobby or the map,
+  `WorldQuery.use_level(path)` on start and in each transition (the path of the lobby or the map,
   empty for a phase with no level; `RecordingWorldQuery` forwards it without recording an answer, the flat fake and
   the replay ignore it). Prevents: a
   row action that asks geometry (none does in the MVP) getting the old level's answer, as it would if `server/`
@@ -1359,7 +1358,7 @@ round).
   `intersect_ray` in the same frame, before any physics step, and again after one step: the host needs no wait, and 3c
   wires in no fallback. Shown by `tools\run.cmd test tests/integration/server/level_world_test.gd` (passed on
   2026-10-01), whose `test_a_fresh_space_answers_a_ray_before_and_after_one_physics_step` asserts both hits.
-- **Built in 3c (#99).** `LevelWorld` (`server/level_world.gd`: `build(path)`, `from_packed(scene, path)`,
+- **The builder.** `LevelWorld` (`server/level_world.gd`: `build(path)`, `from_packed(scene, path)`,
   `from_scene(root, path)`, `errors`) builds one level's world as above, and also reports a `CollisionPolygon3D` of a
   layer-1 body, which it does not read, any other physics body on layer 1 (a `RigidBody3D`, a `CharacterBody3D`), a
   scene that cannot be instantiated and a level that gives the world no layer-1 body; a disabled shape and a body on
@@ -1400,7 +1399,7 @@ cannot complete: a `Delivery` deal that could not place its packages or circles 
 (`Match.record_error`, kept in `Match.diagnostics`) and the round starts anyway, with no tasks, which every task done
 turns into an instant crew win (§3.4). Which row deals, and which phase it enters, is the game mode's data (invariant
 5), so `server/` keys on neither: `Match` counts the errors recorded while a transition row runs (its actions and
-the exit, `Match.row_error_count()`, built in 3e, #97), and `HostSession` reads the count after every `Match.apply` and `Match.tick` call.
+the exit, `Match.row_error_count()`), and `HostSession` reads the count after every `Match.apply` and `Match.tick` call.
 A new one ends the session with that error shown to the host's human, before that call's slice is delivered (above).
 So any row whose actions fail is fatal, a deal or not; an error outside a row, such as a `ForceRole` naming a role the
 mode lacks in the same host tick, is logged and the session goes on. The bots runner already fails a scenario on any
@@ -1446,8 +1445,8 @@ client tick (20 Hz) with its epoch, client tick and jump count (the first of eac
 right before a player action, on its RELIABLE twin `MoveClaimReliable`, #429), and `LoadAck` after loading. It
 never reads `core/`
 state (invariant 2).
-Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
-`ClientModel` (the fold). What the build pinned:
+`client/net/` holds `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
+`ClientModel` (the fold):
 - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
   and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
   physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
@@ -1565,7 +1564,7 @@ the load M5-4's `voice_load` measures. After a hitch of the clock at most the ne
 relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
 none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
 its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
-**Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
+In `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
 claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
 them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
 `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once, and
@@ -2130,7 +2129,7 @@ headless sessions that print the roster, the phase and the counters: a connectiv
 #21 ran; with `--headless` they still do. Since #149 (M4-6) they open the game in windows (§4.7). The default port
 is a placeholder. Several windows on one PC
 met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
-**Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
+The headless session is `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
 everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
 `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
 with `content/modes/base_mode.tres`, the transport's `max_clients` one above the mode's remote players (so the one

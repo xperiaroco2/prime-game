@@ -677,3 +677,5 @@ setting:
   speaking in M5-6 (#220, §6.5.3, §4.7.17); occlusion's muffle in M5-7 (#221, §6.5.7, §4.7.16).
 - 2026-10-22 (#1239): §1.4's amendment, no loss concealment on the speaker-to-host leg, is accepted as a known limit
   with no code change; ARCHITECTURE §6.5.1 and §4.5.5 state it.
+- 2026-10-22 (#1307): ARCHITECTURE no longer names the builders inline: the host's counters (§4.5.7) came with M5-4
+  (#218), voice batching (§4.3.5, M5-4b) was built in M6-8 (#374).
