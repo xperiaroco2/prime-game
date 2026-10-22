@@ -2593,8 +2593,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
   `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD** (the Toy HUD, §4.7.37): health and stamina (`SelfStatus`, the stamina predicted), the hand and belt
-  items by their kinds' display names, the match clock, the own role by its display name, and what the crosshair
-  would do; no teammates, task progress, destination swatch or hint. While dead the HUD shows nothing (§4.7.12,
+  items (a kind's deck key and pack icon, else its display name), the match clock, the own role (its deck key),
+  the mic and what the crosshair would do; no teammates, task progress, destination swatch or hint. While dead the HUD shows nothing (§4.7.12,
   §4.7.41): no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
   **The tasks** of the match (`TaskState`) are on the map and tasks screen (`MapScreen`, on M, §4.7.33). **A
   circle** is a translucent cylinder of its station kind's radius and height in `StationPlaced`'s colour, dimmed
