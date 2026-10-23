@@ -355,7 +355,7 @@ for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#
 the expert knows every fix by heart.
 - **The start:** the start button on the console in the hall (no battery since 2026-10-23, above). Everything
   happens inside the ship, a wide manta with two mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
-  breaker board in each corridor, a renewer in each tip room ([estate-map](design/estate-map.md) §5a).
+  breaker board in each corridor, a charger in each lens room ([estate-map](design/estate-map.md) §5a).
 - **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
   one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
   each and fix both sides at once. The ship gives a lot of points (#1040; the number later).
@@ -365,13 +365,20 @@ the expert knows every fix by heart.
   when every one of its problems is fixed.
 - **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
   the breakers 30 s, a cartridge 30 s).
-- **Overheat** (reaction): hold the vent; a needle rises; let go inside the green band. A miss coughs steam; try again.
-- **A burnt cartridge** (multitasking): pull it out of one of the hall's four sockets (two a side, the engineer,
-  2026-10-22: more places to burn; the problem count per stage stays), carry it to the renewer on its side (7 to 8 m)
-  and put it in. The renewer washes one cartridge at a time for 10 s (placeholder) and holds it until someone takes
-  it, so the player can fix something else meanwhile; then take the clean one back and fit it. With both sockets of
-  a side burnt, the second cartridge waits for that renewer or runs across the hall to the other one. There are no
-  spare cartridges to spam.
+- **Overheat** (reaction; the vent as agreed 2026-10-23,
+  [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868)): the vent's gills
+  breathe open; a problem slams them shut. Hold a palm on its scanner (a four-fingered hand): the gills open bit by bit
+  and a marker climbs a light bar; let go inside the green band and the gills exhale, fixed. Too early: a sound, try
+  again. Past the green, a release coughs steam (a miss); held to the very top, the vent coughs hard and throws the
+  player back across the throat, up again by themselves in about 2 s (no raising).
+- **A spent cartridge** (multitasking): the cartridge is an energy crystal (the engineer, 2026-10-23,
+  [#1033 c6361383461](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6361383461)); spent, it goes
+  plain grey. Pull it out of one of the hall's four sockets (two a side, the engineer, 2026-10-22: more places to burn;
+  the problem count per stage stays), carry it to the charger in the lens room on its side (8 to 9 m) and put it in
+  its one slot; press, and it spins in lightning for 10 s (placeholder), then shines and waits until someone takes it,
+  so the player can fix something else meanwhile; then take it back and fit it. With both sockets of a side spent,
+  the second crystal waits for that charger or runs across the hall to the other one. There are no spare crystals to
+  spam.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
   to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
   2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
@@ -379,9 +386,11 @@ the expert knows every fix by heart.
   green and blue, a lamp of its colour over each, eight in all. A problem trips some of them, easy first and harder
   later (placeholders: 2 on one board, then 4 with one change of side, then 6 alternating sides); they pop out and
   smoke.
-  - **The order** shows in the hall, on the start console's mimic board: a small copy of both boards, a left row and
-    a right row of four lamps, which drop when theirs trip. While breakers are tripped it plays the order by itself,
-    with a sound: it lights them one by one in the order to switch them back on, each with its side (green left, blue
+  - **The order** shows in the hall, on the start console's hologram of the ship (fixed to the ship's axes, so its left
+    wing is the left corridor): four lamps on each wing, one per breaker, which glow faintly when theirs trip
+    ([#1095 c6360765037](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6360765037)). While breakers
+    are tripped it plays the order by itself,
+    with a sound: it lights them up brightly one by one in the order to switch them back on, each with its side (green left, blue
     right, red left, red right), each with a beep, then a pause, then again (no button, no lever: the engineer,
     2026-10-23, [#1095 c6359703396](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6359703396)).
     Remember it, or a friend at the console reads it out by voice.

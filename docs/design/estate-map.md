@@ -79,9 +79,8 @@ approved on #1035 comment 6300127535 and revised on 2026-10-22 with the approved
 6327093164; prime-game-design `ideas/ship-components/2d/`, which keeps the look) and **mirrored** the same day (#1033
 comments 6336844073 and 6336988967; the plan to scale: prime-game-design `ideas/ship-components/layout/`); at the
 hull's shape gate the tip rooms moved into the rear corners and lost their windows (prime-game-art#263 comments
-6340304651 and 6340589162); the numbers below are **as built** (prime-game-art PR #280, `layouts/ship/ship.toml`), with
-the throat's option A and the inside moved only as far as the hall's ceiling fits (prime-game-art#263 comments
-6341553197 and 6342342554):
+6340304651 and 6340589162); the throat's option A (prime-game-art#263 comment 6341553197); then the hull was rebuilt round the inside as the
+lens-diamond hull P and the tip rooms became lens rooms with windows; the numbers below are **as built**:
 - **One entrance:** the mouth ramp; no side hatch, no other way in or out.
 - **The cockpit bubbles are on the outside only:** inside, the hall has a closed ceiling; no ladders, no seats.
 - **Mirrored:** the west half and the east half hold the same stations, so a player says "left" or "right" (as you
@@ -93,28 +92,30 @@ the throat's option A and the inside moved only as far as the hall's ceiling fit
   where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). On its
   two slanted walls, under the roof, hang **the two vents** (overheat); with both worked about 3 m of pass stays
   between them.
-- **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: the start
-  console 1 m aft of its centre with the start button, the stage display (one lamp per stage) and the mimic board of
-  both breaker boards (GDD §8; no lever and no battery since 2026-10-23); **four
-  cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem count), two on the
-  back wall between the two corridor mouths and two at the front sides, beside the throat and clear of its pass.
-- **Two corridors**, straight, 3 m wide, 2.4 m clear, about 3.4 m long, run diagonally back from the hall into the
-  rear corners; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp over each), in sight of
-  the console down the corridor.
-- **Two tip rooms** in the rear corners, round, about 3.6 m across (10 m²), with no window, each with **one cartridge
-  renewer** against its far wall. A burnt cartridge goes to the renewer on its own side, about 7 m from a back socket
-  and 8 m from a front one, under 2 s at a walk; with both sockets of a side burnt, the second runs across the hall
-  to the other renewer or waits.
-- **The silhouette** (the art track's hull J): from the top an arrowhead, 30.00 × 18.91 m with the nozzles, 4.82 m
-  high, the wing tips swept back to the rear corners and rounded in plan (r 1.5 m); flat wings thinning to a soft
-  edge, no upcurl, no bulge over the rooms. The inside sits 0.4 m forward of the shape gate's blockout, as far as the
-  hall's full-height wall fits under the hull (the engineer, 2026-10-22: the rear rooms stuck out; "move it as much
-  as the ceiling needs"), so about 2.1 m of hull stays behind the tip rooms.
-- Positions inside, as built, from the ship's centre (x east, y south, so +y is aft): the hall's centre (0, -0.4);
-  the console (0, 0.6); the mouth (±1.65, -7.1) at the nose edge, the throat's walls to the hall's corners at
-  y -3.25, its roof from y -5.56; the vents (±2.41, -4.79); the back sockets (±1.80, 3.11), the front sockets
-  (±3.43, -2.36); the boards (±6.03, 0.84); the tip rooms' centres (±8.3, 3.6), the renewers (±9.92, 4.38). Each spot
-  is flat on a plain wall with a 1.6 m band.
+- **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
+  console** 1 m aft of its centre (the engineer, 2026-10-23, #1095 comment 6360765037): a low ring pedestal (Ø 1.2 m,
+  0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
+  ship's axes, whose wings carry the eight lamps of both breaker boards (GDD §8; no lever, no battery, no button for
+  the order); **four cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem
+  count), two on the back wall beside the vault's hatch and two at the front sides, beside the throat and clear of
+  its pass. Behind the back wall, **the vault**: closed, 1.8 × 2 m, its hatch at (0, 3.6), not an exit.
+- **Two corridors**, straight, 3 m wide, 2.4 m clear, run from the hall 8.66° aft out to the wings; their walls are
+  vertical up to 1.45 m, then slant; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp
+  over each), in sight of the console down the corridor.
+- **Two lens rooms** at the wing tips, round, r 2.0 m, a window band round the outward side (sill 1.0 m, head 2.2 m),
+  a slanted ceiling 2.45 to 2.35 m with three roof windows; each with **one charger** (the cartridge's renewer, GDD §8)
+  against its aft wall. A spent cartridge goes to the charger on its own side, about 8.5 m from a back socket and 9 m
+  from a front one in a straight line; with both sockets of a side spent, the second runs across the hall to the
+  other charger or waits.
+- **The silhouette** (the art track's hull P, a lens-diamond, approved 2026-10-23, prime-game-art#263 comment
+  6359082930): 26.1 × 22.1 m with the engine pods, 4.82 m high; the ridge over the corridors 3.13 m deep, the fin
+  edges about 0.4 m, the lens rims about 3.26 m; at least 0.17 m of skin round every room.
+- Positions inside, as built (prime-game-art#263 comment 6346859072, `layouts/ship/ship.toml`), from the ship's centre
+  (x east, y south, so +y is aft): the hall's centre (0, -0.4); the console (0, 0.6); the mouth (±1.65, -7.1) at the
+  nose edge, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±2.409, -4.791);
+  the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
+  centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
+  band.
 
 ## 5. Links between levels
 
@@ -213,7 +214,7 @@ centre (§3): x east, z south; placeholders. The gazebo and the well stay open, 
 | Cellar | basement | decor |
 | Fireworks launch point | roof terrace | mischief |
 | Camera and pose spot | gazebo | photo |
-| Start console (start button, stage lamps, mimic board), two vents, two cartridge sockets, two breaker boards, two cartridge renewers (§5a) | ship | the ship's engine |
+| Start console (start button, stage strips, the hologram), two vents, four cartridge sockets, two breaker boards, two chargers (§5a) | ship | the ship's engine |
 | The dead's room | a separate scene | death (m8 §3) |
 
 ## 7. Routes and travel times
