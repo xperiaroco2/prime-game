@@ -86,12 +86,17 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
 - **Mirrored:** the west half and the east half hold the same stations, so a player says "left" or "right" (as you
   come in up the ramp, left is east). Every station hangs flat on a wall, no niches; whoever works at one leaves at
   least 1.6 m of pass behind them.
-- **The mouth ramp** (north side, 3.3 m wide, hinged at the nose edge) leads into **the throat** (the engineer,
-  2026-10-22): no straight pass, its walls open as a funnel from 3.3 m at the mouth to the hall, 4.05 m deep, so the
-  whole hall is seen from the mouth. Its front is an open notch in the nose, like a mouth with no upper lip; from
+- **Raised on legs** (the engineer, 2026-10-23, after his walk; prime-game-art#309, its numbers in prime-game-art#263
+  comment 6364737530): the deck stands 1.2 m above the ground on upright legs with pistons and 1.2 m footpads; the
+  belly is 0.77 m up, the brow over the mouth 4.9 m. Station heights count from the deck, so the spots below stand.
+- **The mouth ramp** (north side, 3.3 m wide) runs from the ground up into a short tunnel, 1 m long, that carries the
+  mouth straight on from the nose edge; its hinge is at the tunnel's open front, (0, -8.1), its foot at (0, -12.6):
+  4.66 m long at 14.9°. It leads into **the throat** (the engineer, 2026-10-22): no straight pass, its walls open as
+  a funnel from 3.3 m at the mouth to the hall, 4.05 m deep, so the whole hall is seen from the mouth. Its front is an open notch in the nose, like a mouth with no upper lip; from
   where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). On its
-  two slanted walls, under the roof, hang **the two vents** (overheat); with both worked about 3 m of pass stays
-  between them.
+  two slanted walls, under the roof, hang **the two vents** (overheat), each about 0.6 m deep, its gill blades
+  sticking out past the frame as on the concept (the engineer, 2026-10-23, #1095 comment 6363588387); with both
+  worked about 3.6 m of pass stays between them.
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
   console** 1 m aft of its centre (the engineer, 2026-10-23, #1095 comment 6360765037): a low ring pedestal (Ø 1.2 m,
   0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
@@ -108,11 +113,11 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   from a front one in a straight line; with both sockets of a side spent, the second runs across the hall to the
   other charger or waits.
 - **The silhouette** (the art track's hull P, a lens-diamond, approved 2026-10-23, prime-game-art#263 comment
-  6359082930): 26.1 × 22.1 m with the engine pods, 4.82 m high; the ridge over the corridors 3.13 m deep, the fin
+  6359082930): 26.1 × 22.1 m with the engine pods, 4.82 m high before the raise, now 0.6 m higher; the ridge over the corridors 3.13 m deep, the fin
   edges about 0.4 m, the lens rims about 3.26 m; at least 0.17 m of skin round every room.
 - Positions inside, as built (prime-game-art#263 comment 6346859072, `layouts/ship/ship.toml`), from the ship's centre
   (x east, y south, so +y is aft): the hall's centre (0, -0.4); the console (0, 0.6); the mouth (±1.65, -7.1) at the
-  nose edge, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±2.409, -4.791);
+  nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±2.409, -4.791);
   the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
   band.
