@@ -375,7 +375,8 @@ the expert knows every fix by heart.
   [#1033 c6361383461](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6361383461)); spent, it goes
   plain grey. Pull it out of one of the hall's four sockets (two a side, the engineer, 2026-10-22: more places to burn;
   the problem count per stage stays), carry it to the charger in the lens room on its side (8 to 9 m) and put it in
-  its one slot; press, and it spins in lightning for 10 s (placeholder), then shines and waits until someone takes it,
+  its one slot; press, and the charger's two inner prongs orbit it in lightning for 10 s (placeholder), then it
+  shines and waits until someone takes it,
   so the player can fix something else meanwhile; then take it back and fit it. With both sockets of a side spent,
   the second crystal waits for that charger or runs across the hall to the other one. There are no spare crystals to
   spam.
