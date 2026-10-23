@@ -16,7 +16,7 @@ Recorded on #1035 (comments 6291174376 to 6297325577) and #1033 (6294249388).
    clearings, not as a solid forest. No pool and no DJ stage: no mechanic needs them.
 3. **No dead ends:** every clearing has at least two ways out; the paths form a figure eight.
 4. **The bonfire is the party's heart,** in the centre (the grill, the loudspeakers); the summer kitchen beside it (the
-   burger plates, the battery charger); the house behind it.
+   burger plates); the house behind it.
 5. **The house is small but tall:** the living room (the burger serving board), the library on the second floor, the
    basement (the laboratory, the security room, a cellar), the roof terrace.
 6. **The pantry** stands between the greenhouse and the bonfire; **the well** far from the greenhouse, so watering is a
@@ -94,8 +94,8 @@ the throat's option A and the inside moved only as far as the hall's ceiling fit
   two slanted walls, under the roof, hang **the two vents** (overheat); with both worked about 3 m of pass stays
   between them.
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: the start
-  console 1 m aft of its centre with the start lever, the
-  battery slot, the stage display (one lamp per stage) and the mimic board of both breaker boards (GDD §8); **four
+  console 1 m aft of its centre with the start button, the stage display (one lamp per stage) and the mimic board of
+  both breaker boards (GDD §8; no lever and no battery since 2026-10-23); **four
   cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem count), two on the
   back wall between the two corridor mouths and two at the front sides, beside the throat and clear of its pass.
 - **Two corridors**, straight, 3 m wide, 2.4 m clear, about 3.4 m long, run diagonally back from the hall into the
@@ -166,7 +166,7 @@ from the house's centre (68.4, 11): x east, z south; placeholders.
 | roof | The terrace (12 x 10, railing): the fireworks crates; the chimney stack (west) | the hatch and ladder to the library (north-east); the chimney down to the fireplace |
 | 1 | The library (12 x 10): bookshelves, the decoder book on a lectern (middle), the house phone (west wall); the balcony (8 x 2, south) | the inner stairs (north, middle); the ladder to the roof; the secret bookcase (north-west, §5b); the balcony's outdoor stairs to the yard |
 | 0 | The living room (12 x 10, one room): the long party table, the burger serving board (east wall), the fireplace under the chimney (west wall), the stair well (north, middle) | doors south (the bonfire), east (the garage path) and west (the greenhouse path), so the upper loop runs through the house; the stairs up and down |
-| -1 | The basement (20 x 16, x -10..10, z -5..11), wider than the house: **the cellar** (north-west, 8 x 7: barrels, beer crates, the wine rack, the sewer's manhole); **the stair hall** (north, middle, 4 x 7); **the security room** (north-east, 8 x 7: the camera wall, the Wi-Fi computer and the house phone, the light breaker); **the laboratory** (the whole south, 20 x 9: the big parts printer at the west end, the battery printer, the mutation workbench, the healing pod at the east end) | the cellar: the hall, the outdoor cellar door (west), the secret stair, the sewer; the security room: the hall, a door into the laboratory, the duct to the summer kitchen; the laboratory: the hall, the security room, the duct to the pantry (west wall), the tunnel to the garage (east wall) |
+| -1 | The basement (20 x 16, x -10..10, z -5..11), wider than the house: **the cellar** (north-west, 8 x 7: barrels, beer crates, the wine rack, the sewer's manhole); **the stair hall** (north, middle, 4 x 7); **the security room** (north-east, 8 x 7: the camera wall, the Wi-Fi computer and the house phone, the light breaker); **the laboratory** (the whole south, 20 x 9: the big parts printer at the west end, the mutation workbench, the healing pod at the east end) | the cellar: the hall, the outdoor cellar door (west), the secret stair, the sewer; the security room: the hall, a door into the laboratory, the duct to the summer kitchen; the laboratory: the hall, the security room, the duct to the pantry (west wall), the tunnel to the garage (east wall) |
 
 - **Every room has at least two ways out** (§1.3).
 - **The secret stair runs in the thick chimney wall:** the bookcase and the wine rack stand one above the other.
@@ -188,7 +188,7 @@ centre (§3): x east, z south; placeholders. The gazebo and the well stay open, 
 | Garage (10 x 8) | The car in the middle, its nose to the roll-up door, over the inspection pit (its ladder at the car's back, the tunnel to the laboratory from the pit's west wall, §5b); the order board on the west wall, facing the car; the tools on cables on two ceiling rails, one on each side of the car; hazard tape on both thresholds marks where a tool drops from the hand; a workbench with a boombox (north-west corner), music always on | the roll-up door (east, always open: the driveway, the road and the neighbours in sight); a side door (south wall, west end); the pit's tunnel |
 | Pantry (8 x 6) | Party-stock shelves along the north wall (beer, chips, toilet paper, pizza boxes); the food printer at the west wall; the paint mixer with its spray stand in the middle of the east wall; the fireworks crates along the south wall; the duct's grate low in the east wall's north end (§5b's 53, 25.5 moves in to this wall) | doors in the south ends of the west wall (the greenhouse path) and the east wall (the bonfire and the house); the grate |
 | Greenhouse (10 x 6, glass) | Five flower beds in a row along the long axis, one colour each; a rack of watering cans inside the east door, always holding one | the east door (toward the house); a door in the middle of the south side (toward the pantry) |
-| Summer kitchen (8 x 5, open, roofed) | Posts and a roof, no walls; a long counter along the north side with the numbered plates and the order board above; the microwave charger at the counter's east end; the bins at the west end, the duct's grate on the ground behind them (§5b) | open all round |
+| Summer kitchen (8 x 5, open, roofed) | Posts and a roof, no walls; a long counter along the north side with the numbered plates and the order board above; the bins at the west end, the duct's grate on the ground behind them (§5b) | open all round |
 
 - **Every passage end has its place:** the pit's tunnel, the pantry's grate, the grate behind the bins.
 - **The pantry is one room on purpose:** the cook and the painter meet there and see what the other carries.
@@ -201,19 +201,19 @@ centre (§3): x east, z south; placeholders. The gazebo and the well stay open, 
 | Station | Where | Task (GDD §8, m8-match) |
 |---|---|---|
 | The car, its order board, tools on cables | garage | car tuning |
-| Big parts printer, small battery printer, mutation workbench, healing pod | laboratory (basement) | car tuning, the battery, mutations |
+| Big parts printer, mutation workbench, healing pod | laboratory (basement) | car tuning, mutations |
 | Food printer, paint mixer, fireworks crates | pantry | cooking, car tuning, mischief |
 | Five flower beds | greenhouse | car paint, cooking |
 | Well and watering can | well | the flowers |
 | Grill, loudspeakers | bonfire | cooking, mischief (loud music) |
-| Numbered plates, microwave charger, bins | summer kitchen | cooking, the battery, mischief (the bins) |
+| Numbered plates, bins | summer kitchen | cooking, mischief (the bins) |
 | Serving board | living room | cooking |
 | Decoder book, house phone | library | the Wi-Fi |
 | Wi-Fi computer, house phone, camera wall, light breaker | security room (basement) | the Wi-Fi, cameras, the blackout |
 | Cellar | basement | decor |
 | Fireworks launch point | roof terrace | mischief |
 | Camera and pose spot | gazebo | photo |
-| Start console (lever, battery slot, stage lamps, mimic board), two vents, two cartridge sockets, two breaker boards, two cartridge renewers (§5a) | ship | the ship's engine |
+| Start console (start button, stage lamps, mimic board), two vents, two cartridge sockets, two breaker boards, two cartridge renewers (§5a) | ship | the ship's engine |
 | The dead's room | a separate scene | death (m8 §3) |
 
 ## 7. Routes and travel times
@@ -225,8 +225,6 @@ Lengths follow the paths plus 6 m per change of level; times are travel only, wi
 | Car, one part | greenhouse → laboratory → pantry → garage | 2 | 168 m | 37 s | 24 s |
 | Burger | pantry → greenhouse → grill → summer kitchen → living room | 0 | 148 m | 33 s | 21 s |
 | Watering | greenhouse → well → greenhouse | 0 | 158 m | 35 s | 23 s |
-| Battery for the ship | laboratory → summer kitchen → ship | 1 | 107 m | 24 s | 15 s |
-| Battery for the car | laboratory → summer kitchen → garage | 1 | 72 m | 16 s | 10 s |
 | Fireworks | pantry → house → roof | 2 | 46 m | 10 s | 7 s |
 | Photo | bonfire → gazebo | 0 | 65 m | 15 s | 9 s |
 | Wi-Fi solo, one password | security room → library → back | 4 | 50 m | 11 s | 7 s |

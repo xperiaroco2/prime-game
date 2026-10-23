@@ -316,7 +316,11 @@ item would be found too late.
   may pick a grown flower and throw it away: it regrows.
 - They feed two mechanics: the car's paint and the burgers. The engine takes none (removed 2026-10-20, maybe later).
 
-### The battery (2026-10-20)
+### The battery (out of the MVP, 2026-10-23)
+The engineer dropped it from the MVP ([#1033 c6360412989](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6360412989)):
+it was one more step at the end of two long tasks with no point of its own. The ship's engine starts from the
+console's start button; the car comes alive on its last green card. A battery may come back later as a scarce
+resource with competing uses (prime-game-design `ideas/NOTEBOOK.md`). Its rules of 2026-10-20, for the record:
 - Printed empty on its own small printer in the laboratory (about 5 s).
 - Charged somewhere else, in a microwave turned charger (the kitchen or another room: the level design decides):
   about 10 to 15 s, a ding, then 3 s to take it out; left longer, it bursts with a bang and flies out across the room
@@ -339,7 +343,7 @@ handwork, little hassle. It replaces Car repair (#688).
 - The garage's tools hang on cables: they work anywhere inside the garage and drop from the hand when its holder
   steps out, so nothing to hide. A tool is dangerous: a soldering iron in hand can kill.
 - The right colour lights its card green. A wrong one is unscrewed, thrown away and done again.
-- Every card green: a charged battery goes in last, and the car comes alive in a show (neon, bass, the crowd). The
+- Every card green: the car comes alive in a show (neon, bass, the crowd); no battery since 2026-10-23 (above). The
   task is done. A match without this task shows the car already tuned, as decoration.
 - **The humans' spoils:** the wrong shade ("I thought that was blue"); being slow; painting someone's fresh print the
   wrong colour; screwing on a wrong part so it must come off again.
@@ -349,8 +353,8 @@ The engineer's spin-up ([#1033 c6235144451](https://github.com/xperiaroco2/prime
 for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652) to
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
-- **The start:** a charged battery into the starter. Everything else happens inside the ship, a wide manta with two
-  mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
+- **The start:** the start button on the console in the hall (no battery since 2026-10-23, above). Everything
+  happens inside the ship, a wide manta with two mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
   breaker board in each corridor, a renewer in each tip room ([estate-map](design/estate-map.md) §5a).
 - **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
   one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
@@ -376,9 +380,11 @@ the expert knows every fix by heart.
   later (placeholders: 2 on one board, then 4 with one change of side, then 6 alternating sides); they pop out and
   smoke.
   - **The order** shows in the hall, on the start console's mimic board: a small copy of both boards, a left row and
-    a right row of four, which drop when theirs trip. A press on its button blinks them twice, then lights them once
-    in the order to switch them back on, each with its side (green left, blue right, red left, red right), and they
-    go dark; a press shows the same order again. Remember it, or a friend at the console reads it out by voice.
+    a right row of four lamps, which drop when theirs trip. While breakers are tripped it plays the order by itself,
+    with a sound: it lights them one by one in the order to switch them back on, each with its side (green left, blue
+    right, red left, red right), each with a beep, then a pause, then again (no button, no lever: the engineer,
+    2026-10-23, [#1095 c6359703396](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6359703396)).
+    Remember it, or a friend at the console reads it out by voice.
   - **The chain:** a breaker switched on ramps up, its lamp from yellow to green; the next one goes on while that lamp
     is green. Too late, and the previous breaker trips again. The green lasts long enough for one player to run
     across the hall to the other board; two players, one at each board, call the order to each other.
@@ -386,7 +392,7 @@ the expert knows every fix by heart.
     raised by someone; the tripped breakers stay tripped.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
   aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
-  drops one stage; the battery is not needed again; a fail on stage 1 restarts stage 1.
+  drops one stage; a fail on stage 1 restarts stage 1.
 - **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
   task is done.
 - **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, reading out a
