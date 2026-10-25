@@ -518,11 +518,55 @@ split, for M7.
 Open questions: none. The engineer answered every one on 2026-10-10 and 2026-10-11 (the ADR's §5 and §10).
 
 ### Photo (#687)
-**In the MVP as a pose silhouette** (the engineer, 2026-10-15, #1102): the photographer sees a silhouette of the pose
-and explains it by voice; the shot works only when the subject matches it; no printing and hanging. Its details are
-open on #1102; the M7 rules below stay until then.
+**In the MVP: poses from a wheel on a big lawn** (the engineer, 2026-10-15 and 2026-10-25, #1102: the base
+[c6193792541](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6193792541), the direction
+[c6392026180](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6392026180), the design accepted
+[c6392116478](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6392116478); the full design in the
+design repo's `ideas/2026-10-25-photo-design.md`). It replaces the M7 film chain below: no films, no printer, no
+board. Designed as the release version (emotes and a reveal screen are built for it). Where the M7 rules say
+otherwise, this part wins; every number is a placeholder.
 
-The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
+- **The photo lawn.** The camera stands on its tripod and never turns; in front of it a wide open lawn, about 2 to
+  14 m deep in the frame, where guests and players pass through. Where it stands and what the frame holds is the
+  level design's (his word: the creek and a footbridge in the frame, the ship at most far in the background, and the
+  lawn out of earshot of the ship's tasks, §11).
+- **The pose wheel, everywhere in the game.** Holding a key opens a wheel of two rings, legs and arms; a pick of one of
+  each puts the character in that whole pose, made by an animator so every pair looks good. Legs (6): stand, on one
+  leg, squat, on one knee, lunge, sit on the ground. Arms (8): hands on hips, arms out like a plane, flex, a heart, a
+  finger to the sky, hands behind the head, palms to the camera, a salute. The pose holds while the player stands,
+  turning on the spot keeps it, a step drops it. Arms alone were rejected as not photogenic.
+- **The silhouette.** Only the photographer sees it, in the viewfinder: an outline of a random photogenic pose (from a
+  list of good pairs), a facing (to the camera, the left side, the right side, the back), a random place in the frame
+  and a random size (small means far from the camera, big means near). Each photo draws a new one.
+- **Two players.** The photographer uses the camera and enters the viewfinder; the model runs out onto the lawn; the
+  photographer guides by voice to the place, the distance, the facing and the pose. The viewfinder shows the model
+  over the outline and tints the part that is off (legs, arms or facing) without saying which way to fix it. When all
+  match, the outline turns green and a lamp on the camera lights green for everyone around; a shot then counts, with a
+  flash, and the next silhouette appears.
+- **The shutter works at any time:** only a green shot counts; the others are fail frames, kept for the reveal.
+- **Alone, slower.** The photographer starts a self-timer (about 10 s), runs out and poses from memory, without the
+  viewfinder; a match when the timer fires counts, a miss is a fail frame. This replaces the M7 rule that nobody can
+  photograph himself.
+- **The match's last photo is a group:** two silhouettes at once, in different places and poses, for two models or
+  one model and the photographer on the timer; each part locks green once matched, so nobody waits frozen.
+- **Who is in the shot.** Everyone behind the model is in the photo (copying the pose is welcome); only a body between
+  the camera and the model turns the outline red, and anyone can push it away. Anyone can step to the camera and take
+  the viewfinder: the camera has no owner.
+- **The reveal.** A big photo-frame screen at the bonfire: each counted photo flies onto it for a few seconds with the
+  pair's fail frames beside it; between photos it plays the match's slideshow.
+- **Hidden information.** The host decides a match from the players' poses, facings and places, never from a picture;
+  the outline is the photographer's alone; the lamp and the reveal are public. The task row on the map screen (M)
+  shows the photos counted of N.
+- **The humans' spoils**, all looking like honest fumbles: the photographer says "back" for "forward", left from his
+  own side, the wrong half of a pose; the model picks the wrong half or steps out of the pose just before green;
+  anyone walks in front of the lens or takes the camera "to help".
+- **Points:** a counted photo is a shared step, a point to the photographer and to each model in it (m8-match §4).
+- **Numbers** (placeholders): photos a match from m8-match §6a2; a match within about 1 m and 30°; the timer 10 s.
+- **Kept ideas, not rules yet:** the people in each photo growing over the match (1, 2, then 3), and a results screen
+  at the match's end with the group photo ([#1102 c6392134933](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6392134933),
+  [#1040 c6392135150](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6392135150)).
+
+**The M7 film chain** (for the record; it leaves the MVP). The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
 are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
 [PR #704, comments 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907) and
 [6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994)); the engine parts are in
