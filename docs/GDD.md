@@ -361,10 +361,26 @@ the expert knows every fix by heart.
   each and fix both sides at once. The ship gives a lot of points (#1040; the number later).
 - **No difficulty scaling** (same comment): the engine is the same in every match, whatever the number of players;
   a host only puts the ship on the map or leaves it off.
-- **Stages:** 3. Each stage spawns problems, their kinds random, their count fixed: 2, then 4, then 6. A stage passes
-  when every one of its problems is fixed.
-- **A problem** is seen and heard (a red lamp, a rising wail) and has its own timer (placeholders: an overheat 10 s,
-  the breakers 30 s, a cartridge 30 s).
+- **The spin-up, made readable** (the engineer, 2026-10-25,
+  [#1095 c6392050112](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6392050112), on the lead's
+  proposal [c6391965295](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6391965295): a player who
+  walks in must see what to do):
+  - **The ship calls:** while the engine is off, the turbines on the console's hologram pulse orange with a soft beep
+    every few seconds, and the start button glows.
+  - **The charge:** pressed, the hologram's turbines spin and the console's three stage strips fill one after another
+    as one charging bar, each a stage (placeholder: about 30 s each, 90 s with no problems); the same bar runs as a
+    ring round the hologram's central disc, seen from the throat and both corridors.
+  - **The wiring:** on the hologram each station is a point in its place (the four sockets, the two boards with their
+    eight lamps, the two vents), with a line of light to the turbines. A station with a problem blinks red, its line
+    goes dark and the turbines slow; fixed, the line flashes back. The point shows where, not what: no icon per kind,
+    the players go and find out.
+  - **The countdown:** over the hologram, a big countdown to the nearest problem's own timer; with several open, the
+    one that blows first, its point blinking fastest. There is no timer for the whole start.
+- **Stages:** 3. Each stage spawns problems, their kinds random, their count fixed: 2, then 4, then 6, each at a
+  random moment spread across the stage (2026-10-25, above), not all at its start. Any open problem stops the
+  charging bar until it is fixed; a stage passes when its third of the bar is full.
+- **A problem** is seen and heard (a red lamp, a rising wail, its point on the hologram) and has its own timer
+  (placeholders: an overheat 10 s, the breakers 30 s, a cartridge 30 s).
 - **Overheat** (reaction; the vent as agreed 2026-10-23,
   [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868)): the vent's gills
   breathe open; a problem slams them shut. Hold a palm on its scanner (a four-fingered hand): the gills open bit by bit
@@ -402,13 +418,14 @@ the expert knows every fix by heart.
     raised by someone; the tripped breakers stay tripped.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
   aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
-  drops one stage; a fail on stage 1 restarts stage 1.
+  drops one stage (the bar loses that third); a fail on stage 1 restarts stage 1.
 - **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
   task is done.
 - **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, reading out a
   wrong order at the console (the friend at the board is knocked down: raise them, "I mixed it up", or run away
   laughing), switching a wrong breaker on purpose, letting a timer run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
-  outing moment").
+  outing moment"), claiming a station while its line stays dark, calling the wrong point on the hologram ("the back left
+  one's out!" when it is the front right).
 
 ### The Wi-Fi (2026-10-20)
 The engineer's library cipher of 2026-10-15 (`design/ideas/2026-10-15-brainstorm-2.md`), made the party's Wi-Fi
