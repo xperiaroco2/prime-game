@@ -534,7 +534,12 @@ otherwise, this part wins; every number is a placeholder.
   each puts the character in that whole pose, made by an animator so every pair looks good. Legs (6): stand, on one
   leg, squat, on one knee, lunge, sit on the ground. Arms (8): hands on hips, arms out like a plane, flex, a heart, a
   finger to the sky, hands behind the head, palms to the camera, a salute. The pose holds while the player stands,
-  turning on the spot keeps it, a step drops it. Arms alone were rejected as not photogenic.
+  turning on the spot keeps it, a step drops it. Arms alone were rejected as not photogenic. The engineer kept all
+  14 as drawn on the chameleon (2026-10-26, [#1102 c6412817038](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6412817038);
+  the sheets in the design repo's `ideas/pose-sheet/`).
+- **The silhouettes' starting list of pairs** (kept the same day): one leg + plane; side lunge + finger to the sky; on
+  one knee + heart; squat + flex; sitting on the ground + hands behind the head; standing + hands on hips. More pairs
+  may join the list after the playtest.
 - **The silhouette.** Only the photographer sees it, in the viewfinder: an outline of a random photogenic pose (from a
   list of good pairs), a facing (to the camera, the left side, the right side, the back), a random place in the frame
   and a random size (small means far from the camera, big means near). Each photo draws a new one.
