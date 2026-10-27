@@ -382,11 +382,16 @@ the expert knows every fix by heart.
 - **A problem** is seen and heard (a red lamp, a rising wail, its point on the hologram) and has its own timer
   (placeholders: an overheat 10 s, the breakers 30 s, a cartridge 30 s).
 - **Overheat** (reaction; the vent as agreed 2026-10-23,
-  [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868)): the vent's gills
-  breathe open; a problem slams them shut. Hold a palm on its scanner (a four-fingered hand): the gills open bit by bit
-  and a marker climbs a light bar; let go inside the green band and the gills exhale, fixed. Too early: a sound, try
-  again. Past the green, a release coughs steam (a miss); held to the very top, the vent coughs hard and throws the
-  player back across the throat, up again by themselves in about 2 s (no raising).
+  [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868); built as the
+  ray's gills in the throat's wall, four ribs that rock ±4° and never open, so light, colour and mist carry the states:
+  the engineer, 2026-10-27, prime-game-art#263 comment 6453520596 and
+  [#1095 c6453612034](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6453612034)): calm, the ribs
+  rock slowly like breathing and the slots pulse soft cyan; a problem makes them shudder fast, the slots go red, steam
+  rises and the lamp lights. Hold a palm on its scanner (a four-fingered hand): the ribs go still, the red in the slots
+  turns cyan in six clicked steps and a marker climbs a light bar; let go inside the green band and all four ribs swing
+  out together, the slots at their brightest cyan, mist from every slot: the exhale, fixed. Too early: a sound, try
+  again. Past the green, a release coughs steam (a miss); held to the very top, a hard red shudder, the vent coughs and
+  throws the player back across the throat, up again by themselves in about 2 s (no raising).
 - **A spent cartridge** (multitasking): the cartridge is an energy crystal (the engineer, 2026-10-23,
   [#1033 c6361383461](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6361383461)); spent, it goes
   plain grey. Pull it out of one of the hall's four sockets (two a side, the engineer, 2026-10-22: more places to burn;
