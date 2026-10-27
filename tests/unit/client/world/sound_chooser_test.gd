@@ -86,7 +86,8 @@ func test_a_launch_plays_at_its_origin_and_none_beyond_the_hearing_range() -> vo
 
 
 func test_other_events_are_silent() -> void:
-	for event_name: StringName in [&"Damaged", &"PackageDelivered", &"KnockedDown", &"Swapped"]:
+	# PackageDelivered plays the task's success since #1341 (task_feedback_sounds_test.gd).
+	for event_name: StringName in [&"Damaged", &"TaskProgress", &"KnockedDown", &"Swapped"]:
 		assert_object(_choose(event_name, {"peer": 2}, Vector3.ZERO)).is_null()
 
 

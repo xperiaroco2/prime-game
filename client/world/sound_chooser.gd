@@ -22,20 +22,31 @@ extends RefCounted
 ## - the photo task (#785, photo P6; the photo ADR §1.1 row 7, §4, PD15): ShotTaken's shutter at
 ##   the camera's lens (its station's marker plus `lens_m`, the mode's eye height, as PhotoTask's
 ##   lens), PhotoPrinted's print where the photo lies on the printer's tray (its ItemSpawned came
-##   right before), PhotoHung's hang at the board's marker. Each event reaches everyone with its
-##   place already public (the stations, the tray); the same cut-off keeps a shot, a print or a
-##   hang beyond the hearing range silent, and the muffle ray applies as to every sound.
+##   right before), PhotoHung's at the board's marker: a counted photo the task's success (#1341),
+##   one without a person (not counted, PD6) its error. Each event reaches everyone with its place
+##   already public (the stations, the tray; `counted` says no more than TaskProgress, PE5); the
+##   same cut-off keeps a shot, a print or a hang beyond the hearing range silent, and the muffle
+##   ray applies as to every sound.
 ## - the Generator (#801, G6): SwitchChanged's click at the switch's station, ButtonPressed's at the
 ##   generator's, each the place its StationPlaced already told everyone; the hum while it charges
 ##   is StationHums', not an event's;
 ## - Cooking (#776, the cooking ADR's CD14 (a), amended by #1101): IngredientPlaced's put click
 ##   at its place (never right or wrong: a burger is checked only when served), BurgerPlated's
-##   chime at the place (the burger made), BurgerServed's done sound (right) or buzz (wrong) at the
+##   chime at the place (the burger made), BurgerServed's success (right) or error (wrong) at the
 ##   order board of the client's own copy of the mode (`mode`; none: silent);
-##   GrillLoaded's put click at the grill; ItemChanged's ding (a patty fried) or hiss (burnt) where
+##   GrillLoaded's put click at the grill; ItemChanged's ding (a patty fried) or error (burnt) where
 ##   the patty lies, told by the new kind in the client's own copy of the mode (`mode`). A take is
 ##   the ItemPickedUp that follows its ItemSpawned (a pick-up's click); the sizzle while a patty
 ##   fries is StationHums', not an event's. No sound says who put what (the ADR's §3).
+## - every task's success and error (#1341, ARCHITECTURE §4.7.60): SfxSet.TASK_SUCCESS whenever a
+##   task or one of its subtasks is done, SfxSet.TASK_ERROR on a miss by the task's own rules, each
+##   at the station of that task's event, cut and muffled like every sound here, the same whoever
+##   caused it. Done: PackageDelivered at its circle or drop-off (Delivery, DeliveryByMeaning), a
+##   done ZoneProgress at its zone or the generator (ZoneTask, Generator), a right BurgerServed,
+##   PartFitted at the car, a counted PhotoHung at the board. A miss: a wrong BurgerServed, a
+##   patty turned burnt and a PhotoHung not counted (a photo without a person). A delivery or a
+##   charge done at the deal (a package that spawned in its circle, a generator dealt with no
+##   switch) is no one's success: those two play only in play (in_play()).
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -58,10 +69,10 @@ const FOOTSTEP := &"footstep"
 ## A step plays at the feet and aims like an item, a hand above the floor it is on: a ray to the
 ## feet would end in that floor. A placeholder, "not a decision".
 const STEP_AIM_M := ITEM_AIM_M
-## The photo task's sounds (#785, PD15): the shot's shutter, a photo printed, a photo hung.
+## The photo task's sounds (#785, PD15): the shot's shutter, a photo printed (a photo hung plays
+## SfxSet.TASK_SUCCESS when counted and SfxSet.TASK_ERROR when not, #1341).
 const SHUTTER := &"shutter"
 const PRINT := &"print"
-const HANG := &"hang"
 ## The shutter plays at the lens, in the air: the ray aims at the lens itself.
 const SHUTTER_AIM_M := 0.0
 ## A hang plays at the board's marker, on the floor below the board: the ray aims at about where a
@@ -73,25 +84,26 @@ const BUTTON_CLICK := &"button_click"
 ## A switch and the button sit on a panel at about a chest's height above their station's marker on
 ## the floor: the ray aims there, as a swing aims at a chest. A placeholder, "not a decision".
 const PANEL_AIM_M := SWING_AIM_M
-## Cooking's sounds (#776, CD14 (a)): a right ingredient on a plate, a wrong one, a burger done, a
-## patty fried, a patty burnt (the grill's sizzle loop is StationHums', not an id here).
+## Cooking's own sounds (#776, CD14 (a)): a burger plated, a patty fried (the grill's sizzle loop is
+## StationHums', not an id here). A serve and a burnt patty play SfxSet's task sounds (#1341).
 const CHIME := &"chime"
-const BUZZ := &"buzz"
-const BURGER_DONE := &"burger_done"
 const DING := &"ding"
-const HISS := &"hiss"
 ## A plate and the grill's grate sit on a counter at about a chest's height above their station's
 ## marker on the floor: the ray aims there, as at a panel. A placeholder, "not a decision".
 const COUNTER_AIM_M := PANEL_AIM_M
 ## The car repair's sounds (#811, the car repair ADR's RD14): the lift coming down, at its car,
 ## only in the round (the phase end's stop lowers the car without a crash, RE4; its LiftChanged
 ## comes before its PhaseChanged, so WorldSounds holds the crash to the next physics frame and plays
-## it only while the round runs); a part fitted, at the car. FitChanged makes no sound; a part
-## taken from a bin is ItemPickedUp's pick-up.
+## it only while the round runs). A part fitted plays SfxSet.TASK_SUCCESS at the car (#1341).
+## FitChanged makes no sound; a part taken from a bin is ItemPickedUp's pick-up.
 const LIFT_CRASH := &"lift_crash"
-const PART_FITTED := &"part_fitted"
 ## Where at the car its sounds aim: about its middle.
 const CAR_AIM_M := SWING_AIM_M
+## Where a delivery's success aims (#1341): a hand above its circle or drop-off on the floor, as an
+## item. A zone's and the generator's: a chest's height above the station's marker, where a player
+## stands in the zone and the generator's panel is. Placeholders, "not a decision".
+const DELIVERY_AIM_M := ITEM_AIM_M
+const ZONE_AIM_M := PANEL_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -160,7 +172,23 @@ static func source(
 			return Sound.new(PRINT, photo.position, ITEM_AIM_M) if photo != null else null
 		&"PhotoHung":
 			var board: ClientModel.Station = model.stations.get(fields["station"] as int)
-			return Sound.new(HANG, board.position, HANG_AIM_M) if board != null else null
+			if board == null:
+				return null
+			var hung := SfxSet.TASK_SUCCESS if (fields["counted"] as bool) else SfxSet.TASK_ERROR
+			return Sound.new(hung, board.position, HANG_AIM_M)
+		&"PackageDelivered":
+			var circle: ClientModel.Station = model.stations.get(fields["station"] as int)
+			if circle == null or not in_play(model):
+				return null
+			return Sound.new(SfxSet.TASK_SUCCESS, circle.position, DELIVERY_AIM_M)
+		&"ZoneProgress":
+			var zone: ClientModel.Station = model.stations.get(fields["station"] as int)
+			var needed: int = fields["needed"]
+			if zone == null or needed <= 0 or (fields["ticks"] as int) < needed:
+				return null
+			if not in_play(model):
+				return null
+			return Sound.new(SfxSet.TASK_SUCCESS, zone.position, ZONE_AIM_M)
 		&"SwitchChanged", &"ButtonPressed":
 			var panel: ClientModel.Station = model.stations.get(fields["station"] as int)
 			if panel == null:
@@ -177,7 +205,7 @@ static func source(
 			var board := _order_board(model, mode, fields["station"] as int)
 			if board == null:
 				return null
-			var served := BURGER_DONE if (fields["right"] as bool) else BUZZ
+			var served := SfxSet.TASK_SUCCESS if (fields["right"] as bool) else SfxSet.TASK_ERROR
 			return Sound.new(served, board.position, COUNTER_AIM_M)
 		&"ItemChanged":
 			var changed: ClientModel.Item = model.items.get(fields["item"] as int)
@@ -192,7 +220,9 @@ static func source(
 			return Sound.new(LIFT_CRASH, car.position, CAR_AIM_M) if car != null else null
 		&"PartFitted":
 			var fitted: ClientModel.Station = model.stations.get(fields["station"] as int)
-			return Sound.new(PART_FITTED, fitted.position, CAR_AIM_M) if fitted != null else null
+			if fitted == null:
+				return null
+			return Sound.new(SfxSet.TASK_SUCCESS, fitted.position, CAR_AIM_M)
 	return null
 
 
@@ -216,18 +246,6 @@ static func _car_of(model: ClientModel, mode: GameMode, id: int) -> ClientModel.
 	return CarRepairUse.station_of(model, type, CarRepairUse.Role.CAR) if type != null else null
 
 
-## A cooking put's sound (already folded into `station`): the grill's click, a wrong ingredient's
-## buzz, the third right one's done sound, else a right one's chime.
-static func _put_sound(
-	event_name: StringName, fields: Dictionary, station: ClientModel.Station
-) -> StringName:
-	if event_name == &"GrillLoaded":
-		return PUT_DOWN
-	if not fields["right"]:
-		return BUZZ
-	return BURGER_DONE if station.done else CHIME
-
-
 ## The order board of the Cooking whose place is station `place_id` in `model`, where a serve
 ## sounds; null for an unknown place, no mode or no board placed.
 static func _order_board(model: ClientModel, mode: GameMode, place_id: int) -> ClientModel.Station:
@@ -240,13 +258,13 @@ static func _order_board(model: ClientModel, mode: GameMode, place_id: int) -> C
 
 
 ## The sound of an item turning into kind `kind_id`: a ding for a fried patty of a Cooking of
-## `mode`, a hiss for its burnt patty; empty for any other change, or no mode.
+## `mode`, the task's error for its burnt patty (#1341); empty for any other change, or no mode.
 static func _cooked_sound(mode: GameMode, kind_id: StringName) -> StringName:
 	if mode == null:
 		return &""
 	for type: Cooking in CookingUse.types_of(mode):
 		if type.burnt != null and type.burnt.id == kind_id:
-			return HISS
+			return SfxSet.TASK_ERROR
 		for fried: ItemKind in type.fried_patties:
 			if fried != null and fried.id == kind_id:
 				return DING

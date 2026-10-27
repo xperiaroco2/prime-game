@@ -1,8 +1,9 @@
 class_name SfxSet
 extends RefCounted
-## The game's sound effects (#525; ARCHITECTURE §4.7.43): Kenney's CC0 packs under
-## `res://assets/audio/` (§11.1; docs/credits/), each sound id its own files, played as one
-## AudioStreamRandomizer: a file at random, never the same twice in a row, with a small random
+## The game's sound effects (#525; ARCHITECTURE §4.7.43): Kenney's CC0 packs and the project's
+## own task sounds (#1341, §4.7.60) under `res://assets/audio/` (§11.1; docs/credits/), each sound
+## id its own files, played as one AudioStreamRandomizer: a file at random, never the same twice
+## in a row, with a small random
 ## pitch (PITCH) and volume (VOLUME_OFFSET_DB). The world's sounds (WorldSounds) and the UI's click,
 ## End's outro and the pregame's role sounds (UiSounds) take their streams here. Each file is
 ## loaded the first time its id plays; one that does not load is left out, and an id with no file
@@ -13,6 +14,14 @@ extends RefCounted
 const IMPACT := "res://assets/audio/kenney_impact_sounds/"
 const RPG := "res://assets/audio/kenney_rpg_audio/"
 const INTERFACE := "res://assets/audio/kenney_interface_sounds/"
+## The project's own synthesis (docs/credits/prime_task_feedback.md), the engineer's picks on #1333.
+const TASK_FEEDBACK := "res://assets/audio/prime_task_feedback/"
+## Every task's success, at its station (SoundChooser, #1341): the task or one of its subtasks done.
+## U2, a kalimba's three rising notes.
+const TASK_SUCCESS := &"task_success"
+## Every task's error, at its station (SoundChooser, #1341): a miss by the task's own rules. P1,
+## the same kalimba falling a minor third.
+const TASK_ERROR := &"task_error"
 ## A UI press (UiSounds).
 const UI_CLICK := &"ui_click"
 ## The one sound of both outcomes when End starts (EndScreen.outro_began, #657).
@@ -31,6 +40,8 @@ const FILES: Dictionary[StringName, Array] = {
 	UI_OUTRO: [INTERFACE + "ui_outro.ogg"],
 	UI_ROLE_ENGINEERS: [INTERFACE + "ui_role_engineers.ogg"],
 	UI_ROLE_DISSIDENTS: [INTERFACE + "ui_role_dissidents.ogg"],
+	TASK_SUCCESS: [TASK_FEEDBACK + "task_success.wav"],
+	TASK_ERROR: [TASK_FEEDBACK + "task_error.wav"],
 }
 ## The variants of a footstep on each surface: footstep_<surface>_000 to _004 (Impact Sounds).
 const FOOTSTEP_VARIANTS := 5

@@ -5,7 +5,7 @@ extends MatchEvent
 ## car's use spot (Items.lock_at: no ItemPlaced, and no client draws it there). `station` is the
 ## car's station id (StationPlaced's), `item` the part's item id. The task's TaskState and
 ## TaskProgress follow it, then PartNeeded with the next part. It names no player: who fitted is
-## what the FitChanged before it said. Audience: everyone (the part-fitted sound, RD14).
+## what the FitChanged before it said. Audience: everyone (the task's success, RD14, #1341).
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE

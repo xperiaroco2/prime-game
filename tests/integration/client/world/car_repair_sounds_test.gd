@@ -3,10 +3,11 @@ extends GdUnitTestSuite
 ## StationHums): LiftChanged going down crashes at the car of that panel, in the round only (the
 ## phase end's stop lowers the car without a kill, RE4: no crash then; the host sends that stop's
 ## LiftChanged before its PhaseChanged, so WorldSounds holds a crash to the next physics frame and
-## drops it once the model has left the round); PartFitted plays at the car;
-## FitChanged is silent everywhere and nothing sounds at the panel for a fit (RE16); each within the
-## hearing range. WorldSounds plays each on a generated placeholder, and the lift's motor hums at
-## the car while it rises, keyed by the panel, until it is fully up or let go.
+## drops it once the model has left the round); PartFitted plays the task's success at the car
+## (#1341); FitChanged is silent everywhere and nothing sounds at the panel for a fit (RE16); each
+## within the hearing range. WorldSounds plays the crash on a generated placeholder and the success
+## on SfxSet's file, and the lift's motor hums at the car while it rises, keyed by the panel, until
+## it is fully up or let go.
 
 const F := preload("res://tests/fixtures/client/fixture_car_repair_client.gd")
 const RANGE := SoundChooser.HEARING_RANGE_M
@@ -69,29 +70,34 @@ func test_a_part_fitted_sounds_at_the_car_and_a_fit_starting_is_silent() -> void
 	assert_object(_choose(&"FitChanged", fit, PANEL_AT)).is_null()
 	F.hold(_model, 40, &"spark_plug", F.OTHER)
 	var sound := _choose(&"PartFitted", {"station": F.CAR, "item": 40}, PANEL_AT)
-	assert_str(String(sound.id)).is_equal(String(SoundChooser.PART_FITTED))
+	assert_str(String(sound.id)).is_equal(String(SfxSet.TASK_SUCCESS))
 	assert_that(sound.position).is_equal(CAR_AT)
+	assert_that(sound.aim).is_equal(CAR_AT + Vector3.UP * SoundChooser.CAR_AIM_M)
 	assert_bool(sound.position.is_equal_approx(PANEL_AT)).is_false()
 
 
-func test_world_sounds_plays_each_car_repair_sound_on_its_placeholder() -> void:
+func test_world_sounds_plays_the_crash_on_its_placeholder_and_the_fit_on_the_success() -> void:
 	var sounds := _sounds()
 	_deliver(sounds, &"LiftChanged", _lift(false, 20))
 	F.hold(_model, 40, &"spark_plug", F.OTHER)
 	_deliver(sounds, &"PartFitted", {"station": F.CAR, "item": 40})
 	await _physics_frames()
 	assert_int(sounds.played()).is_equal(2)
-	for child: Node in sounds.get_children():
-		var player := child as AudioStreamPlayer3D
-		assert_object(player.stream).is_instanceof(AudioStreamWAV)
+	var started := sounds.find_children("*", "AudioStreamPlayer3D", false, false)
+	assert_int(started.size()).is_equal(2)
+	# The fit plays at once; the crash waits for the next physics frame (held).
+	var fit := started[0] as AudioStreamPlayer3D
+	var crash := started[1] as AudioStreamPlayer3D
+	assert_object(fit.stream).is_same(sounds.sfx.stream_for(SfxSet.TASK_SUCCESS))
+	assert_object(crash.stream).is_instanceof(AudioStreamWAV)
+	for player: AudioStreamPlayer3D in [fit, crash]:
 		assert_float(player.max_distance).is_equal(RANGE)
 
 
-func test_the_placeholders_exist() -> void:
-	for id: StringName in [SoundChooser.LIFT_CRASH, SoundChooser.PART_FITTED]:
-		var blip := WorldSounds.station_blip(id)
-		assert_int(blip.data.size()).is_greater(0)
-		assert_int(blip.loop_mode).is_equal(AudioStreamWAV.LOOP_DISABLED)
+func test_the_placeholder_exists() -> void:
+	var blip := WorldSounds.station_blip(SoundChooser.LIFT_CRASH)
+	assert_int(blip.data.size()).is_greater(0)
+	assert_int(blip.loop_mode).is_equal(AudioStreamWAV.LOOP_DISABLED)
 
 
 func test_the_motor_hums_at_the_car_while_it_rises() -> void:

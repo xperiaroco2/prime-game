@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## real lift_panel.tscn under CarRepairViews, the lamp, StationUse.usable(panel) and the HUD aimed
 ## at the panel stay the same through FitChanged (a fitter starting and stopping) and a PartFitted
 ## that does not finish the task, the lift down and the lift up. The sounds' half (FitChanged
-## silent, PART_FITTED at the car) is car_repair_sounds_test's.
+## silent, the task's success at the car) is car_repair_sounds_test's.
 
 const SCENES := "res://levels/stations/%s.tscn"
 const CAR := FixtureCarRepairClient.CAR

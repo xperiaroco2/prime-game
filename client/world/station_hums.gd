@@ -10,9 +10,9 @@ extends Node3D
 ## level (Muffle). Its stream is WorldSounds.hum_blip() until the engineer's file arrives.
 ## Cooking's grill sizzles the same way (#776, the cooking ADR's CD14 (a)) while a patty on it fries
 ## (CookingViews.ring_phase FRYING at the estimated host tick: GrillLoaded's ticks extrapolated, as
-## the ring), and stops once it is fried (the ding; the hiss marks the burn) or taken off; its
-## stream is WorldSounds.sizzle_blip(). The car repair's lift motor runs the same way (#811,
-## RD14), at the car while its car rises (CarRepairUse.rising), keyed by the lift panel's id.
+## the ring), and stops once it is fried (the ding; the task's error marks the burn) or taken
+## off; its stream is WorldSounds.sizzle_blip(). The car repair's lift motor runs the same way
+## (#811, RD14), at the car while its car rises (CarRepairUse.rising), keyed by the lift panel's id.
 
 ## How often the muffle ray is cast for each hum playing (the ears move, unlike a one-shot's).
 const MUFFLE_EVERY_S := 0.1
