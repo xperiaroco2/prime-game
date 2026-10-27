@@ -976,15 +976,16 @@ cannot see who is under the car.
 **Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
 they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
 garage's walls hide the space under the car from the panel; no sound plays while a fit runs. The end of a fit is
-not hidden: every task's success sound (U2, #1341) and the task screen tell everyone, the holder too, the moment a part is fitted,
-while the fitter is still under the car. Tasks are shared and
+not hidden: every task's success sound (U2, #1341) and the task screen tell everyone, the holder too, the moment a
+part is fitted, while the fitter is still under the car. Tasks are shared and
 every player sees the same task progress (#79): the task screen's Car repair row shows the parts fitted of N, struck
 through once every part is fitted (there is no shared total of all tasks, #738).
 
 **Edge cases.** Only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md),
 V4): a knocked-out player and a dead player can do nothing. The host's own player follows the same rules as everyone.
 
-**Sounds.** The lift's motor, the drop's crash, a part taken and a part fitted; none while a fit runs.
+**Sounds.** The lift's motor, the drop's crash, a part taken, and every task's success when a part is fitted (U2,
+#1341); none while a fit runs.
 
 **Where it plays.** On the House only, in the base mode: the one map its data lists. Never on the flat greybox, which
 is a test bench only (#767: players always play the House). Bots do not play the House, so car repair is tested by
