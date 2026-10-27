@@ -557,30 +557,54 @@ otherwise, this part wins; every number is a placeholder.
 - **Two players.** The photographer uses the camera and enters the viewfinder; the model runs out onto the lawn; the
   photographer guides by voice to the place, the distance, the facing and the pose. The viewfinder shows the model
   over the outline and tints the part that is off (legs, arms or facing) without saying which way to fix it. When all
-  match, the outline turns green and a lamp on the camera lights green for everyone around; a shot then counts, with a
-  flash, and the next silhouette appears.
-- **The shutter works at any time:** only a green shot counts; the others are fail frames, kept for the reveal.
+  match, the outline turns green and the model's lamp on the camera lights green for everyone around; a shot then
+  counts, with a flash, and the next silhouette appears.
+- **The shutter works at any time:** only a shot that locks a part counts; the others are fail frames, kept for the
+  reveal.
 - **Alone, slower.** The photographer starts a self-timer (about 10 s), runs out and poses from memory, without the
   viewfinder; a match when the timer fires counts, a miss is a fail frame. This replaces the M7 rule that nobody can
-  photograph himself.
-- **The match's last photo is a group:** two silhouettes at once, in different places and poses, for two models or
-  one model and the photographer on the timer; each part locks green once matched, so nobody waits frozen.
+  photograph himself. The countdown shows on the camera for everyone on the lawn: a ring of ten light segments round
+  the lens, facing the lawn, going out one by one, with beeps that speed up; no digits.
+- **After a timer shot,** coming back to the camera to start the timer again, the photographer sees the last shot in
+  the viewfinder over the outline, the part that was off (legs, arms or facing) tinted as in the live view, never
+  which way to fix it; anyone at the camera may look too.
+- **People per photo grow over the match (the group ladder).** The match's first photo has one person in it, the last
+  has three when the match has four photos or more, every other photo has two: 1 / 1, 2 / 1, 2, 2 / 1, 2, 2, 3 for
+  one to four photos (m8-match §6a2; a longer match adds twos before the three). A person is a silhouette, a part of
+  the photo with its own place, size, facing and pose; the photographer may fill one on the timer.
+- **A shot locks the parts that match.** The viewfinder shows every part's outline, each green while it matches. The
+  shutter, or the timer firing, locks every part that matches at that moment, with that moment's picture of it; a
+  locked part shows as its frozen picture, its model may walk away, and it is never undone (m8-match §4). The photo
+  counts when all its parts are locked: a flash, the next photo's silhouettes appear. A shot that locks nothing is a
+  fail frame.
+- **One lamp per person.** The camera carries one lamp per part of the current photo (one, two or three) on its top:
+  red while its part is off, green while it matches, green for good once it is locked, so everyone near sees "two of
+  three".
+- **A group alone.** One part at a time on the timer: the photographer starts it, runs out, matches one part and the
+  timer locks it; back at the camera, the timer again for the next. A three alone is about three single photos; the
+  reveal shows the same player in every part.
 - **Who is in the shot.** Everyone behind the model is in the photo (copying the pose is welcome); only a body between
   the camera and the model turns the outline red, and anyone can push it away. Anyone can step to the camera and take
   the viewfinder: the camera has no owner.
 - **The reveal.** A big photo-frame screen at the bonfire: each counted photo flies onto it for a few seconds with the
   pair's fail frames beside it; between photos it plays the match's slideshow.
 - **Hidden information.** The host decides a match from the players' poses, facings and places, never from a picture;
-  the outline is the photographer's alone; the lamp and the reveal are public. The task row on the map screen (M)
+  the outline is the photographer's alone; the lamps, the timer and the reveal are public. The task row on the map screen (M)
   shows the photos counted of N.
 - **The humans' spoils**, all looking like honest fumbles: the photographer says "back" for "forward", left from his
   own side, the wrong half of a pose; the model picks the wrong half or steps out of the pose just before green;
   anyone walks in front of the lens or takes the camera "to help".
-- **Points:** a counted photo is a shared step, a point to the photographer and to each model in it (m8-match §4).
+- **Points:** a counted photo is a shared step: a point to whoever stood in each locked part and one to the
+  photographer (m8-match §4); a group made alone pays its maker for every part.
 - **Numbers** (placeholders): photos a match from m8-match §6a2; a match within about 1 m and 30°; the timer 10 s.
-- **Kept ideas, not rules yet:** the people in each photo growing over the match (1, 2, then 3), and a results screen
-  at the match's end with the group photo ([#1102 c6392134933](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6392134933),
-  [#1040 c6392135150](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6392135150)).
+- **The camera's look:** "the Eye", an egg-shaped body with one big lens, the timer's ring round it and the lamps in a
+  crest on top; its character shows in what it does (the eye focuses on the model, the flash is its blink). The
+  concept sheets are in the design repo's `ideas/photo-camera/`.
+- The group ladder, the lock by the shot and the timer shot: the engineer's, 2026-10-27
+  ([#1102 c6453582317](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6453582317),
+  [c6455785140](https://github.com/xperiaroco2/prime-game/issues/1102#issuecomment-6455785140)).
+- **Kept idea, not a rule yet:** a results screen at the match's end with the group photo
+  ([#1040 c6392135150](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6392135150)).
 
 **The M7 film chain** (for the record; it leaves the MVP). The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
 are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
