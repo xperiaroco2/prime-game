@@ -789,8 +789,9 @@ greenhouse, where a board decodes the order's herb icon.
   plate or take a burger and serve it wrong.
 - A dissident plays the same character as an engineer (role `crew`), under the same rules, and only living players
   do subtasks (#79; vision revision 1, V4).
-- Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, a hiss when it burns, a
-  chime when a burger is taken off its plate, a sound when a served burger is right and a buzz when it is wrong. A ring over the grill fills to fried and then to
+- Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, every task's error
+  when it burns, a chime when a burger is taken off its plate, every task's success when a served burger is right and
+  its error when it is wrong (U2 and P1, #1341). A ring over the grill fills to fried and then to
   burnt.
 
 **Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
@@ -869,8 +870,8 @@ back, switch it on, and return to press the button again.
 - The panel at the generator shows a battery of 4 bars, one lit per switch that is on (the always-on switches' bars
   from the start), filled from one end like a battery's level: it says how many switches are on, not which. When every
   bar is lit it glows blue: the button can start the charge.
-- Every action has a sound: a switch's click, the button's click, and a hum at the generator while it charges. There
-  is no sound when the charge is done.
+- Every action has a sound: a switch's click, the button's click, and a hum at the generator while it charges. When
+  the charge is done, every task's success plays at the generator (U2, #1341).
 - Busy hands: a player holding a two-handed item (a package) cannot use a switch or the button: they put it down, use
   it, and pick it up again.
 - A dissident plays the same character as an engineer (role `crew`), under the same rules; only the win condition
@@ -975,7 +976,7 @@ cannot see who is under the car.
 **Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
 they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
 garage's walls hide the space under the car from the panel; no sound plays while a fit runs. The end of a fit is
-not hidden: the part-fitted sound and the task screen tell everyone, the holder too, the moment a part is fitted,
+not hidden: every task's success sound (U2, #1341) and the task screen tell everyone, the holder too, the moment a part is fitted,
 while the fitter is still under the car. Tasks are shared and
 every player sees the same task progress (#79): the task screen's Car repair row shows the parts fitted of N, struck
 through once every part is fitted (there is no shared total of all tasks, #738).
