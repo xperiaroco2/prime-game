@@ -94,33 +94,37 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   4.66 m long at 14.9°. It leads into **the throat** (the engineer, 2026-10-22): no straight pass, its walls open as
   a funnel from 3.3 m at the mouth to the hall, 4.05 m deep, so the whole hall is seen from the mouth. Its front is an open notch in the nose, like a mouth with no upper lip; from
   where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). On its
-  two slanted walls, under the roof, hang **the two vents** (overheat), each about 0.6 m deep, its gill blades
-  sticking out past the frame as on the concept (the engineer, 2026-10-23, #1095 comment 6363588387); with both
-  worked about 3.6 m of pass stays between them.
+  two slanted walls are plain, with the floor lights kept (the vents moved to the hall's back wall, below).
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
   console** 1 m aft of its centre (the engineer, 2026-10-23, #1095 comment 6360765037): a low ring pedestal (Ø 1.2 m,
   0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
   ship's axes, whose wings carry the eight lamps of both breaker boards (GDD §8; no lever, no battery, no button for
   the order); **four cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem
-  count), two on the back wall beside the vault's hatch and two at the front sides, beside the throat and clear of
-  its pass. Behind the back wall, **the vault**: closed, 1.8 × 2 m, its hatch at (0, 3.6), not an exit.
+  count), two at the front sides, beside the throat and clear of its pass, and two on the back arc just aft of the
+  corridor openings. On the back wall, either side of the vault's hatch, stand **the two vents** (overheat; the
+  engineer, 2026-10-27, place A, #1095 comments 6455683504 and 6455835516): the ray's gills floor to ceiling, four
+  bronze ribs from 0.08 to 2.97 m under a hood closed to the 3.2 m rim, in a 45 cm well; the scanner column on the
+  door's side (the scanner at 1.2 m, the light bar 1.36 to 1.88 m, the lamp 1.92 to 2.02 m), so both vents face the
+  mouth and are seen from the ramp. Each side's back arc, from the corridor opening to the door (31.164..77.5° from
+  the hall's centre), is two flat chords of 1.638 m: the vent by the door, the socket outside it. Behind the back
+  wall, **the vault**: closed, 1.8 × 2 m, its hatch at (0, 3.6), not an exit.
 - **Two corridors**, straight, 3 m wide, 2.4 m clear, run from the hall 8.66° aft out to the wings; their walls are
   vertical up to 1.45 m, then slant; on each one's front wall hangs **a breaker board** (four coloured breakers, a lamp
   over each), in sight of the console down the corridor.
 - **Two lens rooms** at the wing tips, round, r 2.0 m, a window band round the outward side (sill 1.0 m, head 2.2 m),
   a slanted ceiling 2.45 to 2.35 m with three roof windows; each with **one charger** (the cartridge's renewer, GDD §8)
-  against its aft wall. A spent cartridge goes to the charger on its own side, about 8.5 m from a back socket and 9 m
+  against its aft wall. A spent cartridge goes to the charger on its own side, about 7.4 m from a back socket and 9 m
   from a front one in a straight line; with both sockets of a side spent, the second runs across the hall to the
   other charger or waits.
 - **The silhouette** (the art track's hull P, a lens-diamond, approved 2026-10-23, prime-game-art#263 comment
   6359082930): 26.1 × 22.1 m with the engine pods, 4.82 m high before the raise, now 0.6 m higher; the ridge over the corridors 3.13 m deep, the fin
   edges about 0.4 m, the lens rims about 3.26 m; at least 0.17 m of skin round every room.
-- Positions inside, as built (prime-game-art#263 comment 6346859072, `layouts/ship/ship.toml`), from the ship's centre
+- Positions inside, as built (prime-game-art#263 comments 6346859072 and 6456353546, `layouts/ship/ship.toml`), from the ship's centre
   (x east, y south, so +y is aft): the hall's centre (0, -0.4); the console (0, 0.6); the mouth (±1.65, -7.1) at the
-  nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±2.409, -4.791);
-  the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
+  nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±1.6305, 3.2475);
+  the back sockets (±2.9339, 2.3119), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
-  band.
+  band (the moved back sockets 1.16 m).
 
 ## 5. Links between levels
 

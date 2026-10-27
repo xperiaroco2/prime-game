@@ -354,7 +354,7 @@ for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
 - **The start:** the start button on the console in the hall (no battery since 2026-10-23, above). Everything
-  happens inside the ship, a wide manta with two mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
+  happens inside the ship, a wide manta with two mirrored halves: the hall with the console, four cartridge sockets and the two vents on its back wall, a
   breaker board in each corridor, a charger in each lens room ([estate-map](design/estate-map.md) §5a).
 - **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
   one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
@@ -384,8 +384,9 @@ the expert knows every fix by heart.
 - **Overheat** (reaction; the vent as agreed 2026-10-23,
   [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868); the ray's
   gills, four ribs that rock ±4° and never open, so light, colour and mist carry the states: the engineer, 2026-10-27,
-  [#1095 c6453612034](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6453612034); where the two
-  vents stand is under review, prime-game-art#263 comment 6453550931): calm, the ribs
+  [#1095 c6453612034](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6453612034); the two vents
+  stand floor to ceiling on the hall's back wall either side of the vault door, the engineer, 2026-10-27,
+  [#1095 c6455683504](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6455683504)): calm, the ribs
   rock slowly like breathing and the slots pulse soft cyan; a problem makes them shudder fast, the slots go red, steam
   rises and the lamp lights. Hold a palm on its scanner (a four-fingered hand): the ribs go still, the red in the slots
   turns cyan in six clicked steps and a marker climbs a light bar; let go inside the green band and all four ribs swing
@@ -395,7 +396,7 @@ the expert knows every fix by heart.
 - **A spent cartridge** (multitasking): the cartridge is an energy crystal (the engineer, 2026-10-23,
   [#1033 c6361383461](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6361383461)); spent, it goes
   plain grey. Pull it out of one of the hall's four sockets (two a side, the engineer, 2026-10-22: more places to burn;
-  the problem count per stage stays), carry it to the charger in the lens room on its side (8 to 9 m) and put it in
+  the problem count per stage stays), carry it to the charger in the lens room on its side (7 to 9 m) and put it in
   its one slot; press, and the charger's two inner prongs orbit it in lightning for 10 s (placeholder), then it
   shines and waits until someone takes it,
   so the player can fix something else meanwhile; then take it back and fit it. With both sockets of a side spent,
