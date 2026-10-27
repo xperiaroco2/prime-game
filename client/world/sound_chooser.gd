@@ -23,7 +23,7 @@ extends RefCounted
 ##   the camera's lens (its station's marker plus `lens_m`, the mode's eye height, as PhotoTask's
 ##   lens), PhotoPrinted's print where the photo lies on the printer's tray (its ItemSpawned came
 ##   right before), PhotoHung's at the board's marker: a counted photo the task's success (#1341),
-##   one without a person (not counted, PD6) the hang. Each event reaches everyone with its place
+##   one without a person (not counted, PD6) its error. Each event reaches everyone with its place
 ##   already public (the stations, the tray; `counted` says no more than TaskProgress, PE5); the
 ##   same cut-off keeps a shot, a print or a hang beyond the hearing range silent, and the muffle
 ##   ray applies as to every sound.
@@ -43,10 +43,10 @@ extends RefCounted
 ##   at the station of that task's event, cut and muffled like every sound here, the same whoever
 ##   caused it. Done: PackageDelivered at its circle or drop-off (Delivery, DeliveryByMeaning), a
 ##   done ZoneProgress at its zone or the generator (ZoneTask, Generator), a right BurgerServed,
-##   PartFitted at the car, a counted PhotoHung at the board. A miss: a wrong BurgerServed and a
-##   patty turned burnt. A delivery or a charge done at the deal (a package that spawned in its
-##   circle, a generator dealt with no switch) is no one's success: those two play only in play
-##   (in_play()).
+##   PartFitted at the car, a counted PhotoHung at the board. A miss: a wrong BurgerServed, a
+##   patty turned burnt and a PhotoHung not counted (a photo without a person). A delivery or a
+##   charge done at the deal (a package that spawned in its circle, a generator dealt with no
+##   switch) is no one's success: those two play only in play (in_play()).
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -69,11 +69,10 @@ const FOOTSTEP := &"footstep"
 ## A step plays at the feet and aims like an item, a hand above the floor it is on: a ray to the
 ## feet would end in that floor. A placeholder, "not a decision".
 const STEP_AIM_M := ITEM_AIM_M
-## The photo task's sounds (#785, PD15): the shot's shutter, a photo printed, a photo without a
-## person hung (a counted one plays SfxSet.TASK_SUCCESS, #1341).
+## The photo task's sounds (#785, PD15): the shot's shutter, a photo printed (a photo hung plays
+## SfxSet.TASK_SUCCESS when counted and SfxSet.TASK_ERROR when not, #1341).
 const SHUTTER := &"shutter"
 const PRINT := &"print"
-const HANG := &"hang"
 ## The shutter plays at the lens, in the air: the ray aims at the lens itself.
 const SHUTTER_AIM_M := 0.0
 ## A hang plays at the board's marker, on the floor below the board: the ray aims at about where a
@@ -175,7 +174,7 @@ static func source(
 			var board: ClientModel.Station = model.stations.get(fields["station"] as int)
 			if board == null:
 				return null
-			var hung := SfxSet.TASK_SUCCESS if (fields["counted"] as bool) else HANG
+			var hung := SfxSet.TASK_SUCCESS if (fields["counted"] as bool) else SfxSet.TASK_ERROR
 			return Sound.new(hung, board.position, HANG_AIM_M)
 		&"PackageDelivered":
 			var circle: ClientModel.Station = model.stations.get(fields["station"] as int)

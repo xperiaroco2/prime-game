@@ -2,10 +2,10 @@ extends GdUnitTestSuite
 ## The photo task's sounds (#785, photo P6; the photo ADR §1.1 row 7, §4, PD15; the M4 ADR's §3
 ## item 10): SoundChooser plays ShotTaken's shutter at the camera's lens, PhotoPrinted's print where
 ## the photo lies on the tray and PhotoHung's at the board (a counted photo the task's success,
-## #1341; one without a person the hang), each only within the hearing range of the ears and
+## one without a person its error, #1341), each only within the hearing range of the ears and
 ## nothing at all from farther away or for a place the model does not know; WorldSounds plays each
-## with the range as max_distance, the shutter, the print and the hang on generated placeholder
-## blips (no file yet), the success on SfxSet's file.
+## with the range as max_distance, the shutter and the print on generated placeholder blips (no
+## file yet), the success and the error on SfxSet's files.
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 const CAMERA := 3
@@ -64,10 +64,11 @@ func test_the_hang_plays_at_the_board_within_the_range() -> void:
 	assert_that(sound.position).is_equal(BOARD_AT)
 	assert_that(sound.aim).is_equal(BOARD_AT + Vector3.UP * SoundChooser.HANG_AIM_M)
 	assert_float(SoundChooser.HANG_AIM_M).is_greater(0.0)
-	# One without a person counts nothing (PD6): the hang, at the same place.
+	# One without a person counts nothing (PD6): a miss, the task's error, at the same place
+	# (the engineer's word on #1344).
 	hung["counted"] = false
 	var uncounted := _choose(&"PhotoHung", hung, Vector3.ZERO)
-	assert_str(String(uncounted.id)).is_equal(String(SoundChooser.HANG))
+	assert_str(String(uncounted.id)).is_equal(String(SfxSet.TASK_ERROR))
 	assert_that(uncounted.position).is_equal(BOARD_AT)
 	assert_that(uncounted.aim).is_equal(sound.aim)
 	assert_object(_choose(&"PhotoHung", hung, BOARD_AT + Vector3(0, 0, RANGE + 0.01))).is_null()
@@ -97,7 +98,12 @@ func test_world_sounds_plays_each_photo_blip_with_the_range_as_max_distance() ->
 		var played := started[i] as AudioStreamPlayer3D
 		assert_float(played.max_distance).is_equal(RANGE)
 		assert_that(played.position).is_equal(at[i])
-		assert_object(played.stream).is_instanceof(AudioStreamWAV)
+	for i: int in 2:
+		assert_object((started[i] as AudioStreamPlayer3D).stream).is_instanceof(AudioStreamWAV)
+	# The uncounted hang is the task's error: SfxSet's file.
+	var error := sounds.sfx.stream_for(SfxSet.TASK_ERROR)
+	assert_object(error).is_not_null()
+	assert_object((started[2] as AudioStreamPlayer3D).stream).is_same(error)
 	# One blip per id, made once and kept.
 	sounds.on_event(&"ShotTaken", _shot(CAMERA))
 	var again := sounds.find_children("*", "AudioStreamPlayer3D", false, false)
@@ -112,7 +118,7 @@ func test_world_sounds_plays_each_photo_blip_with_the_range_as_max_distance() ->
 
 func test_the_photo_blips_are_short_distinct_placeholders() -> void:
 	# PD15: blips built in code until the engineer's files arrive; SfxSet has none for them yet.
-	for id: StringName in [SoundChooser.SHUTTER, SoundChooser.PRINT, SoundChooser.HANG]:
+	for id: StringName in [SoundChooser.SHUTTER, SoundChooser.PRINT]:
 		assert_int(SfxSet.paths_for(id).size()).is_equal(0)
 		var blip := WorldSounds.photo_blip(id)
 		assert_object(blip).is_not_null()
@@ -123,10 +129,7 @@ func test_the_photo_blips_are_short_distinct_placeholders() -> void:
 	# Each id its own sound, not one fallback for all.
 	var shutter := WorldSounds.photo_blip(SoundChooser.SHUTTER).data
 	var print_blip := WorldSounds.photo_blip(SoundChooser.PRINT).data
-	var hang := WorldSounds.photo_blip(SoundChooser.HANG).data
 	assert_bool(shutter == print_blip).is_false()
-	assert_bool(shutter == hang).is_false()
-	assert_bool(print_blip == hang).is_false()
 	# The same seed each time: deterministic bytes.
 	assert_that(WorldSounds.photo_blip(SoundChooser.PRINT).data).is_equal(
 		WorldSounds.photo_blip(SoundChooser.PRINT).data

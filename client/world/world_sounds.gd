@@ -27,7 +27,7 @@ extends Node3D
 ## The streams are SfxSet's: Kenney's CC0 files and the project's own task sounds, each id a
 ## randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
-## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
+## The photo task's shutter and print (#785, PD15) play generated placeholders too
 ## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens
 ## (`lens_m` above its marker). So do the Generator's clicks (#801, G6): a switch thrown and the
 ## generator's button pressed (station_blip()); its hum while it charges is StationHums'
@@ -35,8 +35,8 @@ extends Node3D
 ## patty fried's ding (cooking_blip()); the grill's put is the put-down's file, its sizzle while a
 ## patty fries StationHums' (sizzle_blip()). Every task's success and error (#1341, §4.7.60) are
 ## SfxSet's files (TASK_SUCCESS, TASK_ERROR), in place of the placeholders that meant done or a
-## miss (Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, the hang
-## of a counted photo).
+## miss (Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, the
+## photo's hang).
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
@@ -45,7 +45,6 @@ const MIX_RATE := 22050
 const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.SHUTTER: 0.08,
 	SoundChooser.PRINT: 0.6,
-	SoundChooser.HANG: 0.12,
 }
 ## The Generator's placeholder clicks (#801, G6) and the length of each in seconds: placeholders,
 ## "not a decision", until the engineer's files arrive.
@@ -196,8 +195,8 @@ static func throw_blip() -> AudioStreamWAV:
 
 ## The placeholder sound of the photo task's sound `id` (#785, PD15: blips built in code, as
 ## throw_blip(), until the engineer's files arrive): a 16-bit mono burst PHOTO_BLIP_SECONDS long.
-## The shutter two quick clicks; the printer a buzz stepping a dozen times a second; the hang a
-## low tap. Null for an id with no blip.
+## The shutter two quick clicks; the printer a buzz stepping a dozen times a second. Null for an
+## id with no blip.
 static func photo_blip(id: StringName) -> AudioStreamWAV:
 	if not PHOTO_BLIP_SECONDS.has(id):
 		return null
@@ -215,12 +214,10 @@ static func photo_blip(id: StringName) -> AudioStreamWAV:
 			value = noise * exp(-t / 0.004)
 			if t >= 0.045:
 				value += 0.7 * noise * exp(-(t - 0.045) / 0.004)
-		elif id == SoundChooser.PRINT:
+		else:
 			var fade := minf(1.0, minf(t / 0.02, (seconds - t) / 0.05))
 			var step := 0.6 + 0.4 * signf(sin(TAU * 12.0 * t))
 			value = 0.5 * signf(sin(TAU * 180.0 * t)) * step * fade
-		else:
-			value = sin(TAU * 140.0 * t) * exp(-t / 0.03) + 0.5 * noise * exp(-t / 0.003)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS

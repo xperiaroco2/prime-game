@@ -5057,13 +5057,13 @@ and P1 (the same kalimba falling a minor third), the project's own synthesis in 
   | Generator | a done `ZoneProgress` of the generator: the charge full (every subtask at once), at the generator | none |
   | Cooking | `BurgerServed` right, at the order board | `BurgerServed` wrong (a wrong ingredient shows only at the serve, #1101), at the order board; a patty turned burnt (`ItemChanged` to the burnt kind), where it lies |
   | CarRepair | `PartFitted`, at the car | none |
-  | PhotoTask | `PhotoHung` counted, at the board | none: a photo without a person (not counted, PD6) keeps its hang |
+  | PhotoTask | `PhotoHung` counted, at the board | `PhotoHung` not counted (a photo without a person, PD6), at the board (the engineer's word on #1344) |
 
   A delivery and a charge can be done at the deal (a package that spawned inside its circle, a generator dealt with
   no switch, GE9): those two play only in the play phase (`SoundChooser.in_play`), so nobody's success sounds then.
   Step sounds that mean neither stay: `BurgerPlated`'s chime, the fried patty's ding, the put clicks, the
   Generator's clicks, the sizzle and hums, the shutter and the print, the lift's crash. The placeholders that meant
-  done or a miss gave way: Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, a counted
+  done or a miss gave way: Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, the
   photo's hang.
 - **How.** `WorldSounds` plays them as every event's sound: a one-shot `AudioStreamPlayer3D` at the station on the
   Effects bus, cut at `HEARING_RANGE_M` (and its `max_distance`), muffled behind the level. So a player near the
@@ -7893,8 +7893,8 @@ held on until `release(shot)` (the call P8's render makes once it has drawn; thi
 least `PULSE_S` 0.1 s, and ended by the fallback at `HOLD_LIMIT_S` 1 s when no render calls (a headless client;
 P8, §4.7.58, renders nothing there); the session's end ends every flash. `SoundChooser` places `ShotTaken`'s shutter at the lens,
 `PhotoPrinted`'s print where the photo lies on the tray and `PhotoHung`'s at the board's marker (its ray aims
-1 m up: a counted photo the task's success, §4.7.60, one without a person the hang), each cut at the 12 m hearing
-range; `WorldSounds` plays them muffled behind the level (M5-7), the shutter, the print and the hang with blips
+1 m up: a counted photo the task's success, one without a person its error, §4.7.60), each cut at the 12 m hearing
+range; `WorldSounds` plays them muffled behind the level (M5-7), the shutter and the print with blips
 built in code (`photo_blip()`, PD15) until the engineer's files arrive. Every number placeholders, "not a decision".
 Tests: `tests/unit/client/world/photo_flashes_test.gd` (the light, its shadows and range, the hold with a test caller,
 the shortest pulse, the fallback by `advance` and over the tree's frames, a recycled shot id; planted shadows off,
