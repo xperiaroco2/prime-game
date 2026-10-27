@@ -6,7 +6,7 @@ extends MatchEvent
 ## was wrong (the cook works that out from the burger and the order). Right: the order is done
 ## (TaskState and TaskProgress follow); wrong: the burger is thrown away. Its burger's ItemVanished
 ## follows. It names no player (the ADR's §3, "Who did it"). Audience: everyone, as every cooking
-## event (the ADR's §3; a buzz at the board is heard by anyone near).
+## event (the ADR's §3; the task's success or error at the board is heard by anyone near).
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE

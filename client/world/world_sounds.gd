@@ -24,7 +24,8 @@ extends Node3D
 ## of the drawn pose (the own controller's, a body's relayed one) AND a step speed at or below
 ## crouch_speed_mps plus FootstepCadence.SNEAK_SPEED_MARGIN_MPS (FootstepCadence.silent_of), so a
 ## peer that claims the sneak while it walks faster is heard.
-## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
+## The streams are SfxSet's: Kenney's CC0 files and the project's own task sounds, each id a
+## randomizer. A throw's launch (#645) has
 ## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
 ## The photo task's shutter, print and hang (#785, PD15) play generated placeholders too
 ## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens

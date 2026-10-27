@@ -16,8 +16,17 @@ func test_every_file_of_every_id_exists_and_loads() -> void:
 			var credits := "res://docs/credits/%s.md" % pack
 			assert_bool(FileAccess.file_exists(credits)).override_failure_message(credits).is_true()
 			assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
+			# Kenney's packs ship Ogg; the project's own task sounds are WAV (§4.7.43).
 			var stream := load(path)
-			assert_bool(stream is AudioStreamOggVorbis or stream is AudioStreamWAV).is_true()
+			if pack == "prime_task_feedback":
+				assert_object(stream as AudioStreamWAV).override_failure_message(path).is_not_null()
+			else:
+				assert_str(pack).starts_with("kenney_")
+				(
+					assert_object(stream as AudioStreamOggVorbis)
+					. override_failure_message(path)
+					. is_not_null()
+				)
 
 
 func test_the_task_success_and_error_are_the_engineer_s_two_files() -> void:

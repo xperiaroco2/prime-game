@@ -5046,7 +5046,8 @@ and P1 (the same kalimba falling a minor third), the project's own synthesis in 
   through the same randomizer as every id (§4.7.43's pitch and volume placeholders). A ship station that lands later
   plays them through the same two ids.
 - **When.** `SoundChooser` picks success whenever a task or one of its subtasks is done, error on a miss by the
-  task's own rules, each at the station of the event that tells it (every one reaches everyone):
+  task's own rules, each at the station of the event that tells it, the burnt patty's where it lies (every one
+  reaches everyone):
 
   | Task type | Success (done) | Error (a miss) |
   |---|---|---|

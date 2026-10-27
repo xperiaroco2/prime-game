@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## the photo lies on the tray and PhotoHung's at the board (a counted photo the task's success,
 ## #1341; one without a person the hang), each only within the hearing range of the ears and
 ## nothing at all from farther away or for a place the model does not know; WorldSounds plays each
-## with the range as max_distance and its generated placeholder blip (no file yet).
+## with the range as max_distance, the shutter, the print and the hang on generated placeholder
+## blips (no file yet), the success on SfxSet's file.
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 const CAMERA := 3
