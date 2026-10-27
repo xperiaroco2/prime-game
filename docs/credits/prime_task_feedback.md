@@ -20,4 +20,5 @@ the note's frequency to 1 Hz over half the note; the level rises over 4 ms and f
   (392 Hz, 0.45 s) then E-flat4 (311.13 Hz, 0.6 s) 130 ms later, both at level 0.26: the same voice falling a minor
   third.
 
-Nothing plays them yet: a task that wants them uses them through `SfxSet` (`client/audio/`) in its own change.
+Every task plays them through `SfxSet` (`client/audio/`): `TASK_SUCCESS` and `TASK_ERROR` (#1341, ARCHITECTURE
+§4.7.60).

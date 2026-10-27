@@ -30,9 +30,12 @@ extends Node3D
 ## (photo_blip()), cut and muffled like every event's sound, the shutter at a camera's lens
 ## (`lens_m` above its marker). So do the Generator's clicks (#801, G6): a switch thrown and the
 ## generator's button pressed (station_blip()); its hum while it charges is StationHums'
-## (hum_blip()). So do Cooking's (#776, the cooking ADR's CD14 (a)): a right ingredient's chime, a
-## wrong one's buzz, a burger done, a patty fried and burnt (cooking_blip()); the grill's put is the
-## put-down's file, its sizzle while a patty fries StationHums' (sizzle_blip()).
+## (hum_blip()). So do Cooking's (#776, the cooking ADR's CD14 (a)): a burger plated's chime, a
+## patty fried's ding (cooking_blip()); the grill's put is the put-down's file, its sizzle while a
+## patty fries StationHums' (sizzle_blip()). Every task's success and error (#1341, §4.7.60) are
+## SfxSet's files (TASK_SUCCESS, TASK_ERROR), in place of the placeholders that meant done or a
+## miss (Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, the hang
+## of a counted photo).
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
@@ -48,9 +51,8 @@ const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 const STATION_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.SWITCH_CLICK: 0.05,
 	SoundChooser.BUTTON_CLICK: 0.1,
-	# The car repair's (#811, RD14): the lift's crash coming down, a part fitted.
+	# The car repair's (#811, RD14): the lift's crash coming down.
 	SoundChooser.LIFT_CRASH: 0.5,
-	SoundChooser.PART_FITTED: 0.15,
 }
 ## The hum's placeholder loop (#801, G6): its length in seconds, a whole number of its waves so
 ## the loop has no seam. A placeholder, "not a decision".
@@ -59,14 +61,8 @@ const HUM_SECONDS := 0.5
 ## "not a decision", until the engineer's CC0 files arrive with their credits.
 const COOKING_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.CHIME: 0.35,
-	SoundChooser.BUZZ: 0.3,
-	SoundChooser.BURGER_DONE: 0.6,
 	SoundChooser.DING: 0.5,
-	SoundChooser.HISS: 0.6,
 }
-## The burger done's three rising notes (#776) and how long each starts after the last.
-const DONE_NOTES_HZ: Array[float] = [660.0, 880.0, 1320.0]
-const DONE_NOTE_SECONDS := 0.15
 ## The sizzle's placeholder loop (#776): its length in seconds. A placeholder, "not a decision".
 const SIZZLE_SECONDS := 0.5
 
@@ -233,8 +229,8 @@ static func photo_blip(id: StringName) -> AudioStreamWAV:
 
 
 ## The placeholder click of the Generator's sound `id` (#801, G6; built in code as photo_blip()
-## until the engineer's files arrive): a switch's two sharp snaps, the button's low thunk; a 16-bit
-## mono burst STATION_BLIP_SECONDS long. Null for an id with no click.
+## until the engineer's files arrive): a switch's two sharp snaps, the button's low thunk, the
+## lift's crash; a 16-bit mono burst STATION_BLIP_SECONDS long. Null for an id with no click.
 static func station_blip(id: StringName) -> AudioStreamWAV:
 	if not STATION_BLIP_SECONDS.has(id):
 		return null
@@ -255,11 +251,6 @@ static func station_blip(id: StringName) -> AudioStreamWAV:
 		elif id == SoundChooser.LIFT_CRASH:
 			# A heavy thud and a metal rattle.
 			value = sin(TAU * 55.0 * t) * exp(-t / 0.08) + 0.7 * noise * exp(-t / 0.12)
-		elif id == SoundChooser.PART_FITTED:
-			# Two ratchet clicks and a bright clink.
-			value = noise * exp(-t / 0.003) + sin(TAU * 1400.0 * t) * 0.5 * exp(-t / 0.04)
-			if t >= 0.05:
-				value += 0.8 * noise * exp(-(t - 0.05) / 0.003)
 		else:
 			value = sin(TAU * 90.0 * t) * exp(-t / 0.025) + 0.4 * noise * exp(-t / 0.004)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
@@ -285,8 +276,7 @@ static func hum_blip() -> AudioStreamWAV:
 
 ## The placeholder of Cooking's sound `id` (#776, CD14 (a); built in code as station_blip() until
 ## the engineer's files arrive), a 16-bit mono burst COOKING_BLIP_SECONDS long: the chime's two
-## bright tones, the buzz's low square, the burger done's three rising notes, the ding's bell, the
-## hiss's swelling noise. Null for an id with no blip.
+## bright tones, the ding's bell. Null for an id with no blip.
 static func cooking_blip(id: StringName) -> AudioStreamWAV:
 	if not COOKING_BLIP_SECONDS.has(id):
 		return null
@@ -294,24 +284,13 @@ static func cooking_blip(id: StringName) -> AudioStreamWAV:
 	var count := int(MIX_RATE * seconds)
 	var data := PackedByteArray()
 	data.resize(count * 2)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1
 	for i: int in count:
 		var t := float(i) / MIX_RATE
-		var fade := 1.0 - t / seconds
 		var value := 0.0
 		if id == SoundChooser.CHIME:
 			value = (0.6 * sin(TAU * 880.0 * t) + 0.4 * sin(TAU * 1320.0 * t)) * exp(-t / 0.1)
-		elif id == SoundChooser.BUZZ:
-			value = 0.7 * signf(sin(TAU * 110.0 * t)) * fade
-		elif id == SoundChooser.BURGER_DONE:
-			var note := mini(int(t / DONE_NOTE_SECONDS), DONE_NOTES_HZ.size() - 1)
-			var since := t - note * DONE_NOTE_SECONDS
-			value = sin(TAU * DONE_NOTES_HZ[note] * t) * exp(-since / 0.12)
-		elif id == SoundChooser.DING:
-			value = (0.8 * sin(TAU * 1500.0 * t) + 0.2 * sin(TAU * 3000.0 * t)) * exp(-t / 0.15)
 		else:
-			value = rng.randf_range(-1.0, 1.0) * minf(1.0, t / 0.1) * fade
+			value = (0.8 * sin(TAU * 1500.0 * t) + 0.2 * sin(TAU * 3000.0 * t)) * exp(-t / 0.15)
 		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 0.5 * 32767.0))
 	return _wav(data, false)
 

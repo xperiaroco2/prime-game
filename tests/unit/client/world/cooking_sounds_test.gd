@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## Cooking's sounds (#776, the cooking ADR's CD14 (a), amended by #1101; SoundChooser, WorldSounds):
 ## IngredientPlaced clicks at its place whatever it is (nothing is right or wrong before a serve),
-## BurgerPlated chimes there, BurgerServed plays the burger's done sound when right and buzzes when
-## wrong, at the order board; GrillLoaded clicks at the grill; ItemChanged dings for a fried patty
-## and hisses for the burnt one where it lies, told by the client's own copy of the mode (none:
-## silent); each only within the hearing range, aimed SoundChooser.COUNTER_AIM_M above its station;
-## WorldSounds plays each on a generated placeholder and the sizzle's loops.
+## BurgerPlated chimes there, BurgerServed plays the task's success when right and its error when
+## wrong (#1341), at the order board; GrillLoaded clicks at the grill; ItemChanged dings for a fried
+## patty and plays the task's error for the burnt one where it lies, told by the client's own copy
+## of the mode (none: silent); each only within the hearing range, aimed SoundChooser.COUNTER_AIM_M
+## above its station; WorldSounds plays Cooking's own sounds on generated placeholders, the task's
+## on SfxSet's files, and the sizzle's loops.
 
 const C := preload("res://tests/fixtures/client/fixture_cooking_client.gd")
 const RANGE := SoundChooser.HEARING_RANGE_M
@@ -42,13 +43,13 @@ func test_a_plated_burger_chimes_at_its_place() -> void:
 	assert_that(sound.position).is_equal(PLACE_AT)
 
 
-func test_a_right_serve_plays_the_burger_done_and_a_wrong_one_buzzes_at_the_order_board() -> void:
+func test_a_right_serve_plays_the_success_and_a_wrong_one_the_error_at_the_order_board() -> void:
 	var at := FixtureCookingModes.ORDER_BOARD_AT
 	var wrong := _choose(&"BurgerServed", {"station": C.FIRST_PLACE, "right": false}, at)
-	assert_str(String(wrong.id)).is_equal(String(SoundChooser.BUZZ))
+	assert_str(String(wrong.id)).is_equal(String(SfxSet.TASK_ERROR))
 	assert_that(wrong.position).is_equal(at)
 	var right := _choose(&"BurgerServed", {"station": C.FIRST_PLACE, "right": true}, at)
-	assert_str(String(right.id)).is_equal(String(SoundChooser.BURGER_DONE))
+	assert_str(String(right.id)).is_equal(String(SfxSet.TASK_SUCCESS))
 	assert_that(right.position).is_equal(at)
 
 
@@ -68,7 +69,7 @@ func test_a_put_beyond_the_range_or_at_an_unknown_station_is_silent() -> void:
 	assert_object(_choose(&"IngredientPlaced", unknown, PLACE_AT)).is_null()
 
 
-func test_the_grill_clicks_then_dings_when_fried_and_hisses_when_burnt() -> void:
+func test_the_grill_clicks_then_dings_when_fried_and_plays_the_error_when_burnt() -> void:
 	var at := FixtureCookingModes.GRILL_AT
 	C.hold(_model, 60, &"raw_a")
 	var fields := {"station": C.GRILL, "item": 60, "fried": 1100, "burnt": 1200}
@@ -79,7 +80,8 @@ func test_the_grill_clicks_then_dings_when_fried_and_hisses_when_burnt() -> void
 	assert_str(String(fried.id)).is_equal(String(SoundChooser.DING))
 	assert_that(fried.position).is_equal(at)
 	var burnt := _choose(&"ItemChanged", {"item": 60, "kind": &"burnt"}, at)
-	assert_str(String(burnt.id)).is_equal(String(SoundChooser.HISS))
+	assert_str(String(burnt.id)).is_equal(String(SfxSet.TASK_ERROR))
+	assert_that(burnt.position).is_equal(at)
 	(
 		assert_object(
 			_choose(&"ItemChanged", {"item": 60, "kind": &"burnt"}, at + Vector3(0, 0, -RANGE - 1))
@@ -99,7 +101,7 @@ func test_an_item_change_is_silent_without_the_mode_or_for_another_kind() -> voi
 	assert_object(_choose(&"ItemChanged", {"item": 60, "kind": &"bun_a"}, at)).is_null()
 
 
-func test_world_sounds_plays_each_cooking_sound_on_its_placeholder() -> void:
+func test_world_sounds_plays_the_ding_on_its_placeholder_and_the_burnt_on_the_error() -> void:
 	var sounds := WorldSounds.new()
 	sounds.model = _model
 	sounds.mode = _mode
@@ -113,10 +115,13 @@ func test_world_sounds_plays_each_cooking_sound_on_its_placeholder() -> void:
 	_model.fold(&"ItemChanged", {"item": 60, "kind": &"burnt"})
 	sounds.on_event(&"ItemChanged", {"item": 60, "kind": &"burnt"})
 	assert_int(sounds.played()).is_equal(2)
-	for child: Node in sounds.get_children():
-		var player := child as AudioStreamPlayer3D
-		assert_object(player.stream).is_instanceof(AudioStreamWAV)
-		assert_float(player.max_distance).is_equal(RANGE)
+	var started := sounds.get_children()
+	assert_object((started[0] as AudioStreamPlayer3D).stream).is_instanceof(AudioStreamWAV)
+	assert_object((started[1] as AudioStreamPlayer3D).stream).is_same(
+		sounds.sfx.stream_for(SfxSet.TASK_ERROR)
+	)
+	for child: Node in started:
+		assert_float((child as AudioStreamPlayer3D).max_distance).is_equal(RANGE)
 	sounds.free()
 
 

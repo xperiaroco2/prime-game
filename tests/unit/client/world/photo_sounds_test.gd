@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
 ## The photo task's sounds (#785, photo P6; the photo ADR §1.1 row 7, §4, PD15; the M4 ADR's §3
 ## item 10): SoundChooser plays ShotTaken's shutter at the camera's lens, PhotoPrinted's print where
-## the photo lies on the tray and PhotoHung's hang at the board, each only within the hearing range
-## of the ears and nothing at all from farther away or for a place the model does not know;
-## WorldSounds plays each with the range as max_distance and its generated placeholder blip
-## (no file yet).
+## the photo lies on the tray and PhotoHung's at the board (a counted photo the task's success,
+## #1341; one without a person the hang), each only within the hearing range of the ears and
+## nothing at all from farther away or for a place the model does not know; WorldSounds plays each
+## with the range as max_distance and its generated placeholder blip (no file yet).
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 const CAMERA := 3
@@ -58,15 +58,17 @@ func test_the_print_plays_where_the_photo_lies_on_the_tray() -> void:
 func test_the_hang_plays_at_the_board_within_the_range() -> void:
 	var hung := {"item": PHOTO, "station": BOARD, "counted": true}
 	var sound := _choose(&"PhotoHung", hung, Vector3.ZERO)
-	assert_str(String(sound.id)).is_equal(String(SoundChooser.HANG))
+	# A counted photo is the task's subtask done (#1341): its success, as every task's.
+	assert_str(String(sound.id)).is_equal(String(SfxSet.TASK_SUCCESS))
 	assert_that(sound.position).is_equal(BOARD_AT)
 	assert_that(sound.aim).is_equal(BOARD_AT + Vector3.UP * SoundChooser.HANG_AIM_M)
 	assert_float(SoundChooser.HANG_AIM_M).is_greater(0.0)
-	# A hang that did not count sounds the same: the sound never tells whether a person counted.
+	# One without a person counts nothing (PD6): the hang, at the same place.
 	hung["counted"] = false
 	var uncounted := _choose(&"PhotoHung", hung, Vector3.ZERO)
 	assert_str(String(uncounted.id)).is_equal(String(SoundChooser.HANG))
 	assert_that(uncounted.position).is_equal(BOARD_AT)
+	assert_that(uncounted.aim).is_equal(sound.aim)
 	assert_object(_choose(&"PhotoHung", hung, BOARD_AT + Vector3(0, 0, RANGE + 0.01))).is_null()
 	hung["station"] = 42
 	assert_object(_choose(&"PhotoHung", hung, Vector3.ZERO)).is_null()

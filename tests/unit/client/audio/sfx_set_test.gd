@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## SfxSet (#525): every sound id's files exist and load (in CI the LFS stand-in), each id is one
-## AudioStreamRandomizer of them with a small random pitch and volume, every surface has its five
-## footsteps, and an id whose files do not load has no stream (nothing plays).
+## SfxSet (#525): every sound id's files exist and load (in CI the LFS stand-in), each from a pack
+## with its docs/credits/ entry, each id is one AudioStreamRandomizer of them with a small random
+## pitch and volume, every surface has its five footsteps, the task's success and error are the
+## engineer's U2 and P1 (#1341), and an id whose files do not load has no stream (nothing plays).
 
 
 func test_every_file_of_every_id_exists_and_loads() -> void:
@@ -9,9 +10,25 @@ func test_every_file_of_every_id_exists_and_loads() -> void:
 		var paths := SfxSet.paths_for(id)
 		assert_int(paths.size()).is_greater(0)
 		for path: String in paths:
-			assert_str(path).starts_with("res://assets/audio/kenney_")
+			assert_str(path).starts_with("res://assets/audio/")
+			# Every pack has its credits entry, named after its folder (§11.1).
+			var pack := path.get_base_dir().get_file()
+			var credits := "res://docs/credits/%s.md" % pack
+			assert_bool(FileAccess.file_exists(credits)).override_failure_message(credits).is_true()
 			assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
-			assert_object(load(path) as AudioStreamOggVorbis).is_not_null()
+			var stream := load(path)
+			assert_bool(stream is AudioStreamOggVorbis or stream is AudioStreamWAV).is_true()
+
+
+func test_the_task_success_and_error_are_the_engineer_s_two_files() -> void:
+	var success := SfxSet.paths_for(SfxSet.TASK_SUCCESS)
+	assert_that(Array(success)).is_equal(
+		["res://assets/audio/prime_task_feedback/task_success.wav"]
+	)
+	var error := SfxSet.paths_for(SfxSet.TASK_ERROR)
+	assert_that(Array(error)).is_equal(["res://assets/audio/prime_task_feedback/task_error.wav"])
+	assert_bool(SfxSet.ids().has(SfxSet.TASK_SUCCESS)).is_true()
+	assert_bool(SfxSet.ids().has(SfxSet.TASK_ERROR)).is_true()
 
 
 func test_each_id_is_one_randomizer_of_its_files() -> void:

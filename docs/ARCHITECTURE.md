@@ -4139,7 +4139,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
   (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
-  one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  one `docs/credits/` entry per pack; and the project's own `prime_task_feedback/` (`task_success.wav`,
+  `task_error.wav`, mono WAV through LFS, §4.7.60), whose CI stand-in is a silent WAV. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -4832,10 +4833,10 @@ reads now.
   too) and the five icons (sun, moon, star, drop, heart, the ADR's §5.1) in code, keyed on C6's kind ids; `ItemView`
   asks it first, so the hand, the loose view and the pick sphere share one size. A kind with no look keeps the labelled box (`ContentNames`).
 - **The sounds.** `SoundChooser` (given the mode): `IngredientPlaced`'s put click at the place (no chime or buzz,
-  which would tell right or wrong, #1101); `BurgerPlated`'s chime at the place; `BurgerServed`'s done sound (right)
-  or buzz (wrong) at the order board; `GrillLoaded`'s put click at the grill; `ItemChanged`'s ding to a fried patty,
-  hiss to the burnt one; each aimed `COUNTER_AIM_M` above, cut and muffled like every world sound, on
-  `WorldSounds.cooking_blip()` placeholders. `StationHums` sizzles the grill (`sizzle_blip()`) while its ring
+  which would tell right or wrong, #1101); `BurgerPlated`'s chime at the place; `BurgerServed`'s task success
+  (right) or error (wrong) at the order board (§4.7.60); `GrillLoaded`'s put click at the grill; `ItemChanged`'s
+  ding to a fried patty, the task's error to the burnt one; each aimed `COUNTER_AIM_M` above, cut and muffled like
+  every world sound; the chime and the ding on `WorldSounds.cooking_blip()` placeholders. `StationHums` sizzles the grill (`sizzle_blip()`) while its ring
   fries (CD14 (a); it stops at fried, where the ding plays), in the round.
 - **Tests.** `tests/unit/client/net/client_model_cooking_test.gd`, `tests/unit/client/world/cooking_use_test.gd`,
   `target_choice_cooking_test.gd`, `cooking_looks_test.gd`, `cooking_sounds_test.gd`,
@@ -4919,8 +4920,8 @@ RE16, RD1, RD3, RD14), from the own `ClientModel` and the client's own copy of t
   that fits nothing sees none.
 - **The sounds.** `SoundChooser`: `LIFT_CRASH` at the car on `LiftChanged(up = false)` in the round only (the phase's
   end lowers it without a kill; the host sends that stop's `LiftChanged` before its `PhaseChanged`, so `WorldSounds`
-  holds a crash to its next physics frame and plays it only if the round still runs), `PART_FITTED` at the car, each
-  `CAR_AIM_M` above, cut at 12 m and muffled; `FitChanged` is silent (RD14 (a)). `StationHums` runs the lift's motor
+  holds a crash to its next physics frame and plays it only if the round still runs), `PartFitted`'s task success
+  at the car (§4.7.60), each `CAR_AIM_M` above, cut at 12 m and muffled; `FitChanged` is silent (RD14 (a)). `StationHums` runs the lift's motor
   at the car while it rises (a hum placeholder at a lower pitch). Placeholders, not decisions.
 - **Tests.** `tests/unit/client/world/car_repair_use_test.gd`, `tests/unit/client/physics_layers_test.gd`,
   `tests/unit/client/net/client_model_test.gd`, `tests/integration/client/world/car_repair_views_test.gd` (the real
@@ -5036,6 +5037,40 @@ What the client does for each core task type class sits behind one table, client
   `is`/`as` of such a class in `client/` outside `client/world/tasks/`, comments and strings stripped, the five
   files above named exceptions), `tests/integration/client/world/item_world_children_test.gd` (`ItemWorld`'s
   children: names, classes, order); each `*_use_test.gd` unchanged.
+
+#### 4.7.60 Every task's success and error (#1341)
+One success and one error sound for every task, the engineer's picks on #1333: U2 (a kalimba's three rising notes)
+and P1 (the same kalimba falling a minor third), the project's own synthesis in `assets/audio/prime_task_feedback/`
+(`docs/credits/prime_task_feedback.md`).
+- **The ids.** `SfxSet.TASK_SUCCESS` (`task_success.wav`) and `SfxSet.TASK_ERROR` (`task_error.wav`), one file each,
+  through the same randomizer as every id (§4.7.43's pitch and volume placeholders). A ship station that lands later
+  plays them through the same two ids.
+- **When.** `SoundChooser` picks success whenever a task or one of its subtasks is done, error on a miss by the
+  task's own rules, each at the station of the event that tells it (every one reaches everyone):
+
+  | Task type | Success (done) | Error (a miss) |
+  |---|---|---|
+  | Delivery | `PackageDelivered`, at the package's circle (each package a subtask) | none |
+  | DeliveryByMeaning | `PackageDelivered`, at the item's drop-off (each item a subtask) | none |
+  | ZoneTask | a done `ZoneProgress` (`ticks` at `needed` > 0), at the zone | none |
+  | Generator | a done `ZoneProgress` of the generator: the charge full (every subtask at once), at the generator | none |
+  | Cooking | `BurgerServed` right, at the order board | `BurgerServed` wrong (a wrong ingredient shows only at the serve, #1101), at the order board; a patty turned burnt (`ItemChanged` to the burnt kind), where it lies |
+  | CarRepair | `PartFitted`, at the car | none |
+  | PhotoTask | `PhotoHung` counted, at the board | none: a photo without a person (not counted, PD6) keeps its hang |
+
+  A delivery and a charge can be done at the deal (a package that spawned inside its circle, a generator dealt with
+  no switch, GE9): those two play only in the play phase (`SoundChooser.in_play`), so nobody's success sounds then.
+  Step sounds that mean neither stay: `BurgerPlated`'s chime, the fried patty's ding, the put clicks, the
+  Generator's clicks, the sizzle and hums, the shutter and the print, the lift's crash. The placeholders that meant
+  done or a miss gave way: Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, a counted
+  photo's hang.
+- **How.** `WorldSounds` plays them as every event's sound: a one-shot `AudioStreamPlayer3D` at the station on the
+  Effects bus, cut at `HEARING_RANGE_M` (and its `max_distance`), muffled behind the level. So a player near the
+  station hears another's success or miss, the same whoever caused it; no event names a player.
+- **Tests.** `tests/unit/client/world/task_feedback_sounds_test.gd` (a done subtask and a miss each pick their id;
+  the delivery, the zone and the charge, a filling zone silent, the deal silent; `WorldSounds` on SfxSet's files on
+  Effects), `cooking_sounds_test.gd`, `photo_sounds_test.gd`, `tests/integration/client/world/car_repair_sounds_test.gd`,
+  `tests/unit/client/audio/sfx_set_test.gd` (the two files, every pack credited).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -7856,8 +7891,9 @@ without shadows passes through walls and would light a room where no eye sees th
 held on until `release(shot)` (the call P8's render makes once it has drawn; this light is that render's flash), at
 least `PULSE_S` 0.1 s, and ended by the fallback at `HOLD_LIMIT_S` 1 s when no render calls (a headless client;
 P8, §4.7.58, renders nothing there); the session's end ends every flash. `SoundChooser` places `ShotTaken`'s shutter at the lens,
-`PhotoPrinted`'s print where the photo lies on the tray and `PhotoHung`'s hang at the board's marker (its ray aims
-1 m up), each cut at the 12 m hearing range; `WorldSounds` plays them muffled behind the level (M5-7) with blips
+`PhotoPrinted`'s print where the photo lies on the tray and `PhotoHung`'s at the board's marker (its ray aims
+1 m up: a counted photo the task's success, §4.7.60, one without a person the hang), each cut at the 12 m hearing
+range; `WorldSounds` plays them muffled behind the level (M5-7), the shutter, the print and the hang with blips
 built in code (`photo_blip()`, PD15) until the engineer's files arrive. Every number placeholders, "not a decision".
 Tests: `tests/unit/client/world/photo_flashes_test.gd` (the light, its shadows and range, the hold with a test caller,
 the shortest pulse, the fallback by `advance` and over the tree's frames, a recycled shot id; planted shadows off,
