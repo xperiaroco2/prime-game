@@ -396,6 +396,12 @@ the expert knows every fix by heart.
   so the player can fix something else meanwhile; then take it back and fit it. With both sockets of a side spent,
   the second crystal waits for that charger or runs across the hall to the other one. There are no spare crystals to
   spam.
+  - **The crystal never leaves the ship**, so it cannot be hidden (the engineer, 2026-10-27,
+    [#1095 c6440586671](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6440586671), the how
+    [c6441939778](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6441939778)): carried past the
+    mouth onto the ramp, it slips from the hand and rolls back into the throat, as the garage's tools drop when their
+    holder steps out of the garage. Charging it in the laboratory was raised and dropped the same day: a much longer
+    path, and the crystal could be hidden on the way.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
   to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
   2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
