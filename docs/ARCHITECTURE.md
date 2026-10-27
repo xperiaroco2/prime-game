@@ -7898,8 +7898,8 @@ range; `WorldSounds` plays them muffled behind the level (M5-7), the shutter and
 built in code (`photo_blip()`, PD15) until the engineer's files arrive. Every number placeholders, "not a decision".
 Tests: `tests/unit/client/world/photo_flashes_test.gd` (the light, its shadows and range, the hold with a test caller,
 the shortest pulse, the fallback by `advance` and over the tree's frames, a recycled shot id; planted shadows off,
-no hold and no fallback, each failed, reverted), `photo_sounds_test.gd` (the places, the cut-off, the blips; planted
-the photo sounds uncut, failed, reverted), `tests/integration/client/world/item_world_photo_test.gd` (off the
+no hold and no fallback, each failed, reverted), `photo_sounds_test.gd` (the places, the cut-off, the blips, a
+counted hang the success and an uncounted one the error; planted the photo sounds uncut, failed, reverted), `tests/integration/client/world/item_world_photo_test.gd` (off the
 loopback wire through `ItemWorld`: the flash and the shutter at the lens, the print, the hang, the shutter muffled
 behind a wall (planted unmuffled, failed, reverted), none beyond 12 m, the session's end).
 The station scenes (provisional until the engineer approves them; the convention: the

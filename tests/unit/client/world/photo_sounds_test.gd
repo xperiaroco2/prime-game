@@ -80,7 +80,7 @@ func test_the_other_photo_events_are_silent() -> void:
 	assert_object(_choose(&"FilmLoaded", {"station": CAMERA, "item": 5}, Vector3.ZERO)).is_null()
 
 
-func test_world_sounds_plays_each_photo_blip_with_the_range_as_max_distance() -> void:
+func test_world_sounds_plays_each_photo_sound_with_the_range_as_max_distance() -> void:
 	AudioBuses.ensure()
 	var sounds: WorldSounds = auto_free(WorldSounds.new())
 	add_child(sounds)
