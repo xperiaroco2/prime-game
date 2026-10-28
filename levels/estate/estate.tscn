@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://fbn1whkb4vna"]
+
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/plot.tscn" id="1_4mthu"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/creek.tscn" id="2_s2fgx"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/paths.tscn" id="3_hrf4w"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/trees.tscn" id="4_cjds4"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/house.tscn" id="5_qrqfj"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/bonfire.tscn" id="6_nqvaw"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/summer_kitchen.tscn" id="7_42778"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/pantry.tscn" id="8_3ppu6"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/greenhouse.tscn" id="9_dcrin"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/garage.tscn" id="10_4rmfv"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/gazebo.tscn" id="11_nebwo"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/well.tscn" id="12_yqlfg"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/ship.tscn" id="13_6dnp2"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/fallen_trunk.tscn" id="14_mv35b"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/gate.tscn" id="15_bqbxw"]
+
+[node name="Estate" type="Node3D" unique_id=1218887821]
+
+[node name="Plot" parent="." unique_id=1457724256 instance=ExtResource("1_4mthu")]
+
+[node name="Creek" parent="." unique_id=936691406 instance=ExtResource("2_s2fgx")]
+
+[node name="Paths" parent="." unique_id=1995757019 instance=ExtResource("3_hrf4w")]
+
+[node name="Trees" parent="." unique_id=1485247021 instance=ExtResource("4_cjds4")]
+
+[node name="House" parent="." unique_id=861759139 instance=ExtResource("5_qrqfj")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.4, 0, 11)
+
+[node name="Bonfire" parent="." unique_id=2128085380 instance=ExtResource("6_nqvaw")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.3, 0, 41)
+
+[node name="SummerKitchen" parent="." unique_id=563250037 instance=ExtResource("7_42778")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.8, 0, 30)
+
+[node name="Pantry" parent="." unique_id=1544411460 instance=ExtResource("8_3ppu6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, 0, 27)
+
+[node name="Greenhouse" parent="." unique_id=1758890069 instance=ExtResource("9_dcrin")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 12)
+
+[node name="Garage" parent="." unique_id=770699021 instance=ExtResource("10_4rmfv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.4, 0, 11)
+
+[node name="Gazebo" parent="." unique_id=1268481789 instance=ExtResource("11_nebwo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 114.9, 0, 34)
+
+[node name="Well" parent="." unique_id=1521450668 instance=ExtResource("12_yqlfg")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.9, 0, 72)
+
+[node name="Ship" parent="." unique_id=727204314 instance=ExtResource("13_6dnp2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 116, 0, 72)
+
+[node name="FallenTrunk" parent="." unique_id=1109326754 instance=ExtResource("14_mv35b")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 0, 79.5)
+
+[node name="Gate" parent="." unique_id=1341707272 instance=ExtResource("15_bqbxw")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.5, 0, 90)

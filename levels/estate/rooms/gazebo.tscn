@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://d33ovh7su1r1y"]
+
+[ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_13u6s"]
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="2_47cha"]
+[ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="3_fso34"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cs3c7"]
+size = Vector3(7, 0.15, 7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_y2a8v"]
+material = ExtResource("1_13u6s")
+size = Vector3(7, 0.15, 7)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wfc33"]
+size = Vector3(0.3, 2.5, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_qtkwl"]
+material = ExtResource("2_47cha")
+size = Vector3(0.3, 2.5, 0.3)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_7mhyl"]
+size = Vector3(7.4, 0.2, 7.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_qjech"]
+material = ExtResource("3_fso34")
+size = Vector3(7.4, 0.2, 7.4)
+
+[node name="Gazebo" type="Node3D" unique_id=1268481789]
+
+[node name="Floor01" type="StaticBody3D" parent="." unique_id=20993008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Floor01" unique_id=28932354]
+shape = SubResource("BoxShape3D_cs3c7")
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor01" unique_id=746017578]
+mesh = SubResource("BoxMesh_y2a8v")
+
+[node name="Post01" type="StaticBody3D" parent="." unique_id=67602337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 1.4, -3.2)
+
+[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1670989245]
+shape = SubResource("BoxShape3D_wfc33")
+
+[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=647101745]
+mesh = SubResource("BoxMesh_qtkwl")
+
+[node name="Post02" type="StaticBody3D" parent="." unique_id=2021373568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 1.4, 3.2)
+
+[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=847834549]
+shape = SubResource("BoxShape3D_wfc33")
+
+[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=1761518341]
+mesh = SubResource("BoxMesh_qtkwl")
+
+[node name="Post03" type="StaticBody3D" parent="." unique_id=1149250921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 1.4, -3.2)
+
+[node name="Shape" type="CollisionShape3D" parent="Post03" unique_id=925005005]
+shape = SubResource("BoxShape3D_wfc33")
+
+[node name="Mesh" type="MeshInstance3D" parent="Post03" unique_id=1768504285]
+mesh = SubResource("BoxMesh_qtkwl")
+
+[node name="Post04" type="StaticBody3D" parent="." unique_id=870454590]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 1.4, 3.2)
+
+[node name="Shape" type="CollisionShape3D" parent="Post04" unique_id=170946345]
+shape = SubResource("BoxShape3D_wfc33")
+
+[node name="Mesh" type="MeshInstance3D" parent="Post04" unique_id=863619147]
+mesh = SubResource("BoxMesh_qtkwl")
+
+[node name="Roof01" type="StaticBody3D" parent="." unique_id=1483202329]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.75, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=1632703746]
+shape = SubResource("BoxShape3D_7mhyl")
+
+[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=1944074270]
+mesh = SubResource("BoxMesh_qjech")
+
+[node name="Name" type="Label3D" parent="." unique_id=1430185781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+billboard = 1
+text = "Gazebo"
+font_size = 72
+outline_size = 16
