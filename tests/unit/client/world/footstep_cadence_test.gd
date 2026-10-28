@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## the cadence fed how far the drawn feet moved each frame: steps at that interval while walking,
 ## none while standing, none for a placement (a move no one could make in a frame); the quiet step
 ## (#792, #991): how quiet a step is by its speed (quiet at the crouch walk's, a walk's from the
-## fast crouch's up), and the speed a step carries.
+## fast crouch's up), and the speed a step carries; the clip mode (#1334): steps on the drawn
+## clip's foot contacts at the plan's rate, the phase starting again on a slot change.
 
 const WALK := 4.5
 const SPRINT := 7.0
@@ -150,6 +151,109 @@ func test_a_step_carries_its_speed_over_the_step_not_one_frame() -> void:
 			break
 	assert_bool(stepped).is_true()
 	assert_float(cadence.step_speed_mps).is_between(2.4, 2.6)
+
+
+func test_the_clip_mode_steps_on_jog_fwd_s_contacts() -> void:
+	# Jog_Fwd's table: a 0.917 s cycle, contacts at 0 and 0.458 s: a step every 0.458 s.
+	var times := _clip_steps(_plan(&"Jog_Fwd", &"Front", 1.0), 0.917, 3.0)
+	assert_float(times[0]).is_equal_approx(0.458, FRAME)
+	for i: int in range(1, times.size()):
+		assert_float(times[i] - times[i - 1]).is_equal_approx(0.4585, FRAME)
+	assert_int(times.size()).is_equal(6)
+
+
+func test_the_clip_mode_keeps_an_uneven_clip_s_rhythm() -> void:
+	# Sprint_Fwd's table: 0.667 s, contacts at 0 and 0.375 s: gaps of 0.375 and 0.292 by turns.
+	var times := _clip_steps(_plan(&"Sprint_Fwd", &"Sprint_Fwd", 1.0), 0.667, 2.0)
+	assert_float(times[0]).is_equal_approx(0.375, FRAME)
+	assert_float(times[1] - times[0]).is_equal_approx(0.292, FRAME)
+	assert_float(times[2] - times[1]).is_equal_approx(0.375, FRAME)
+	assert_float(times[3] - times[2]).is_equal_approx(0.292, FRAME)
+
+
+func test_the_clip_mode_runs_at_the_plan_s_rate_over_the_real_cycle() -> void:
+	# Twice the rate, half the gap; a clip twice as long (slice_m1's own lengths), twice the gap.
+	var fast := _clip_steps(_plan(&"Jog_Fwd", &"Front", 2.0), 0.917, 2.0)
+	assert_float(fast[1] - fast[0]).is_equal_approx(0.229, FRAME)
+	var long := _clip_steps(_plan(&"Jog_Fwd", &"Front", 1.0), 1.834, 4.0)
+	assert_float(long[1] - long[0]).is_equal_approx(0.917, FRAME)
+
+
+func test_a_slot_change_starts_the_clip_s_phase_again() -> void:
+	var cadence := FootstepCadence.new()
+	var front := _plan(&"Jog_Fwd", &"Front", 1.0)
+	# 0.4 s of Jog_Fwd: no step yet (its first contact after the start is at 0.458 s).
+	for i: int in roundi(0.4 / FRAME):
+		assert_bool(cadence.advance(_move(4.0), FRAME, WALK, SPRINT, front, 0.917)).is_false()
+	# Backing off: Jog_Bwd from its start, its first contact 0.292 s in.
+	var back := _plan(&"Jog_Bwd", &"Back", 1.0)
+	var first := -1.0
+	for i: int in roundi(1.0 / FRAME):
+		if cadence.advance(_move(2.0), FRAME, WALK, SPRINT, back, 0.583):
+			first = (i + 1) * FRAME
+			break
+	assert_float(first).is_equal_approx(0.292, FRAME)
+
+
+func test_the_clip_mode_keeps_the_place_and_the_speed_and_resets_on_a_placement() -> void:
+	var cadence := FootstepCadence.new()
+	var plan := _plan(&"Jog_Fwd", &"Front", 1.0)
+	for i: int in roundi(0.3 / FRAME):
+		cadence.advance(_move(4.0), FRAME, WALK, SPRINT, plan, 0.917)
+	# Still frames hold the phase: the step falls 0.158 s of moving later, not of time.
+	for i: int in 30:
+		assert_bool(cadence.advance(Vector3.ZERO, FRAME, WALK, SPRINT, plan, 0.917)).is_false()
+	var count := 0
+	for i: int in roundi(0.15 / FRAME):
+		if cadence.advance(_move(4.0), FRAME, WALK, SPRINT, plan, 0.917):
+			count += 1
+	assert_int(count).is_equal(0)
+	var stepped := false
+	for i: int in 2:
+		stepped = stepped or cadence.advance(_move(4.0), FRAME, WALK, SPRINT, plan, 0.917)
+	assert_bool(stepped).is_true()
+	assert_float(cadence.step_speed_mps).is_equal_approx(4.0, 0.01)
+	# A placement: no step, and the phase starts again.
+	assert_bool(cadence.advance(Vector3(50, 0, 0), FRAME, WALK, SPRINT, plan, 0.917)).is_false()
+	var times := _clip_steps(plan, 0.917, 1.0, cadence)
+	assert_float(times[0]).is_equal_approx(0.458, FRAME)
+
+
+func test_a_plan_without_contacts_or_cycle_falls_back_to_the_speed() -> void:
+	for case: Array in [[&"Idle", 0.917], [&"Jog_Fwd", 0.0], [&"Carry_Upper", 1.0]]:
+		var cadence := FootstepCadence.new()
+		var plan := _plan(case[0] as StringName, &"Front", 1.0)
+		var count := 0
+		for i: int in roundi(3.0 / FRAME):
+			if cadence.advance(_move(WALK), FRAME, WALK, SPRINT, plan, case[1] as float):
+				count += 1
+		assert_int(count).is_equal(_expected(WALK, 3.0))
+
+
+## The times (seconds from the start) of the steps `seconds` of moving at 4 m/s play in the clip
+## mode with `plan` and `cycle_s`, frame by frame, on `cadence` (a new one when null).
+func _clip_steps(
+	plan: AvatarClips.Plan, cycle_s: float, seconds: float, cadence: FootstepCadence = null
+) -> Array[float]:
+	var on := cadence if cadence != null else FootstepCadence.new()
+	var out: Array[float] = []
+	for i: int in roundi(seconds / FRAME):
+		if on.advance(_move(4.0), FRAME, WALK, SPRINT, plan, cycle_s):
+			out.append((i + 1) * FRAME)
+	return out
+
+
+func _plan(base: StringName, slot: StringName, rate: float) -> AvatarClips.Plan:
+	var out := AvatarClips.Plan.new()
+	out.base = base
+	out.slot = slot
+	out.rate = rate
+	return out
+
+
+## One frame's move straight ahead at `speed`.
+func _move(speed: float) -> Vector3:
+	return Vector3(0, 0, -speed * FRAME)
 
 
 ## How many steps `seconds` of walking at `speed` play, frame by frame.

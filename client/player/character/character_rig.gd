@@ -118,6 +118,12 @@ func base_clip() -> StringName:
 	return _base
 
 
+## `clip`'s length in seconds at rate 1, as this character has it; 0 for a clip it lacks (the
+## footsteps' clip mode times the contacts by it, #1334).
+func cycle_of(clip: StringName) -> float:
+	return player.get_animation(clip).length if player.has_animation(clip) else 0.0
+
+
 ## The Transition's input playing (a clip, or Locomotion.FRONT or BACK).
 func base_slot() -> StringName:
 	return _slot
