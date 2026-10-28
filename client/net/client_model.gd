@@ -18,6 +18,8 @@ enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 ## An item's holder when nobody holds it (no peer id is 0).
 const NO_HOLDER := 0
+## A player's places, the hand's and the belt's (GDD §6 "Drawing from the belt"), 0..2.
+const PLACES := 3
 
 
 ## One player of the roster.
@@ -38,6 +40,9 @@ class Item:
 	var holder := NO_HOLDER
 	## Carried on the holder's belt rather than in its hand (M4-5, E29).
 	var belted := false
+	## Its place among the holder's three (0..2, GDD §6 "Drawing from the belt"), or -1 when nobody
+	## carries it (ItemPickedUp `place`).
+	var carry_place := -1
 	## A package's circle and colour; -1 and white for any other item.
 	var station := -1
 	var colour := Color.WHITE
@@ -196,6 +201,9 @@ var role: StringName = &""
 ## Role -> its players, for a role whose players know each other.
 var teammates: Dictionary[StringName, PackedInt32Array] = {}
 var items: Dictionary[int, Item] = {}
+## Peer -> its selected place, the one in the hand (0..2, GDD §6), from ItemPickedUp and Swapped
+## `place`; a peer missing here has the first (0), as at the start of a match.
+var selected_places: Dictionary[int, int] = {}
 var stations: Dictionary[int, Station] = {}
 ## Peer -> where its body lies: the dead of this match (Died); a respawn or a leave removes it
 ## (E26).
@@ -294,9 +302,30 @@ func hand_item(peer: int) -> int:
 	return _carried(peer, false)
 
 
-## The item `peer` carries on its belt as the events tell it, or -1.
+## The item `peer` carries on its belt as the events tell it, or -1: the one in the lower place of
+## its two belt places (GDD §6); belt_item2 is the other.
 func belt_item(peer: int) -> int:
-	return _carried(peer, true)
+	var belt := _belt_of(peer)
+	return belt[0] if belt.size() > 0 else -1
+
+
+## The item in the higher of `peer`'s two belt places, or -1.
+func belt_item2(peer: int) -> int:
+	var belt := _belt_of(peer)
+	return belt[1] if belt.size() > 1 else -1
+
+
+## `peer`'s selected place, the one in its hand (0..2, GDD §6): the keys 1, 2 and 3 show it as 1..3.
+func selected_place(peer: int) -> int:
+	return selected_places.get(peer, 0)
+
+
+## The item in `peer`'s place `place` (0..2), or -1.
+func item_in_place(peer: int, place: int) -> int:
+	for id: int in items:
+		if items[id].holder == peer and items[id].carry_place == place:
+			return id
+	return -1
 
 
 ## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
@@ -423,6 +452,7 @@ func clear_match() -> void:
 	role = &""
 	teammates.clear()
 	items.clear()
+	selected_places.clear()
 	tasks.clear()
 	stations.clear()
 	herb_code = PackedStringArray()
@@ -506,6 +536,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			if item != null:
 				item.holder = NO_HOLDER
 				item.belted = false
+				item.carry_place = -1
 				item.flying = false
 				item.position = fields["position"]
 		&"ItemThrown":
@@ -523,6 +554,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			if item != null:
 				item.holder = NO_HOLDER
 				item.belted = false
+				item.carry_place = -1
 				item.flying = false
 				item.delivered = true
 			var station_id: int = fields["station"]
@@ -635,28 +667,41 @@ func _fold_car_repair(event_name: StringName, fields: Dictionary) -> void:
 			station.fit_tick = fields["tick"]
 
 
-## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt
-## (E29); a hand item that did not fit the belt follows as ItemPlaced. When `belted` names the
-## item itself (the cooking ADR, CE20, CE21: a take beside a two-handed hand item), it goes
-## straight onto the belt and the hand item stays held. A swap exchanges the swapper's hand and
-## belt items, either of which may be empty.
+## A pickup puts the item into `place` (GDD §6 "Drawing from the belt"): into the hand, which then
+## selects that place, while `belted`, when it names another item, is the old hand item, which stays
+## in its place, now on the belt (E29); a hand item that did not fit follows as ItemPlaced. When
+## `belted` names the item itself (the cooking ADR, CE20, CE21: a take beside a two-handed hand
+## item), it goes straight onto the belt into `place` and the hand item stays held. A swap (a Draw
+## or X) selects `place`: its item, if any, comes into the hand and the others hang on the belt.
 func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	var peer: int = fields["peer"]
+	var place: int = fields.get("place", 0)
 	if event_name == &"Swapped":
-		for item: Item in items.values():
-			if item.holder == peer:
-				item.belted = not item.belted
+		_select(peer, place)
 		return
-	_unstation(fields["item"] as int)
-	_unstation(fields.get("belted", -1) as int)
-	var picked: Item = items.get(fields["item"] as int)
+	var id: int = fields["item"]
+	var to_belt: int = fields.get("belted", -1)
+	_unstation(id)
+	_unstation(to_belt)
+	var picked: Item = items.get(id)
 	if picked != null:
 		picked.holder = peer
-		picked.belted = false
-	var belted: Item = items.get(fields.get("belted", -1) as int)
+		picked.carry_place = place
+	var belted: Item = items.get(to_belt)
 	if belted != null:
 		belted.holder = peer
-		belted.belted = true
+	if to_belt != id:
+		_select(peer, place)
+	elif picked != null:
+		picked.belted = true
+
+
+## `peer`'s selected place is `place` now: the item there is in its hand, its others on its belt.
+func _select(peer: int, place: int) -> void:
+	selected_places[peer] = place
+	for item: Item in items.values():
+		if item.holder == peer:
+			item.belted = item.carry_place != place
 
 
 ## A put on a cooking place's plate (IngredientPlaced) or on the grill (GrillLoaded, #776): the
@@ -671,6 +716,7 @@ func _fold_cooking_put(event_name: StringName, fields: Dictionary) -> void:
 	if item != null:
 		item.holder = NO_HOLDER
 		item.belted = false
+		item.carry_place = -1
 		item.flying = false
 		item.on_station = station_id
 		item.locked = true
@@ -707,6 +753,7 @@ func _fold_camera(event_name: StringName, fields: Dictionary) -> void:
 		if film != null:
 			film.holder = NO_HOLDER
 			film.belted = false
+			film.carry_place = -1
 			film.flying = false
 			film.on_station = station_id
 			film.locked = false
@@ -762,6 +809,7 @@ func _fold_throw(fields: Dictionary) -> void:
 	_unstation(fields["item"] as int)
 	item.holder = NO_HOLDER
 	item.belted = false
+	item.carry_place = -1
 	item.flying = true
 	item.thrower = fields["peer"]
 	item.flight_origin = fields["origin"]
@@ -782,6 +830,7 @@ func _fold_part_fitted(fields: Dictionary) -> void:
 	if item != null:
 		item.holder = NO_HOLDER
 		item.belted = false
+		item.carry_place = -1
 		item.flying = false
 		item.fitted = true
 		if car != null:
@@ -795,6 +844,21 @@ func _carried(peer: int, on_belt: bool) -> int:
 		if item.holder == peer and item.belted == on_belt:
 			return id
 	return -1
+
+
+## The items on `peer`'s belt, in place order (an item of no known place last).
+func _belt_of(peer: int) -> Array[int]:
+	var belt: Array[int] = []
+	for id: int in items:
+		if items[id].holder == peer and items[id].belted:
+			belt.append(id)
+	belt.sort_custom(func(a: int, b: int) -> bool: return _order(a) < _order(b))
+	return belt
+
+
+func _order(id: int) -> int:
+	var at := items[id].carry_place
+	return at if at >= 0 else PLACES
 
 
 ## A knockdown makes its player downed; a death makes it dead, with its body; a respawn makes it
@@ -879,6 +943,7 @@ func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
 		return
 	photo.holder = NO_HOLDER
 	photo.belted = false
+	photo.carry_place = -1
 	photo.flying = false
 	photo.on_station = fields["station"]
 	photo.locked = fields["counted"]

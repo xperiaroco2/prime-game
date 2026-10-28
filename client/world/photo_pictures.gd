@@ -289,12 +289,14 @@ func _puppet(row: Dictionary) -> RemotePlayerBody:
 		body.global_transform = Transform3D(flat, pose.position + Vector3.UP * radius)
 	_hold(body, row.get("held_item", -1) as int, false)
 	_hold(body, row.get("belt_item", -1) as int, true)
+	_hold(body, row.get("belt_item2", -1) as int, true, true)
 	PhotoLayers.assign(body, PhotoLayers.PHOTO, false)
 	return body
 
 
-## Item `id`, as the model knows it, at `body`'s hand (or carried in front), or on its belt.
-func _hold(body: RemotePlayerBody, id: int, belted: bool) -> void:
+## Item `id`, as the model knows it, at `body`'s hand (or carried in front), or on its belt (the
+## second belt item beside the first, as `ItemViews` draws it).
+func _hold(body: RemotePlayerBody, id: int, belted: bool, second := false) -> void:
 	var item: ClientModel.Item = model.items.get(id) if id >= 0 else null
 	if item == null:
 		return
@@ -304,6 +306,8 @@ func _hold(body: RemotePlayerBody, id: int, belted: bool) -> void:
 		point = body.carry_point() if kind != null and kind.is_two_handed() else body.hand_point()
 	var view := ItemView.make(id, item.kind, item.colour, mode)
 	point.add_child(view)
+	if second:
+		view.position = ItemViews.SECOND_BELT_OFFSET
 
 
 func _free(render: Render) -> void:

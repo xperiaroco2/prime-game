@@ -42,18 +42,23 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["Vitals/Mic", "PanelContainer", &"ToyMic"],
 		["Vitals/Mic/Icon", "TextureRect", &""],
 		["Slots", "HBoxContainer", &"ToyRowTwelve"],
-		["Slots/Hand", "PanelContainer", &"ToySlotActive"],
-		["Slots/Hand/Center", "CenterContainer", &""],
-		["Slots/Hand/Center/Row", "HBoxContainer", &"ToyRowEight"],
-		["Slots/Hand/Center/Row/Icon", "TextureRect", &""],
-		["Slots/Hand/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
-		["Slots/Hand/Center/Row/ItemName", "Label", &"ToySlotText"],
-		["Slots/Belt", "PanelContainer", &"ToySlot"],
-		["Slots/Belt/Center", "CenterContainer", &""],
-		["Slots/Belt/Center/Row", "HBoxContainer", &"ToyRowEight"],
-		["Slots/Belt/Center/Row/Icon", "TextureRect", &""],
-		["Slots/Belt/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
-		["Slots/Belt/Center/Row/ItemName", "Label", &"ToySlotText"],
+		["Slots/Place1", "PanelContainer", &"ToySlotActive"],
+		["Slots/Place1/Center", "CenterContainer", &""],
+		["Slots/Place1/Center/Row", "HBoxContainer", &"ToyRowEight"],
+		["Slots/Place1/Number", "Label", &"ToySlotTextEmpty"],
+		["Slots/Place1/Center/Row/Icon", "TextureRect", &""],
+		["Slots/Place1/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
+		["Slots/Place1/Center/Row/ItemName", "Label", &"ToySlotText"],
+		["Slots/Place2", "PanelContainer", &"ToySlot"],
+		["Slots/Place2/Center", "CenterContainer", &""],
+		["Slots/Place2/Center/Row", "HBoxContainer", &"ToyRowEight"],
+		["Slots/Place2/Number", "Label", &"ToySlotTextEmpty"],
+		["Slots/Place2/Center/Row/Icon", "TextureRect", &""],
+		["Slots/Place2/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
+		["Slots/Place2/Center/Row/ItemName", "Label", &"ToySlotText"],
+		["Slots/Place3", "PanelContainer", &"ToySlot"],
+		["Slots/Place3/Number", "Label", &"ToySlotTextEmpty"],
+		["Slots/Place3/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
 		["Raising", "PanelContainer", &"ToyPlate"],
 		["Raising/Bar", "ProgressBar", &"ToyBarProgress"],
 	]
@@ -62,12 +67,18 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		assert_object(found).override_failure_message(node[0] as String).is_not_null()
 		assert_str(found.get_class()).override_failure_message(node[0] as String).is_equal(node[1])
 		assert_str(found.theme_type_variation).is_equal(node[2])
-	assert_array(hud.slots.get_children()).is_equal([hud.hand, hud.belt])
+	assert_array(hud.slots.get_children()).is_equal(hud.places)
+	# The places by number (GDD §6), the first in the hand, lit, until an event selects another.
+	(
+		assert_array(hud.places.map(func(slot: HudSlot) -> String: return slot.number_label.text))
+		. is_equal(["1", "2", "3"])
+	)
+	assert_object(hud.hand).is_same(hud.places[0])
 	# Texts: the deck's keys; data (the time) never translated (#208).
 	assert_str(_label(hud, "Vitals/Health/Cap/Text").text).is_equal("hud.health")
 	assert_str(_label(hud, "Vitals/Stamina/Cap/Text").text).is_equal("hud.stamina")
-	assert_str(_label(hud, "Slots/Hand/Center/Row/Name").text).is_equal("hud.slot.hand")
-	assert_str(_label(hud, "Slots/Belt/Center/Row/Name").text).is_equal("hud.slot.belt")
+	assert_str(_label(hud, "Slots/Place1/Center/Row/Name").text).is_equal("hud.slot.hand")
+	assert_str(_label(hud, "Slots/Place2/Center/Row/Name").text).is_equal("hud.slot.belt")
 	for data: Label in [hud.time_label]:
 		assert_int(data.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 
@@ -415,3 +426,31 @@ func _show_item(hand: HudSlot, item_name: String) -> void:
 	hand.show_slot(slot)
 	await get_tree().process_frame
 	await get_tree().process_frame
+
+
+## GDD §6 (#1218): the selected place is lit (the handoff's Hand look, empty showing "Hand"), the
+## others take the Belt look, and each keeps its number and its item.
+func test_the_selected_place_is_lit_and_the_others_are_belt_places() -> void:
+	var hud := await _hud()
+	var shown := _state(&"empty")
+	shown.places[1] = _slot("item.knife", &"knife", false)
+	shown.selected = 2
+	hud.show_hud(shown)
+	var looks: Array = hud.places.map(
+		func(slot: HudSlot) -> StringName: return slot.theme_type_variation
+	)
+	assert_array(looks).is_equal([&"ToySlot", &"ToySlot", &"ToySlotActive"])
+	assert_object(hud.hand).is_same(hud.places[2])
+	assert_str(hud.places[2].name_label.text).is_equal("hud.slot.hand")
+	assert_bool(hud.places[2].name_label.visible).is_true()
+	assert_str(hud.places[0].name_label.text).is_equal("hud.slot.belt")
+	assert_bool(hud.places[1].icon.visible).is_true()
+	assert_object(hud.places[1].icon.texture).is_same(ToyIcons.texture(&"knife"))
+	assert_str(hud.places[1].number_label.text).is_equal("2")
+	assert_bool(hud.places[1].number_label.visible).is_true()
+	# Back to the first place: the light moves with it.
+	shown.selected = 0
+	hud.show_hud(shown)
+	assert_str(hud.places[0].theme_type_variation).is_equal(&"ToySlotActive")
+	assert_str(hud.places[2].theme_type_variation).is_equal(&"ToySlot")
+	assert_str(hud.places[2].name_label.text).is_equal("hud.slot.belt")

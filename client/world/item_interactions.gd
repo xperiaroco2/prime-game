@@ -33,6 +33,8 @@ const PHYSICS_PRIORITY := 6
 ## How long E is held on a box to pick it up rather than take from it (the cooking ADR's CD4 (a);
 ## a placeholder, not a decision): a release before it is the tap.
 const HOLD_SECONDS := 0.4
+## The keys 1, 2 and 3 (GDD §6 "Drawing from the belt"): the action of each place, 0..2.
+const PLACE_ACTIONS: Array[StringName] = [&"place_1", &"place_2", &"place_3"]
 
 var model: ClientModel
 var session: ClientSession
@@ -293,12 +295,29 @@ func use() -> int:
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
 
-## X: Swap() while the own hand or belt holds an item.
+## X: Swap() while the own player carries an item: back to the place it held last (GDD §6).
 func swap() -> int:
 	var own := model.own_peer if model != null else 0
 	if not _acts() or (model.hand_item(own) < 0 and model.belt_item(own) < 0):
 		return -1
 	return session.send_intent(Intents.SWAP)
+
+
+## 1, 2, 3: Draw(place), the place 0..2 into the hand (GDD §6 "Drawing from the belt"); not the
+## selected one, which the host would refuse (`same_place`).
+func draw(place: int) -> int:
+	if not _acts() or place < 0 or place >= ClientModel.PLACES:
+		return -1
+	if place == model.selected_place(model.own_peer):
+		return -1
+	return session.send_intent(Intents.DRAW, {"place": place})
+
+
+## The mouse wheel: Draw of the next place (`step` 1) or the one before (-1), round the three.
+func step_place(step: int) -> int:
+	if not _acts():
+		return -1
+	return draw(posmod(model.selected_place(model.own_peer) + step, ClientModel.PLACES))
 
 
 ## G: Throw(facing) of the own hand item, when the client's own copy of the mode has a Throw rule
@@ -425,12 +444,29 @@ func _process(delta: float) -> void:
 		return
 	if Input.is_action_just_pressed(&"put_down"):
 		put_down()
+	for place: int in ClientModel.PLACES:
+		if Input.is_action_just_pressed(PLACE_ACTIONS[place]):
+			draw(place)
 	if Input.is_action_just_pressed(&"swap"):
 		swap()
 	if Input.is_action_just_pressed(&"throw"):
 		throw()
 	if captured and was_captured and Input.is_action_just_pressed(&"use"):
 		use()
+
+
+## The mouse wheel draws the next place down, the one before up (GDD §6). It is no InputMap action:
+## the wheel is no binding (Controls.NOT_BINDABLE_BUTTONS).
+func _unhandled_input(event: InputEvent) -> void:
+	var wheel := event as InputEventMouseButton
+	if wheel == null or not wheel.pressed or not reads_device_input or not listening:
+		return
+	if viewing() or not mouse_captured.call():
+		return
+	if wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		step_place(1)
+	elif wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+		step_place(-1)
 
 
 ## Whether the item keys act: a session, a local player, the own player living.

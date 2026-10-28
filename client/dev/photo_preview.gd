@@ -154,6 +154,7 @@ func _row(peer: int, at: Vector3, facing: Vector3, downed: bool) -> Dictionary:
 		"crouched": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 
 

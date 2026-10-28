@@ -369,7 +369,9 @@ static func fold_round(model: ClientModel, with_items := true) -> void:
 	)
 	model.fold(&"ItemSpawned", {"item": KNIFE, "kind": &"knife", "position": Vector3(1, 0, -1)})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": KNIFE})
-	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": PACKAGE, "belted": KNIFE})
+	model.fold(
+		&"ItemPickedUp", {"peer": model.own_peer, "item": PACKAGE, "belted": KNIFE, "place": 1}
+	)
 
 
 ## A fake house for the map screen (#253): dev only, numbers that are not decisions. Six rooms by

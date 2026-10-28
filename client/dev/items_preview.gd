@@ -77,6 +77,7 @@ func _avatars(others: Dictionary) -> Dictionary:
 			"invulnerable": false,
 			"held_item": -1,
 			"belt_item": -1,
+			"belt_item2": -1,
 		}
 	return made
 
@@ -110,7 +111,7 @@ func _fold_items(model: ClientModel) -> void:
 			fields["colour"] = (circles[spawn[3]] as Array)[0]
 		model.fold(&"ItemSpawned", fields)
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 15})
-	model.fold(&"ItemPickedUp", {"peer": 2, "item": 14, "belted": 15})
+	model.fold(&"ItemPickedUp", {"peer": 2, "item": 14, "belted": 15, "place": 1})
 	model.fold(&"ItemPickedUp", {"peer": 3, "item": 16})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": 17})
 	model.fold(&"PackageDelivered", {"item": 18, "station": 3})

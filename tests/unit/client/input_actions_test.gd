@@ -94,9 +94,16 @@ func test_give_up_is_f_and_the_mouse_buttons_cycle_the_spectate_target() -> void
 
 
 func test_swap_is_x_and_the_map_is_m() -> void:
-	# The M4 ADR's controls (D6, M4-8): X swaps the hand and the belt; M opens and closes the map
-	# and tasks screen (#253, which replaced the hold-Tab task screen).
-	for pair: Array in [[&"swap", KEY_X], [&"map", KEY_M]]:
+	# The M4 ADR's controls (D6, M4-8, #1218): X goes back to the last place, 1, 2 and 3 draw
+	# a place (GDD §6); M opens and closes the map and tasks screen (#253, which replaced the
+	# hold-Tab task screen).
+	for pair: Array in [
+		[&"swap", KEY_X],
+		[&"map", KEY_M],
+		[&"place_1", KEY_1],
+		[&"place_2", KEY_2],
+		[&"place_3", KEY_3]
+	]:
 		var keys: Array[Key] = []
 		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
 			var key := event as InputEventKey

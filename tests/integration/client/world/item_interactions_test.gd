@@ -204,14 +204,36 @@ func test_the_throw_key_sends_nothing_without_a_rule_a_phase_or_a_hand_item() ->
 	assert_int(_keys.throw()).is_equal(-1)
 	_model.phase = &"round"
 	# A belt item is never thrown.
-	_model.fold(&"Swapped", {"peer": _model.own_peer})
+	_model.fold(&"Swapped", {"peer": _model.own_peer, "place": 1})
 	assert_int(_keys.throw()).is_equal(-1)
-	_model.fold(&"Swapped", {"peer": _model.own_peer})
+	_model.fold(&"Swapped", {"peer": _model.own_peer, "place": 0})
 	# The downed throw nothing.
 	_model.fold(&"KnockedDown", {"peer": _model.own_peer, "position": Vector3.ZERO})
 	assert_int(_keys.throw()).is_equal(-1)
 	_harness.pump()
 	assert_array(_harness.sent_named(Intents.THROW)).is_empty()
+
+
+## 1, 2, 3 and the wheel (GDD §6, #1218): Draw(place) of a place 0..2 other than the one in the
+## hand (an empty place is allowed: an empty hand); the wheel steps round the three. Nothing is
+## predicted: the selection moves only with the host's Swapped.
+func test_the_place_keys_and_the_wheel_send_draw_but_never_for_the_place_in_the_hand() -> void:
+	var own := _model.own_peer
+	assert_int(_keys.draw(0)).is_equal(-1)
+	assert_int(_keys.draw(3)).is_equal(-1)
+	assert_int(_keys.draw(-1)).is_equal(-1)
+	assert_int(_keys.draw(2)).is_greater(0)
+	assert_int(_keys.step_place(1)).is_greater(0)
+	assert_int(_keys.step_place(-1)).is_greater(0)
+	assert_int(_model.selected_place(own)).is_equal(0)
+	_model.fold(&"Swapped", {"peer": own, "place": 2})
+	assert_int(_keys.draw(2)).is_equal(-1)
+	assert_int(_keys.step_place(1)).is_greater(0)
+	_harness.pump()
+	var places: Array = _harness.sent_named(Intents.DRAW).map(
+		func(sent: WireMessage) -> int: return sent.fields["place"] as int
+	)
+	assert_array(places).is_equal([2, 1, 2, 0])
 
 
 func test_the_downed_get_no_target_and_send_no_item_key() -> void:
@@ -225,6 +247,8 @@ func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.pick_up()).is_equal(-1)
 	assert_int(_keys.put_down()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
+	assert_int(_keys.draw(1)).is_equal(-1)
+	assert_int(_keys.step_place(1)).is_equal(-1)
 
 
 func _eye() -> Vector3:

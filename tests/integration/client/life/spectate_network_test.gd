@@ -121,7 +121,9 @@ func test_the_targets_own_meshes_are_drawn_by_no_camera_the_spectator_uses() -> 
 	model.fold(&"ItemSpawned", {"item": HAND_ITEM, "kind": &"knife", "position": Vector3.ZERO})
 	model.fold(&"ItemSpawned", {"item": BELT_ITEM, "kind": &"knife", "position": Vector3.ZERO})
 	model.fold(&"ItemPickedUp", {"peer": target, "item": BELT_ITEM})
-	model.fold(&"ItemPickedUp", {"peer": target, "item": HAND_ITEM, "belted": BELT_ITEM})
+	model.fold(
+		&"ItemPickedUp", {"peer": target, "item": HAND_ITEM, "belted": BELT_ITEM, "place": 1}
+	)
 	await _pair.frames(2)
 	var spectate := life.spectate_camera()
 	assert_bool(_drawn_by(watched, spectate)).is_false()

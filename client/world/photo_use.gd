@@ -118,7 +118,7 @@ static func _carries(model: ClientModel, kind: ItemKind, film: Film) -> bool:
 	if kind == null:
 		return false
 	var own := model.own_peer
-	for id: int in [model.hand_item(own), model.belt_item(own)]:
+	for id: int in [model.hand_item(own), model.belt_item(own), model.belt_item2(own)]:
 		var item: ClientModel.Item = model.items.get(id)
 		if item == null or item.kind != kind.id:
 			continue

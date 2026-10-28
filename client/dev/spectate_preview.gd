@@ -63,7 +63,9 @@ static func _spectator_model(mode: GameMode) -> ClientModel:
 	for item_id: int in [TARGET_KNIFE, TARGET_BELT]:
 		model.fold(&"ItemSpawned", {"item": item_id, "kind": &"knife", "position": Vector3.ZERO})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": TARGET_BELT})
-	model.fold(&"ItemPickedUp", {"peer": 2, "item": TARGET_KNIFE, "belted": TARGET_BELT})
+	model.fold(
+		&"ItemPickedUp", {"peer": 2, "item": TARGET_KNIFE, "belted": TARGET_BELT, "place": 1}
+	)
 	return model
 
 

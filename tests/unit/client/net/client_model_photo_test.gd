@@ -32,7 +32,7 @@ func test_a_load_takes_the_film_out_of_the_hand_and_lays_it_at_the_camera() -> v
 
 func test_a_film_on_the_belt_leaves_the_belt_at_the_load() -> void:
 	P.hold(_model, FILM, &"film")
-	P.fold(_model, SwappedEvent.new(P.OWN))
+	P.fold(_model, SwappedEvent.new(P.OWN, 1))
 	assert_int(_model.belt_item(P.OWN)).is_equal(FILM)
 	P.fold(_model, FilmLoadedEvent.new(P.CAMERA, FILM))
 	assert_int(_model.belt_item(P.OWN)).is_equal(-1)
