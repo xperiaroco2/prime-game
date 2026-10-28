@@ -114,6 +114,11 @@ var life := ClientModel.Life.ALIVE:
 	set = set_life
 
 var _sprinting: bool = false
+## The ground velocity the own steering drives (#1334): it eases toward the wish over
+## PlayerTuning.accel_seconds, before the push apart.
+var _drive := Vector3.ZERO
+## Whether the own move is in the back family (Locomotion.family_of's hysteresis, #1334).
+var _moving_back := false
 ## The sneak this step (#990): standing, at crouch_speed_mps; never with the crouch or the sprint.
 var _sneaking := false
 ## Height of the floor surface the body last stood on: what a step's height is measured from.
@@ -293,6 +298,7 @@ func set_life(value: ClientModel.Life) -> void:
 		_:
 			collision_layer = 0
 	velocity = Vector3.ZERO
+	_drive = Vector3.ZERO
 	_sprinting = false
 	_sneaking = false
 	_stepping = false
@@ -322,6 +328,7 @@ func is_living() -> bool:
 func teleport(to: Transform3D) -> void:
 	global_transform = to
 	velocity = Vector3.ZERO
+	_drive = Vector3.ZERO
 	_stepping = false
 	_jump_stood = false
 	_floor_y = to.origin.y
@@ -367,6 +374,7 @@ func _apply_rules() -> void:
 ## and nothing spent, so the claim is where it lay and carries its look; stamina regenerates.
 func _hold(delta: float) -> void:
 	velocity = Vector3.ZERO
+	_drive = Vector3.ZERO
 	_sprinting = false
 	_sneaking = false
 	_stepping = false
@@ -407,15 +415,18 @@ func _walk(delta: float) -> void:
 		and not _crouched
 		and not sprint_held
 	)
-	var speed := _speed()
+	var cap := INF if exiting else _direction_cap()
+	if _sprinting and cap <= _speed_unsprinted():
+		_sprinting = false  # no stamina spent on a sprint the cap takes away (#1334)
+	var speed := minf(_speed(), cap)
 	var steering := _horizontal_wish()
 	if exiting:
 		var to := _exit_to - global_position
 		to.y = 0.0
 		steering = to.normalized()
 		speed = minf(rules.walk_speed_mps, to.length() / delta)
-	var wish := steering * speed
-	wish = _push_apart(wish, delta)
+	_drive = _driven(steering * speed, speed, delta, exiting)
+	var wish := _push_apart(_drive, delta)
 	velocity.x = wish.x
 	velocity.z = wish.z
 	var jumped := false
@@ -533,6 +544,38 @@ func _speed() -> float:
 	if _sneaking:
 		return rules.crouch_speed_mps
 	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
+
+
+## _speed() as it would be out of the sprint state.
+func _speed_unsprinted() -> float:
+	var sprinting := _sprinting
+	_sprinting = false
+	var out := _speed()
+	_sprinting = sprinting
+	return out
+
+
+## The fastest the keys' direction may move (#1334, art #196): the mode's side_speed_mps for its
+## sideways part and back_speed_mps in the back family (Locomotion's switch, its hysteresis kept
+## in _moving_back), against the aim; INF without keys or caps.
+func _direction_cap() -> float:
+	if move_input.is_zero_approx():
+		return INF
+	var heading := atan2(-move_input.x, move_input.y)
+	var family := Locomotion.family_of(heading, _moving_back)
+	_moving_back = family == Locomotion.BACK
+	return Locomotion.speed_cap(heading, family, rules.side_speed_mps, rules.back_speed_mps)
+
+
+## The ground velocity this step toward `target`, at most `speed` long: at once while walking out
+## of `movers` or with no accel_seconds, else eased at `speed` per accel_seconds (#1334), so a
+## start and a stop each take accel_seconds, a turn about twice as long. Never above
+## `speed`, the step's own: a lower speed (a sprint that ran out of stamina, a crouch) holds at
+## once, as the host's travel check allows no more.
+func _driven(target: Vector3, speed: float, delta: float, exiting: bool) -> Vector3:
+	if exiting or tuning.accel_seconds <= 0.0:
+		return target
+	return _drive.move_toward(target, speed / tuning.accel_seconds * delta).limit_length(speed)
 
 
 ## Whether the body wants the crouch now (the crouch ADR's step 1): the key held and living,
