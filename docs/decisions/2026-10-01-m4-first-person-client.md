@@ -101,7 +101,7 @@ The input actions (D6 (a); every existing action keeps its key in `project.godot
 | Put the hand item down | Q (`put_down`) | `PutDown(facing)` |
 | Use the hand item | left mouse button (`use`); the click that captures the mouse is not a use | `Use(facing)` |
 | Back to the place held last (revised by #1218; was "Swap hand and belt") | X (`swap`) | `Swap()` |
-| Draw a place into the hand (#1218, GDD §6) | 1, 2, 3 (`place_1`, `place_2`, `place_3`); the mouse wheel steps round the three (down: the next place) | `Draw(place)`, place 0 to 2 |
+| Draw a place into the hand (#1218, GDD §6) | 1, 2, 3 (`place_1`, `place_2`, `place_3`); the mouse wheel steps round the three (down: the next place, a placeholder direction, not a decision) | `Draw(place)`, place 0 to 2 |
 | Give up, while downed | hold G for 1 s (`give_up`, a placeholder) | `GiveUp()` |
 | Task screen (revised by #253: the map and tasks screen, M toggles it, the action `map`) | hold Tab (`task_screen`) | nothing |
 | Next and previous spectate target, while dead | left and right mouse buttons | nothing: the target never leaves the client |

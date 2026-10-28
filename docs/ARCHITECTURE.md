@@ -983,7 +983,7 @@ directive has no row, because it reaches no peer.
 | 75 | `LiftChanged` | `station: station`, `up: bool`, `tick: tick` (audience *everyone*, #807; the car repair ADR's §3) | 7; 7 |
 | 76 | `PartNeeded` | `station: station`, `kind: id` (optional, behind a `has_kind` flag; absent, the kind is empty: every part fitted) (audience *everyone*, #807, RD3) | 3 to 36; 36 |
 | 77 | `FilmLoaded` | `station: station`, `item: item` (audience *everyone*, #781; the [photo ADR](decisions/2026-10-10-photo-task.md) §3.1) | 4; 4 |
-| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>, belt_item2: maybe<item> (#1218)>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
+| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>, belt_item2: maybe<item> (#1218)>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 31 to 35 a row; 532 |
 | 79 | `GrillLoaded` | `station: station`, `item: item`, `fried: tick`, `burnt: tick` (audience *everyone*, #773; the cooking ADR, CE10) | 12; 12 |
 | 80 | `IngredientPlaced` | `item: item`, `station: station` (audience *everyone*, #773; `right` dropped by #1101) | 4; 4 |
 | 81 | `FitChanged` | `station: station`, `fitter: peer` (optional, behind a `has_fitter` flag; absent, the fitter is 0: the fit stopped), `tick: tick` (audience *everyone*, #808; the car repair ADR's RE10, RD15 (a)) | 7 to 11; 11 |
@@ -997,7 +997,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 757; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -1152,7 +1152,7 @@ The rules of the table:
   - Decoded shapes that `to_dict()` does not set: `ChangeSettings.settings` is an untyped Dictionary of `StringName`
     ids to an `int` or a `PackedStringArray`; a snapshot's `avatars` are untyped, as `Snapshots.for_peer` builds them.
   - At the declared maxima `ChangeSettings`, `Welcome` and `SettingsChanged` exceed their caps; `LoadMatch` (1445
-    bytes) does not, and the snapshot's 16 avatars take 725 bytes of its 1024 (45 bytes each with its key, the belt
+    bytes) does not, and the snapshot's 16 avatars take 757 bytes of its 1024 (47 bytes each with its key, the belt
     item included: M4-5 rechecked it).
   - `wire_core_test.gd` compares the table with `Intents.FIELDS` (names and decoded Variant types, `ForceRole`
     included) and applies decoded `ForceRole`, `Hello` and `ChangeSettings` to a `Match`. A decoded `ForceRole`'s
@@ -2737,7 +2737,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the client's own mode) of the feet, less the walking margin of #319 (`TargetChoice.hint_reach_of`), and a second
   ray from the camera to the item's middle meets no world geometry (the host's `InSight`): an item just behind a
   thin wall or a door jamb is never named.
-  Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own places hold something; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three (#1218, GDD §6)
+  Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own places hold something; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three, counted on from the Draw still in flight and with at least 60 ms between two (#1218, GDD §6)
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the camera's look vector.
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
