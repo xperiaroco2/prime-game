@@ -289,6 +289,13 @@ func snap_look() -> void:
 	_body_seeded = false
 
 
+## The yaw the character is drawn turned by: body_yaw with a character whose pose seeded it, else
+## `aim` (a capsule, and a body not drawn yet, face the aim). A knockdown's ragdoll starts from it,
+## so the body does not jump by its lag (#1334).
+func drawn_yaw(aim: float) -> float:
+	return body_yaw if _rig != null and _body_seeded else aim
+
+
 ## The head: it holds the pitch (tests read it), at the drawn eye, standing or crouched: the
 ## spectate camera and the ears of a dead player watching this one sit here.
 func head() -> Node3D:

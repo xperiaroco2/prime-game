@@ -329,7 +329,11 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
 		ragdoll.setup(rules, peer, colour, character)
-		ragdoll.start(pose.position, pose.yaw, velocity)
+		# Turned as the living character was drawn (its body lags the aim), not by the aim.
+		var body: RemotePlayerBody = _bodies.get(peer)
+		ragdoll.start(
+			pose.position, body.drawn_yaw(pose.yaw) if body != null else pose.yaw, velocity
+		)
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll
 		add_child(ragdoll)

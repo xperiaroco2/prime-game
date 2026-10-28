@@ -205,6 +205,19 @@ func test_a_knocked_down_player_s_ragdoll_is_the_character_s_skeleton() -> void:
 	assert_bool(_views.body_of(PEER).character().visible).is_false()
 
 
+func test_a_knockdown_s_ragdoll_starts_turned_as_the_body_was_drawn() -> void:
+	# Aim 30 degrees left, inside the dead zone: the body is drawn still facing -Z, and the
+	# ragdoll starts so, with no jump of the lag at the knockdown.
+	await _stand(Vector3.ZERO)
+	await _look(deg_to_rad(30.0), 0.0)
+	assert_float(_views.body_of(PEER).body_yaw).is_equal_approx(0.0, 0.001)
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _frame()
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_object(ragdoll).is_not_null()
+	assert_float(ragdoll.rotation.y).is_equal_approx(0.0, 0.001)
+
+
 func test_a_head_shake_inside_the_dead_zone_turns_the_head_not_the_body() -> void:
 	await _stand(Vector3.ZERO)
 	var body := _views.body_of(PEER)
