@@ -1,6 +1,6 @@
 """`wave --in-flight` (#1355): the other sessions on this machine with work of their own still in flight.
 
-The secretary sorts every session into "waits for you", "running" and "silent, reason unseen" (its skill). A session
+The director sorts every session into "waits for you", "running" and "silent, reason unseen" (its skill). A session
 that only ended its turn may be waiting on its own background work, whose notification will wake it: on 2026-10-28 the
 inbox listed the art session "Анімації прибульців (art #196)" as silent while its builder, a background agent, dressed
 the bodies. `--stalled` flags only runs that finished with no turn after them, and `wave --since --session` reads only

@@ -802,8 +802,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "inbox",
-        help="the GitHub half of the secretary's digest across the game, UI, art and design repos (read-only)",
-        description="The GitHub half of the secretary's digest (#485), across the game, UI, art and design repos in "
+        help="the GitHub half of the director's digest across the game, UI, art and design repos (read-only)",
+        description="The GitHub half of the director's digest (#485, #1364), across the game, UI, art and design repos in "
         "one call: "
         "open PRs' unanswered 'Needs the engineer' items, the gate's exceptions (merges only the engineer makes) and "
         "each thread's latest 'For you:' block by the engineer's account since --since. Posts and writes nothing; "

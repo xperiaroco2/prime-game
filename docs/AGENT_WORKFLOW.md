@@ -99,7 +99,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines and 10,240 bytes each (`NESTED_BYTES`, #1242) |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines and 10,240 bytes each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md`, `workflow-scripts.md` | ≤ 60 lines each |
-| `docs/HUMAN_SESSIONS.md` | Read by a chat with a human (task session, manager, secretary, meta) before its first reply and again after a compaction, by root's pointer; no workflow agent reads it (#836) | Talking to the humans, launching a workflow, memory, the dictation glossary | none (not loaded at launch) |
+| `docs/HUMAN_SESSIONS.md` | Read by a chat with a human (task session, manager, director, meta) before its first reply and again after a compaction, by root's pointer; no workflow agent reads it (#836) | Talking to the humans, launching a workflow, memory, the dictation glossary | none (not loaded at launch) |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
 - Invariants live in root because nested files drop out after compaction
@@ -332,7 +332,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `D:\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `D:\prime-game` is sent there |
-| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the four repos into the pinned "Engineer's inbox" issue when he asks, relays his answers and hands him kickoffs for new sessions; runs and decides nothing (§7.2) |
+| `director` | engineer | The engineer's director, one main session in two shifts a day (night, day) over every track's sub-sessions: clears, starts and archives them on his word, digests what needs him into the pinned "Engineer's inbox" issue when he asks, relays his answers, reports the night, merges on his word through the gate, and changes the shift by clear and kickoff; launches no workflow and decides nothing (§7.2; the secretary until #1364) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -364,7 +364,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
 | Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it, with bypass, when he pastes the kickoff: `docs/MANAGERS.md` §1) |
-| The secretary session (§7.2) | medium, on Opus (the engineer's answer on #170, #485) |
+| The director session (§7.2) | high, on Opus, bypass (the engineer's word on #1364; medium as the secretary, #170, #485) |
 | The design manager (§7.3) | high, on Opus, like every manager |
 
 Rules for every workflow run:
@@ -495,37 +495,78 @@ Rules for every workflow run:
   [`docs/MANAGERS.md`](MANAGERS.md), the one place for the rules every track's manager follows (the UI and art
   managers, in their own repos without this skill or `wave`, point there), and orchestrate-stage `handover.md`.
 
-### 7.2 The secretary session
+### 7.2 The director session
 
-(#485; the engineer's answers on [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
+(#485, #1364; the engineer's answers on [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
 recorded in the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), Q5, amended
-2026-10-07.) With four tracks' managers and his own sessions, the engineer went from session to session to find
-what waited for him. One more session, the **secretary**, does that and is no manager: it runs no workflow or task
-itself.
+2026-10-07, 2026-10-28 and 2026-10-29.) With four tracks' managers and his own sessions, the engineer went from
+session to session to find what waited for him. One more session does that and is no manager: it runs no workflow or
+task itself. It was the **secretary** (#485) until his word of 2026-10-29 ~00:30 local
+([copied on #1364](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482122331)) made it the
+**director**: one main session that runs every track's work as its own linked sub-sessions, in two shifts a day.
 
-- **Who:** one session of the engineer's, Opus at medium effort, in `D:\prime-game` (it only reads the checkout), on
-  the skill `secretary` (`.claude/skills/secretary/SKILL.md`). Its cost counts in the engineer's own 5% of the week
-  (the skill's `budget.md`) until he says otherwise.
+- **Who:** one session of the engineer's, Opus at high effort, bypass, in `D:\prime-game` (it only reads the
+  checkout), on the skill `director` (`.claude/skills/director/SKILL.md`), titled "Директор: ніч DD.MM" or
+  "Директор: день DD.MM": the same session runs both shifts, cleared between them. Its sub-sessions get short
+  Ukrainian names, "<трек>: <частина>" ("Арт: корабель") or the track alone ("Гра"). Its cost counts in the
+  engineer's own 5% of the week (the skill's `budget.md`) until he says otherwise.
 - **Powers:** it reads every session and the four repos, digests, and relays the engineer's answers to the session
-  that asked, which records them on GitHub as usual. On his word for each session it starts the tracks' sessions
-  itself (below). It never merges, launches a workflow, closes, creates an issue or decides; it never answers a
-  permission card (they are the human's by design). Its only writes: the inbox issue's body, relay comments,
-  `send_message`, and the sessions it starts on his word (`start_session`, `set_session_effort`).
+  that asked, which records them on GitHub as usual. On his word it clears, starts, renames and archives the tracks'
+  sessions, and merges a PR he names through the gate (`merge <pr> --base main`, the
+  [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). It never launches a workflow,
+  closes, creates an issue or decides; it never answers a permission card (they are the human's by design). Its only
+  writes: the inbox issue's body and comments, relay comments, `send_message`, its sub-sessions (`clear_session`,
+  `start_session`, `set_session_effort`, `set_session_title`, `archive_session`, with `set_pinned` and
+  `set_remote_control` before a clear or an archive), and those merges.
+- **Two shifts:** night, evening to morning; day, morning to evening (DD.MM is the date of the morning the night
+  ends). During a shift it reads the linked notes, relays, and digests on demand, with no timer: the notes and his
+  messages wake it. The night director reports in the morning, in his chat and as a "Night report DD.MM" comment on
+  the inbox issue: what was done, what merged, what waits for him, and the spend. He decides; the director finishes
+  what he decided, then changes the shift on his word.
+- **Shift change: clear and kickoff** (his words of 2026-10-29,
+  [~00:45 local](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482091385) and
+  ["Так, передай"](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482254653)). The same sessions
+  are refreshed instead of starting new ones: (1) the director sends every sub-session the handover request (the
+  skill holds the text, the one of the night of 2026-10-28/29): a safe point, WIP pushed, a handover comment with a
+  kickoff on its track's issue, the kickoff sent back with `send_message`. (2) Once a sub-session is idle with
+  nothing in flight, the director clears it (`clear_session`) and sends it that kickoff; its id stays, so it stays
+  linked. (3) The director posts its own "Handover to a fresh director (same session, after a clear)" comment on the
+  inbox issue (the sub-sessions' table, what waits for him, its kickoff), tells him in one line to write
+  «/director продовжуй» after the clear (the slash loads the skill for certain), and clears itself (`clear_session`
+  with `self`), only while he is here. (4) After the clear, any first message (his, or a sub-session's note that came
+  first) means: read the newest such comment and every comment after it, and carry out its kickoff. That comment is
+  the kickoff's only home: the clear wipes the chat, so he pastes nothing. New sessions, with the old
+  ones archived, remain the fallback: for a track that has none yet, or when a clear is refused. A director hands
+  over at the shift change, or earlier at 60% of its context window (its own half only).
 - **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites when he asks ("що там?",
   "що нового?"; no timer, his word of 2026-10-28, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)):
   what to approve or decide and what to look at, numbered, each item with a link or a ready command, every other
-  session in one group (waits for you, running, silent). In its chat, one short line on what changed.
-- **His personal assistant, a wrapper over the tracks' sessions** (the same word, and his word of 2026-10-28
-  ~22:05 UTC, [copied on #1359](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481695312)): on
-  his word for each session it starts it with the Desktop app's `start_session`: the track's checkout, the
-  permission mode (bypass for a manager, [MANAGERS.md](MANAGERS.md) §1), the effort and the kickoff, each taken from
-  where a session or the track's docs give it (a handover comment, a meta session's prepared kickoff), never made up.
-  The app allows its own mode and effort or lower, so a manager's high effort is a `set_session_effort` right after
-  the start, which applies from the manager's second turn on. A session it starts is linked: each end of its turn
-  sends the secretary a note, which it reads and turns into a chat line when it holds a "For you:" item, else ends
-  its turn at once; each note costs it a turn of context inside his 5%, so its context limit and the
-  fresh-secretary handover stay. Sessions it did not start (already open) are read and messaged as before and
-  send no notes. When he wants to paste a kickoff himself, it hands him one (folder, mode, effort, the text).
+  session in one group (waits for you, running, silent). In its chat, one short line on what changed. The issue
+  keeps its title: the skill finds it by that title, and the night reports and director handovers are its comments.
+- **A wrapper over the tracks' sessions** (his word of 2026-10-28 ~22:05 UTC,
+  [copied on #1359](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481695312)): it starts each
+  sub-session with the Desktop app's `start_session`: the track's checkout, the permission mode (bypass for a
+  manager, [MANAGERS.md](MANAGERS.md) §1), the effort, the model and the kickoff, each taken from where a session or
+  the track's docs give it (a handover comment, a meta session's prepared kickoff), never made up. A sub-session is
+  linked: each end of its turn sends the director a note, which it reads and turns into a chat line when it holds a
+  "For you:" item, else ends its turn at once; each note costs it a turn of context inside his 5%. Sessions it did
+  not start are read and messaged as before and send no notes. When he wants to paste a kickoff himself, it hands
+  him one (folder, mode, effort, the text).
+- **The app's limits** (found on the night of 2026-10-28/29), each with what the director does:
+  - `clear_session` works on an idle session the director started and on itself (`self`, once its turn ends; a
+    message he sends first drops it). It refuses a pinned session, one open on screen, one with Remote Control on,
+    and one with a queued message or live work: it unpins first, turns Remote Control off, and checks
+    `wave --in-flight` first. The cleared session keeps its folder, model, permission mode and id.
+  - Its own clear wipes its chat, that turn's message included: the kickoff lives only in its handover comment.
+  - `start_session` into another folder runs only on the human's own words in that turn: a turn started by another
+    session's message or a task notification is refused, and a proposal card cannot carry a folder. So, in the
+    fallback, it asks him in its chat ("Запускай") and starts everything on that one word.
+  - `archive_session` refuses a pinned session, one with Remote Control on, and one with live work: it unpins first,
+    turns Remote Control off, and checks `wave --in-flight` first.
+  - Linked notes reach only the session that started a sub-session. That is why the shift change clears the same
+    sessions (the ids stay) instead of starting new ones under a new director.
+  - `start_session` takes an effort at or below the starter's; `set_session_effort` raises it after, from the
+    session's second turn on.
 - **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
   `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news;
   `tools\run.cmd wave --in-flight` (§11.11) tells a session that waits on its own background work from a silent one.
@@ -542,7 +583,7 @@ itself.
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
 result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
 then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 180 s
-(§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
+(§11.17), the director reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
 minutes old as "probably waits on a permission card", and names the session and the tool. A session known to
 sit on a card was seen on the night of 2026-10-09/10 (#731); whether `lastActivityAt` stayed frozen meanwhile was not
 checked. The transcript shows the card: its call has a PreToolUse
@@ -552,35 +593,36 @@ the session, the card and the guard's reason.
 
 **Set up** (the engineer, once): the issue and its pin.
 ```powershell
-cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The secretary session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
+cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The director session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
 ```
 ```powershell
 cd D:\prime-game; gh issue pin <the new issue's number>
 ```
-**Start** (the engineer, when he sits down): a plain new Desktop session (not a scheduled task) in `D:\prime-game`,
-no worktree, model Opus, effort medium, the permission mode he uses for his own sessions, with the kickoff below
-pasted. Bypass, if it is to start managers in bypass (the app refuses a start above the starter's mode) and raise
-their effort without a card. A plain session, because the secretary lives on his chat and its relays, and a
-scheduled-task run is the wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
-allows only the writes the task file names; no other session can `send_message` to it; it starts in `acceptEdits`
-at medium whatever its creator ran in; and an unattended session cannot `run_scheduled_task`, so a scheduled-task
-manager could not start it anyway. Whether the engineer can type into a scheduled-task run is still unprobed.
-A scheduled task `secretary` stays an option only once those are probed; its kickoff would then have to name the
-writes (the inbox body, relay comments, `send_message`) and say the engineer is present.
+**Start** (the engineer, once: the first director, or a fresh one when the director session is lost): a plain new
+Desktop session (not a scheduled task) in `D:\prime-game`, no worktree, model Opus, effort high, bypass (the app
+refuses a start above the starter's mode or effort, and bypass clears, archives and raises efforts without a card),
+with the kickoff below pasted. At each shift change after that the same session is cleared and picks up its own
+kickoff from its handover comment, and nothing is pasted. A fresh director gets no notes from the old session's
+sub-sessions, so it has each hand over and starts its successor under itself (the skill's fallback). A plain
+session, because the director lives on his chat and its relays, and a scheduled-task run is the wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the
+user is not present and allows only the writes the task file names; no other session can `send_message` to it; it
+starts in `acceptEdits` at medium whatever its creator ran in; an unattended session cannot `run_scheduled_task`;
+and `start_session` into another folder needs the human's own words in the turn. Whether the engineer can type into
+a scheduled-task run is still unprobed.
 
-The kickoff:
+The kickoff of a new director session:
 ```text
-/secretary
-Digest now; after that, only when I ask. I am here and answer in this chat.
+/director
+Shift: <ніч | день> DD.MM. Read the newest "Handover to a fresh director" comment on the inbox issue, if any, and
+every comment after it; else ask me which tracks to start. I am here and answer in this chat.
 ```
 No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
-share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events`,
-`search_session_transcripts`, `send_message`, `start_session` and `set_session_effort` load (ToolSearch) and names
-any that does not in its chat line.
+share, where the director's cost belongs. At its start it also checks that the tools of its skill's "Limits" load
+(ToolSearch) and names any that does not in its chat line.
 
 **No timer** (his word of 2026-10-28, replacing the 30-to-60-minute `sleep 3000` timer of his answer (a) on
 [#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361)): it costs nothing between his
-questions.
+questions and the notes.
 
 ### 7.3 The design manager session
 
@@ -608,7 +650,7 @@ across sessions and hands over like any manager (`docs/MANAGERS.md`).
   and records; it never decides content; its docs PRs here merge only on his word for that PR, through the gate.
 - **Budget:** the `design` line of `.claude/skills/orchestrate-stage/budget.md`. `tools\run.cmd metrics --track
   design` (run in `D:\prime-game`) counts the design repo's sessions with the main checkout's (its sessions' default
-  track is `design`), and `metrics --run`, `wave --stalled` and the secretary's `inbox` read that repo too (#1124).
+  track is `design`), and `metrics --run`, `wave --stalled` and the director's `inbox` read that repo too (#1124).
 
 ## 8. Permissions, guards and hooks
 
@@ -1446,7 +1488,7 @@ session and 0 otherwise, and its last line counts the transcripts it read. Its f
 refused.
 
 `--in-flight` (#1355, `wave_flight.py`) lists the other sessions with background work of their own still running, so
-the secretary (§7.2) tells a session that only ended its turn and waits on it from a silent one: on 2026-10-28 the
+the director (§7.2) tells a session that only ended its turn and waits on it from a silent one: on 2026-10-28 the
 inbox called the art session "Анімації прибульців (art #196)" silent while its builder agent dressed the bodies. It
 reads the same transcripts as `--stalled` (the four checkouts and their worktrees, the last 24 hours, never the
 caller's own, a closed session passed over). In flight: a workflow run with no notification whose journal is short of
@@ -1839,7 +1881,7 @@ from `check`, the engine API dump that `doctor` generates into `tools/out/godot-
 `docs.godotengine.org/en/4.7/`.
 
 ### 11.23 `inbox [--since T] [--repo OWNER/NAME ...]` [applied] (#485)
-The secretary's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
+The director's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
 (`xperiaroco2/prime-game`, `-ui`, `-art`, `-design`) one `gh pr list --state open` with bodies and files and one `gh api
 repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
 500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items

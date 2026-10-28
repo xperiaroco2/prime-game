@@ -17,6 +17,8 @@
   Amended 2026-10-28 (#1355): the secretary digests only when he asks and hands him kickoffs for new sessions (Q5).
   Amended 2026-10-28 (#1359): on the engineer's word for each session, the secretary starts the tracks' sessions
   itself (Q5).
+  Amended 2026-10-29 (#1364): the secretary becomes the director, one main session over every track's sessions in
+  two shifts a day, which merges on his word through the gate (Q5).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -243,6 +245,19 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   launches a workflow, closes, decides or answers a permission card; its cost, the linked sessions' notes that wake
   it included, stays in his 5%. Approved by the engineer:
   [#1359 comment 6481775658](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481775658).
+  **Amended 2026-10-29** (#1364; his words, copied on #1364:
+  [the director](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482122331),
+  [clear and kickoff](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482091385) and
+  [its own kickoff](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482254653)): the secretary
+  becomes the **director** (AGENT_WORKFLOW §7.2, the skill `director`, which replaces `secretary`): one main session
+  that runs every track's work as its own linked sub-sessions, in two shifts a day (night, day), Opus at high effort
+  in bypass. The night director reports in the morning. At the shift change, on his word, every sub-session hands
+  over and the director refreshes the same sessions (a clear, then the kickoff each handed over), posts its own
+  handover with its kickoff on the inbox issue and clears itself; new sessions, with the old ones archived, are the
+  fallback. On his word it also merges a PR through the gate (the trust ADR's `merge <pr> --base main`,
+  its exceptions still his). It still never launches a workflow, closes, decides or answers a permission card; its
+  cost, the notes included, stays in his 5% until he says otherwise. Approved by the engineer:
+  [#1364 comment 6482230995](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482230995).
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the
