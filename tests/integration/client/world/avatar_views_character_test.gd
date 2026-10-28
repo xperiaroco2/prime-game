@@ -193,7 +193,6 @@ func test_the_own_player_s_pick_up_queues_nothing() -> void:
 	assert_bool(_rig().is_shot_active()).is_false()
 
 
-## PEER standing at `at`, drawn for a few frames.
 func test_a_knocked_down_player_s_ragdoll_is_the_character_s_skeleton() -> void:
 	await _stand(Vector3.ZERO)
 	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
@@ -206,6 +205,71 @@ func test_a_knocked_down_player_s_ragdoll_is_the_character_s_skeleton() -> void:
 	assert_bool(_views.body_of(PEER).character().visible).is_false()
 
 
+func test_a_head_shake_inside_the_dead_zone_turns_the_head_not_the_body() -> void:
+	await _stand(Vector3.ZERO)
+	var body := _views.body_of(PEER)
+	var look := _rig().head_look()
+	assert_object(look).is_not_null()
+	for yaw_deg: float in [30.0, -30.0, 40.0]:
+		var yaw := deg_to_rad(yaw_deg)
+		await _look(yaw, 0.0)
+		# The root keeps the aim: spectate and the sight point read it.
+		assert_float(body.rotation.y).is_equal_approx(yaw, 0.001)
+		assert_float(body.body_yaw).is_equal_approx(0.0, 0.001)
+		assert_float(_rig().rotation.y).is_equal_approx(-yaw, 0.001)
+		assert_float(look.aim_yaw).is_equal_approx(yaw, 0.001)
+
+
+func test_past_the_dead_zone_the_body_follows_the_aim() -> void:
+	await _stand(Vector3.ZERO)
+	var body := _views.body_of(PEER)
+	await _look(deg_to_rad(100.0), 0.0)
+	assert_float(body.rotation.y).is_equal_approx(deg_to_rad(100.0), 0.001)
+	assert_float(body.body_yaw).is_equal_approx(deg_to_rad(55.0), 0.001)
+	assert_float(_rig().rotation.y).is_equal_approx(deg_to_rad(-45.0), 0.001)
+	assert_float(_rig().head_look().aim_yaw).is_equal_approx(deg_to_rad(45.0), 0.001)
+
+
+func test_a_nod_turns_the_head_by_the_pitch() -> void:
+	await _stand(Vector3.ZERO)
+	for pitch_deg: float in [30.0, -30.0]:
+		await _look(0.0, deg_to_rad(pitch_deg))
+		assert_float(_rig().head_look().aim_pitch).is_equal_approx(deg_to_rad(pitch_deg), 0.001)
+		assert_float(_views.body_of(PEER).head().rotation.x).is_equal_approx(
+			deg_to_rad(pitch_deg), 0.001
+		)
+
+
+func test_a_placement_draws_the_body_on_the_aim() -> void:
+	await _stand(Vector3.ZERO)
+	await _look(deg_to_rad(30.0), 0.0)
+	assert_float(_views.body_of(PEER).body_yaw).is_equal_approx(0.0, 0.001)
+	# A respawn far away facing the same way: no turn carried over from where it stood.
+	var facing := _facing(deg_to_rad(30.0), 0.0)
+	for tick: int in 8:
+		_arrive(Vector3(50, 0, 0), facing)
+		await _frame()
+		await _frame()
+		await _frame()
+	assert_float(_views.body_of(PEER).body_yaw).is_equal_approx(deg_to_rad(30.0), 0.001)
+	assert_float(_rig().rotation.y).is_equal_approx(0.0, 0.001)
+
+
+func test_the_body_s_yaw_picks_the_family_and_plan_of_keeps_it() -> void:
+	assert_object(_views.plan_of(PEER)).is_null()
+	await _stand(Vector3.ZERO)
+	# Aim 40 degrees left of a body still facing -Z: a move straight ahead is the body's Jog_Fwd.
+	await _look(deg_to_rad(40.0), 0.0)
+	await _walk(Vector3(0, 0, -0.2), _facing(deg_to_rad(40.0), 0.0), 10)
+	assert_str(String(_rig().base_clip())).is_equal(String(AvatarClips.JOG_FWD))
+	assert_bool(_views.plan_of(PEER).back).is_false()
+	# Backing away: the back family, kept by plan_of.
+	await _walk(Vector3(0, 0, 0.1), _facing(deg_to_rad(40.0), 0.0), 10)
+	assert_str(String(_rig().base_clip())).is_equal(String(AvatarClips.JOG_BWD))
+	assert_bool(_views.plan_of(PEER).back).is_true()
+
+
+## PEER standing at `at`, drawn for a few frames.
 func _stand(at: Vector3) -> void:
 	for tick: int in 4:
 		_arrive(at, Vector3.FORWARD)
@@ -227,6 +291,22 @@ func _walk(
 		await _frame()
 		await _frame()
 		await _frame()
+
+
+## PEER standing where it is, its aim turned to `yaw` (positive left) and `pitch` (up), drawn
+## until the interpolation reached it.
+func _look(yaw: float, pitch: float) -> void:
+	var at := _views.body_of(PEER).global_position
+	for tick: int in 8:
+		_arrive(at, _facing(yaw, pitch))
+		await _frame()
+		await _frame()
+		await _frame()
+
+
+## The facing of an aim at `yaw` (positive left of -Z) and `pitch` (positive up).
+func _facing(yaw: float, pitch: float) -> Vector3:
+	return Vector3(-sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch))
 
 
 ## PEER holding `item` (of `kind`), drawn so for some frames, then every shot played out.

@@ -48,6 +48,9 @@ const CARRY_POINT := Vector3(0.0, 0.8, -0.72)
 ## The mouth, below the eyes (the M5 ADR §1.5: a placeholder, "not a decision"): this player's
 ## VoiceSpeaker hangs there (M5-5), and the muffle's ray aims at it (M5-7).
 const MOUTH_BELOW_EYE_M := 0.1
+## How far the aim turns from the body before the body follows (art #196: the engineer's 45
+## degrees).
+const BODY_DEAD_ZONE := deg_to_rad(45.0)
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.
@@ -59,6 +62,11 @@ const MOUTH_BELOW_EYE_M := 0.1
 @export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 ## The player it shows; 0 when none (the controller's tests).
 var peer := 0
+## The body's yaw (#1334, art #196): it lags the aim (the pose's yaw) inside BODY_DEAD_ZONE and
+## turns once the aim leaves it (HeadLook.body_follow). Derived on each observer from the poses it
+## draws, never relayed. Only the character rig turns by it: the root, the head, the mouth and the
+## sight point keep the aim, as spectate reads them.
+var body_yaw := 0.0
 
 var _head: Node3D
 var _shell: MeshInstance3D
@@ -77,6 +85,8 @@ var _carry_point := Node3D.new()
 var _mouth_point := Node3D.new()
 ## The animated character (set_character, #522), or null: then the greybox capsule and visor.
 var _rig: CharacterRig
+## Whether body_yaw holds a drawn pose's yaw yet: the first pose (and snap_look) seeds it.
+var _body_seeded := false
 
 @onready var _shape: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $Mesh
@@ -111,7 +121,7 @@ func set_rules(value: PlayerRules) -> void:
 func set_character(with_set: CharacterSet) -> void:
 	if with_set == null or _rig != null:
 		return
-	_rig = CharacterRig.make(with_set)
+	_rig = CharacterRig.make(with_set, true)
 	add_child(_rig)
 	_rig.set_tint(color)
 	_show_looks()
@@ -253,13 +263,30 @@ func is_living() -> bool:
 	return collision_layer == PhysicsLayers.LIVING
 
 
-## Places the body at `pose`: its position, the yaw on the body and the pitch on the head.
+## Places the body at `pose`: its position, the aim's yaw on the body and the pitch on the head.
+## body_yaw follows the aim (BODY_DEAD_ZONE); the character turns by the body's lag behind the aim
+## and its head looks the rest of the way.
 func set_pose(pose: SnapshotBuffer.Pose) -> void:
 	global_position = pose.position
 	rotation = Vector3(0.0, pose.yaw, 0.0)
 	_head.rotation = Vector3(pose.pitch, 0.0, 0.0)
+	if _body_seeded:
+		body_yaw = HeadLook.body_follow(body_yaw, pose.yaw, BODY_DEAD_ZONE)
+	elif is_finite(pose.yaw):
+		body_yaw = pose.yaw
+		_body_seeded = true
+	if _rig != null:
+		var lag := wrapf(body_yaw - pose.yaw, -PI, PI)
+		_rig.rotation = Vector3(0.0, lag, 0.0)
+		_rig.set_look(-lag, pose.pitch)
 	# Now, not after the pass: the local player's push search (priority 0) reads it this frame.
 	force_update_transform()
+
+
+## Lets the next pose seed body_yaw at its aim: a placement (a teleport, a respawn) draws the body
+## facing the aim, without a turn from where it stood.
+func snap_look() -> void:
+	_body_seeded = false
 
 
 ## The head: it holds the pitch (tests read it), at the drawn eye, standing or crouched: the
