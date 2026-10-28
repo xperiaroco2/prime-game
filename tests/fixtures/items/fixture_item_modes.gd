@@ -38,7 +38,6 @@ static func swapping(mode: GameMode) -> GameMode:
 	return mode
 
 
-## An item kind of `hands` hands (1, or 2 for a package, as the base mode's data has it).
 ## The Draw (GDD §6, #1218: keys 1, 2, 3 and the wheel) as the base mode has it: PlaceInRange, then
 ## PlaceChanges, then DrawPlace; Round accepts it from the living.
 static func drawing(mode: GameMode) -> GameMode:
@@ -47,6 +46,7 @@ static func drawing(mode: GameMode) -> GameMode:
 	return mode
 
 
+## An item kind of `hands` hands (1, or 2 for a package, as the base mode's data has it).
 static func item_kind(id: StringName, actions: Array[Rule], hands := 1) -> ItemKind:
 	var kind := ItemKind.new()
 	kind.id = id

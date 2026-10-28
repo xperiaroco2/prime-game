@@ -85,7 +85,7 @@ func test_a_draw_with_a_two_handed_item_puts_it_down_at_the_feet() -> void:
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	# The fixture's item_rested reactions note the put-down in between.
 	var names := FixtureItemModes.names_after(game, P2, seen).filter(
-		func(name: StringName) -> bool: return name != &"FixtureNote"
+		func(each: StringName) -> bool: return each != &"FixtureNote"
 	)
 	assert_array(names).is_equal([&"ItemPlaced", &"Swapped"])
 	var placed := game.view_of(P2).events_named(&"ItemPlaced")[-1] as ItemPlacedEvent

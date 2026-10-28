@@ -108,8 +108,8 @@ static func belted_items(state: MatchState, peer: int) -> Array[ItemState]:
 	var player := state.player(peer)
 	if player == null:
 		return belt
-	for place in player.belt_places():
-		var item: ItemState = state.items.get(player.places[place])
+	for at in player.belt_places():
+		var item: ItemState = state.items.get(player.places[at])
 		if item != null:
 			belt.append(item)
 	return belt
