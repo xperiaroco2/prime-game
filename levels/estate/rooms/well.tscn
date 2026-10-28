@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bhbd72g53i2qg"]
+[gd_scene format=3 uid="uid://doxmdds48t2th"]
 
 [ext_resource type="Material" uid="uid://bhp0a0jdcwgo2" path="res://levels/kit/greybox_floor_base.tres" id="1_wb1va"]
 
@@ -9,18 +9,18 @@ size = Vector3(2.4, 0.9, 2.4)
 material = ExtResource("1_wb1va")
 size = Vector3(2.4, 0.9, 2.4)
 
-[node name="Well" type="Node3D" unique_id=322831311]
+[node name="Well" type="Node3D" unique_id=698757077]
 
-[node name="Well01" type="StaticBody3D" parent="." unique_id=135101274]
+[node name="Well01" type="StaticBody3D" parent="." unique_id=439235333]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Well01" unique_id=924647351]
+[node name="Shape" type="CollisionShape3D" parent="Well01" unique_id=2128214021]
 shape = SubResource("BoxShape3D_mqfy1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Well01" unique_id=955943077]
+[node name="Mesh" type="MeshInstance3D" parent="Well01" unique_id=1977907586]
 mesh = SubResource("BoxMesh_p5js2")
 
-[node name="Name" type="Label3D" parent="." unique_id=1524337237]
+[node name="Name" type="Label3D" parent="." unique_id=660188596]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
 billboard = 1
 text = "Well"

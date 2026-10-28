@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://gi52d8hlk103"]
+[gd_scene format=3 uid="uid://d20854n1abwot"]
 
 [ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="1_uk6ec"]
 
@@ -9,27 +9,27 @@ size = Vector3(0.4, 2.4, 0.4)
 material = ExtResource("1_uk6ec")
 size = Vector3(0.4, 2.4, 0.4)
 
-[node name="Gate" type="Node3D" unique_id=136437926]
+[node name="Gate" type="Node3D" unique_id=27917435]
 
-[node name="Post01" type="StaticBody3D" parent="." unique_id=1961652654]
+[node name="Post01" type="StaticBody3D" parent="." unique_id=1312521388]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1.2, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1096072020]
+[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1242308676]
 shape = SubResource("BoxShape3D_uocob")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=604298908]
+[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=1628232378]
 mesh = SubResource("BoxMesh_04o2w")
 
-[node name="Post02" type="StaticBody3D" parent="." unique_id=317633412]
+[node name="Post02" type="StaticBody3D" parent="." unique_id=829443656]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 1.2, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=315002657]
+[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=1690209282]
 shape = SubResource("BoxShape3D_uocob")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=1248331391]
+[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=6691104]
 mesh = SubResource("BoxMesh_04o2w")
 
-[node name="Name" type="Label3D" parent="." unique_id=1784815170]
+[node name="Name" type="Label3D" parent="." unique_id=757665861]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
 billboard = 1
 text = "Gate"

@@ -138,5 +138,21 @@ func test_no_tree_stands_in_a_clearing() -> void:
 			)
 
 
+func test_six_cameras_one_in_each_place_of_the_camera_wall() -> void:
+	# §5c (GDD §12): one camera each at the bonfire, the summer kitchen, the pantry, the
+	# greenhouse, the garage and the roof terrace (the house); none anywhere else.
+	var map := _map()
+	var places: Array[String] = []
+	for piece in map.get_children():
+		var cameras := piece.get_node_or_null(^"CameraMarkers")
+		if cameras != null:
+			places.append(String(piece.name))
+			assert_object(cameras.get_node_or_null(^"Camera01")).is_not_null()
+			assert_object(cameras.get_node_or_null(^"Camera02")).is_null()
+	assert_array(places).contains_exactly_in_any_order(
+		["Bonfire", "SummerKitchen", "Pantry", "Greenhouse", "Garage", "House"]
+	)
+
+
 func _map() -> Node3D:
 	return auto_free((load(EstateDoc.MAP) as PackedScene).instantiate()) as Node3D
