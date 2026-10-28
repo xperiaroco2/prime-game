@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cq5m2f5fhb0hc"]
+[gd_scene format=3 uid="uid://caqsogvgf1u5y"]
 
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_l8ag5"]
 
@@ -16,37 +16,37 @@ size = Vector3(12, 0.2, 3)
 material = ExtResource("1_l8ag5")
 size = Vector3(12, 0.2, 3)
 
-[node name="FallenTrunk" type="Node3D" unique_id=1109326754]
+[node name="FallenTrunk" type="Node3D" unique_id=1286202709]
 metadata/size_m = Vector2i(12, 3)
 
-[node name="Side01" type="StaticBody3D" parent="." unique_id=1834082905]
+[node name="Side01" type="StaticBody3D" parent="." unique_id=1569911394]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.4)
 
-[node name="Shape" type="CollisionShape3D" parent="Side01" unique_id=356875493]
+[node name="Shape" type="CollisionShape3D" parent="Side01" unique_id=1685809327]
 shape = SubResource("BoxShape3D_iaana")
 
-[node name="Mesh" type="MeshInstance3D" parent="Side01" unique_id=737535612]
+[node name="Mesh" type="MeshInstance3D" parent="Side01" unique_id=1081809628]
 mesh = SubResource("BoxMesh_hasrf")
 
-[node name="Side02" type="StaticBody3D" parent="." unique_id=227465966]
+[node name="Side02" type="StaticBody3D" parent="." unique_id=395093726]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 1.4)
 
-[node name="Shape" type="CollisionShape3D" parent="Side02" unique_id=601103842]
+[node name="Shape" type="CollisionShape3D" parent="Side02" unique_id=1481088994]
 shape = SubResource("BoxShape3D_iaana")
 
-[node name="Mesh" type="MeshInstance3D" parent="Side02" unique_id=460274623]
+[node name="Mesh" type="MeshInstance3D" parent="Side02" unique_id=551385161]
 mesh = SubResource("BoxMesh_hasrf")
 
-[node name="Top01" type="StaticBody3D" parent="." unique_id=522354838]
+[node name="Top01" type="StaticBody3D" parent="." unique_id=1518521715]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Top01" unique_id=1575813267]
+[node name="Shape" type="CollisionShape3D" parent="Top01" unique_id=1571674165]
 shape = SubResource("BoxShape3D_p5tbn")
 
-[node name="Mesh" type="MeshInstance3D" parent="Top01" unique_id=1978295022]
+[node name="Mesh" type="MeshInstance3D" parent="Top01" unique_id=929613696]
 mesh = SubResource("BoxMesh_7q4pi")
 
-[node name="Name" type="Label3D" parent="." unique_id=1889166426]
+[node name="Name" type="Label3D" parent="." unique_id=196097876]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 billboard = 1
 text = "Fallen trunk"

@@ -13,6 +13,8 @@ const STEP := 0.3
 const JUMP := 1.0
 const SPACING := 0.1
 const BONFIRE := Vector2(65.3, 41)
+## §2: the east road's far edge (the road runs x 135..141).
+const ROAD_EAST_EDGE := 141.0
 ## Walks in map metres (x, level height, z) through their corners; they end at the last corner's
 ## height. A bonfire end starts 3.6 m out from its centre, past the fire pit.
 const WALKS := {
@@ -179,10 +181,14 @@ func test_each_crossing_carries_a_walk_over_the_creek() -> void:
 
 
 func test_the_creek_cannot_be_crossed_but_at_its_crossings() -> void:
-	# §3: about 3 m wide, not crossable except at the crossings: higher than a jump and a step.
+	# §3: about 3 m wide, not crossable except at the crossings: higher than a jump and a step from
+	# the highest floor beside it, a crossing's top. A crossing's gap is 3 m: 1.5 m each side.
 	var line := EstateDoc.creek()
 	var crossings := EstateDoc.crossings().values()
 	assert_int(line.size()).is_greater(1)
+	var reach := JUMP + STEP
+	for c: Vector2 in crossings:
+		reach = maxf(reach, _top_at(c.x, c.y) + JUMP + STEP)
 	for i in line.size() - 1:
 		var a := line[i]
 		var b := line[i + 1]
@@ -194,20 +200,29 @@ func test_the_creek_cannot_be_crossed_but_at_its_crossings() -> void:
 			var near_crossing := false
 			for c: Vector2 in crossings:
 				if (
-					Geometry2D.get_closest_point_to_segment(c, a, b).distance_to(p) < 3.0
+					Geometry2D.get_closest_point_to_segment(c, a, b).distance_to(p) < 2.0
 					and EstateDoc.distance_to_segment(c, a, b) < 2.0
 				):
 					near_crossing = true
-			if near_crossing:
-				continue
-			var top := _top_at(p.x, p.y)
-			(
-				assert_float(top)
-				. override_failure_message(
-					"the creek at (%.1f, %.1f) is %.2f m high, a jump crosses it" % [p.x, p.y, top]
-				)
-				. is_greater(JUMP + STEP)
-			)
+			if not near_crossing:
+				_assert_creek_blocks(p, reach)
+	# §2: the creek's end at the fence meets the east road (x 135..141); the road is no crossing.
+	var end := line[line.size() - 1]
+	var x := end.x + 0.5
+	while x < ROAD_EAST_EDGE:
+		_assert_creek_blocks(Vector2(x, end.y), reach)
+		x += 1.0
+
+
+func _assert_creek_blocks(p: Vector2, reach: float) -> void:
+	var top := _top_at(p.x, p.y)
+	(
+		assert_float(top)
+		. override_failure_message(
+			"the creek at (%.1f, %.1f) is %.2f m high, a jump crosses it" % [p.x, p.y, top]
+		)
+		. is_greater(reach)
+	)
 
 
 ## The bonfire's end of a walk: 3.6 m out from its centre toward `toward`, past the fire pit.
