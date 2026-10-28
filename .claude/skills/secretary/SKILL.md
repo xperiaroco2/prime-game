@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue every 30 to 60 minutes, says in one chat line what changed, and relays his answers to the session that asked. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
+description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue when he asks ("що там?", "що нового?"; no timer), sorts the sessions into waits for you / running / silent, says in one chat line what changed, relays his answers to the session that asked, and hands him a ready kickoff for any new session. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -31,6 +31,13 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
 (https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550), recorded in the
 [weekly budget ADR](../../../docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md) (Q5, amended 2026-10-07).
 
+**The engineer's word of 2026-10-28** (the inbox issue #507's body then, which you rewrite; copied
+[on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)): you are his personal assistant across the
+tracks. Besides the digest you hand him a ready kickoff for any new session he wants (below). Digests run on demand
+only ("що там?", "що нового?"), with no timer. Every other session falls in one of three groups: **waits for you**
+(only when its last message shows a real "For you:" or "Для вас:" item, or GitHub has one), **running**, and
+**silent, reason unseen** (it only ended its turn).
+
 ## Limits
 - **You read, digest and relay.** You never merge, launch a workflow or a task, close, reopen or create an issue,
   edit a PR or any issue body but the inbox's, commit, push, run `publish`, `start`, `merge` or `verify`, answer a
@@ -45,8 +52,8 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
 - **Budget:** the engineer's own 5% of the week (`.claude/skills/orchestrate-stage/budget.md`), until he says
   otherwise. Once a day, and when he asks, `tools\run.cmd metrics --session <your id> --since <the reset> --compact`
   goes into the inbox footer. Above 3% of the week (a placeholder, not a decision), or once his 5% looks short for
-  the week, say so in the chat line and digest only on his word ("що нового?").
-- **Context:** over 150k tokens or 12 hours (placeholders, not a decision), stop re-arming the timer and tell him in
+  the week, say so in the chat line.
+- **Context:** over 150k tokens or 12 hours (placeholders, not a decision), tell him in
   the chat line to open a fresh plain session with the kickoff of AGENT_WORKFLOW §7.2: the inbox body is all the
   state a fresh secretary needs. Unlike a manager (orchestrate-stage `handover.md`), you start no successor through
   a scheduled task: its run would be unattended, without his chat or relays (§7.2's Start).
@@ -74,20 +81,29 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
    other session whose finished runs or queued notifications wait behind a card or a stop. List each `stalled:` line
    in the inbox as one approval, quoted: the checkout, what it waits on, since when, and what the engineer clicks (the
    card to answer, or the session to open). Nothing flagged: no line.
+   Then `tools\run.cmd wave --in-flight` (read-only, exit 0 either way, a few seconds; AGENT_WORKFLOW §11.11): one
+   `in flight:` line per other session on this machine with background work of its own still running, across the four
+   checkouts and their worktrees: a workflow run (its wf id), a background agent or a background command, each with
+   its start. Match a line to `list_sessions` by its `desktop local_...` id (that session's `sessionId`), else by its
+   title, else by its cwd (the transcript's may be a worktree under the session's cwd) and last record
+   (`lastActivityAt`); the transcript id is no `local_...` id. Sort each session
+   into one group: **waits for you** (a real "For you:" or "Для вас:" item, or GitHub has one), **running**
+   (`isRunning` true, or an `in flight:` line: "waits on its own workflow <wf id>, started <time>", or its agent or
+   command), else **silent, reason unseen** ("nothing in flight"). A run or agent whose journal or transcript has not
+   moved for an hour may have died: say when it last wrote.
 5. **Merge into one list.** One item per thing: a PR named by a session, its wave comment and `inbox` is one item,
    with the best link. Drop what a later comment or event answered (the engineer's words, an "Answered:" link, a
    merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at.
 6. **Rewrite the inbox body** in the format below (a file in your scratchpad, then `gh issue edit <n> --body-file`),
    only when something changed; the header's time either way is not worth an edit.
 7. **The chat line:** one or two short lines in his language: what came and went since the last digest, with the
-   inbox link (`+2: merge PR #490, a decision on PR #474; −1: #434 answered. <link>`), or "нічого нового". Then
-   re-arm the timer (below).
+   inbox link (`+2: merge PR #490, a decision on PR #474; −1: #434 answered. <link>`), or "нічого нового".
 
 ## The inbox body
 ~~~markdown
 # Engineer's inbox
 
-Updated <UTC time> by the secretary session <first 8 of its id>; the next digest in about <N> minutes.
+Updated <UTC time> by the secretary session <first 8 of its id>; digests on demand only, no timer.
 
 ## To approve or decide
 1. **Approval.** "<session title>" has waited <m> min on a <tool> call: open it. <session link>
@@ -99,7 +115,9 @@ Updated <UTC time> by the secretary session <first 8 of its id>; the next digest
    ```
 
 ## To look at
-1. <one line of news>. <link>
+1. Running: "<session title>" (<track>), waits on its own workflow <wf id>, started <time>. <session link>
+2. Silent, reason unseen: "<session title>", nothing in flight. <session link>
+3. <one line of news>. <link>
 
 ## Sources
 <per repo and per session: read, or what was unavailable>; spend <once a day>.
@@ -119,9 +137,13 @@ Updated <UTC time> by the secretary session <first 8 of its id>; the next digest
 - The session that asked records the answer where it belongs ("Answered: <link>", an ADR line); you never do.
 - Then drop the item from the inbox body at the next digest, and say in the chat line where each answer went.
 
-## The timer (while he is at the PC)
-- After each digest, one background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000, one at a time;
-  about 50 minutes; root `CLAUDE.md`, Shell): its end wakes you for the next digest. "що нового?" digests at once.
-- Re-arm it only while the engineer wrote in this chat in the last 3 hours (his answer (a) on #502, AGENT_WORKFLOW
-  §7.2); after that, the inbox header says "paused: no word from the engineer since <time>", the chat line says the
-  same, and you wait for his next message. "пауза" stops it; "продовжуй" re-arms it.
+## On demand (his word of 2026-10-28)
+- No timer: you digest only when he asks ("що там?", "що нового?", "секретар"), and arm no `sleep`. Between digests
+  you answer his messages and relay.
+
+## Kickoffs for new sessions
+- When he wants a new session (a task, a track's manager, a successor a session's handover names), hand him a ready
+  kickoff in the chat: the folder (the track's checkout: `D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art` or
+  `D:\prime-game-design`), the permission mode and the effort, then the kickoff text in one fenced `text` block. Take
+  them from where the session or the track's docs give them (a handover comment's kickoff, a manager's For you,
+  `docs/MANAGERS.md`); a part nobody gave is asked, never made up. You start no session yourself.

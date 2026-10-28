@@ -27,3 +27,5 @@ __pycache__/
 # Windows leaves ~*.TMP copies beside DLLs a Godot process replaced while loaded (addons/twovoip/libs, addons/webrtc_native/lib).
 # Agents never clean them (a delete under addons/ prompts the human); leave them.
 addons/**/~*.TMP
+# A fresh worktree's first import leaves ~lib*.dll copies there too, and removes them again (#1355).
+addons/**/~*.dll

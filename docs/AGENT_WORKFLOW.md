@@ -332,7 +332,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `D:\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `D:\prime-game` is sent there |
-| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the four repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
+| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the four repos into the pinned "Engineer's inbox" issue when he asks, relays his answers and hands him kickoffs for new sessions; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -509,12 +509,15 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   that asked, which records them on GitHub as usual. It never merges, launches, closes, creates or decides; it never
   answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
   comments and `send_message`.
-- **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites every 30 to 60 minutes while the
-  engineer is at the PC (a background `sleep 3000` timer, re-armed while he wrote in its chat in the last 3 hours):
-  what to approve or decide and what to look at, numbered, each item with a link or a ready command. In its chat,
-  one short line on what changed. "що нового?" digests at once.
+- **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites when he asks ("що там?",
+  "що нового?"; no timer, his word of 2026-10-28, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)):
+  what to approve or decide and what to look at, numbered, each item with a link or a ready command, every other
+  session in one group (waits for you, running, silent). In its chat, one short line on what changed.
+- **His personal assistant** (the same word): it also hands him a ready kickoff for any new session (folder,
+  permission mode, effort, the text); it starts none itself.
 - **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
-  `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news.
+  `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news;
+  `tools\run.cmd wave --in-flight` (§11.11) tells a session that waits on its own background work from a silent one.
 - **Relays:** `send_message` to the session that asked; a session a scheduled task started is unattended and refuses
   it ("messages can't be delivered there", probed on
   [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
@@ -556,15 +559,15 @@ writes (the inbox body, relay comments, `send_message`) and say the engineer is 
 The kickoff:
 ```text
 /secretary
-Digest now, then every 30 to 60 minutes while I am at the PC. I am here and answer in this chat.
+Digest now; after that, only when I ask. I am here and answer in this chat.
 ```
 No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
 share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
 `send_message` load (ToolSearch) and names any that does not in its chat line.
 
-**The timer stops** after 3 hours without a word from the engineer in its chat (his answer (a) on
-[#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361), not a fixed day window or
-"пауза" alone): it costs nothing while he is away, one word restarts it, and "пауза" still stops it at once.
+**No timer** (his word of 2026-10-28, replacing the 30-to-60-minute `sleep 3000` timer of his answer (a) on
+[#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361)): it costs nothing between his
+questions.
 
 ### 7.3 The design manager session
 
@@ -1331,7 +1334,7 @@ fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a rep
 pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
 with a release host's cost.
 
-### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE] | --stalled [--minutes M]` [applied]
+### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE] | --stalled [--minutes M] | --in-flight` [applied]
 (#277, #278; round 2 of the AI productivity track, a
 cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
 journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
@@ -1428,6 +1431,24 @@ call it waits on. When a PreToolUse hook answered `ask` for that call, the line 
 the guard's reason; the line ends with what the engineer does. The command is read-only. It exits 3 when it flags a
 session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
 refused.
+
+`--in-flight` (#1355, `wave_flight.py`) lists the other sessions with background work of their own still running, so
+the secretary (§7.2) tells a session that only ended its turn and waits on it from a silent one: on 2026-10-28 the
+inbox called the art session "Анімації прибульців (art #196)" silent while its builder agent dressed the bodies. It
+reads the same transcripts as `--stalled` (the four checkouts and their worktrees, the last 24 hours, never the
+caller's own, a closed session passed over). In flight: a workflow run with no notification whose journal is short of
+its end and that no later launch replaced; a background Agent (`toolUseResult` `async_launched` with its `agentId`)
+or Bash call (its `backgroundTaskId`; parallel calls share a record with none, so then the result's text) with no
+task notification after it and no successful `TaskStop` of it (a stopped task sends none); either one only when
+launched after the session's live process started (`startedAt` in its file under `~/.claude/sessions`: an earlier
+process's work died with it at a restart). One line per session: what `list_sessions` shows, its Desktop id
+(`hostSessionId` in that file, `local_...`; the transcript id is not it), the title (the transcript's newest
+`custom-title`), the cwd (the transcript's newest, which may be a worktree under the session's) and the newest
+record's time (close to `lastActivityAt`); then its checkout and transcript id; then each run's wf id, workflow, start
+and journal's newest write, each agent's id, description, start and transcript's newest write, each command's task
+id, command and start. Exit 0 either way; every other flag of `wave` is refused. A new flag rather than more
+`--stalled`: `--stalled` answers "whose finished work waits unread" with exit 3 when one does, and a session with work
+in flight is no stall. `--session` still reads only this checkout's transcripts.
 
 ### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--adr-reads] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
