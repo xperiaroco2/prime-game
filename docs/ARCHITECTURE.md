@@ -8178,16 +8178,20 @@ levels/
   stand-in 2 in the Corner. No `lobby_player` marker and no lobby scene (`gather` plays at no level, E72). The
   environment track dresses it and keeps every marker where it is.
   The room's map record (#306's shape, §4.7.33) is #715's (the follow-up named in #600's PR).
-- **The forest estate greybox** (#1158; `docs/design/estate-map.md` §3, §5a-§5d, GDD §13, the map-scale research
+- **The forest estate greybox** (#1158; `docs/design/estate-map.md` §3, §5-§6, GDD §13, the map-scale research
   §2.3). Boxes only: layer-1 `StaticBody3D` boxes with `levels/kit/`'s role materials on the 1 m grid, stairs as
-  ramps, and no station, spawn or camera marker, so the base mode cannot play it and it is not in `base_mode.tres`'s
-  `maps`. Each lot's piece sits at its module's centre with `metadata/size_m` its footprint where §3 gives W × D
-  (§3 gives centres, not corners); the plot, creek, paths and trees are map-wide pieces at the origin. The creek
-  blocks but at its doc's crossings. Its sizes beyond the doc (fences, crossings, trees, the ship's hull) are
+  ramps; the house's links of §5 with the bookcase stair and the chimney (down only); §6's stations, §5c's six
+  cameras and each lot's door openings as markers (`StationMarkers`, `CameraMarkers`, `Doors`), no station scene.
+  No spawn marker, so the base mode cannot play it and it is not in `base_mode.tres`'s `maps`; §5b's tunnel, sewer
+  and ducts are not built yet. Each lot's piece sits at its module's centre with `metadata/size_m` its footprint
+  where §3 gives W × D: the ADR's "the map places a room at the doc's numbers" with a doc that gives centres; the
+  plot, creek, paths and trees are map-wide pieces at the origin. The creek blocks but at its doc's crossings, the
+  east road included. Its sizes beyond the doc (fences, crossings, trees, markers, the ship's hull) are
   placeholders, "not a decision", for the engineer's approval. Tests: `tests/unit/levels/estate_map_test.gd` (the
   scene against the doc's §3 rows, read by `tests/fixtures/estate_doc.gd`: each module's centre, footprint and name,
-  the pieces each once, the crossings, no tree in a clearing) and `tests/integration/levels/estate_walk_test.gd` (the
-  map in the host's world: the walks between the lots, each crossing carries a walk, the creek blocks elsewhere).
+  the pieces each once, the crossings, no tree in a clearing, the six cameras) and
+  `tests/integration/levels/estate_walk_test.gd` (the map in the host's world: the walks between the lots and the
+  house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
