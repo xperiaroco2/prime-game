@@ -20,7 +20,8 @@ const ROAD_EAST_EDGE := 141.0
 const WALKS := {
 	"upper loop":
 	[
-		Vector3(54, 0, 29),
+		Vector3.ZERO,
+		Vector3(53, 0, 29),
 		Vector3(43, 0, 29),
 		Vector3(30, 0, 16.5),
 		Vector3(30, 0, 13),
@@ -152,6 +153,8 @@ func test_the_map_builds_into_the_host_s_world_without_errors() -> void:
 func test_each_walk_can_be_walked() -> void:
 	for walk: String in WALKS:
 		var corners: Array = (WALKS[walk] as Array).duplicate()
+		if corners[0] == Vector3.ZERO:
+			corners[0] = _from_bonfire(corners[1] as Vector3)
 		if corners[-1] == Vector3.ZERO:
 			corners[-1] = _from_bonfire(corners[-2] as Vector3)
 		_walk(walk, corners, (corners[-1] as Vector3).y)
