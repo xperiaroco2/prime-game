@@ -16,7 +16,7 @@ const BODY := preload("res://client/player/remote_player_body.tscn")
 const FACING := PI + deg_to_rad(25.0)
 const JOG_MPS := 4.5
 
-## [label, heading in degrees (positive: the body's left)] of the front row's moves.
+## [label, heading in degrees (positive: the body's left)] of the back row's moves (the runners).
 const MOVES: Array[Array] = [
 	["forward", 0.0],
 	["front diagonal", 45.0],
@@ -25,7 +25,8 @@ const MOVES: Array[Array] = [
 	["back diagonal", 135.0],
 	["backward", 180.0],
 ]
-## [label, aim yaw off the body in degrees, pitch in degrees] of the back row's looks.
+## [label, aim yaw off the body in degrees, pitch in degrees] of the front row's looks (the lookers,
+## nearer the camera).
 const LOOKS: Array[Array] = [
 	["shake 40", 40.0, 0.0],
 	["nod down", 0.0, -35.0],
@@ -44,11 +45,11 @@ func _ready() -> void:
 	_character = CharacterSet.load_default()
 	_add_floor()
 	_add_light()
-	for index in MOVES.size():
+	for index: int in MOVES.size():
 		var at := Vector3((index - (MOVES.size() - 1) * 0.5) * 1.4, 0.0, -0.8)
 		var move: Array = MOVES[index]
 		_add_runner(at, index, deg_to_rad(move[1] as float), move[0] as String)
-	for index in LOOKS.size():
+	for index: int in LOOKS.size():
 		var at := Vector3((index - (LOOKS.size() - 1) * 0.5) * 1.5, 0.0, 2.0)
 		var look: Array = LOOKS[index]
 		var yaw := deg_to_rad(look[1] as float)
@@ -62,7 +63,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	for index in _runners.size():
+	for index: int in _runners.size():
 		_runners[index].apply_plan(_plans[index])
 
 
