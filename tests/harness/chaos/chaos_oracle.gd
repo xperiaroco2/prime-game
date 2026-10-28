@@ -21,6 +21,9 @@ const NO_ITEM := 4000
 const UNAVAILABLE := &"unavailable"
 const EMPTY_HAND := &"empty_hand"
 const NOTHING_TO_SWAP := &"nothing_to_swap"
+## The base mode's Draw (GDD §6): PlaceInRange, then PlaceChanges (§9.4).
+const NO_SUCH_PLACE := PlaceInRange.NO_SUCH_PLACE
+const SAME_PLACE := PlaceChanges.SAME_PLACE
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
 ## TargetDowned of a downed target whose body still moves (the knockdown rework's KE15).
@@ -55,6 +58,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Raise": From.LIVING,
 		&"StopRaise": From.LIVING,
 		&"Swap": From.LIVING,
+		&"Draw": From.LIVING,
 		&"Throw": From.LIVING,
 		&"Interact": From.LIVING,
 		&"GiveUp": From.DOWNED,
@@ -170,8 +174,10 @@ static func _rule(
 		Intents.USE:
 			answer_now = RejectReasons.NOTHING_TO_DO if player.held_item < 0 else &"?"
 		Intents.SWAP:
-			var empty := player.held_item < 0 and player.belt_item < 0
+			var empty := player.carried_items().is_empty()
 			answer_now = NOTHING_TO_SWAP if empty else &"?"
+		Intents.DRAW:
+			answer_now = _draw(args.get("place", -1), player)
 		Intents.STOP_RAISE:
 			answer_now = NOT_CHANNELING
 		Intents.RAISE:
@@ -231,6 +237,14 @@ static func _interact(
 		if rule.trigger == Intents.INTERACT:
 			return &"?"
 	return RejectReasons.NOTHING_TO_DO
+
+
+## Draw's conditions in their order (§9.4): PlaceInRange (`no_such_place`, a place outside 0..2),
+## then PlaceChanges (`same_place`, the place already in the hand). Any other place is "?".
+static func _draw(place: Variant, player: PlayerState) -> StringName:
+	if not place is int or place < 0 or place >= PlayerState.PLACES:
+		return NO_SUCH_PLACE
+	return SAME_PLACE if place == player.selected_place else &"?"
 
 
 ## PickUp's conditions in their order (§9.4): ItemOnGround (`unavailable`), then InReach from the

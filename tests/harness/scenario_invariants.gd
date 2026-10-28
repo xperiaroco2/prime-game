@@ -84,6 +84,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"sneaking",
 	"held_item",
 	"belt_item",
+	"belt_item2",
 ]
 
 ## The peer whose command the runner applies now, or 0 outside a command (a tick, the start).

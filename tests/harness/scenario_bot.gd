@@ -66,9 +66,14 @@ var position := Vector3.ZERO
 var downed := false
 var dead := false
 var role: StringName
-## Its hand item and its belt item, or -1 (ItemPickedUp with `belted`, Swapped, ItemPlaced).
-var held := -1
-var belted := -1
+## Its three places (GDD §6), item ids or -1, and the selected one, whose item is in the hand
+## (ItemPickedUp with `place` and `belted`, Swapped with `place`, ItemPlaced).
+var places: Array[int] = [-1, -1, -1]
+var selected := 0
+## Its hand item, or -1.
+var held: int:
+	get:
+		return places[selected]
 var sprint_available := true
 var phase: StringName
 var match_id := 0
@@ -80,7 +85,7 @@ var auto_acked_match := -1
 var unanswered_load := -1
 ## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and
 ## PackageDelivered. `where` tells GROUND from carried only: a Swapped leaves HAND and BELT as they
-## were (the bot's own slots are `held` and `belted`).
+## were (the bot's own places are `places`).
 var items: Dictionary[int, Dictionary] = {}
 ## Station id -> position, and station id -> its StationKind id, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
@@ -380,8 +385,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.clear()
 			stations.clear()
 			station_kinds.clear()
-			held = -1
-			belted = -1
+			_clear_places()
 			downed = false
 			dead = false
 			if current_step() is StepLoadAck:
@@ -411,34 +415,25 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			if to_belt != item and items.has(to_belt):
 				items[to_belt]["where"] = Where.BELT
 			if fields["peer"] as int == peer:
+				places[fields.get("place", 0) as int] = item
 				if to_belt != item:
-					held = item
-				if to_belt >= 0:
-					belted = to_belt
+					selected = fields.get("place", 0) as int
 		&"Swapped":
 			if fields["peer"] as int == peer:
-				var was_held := held
-				held = belted
-				belted = was_held
+				selected = fields["place"] as int
 		&"ItemThrown":
 			var item := fields["item"] as int
 			if items.has(item):
 				items[item]["where"] = Where.FLYING
 				items[item]["position"] = fields["origin"] as Vector3
-			if held == item:
-				held = -1
-			if belted == item:
-				belted = -1
+			_let_go(item)
 		# Also the end of a flight (cause `thrown`): the item rests at `position` again.
 		&"ItemPlaced":
 			var item := fields["item"] as int
 			if items.has(item):
 				items[item]["where"] = Where.GROUND
 				items[item]["position"] = fields["position"] as Vector3
-			if held == item:
-				held = -1
-			if belted == item:
-				belted = -1
+			_let_go(item)
 		&"PackageDelivered":
 			var item := fields["item"] as int
 			if items.has(item):
@@ -467,10 +462,15 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 
 ## The bot no longer holds or belts `item`.
 func _let_go(item: int) -> void:
-	if held == item:
-		held = -1
-	if belted == item:
-		belted = -1
+	var at := places.find(item)
+	if at >= 0:
+		places[at] = -1
+
+
+## Empty hands and belt, the hand on the first place.
+func _clear_places() -> void:
+	places.fill(-1)
+	selected = 0
 
 
 func _ids_of_kind(kind: StringName) -> Array[int]:
@@ -506,8 +506,7 @@ func _new_connection(new_peer: int) -> void:
 	downed = false
 	dead = false
 	role = &""
-	held = -1
-	belted = -1
+	_clear_places()
 	sprint_available = true
 	phase = &""
 	match_id = 0
