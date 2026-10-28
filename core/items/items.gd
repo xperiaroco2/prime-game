@@ -135,13 +135,14 @@ static func carried_by(state: MatchState, peer: int) -> Array[ItemState]:
 ## ItemPickedUp with `belted` the item itself), the two-handed item staying in the hand.
 ## Otherwise `item` goes into the hand (GDD §6): into the selected place when it is empty; beside a
 ## one-handed hand item into the lowest free place, which becomes selected, the hand item staying
-## in its place, now on the belt; else (all three places full, or a two-handed hand item and a
-## two-handed `item`: the belt holds only a one-handed item) the hand item rests where the
-## picked-up one lay, a spot already known to be valid (§7.1), and `item` takes the selected
-## place. Emits ItemPickedUp (with `belted`, the hand item that went onto the belt, E29, and
-## `place`), then for a hand item that rests ItemPlaced (swap) and item_rested. The rule's
-## conditions checked the ground, the reach and the sight; an item that is not on the ground here
-## is a rule error, and the sender of the intent gets `unavailable`.
+## in its place, now on the belt; with all three places full the one-handed hand item drops at the
+## taker's feet first (ItemPlaced `put_down` and item_rested, as give()'s; GDD §6, #1218) and
+## `item` takes the selected place; beside a two-handed hand item a two-handed `item` (the belt
+## holds only a one-handed item) swaps: the hand item rests where the picked-up one lay, a spot
+## already known to be valid (§7.1). Emits ItemPickedUp (with `belted`, the hand item that went
+## onto the belt, E29, and `place`), then for a hand item that rests ItemPlaced (swap) and
+## item_rested. The rule's conditions checked the ground, the reach and the sight; an item that is
+## not on the ground here is a rule error, and the sender of the intent gets `unavailable`.
 static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or item == null or item.where != ItemState.Where.GROUND:
@@ -160,11 +161,13 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var into := player.selected_place
 	if before != null:
 		var free := _free_place(player)
-		if not before.kind.is_two_handed() and free >= 0:
+		if before.kind.is_two_handed():
+			rests = before
+		elif free >= 0:
 			belted = before
 			into = free
 		else:
-			rests = before
+			place(ctx, before, _feet(ctx, player), PUT_DOWN)
 	_into_hand(ctx, peer, item, belted, into)
 	if rests != null:
 		place(ctx, rests, spot, SWAP)

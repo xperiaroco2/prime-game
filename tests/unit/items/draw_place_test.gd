@@ -173,7 +173,8 @@ func test_a_take_with_a_full_hand_goes_to_the_lowest_free_place_and_selects_it()
 	)
 
 
-func test_with_all_three_full_the_hand_item_rests_where_the_taken_one_lay() -> void:
+## All three full (GDD §6): the hand item drops at the taker's feet, the taken one takes its place.
+func test_with_all_three_full_the_hand_item_drops_at_the_feet() -> void:
 	var game := _game()
 	var first := _take(game, P1, &"tool")
 	var second := _take(game, P1, &"tool")
@@ -184,9 +185,9 @@ func test_with_all_three_full_the_hand_item_rests_where_the_taken_one_lay() -> v
 	var player := game.state.player(P1)
 	assert_array(Array(player.places)).is_equal([first.id, second.id, fourth.id])
 	assert_int(third.where).is_equal(ItemState.Where.GROUND)
-	assert_vector(third.position).is_equal(spot)
+	assert_vector(third.position).is_equal(HERE)
 	var placed := game.view_of(P2).events_named(&"ItemPlaced")[-1] as ItemPlacedEvent
-	assert_str(String(placed.cause)).is_equal("swap")
+	assert_str(String(placed.cause)).is_equal("put_down")
 
 
 func test_a_two_handed_item_is_only_ever_in_the_hand() -> void:
