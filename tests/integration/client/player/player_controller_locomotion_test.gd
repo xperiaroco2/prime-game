@@ -82,6 +82,35 @@ func test_a_start_and_a_stop_take_the_accel_seconds() -> void:
 	assert_float(_flat(player.velocity)).is_equal_approx(0.0, 0.001)
 
 
+func test_a_stop_holding_sprint_coasts_no_faster_than_the_walk() -> void:
+	# The host allows a tick without own movement only the walk's travel (MovementRule
+	# _allowed_travel): the coast from a sprint starts at the walk speed at most.
+	var player := await _player(0.2)
+	player.move_input = Vector2(0.0, 1.0)
+	player.sprint_held = true
+	await _world.frames(30)
+	assert_float(_flat(player.velocity)).is_equal_approx(_rules.sprint_speed_mps, SPEED_TOLERANCE)
+	player.move_input = Vector2.ZERO
+	await _world.frames(1)
+	assert_float(_flat(player.velocity)).is_less_equal(_rules.walk_speed_mps)
+	assert_float(_flat(player.velocity)).is_greater(0.0)
+	player.sprint_held = false
+
+
+func test_a_cap_s_drop_eases_over_the_accel_seconds() -> void:
+	# From the walk to a strafe: the drive eases down to the side cap, no jump in one frame (the
+	# turn from (0, 4.5) to (3, 0) at 3.0 / 0.2 m/s^2 takes about 22 frames).
+	var player := await _player(0.2)
+	player.move_input = Vector2(0.0, 1.0)
+	await _world.frames(20)
+	assert_float(_flat(player.velocity)).is_equal_approx(_rules.walk_speed_mps, SPEED_TOLERANCE)
+	player.move_input = Vector2(1.0, 0.0)
+	await _world.frames(1)
+	assert_float(_flat(player.velocity)).is_greater(SIDE + 0.5)
+	await _world.frames(30)
+	assert_float(_flat(player.velocity)).is_equal_approx(SIDE, SPEED_TOLERANCE)
+
+
 func test_no_accel_seconds_moves_at_once() -> void:
 	var player := await _player(0.0)
 	player.move_input = Vector2(0.0, 1.0)

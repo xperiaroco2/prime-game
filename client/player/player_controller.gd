@@ -416,16 +416,22 @@ func _walk(delta: float) -> void:
 		and not sprint_held
 	)
 	var cap := INF if exiting else _direction_cap()
-	if _sprinting and cap <= _speed_unsprinted():
+	if _sprinting and cap <= _speed_of(false):
 		_sprinting = false  # no stamina spent on a sprint the cap takes away (#1334)
-	var speed := minf(_speed(), cap)
+	# The step's own speed before the direction cap: the most the drive may keep while easing.
+	var limit := _speed_of(_sprinting)
+	var speed := minf(limit, cap)
 	var steering := _horizontal_wish()
 	if exiting:
 		var to := _exit_to - global_position
 		to.y = 0.0
 		steering = to.normalized()
 		speed = minf(rules.walk_speed_mps, to.length() / delta)
-	_drive = _driven(steering * speed, speed, delta, exiting)
+	elif steering.is_zero_approx():
+		# A coast is a tick without own movement: the host allows it the walk's travel only
+		# (MovementRule._allowed_travel), Shift held or not.
+		limit = minf(limit, rules.walk_speed_mps)
+	_drive = _driven(steering * speed, speed, limit, delta, exiting)
 	var wish := _push_apart(_drive, delta)
 	velocity.x = wish.x
 	velocity.z = wish.z
@@ -537,22 +543,13 @@ func _follow_claims() -> void:
 
 ## Metres per second on the ground this step: the living walk or sprint; crouched, the crouch walk,
 ## or in the sprint state crouch_fast_speed_mps, paid as a sprint (KD5 (b)); sneaking, standing at
-## the crouch walk's speed (#989: one value for both).
-func _speed() -> float:
+## the crouch walk's speed (#989: one value for both). `sprinting`: in the sprint state.
+func _speed_of(sprinting: bool) -> float:
 	if _crouched:
-		return rules.crouch_fast_speed_mps if _sprinting else rules.crouch_speed_mps
+		return rules.crouch_fast_speed_mps if sprinting else rules.crouch_speed_mps
 	if _sneaking:
 		return rules.crouch_speed_mps
-	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
-
-
-## _speed() as it would be out of the sprint state.
-func _speed_unsprinted() -> float:
-	var sprinting := _sprinting
-	_sprinting = false
-	var out := _speed()
-	_sprinting = sprinting
-	return out
+	return rules.sprint_speed_mps if sprinting else rules.walk_speed_mps
 
 
 ## The fastest the keys' direction may move (#1334, art #196): the mode's side_speed_mps for its
@@ -567,15 +564,16 @@ func _direction_cap() -> float:
 	return Locomotion.speed_cap(heading, family, rules.side_speed_mps, rules.back_speed_mps)
 
 
-## The ground velocity this step toward `target`, at most `speed` long: at once while walking out
-## of `movers` or with no accel_seconds, else eased at `speed` per accel_seconds (#1334), so a
-## start and a stop each take accel_seconds, a turn about twice as long. Never above
-## `speed`, the step's own: a lower speed (a sprint that ran out of stamina, a crouch) holds at
-## once, as the host's travel check allows no more.
-func _driven(target: Vector3, speed: float, delta: float, exiting: bool) -> Vector3:
+## The ground velocity this step toward `target`: at once while walking out of `movers` or with
+## no accel_seconds, else eased at `speed` per accel_seconds (#1334), so a start and a stop each
+## take accel_seconds, a turn about twice as long, and a direction cap's drop eases too (the host
+## checks no direction cap). Never above `limit`, the step's own speed before the cap (the walk's
+## for a coast): a lower one (a sprint that ran out of stamina, a crouch, letting go of the keys
+## with Shift held) holds at once, as the host's travel check allows no more.
+func _driven(target: Vector3, speed: float, limit: float, delta: float, exiting: bool) -> Vector3:
 	if exiting or tuning.accel_seconds <= 0.0:
 		return target
-	return _drive.move_toward(target, speed / tuning.accel_seconds * delta).limit_length(speed)
+	return _drive.move_toward(target, speed / tuning.accel_seconds * delta).limit_length(limit)
 
 
 ## Whether the body wants the crouch now (the crouch ADR's step 1): the key held and living,
