@@ -269,6 +269,36 @@ func test_the_body_s_yaw_picks_the_family_and_plan_of_keeps_it() -> void:
 	assert_bool(_views.plan_of(PEER).back).is_true()
 
 
+func test_a_heading_inside_the_switch_s_dead_zone_keeps_the_last_family() -> void:
+	# Art #196: the families switch at 100 degrees off the body, +-10 of dead zone. At 105 a
+	# remote body stays in the family its last plan had (AvatarViews hands it back to
+	# Locomotion), so a heading wobbling about the switch never flickers.
+	# One unbroken path (_walk starts from the drawn place, which lags the last arrival).
+	await _stand(Vector3.ZERO)
+	var at := Vector3.ZERO
+	at = await _walk_on(at, _facing(deg_to_rad(150.0), 0.0) * 0.2, 10)
+	assert_bool(_views.plan_of(PEER).back).is_true()
+	at = await _walk_on(at, _facing(deg_to_rad(105.0), 0.0) * 0.2, 10)
+	assert_bool(_views.plan_of(PEER).back).is_true()
+	assert_str(String(_rig().base_clip())).is_equal(String(AvatarClips.JOG_BWD))
+	at = await _walk_on(at, Vector3(0, 0, -0.2), 10)
+	assert_bool(_views.plan_of(PEER).back).is_false()
+	at = await _walk_on(at, _facing(deg_to_rad(105.0), 0.0) * 0.2, 10)
+	assert_bool(_views.plan_of(PEER).back).is_false()
+
+
+## PEER moving on from its last arrival `at` by `step` a tick for `ticks` ticks, aiming along -Z;
+## returns where it arrived last.
+func _walk_on(at: Vector3, step: Vector3, ticks: int) -> Vector3:
+	for tick: int in ticks:
+		at += step
+		_arrive(at, Vector3.FORWARD)
+		await _frame()
+		await _frame()
+		await _frame()
+	return at
+
+
 ## PEER standing at `at`, drawn for a few frames.
 func _stand(at: Vector3) -> void:
 	for tick: int in 4:
