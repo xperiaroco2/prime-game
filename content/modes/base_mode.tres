@@ -100,6 +100,9 @@
 [ext_resource type="Resource" uid="uid://11faqcnvulib" path="res://content/items/car_part_blue.tres" id="150_car_part_blue"]
 [ext_resource type="Resource" uid="uid://dmc12myfiiknd" path="res://content/items/car_part_yellow.tres" id="151_car_part_yellow"]
 [ext_resource type="Resource" uid="uid://cskedtsbutfj1" path="res://content/tasks/car_repair.tres" id="152_car_repair"]
+[ext_resource type="Script" uid="uid://dihlo2m7dhely" path="res://core/items/place_in_range.gd" id="153_place_in_range"]
+[ext_resource type="Script" uid="uid://c4h8e42diao85" path="res://core/items/place_changes.gd" id="154_place_changes"]
+[ext_resource type="Script" uid="uid://bhwvvhmc81yi8" path="res://core/items/draw_place.gd" id="155_draw_place"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -348,6 +351,26 @@ script = ExtResource("6_accept")
 intent = &"Swap"
 from = 4
 
+[sub_resource type="Resource" id="Draw_in_range"]
+script = ExtResource("153_place_in_range")
+
+[sub_resource type="Resource" id="Draw_changes"]
+script = ExtResource("154_place_changes")
+
+[sub_resource type="Resource" id="Draw_place"]
+script = ExtResource("155_draw_place")
+
+[sub_resource type="Resource" id="Rule_draw"]
+script = ExtResource("1_o02jd")
+trigger = &"Draw"
+conditions = Array[ExtResource("21_condition")]([SubResource("Draw_in_range"), SubResource("Draw_changes")])
+effects = Array[ExtResource("14_effect")]([SubResource("Draw_place")])
+
+[sub_resource type="Resource" id="Accept_round_draw"]
+script = ExtResource("6_accept")
+intent = &"Draw"
+from = 4
+
 [sub_resource type="Resource" id="Accept_round_throw"]
 script = ExtResource("6_accept")
 intent = &"Throw"
@@ -387,7 +410,7 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
@@ -628,7 +651,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
