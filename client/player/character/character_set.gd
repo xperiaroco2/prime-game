@@ -21,6 +21,8 @@ var scene: PackedScene
 ## The ragdoll data (the art's prime-ragdoll format, version 1), or empty: then no PhysicalBone3D
 ## ragdoll, the capsule stands in.
 var ragdoll: Dictionary = {}
+## Each clip's length in seconds at rate 1, read once from the scene's AnimationPlayer (#1334).
+var cycles: Dictionary[StringName, float] = {}
 
 
 ## The shipped character, or null without it (see above).
@@ -41,6 +43,11 @@ static func from_scene(packed: PackedScene, data: Dictionary) -> CharacterSet:
 	var missing := PackedStringArray()
 	if problems.is_empty() and valid_ragdoll(data):
 		missing = missing_bones(skeletons[0] as Skeleton3D, data)
+	var cycles: Dictionary[StringName, float] = {}
+	if problems.is_empty():
+		var player := root.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+		for clip: StringName in player.get_animation_list():
+			cycles[clip] = player.get_animation(clip).length
 	root.free()
 	if not problems.is_empty():
 		if not skeletons.is_empty():
@@ -51,7 +58,14 @@ static func from_scene(packed: PackedScene, data: Dictionary) -> CharacterSet:
 	var out := CharacterSet.new()
 	out.scene = packed
 	out.ragdoll = data if valid_ragdoll(data) and missing.is_empty() else {}
+	out.cycles = cycles
 	return out
+
+
+## `clip`'s length in seconds at rate 1, as CharacterRig.cycle_of has it; 0 for a clip it lacks.
+## The own player's footsteps time by it, as the others' clients time this character's (#1334).
+func cycle_of(clip: StringName) -> float:
+	return cycles.get(clip, 0.0)
 
 
 ## The bones `data`'s bodies name that `skeleton` lacks: the builder would skip each, and without

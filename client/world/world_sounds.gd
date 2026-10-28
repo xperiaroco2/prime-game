@@ -415,13 +415,16 @@ func _plan_of(peer: int, moved: Vector3, delta: float, rules: PlayerRules) -> Av
 
 
 ## The cycle of `plan`'s base clip in seconds: `peer`'s character's own length when it has one,
-## else Locomotion's table; 0 without a plan.
+## the own player's the character set's (what the others' clients draw it with, so it hears its
+## steps at their pace), else Locomotion's table; 0 without a plan.
 func _cycle_of(peer: int, plan: AvatarClips.Plan) -> float:
 	if plan == null:
 		return 0.0
 	var body := avatars.body_of(peer) if peer != 0 and avatars != null else null
 	if body != null and body.character() != null:
 		return body.character().cycle_of(plan.base)
+	if peer == 0 and avatars != null and avatars.character != null:
+		return avatars.character.cycle_of(plan.base)
 	return Locomotion.cycle_s(plan.base)
 
 
