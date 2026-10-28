@@ -25,6 +25,12 @@
   "nothing is built now" above is history. What is built is read from the issues, not from a list here: the plan issue #676 and the issues named in §8.
 - **Amended 2026-10-15 (#1101):** a burger is checked when it is served at the order board, not on the plate (the
   engineer's answers on #1101); see the amendment at the end.
+- **Amended 2026-10-29 (#1218):** the belt of one in CD3, CD5 and CE19 to CE21 is now two belt slots (GDD §6, the
+  engineer: [#1040 c6315467567](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6315467567)) and
+  the hand and both slots are three places ([c6320249563](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6320249563)).
+  "The belt is free" reads "a belt place is free" (the lowest one takes the item); "a full belt" reads both belt
+  places taken, and its item put down is the lower place's; a one-handed hand item with all three places full drops
+  at the taker's feet on a take as on a give. The tables below keep their text (`ARCHITECTURE.md` §9.5.10, §9.5.14)
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules, CD1 to CD16, CD15 as his read-back of the Generator's GD7, and the drafts,
   the herbs, CD3 (b)'s reach and CD5 (b)'s spot, answered on 2026-10-10); the game-design manager session of #676

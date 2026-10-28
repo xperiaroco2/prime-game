@@ -119,7 +119,7 @@ hello deadline.
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646); downed: `MoveClaim` (its look only, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646), `Draw` (#1218); downed: `MoveClaim` (its look only, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -745,7 +745,8 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `NextStage()` | the host (peer 1) only, `AcceptSpec` HOST; only a scripted mode's phase that lists it (the tutorial's `lessons` and `raise_stage`, `docs/design/tutorial.md` §2.4, E65). The base mode lists it in no phase: `not_accepted` (#599) | nothing more: the phase's rule reports `next` (§9.4 `ReportOutcome`) and its one `next` row runs. A session control like `ReturnToLobby` (not in `Intents.PLAYER_ACTIONS`), so the client does not resend it; as every applied intent it stops the sender's own channel first |
 | `SetProfile(name, colour)` | a player; Lobby only (#551; the base mode's accept row, the tutorial lists it nowhere): elsewhere `not_accepted` | `name` text and `colour` an int (`bad_args`); `colour` one of the 10 (`out_of_bounds`); the name cleaned and made unique against the other players (§3.5; nothing usable left keeps the current name), a colour another player has replaced by the first free one; both as they are: `unchanged`. Applied: `ProfileChanged` to everyone; the ready flag stays. A session control, not in `Intents.PLAYER_ACTIONS` |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
-| `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
+| `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in one of the three places (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife by X, V13). Applied, the place held last comes into the hand (GDD §6, #1218: `PlayerState.last_place`, 0 to 2, at first 1: a first X hangs the hand item on the belt), the place left becomes the place held last, and a raise the sender runs stops (§9.2) |
+| `Draw(place)` | a living player; Round (#1218, GDD §6: the keys 1, 2, 3 and the mouse wheel) and the tutorial's stages that take `Swap`; the downed and the dead get `not_accepted` | `place` an int 0 to 2 (`no_such_place`; a missing or non-int one reads -1); not the place in the hand (`same_place`). An empty place is allowed: an empty hand. Applied, a two-handed hand item is first put down at the feet (`ItemPlaced` `put_down`, no refusal), then `place` comes into the hand (`Swapped`), the place left becomes the place held last, and a raise the sender runs stops (§9.2) |
 | `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
 | `Interact(station or item)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host under `HOST`); a phase whose mode accepts it (the base mode's Round, from the living, since #800, the Generator's G5) | `station` and `item` ints, each optional (-1, none), and exactly one of them names something: both or neither is `bad_args` (the cooking ADR's CE1, #770). A `station` that names no placed station, which is all a fixed switch is, or a station of a display kind (`StationKind.display`, CE6: the order and herb boards): `nothing_to_do` before any owner is tried (a package carrier hears `nothing_to_do`, not `two_handed`). An `item` that names no item: `nothing_to_do` too; else only the first `Interact` rule of the item's kind's `target_actions` (none: `nothing_to_do`), never the role's, the mode's or the hand item's: a box's take, whose rule is `ItemOnGround` (`unavailable` for a carried box), `InReach`, `InSight`, then `GiveItem` (CE2, CE3; §9.4.2). Then the first `Interact` rule of the station's kind (`StationKind.actions`), the actor's role or the mode, never the hand item (§9.2; none: `nothing_to_do`). A station's rule, as the Generator's switch has it: `HandNotTwoHanded` (`two_handed`), `AtStation` (`out_of_reach`), `StationInSight` (`blocked`), `StationUsable` (its type's `use_problem`: `unavailable`, or another reason the type lists in `use_reasons()` among `StationUsable.REASONS`, `wrong_item`, `empty_hand`, `two_handed`, the cooking ADR's CE11, #780; `no_film`, `no_frames_left`, `film_exposed`, the photo ADR's PE16, #781; `nothing_to_print`, `no_photo`, #782), then `UseStation` (the Generator ADR's GE1 to GE4, #796). A kind's rule may instead hold the station (`HoldStation`, #805: `AtStation` and `ChannelFree`, `busy` while another channel runs on it), a channel its rule's conditions check again every tick, ended by `StopRaise` (§9.4.2). Applied, a channel the sender runs (a raise, a hold) stops; refused, nothing stops (§9.2) |
 
@@ -779,10 +780,10 @@ wire schemas of the events and the snapshot are §4.3.
 | `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
 | `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order, or given mid-round by `GiveItem`, then not in spawn-point order (#770) |
-| `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29), or the item itself when it went straight onto the belt beside a two-handed hand item (the cooking ADR, CE20, CE21, #771) | everyone | `PickUp`; or `Items.give` (#771): a new item from a source, or an item locked on a station taken back (a box's, a bed's or the grill's take, the cooking ADR §2), the taker making room by §2's table (a hand item it puts down at its feet comes first as `ItemPlaced` `put_down`) |
-| `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is sent to it only while it is knocked down, KE5) |
+| `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29), or the item itself when it went straight onto the belt beside a two-handed hand item (the cooking ADR, CE20, CE21, #771); `place`: the place (0 to 2) the item went into: the place in the hand when the item went into the hand (a take into a free place selects it), a belt place when it went straight onto the belt (#1218, GDD §6) | everyone | `PickUp`; or `Items.give` (#771): a new item from a source, or an item locked on a station taken back (a box's, a bed's or the grill's take, the cooking ADR §2), the taker making room by §2's table (a hand item it puts down at its feet comes first as `ItemPlaced` `put_down`) |
+| `Swapped` | peer, place | everyone | a `Swap` or a `Draw` (M4-5; #1218): `place` (0 to 2) is now the peer's place in the hand, its other places on the belt; no item moves between places. With `ItemPickedUp`'s `belted` and `place` and `ItemPlaced` it tells every client every player's three places, its own included (its avatar is sent to it only while it is knocked down, KE5) |
 | `ItemThrown` | item, peer (the thrower), origin, velocity, gravity, launch tick: exactly the flight's vectors, so a client computes the host's arc bit for bit (`ItemFlight.point`, §7.1.16) | everyone: the item was in a hand everyone sees, and the velocity shows only the facing the snapshot already shows (a role-owned `Throw` rule would put the role into it: ModeCheck warns, §9.2) | a `Throw` (#643), before the flight's first tick |
-| `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's), thrown (a flight's rest, §7.1.16) | everyone | an item comes to rest |
+| `ItemPlaced` | item, rest position, cause: put down (also a hand item put down at the feet by a take or a give with all three places full, or a two-handed one by a `Draw`, #1218), swap (a two-handed hand item beside a two-handed pickup: it rests where the picked one lay), death or leave (at a death or a leave the hand item's comes first, then the belt items' in place order), thrown (a flight's rest, §7.1.16) | everyone | an item comes to rest |
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `ItemVanished` | item | everyone: items on the ground are public, and it names no player | an item of a kind with `vanish_seconds` lay on the ground that long (`VanishTicks`, §9.4.5; the cooking ADR, CD6 (c), #779); its id may later name a new item (§9.3) |
 | `ItemChanged` | item, kind | everyone: items are public, and it names no player | `Items.change_kind` (the cooking ADR, CE4, #771): an item became another kind where it is (a patty on the grill turning fried, then burnt), keeping its id, place and holder; nothing is sent when it already is that kind |
@@ -800,7 +801,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `FitChanged` | the car's station, the fitting player's peer, or 0 when the fit stopped, the host tick (#808, the car repair ADR's §2.4, RE10) | everyone: the engineer accepted that every client learns who fits (RD15 (a)), drawn only on the fitter's avatar; nothing at the lift panel reads it | `CarRepair.hold_started` and `hold_stopped` for the car's timed hold: a fit's start, and a stop before it completed (its progress is lost, RD10 (d); a stop by a hit confirms the hit to everyone, the exception `RaiseStopped` has); a completed fit sends `PartFitted` instead |
 | `PartFitted` | the car's station, the fitted part's item (#808, RE10, RE12) | everyone, as `LiftChanged`: it names no player | `CarRepair.hold_completed`: the part leaves the fitter's hand, locked at the car's use spot (`Items.lock_at`, no `ItemPlaced`); then the task's `TaskState` and `TaskProgress`, then `PartNeeded` |
 | `FilmLoaded` | the camera's station, the film's item (#781, the photo ADR §2.2, §3.1) | everyone: it names no player (PD13), and items and stations are public | an accepted `Interact` at an empty camera: the actor's fresh film lies on the camera (`item_rested` on_station, no `ItemPlaced`) |
-| `ShotTaken` | the camera's station, the film's item, the shot's id (u16, wrapping), the record: up to 15 rows of `peer`, `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (#781, §3.3) | everyone: the rows hold what every player's snapshots show anyway, the recipient's own pose included (§5); it names no shooter and never says whether a person counted (PE5) | an accepted `Interact` at a loaded camera with frames left (§9.5.22) |
+| `ShotTaken` | the camera's station, the film's item, the shot's id (u16, wrapping), the record: up to 15 rows of `peer`, `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (#781, §3.3), `belt_item2` (#1218) | everyone: the rows hold what every player's snapshots show anyway, the recipient's own pose included (§5); it names no shooter and never says whether a person counted (PE5) | an accepted `Interact` at a loaded camera with frames left (§9.5.22) |
 | `PhotoPrinted` | the photo's item, the shot it shows (#782, the photo ADR §2.6, PE8) | everyone: it names no player and never says whether a person is in the shot (PE5); every shot was public already | an accepted `Interact` at the printer: per shot of the actor's exposed film, in shot order, after the photo's `ItemSpawned` on the tray; the film's `ItemVanished` follows the last (§9.5.22) |
 | `BurgerPlated` | the burger's item, the place's station, the kinds of its bun, patty and herb (#1101, the cooking ADR's amendment) | everyone: it names no player and only what everyone saw on the plate, never whether it is right | a full plate was taken as a burger (§9.5.20), last: after the plated items' `ItemVanished` and the burger's `ItemSpawned` and `ItemPickedUp` |
 | `BurgerServed` | the burger's place's station, and whether the burger was right (#1101) | everyone: it names no player and no part | a burger was served at the order board (§9.5.20), first: before the burger's `ItemVanished` and, right, before the leftovers' `ItemVanished` and the subtask's `TaskState` (CE13) |
@@ -910,12 +911,13 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 10 | `Raise` | RELIABLE | `seq: u32`, `target: peer` (M4-4, #140, E28) | 8; 8 |
 | 11 | `StopRaise` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
-| 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
+| 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141; since #1218 back to the place held last) | 4; 4 |
 | 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
 | 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
 | 16 | `SetProfile` | RELIABLE | `seq: u32`, `name: name`, `colour: u8` (#551; core refuses a colour past 9, `out_of_bounds`) | 6 to 86; 86 |
 | 17 | `Throw` | RELIABLE | `seq: u32`, `facing: vec3` (#643; kind 15 on `release/m7`, 17 since it reached `main`, #837) | 16; 16 |
 | 18 | `Interact` | RELIABLE | `seq: u32`, `station: station` (optional), `item: item` (optional) (#796, the Generator ADR's GE1: a placed station's id from its `StationPlaced`; #770, the cooking ADR's CE1: an item's id from its `ItemSpawned`; 0xFFFF is none, and core refuses both or neither `bad_args`). A player action: the client sends its reliable claim twin first (§4.5.6) | 8; 8 |
+| 19 | `Draw` | RELIABLE | `seq: u32`, `place: u8` (#1218, GDD §6: the place 0 to 2 to draw into the hand; core refuses one past 2 `no_such_place` and the place in the hand `same_place`). A player action: the client sends its reliable claim twin first (§4.5.6) | 5; 5 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -951,7 +953,7 @@ directive has no row, because it reaches no peer.
 | 45 | `Teammates` | `role: id`, `peers: list<peer>` | 19 for two; 98 |
 | 46 | `StationPlaced` | `station: station`, `kind: id`, `colour: colour`, `position: vec3` | 37; 63 |
 | 47 | `ItemSpawned` | `item: item`, `kind: id`, `position: vec3`, `has_station: bool`, then `station: station` and `colour: colour` when true (a package; the fields exist only then, as in `to_dict()`) | 41; 66 |
-| 48 | `ItemPickedUp` | `peer: peer`, `item: item`, `belted: item` (optional: the hand item moved to the belt, M4-5, E29) | 8; 8 |
+| 48 | `ItemPickedUp` | `peer: peer`, `item: item`, `belted: item` (optional: the hand item moved to the belt, M4-5, E29), `place: u8` (the place 0 to 2 the item went into, #1218) | 9; 9 |
 | 49 | `ItemPlaced` | `item: item`, `position: vec3`, `cause: id` | 23; 47 |
 | 50 | `PackageDelivered` | `item: item`, `station: station` | 4; 4 |
 | 51 | `TaskProgress` | `done: u16`, `total: u16` | 4; 4 |
@@ -967,7 +969,7 @@ directive has no row, because it reaches no peer.
 | 61 | `RaiseStarted` | `raiser: peer`, `target: peer` (audience *everyone*, M4-4, #140) | 8; 8 |
 | 62 | `RaiseStopped` | `raiser: peer`, `target: peer`: no cause (audience *everyone*, M4-4) | 8; 8 |
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
-| 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
+| 64 | `Swapped` | `peer: peer`, `place: u8` (the place now in the hand, 0 to 2, #1218; audience *everyone*, M4-5, #141) | 5; 5 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
 | 66 | `ProfileChanged` | `peer: peer`, `name: name`, `colour: u8` (audience *everyone*, #551) | 6 to 86; 86 |
 | 67 | `ZoneProgress` | `station: station`, `ticks: u16`, `needed: u16`, `counting: bool`, `tick: tick` (audience *everyone*, #647; ZE4 and ZE6 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); `needed` is at most 12,000, 600 s; kind 66 on `release/m7`, 67 since #837) | 11; 11 |
@@ -981,7 +983,7 @@ directive has no row, because it reaches no peer.
 | 75 | `LiftChanged` | `station: station`, `up: bool`, `tick: tick` (audience *everyone*, #807; the car repair ADR's §3) | 7; 7 |
 | 76 | `PartNeeded` | `station: station`, `kind: id` (optional, behind a `has_kind` flag; absent, the kind is empty: every part fitted) (audience *everyone*, #807, RD3) | 3 to 36; 36 |
 | 77 | `FilmLoaded` | `station: station`, `item: item` (audience *everyone*, #781; the [photo ADR](decisions/2026-10-10-photo-task.md) §3.1) | 4; 4 |
-| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
+| 78 | `ShotTaken` | `station: station`, `film: item`, `shot: u16`, `record: list<peer: peer, position: vec3, facing: vec3, flags: bits(downed, crouched (#790)), held_item: maybe<item>, belt_item: maybe<item>, belt_item2: maybe<item> (#1218)>` (at most 15 rows; audience *everyone*, #781, §3.3; content-sized: `WireBudget` holds its 15-row worst case) | 7 plus 29 to 33 a row; 502 |
 | 79 | `GrillLoaded` | `station: station`, `item: item`, `fried: tick`, `burnt: tick` (audience *everyone*, #773; the cooking ADR, CE10) | 12; 12 |
 | 80 | `IngredientPlaced` | `item: item`, `station: station` (audience *everyone*, #773; `right` dropped by #1101) | 4; 4 |
 | 81 | `FitChanged` | `station: station`, `fitter: peer` (optional, behind a `has_fitter` flag; absent, the fitter is 0: the fit stopped), `tick: tick` (audience *everyone*, #808; the car repair ADR's RE10, RD15 (a)) | 7 to 11; 11 |
@@ -995,7 +997,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 725; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -1029,7 +1031,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86). M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1072,7 +1074,7 @@ The rules of the table:
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
   `ItemPickedUp`, `Swapped`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6.1);
-  a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item` and `belt_item`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests (recorded with `keep_history` only; `snapshot_for`, what the host sends, builds the avatars alone, #1198); the leak
+  a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item`, `belt_item` and `belt_item2`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests (recorded with `keep_history` only; `snapshot_for`, what the host sends, builds the avatars alone, #1198); the leak
   test compares the avatars. Prevents: a snapshot of every item and body (about 920 bytes with 10 players and 20 items)
   outgrowing the 1024-byte unreliable cap as a map gets more knives, with no way to split it, because the LATEST merge
   keeps only the last part.
@@ -1521,14 +1523,14 @@ names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd`
 `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
 
 ##### 4.6.1.2 The slots and the tasks (E25 for M4-5, #141)
-Each `ClientModel.Item` holds its holder and whether it is
-`belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
-(the swapper's two items change places), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
+Each `ClientModel.Item` holds its holder, its `carry_place` (0 to 2, GDD §6, #1218) and whether it is
+`belted`, from `ItemPickedUp` (the picked item into the picker's place `place`, in the hand unless it went straight onto the belt, which selects it; its `belted` item stays in its place, now on the belt), `Swapped`
+(`place` is now the peer's place in the hand, `selected_place(peer)`; each of its items is belted unless in that place), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
 the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravity` and `flight_tick`, #644) and
 `ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying, not fitted: #811) is what
 `ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
 it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
-`belt_item(peer)` read them for every player, the own one included, whose avatar arrives only while it is knocked down (KE5). `TaskState`
+`belt_item(peer)`, `belt_item2(peer)` (the lower and the higher belt place), `selected_place(peer)` and `item_in_place(peer, place)` read them for every player, the own one included, whose avatar arrives only while it is knocked down (KE5). `TaskState`
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
 `ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
 (the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
@@ -2735,7 +2737,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the client's own mode) of the feet, less the walking margin of #319 (`TargetChoice.hint_reach_of`), and a second
   ray from the camera to the item's middle meets no world geometry (the host's `InSight`): an item just behind a
   thin wall or a door jamb is never named.
-  Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own slots hold something
+  Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own places hold something; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three (#1218, GDD §6)
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the camera's look vector.
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
@@ -3830,8 +3832,8 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   > `Text`; `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate (38 px under the centre) > `Text`; `Vitals`
   ToyColumnTwelve (bottom left) > `Health` and `Stamina` (ToyColumnFour, 320 px: `Cap` ToyBarLabel > `Text`
   ToyHudCaption, `Track` a `ToyBar` with its `Fill`) and `Mic` ToyMic > `Icon`; `Slots` ToyRowTwelve (bottom right)
-  > `Hand` ToySlotActive and `Belt` ToySlot (`HudSlot`: `Center` > `Row` ToyRowEight > `Icon`, `Name`
-  ToySlotTextEmpty, `ItemName` ToySlotText); `Raising` ToyPlate > `Bar` ToyBarProgress (240 x 10). Every root sits at
+  > `Place1` to `Place3` (#1218, GDD §6: the three places, the one in the hand ToySlotActive, the handoff's `Hand`, the others ToySlot, its `Belt`; `HudSlot`: `Center` > `Row` ToyRowEight > `Icon`, `Name`
+  ToySlotTextEmpty, `ItemName` ToySlotText, and `Number` ToySlotTextEmpty over the top left, the place's number 1 to 3, never widening the slot); `Raising` ToyPlate > `Bar` ToyBarProgress (240 x 10). Every root sits at
   a point (the four offsets equal) and takes its minimum size along its grow directions, so a slot that narrows
   pulls the row back into its corner. The size constants (`width`, `height`, `wide_width`) are read into
   `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
@@ -3840,7 +3842,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   as mm:ss (data); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
   fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
   first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
-  push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the hand and belt (a kind's
+  push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the three places, the selected one lit (a kind's
   deck key, `ContentNames.ITEMS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
   name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
   and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
@@ -6166,14 +6168,14 @@ cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded p
 
 #### 7.1.11 Pick up and swap
 The client names the item; the host checks reach and line of sight from its own positions.
-The picked item goes to the hand, except a one-handed pick beside a two-handed hand item, which goes onto the belt (below, CE21) (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an
-empty belt; otherwise (a full belt, or a two-handed hand item, the package, with a two-handed picked item; a
-one-handed one goes onto the belt, below) the hand item rests where the picked-up one lay, a spot already known to
-be valid. `Swap()` exchanges the
-hand and belt items; it needs an item in one of them (`nothing_to_swap`) and is refused with a two-handed item in
-the hand (`two_handed`), so a package carrier cannot draw a belted knife (V13), and only the living send it. Only
-the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep both
-slots; a death places both at the body and a leave drops both, the hand item first; a respawn starts empty.
+The picked item goes to the hand, except a one-handed pick beside a two-handed hand item, which goes onto the belt (below, CE21) (vision revision 1, Two hands; M4-5, #141). The hand and the two belt slots are three places (GDD §6, #1218; §9.5.14): the picked item goes into the place in the hand when it is empty; beside a one-handed hand item into the lowest free place, which comes into the hand, the hand item staying in its place on the belt; with all three places full the hand item drops at the taker's feet first (`ItemPlaced` `put_down`); a two-handed hand item, the package, with a two-handed picked item rests where the picked-up one lay, a spot already known to
+be valid (`swap`). `Swap()` (X) brings back the place held last and `Draw(place)` (1, 2, 3, the wheel) a chosen
+place; `Swap()` needs an item in one of the places (`nothing_to_swap`) and is refused with a two-handed item in
+the hand (`two_handed`), so a package carrier cannot draw a belted knife by X (V13), while a `Draw` puts the
+two-handed item down at the feet first; only the living send either. Only
+the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep all
+three places; a death places every carried item at the body and a leave drops them, the hand item first, then the
+belt in place order; a respawn starts empty.
 2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
 the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
 Since #771 (the [cooking ADR](decisions/2026-10-10-cooking-task.md)'s CE21, the engineer's rule that every take
@@ -6714,7 +6716,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642); laid on the ground at a station (`Items.lay_on_station`, the cooking ADR's CE5, #771: a wrong ingredient at a place). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`, `on_station`), the rest position |
+| `item_rested` | an item comes to rest: put down (also a hand item dropped at the feet by a take with all three places full, or a two-handed one by a `Draw`, #1218); swapped (a two-handed hand item beside a two-handed pickup, M4-5); dropped at a death or a leave, once per carried item, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642); laid on the ground at a station (`Items.lay_on_station`, the cooking ADR's CE5, #771: a wrong ingredient at a place). A `Swap` or a `Draw` between places raises none but for a `Draw`'s two-handed item: nothing else comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`, `on_station`), the rest position |
 | `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), or a living or downed one is killed at once (`LifeRules.kill`, #806), before its hand and belt items drop | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before its hand and belt items drop | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
@@ -6826,11 +6828,11 @@ phase classes come in the task each row names.
   (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
   the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
 - **Items** (`core/items/items.gd`, 2e #61; the belt M4-5 #141) is the one place that moves an item between the
-  ground, a hand and a belt (`PlayerState.held_item`, `belt_item`; `ItemState.Where.BELT`): `held_by` and `belted_by`,
-  `take` (the pick-up: the hand item to an empty belt when one-handed, else onto the picked item's spot; `ItemPickedUp`
+  ground, a hand and a belt: three places (`PlayerState.places`, `selected_place`, `last_place`; `held_item`, `belt_item`, `belt_item2`; `ItemState.Where.BELT`; GDD §6, #1218): `held_by`, `belted_by` (the first belt item), `belted_items` and `carried_by` (hand first, then the belt in place order),
+  `take` (the pick-up, §7.1.11: the selected place if empty, else the lowest free place, else the hand item to the feet; `ItemPickedUp`
   with `belted`; beside a two-handed hand item a one-handed picked item goes onto the belt through `give`'s belt move,
-  CE21, #771), `swap` (`Swapped`), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`),
-  `place_carried` (both slots, the hand's first: the life rule, 2g, places a dead player's items at its body after
+  CE21, #771), `select` and `back` (`Swapped`: `Draw` and `Swap`, §9.5.14), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`),
+  `place_carried` (every carried item, the hand's first: the life rule, 2g, places a dead player's items at its body after
   `player_died`), `drop_carried` (a leaving player's items to the floor below its last accepted
   position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
@@ -6993,7 +6995,9 @@ names the facts that do.
 | `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, or `crouch_eye_height_m` while crouched, #790; §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | `core/items/in_sight.gd` |
 | `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | `core/items/holds_item.gd` |
 | `OverFloor` | there is a floor below the actor's last accepted position (`WorldQuery.floor_below` of it lifted, the point `Items.fallback_rest` asks): the base mode's `Throw`; ModeCheck requires it, not negated, in every rule with a `ThrowItem` (§7.1.16) | none | `no_floor`: only the sender's own position | actions only: reads the actor | `core/items/over_floor.gd` |
-| `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | actions only: reads the actor | `core/items/carries_item.gd` |
+| `CarriesItem` | the actor has an item in one of its three places (GDD §6, #1218): the base mode's `Swap` | none | `nothing_to_swap`: its own places | actions only: reads the actor | `core/items/carries_item.gd` |
+| `PlaceInRange` | the intent's `place` is an int 0 to 2 (#1218; a missing or non-int one reads -1): the base mode's `Draw` | none | `no_such_place` | actions only: reads the command | `core/items/place_in_range.gd` |
+| `PlaceChanges` | the intent's `place` is not the actor's place in the hand (#1218): the base mode's `Draw` | none | `same_place` | actions only: reads the actor and the command | `core/items/place_changes.gd` |
 | `HandNotTwoHanded` | the actor's hand item, if any, is not two-handed (`ItemKind.hands` 2): a package carrier cannot draw a belted knife (V13) | none | `two_handed`: what it holds is public | actions only: reads the actor | `core/items/hand_not_two_handed.gd` |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | actions only: reads the actor | not built: with the first mechanic that needs it (#34) |
 | `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | anywhere: reads no actor | `core/win/all_subtasks_done.gd` |
@@ -7015,7 +7019,8 @@ names the facts that do.
 | Part | What it does | Settings | Emits (audience); raises | Code |
 |---|---|---|---|---|
 | `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1.11; the belt M4-5). Beside a two-handed hand item a one-handed picked item goes onto the belt instead, a full belt's item put down at the actor's feet first, the two-handed item staying in the hand (the cooking ADR's CE21, #771). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, the picked item itself when it went onto the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested`; for a full belt's put-down beside a two-handed item `ItemPlaced` (`put_down`) and `item_rested` first | `core/items/take_into_hand.gd` |
-| `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | `core/items/swap_hands.gd` |
+| `SwapHands` | the place held last comes into the actor's hand, the place left becoming the place held last (`Items.back`; GDD §6, #1218: X), either place may be empty; run after `CarriesItem` and `HandNotTwoHanded`. One with a two-handed hand item (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | `core/items/swap_hands.gd` |
+| `DrawPlace` | the intent's `place` comes into the actor's hand (`Items.select`; GDD §6, #1218: 1, 2, 3 and the wheel), the hand item staying in its place on the belt; a two-handed hand item is put down at the feet first (no refusal). Run after `PlaceInRange` and `PlaceChanges` (`Items.select` checks both again: a rule error, the same reasons). It stops the actor's raise first (§9.2) | none | `ItemPlaced` `put_down` (everyone; a two-handed hand item), `Swapped` (everyone) | `core/items/draw_place.gd` |
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | `core/items/put_down_in_front.gd` |
 | `ThrowItem` | the hand item leaves the actor's eye (`Items.eye_of`) into a flight (§7.1.16): the claimed facing normalized, else the last accepted claim's, times `speed_mps`, without the actor's velocity; the fallback rest below its feet is asked once (`Items.fallback_rest`). Only in an intent's rule, after `HoldsItem` and `OverFloor` (ModeCheck requires both); over no floor anyway it logs an error and throws nothing. A phase that accepts such an intent lists `FlightTicks` | `speed_mps` (1 to 40), `gravity_mps2` (1 to 40), `radius_m` (0.02 to 0.5 and at most `ThrowItem.largest_radius` of the mode's `PlayerRules`), `longest_flight_s` (0.5 to 30); each defaults to 0, so the data sets it; the bounds are placeholders, "not a decision" | `ItemThrown` (everyone); the flight's rest: `ItemPlaced` (thrown) through `FlightTicks` | `core/items/throw_item.gd` |
 | `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2), and on a map `PlayerRules.motion_maps` lists launched (KE9): `launch_mps` away from the attacker horizontally, foot to foot (along the zone's direction where they coincide), plus `launch_up_mps` up; a knockdown on another map drops the launch | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50); `launch_mps` (0 to 20) and `launch_up_mps` (0 to 10), 0 launching nothing, the default (bounds placeholders, "not a decision", KD9 (b); the knife 4 and 2, placeholders, 728e) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed), and on a listed map `LaunchBody` (server, #847); nothing drops (M4-2) | `core/combat/strike.gd` |
@@ -7166,12 +7171,12 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife, and the House's Wine, Oil, Gnome and Parasol (#828, §9.5.25), Film and Photo (the photo task's, #784, §9.5.22), Cooking's 21 (#775, §9.5.20) and car repair's three parts (#810, §9.5.21).
-- Actions: PickUp, PutDown, Throw (§7.1.16), Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Cooking (`cooking`, the House's alone, §9.5.20, #775); car repair (`car_repair`, the House's alone, §9.5.21, #810); Hold
+- Actions: PickUp, PutDown, Throw (§7.1.16), Raise, StopRaise, GiveUp, Swap and Draw (below). Reactions: none. Task types: Delivery (by meaning, the House's alone, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's alone, §9.5.4) (#828); the Generator (`generator`, the House's alone, §9.5.19, #800); the photo task (`photo`, the House's alone, §9.5.22, #784); Cooking (`cooking`, the House's alone, §9.5.20, #775); car repair (`car_repair`, the House's alone, §9.5.21, #810); Hold
   the zone (§9.5.18) until #842. Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
-  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` and `Interact` (#800) from the living, `GiveUp` from the
+  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap`, `Interact` (#800) and `Draw` (#1218) from the living, `GiveUp` from the
   downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, FlightTicks, VanishTicks (#775), TaskTicks; yes;
   runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
@@ -7412,20 +7417,35 @@ Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
 the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
 `crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
 
-#### 9.5.14 Swap (action)
-What it does (vision revision 1, Two hands; M4-5, #141): exchanges the hand and belt items, either of which may be
-empty, so a lone one-handed item moves between the hand and the belt (the ADR's controls: X).
-Settings: a rule on the base mode: trigger `Swap`; conditions `CarriesItem`, `HandNotTwoHanded`; effects `SwapHands`.
-Round accepts it from the living only: the downed and the dead get `not_accepted`.
-Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every applied action does (§9.2).
-Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
-reveal no role.
-Code: the rule in `content/modes/base_mode.tres`; `core/items/swap_hands.gd`, `core/items/carries_item.gd`,
-`core/items/hand_not_two_handed.gd`.
+#### 9.5.14 Swap and Draw (actions)
+What they do (GDD §6 "Drawing from the belt", the engineer's
+[#1040 c6320249563](https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6320249563); #1218): the hand
+and the two belt slots are three places, 0 to 2 in core and on the wire (1 to 3 on keys and the HUD), in
+`PlayerState.places`; an item keeps its place, and `selected_place` is the one in the hand, the others on the belt
+(`held_item` reads and writes `places[selected_place]`; `belt_item` and `belt_item2` read the lower and the higher
+other place). `Draw(place)` (1, 2, 3 and the mouse wheel) brings `place` into the hand; `Swap()` (X) brings back
+`last_place`, the place held last (at first 1, so a first X hangs a lone hand item on the belt, as the old swap did).
+Every selection (`Items.select`) makes the place left the place held last. An empty place is an empty hand. A
+`Draw` with a two-handed hand item first puts it down at the feet (`ItemPlaced` `put_down`, then `item_rested`: no
+refusal); X keeps V13's refusal (`two_handed`).
+Settings: rules on the base mode: trigger `Swap`; conditions `CarriesItem`, `HandNotTwoHanded`; effects `SwapHands`;
+and trigger `Draw`; conditions `PlaceInRange`, `PlaceChanges`; effects `DrawPlace`. Round accepts both from the
+living only (the tutorial: the stages that take `Swap`): the downed and the dead get `not_accepted`.
+Produces: `Swapped` (peer, place), after a `Draw`'s put-down `ItemPlaced`; it stops the sender's raise
+(`RaiseStopped`), as every applied action does (§9.2).
+Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`, `no_such_place`, `same_place`) only the sender. A
+mode rule: its public events reveal no role, and nothing hidden: every place's item is already public through
+`ItemPickedUp`, `Swapped`, `ItemPlaced` and the avatar's `held_item`, `belt_item` and `belt_item2`.
+Code: the rules in `content/modes/base_mode.tres` and `tutorial_mode.tres`; `core/items/swap_hands.gd`,
+`core/items/draw_place.gd`, `core/items/carries_item.gd`, `core/items/hand_not_two_handed.gd`,
+`core/items/place_in_range.gd`, `core/items/place_changes.gd`; `Items.select`, `Items.back`.
 Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
-the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel/channels_test.gd` (a swap refused
-by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
-mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
+the dead, a swap stopping a raise, only the hand item used); `tests/unit/items/draw_place_test.gd` (the draw of each
+place, an empty place, the two refusals, a two-handed item put down, X back to the place held last, a take into the
+selected place, into a free place and with all three full, a leave dropping three items in place order, a draw stopping a raise, the reset);
+`tests/unit/channel/channels_test.gd` (a swap refused by `HandNotTwoHanded` stops no channel);
+`tests/unit/content/item_intents_test.gd` (the base mode's rule, only the living); the scenarios `refusals` and
+`two_handed_pickup_with_a_full_belt` (§9.7).
 
 #### 9.5.15 Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim` and its per-tick mask `sprint_ticks` (#155), settled by the movement
@@ -7464,7 +7484,7 @@ Settings:
   `Use` and no `GiveUp` is accepted in any phase (the knife swings at nobody; D28 (a) kills the own player at once).
 - Phases (accepts; tick systems; voice; level; snapshots), none checking wins or running a clock: `gather` (Lobby;
   `Hello` from newcomers, `SetReady` from players; none; Silent; none; no), `loading` (Loading 60 s; `LoadAck`;
-  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap`, `Throw` from the living,
+  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap`, `Throw`, `Draw` (#1218) from the living,
   `NextStage` from the host; FlightTicks; RoundVoice 8 m; the map; yes), `raise_stage` (as `lessons`, plus `Raise` and
   `StopRaise` from the living and `MoveClaim` from the downed, no `Throw`; ChannelTicks and FlightTicks, no LifeTicks), `death_stage` (as
   `raise_stage` but no `NextStage`; LifeTicks with a Respawn (`respawn`), ChannelTicks, FlightTicks).
@@ -7902,7 +7922,7 @@ kind's), `subtasks_setting` (a whole-number setting from at least 0), `frames_pe
   crouched eye while crouched, #790) lies in the frame with a clear `WorldQuery.line_of_sight` from the lens; whether
   any counted is kept on the host (PE5). The record (§3.3): one row per ALIVE or knocked-down player with its feet
   outside the cylinder within `range_m` + `RECORD_MARGIN_M` (2 m) of the lens, in peer order, at most 15: `peer`,
-  `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item` (the snapshot's avatar row without
+  `position`, `facing`, `downed`, `crouched` (#790), `held_item`, `belt_item`, `belt_item2` (the snapshot's avatar row without
   velocity and invulnerability). Then the film's next shot
   (`ShotTaken` to everyone: the camera, the film, the shot id, wrapping at 0x10000, and the record). A film keeps its
   shots whoever carries it until it is printed or vanishes.
@@ -8248,7 +8268,7 @@ told. One format runs in two runners.
 | `Raise(target, hold_s)` | sends `Raise` of the player of a `bot(i)` target and holds E (M4-4) | its `RaiseStarted` arrived and `hold_s` passed since the step started, or the raise ended before (its `RaiseStopped`, or a `Revived` of the target); the bot still holds E after it |
 | `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
 | `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
-| `Swap` | sends `Swap`: exchanges its hand and belt items (M4-5) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
+| `Swap` | sends `Swap`: back to the place held last (M4-5; #1218) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
 | `NextStage` | (the host's bot) sends `NextStage`: a scripted mode (the tutorial's stages) moves on (#599) | a `PhaseChanged` arrives, whichever phase (an `Expect` after it names one); the base mode refuses it (`not_accepted`). `tests/scenarios/next_stage_step_test.gd` |
 | `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
 
@@ -8385,8 +8405,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
   M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
   only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6.4.1),
-  `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second in the hand, then the package: the hand knife
-  rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
+  `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second and a third taken, so that all three places are full, then the package: the hand knife
+  is put down at the feet, GDD §6, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
   package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
   `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
   network runner's travel after a respawn). #646: `crew_throws_a_package_into_its_circle` (a crew bot picks up the
