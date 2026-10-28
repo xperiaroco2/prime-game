@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue when he asks (no timer), sorts the sessions into waits for you / running / silent, says in one chat line what changed, relays his answers to the session that asked, and hands him a ready kickoff for any new session. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
+description: The engineer's secretary for prime-game - gathers from every track's sessions and the four repos what needs him (decisions, merges only he makes, commands, approvals) into the pinned "Engineer's inbox" issue when he asks ("що там?", "що нового?"; no timer), sorts the sessions into waits for you / running / silent, says in one chat line what changed, relays his answers to the session that asked, and hands him a ready kickoff for any new session. Never merges, launches, closes or decides. Use when the engineer starts his secretary session with /secretary (a plain Desktop session in D:\prime-game, AGENT_WORKFLOW §7.2), or says "секретар" or "що нового?" inside that session. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -31,8 +31,8 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
 (https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550), recorded in the
 [weekly budget ADR](../../../docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md) (Q5, amended 2026-10-07).
 
-**The engineer's word of 2026-10-28** (on the inbox issue
-[#507](https://github.com/xperiaroco2/prime-game/issues/507)'s body): you are his personal assistant across the
+**The engineer's word of 2026-10-28** (the inbox issue #507's body then, which you rewrite; copied
+[on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)): you are his personal assistant across the
 tracks. Besides the digest you hand him a ready kickoff for any new session he wants (below). Digests run on demand
 only ("що там?", "що нового?"), with no timer. Every other session falls in one of three groups: **waits for you**
 (only when its last message shows a real "For you:" or "Для вас:" item, or GitHub has one), **running**, and
@@ -84,8 +84,9 @@ only ("що там?", "що нового?"), with no timer. Every other session 
    Then `tools\run.cmd wave --in-flight` (read-only, exit 0 either way, a few seconds; AGENT_WORKFLOW §11.11): one
    `in flight:` line per other session on this machine with background work of its own still running, across the four
    checkouts and their worktrees: a workflow run (its wf id), a background agent or a background command, each with
-   its start. Match a line to `list_sessions` by its title, else by its cwd (the transcript's may be a worktree under
-   the session's cwd) and last record (`lastActivityAt`); the `local_...` id is no transcript id. Sort each session
+   its start. Match a line to `list_sessions` by its `desktop local_...` id (that session's `sessionId`), else by its
+   title, else by its cwd (the transcript's may be a worktree under the session's cwd) and last record
+   (`lastActivityAt`); the transcript id is no `local_...` id. Sort each session
    into one group: **waits for you** (a real "For you:" or "Для вас:" item, or GitHub has one), **running**
    (`isRunning` true, or an `in flight:` line: "waits on its own workflow <wf id>, started <time>", or its agent or
    command), else **silent, reason unseen** ("nothing in flight"). A run or agent whose journal or transcript has not

@@ -510,7 +510,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
   comments and `send_message`.
 - **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites when he asks ("що там?",
-  "що нового?"; no timer, his word of 2026-10-28 on [#507](https://github.com/xperiaroco2/prime-game/issues/507)):
+  "що нового?"; no timer, his word of 2026-10-28, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)):
   what to approve or decide and what to look at, numbered, each item with a link or a ready command, every other
   session in one group (waits for you, running, silent). In its chat, one short line on what changed.
 - **His personal assistant** (the same word): it also hands him a ready kickoff for any new session (folder,
@@ -1426,26 +1426,29 @@ handover is the comment titled "Handover to a fresh manager session" posted by h
 session's queued notifications only an unstopped result of its own workflow counts; a timer or a background command
 left behind does not. Its line adds when it handed over.
 
+One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
+call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
+the guard's reason; the line ends with what the engineer does. The command is read-only. It exits 3 when it flags a
+session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
+refused.
+
 `--in-flight` (#1355, `wave_flight.py`) lists the other sessions with background work of their own still running, so
 the secretary (§7.2) tells a session that only ended its turn and waits on it from a silent one: on 2026-10-28 the
 inbox called the art session "Анімації прибульців (art #196)" silent while its builder agent dressed the bodies. It
 reads the same transcripts as `--stalled` (the four checkouts and their worktrees, the last 24 hours, never the
 caller's own, a closed session passed over). In flight: a workflow run with no notification whose journal is short of
 its end and that no later launch replaced; a background Agent (`toolUseResult` `async_launched` with its `agentId`)
-or Bash call (its `backgroundTaskId`) with no task notification after it and no successful `TaskStop` of it (a
-stopped task sends none). One line per session: what `list_sessions` shows (its `local_...` id is no transcript id):
-the title (the transcript's newest `custom-title`), the cwd (the transcript's newest, which may be a worktree under
-the session's) and the newest record's time (close to `lastActivityAt`); then its checkout and transcript id; then
-each run's wf id, workflow, start and journal's newest write, each agent's id, description, start and transcript's
-newest write, each command's task id, command and start. Exit 0 either way. A new flag rather than more `--stalled`:
-`--stalled` answers "whose finished work waits unread" with exit 3 when one does, and a session with work in flight
-is no stall. `--session` still reads only this checkout's transcripts.
-
-One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
-call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
-the guard's reason; the line ends with what the engineer does. The command is read-only. It exits 3 when it flags a
-session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
-refused.
+or Bash call (its `backgroundTaskId`; parallel calls share a record with none, so then the result's text) with no
+task notification after it and no successful `TaskStop` of it (a stopped task sends none); either one only when
+launched after the session's live process started (`startedAt` in its file under `~/.claude/sessions`: an earlier
+process's work died with it at a restart). One line per session: what `list_sessions` shows, its Desktop id
+(`hostSessionId` in that file, `local_...`; the transcript id is not it), the title (the transcript's newest
+`custom-title`), the cwd (the transcript's newest, which may be a worktree under the session's) and the newest
+record's time (close to `lastActivityAt`); then its checkout and transcript id; then each run's wf id, workflow, start
+and journal's newest write, each agent's id, description, start and transcript's newest write, each command's task
+id, command and start. Exit 0 either way; every other flag of `wave` is refused. A new flag rather than more
+`--stalled`: `--stalled` answers "whose finished work waits unread" with exit 3 when one does, and a session with work
+in flight is no stall. `--session` still reads only this checkout's transcripts.
 
 ### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--adr-reads] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose

@@ -229,6 +229,9 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   - It relays his answers to the session that asked, which records them on GitHub; it never merges, launches,
     closes or decides.
   - Its cost counts in the engineer's own 5% (N1), until he says otherwise: no budget of its own, no track.
+  **Amended 2026-10-28** (#1355; his word, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)): the secretary digests only when he asks, with
+  no timer, sorts the other sessions into waits for him, running and silent, and hands him a ready kickoff for any
+  new session (folder, permission mode, effort); it still starts nothing itself.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the
