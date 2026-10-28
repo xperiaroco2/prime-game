@@ -38,11 +38,7 @@ func _angle(rig: CharacterRig, bone: StringName) -> float:
 
 
 func _plan(base: StringName, rate := 1.0, carry := false) -> AvatarClips.Plan:
-	var plan := AvatarClips.Plan.new()
-	plan.base = base
-	plan.rate = rate
-	plan.carry = carry
-	return plan
+	return Fixture.plan(base, rate, carry)
 
 
 func test_it_stands_idle_and_plays_the_planned_base() -> void:
@@ -79,7 +75,7 @@ func test_the_carry_layer_moves_the_upper_body_only() -> void:
 func test_the_carry_filter_is_torso_and_every_bone_below() -> void:
 	var rig := _rig()
 	var bones := rig.carry_bones()
-	for bone: String in ["Torso", "Chest", "UpperArm.R", "Wrist.R"]:
+	for bone: String in ["Torso", "Chest", "UpperArm.R", "Wrist.R", "Neck", "Head"]:
 		assert_bool(bones.has(bone)).override_failure_message(bone).is_true()
 	for bone: String in ["Root", "Body", "Hips", "Abdomen", "UpperLeg.L", "Foot.L"]:
 		assert_bool(bones.has(bone)).override_failure_message(bone).is_false()
@@ -267,3 +263,131 @@ func _assert_basis(basis: Basis, expected: Basis, message: String) -> void:
 		assert_vector(basis[axis]).override_failure_message(message).is_equal_approx(
 			expected[axis], Vector3.ONE * 0.001
 		)
+
+
+func _rig_of(clips: Array[StringName], with_look := false) -> CharacterRig:
+	var character := CharacterSet.from_scene(Fixture.scene(clips), Fixture.ragdoll())
+	var rig := CharacterRig.make(character, with_look)
+	add_child(rig)
+	auto_free(rig)
+	rig.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	rig.set_physics_process(false)
+	_run(rig, STEP)
+	return rig
+
+
+func _moving(rig: CharacterRig, heading_deg: float) -> AvatarClips.Plan:
+	var plan := AvatarClips.Plan.new()
+	plan.blend = Locomotion.blend_position(deg_to_rad(heading_deg))
+	plan.back = absf(heading_deg) > Locomotion.SWITCH_DEG
+	plan.slot = Locomotion.BACK if plan.back else Locomotion.FRONT
+	plan.base = AvatarClips.JOG_BWD if plan.back else AvatarClips.JOG_FWD
+	rig.apply(plan)
+	_run(rig, 0.5)
+	return plan
+
+
+func test_the_front_family_blends_its_points_and_a_lone_back_clip_plays_alone() -> void:
+	var rig := _rig()
+	assert_bool(rig.is_blended(Locomotion.FRONT)).is_true()
+	assert_bool(rig.is_blended(Locomotion.BACK)).is_false()
+	# On a point: its clip alone.
+	_moving(rig, -90.0)
+	assert_str(String(rig.base_slot())).is_equal("Front")
+	var right := Fixture.base_angle(AvatarClips.STRAFE_RIGHT)
+	assert_float(_angle(rig, &"UpperLeg.L")).is_equal_approx(right, 0.01)
+	# Between two points: a mix of the two, never another clip.
+	_moving(rig, -45.0)
+	var jog := Fixture.base_angle(AvatarClips.JOG_FWD)
+	var mixed := _angle(rig, &"UpperLeg.L")
+	assert_float(mixed).is_greater(jog + 0.01)
+	assert_float(mixed).is_less(right - 0.01)
+	# The back family's one clip, exactly, whatever the direction.
+	_moving(rig, 150.0)
+	assert_str(String(rig.base_slot())).is_equal("Back")
+	var back := Fixture.base_angle(AvatarClips.JOG_BWD)
+	assert_float(_angle(rig, &"UpperLeg.L")).is_equal_approx(back, 0.01)
+
+
+func test_a_diagonal_clip_the_character_has_becomes_a_point() -> void:
+	var rig := _rig_of(Fixture.eight_way_clips())
+	assert_bool(rig.is_blended(Locomotion.BACK)).is_true()
+	for clip: StringName in Locomotion.optional_clips():
+		for point: Dictionary in Locomotion.POINTS:
+			if point["clip"] == clip:
+				_moving(rig, point["heading_deg"] as float)
+		var want := Fixture.base_angle(clip)
+		var got := _angle(rig, &"UpperLeg.L")
+		assert_float(got).override_failure_message(String(clip)).is_equal_approx(want, 0.01)
+
+
+func test_the_families_cross_fade_never_blend() -> void:
+	var rig := _rig()
+	_moving(rig, 0.0)
+	var plan := AvatarClips.Plan.new()
+	plan.slot = Locomotion.BACK
+	plan.base = AvatarClips.JOG_BWD
+	plan.blend = Vector2(0.0, -1.0)
+	rig.apply(plan)
+	_run(rig, CharacterRig.XFADE_S * 0.5)
+	var mid := _angle(rig, &"UpperLeg.L")
+	assert_float(mid).is_greater(Fixture.base_angle(AvatarClips.JOG_FWD) + 0.01)
+	assert_float(mid).is_less(Fixture.base_angle(AvatarClips.JOG_BWD) - 0.01)
+	_run(rig, CharacterRig.XFADE_S)
+	var back := Fixture.base_angle(AvatarClips.JOG_BWD)
+	assert_float(_angle(rig, &"UpperLeg.L")).is_equal_approx(back, 0.01)
+
+
+## The head's forward in the rig's frame after the look turned it: the art faces +Z, the rig -Z.
+func _look_of(rig: CharacterRig, yaw: float, pitch: float) -> Vector3:
+	rig.set_look(yaw, pitch)
+	var head := rig.skeleton.find_bone(&"Head")
+	# Read inside the pass: the skeleton restores the clip's pose before the next one.
+	var seen: Array[Transform3D] = []
+	var read := func() -> void: seen.append(rig.skeleton.get_bone_global_pose(head))
+	rig.head_look().modification_processed.connect(read)
+	# The skeleton runs its modifiers in its deferred update, each process frame.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	rig.head_look().modification_processed.disconnect(read)
+	assert_bool(seen.is_empty()).is_false()
+	if seen.is_empty():
+		return Vector3.ZERO
+	return (rig.model.transform * seen[-1]).basis * Vector3.BACK
+
+
+func test_the_head_look_turns_the_neck_and_head_within_the_clamps() -> void:
+	var rig := _rig_of(AvatarClips.all_clips(), true)
+	assert_object(rig.head_look()).is_not_null()
+	var ahead: Vector3 = await _look_of(rig, 0.0, 0.0)
+	assert_float(ahead.angle_to(Vector3.FORWARD)).is_less(0.01)
+	# To the left (toward -X) by the yaw, up by the pitch.
+	var left: Vector3 = await _look_of(rig, deg_to_rad(50.0), 0.0)
+	assert_float(left.angle_to(Vector3.FORWARD)).is_equal_approx(deg_to_rad(50.0), 0.01)
+	assert_float(left.x).is_less(0.0)
+	var up: Vector3 = await _look_of(rig, 0.0, deg_to_rad(30.0))
+	assert_float(up.y).is_equal_approx(0.5, 0.01)
+	# Clamped: yaw 70, pitch up 40 and down 35.
+	var far: Vector3 = await _look_of(rig, 2.5, 0.0)
+	assert_float(far.angle_to(Vector3.FORWARD)).is_equal_approx(deg_to_rad(70.0), 0.01)
+	var high: Vector3 = await _look_of(rig, 0.0, 1.5)
+	assert_float(high.y).is_equal_approx(sin(deg_to_rad(40.0)), 0.01)
+	var low: Vector3 = await _look_of(rig, 0.0, -1.5)
+	assert_float(low.y).is_equal_approx(-sin(deg_to_rad(35.0)), 0.01)
+	# The legs keep the clip.
+	assert_float(_angle(rig, &"UpperLeg.L")).is_equal_approx(Fixture.base_angle(&"Idle"), 0.01)
+
+
+func test_no_head_look_without_the_bones_or_for_a_ragdolls_rig() -> void:
+	assert_object(_rig().head_look()).is_null()
+	var bones: Array[StringName] = []
+	for bone: StringName in Fixture.BONES:
+		if bone != &"Neck" and bone != &"Head":
+			bones.append(bone)
+	var character := CharacterSet.from_scene(
+		Fixture.scene(AvatarClips.all_clips(), bones), Fixture.ragdoll()
+	)
+	var rig := CharacterRig.make(character, true)
+	auto_free(rig)
+	assert_object(rig.head_look()).is_null()
+	rig.set_look(1.0, 1.0)
