@@ -164,3 +164,40 @@ func test_no_velocity_in_avatar_views_clip_code() -> void:
 	var body := source.substr(start, end - start if end > 0 else -1)
 	assert_bool(body.contains("drawn_move")).is_true()
 	assert_bool(body.contains("velocity")).is_false()
+
+
+func test_the_family_switch_keeps_its_dead_zone() -> void:
+	# From the front, 108 degrees off forward is still a strafe; 112 is the back family.
+	var near := _plan(_moving(WALK, deg_to_rad(108.0)))
+	assert_str(String(near.base)).is_equal("Strafe_Left")
+	assert_str(String(near.slot)).is_equal("Front")
+	assert_bool(near.back).is_false()
+	var past := _plan(_moving(WALK, deg_to_rad(-112.0)))
+	assert_str(String(past.base)).is_equal("Jog_Bwd")
+	assert_str(String(past.slot)).is_equal("Back")
+	assert_bool(past.back).is_true()
+	# From the back, 95 degrees stays back; 85 is the front again.
+	var state := _moving(WALK, deg_to_rad(95.0))
+	state.was_back = true
+	assert_str(String(_plan(state).slot)).is_equal("Back")
+	state = _moving(WALK, deg_to_rad(85.0))
+	state.was_back = true
+	assert_str(String(_plan(state).slot)).is_equal("Front")
+	# Standing keeps the family the last move had.
+	state = _moving(0.0)
+	state.was_back = true
+	assert_bool(_plan(state).back).is_true()
+
+
+func test_the_plan_carries_the_direction_and_the_slot() -> void:
+	var left := _plan(_moving(WALK, PI * 0.5, 1.1))
+	assert_float(left.blend.distance_to(Vector2(-1.0, 0.0))).is_less(0.0001)
+	var ahead := _plan(_moving(WALK, 0.0, -0.4))
+	assert_float(ahead.blend.distance_to(Vector2(0.0, 1.0))).is_less(0.0001)
+	assert_str(String(ahead.slot)).is_equal("Front")
+	assert_str(String(_plan(_moving(SPRINT)).slot)).is_equal("Sprint_Fwd")
+	assert_str(String(_plan(_moving(0.0)).slot)).is_equal("Idle")
+	var crouched := _moving(1.0, PI)
+	crouched.crouched = true
+	assert_str(String(_plan(crouched).slot)).is_equal("Crouch_Fwd")
+	assert_that(_plan(crouched).blend).is_equal(Vector2.ZERO)
