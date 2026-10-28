@@ -8139,7 +8139,8 @@ content/
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.46; client data on core/content/tutorial/)
 levels/
-  lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
+  lobby/lobby.tscn                 the lobby hall (#1354): floor, walls, the skat (closed), bar, photo booth,
+                                   pinball, mirror (each a box), Earth window, sealed door, lobby_player markers
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
@@ -8187,7 +8188,17 @@ levels/
   the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. #649 adds 4
   `zone` markers at (−9, 0, 7), (−3, 0, 7), (3, 0, 7) and (9, 0, 7) (placeholders, "not a decision", ZD10 (a)),
   which keep ZE9's distances. The content test checks that fit and that both levels are flat, which the scenarios'
-  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing.
+  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing. #1354 makes the lobby
+  the hall of GDD §3 (the Lobby bullet; `docs/design/m8-match.md` §1) as a greybox of boxes and markers (every
+  size and place a placeholder, "not a decision", for the engineer to set in the editor): a 42 × 42 m `Floor`,
+  four 8 m walls closing a 40 × 40 m hall (x −20..20, z −30..10), and the skat (closed, 26 × 14 m, nobody walks
+  in), the bar, the photo booth, the pinball machine and the mirror, each its own layer-1 box body under the root
+  (origin its north-west floor corner, on the whole-metre grid), with the Earth window and the sealed door as
+  looks on the walls; the markers stay where 2j put them. No lights: the game's own darkness. The lobby's
+  flatness there: `Floor` is its one floor and every other collider stands on it. Tests: `content_modes_test.gd`
+  (that rule); `lobby_hall_test.gd` (each piece a separate box on the grid inside the walls and apart, the walls
+  on the floor, and no collider but the floor near a lobby marker or a walk a scenario takes in the lobby before
+  it first waits).
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
