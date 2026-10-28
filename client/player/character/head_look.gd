@@ -59,14 +59,17 @@ func _process_modification_with_delta(_delta: float) -> void:
 	var skeleton := get_skeleton()
 	if skeleton == null:
 		return
-	_turn(skeleton, skeleton.find_bone(NECK), NECK_SHARE)
-	_turn(skeleton, skeleton.find_bone(HEAD), 1.0 - NECK_SHARE)
+	# The Head inherits the Neck's turn, so it adds only what is left of the whole aim: with yaw
+	# and pitch together two half turns would not make the aim's turn (they leave a roll).
+	var neck := turn_of(aim_yaw, aim_pitch, NECK_SHARE)
+	_turn(skeleton, skeleton.find_bone(NECK), neck)
+	_turn(skeleton, skeleton.find_bone(HEAD), turn_of(aim_yaw, aim_pitch) * neck.inverse())
 
 
-## Turns `bone` about its own origin by `share` of the aim, in the skeleton's space.
-func _turn(skeleton: Skeleton3D, bone: int, share: float) -> void:
+## Turns `bone` about its own origin by `body_turn` (in the body's frame), in the skeleton's space.
+func _turn(skeleton: Skeleton3D, bone: int, body_turn: Basis) -> void:
 	if bone < 0:
 		return
-	var turn := frame.inverse() * turn_of(aim_yaw, aim_pitch, share) * frame
+	var turn := frame.inverse() * body_turn * frame
 	var pose := skeleton.get_bone_global_pose(bone)
 	skeleton.set_bone_global_pose(bone, Transform3D(turn * pose.basis, pose.origin))

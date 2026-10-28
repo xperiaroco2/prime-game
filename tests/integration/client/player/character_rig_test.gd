@@ -340,6 +340,11 @@ func test_the_families_cross_fade_never_blend() -> void:
 
 ## The head's forward in the rig's frame after the look turned it: the art faces +Z, the rig -Z.
 func _look_of(rig: CharacterRig, yaw: float, pitch: float) -> Vector3:
+	return (await _head_basis_of(rig, yaw, pitch)) * Vector3.BACK
+
+
+## The head bone's basis in the rig's frame after the look turned it.
+func _head_basis_of(rig: CharacterRig, yaw: float, pitch: float) -> Basis:
 	rig.set_look(yaw, pitch)
 	var head := rig.skeleton.find_bone(&"Head")
 	# Read inside the pass: the skeleton restores the clip's pose before the next one.
@@ -352,8 +357,21 @@ func _look_of(rig: CharacterRig, yaw: float, pitch: float) -> Vector3:
 	rig.head_look().modification_processed.disconnect(read)
 	assert_bool(seen.is_empty()).is_false()
 	if seen.is_empty():
-		return Vector3.ZERO
-	return (rig.model.transform * seen[-1]).basis * Vector3.BACK
+		return Basis.IDENTITY
+	return (rig.model.transform * seen[-1]).basis
+
+
+func test_a_shake_while_looking_down_turns_the_head_by_the_whole_aim_unrolled() -> void:
+	# Neck and Head each take a share, but the Head inherits the Neck's: together they make
+	# exactly the aim's turn (yaw, then pitch), not two half turns with a roll between them.
+	var rig := _rig_of(AvatarClips.all_clips(), true)
+	var rest: Basis = await _head_basis_of(rig, 0.0, 0.0)
+	var yaw := deg_to_rad(60.0)
+	var pitch := deg_to_rad(-35.0)
+	var turned: Basis = await _head_basis_of(rig, yaw, pitch)
+	var expected := HeadLook.turn_of(yaw, pitch) * rest
+	for axis: Vector3 in [Vector3.BACK, Vector3.UP, Vector3.RIGHT]:
+		assert_float((turned * axis).angle_to(expected * axis)).is_less(0.01)
 
 
 func test_the_head_look_turns_the_neck_and_head_within_the_clamps() -> void:
