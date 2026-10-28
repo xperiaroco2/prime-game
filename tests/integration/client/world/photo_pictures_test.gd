@@ -106,6 +106,38 @@ func test_the_held_item_goes_into_the_picture_with_its_puppet() -> void:
 	assert_int(PhotoLayers.layers_of(views[0])).is_equal(PhotoLayers.PHOTO)
 
 
+## A belt item in the higher place alone (the row's belt places are not compacted) is drawn at the
+## first belt socket, as the live view draws it (#1218).
+func test_the_belt_is_drawn_as_the_live_view_draws_it() -> void:
+	C.hold(_model, 41, &"film", C.OTHER)
+	C.hold(_model, 42, &"film", C.OTHER)
+	var lone := C.row(C.OTHER, FixturePhotoModes.SPOT_AT, Vector3.FORWARD)
+	lone["belt_item2"] = 41
+	_shoot(0, [lone])
+	await _frames(1)
+	var views := _pictures.puppets()[0].find_children("*", "ItemView", true, false)
+	assert_int(views.size()).is_equal(1)
+	assert_vector((views[0] as Node3D).position).is_equal(Vector3.ZERO)
+
+
+func test_two_belt_items_take_both_belt_sockets() -> void:
+	C.hold(_model, 41, &"film", C.OTHER)
+	C.hold(_model, 42, &"film", C.OTHER)
+	var both := C.row(C.OTHER, FixturePhotoModes.SPOT_AT, Vector3.FORWARD)
+	both["belt_item"] = 41
+	both["belt_item2"] = 42
+	_shoot(0, [both])
+	await _frames(1)
+	var views := _pictures.puppets()[0].find_children("*", "ItemView", true, false)
+	assert_int(views.size()).is_equal(2)
+	var offsets: Array[Vector3] = []
+	for view: Node3D in views:
+		offsets.append(view.position)
+	assert_array(offsets).contains_exactly_in_any_order(
+		[Vector3.ZERO, ItemViews.SECOND_BELT_OFFSET]
+	)
+
+
 ## With the avatars' character (the game's case) the puppet is drawn in its clip at once, its hand
 ## item at the posed hand: the render is set up and drawn in one frame, before any physics step
 ## would run the rig's tree, so `_process` is called by hand here with no physics step after it.

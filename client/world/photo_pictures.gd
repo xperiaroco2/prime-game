@@ -288,8 +288,15 @@ func _puppet(row: Dictionary) -> RemotePlayerBody:
 		var flat := Basis(Vector3.UP, pose.yaw) * Basis(Vector3.RIGHT, -PI / 2.0)
 		body.global_transform = Transform3D(flat, pose.position + Vector3.UP * radius)
 	_hold(body, row.get("held_item", -1) as int, false)
-	_hold(body, row.get("belt_item", -1) as int, true)
-	_hold(body, row.get("belt_item2", -1) as int, true, true)
+	# The row's belt places are not compacted (a belt item may sit in the higher one alone), the
+	# live view's are (ClientModel.belt_item2): the picture shows the belt as the live view does.
+	var belted: Array[int] = []
+	for key: String in ["belt_item", "belt_item2"]:
+		var id: int = row.get(key, -1)
+		if id >= 0:
+			belted.append(id)
+	for index in belted.size():
+		_hold(body, belted[index], true, index == 1)
 	PhotoLayers.assign(body, PhotoLayers.PHOTO, false)
 	return body
 
