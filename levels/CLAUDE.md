@@ -10,7 +10,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
 - **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
   - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map), `props/`, `kit/` (art GLB wrappers in
-    `kit/<pack>/`, greybox role materials; unused `greybox_floor_*` (not `_house`), `greybox_stairs`: reserved, #1158); `lobby/` and `greybox/` stay;
+    `kit/<pack>/`, greybox role materials; the estate greybox (#1158) uses the `greybox_floor_*` and `greybox_stairs`); `lobby/` and `greybox/` stay;
   - one grid with the art kit: whole metres, 2 m and 1 m wall modules, 3.2 m floor to floor (Y -3.2, 0, 3.2; an
     attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
   - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
