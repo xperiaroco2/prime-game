@@ -85,6 +85,17 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
 [MVP rules](decisions/2026-09-29-mvp-rules.md), with their numbers as starting values to tune after the first playtest.
 - **Lobby:** players join, walk and talk by proximity; the host changes the match settings; each player presses
   Ready.
+  - **The place** (the engineer, 2026-10-28, #1095, research rounds 12 and 13 in prime-game-design): one small hall
+    of a space station, the one room for now; more rooms open later when there is something to put in them (a sealed
+    door shows where). The skat stands closed in the middle: nobody walks into it, and ready stays the press above.
+    Earth fills a big window.
+  - **In the hall:** a bar with beer (a drink makes you drunk for a while; too many and you fall off your feet); a
+    photo booth to take photos; one light game, a pinball machine (a metal ball, two flippers); a mirror where you
+    change your alien's look: walk up, press interact, a customisation menu opens, and the others watch your alien
+    change live. No mutation workbench, and the look is not in the Esc suit menu. More games later.
+  - **The layout** is set on the hall scene in the game, with the bar, the booth, the pinball and the mirror as
+    separate objects placed there; the details of each (how drunk, what the booth keeps, the pinball's rules, several
+    players at one mirror) come with their design.
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
