@@ -17,6 +17,7 @@ func _row(peer: int, at: Vector3) -> Dictionary:
 		"downed": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 
 

@@ -75,6 +75,13 @@ var held: int:
 	get:
 		return places[selected]
 var sprint_available := true
+## Its first belt item (the lowest non-selected place that holds one), or -1.
+var belted: int:
+	get:
+		for at in places.size():
+			if at != selected and places[at] >= 0:
+				return places[at]
+		return -1
 var phase: StringName
 var match_id := 0
 ## A LoadMatch arrived that no LoadAck step answers: the default is to acknowledge at once.
