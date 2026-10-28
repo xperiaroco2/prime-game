@@ -18,6 +18,12 @@ var _player: PlayerController
 var _keys: ItemInteractions
 var _harness: Harness
 var _model: ClientModel
+var _clock := Clock.new()
+
+
+## A millisecond clock the test steps.
+class Clock:
+	var value := 100000
 
 
 func before_test() -> void:
@@ -31,6 +37,7 @@ func before_test() -> void:
 	_keys.reads_device_input = false
 	_keys.setup(_harness.session, load(MODE) as GameMode)
 	_keys.player = _player
+	_keys.now_msec = func() -> int: return _clock.value
 	_world.add_child(_keys)
 
 
@@ -223,8 +230,8 @@ func test_the_place_keys_and_the_wheel_send_draw_but_never_for_the_place_in_the_
 	assert_int(_keys.draw(3)).is_equal(-1)
 	assert_int(_keys.draw(-1)).is_equal(-1)
 	assert_int(_keys.draw(2)).is_greater(0)
-	assert_int(_keys.step_place(1)).is_greater(0)
-	assert_int(_keys.step_place(-1)).is_greater(0)
+	# The hand is drawing place 2 until the host answers: the key for it sends nothing again.
+	assert_int(_keys.draw(2)).is_equal(-1)
 	assert_int(_model.selected_place(own)).is_equal(0)
 	_model.fold(&"Swapped", {"peer": own, "place": 2})
 	assert_int(_keys.draw(2)).is_equal(-1)
@@ -233,7 +240,89 @@ func test_the_place_keys_and_the_wheel_send_draw_but_never_for_the_place_in_the_
 	var places: Array = _harness.sent_named(Intents.DRAW).map(
 		func(sent: WireMessage) -> int: return sent.fields["place"] as int
 	)
-	assert_array(places).is_equal([2, 1, 2, 0])
+	assert_array(places).is_equal([2, 0])
+
+
+## A burst of wheel notches within one round trip steps on from the Draw still in flight, instead
+## of sending the same place again (the host refuses it: `same_place`); stepping back to the
+## selected place while another is in flight sends that place; the answer or PENDING_MSEC ends
+## the wait (#1218 review).
+func test_wheel_steps_count_on_from_the_draw_in_flight() -> void:
+	var own := _model.own_peer
+	assert_int(_keys.step_place(1)).is_greater(0)
+	assert_int(_keys.step_place(1)).is_greater(0)
+	assert_int(_keys.step_place(1)).is_greater(0)
+	assert_int(_keys.step_place(-1)).is_greater(0)
+	assert_int(_keys.step_place(-1)).is_greater(0)
+	_harness.pump()
+	assert_array(_sent_places()).is_equal([1, 2, 0, 2, 1])
+	# The host answers the last: the selection counts on from there, not from the sent ones.
+	_model.fold(&"Swapped", {"peer": own, "place": 1})
+	assert_int(_keys.step_place(1)).is_greater(0)
+	# No answer for a while: the wait is over, the wheel counts from the selection.
+	_clock.value += ItemInteractions.PENDING_MSEC
+	assert_int(_keys.step_place(1)).is_greater(0)
+	_harness.pump()
+	assert_array(_sent_places()).is_equal([1, 2, 0, 2, 1, 2, 2])
+
+
+## The wheel is read as a mouse button event, only while the keys listen, the mouse is captured
+## and no viewfinder is open; down draws the next place, up the one before (a placeholder
+## direction), and the notches of one flick sent within WHEEL_GAP_MSEC count once.
+func test_the_wheel_sends_draw_only_while_it_acts() -> void:
+	_keys.reads_device_input = true
+	_keys.mouse_captured = func() -> bool: return false
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	_keys.mouse_captured = func() -> bool: return true
+	_keys.listening = false
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	_keys.listening = true
+	_keys.reads_device_input = false
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	_keys.reads_device_input = true
+	_harness.pump()
+	assert_array(_sent_places()).is_empty()
+	_wheel(MOUSE_BUTTON_WHEEL_DOWN)
+	_clock.value += ItemInteractions.WHEEL_GAP_MSEC
+	_wheel(MOUSE_BUTTON_WHEEL_UP)
+	# Inside the gap of the last notch: dropped.
+	_wheel(MOUSE_BUTTON_WHEEL_UP)
+	_harness.pump()
+	# Down from 0 draws 1; up from the 1 in flight draws 0.
+	assert_array(_sent_places()).is_equal([1, 0])
+
+
+## 1, 2, 3 are the place actions, read in _process.
+func test_the_place_keys_send_their_own_place() -> void:
+	_keys.reads_device_input = true
+	for key: Key in [KEY_3, KEY_2]:
+		var press := InputEventKey.new()
+		press.physical_keycode = key
+		press.keycode = key
+		press.pressed = true
+		Input.parse_input_event(press)
+		Input.flush_buffered_events()
+		await get_tree().process_frame
+		press.pressed = false
+		Input.parse_input_event(press)
+		Input.flush_buffered_events()
+		await get_tree().process_frame
+	_harness.pump()
+	assert_array(_sent_places()).is_equal([2, 1])
+
+
+func _sent_places() -> Array:
+	return _harness.sent_named(Intents.DRAW).map(
+		func(sent: WireMessage) -> int: return sent.fields["place"] as int
+	)
+
+
+func _wheel(button: MouseButton) -> void:
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = button
+	wheel.pressed = true
+	Input.parse_input_event(wheel)
+	Input.flush_buffered_events()
 
 
 func test_the_downed_get_no_target_and_send_no_item_key() -> void:

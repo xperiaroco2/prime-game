@@ -35,6 +35,11 @@ const PHYSICS_PRIORITY := 6
 const HOLD_SECONDS := 0.4
 ## The keys 1, 2 and 3 (GDD §6 "Drawing from the belt"): the action of each place, 0..2.
 const PLACE_ACTIONS: Array[StringName] = [&"place_1", &"place_2", &"place_3"]
+## How long a Draw sent stays "not yet answered" for the wheel (the host's Swapped ends it sooner),
+## and the least gap between two wheel Draws: a smooth-scrolling pad sends dozens of notches per
+## flick, and the host's intent budget (PeerBudget) is for honest actions (a placeholder).
+const PENDING_MSEC := 400
+const WHEEL_GAP_MSEC := 60
 
 var model: ClientModel
 var session: ClientSession
@@ -53,6 +58,8 @@ var predicting := Callable()
 ## that never touches Input (a playcheck window's, #1114) still lets the left button act; tests
 ## replace it too, as headless Godot keeps no mouse mode (CAPTURED reads back as VISIBLE).
 var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+## The clock in milliseconds (Time's unless replaced; tests step it).
+var now_msec := func() -> int: return Time.get_ticks_msec()
 
 ## Which station a collider of the level belongs to (StationViews.station_of_body, given by
 ## ItemWorld), -1 for none; unset: only the use spot names a station.
@@ -89,6 +96,13 @@ var _held_camera := -1
 var _hold_station := -1
 ## The own photo held up close (#787), -1 for none.
 var _close_item := -1
+## The last Draw sent, the selected place it was sent from and when (-1 for none): the wheel
+## counts on from it while it waits for the host's Swapped, so a burst of notches within one round
+## trip steps on instead of sending the same place again, which the host refuses (`same_place`).
+var _pending_place := -1
+var _pending_from := -1
+var _pending_at := 0
+var _wheel_at := -WHEEL_GAP_MSEC
 
 
 func _init() -> void:
@@ -304,20 +318,37 @@ func swap() -> int:
 
 
 ## 1, 2, 3: Draw(place), the place 0..2 into the hand (GDD §6 "Drawing from the belt"); not the
-## selected one, which the host would refuse (`same_place`).
+## place the hand holds or is drawing, which the host would refuse (`same_place`).
 func draw(place: int) -> int:
 	if not _acts() or place < 0 or place >= ClientModel.PLACES:
 		return -1
-	if place == model.selected_place(model.own_peer):
+	if place == _place_ahead():
 		return -1
-	return session.send_intent(Intents.DRAW, {"place": place})
+	var from := model.selected_place(model.own_peer)
+	var seq := session.send_intent(Intents.DRAW, {"place": place})
+	if seq > 0:
+		_pending_place = place
+		_pending_from = from
+		_pending_at = now_msec.call() as int
+	return seq
 
 
-## The mouse wheel: Draw of the next place (`step` 1) or the one before (-1), round the three.
+## The mouse wheel: Draw of the next place (`step` 1) or the one before (-1), round the three,
+## counted from the Draw still waiting for its answer, if any.
 func step_place(step: int) -> int:
 	if not _acts():
 		return -1
-	return draw(posmod(model.selected_place(model.own_peer) + step, ClientModel.PLACES))
+	return draw(posmod(_place_ahead() + step, ClientModel.PLACES))
+
+
+## The place the hand holds once the Draw in flight is answered: the selected place, or the place
+## of the last Draw sent while the selection has not moved yet and PENDING_MSEC is not over.
+func _place_ahead() -> int:
+	var selected := model.selected_place(model.own_peer)
+	if _pending_place >= 0 and _pending_from == selected:
+		if (now_msec.call() as int) - _pending_at < PENDING_MSEC:
+			return _pending_place
+	return selected
 
 
 ## G: Throw(facing) of the own hand item, when the client's own copy of the mode has a Throw rule
@@ -463,6 +494,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if viewing() or not mouse_captured.call():
 		return
+	var now: int = now_msec.call()
+	if now - _wheel_at < WHEEL_GAP_MSEC:
+		return
+	if wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN or wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_wheel_at = now
 	if wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 		step_place(1)
 	elif wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
