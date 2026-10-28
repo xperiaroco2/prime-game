@@ -194,6 +194,7 @@ class Session:
     launches: list[Launch] = field(default_factory=list)
     skipped: Counter = field(default_factory=Counter)
     track: str | None = None
+    cwd: str | None = None  # the newest record's working directory (what the Desktop app's list_sessions shows)
 
 
 @dataclass
@@ -451,6 +452,8 @@ def read_session(path: Path, sid: str) -> Session:
             kind = d.get("type")
             if kind == "custom-title" and d.get("customTitle"):
                 s.title = str(d["customTitle"])
+            if d.get("cwd"):
+                s.cwd = str(d["cwd"])
             t = metrics.stamp(d.get("timestamp"))
             if t is None:
                 continue

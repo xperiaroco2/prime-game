@@ -765,7 +765,8 @@ def build_parser() -> argparse.ArgumentParser:
         "'handover due: <why>' or 'handover not due', after an Instructions line when there is one: merged instruction changes and their diff, the "
         "main checkout behind origin/main, or a failed read, #930); --args N prints issue N's latest launch args as JSON; "
         "--stalled flags the other sessions on this machine with a run finished or a notification queued over "
-        "--minutes ago and no turn after it (#731; exit 3 when one is flagged).",
+        "--minutes ago and no turn after it (#731; exit 3 when one is flagged); --in-flight lists the other sessions "
+        "on this machine with a workflow run of their own still in flight (#1355; exit 0 either way).",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
@@ -775,6 +776,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="flag the other sessions that took no turn since a run of theirs finished or a notification queued "
         "(a pending permission card holds every notification, #731); read-only, exit 3 when one is flagged",
+    )
+    what.add_argument(
+        "--in-flight",
+        action="store_true",
+        help="list the other sessions with a workflow run of their own still running, across the four checkouts, "
+        "with their title, cwd and transcript id (#1355); read-only, exit 0 either way",
     )
     p.add_argument("--minutes", type=float, metavar="M", help="--stalled: how old, in minutes (default 30)")
     p.add_argument("--session", help="the manager session's id or its prefix (default: this Claude Code session)")
@@ -1099,6 +1106,17 @@ def main(argv: list[str] | None = None) -> int:
                     return wave_stall.main(
                         minutes=wave_stall.STALL_MINUTES if args.minutes is None else args.minutes
                     )
+            if args.in_flight:
+                from . import wave_flight
+
+                given = [flag for flag, value in (("--session", args.session), ("--workflow", args.workflow),
+                         ("--out", args.out), ("--base", args.base), ("--plan", args.plan), ("--title", args.title),
+                         ("--notes", args.notes), ("--stage-since", args.stage_since), ("--minutes", args.minutes))
+                         if value is not None]  # fmt: skip
+                if given or not args.merge_check:
+                    raise Failure(f"wave: {', '.join(given) or '--no-merge-check'} does not go with --in-flight")
+                with transcript_cache.enabled(transcript_cache.shared_store()):
+                    return wave_flight.main()
             if args.minutes is not None:
                 raise Failure("wave: --minutes goes with --stalled")
             with transcript_cache.enabled(transcript_cache.shared_store()):

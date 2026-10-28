@@ -172,11 +172,12 @@ class TranscriptCacheTest(unittest.TestCase):
         self.assertIsNone(transcript_cache.folder())
 
     def test_the_cli_caches_only_while_wave_runs(self) -> None:
-        from runner import wave, wave_stall
+        from runner import wave, wave_flight, wave_stall
 
         runs = (
             (wave, ["wave", "--since", "2026-10-01T00:00:00Z", "--no-merge-check"]),
             (wave_stall, ["wave", "--stalled"]),
+            (wave_flight, ["wave", "--in-flight"]),
         )
         for module, argv in runs:
             seen = []
