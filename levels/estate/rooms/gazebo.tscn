@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bon38r0rp4b5a"]
+[gd_scene format=3 uid="uid://b7q8qnxmcywdj"]
 
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_13u6s"]
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="2_47cha"]
@@ -25,63 +25,63 @@ size = Vector3(7.4, 0.2, 7.4)
 material = ExtResource("3_fso34")
 size = Vector3(7.4, 0.2, 7.4)
 
-[node name="Gazebo" type="Node3D" unique_id=1090256534]
+[node name="Gazebo" type="Node3D" unique_id=1129364776]
 
-[node name="Floor01" type="StaticBody3D" parent="." unique_id=1791790661]
+[node name="Floor01" type="StaticBody3D" parent="." unique_id=250130949]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Floor01" unique_id=190793015]
+[node name="Shape" type="CollisionShape3D" parent="Floor01" unique_id=60299697]
 shape = SubResource("BoxShape3D_cs3c7")
 
-[node name="Mesh" type="MeshInstance3D" parent="Floor01" unique_id=895809655]
+[node name="Mesh" type="MeshInstance3D" parent="Floor01" unique_id=1586529129]
 mesh = SubResource("BoxMesh_y2a8v")
 
-[node name="Post01" type="StaticBody3D" parent="." unique_id=1118041995]
+[node name="Post01" type="StaticBody3D" parent="." unique_id=361496481]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 1.4, -3.2)
 
-[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=189772224]
+[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1321918569]
 shape = SubResource("BoxShape3D_wfc33")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=207942685]
+[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=1971362013]
 mesh = SubResource("BoxMesh_qtkwl")
 
-[node name="Post02" type="StaticBody3D" parent="." unique_id=357209767]
+[node name="Post02" type="StaticBody3D" parent="." unique_id=1424593364]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 1.4, 3.2)
 
-[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=1562595355]
+[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=632408113]
 shape = SubResource("BoxShape3D_wfc33")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=1454867936]
+[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=946631814]
 mesh = SubResource("BoxMesh_qtkwl")
 
-[node name="Post03" type="StaticBody3D" parent="." unique_id=440395751]
+[node name="Post03" type="StaticBody3D" parent="." unique_id=2080210661]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 1.4, -3.2)
 
-[node name="Shape" type="CollisionShape3D" parent="Post03" unique_id=1656955401]
+[node name="Shape" type="CollisionShape3D" parent="Post03" unique_id=677688924]
 shape = SubResource("BoxShape3D_wfc33")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post03" unique_id=788850018]
+[node name="Mesh" type="MeshInstance3D" parent="Post03" unique_id=1903270657]
 mesh = SubResource("BoxMesh_qtkwl")
 
-[node name="Post04" type="StaticBody3D" parent="." unique_id=953749602]
+[node name="Post04" type="StaticBody3D" parent="." unique_id=1679293951]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 1.4, 3.2)
 
-[node name="Shape" type="CollisionShape3D" parent="Post04" unique_id=604095872]
+[node name="Shape" type="CollisionShape3D" parent="Post04" unique_id=834445967]
 shape = SubResource("BoxShape3D_wfc33")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post04" unique_id=1779763793]
+[node name="Mesh" type="MeshInstance3D" parent="Post04" unique_id=41692173]
 mesh = SubResource("BoxMesh_qtkwl")
 
-[node name="Roof01" type="StaticBody3D" parent="." unique_id=1059797742]
+[node name="Roof01" type="StaticBody3D" parent="." unique_id=13302565]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.75, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=1749784256]
+[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=11073829]
 shape = SubResource("BoxShape3D_7mhyl")
 
-[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=2022887191]
+[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=38490852]
 mesh = SubResource("BoxMesh_qjech")
 
-[node name="Name" type="Label3D" parent="." unique_id=407676676]
+[node name="Name" type="Label3D" parent="." unique_id=1152520993]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 billboard = 1
 text = "Gazebo"

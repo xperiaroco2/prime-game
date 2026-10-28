@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cxn6c22npjp75"]
+[gd_scene format=3 uid="uid://dyw4n64wih3gp"]
 
 [ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="1_tanij"]
 [ext_resource type="Material" uid="uid://ed3wjf1x0byn" path="res://levels/kit/greybox_station_clear.tres" id="2_7ervc"]
@@ -127,184 +127,184 @@ size = Vector3(6, 0.2, 2)
 material = ExtResource("3_qhqmo")
 size = Vector3(6, 0.2, 2)
 
-[node name="Creek" type="Node3D" unique_id=351549183]
+[node name="Creek" type="Node3D" unique_id=1707464084]
 
-[node name="Water01" type="MeshInstance3D" parent="." unique_id=1900905618]
+[node name="Water01" type="MeshInstance3D" parent="." unique_id=1597967585]
 transform = Transform3D(0.99778515, 0, -0.066518955, 0, 1, 0, 0.066518955, 0, 0.99778515, 11.99834, 0.015, 48.79989)
 mesh = SubResource("BoxMesh_u1k74")
 
-[node name="Bank01" type="StaticBody3D" parent="." unique_id=1142282040]
+[node name="Bank01" type="StaticBody3D" parent="." unique_id=1761652215]
 transform = Transform3D(0.99778515, 0, -0.066518955, 0, 1, 0, 0.066518955, 0, 0.99778515, 11.99834, 0.9, 48.79989)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank01" unique_id=320476397]
+[node name="Shape" type="CollisionShape3D" parent="Bank01" unique_id=798869231]
 shape = SubResource("BoxShape3D_jnbsc")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank01" unique_id=1385845728]
+[node name="Mesh" type="MeshInstance3D" parent="Bank01" unique_id=1519934260]
 mesh = SubResource("BoxMesh_13nti")
 
-[node name="Water02" type="MeshInstance3D" parent="." unique_id=1322738636]
+[node name="Water02" type="MeshInstance3D" parent="." unique_id=349765408]
 transform = Transform3D(0.9061831, 0, -0.4228855, 0, 1, 0, 0.4228855, 0, 0.9061831, 33.75, 0.015, 54.75)
 mesh = SubResource("BoxMesh_qhyhe")
 
-[node name="Bank02" type="StaticBody3D" parent="." unique_id=243702473]
+[node name="Bank02" type="StaticBody3D" parent="." unique_id=557350003]
 transform = Transform3D(0.9061831, 0, -0.42288545, 0, 1, 0, 0.42288545, 0, 0.9061831, 24.660797, 0.9, 50.508373)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank02" unique_id=1129160230]
+[node name="Shape" type="CollisionShape3D" parent="Bank02" unique_id=1806616209]
 shape = SubResource("BoxShape3D_8w38b")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank02" unique_id=1455172418]
+[node name="Mesh" type="MeshInstance3D" parent="Bank02" unique_id=1865055407]
 mesh = SubResource("BoxMesh_qkhob")
 
-[node name="Bank03" type="StaticBody3D" parent="." unique_id=1621512638]
+[node name="Bank03" type="StaticBody3D" parent="." unique_id=1309252549]
 transform = Transform3D(0.9061831, 0, -0.42288548, 0, 1, 0, 0.42288548, 0, 0.9061831, 38.62935, 0.9, 57.02703)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank03" unique_id=475314481]
+[node name="Shape" type="CollisionShape3D" parent="Bank03" unique_id=1153554315]
 shape = SubResource("BoxShape3D_dk5cn")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank03" unique_id=835090162]
+[node name="Mesh" type="MeshInstance3D" parent="Bank03" unique_id=802289424]
 mesh = SubResource("BoxMesh_i41e4")
 
-[node name="Water03" type="MeshInstance3D" parent="." unique_id=948035242]
+[node name="Water03" type="MeshInstance3D" parent="." unique_id=875315135]
 transform = Transform3D(0.9912279, 0, -0.13216375, 0, 1, 0, 0.13216375, 0, 0.9912279, 56.25, 0.015, 61.5)
 mesh = SubResource("BoxMesh_ygmap")
 
-[node name="Bank04" type="StaticBody3D" parent="." unique_id=1303772987]
+[node name="Bank04" type="StaticBody3D" parent="." unique_id=1675972552]
 transform = Transform3D(0.99122787, 0, -0.1321638, 0, 1, 0, 0.1321638, 0, 0.99122787, 49.55901, 0.9, 60.60787)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank04" unique_id=2078008963]
+[node name="Shape" type="CollisionShape3D" parent="Bank04" unique_id=140281311]
 shape = SubResource("BoxShape3D_6ljft")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank04" unique_id=1718606626]
+[node name="Mesh" type="MeshInstance3D" parent="Bank04" unique_id=1391014941]
 mesh = SubResource("BoxMesh_vwxnb")
 
-[node name="Bank05" type="StaticBody3D" parent="." unique_id=99272219]
+[node name="Bank05" type="StaticBody3D" parent="." unique_id=1919717103]
 transform = Transform3D(0.9912279, 0, -0.13216361, 0, 1, 0, 0.13216361, 0, 0.9912279, 63.782692, 0.9, 62.50436)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank05" unique_id=1515969391]
+[node name="Shape" type="CollisionShape3D" parent="Bank05" unique_id=615668663]
 shape = SubResource("BoxShape3D_6lvn8")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank05" unique_id=846379348]
+[node name="Mesh" type="MeshInstance3D" parent="Bank05" unique_id=565824431]
 mesh = SubResource("BoxMesh_qlg8l")
 
-[node name="Water04" type="MeshInstance3D" parent="." unique_id=740670808]
+[node name="Water04" type="MeshInstance3D" parent="." unique_id=577963177]
 transform = Transform3D(0.9486833, 0, 0.31622776, 0, 1, 0, -0.31622776, 0, 0.9486833, 78.75, 0.015, 59.25)
 mesh = SubResource("BoxMesh_7efh1")
 
-[node name="Bank06" type="StaticBody3D" parent="." unique_id=1123379712]
+[node name="Bank06" type="StaticBody3D" parent="." unique_id=2104509215]
 transform = Transform3D(0.9486833, 0, 0.31622776, 0, 1, 0, -0.31622776, 0, 0.9486833, 78.75, 0.9, 59.25)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank06" unique_id=1095455185]
+[node name="Shape" type="CollisionShape3D" parent="Bank06" unique_id=1755566789]
 shape = SubResource("BoxShape3D_k5n63")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank06" unique_id=897681212]
+[node name="Mesh" type="MeshInstance3D" parent="Bank06" unique_id=764008417]
 mesh = SubResource("BoxMesh_utwgu")
 
-[node name="Water05" type="MeshInstance3D" parent="." unique_id=2009467498]
+[node name="Water05" type="MeshInstance3D" parent="." unique_id=300917819]
 transform = Transform3D(0.99778515, 0, 0.066518895, 0, 1, 0, -0.066518895, 0, 0.99778515, 101.25, 0.015, 54.75)
 mesh = SubResource("BoxMesh_f0hiv")
 
-[node name="Bank07" type="StaticBody3D" parent="." unique_id=471017619]
+[node name="Bank07" type="StaticBody3D" parent="." unique_id=1602219029]
 transform = Transform3D(0.99778515, 0, 0.06651884, 0, 1, 0, -0.06651884, 0, 0.99778515, 90.766594, 0.9, 55.44889)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank07" unique_id=39613265]
+[node name="Shape" type="CollisionShape3D" parent="Bank07" unique_id=1619923902]
 shape = SubResource("BoxShape3D_nb0es")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank07" unique_id=2083554320]
+[node name="Mesh" type="MeshInstance3D" parent="Bank07" unique_id=810512194]
 mesh = SubResource("BoxMesh_mr6t4")
 
-[node name="Bank08" type="StaticBody3D" parent="." unique_id=1328564751]
+[node name="Bank08" type="StaticBody3D" parent="." unique_id=352297126]
 transform = Transform3D(0.99778515, 0, 0.06651881, 0, 1, 0, -0.06651881, 0, 0.99778515, 105.00995, 0.9, 54.499336)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank08" unique_id=124240709]
+[node name="Shape" type="CollisionShape3D" parent="Bank08" unique_id=1353356701]
 shape = SubResource("BoxShape3D_4fag0")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank08" unique_id=1176953794]
+[node name="Mesh" type="MeshInstance3D" parent="Bank08" unique_id=9095499]
 mesh = SubResource("BoxMesh_f78l5")
 
-[node name="Water06" type="MeshInstance3D" parent="." unique_id=1219155943]
+[node name="Water06" type="MeshInstance3D" parent="." unique_id=1337107867]
 transform = Transform3D(0.9912279, 0, -0.13216375, 0, 1, 0, 0.13216375, 0, 0.9912279, 123.00658, 0.015, 55.40088)
 mesh = SubResource("BoxMesh_2cu68")
 
-[node name="Bank09" type="StaticBody3D" parent="." unique_id=982070404]
+[node name="Bank09" type="StaticBody3D" parent="." unique_id=111697078]
 transform = Transform3D(0.99122787, 0, -0.13216381, 0, 1, 0, 0.13216381, 0, 0.99122787, 113.77408, 0.9, 54.169876)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank09" unique_id=398320148]
+[node name="Shape" type="CollisionShape3D" parent="Bank09" unique_id=1051580920]
 shape = SubResource("BoxShape3D_lqngt")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank09" unique_id=339305556]
+[node name="Mesh" type="MeshInstance3D" parent="Bank09" unique_id=987453493]
 mesh = SubResource("BoxMesh_oidhx")
 
-[node name="Bank10" type="StaticBody3D" parent="." unique_id=1777642073]
+[node name="Bank10" type="StaticBody3D" parent="." unique_id=376909709]
 transform = Transform3D(0.9912279, 0, -0.1321637, 0, 1, 0, 0.1321637, 0, 0.9912279, 127.25433, 0.9, 55.967247)
 
-[node name="Shape" type="CollisionShape3D" parent="Bank10" unique_id=202126614]
+[node name="Shape" type="CollisionShape3D" parent="Bank10" unique_id=1477635365]
 shape = SubResource("BoxShape3D_3xexc")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bank10" unique_id=385323168]
+[node name="Mesh" type="MeshInstance3D" parent="Bank10" unique_id=168890550]
 mesh = SubResource("BoxMesh_80x8v")
 
-[node name="LogBridge" type="Node3D" parent="." unique_id=672568623]
+[node name="LogBridge" type="Node3D" parent="." unique_id=512949107]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 51.8)
 
-[node name="Log01" type="StaticBody3D" parent="LogBridge" unique_id=1767044542]
+[node name="Log01" type="StaticBody3D" parent="LogBridge" unique_id=1003185324]
 transform = Transform3D(-0.4228856, 0, -0.90618306, 0, 1, 0, 0.90618306, 0, -0.4228856, 0, 0.125, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="LogBridge/Log01" unique_id=1500403059]
+[node name="Shape" type="CollisionShape3D" parent="LogBridge/Log01" unique_id=816224141]
 shape = SubResource("BoxShape3D_6hnfi")
 
-[node name="Mesh" type="MeshInstance3D" parent="LogBridge/Log01" unique_id=873024113]
+[node name="Mesh" type="MeshInstance3D" parent="LogBridge/Log01" unique_id=811007059]
 mesh = SubResource("BoxMesh_yfoj7")
 
-[node name="SteppingStones" type="Node3D" parent="." unique_id=374891466]
+[node name="SteppingStones" type="Node3D" parent="." unique_id=928945798]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57, 0, 62.3)
 
-[node name="Stone01" type="StaticBody3D" parent="SteppingStones" unique_id=1208059956]
+[node name="Stone01" type="StaticBody3D" parent="SteppingStones" unique_id=273789747]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15859647, 0.125, -1.1894735)
 
-[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone01" unique_id=1203222711]
+[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone01" unique_id=1864157845]
 shape = SubResource("BoxShape3D_k58dr")
 
-[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone01" unique_id=383971381]
+[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone01" unique_id=435252865]
 mesh = SubResource("BoxMesh_kmtfo")
 
-[node name="Stone02" type="StaticBody3D" parent="SteppingStones" unique_id=1609436121]
+[node name="Stone02" type="StaticBody3D" parent="SteppingStones" unique_id=1583930967]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone02" unique_id=800952619]
+[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone02" unique_id=424913812]
 shape = SubResource("BoxShape3D_k58dr")
 
-[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone02" unique_id=1735962977]
+[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone02" unique_id=569079962]
 mesh = SubResource("BoxMesh_kmtfo")
 
-[node name="Stone03" type="StaticBody3D" parent="SteppingStones" unique_id=1528630302]
+[node name="Stone03" type="StaticBody3D" parent="SteppingStones" unique_id=1389107250]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15859647, 0.125, 1.1894735)
 
-[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone03" unique_id=441250801]
+[node name="Shape" type="CollisionShape3D" parent="SteppingStones/Stone03" unique_id=142872504]
 shape = SubResource("BoxShape3D_k58dr")
 
-[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone03" unique_id=413807780]
+[node name="Mesh" type="MeshInstance3D" parent="SteppingStones/Stone03" unique_id=1699109968]
 mesh = SubResource("BoxMesh_kmtfo")
 
-[node name="DrainagePipe" type="Node3D" parent="." unique_id=1920672645]
+[node name="DrainagePipe" type="Node3D" parent="." unique_id=928075424]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 94.5, 0, 54.8)
 
-[node name="Pipe01" type="StaticBody3D" parent="DrainagePipe" unique_id=1317349597]
+[node name="Pipe01" type="StaticBody3D" parent="DrainagePipe" unique_id=569233348]
 transform = Transform3D(0.06651906, 0, -0.99778515, 0, 1, 0, 0.99778515, 0, 0.06651906, 0, 0.125, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="DrainagePipe/Pipe01" unique_id=1260435318]
+[node name="Shape" type="CollisionShape3D" parent="DrainagePipe/Pipe01" unique_id=460993221]
 shape = SubResource("BoxShape3D_mu0hw")
 
-[node name="Mesh" type="MeshInstance3D" parent="DrainagePipe/Pipe01" unique_id=2004483127]
+[node name="Mesh" type="MeshInstance3D" parent="DrainagePipe/Pipe01" unique_id=1531566676]
 mesh = SubResource("BoxMesh_pie6f")
 
-[node name="PlankFootbridge" type="Node3D" parent="." unique_id=805325799]
+[node name="PlankFootbridge" type="Node3D" parent="." unique_id=1163686524]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118, 0, 54.9)
 
-[node name="Planks01" type="StaticBody3D" parent="PlankFootbridge" unique_id=2002314528]
+[node name="Planks01" type="StaticBody3D" parent="PlankFootbridge" unique_id=1383293000]
 transform = Transform3D(-0.13216378, 0, -0.99122787, 0, 1, 0, 0.99122787, 0, -0.13216378, 0, 0.1, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="PlankFootbridge/Planks01" unique_id=152664212]
+[node name="Shape" type="CollisionShape3D" parent="PlankFootbridge/Planks01" unique_id=1078659537]
 shape = SubResource("BoxShape3D_gyd67")
 
-[node name="Mesh" type="MeshInstance3D" parent="PlankFootbridge/Planks01" unique_id=484735030]
+[node name="Mesh" type="MeshInstance3D" parent="PlankFootbridge/Planks01" unique_id=1357674932]
 mesh = SubResource("BoxMesh_bfnmq")

@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The forest estate's box greybox (#1158) can be walked (docs/design/estate-map.md §3-§5d):
 ## both loops and the spokes of §4 through the buildings' doors, the house's links between its
-## four levels (§5, §5c), the ship's ramp into its hall and wings (§5a), and the creek crossed only
-## at its crossings. Each walk: from point to point every rise is a step the player can take
+## four levels (§5, §5c) with the library's bookcase stair and the chimney's drop from the roof,
+## the ship's ramp into its hall and wings (§5a), and the creek crossed only at its crossings (the
+## east road included). Each walk: from point to point every rise is a step the player can take
 ## (rules.step_height_m, 0.3 m) and the player's capsule fits, in the host's collision world of
 ## the level (LevelWorld), as house_stairs_test walks the House.
 
@@ -15,6 +16,11 @@ const SPACING := 0.1
 const BONFIRE := Vector2(65.3, 41)
 ## §2: the east road's far edge (the road runs x 135..141).
 const ROAD_EAST_EDGE := 141.0
+## The roof terrace's floor, the chimney shaft's centre and a point on its lip (§5c: the house at
+## (68.4, 11), the stack on the roof's west side).
+const ROOF := 6.4
+const CHIMNEY := Vector2(63.3, 8)
+const CHIMNEY_LIP := Vector2(64.1, 8)
 ## Walks in map metres (x, level height, z) through their corners; they end at the last corner's
 ## height. A bonfire end starts 3.6 m out from its centre, past the fire pit.
 const WALKS := {
@@ -114,6 +120,16 @@ const WALKS := {
 		Vector3(67.4, 0, 9.5),
 		Vector3(67.4, -3.2, 16),
 	],
+	"house, the library's bookcase stair to the cellar":
+	[
+		Vector3(69.4, 3.2, 7),
+		Vector3(69.4, 3.2, 5.3),
+		Vector3(68.6, 3.2, 5.3),
+		Vector3(59.6, 0, 5.3),
+		Vector3(59.1, 0, 5.3),
+		Vector3(59.1, 0, 9.5),
+		Vector3(62.4, -3.2, 9.5),
+	],
 	"house, hall to the security room and the laboratory":
 	[
 		Vector3(67.4, -3.2, 9.5),
@@ -181,6 +197,25 @@ func test_each_crossing_carries_a_walk_over_the_creek() -> void:
 		if plan[2] is not Vector2:
 			corners[-1] = _from_bonfire(corners[-2] as Vector3)
 		_walk(walk, corners, 0.0)
+
+
+func test_the_chimney_drops_from_the_roof_to_the_fireplace() -> void:
+	# §5, §5c: the roof terrace's second way down, at once and down only: over a lip a jump
+	# clears, straight down the shaft to the living room's floor, out by the fireplace's mouth.
+	var lip := _top_at(CHIMNEY_LIP.x, CHIMNEY_LIP.y)
+	assert_float(lip).is_greater(ROOF)
+	assert_float(lip).is_less_equal(ROOF + JUMP + STEP)
+	(
+		assert_float(_top_at(CHIMNEY.x, CHIMNEY.y))
+		. override_failure_message("something stops the drop down the chimney")
+		. is_equal_approx(0.0, 0.01)
+	)
+	var out := [
+		Vector3(CHIMNEY.x, 0, CHIMNEY.y),
+		Vector3(65.5, 0, CHIMNEY.y),
+		Vector3(65.5, 0, 14),
+	]
+	_walk("chimney, the fireplace to the living room", out, 0.0)
 
 
 func test_the_creek_cannot_be_crossed_but_at_its_crossings() -> void:

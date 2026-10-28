@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dkqeis8pknp7s"]
+[gd_scene format=3 uid="uid://ggqpn5bxjx6u"]
 
 [ext_resource type="Material" uid="uid://bal42cbq2wxl5" path="res://levels/kit/greybox_floor_path.tres" id="1_suklq"]
 [ext_resource type="Material" uid="uid://brqhmd3yt3u4r" path="res://levels/kit/greybox_floor_street.tres" id="2_vx4rs"]
@@ -115,132 +115,132 @@ size = Vector3(5.5, 0.02, 2.5)
 material = ExtResource("2_vx4rs")
 size = Vector3(37.1, 0.02, 2.5)
 
-[node name="Paths" type="Node3D" unique_id=976409140]
+[node name="Paths" type="Node3D" unique_id=665664068]
 
-[node name="UpperLoop01" type="MeshInstance3D" parent="." unique_id=505235077]
+[node name="UpperLoop01" type="MeshInstance3D" parent="." unique_id=1931410780]
 transform = Transform3D(-0.74246097, 0, 0.66988933, 0, 1, 0, -0.66988933, 0, -0.74246097, 58.65, 0.01, 35)
 mesh = SubResource("BoxMesh_xbf1v")
 
-[node name="UpperLoop02" type="MeshInstance3D" parent="." unique_id=852843759]
+[node name="UpperLoop02" type="MeshInstance3D" parent="." unique_id=1660539206]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 48, 0.01, 29)
 mesh = SubResource("BoxMesh_6r2af")
 
-[node name="UpperLoop03" type="MeshInstance3D" parent="." unique_id=530682605]
+[node name="UpperLoop03" type="MeshInstance3D" parent="." unique_id=2049637649]
 transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 37, 0.01, 22)
 mesh = SubResource("BoxMesh_tx3tj")
 
-[node name="UpperLoop04" type="MeshInstance3D" parent="." unique_id=123026470]
+[node name="UpperLoop04" type="MeshInstance3D" parent="." unique_id=1668577637]
 transform = Transform3D(0.8574929, 0, 0.5144958, 0, 1, 0, -0.5144958, 0, 0.8574929, 32.5, 0.01, 13.5)
 mesh = SubResource("BoxMesh_nsmys")
 
-[node name="UpperLoop05" type="MeshInstance3D" parent="." unique_id=1631631590]
+[node name="UpperLoop05" type="MeshInstance3D" parent="." unique_id=1212026767]
 transform = Transform3D(0.9993347, 0, 0.036472067, 0, 1, 0, -0.036472067, 0, 0.9993347, 48.7, 0.01, 11.5)
 mesh = SubResource("BoxMesh_2r4v3")
 
-[node name="UpperLoop06" type="MeshInstance3D" parent="." unique_id=1381859939]
+[node name="UpperLoop06" type="MeshInstance3D" parent="." unique_id=696324450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.4, 0.01, 11)
 mesh = SubResource("BoxMesh_nq5q3")
 
-[node name="UpperLoop07" type="MeshInstance3D" parent="." unique_id=769498875]
+[node name="UpperLoop07" type="MeshInstance3D" parent="." unique_id=474846]
 transform = Transform3D(0.9694164, 0, -0.2454219, 0, 1, 0, 0.2454219, 0, 0.9694164, 86.25, 0.01, 14)
 mesh = SubResource("BoxMesh_j0ifi")
 
-[node name="UpperLoop08" type="MeshInstance3D" parent="." unique_id=539455781]
+[node name="UpperLoop08" type="MeshInstance3D" parent="." unique_id=1413753877]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 98.1, 0.01, 16)
 mesh = SubResource("BoxMesh_7k00b")
 
-[node name="UpperLoop09" type="MeshInstance3D" parent="." unique_id=769528154]
+[node name="UpperLoop09" type="MeshInstance3D" parent="." unique_id=2114171018]
 transform = Transform3D(0.9008446, 0, 0.43414178, 0, 1, 0, -0.43414178, 0, 0.9008446, 102.25, 0.01, 13)
 mesh = SubResource("BoxMesh_nilgk")
 
-[node name="UpperLoop10" type="MeshInstance3D" parent="." unique_id=1941108671]
+[node name="UpperLoop10" type="MeshInstance3D" parent="." unique_id=1210953935]
 transform = Transform3D(0.34665012, 0, -0.9379945, 0, 1, 0, 0.9379945, 0, 0.34665012, 110.65, 0.01, 22.5)
 mesh = SubResource("BoxMesh_8qt2i")
 
-[node name="UpperLoop11" type="MeshInstance3D" parent="." unique_id=526402891]
+[node name="UpperLoop11" type="MeshInstance3D" parent="." unique_id=558803196]
 transform = Transform3D(-0.99232537, 0, 0.123654306, 0, 1, 0, -0.123654306, 0, -0.99232537, 98.850006, 0.01, 32)
 mesh = SubResource("BoxMesh_dqy87")
 
-[node name="UpperLoop12" type="MeshInstance3D" parent="." unique_id=1816569328]
+[node name="UpperLoop12" type="MeshInstance3D" parent="." unique_id=1903139362]
 transform = Transform3D(-0.8466366, 0, -0.5321715, 0, 1, 0, 0.5321715, 0, -0.8466366, 74.05, 0.01, 35.5)
 mesh = SubResource("BoxMesh_vamcd")
 
-[node name="LowerLoop01" type="MeshInstance3D" parent="." unique_id=1188534324]
+[node name="LowerLoop01" type="MeshInstance3D" parent="." unique_id=1174232631]
 transform = Transform3D(-0.3960083, 0, -0.9182469, 0, 1, 0, 0.9182469, 0, -0.3960083, 61.348248, 0.01, 50.16316)
 mesh = SubResource("BoxMesh_itv5g")
 
-[node name="LowerLoop02" type="MeshInstance3D" parent="." unique_id=1294950244]
+[node name="LowerLoop02" type="MeshInstance3D" parent="." unique_id=1952731946]
 transform = Transform3D(-0.13216402, 0, -0.99122787, 0, 1, 0, 0.99122787, 0, -0.13216402, 57, 0.01, 62.3)
 mesh = SubResource("BoxMesh_elgff")
 
-[node name="LowerLoop03" type="MeshInstance3D" parent="." unique_id=525758559]
+[node name="LowerLoop03" type="MeshInstance3D" parent="." unique_id=452357530]
 transform = Transform3D(-0.97822577, 0, -0.2075436, 0, 1, 0, 0.2075436, 0, -0.97822577, 40.751755, 0.01, 68.63684)
 mesh = SubResource("BoxMesh_5nwvg")
 
-[node name="LowerLoop04" type="MeshInstance3D" parent="." unique_id=956975417]
+[node name="LowerLoop04" type="MeshInstance3D" parent="." unique_id=1521948872]
 transform = Transform3D(0.99086297, 0, -0.13487245, 0, 1, 0, 0.13487245, 0, 0.99086297, 52.45, 0.01, 75.75)
 mesh = SubResource("BoxMesh_0jyws")
 
-[node name="LowerLoop05" type="MeshInstance3D" parent="." unique_id=1559913451]
+[node name="LowerLoop05" type="MeshInstance3D" parent="." unique_id=1517071236]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 0.01, 79.5)
 mesh = SubResource("BoxMesh_nq5q3")
 
-[node name="LowerLoop06" type="MeshInstance3D" parent="." unique_id=1454829714]
+[node name="LowerLoop06" type="MeshInstance3D" parent="." unique_id=1770869036]
 transform = Transform3D(0.3795564, 0, 0.92516863, 0, 1, 0, -0.92516863, 0, 0.3795564, 96, 0.01, 69.75)
 mesh = SubResource("BoxMesh_xc7s6")
 
-[node name="LowerLoop07" type="MeshInstance3D" parent="." unique_id=622065001]
+[node name="LowerLoop07" type="MeshInstance3D" parent="." unique_id=1014233136]
 transform = Transform3D(0.9992976, 0, 0.037473563, 0, 1, 0, -0.037473563, 0, 0.9992976, 108, 0.01, 59.7)
 mesh = SubResource("BoxMesh_5twhj")
 
-[node name="LowerLoop08" type="MeshInstance3D" parent="." unique_id=1624111318]
+[node name="LowerLoop08" type="MeshInstance3D" parent="." unique_id=1595464932]
 transform = Transform3D(-0.9971674, 0, 0.07521425, 0, 1, 0, -0.07521425, 0, -0.9971674, 105.34978, 0.01, 58.59668)
 mesh = SubResource("BoxMesh_d5bae")
 
-[node name="LowerLoop09" type="MeshInstance3D" parent="." unique_id=1401862191]
+[node name="LowerLoop09" type="MeshInstance3D" parent="." unique_id=1069593209]
 transform = Transform3D(-0.066518195, 0, 0.9977852, 0, 1, 0, -0.9977852, 0, -0.066518195, 94.5, 0.01, 54.8)
 mesh = SubResource("BoxMesh_elgff")
 
-[node name="LowerLoop10" type="MeshInstance3D" parent="." unique_id=1992624090]
+[node name="LowerLoop10" type="MeshInstance3D" parent="." unique_id=1462889346]
 transform = Transform3D(-0.9370551, 0, 0.3491815, 0, 1, 0, -0.3491815, 0, -0.9370551, 79.800224, 0.01, 46.40332)
 mesh = SubResource("BoxMesh_y6g14")
 
-[node name="HouseSpoke01" type="MeshInstance3D" parent="." unique_id=1121064730]
+[node name="HouseSpoke01" type="MeshInstance3D" parent="." unique_id=1340270848]
 transform = Transform3D(-0.1230575, 0, -0.9923995, 0, 1, 0, 0.9923995, 0, -0.1230575, 66.850006, 0.01, 28.5)
 mesh = SubResource("BoxMesh_gme6g")
 
-[node name="WellSpoke01" type="MeshInstance3D" parent="." unique_id=991604116]
+[node name="WellSpoke01" type="MeshInstance3D" parent="." unique_id=1591113311]
 transform = Transform3D(-0.535445, 0, -0.8445701, 0, 1, 0, 0.8445701, 0, -0.535445, 37.634327, 0.01, 39.040726)
 mesh = SubResource("BoxMesh_fftb7")
 
-[node name="WellSpoke02" type="MeshInstance3D" parent="." unique_id=1296598368]
+[node name="WellSpoke02" type="MeshInstance3D" parent="." unique_id=613449227]
 transform = Transform3D(-0.4228856, 0, -0.90618306, 0, 1, 0, 0.90618306, 0, -0.4228856, 30, 0.01, 51.8)
 mesh = SubResource("BoxMesh_elgff")
 
-[node name="WellSpoke03" type="MeshInstance3D" parent="." unique_id=390177120]
+[node name="WellSpoke03" type="MeshInstance3D" parent="." unique_id=145507794]
 transform = Transform3D(-0.2140849, 0, -0.97681504, 0, 1, 0, 0.97681504, 0, -0.2140849, 26.815672, 0.01, 63.259274)
 mesh = SubResource("BoxMesh_16xqs")
 
-[node name="ShipSpoke01" type="MeshInstance3D" parent="." unique_id=1516911210]
+[node name="ShipSpoke01" type="MeshInstance3D" parent="." unique_id=1505452585]
 transform = Transform3D(0.19144033, 0, -0.98150426, 0, 1, 0, 0.98150426, 0, 0.19144033, 116.64825, 0.01, 42.963158)
 mesh = SubResource("BoxMesh_v0tme")
 
-[node name="ShipSpoke02" type="MeshInstance3D" parent="." unique_id=1609419630]
+[node name="ShipSpoke02" type="MeshInstance3D" parent="." unique_id=498951632]
 transform = Transform3D(-0.13216402, 0, -0.99122787, 0, 1, 0, 0.99122787, 0, -0.13216402, 118, 0.01, 54.9)
 mesh = SubResource("BoxMesh_elgff")
 
-[node name="ShipSpoke03" type="MeshInstance3D" parent="." unique_id=1812495747]
+[node name="ShipSpoke03" type="MeshInstance3D" parent="." unique_id=329023626]
 transform = Transform3D(-0.7243257, 0, -0.68945795, 0, 1, 0, 0.68945795, 0, -0.7243257, 116.80176, 0.01, 58.63684)
 mesh = SubResource("BoxMesh_kdxl1")
 
-[node name="GateSpoke01" type="MeshInstance3D" parent="." unique_id=641721308]
+[node name="GateSpoke01" type="MeshInstance3D" parent="." unique_id=1639396626]
 transform = Transform3D(-0.7657049, 0, -0.64319205, 0, 1, 0, 0.64319205, 0, -0.7657049, 73.75, 0.01, 84.75)
 mesh = SubResource("BoxMesh_d3sff")
 
-[node name="GateSpoke02" type="MeshInstance3D" parent="." unique_id=896397954]
+[node name="GateSpoke02" type="MeshInstance3D" parent="." unique_id=798963445]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 67.5, 0.01, 91.5)
 mesh = SubResource("BoxMesh_se2ns")
 
-[node name="Driveway01" type="MeshInstance3D" parent="." unique_id=683619304]
+[node name="Driveway01" type="MeshInstance3D" parent="." unique_id=104952116]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.7, 0.01, 11)
 mesh = SubResource("BoxMesh_lotvv")

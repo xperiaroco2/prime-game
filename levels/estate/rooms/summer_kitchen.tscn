@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://betwi4hg4xjq1"]
+[gd_scene format=3 uid="uid://cqk2x5hf12d8x"]
 
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_ncjmf"]
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="2_gend3"]
@@ -22,59 +22,59 @@ size = Vector3(8, 0.2, 5)
 material = ExtResource("3_t48lv")
 size = Vector3(8, 0.2, 5)
 
-[node name="SummerKitchen" type="Node3D" unique_id=690434971]
+[node name="SummerKitchen" type="Node3D" unique_id=1472559999]
 metadata/size_m = Vector2i(8, 5)
 
-[node name="Floor01" type="MeshInstance3D" parent="." unique_id=263536255]
+[node name="Floor01" type="MeshInstance3D" parent="." unique_id=353253297]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
 mesh = SubResource("BoxMesh_o5cog")
 
-[node name="Post01" type="StaticBody3D" parent="." unique_id=1924616841]
+[node name="Post01" type="StaticBody3D" parent="." unique_id=775326441]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.85, 1.3, -2.35)
 
-[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1256733513]
+[node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1700623748]
 shape = SubResource("BoxShape3D_o2rg5")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=1136555799]
+[node name="Mesh" type="MeshInstance3D" parent="Post01" unique_id=1130235369]
 mesh = SubResource("BoxMesh_3gb1w")
 
-[node name="Post02" type="StaticBody3D" parent="." unique_id=1649537338]
+[node name="Post02" type="StaticBody3D" parent="." unique_id=1749280809]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.85, 1.3, 2.35)
 
-[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=1687483707]
+[node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=1675609178]
 shape = SubResource("BoxShape3D_o2rg5")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=1103084338]
+[node name="Mesh" type="MeshInstance3D" parent="Post02" unique_id=1102417958]
 mesh = SubResource("BoxMesh_3gb1w")
 
-[node name="Post03" type="StaticBody3D" parent="." unique_id=416026577]
+[node name="Post03" type="StaticBody3D" parent="." unique_id=1500525743]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.85, 1.3, -2.35)
 
-[node name="Shape" type="CollisionShape3D" parent="Post03" unique_id=2044553823]
+[node name="Shape" type="CollisionShape3D" parent="Post03" unique_id=1562839937]
 shape = SubResource("BoxShape3D_o2rg5")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post03" unique_id=1772131711]
+[node name="Mesh" type="MeshInstance3D" parent="Post03" unique_id=1752665364]
 mesh = SubResource("BoxMesh_3gb1w")
 
-[node name="Post04" type="StaticBody3D" parent="." unique_id=1315580729]
+[node name="Post04" type="StaticBody3D" parent="." unique_id=2006322238]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.85, 1.3, 2.35)
 
-[node name="Shape" type="CollisionShape3D" parent="Post04" unique_id=179367018]
+[node name="Shape" type="CollisionShape3D" parent="Post04" unique_id=440205446]
 shape = SubResource("BoxShape3D_o2rg5")
 
-[node name="Mesh" type="MeshInstance3D" parent="Post04" unique_id=1397719734]
+[node name="Mesh" type="MeshInstance3D" parent="Post04" unique_id=2100940508]
 mesh = SubResource("BoxMesh_3gb1w")
 
-[node name="Roof01" type="StaticBody3D" parent="." unique_id=1399375213]
+[node name="Roof01" type="StaticBody3D" parent="." unique_id=1942231256]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=1013405141]
+[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=38736303]
 shape = SubResource("BoxShape3D_2ndtd")
 
-[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=676872790]
+[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=287337705]
 mesh = SubResource("BoxMesh_7450i")
 
-[node name="Name" type="Label3D" parent="." unique_id=1964020561]
+[node name="Name" type="Label3D" parent="." unique_id=763320836]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 billboard = 1
 text = "Summer kitchen"

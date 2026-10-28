@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bl05pwo6iwy4r"]
+[gd_scene format=3 uid="uid://7crnfsd2ir5a"]
 
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_mkmrr"]
 
@@ -9,2137 +9,2137 @@ size = Vector3(0.8, 8, 0.8)
 material = ExtResource("1_mkmrr")
 size = Vector3(0.8, 8, 0.8)
 
-[node name="Trees" type="Node3D" unique_id=1871103804]
+[node name="Trees" type="Node3D" unique_id=2047696592]
 
-[node name="Tree001" type="StaticBody3D" parent="." unique_id=681867313]
+[node name="Tree001" type="StaticBody3D" parent="." unique_id=187310955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0801249, 4, 3.720782)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree001" unique_id=232825097]
+[node name="Shape" type="CollisionShape3D" parent="Tree001" unique_id=219416171]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree001" unique_id=2098918205]
+[node name="Mesh" type="MeshInstance3D" parent="Tree001" unique_id=528777571]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree002" type="StaticBody3D" parent="." unique_id=1208284943]
+[node name="Tree002" type="StaticBody3D" parent="." unique_id=1729308365]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.9987195, 4, 6.5595336)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree002" unique_id=258264312]
+[node name="Shape" type="CollisionShape3D" parent="Tree002" unique_id=78651493]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree002" unique_id=1859840883]
+[node name="Mesh" type="MeshInstance3D" parent="Tree002" unique_id=1812971520]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree003" type="StaticBody3D" parent="." unique_id=1212504849]
+[node name="Tree003" type="StaticBody3D" parent="." unique_id=1398002915]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4223976, 4, 11.281655)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree003" unique_id=1971110306]
+[node name="Shape" type="CollisionShape3D" parent="Tree003" unique_id=1349693750]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree003" unique_id=358219049]
+[node name="Mesh" type="MeshInstance3D" parent="Tree003" unique_id=1211916616]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree004" type="StaticBody3D" parent="." unique_id=1637062985]
+[node name="Tree004" type="StaticBody3D" parent="." unique_id=669483076]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3327312, 4, 17.81218)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree004" unique_id=515483526]
+[node name="Shape" type="CollisionShape3D" parent="Tree004" unique_id=1258141383]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree004" unique_id=982969007]
+[node name="Mesh" type="MeshInstance3D" parent="Tree004" unique_id=1659230790]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree005" type="StaticBody3D" parent="." unique_id=485918255]
+[node name="Tree005" type="StaticBody3D" parent="." unique_id=1254258346]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7336993, 4, 26.328516)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree005" unique_id=1585649133]
+[node name="Shape" type="CollisionShape3D" parent="Tree005" unique_id=510442806]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree005" unique_id=1801445989]
+[node name="Mesh" type="MeshInstance3D" parent="Tree005" unique_id=518493050]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree006" type="StaticBody3D" parent="." unique_id=657829234]
+[node name="Tree006" type="StaticBody3D" parent="." unique_id=1323353475]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4580379, 4, 33.603363)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree006" unique_id=1000580572]
+[node name="Shape" type="CollisionShape3D" parent="Tree006" unique_id=1580669966]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree006" unique_id=416155200]
+[node name="Mesh" type="MeshInstance3D" parent="Tree006" unique_id=868460690]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree007" type="StaticBody3D" parent="." unique_id=153170233]
+[node name="Tree007" type="StaticBody3D" parent="." unique_id=1648856289]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3916492, 4, 36.488155)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree007" unique_id=1832344066]
+[node name="Shape" type="CollisionShape3D" parent="Tree007" unique_id=174034931]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree007" unique_id=2127122405]
+[node name="Mesh" type="MeshInstance3D" parent="Tree007" unique_id=1547135710]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree008" type="StaticBody3D" parent="." unique_id=463300668]
+[node name="Tree008" type="StaticBody3D" parent="." unique_id=786850437]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8335056, 4, 43.719563)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree008" unique_id=1806570355]
+[node name="Shape" type="CollisionShape3D" parent="Tree008" unique_id=882513068]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree008" unique_id=823314891]
+[node name="Mesh" type="MeshInstance3D" parent="Tree008" unique_id=1177628912]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree009" type="StaticBody3D" parent="." unique_id=1852165438]
+[node name="Tree009" type="StaticBody3D" parent="." unique_id=1161232760]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.616363, 4, 53.15758)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree009" unique_id=1528885198]
+[node name="Shape" type="CollisionShape3D" parent="Tree009" unique_id=301846848]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree009" unique_id=237039670]
+[node name="Mesh" type="MeshInstance3D" parent="Tree009" unique_id=1902579706]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree010" type="StaticBody3D" parent="." unique_id=1776143282]
+[node name="Tree010" type="StaticBody3D" parent="." unique_id=611548319]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8515353, 4, 57.0748)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree010" unique_id=1652252027]
+[node name="Shape" type="CollisionShape3D" parent="Tree010" unique_id=315151505]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree010" unique_id=1436571001]
+[node name="Mesh" type="MeshInstance3D" parent="Tree010" unique_id=1264298565]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree011" type="StaticBody3D" parent="." unique_id=252941009]
+[node name="Tree011" type="StaticBody3D" parent="." unique_id=275522185]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2057996, 4, 61.75657)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree011" unique_id=1596453212]
+[node name="Shape" type="CollisionShape3D" parent="Tree011" unique_id=227682500]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree011" unique_id=1245496183]
+[node name="Mesh" type="MeshInstance3D" parent="Tree011" unique_id=1872883108]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree012" type="StaticBody3D" parent="." unique_id=1353754663]
+[node name="Tree012" type="StaticBody3D" parent="." unique_id=2096341483]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6967735, 4, 67.52809)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree012" unique_id=854192635]
+[node name="Shape" type="CollisionShape3D" parent="Tree012" unique_id=739897284]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree012" unique_id=341654037]
+[node name="Mesh" type="MeshInstance3D" parent="Tree012" unique_id=1107584075]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree013" type="StaticBody3D" parent="." unique_id=1154889961]
+[node name="Tree013" type="StaticBody3D" parent="." unique_id=397712143]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.0190313, 4, 77.58023)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree013" unique_id=358350233]
+[node name="Shape" type="CollisionShape3D" parent="Tree013" unique_id=2027025584]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree013" unique_id=1580660115]
+[node name="Mesh" type="MeshInstance3D" parent="Tree013" unique_id=588938453]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree014" type="StaticBody3D" parent="." unique_id=1494789026]
+[node name="Tree014" type="StaticBody3D" parent="." unique_id=2001863355]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.49502, 4, 83.13309)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree014" unique_id=1224562533]
+[node name="Shape" type="CollisionShape3D" parent="Tree014" unique_id=1662489278]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree014" unique_id=124742393]
+[node name="Mesh" type="MeshInstance3D" parent="Tree014" unique_id=959483768]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree015" type="StaticBody3D" parent="." unique_id=135965078]
+[node name="Tree015" type="StaticBody3D" parent="." unique_id=983114356]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.7178137, 4, 86.74689)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree015" unique_id=1610086165]
+[node name="Shape" type="CollisionShape3D" parent="Tree015" unique_id=1027642300]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree015" unique_id=679291388]
+[node name="Mesh" type="MeshInstance3D" parent="Tree015" unique_id=624797753]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree016" type="StaticBody3D" parent="." unique_id=538645024]
+[node name="Tree016" type="StaticBody3D" parent="." unique_id=1980512723]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.380827, 4, 1.5138569)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree016" unique_id=1881392010]
+[node name="Shape" type="CollisionShape3D" parent="Tree016" unique_id=743095666]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree016" unique_id=715457596]
+[node name="Mesh" type="MeshInstance3D" parent="Tree016" unique_id=1970848987]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree017" type="StaticBody3D" parent="." unique_id=1396745941]
+[node name="Tree017" type="StaticBody3D" parent="." unique_id=2091588609]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.865167, 4, 7.9663024)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree017" unique_id=1523315841]
+[node name="Shape" type="CollisionShape3D" parent="Tree017" unique_id=1695863209]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree017" unique_id=1733086145]
+[node name="Mesh" type="MeshInstance3D" parent="Tree017" unique_id=1224589544]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree018" type="StaticBody3D" parent="." unique_id=607161513]
+[node name="Tree018" type="StaticBody3D" parent="." unique_id=779097699]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.802314, 4, 13.336732)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree018" unique_id=806883086]
+[node name="Shape" type="CollisionShape3D" parent="Tree018" unique_id=115592710]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree018" unique_id=1550693930]
+[node name="Mesh" type="MeshInstance3D" parent="Tree018" unique_id=1382977881]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree019" type="StaticBody3D" parent="." unique_id=2076010858]
+[node name="Tree019" type="StaticBody3D" parent="." unique_id=248657004]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7936363, 4, 18.172344)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree019" unique_id=318209621]
+[node name="Shape" type="CollisionShape3D" parent="Tree019" unique_id=405353218]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree019" unique_id=322235764]
+[node name="Mesh" type="MeshInstance3D" parent="Tree019" unique_id=2063273541]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree020" type="StaticBody3D" parent="." unique_id=1052311197]
+[node name="Tree020" type="StaticBody3D" parent="." unique_id=615981360]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.232117, 4, 22.094004)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree020" unique_id=1324501567]
+[node name="Shape" type="CollisionShape3D" parent="Tree020" unique_id=1267795211]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree020" unique_id=1188041085]
+[node name="Mesh" type="MeshInstance3D" parent="Tree020" unique_id=1486196649]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree021" type="StaticBody3D" parent="." unique_id=1596352139]
+[node name="Tree021" type="StaticBody3D" parent="." unique_id=257991134]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.594849, 4, 28.625534)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree021" unique_id=1131954979]
+[node name="Shape" type="CollisionShape3D" parent="Tree021" unique_id=1186957090]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree021" unique_id=1598191429]
+[node name="Mesh" type="MeshInstance3D" parent="Tree021" unique_id=741433014]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree022" type="StaticBody3D" parent="." unique_id=1560553276]
+[node name="Tree022" type="StaticBody3D" parent="." unique_id=217615865]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.792737, 4, 31.000956)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree022" unique_id=1305681368]
+[node name="Shape" type="CollisionShape3D" parent="Tree022" unique_id=328684362]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree022" unique_id=1952720424]
+[node name="Mesh" type="MeshInstance3D" parent="Tree022" unique_id=904236208]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree023" type="StaticBody3D" parent="." unique_id=1676604141]
+[node name="Tree023" type="StaticBody3D" parent="." unique_id=471277868]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.0740767, 4, 36.59426)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree023" unique_id=1296212012]
+[node name="Shape" type="CollisionShape3D" parent="Tree023" unique_id=332703004]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree023" unique_id=1714860380]
+[node name="Mesh" type="MeshInstance3D" parent="Tree023" unique_id=2000410328]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree024" type="StaticBody3D" parent="." unique_id=465593246]
+[node name="Tree024" type="StaticBody3D" parent="." unique_id=1014814368]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.8012404, 4, 41.89222)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree024" unique_id=622630304]
+[node name="Shape" type="CollisionShape3D" parent="Tree024" unique_id=693297952]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree024" unique_id=1389487630]
+[node name="Mesh" type="MeshInstance3D" parent="Tree024" unique_id=525135085]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree025" type="StaticBody3D" parent="." unique_id=1176858636]
+[node name="Tree025" type="StaticBody3D" parent="." unique_id=739812343]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.9341407, 4, 53.6503)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree025" unique_id=1469800601]
+[node name="Shape" type="CollisionShape3D" parent="Tree025" unique_id=1782952746]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree025" unique_id=1621100993]
+[node name="Mesh" type="MeshInstance3D" parent="Tree025" unique_id=2139074173]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree026" type="StaticBody3D" parent="." unique_id=1015468612]
+[node name="Tree026" type="StaticBody3D" parent="." unique_id=1990993207]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.421983, 4, 58.722427)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree026" unique_id=2115270943]
+[node name="Shape" type="CollisionShape3D" parent="Tree026" unique_id=1139166847]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree026" unique_id=817431079]
+[node name="Mesh" type="MeshInstance3D" parent="Tree026" unique_id=1530934890]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree027" type="StaticBody3D" parent="." unique_id=1419702944]
+[node name="Tree027" type="StaticBody3D" parent="." unique_id=341919256]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.48981, 4, 61.567196)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree027" unique_id=34278714]
+[node name="Shape" type="CollisionShape3D" parent="Tree027" unique_id=482253778]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree027" unique_id=587682052]
+[node name="Mesh" type="MeshInstance3D" parent="Tree027" unique_id=934604999]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree028" type="StaticBody3D" parent="." unique_id=432574375]
+[node name="Tree028" type="StaticBody3D" parent="." unique_id=86343368]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.401082, 4, 68.508934)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree028" unique_id=246049508]
+[node name="Shape" type="CollisionShape3D" parent="Tree028" unique_id=181713695]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree028" unique_id=1990300228]
+[node name="Mesh" type="MeshInstance3D" parent="Tree028" unique_id=960429571]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree029" type="StaticBody3D" parent="." unique_id=1341236145]
+[node name="Tree029" type="StaticBody3D" parent="." unique_id=511769135]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.094612, 4, 72.36724)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree029" unique_id=1314829711]
+[node name="Shape" type="CollisionShape3D" parent="Tree029" unique_id=1502763684]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree029" unique_id=1515842467]
+[node name="Mesh" type="MeshInstance3D" parent="Tree029" unique_id=288535003]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree030" type="StaticBody3D" parent="." unique_id=1005875371]
+[node name="Tree030" type="StaticBody3D" parent="." unique_id=1640983056]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.821258, 4, 78.04492)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree030" unique_id=635871300]
+[node name="Shape" type="CollisionShape3D" parent="Tree030" unique_id=231196821]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree030" unique_id=1647889354]
+[node name="Mesh" type="MeshInstance3D" parent="Tree030" unique_id=1133870286]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree031" type="StaticBody3D" parent="." unique_id=1261661610]
+[node name="Tree031" type="StaticBody3D" parent="." unique_id=1183330288]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.840386, 4, 81.733665)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree031" unique_id=1806641370]
+[node name="Shape" type="CollisionShape3D" parent="Tree031" unique_id=768516020]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree031" unique_id=597221081]
+[node name="Mesh" type="MeshInstance3D" parent="Tree031" unique_id=1918398269]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree032" type="StaticBody3D" parent="." unique_id=1309320819]
+[node name="Tree032" type="StaticBody3D" parent="." unique_id=464685214]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.354777, 4, 88.26255)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree032" unique_id=1972515962]
+[node name="Shape" type="CollisionShape3D" parent="Tree032" unique_id=1636960308]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree032" unique_id=137528259]
+[node name="Mesh" type="MeshInstance3D" parent="Tree032" unique_id=747449653]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree033" type="StaticBody3D" parent="." unique_id=1420178538]
+[node name="Tree033" type="StaticBody3D" parent="." unique_id=53565302]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.005308, 4, 3.0882874)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree033" unique_id=1507362271]
+[node name="Shape" type="CollisionShape3D" parent="Tree033" unique_id=291827732]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree033" unique_id=5734870]
+[node name="Mesh" type="MeshInstance3D" parent="Tree033" unique_id=1192259535]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree034" type="StaticBody3D" parent="." unique_id=200860747]
+[node name="Tree034" type="StaticBody3D" parent="." unique_id=1893461054]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.797168, 4, 8.975895)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree034" unique_id=1309560920]
+[node name="Shape" type="CollisionShape3D" parent="Tree034" unique_id=1021357222]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree034" unique_id=1836989087]
+[node name="Mesh" type="MeshInstance3D" parent="Tree034" unique_id=1364327118]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree035" type="StaticBody3D" parent="." unique_id=1579981598]
+[node name="Tree035" type="StaticBody3D" parent="." unique_id=915875886]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.443, 4, 13.163979)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree035" unique_id=1129372882]
+[node name="Shape" type="CollisionShape3D" parent="Tree035" unique_id=1970104916]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree035" unique_id=1718506050]
+[node name="Mesh" type="MeshInstance3D" parent="Tree035" unique_id=2011536397]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree036" type="StaticBody3D" parent="." unique_id=1279059750]
+[node name="Tree036" type="StaticBody3D" parent="." unique_id=466942563]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.0524, 4, 17.86403)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree036" unique_id=1477112032]
+[node name="Shape" type="CollisionShape3D" parent="Tree036" unique_id=659289932]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree036" unique_id=1486743489]
+[node name="Mesh" type="MeshInstance3D" parent="Tree036" unique_id=2040517057]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree037" type="StaticBody3D" parent="." unique_id=1686733011]
+[node name="Tree037" type="StaticBody3D" parent="." unique_id=1883331177]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.011662, 4, 21.559229)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree037" unique_id=1067494837]
+[node name="Shape" type="CollisionShape3D" parent="Tree037" unique_id=1392084358]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree037" unique_id=126557300]
+[node name="Mesh" type="MeshInstance3D" parent="Tree037" unique_id=1788196620]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree038" type="StaticBody3D" parent="." unique_id=583601025]
+[node name="Tree038" type="StaticBody3D" parent="." unique_id=836495252]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.120766, 4, 28.602406)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree038" unique_id=304030808]
+[node name="Shape" type="CollisionShape3D" parent="Tree038" unique_id=555985070]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree038" unique_id=1096840984]
+[node name="Mesh" type="MeshInstance3D" parent="Tree038" unique_id=200826936]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree039" type="StaticBody3D" parent="." unique_id=771425085]
+[node name="Tree039" type="StaticBody3D" parent="." unique_id=875014512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.583939, 4, 33.01008)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree039" unique_id=1322229447]
+[node name="Shape" type="CollisionShape3D" parent="Tree039" unique_id=1304001573]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree039" unique_id=2088475103]
+[node name="Mesh" type="MeshInstance3D" parent="Tree039" unique_id=1014843491]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree040" type="StaticBody3D" parent="." unique_id=290827950]
+[node name="Tree040" type="StaticBody3D" parent="." unique_id=1462638211]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.266729, 4, 36.09057)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree040" unique_id=1160443162]
+[node name="Shape" type="CollisionShape3D" parent="Tree040" unique_id=1180152424]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree040" unique_id=75179947]
+[node name="Mesh" type="MeshInstance3D" parent="Tree040" unique_id=649538326]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree041" type="StaticBody3D" parent="." unique_id=1681055125]
+[node name="Tree041" type="StaticBody3D" parent="." unique_id=1808417397]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.587164, 4, 42.851444)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree041" unique_id=1835511282]
+[node name="Shape" type="CollisionShape3D" parent="Tree041" unique_id=732964895]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree041" unique_id=1952754291]
+[node name="Mesh" type="MeshInstance3D" parent="Tree041" unique_id=1797495403]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree042" type="StaticBody3D" parent="." unique_id=1239962514]
+[node name="Tree042" type="StaticBody3D" parent="." unique_id=1515578626]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.011312, 4, 53.896633)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree042" unique_id=1600680884]
+[node name="Shape" type="CollisionShape3D" parent="Tree042" unique_id=800285145]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree042" unique_id=1330123545]
+[node name="Mesh" type="MeshInstance3D" parent="Tree042" unique_id=1630072017]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree043" type="StaticBody3D" parent="." unique_id=2128361533]
+[node name="Tree043" type="StaticBody3D" parent="." unique_id=531685105]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.817122, 4, 56.667618)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree043" unique_id=7719352]
+[node name="Shape" type="CollisionShape3D" parent="Tree043" unique_id=470327042]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree043" unique_id=1154172645]
+[node name="Mesh" type="MeshInstance3D" parent="Tree043" unique_id=932876573]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree044" type="StaticBody3D" parent="." unique_id=1397855447]
+[node name="Tree044" type="StaticBody3D" parent="." unique_id=319593732]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.281946, 4, 62.60405)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree044" unique_id=1512571080]
+[node name="Shape" type="CollisionShape3D" parent="Tree044" unique_id=1759324394]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree044" unique_id=1400843513]
+[node name="Mesh" type="MeshInstance3D" parent="Tree044" unique_id=451448471]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree045" type="StaticBody3D" parent="." unique_id=847124461]
+[node name="Tree045" type="StaticBody3D" parent="." unique_id=1966393786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.832861, 4, 68.31665)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree045" unique_id=1094636671]
+[node name="Shape" type="CollisionShape3D" parent="Tree045" unique_id=308474871]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree045" unique_id=940502049]
+[node name="Mesh" type="MeshInstance3D" parent="Tree045" unique_id=849383058]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree046" type="StaticBody3D" parent="." unique_id=1885418573]
+[node name="Tree046" type="StaticBody3D" parent="." unique_id=618514841]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.04733, 4, 72.25762)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree046" unique_id=606375291]
+[node name="Shape" type="CollisionShape3D" parent="Tree046" unique_id=889594143]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree046" unique_id=496442784]
+[node name="Mesh" type="MeshInstance3D" parent="Tree046" unique_id=11433908]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree047" type="StaticBody3D" parent="." unique_id=1485894842]
+[node name="Tree047" type="StaticBody3D" parent="." unique_id=1123227495]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.42872, 4, 76.17433)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree047" unique_id=226407096]
+[node name="Shape" type="CollisionShape3D" parent="Tree047" unique_id=676983361]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree047" unique_id=1821719749]
+[node name="Mesh" type="MeshInstance3D" parent="Tree047" unique_id=1304498649]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree048" type="StaticBody3D" parent="." unique_id=1846423084]
+[node name="Tree048" type="StaticBody3D" parent="." unique_id=1178243374]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.046636, 4, 81.488304)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree048" unique_id=1996965533]
+[node name="Shape" type="CollisionShape3D" parent="Tree048" unique_id=1210155024]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree048" unique_id=1783303426]
+[node name="Mesh" type="MeshInstance3D" parent="Tree048" unique_id=1195192685]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree049" type="StaticBody3D" parent="." unique_id=1684236625]
+[node name="Tree049" type="StaticBody3D" parent="." unique_id=886076020]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.416853, 4, 2.258071)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree049" unique_id=302202052]
+[node name="Shape" type="CollisionShape3D" parent="Tree049" unique_id=1819719831]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree049" unique_id=468024167]
+[node name="Mesh" type="MeshInstance3D" parent="Tree049" unique_id=4862846]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree050" type="StaticBody3D" parent="." unique_id=1025067917]
+[node name="Tree050" type="StaticBody3D" parent="." unique_id=1525453703]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.586554, 4, 8.972742)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree050" unique_id=2119801190]
+[node name="Shape" type="CollisionShape3D" parent="Tree050" unique_id=115424655]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree050" unique_id=17902011]
+[node name="Mesh" type="MeshInstance3D" parent="Tree050" unique_id=172330291]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree051" type="StaticBody3D" parent="." unique_id=1152735260]
+[node name="Tree051" type="StaticBody3D" parent="." unique_id=1490777930]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.940475, 4, 12.299658)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree051" unique_id=409515653]
+[node name="Shape" type="CollisionShape3D" parent="Tree051" unique_id=1529154437]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree051" unique_id=1995674991]
+[node name="Mesh" type="MeshInstance3D" parent="Tree051" unique_id=1251836531]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree052" type="StaticBody3D" parent="." unique_id=232135242]
+[node name="Tree052" type="StaticBody3D" parent="." unique_id=1941017810]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.41845, 4, 18.081776)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree052" unique_id=708827881]
+[node name="Shape" type="CollisionShape3D" parent="Tree052" unique_id=1574298637]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree052" unique_id=286321]
+[node name="Mesh" type="MeshInstance3D" parent="Tree052" unique_id=2001308230]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree053" type="StaticBody3D" parent="." unique_id=1932086059]
+[node name="Tree053" type="StaticBody3D" parent="." unique_id=1013746534]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.178938, 4, 22.048796)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree053" unique_id=1422103271]
+[node name="Shape" type="CollisionShape3D" parent="Tree053" unique_id=1318491740]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree053" unique_id=1682330470]
+[node name="Mesh" type="MeshInstance3D" parent="Tree053" unique_id=481037445]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree054" type="StaticBody3D" parent="." unique_id=70497766]
+[node name="Tree054" type="StaticBody3D" parent="." unique_id=131464583]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.902824, 4, 27.683414)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree054" unique_id=902693419]
+[node name="Shape" type="CollisionShape3D" parent="Tree054" unique_id=92357157]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree054" unique_id=341908383]
+[node name="Mesh" type="MeshInstance3D" parent="Tree054" unique_id=2014192080]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree055" type="StaticBody3D" parent="." unique_id=771451958]
+[node name="Tree055" type="StaticBody3D" parent="." unique_id=1987371882]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.617706, 4, 31.471846)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree055" unique_id=1742968892]
+[node name="Shape" type="CollisionShape3D" parent="Tree055" unique_id=1525463332]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree055" unique_id=1383510414]
+[node name="Mesh" type="MeshInstance3D" parent="Tree055" unique_id=201353058]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree056" type="StaticBody3D" parent="." unique_id=17331180]
+[node name="Tree056" type="StaticBody3D" parent="." unique_id=2120895259]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.429115, 4, 38.374226)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree056" unique_id=308617542]
+[node name="Shape" type="CollisionShape3D" parent="Tree056" unique_id=857272744]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree056" unique_id=1030057913]
+[node name="Mesh" type="MeshInstance3D" parent="Tree056" unique_id=190210231]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree057" type="StaticBody3D" parent="." unique_id=1981006513]
+[node name="Tree057" type="StaticBody3D" parent="." unique_id=1051302284]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.685818, 4, 42.945114)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree057" unique_id=1671061043]
+[node name="Shape" type="CollisionShape3D" parent="Tree057" unique_id=524301684]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree057" unique_id=534057916]
+[node name="Mesh" type="MeshInstance3D" parent="Tree057" unique_id=1483003865]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree058" type="StaticBody3D" parent="." unique_id=1395857032]
+[node name="Tree058" type="StaticBody3D" parent="." unique_id=189099856]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.527498, 4, 53.26507)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree058" unique_id=2050382576]
+[node name="Shape" type="CollisionShape3D" parent="Tree058" unique_id=1627653128]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree058" unique_id=2041241985]
+[node name="Mesh" type="MeshInstance3D" parent="Tree058" unique_id=690411706]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree059" type="StaticBody3D" parent="." unique_id=767241385]
+[node name="Tree059" type="StaticBody3D" parent="." unique_id=1865764311]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.974232, 4, 58.421818)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree059" unique_id=1442799297]
+[node name="Shape" type="CollisionShape3D" parent="Tree059" unique_id=2025384816]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree059" unique_id=1573629433]
+[node name="Mesh" type="MeshInstance3D" parent="Tree059" unique_id=1874639036]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree060" type="StaticBody3D" parent="." unique_id=988746915]
+[node name="Tree060" type="StaticBody3D" parent="." unique_id=434591983]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.9284, 4, 61.673042)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree060" unique_id=2089739885]
+[node name="Shape" type="CollisionShape3D" parent="Tree060" unique_id=841991156]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree060" unique_id=255854843]
+[node name="Mesh" type="MeshInstance3D" parent="Tree060" unique_id=585381905]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree061" type="StaticBody3D" parent="." unique_id=641537520]
+[node name="Tree061" type="StaticBody3D" parent="." unique_id=1432909216]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.477926, 4, 66.45563)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree061" unique_id=140426268]
+[node name="Shape" type="CollisionShape3D" parent="Tree061" unique_id=1198279175]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree061" unique_id=291009223]
+[node name="Mesh" type="MeshInstance3D" parent="Tree061" unique_id=1920318778]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree062" type="StaticBody3D" parent="." unique_id=793814448]
+[node name="Tree062" type="StaticBody3D" parent="." unique_id=508788819]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.440521, 4, 77.891884)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree062" unique_id=375033626]
+[node name="Shape" type="CollisionShape3D" parent="Tree062" unique_id=1966240361]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree062" unique_id=821140075]
+[node name="Mesh" type="MeshInstance3D" parent="Tree062" unique_id=612002913]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree063" type="StaticBody3D" parent="." unique_id=2044891439]
+[node name="Tree063" type="StaticBody3D" parent="." unique_id=401282631]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.875246, 4, 82.50849)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree063" unique_id=1081977029]
+[node name="Shape" type="CollisionShape3D" parent="Tree063" unique_id=1603286887]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree063" unique_id=967721581]
+[node name="Mesh" type="MeshInstance3D" parent="Tree063" unique_id=2090716082]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree064" type="StaticBody3D" parent="." unique_id=395217586]
+[node name="Tree064" type="StaticBody3D" parent="." unique_id=2144818943]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.11, 4, 87.609314)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree064" unique_id=1651294539]
+[node name="Shape" type="CollisionShape3D" parent="Tree064" unique_id=1871106863]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree064" unique_id=866408644]
+[node name="Mesh" type="MeshInstance3D" parent="Tree064" unique_id=1017914678]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree065" type="StaticBody3D" parent="." unique_id=68698916]
+[node name="Tree065" type="StaticBody3D" parent="." unique_id=717208451]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.892279, 4, 2.3077369)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree065" unique_id=364070302]
+[node name="Shape" type="CollisionShape3D" parent="Tree065" unique_id=1510222359]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree065" unique_id=251116062]
+[node name="Mesh" type="MeshInstance3D" parent="Tree065" unique_id=857618547]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree066" type="StaticBody3D" parent="." unique_id=983410862]
+[node name="Tree066" type="StaticBody3D" parent="." unique_id=1803873203]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.546762, 4, 21.35703)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree066" unique_id=125443094]
+[node name="Shape" type="CollisionShape3D" parent="Tree066" unique_id=1171700277]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree066" unique_id=1846431]
+[node name="Mesh" type="MeshInstance3D" parent="Tree066" unique_id=556022901]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree067" type="StaticBody3D" parent="." unique_id=1078997574]
+[node name="Tree067" type="StaticBody3D" parent="." unique_id=1012263255]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.058752, 4, 28.133118)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree067" unique_id=1451717003]
+[node name="Shape" type="CollisionShape3D" parent="Tree067" unique_id=368675689]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree067" unique_id=1862162453]
+[node name="Mesh" type="MeshInstance3D" parent="Tree067" unique_id=1848434357]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree068" type="StaticBody3D" parent="." unique_id=2049644325]
+[node name="Tree068" type="StaticBody3D" parent="." unique_id=1409262642]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.782543, 4, 31.805445)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree068" unique_id=579844670]
+[node name="Shape" type="CollisionShape3D" parent="Tree068" unique_id=942959628]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree068" unique_id=1792944137]
+[node name="Mesh" type="MeshInstance3D" parent="Tree068" unique_id=231572797]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree069" type="StaticBody3D" parent="." unique_id=1416592770]
+[node name="Tree069" type="StaticBody3D" parent="." unique_id=624410128]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.631908, 4, 36.837055)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree069" unique_id=1637311956]
+[node name="Shape" type="CollisionShape3D" parent="Tree069" unique_id=2125596976]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree069" unique_id=795412666]
+[node name="Mesh" type="MeshInstance3D" parent="Tree069" unique_id=464788021]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree070" type="StaticBody3D" parent="." unique_id=1161895651]
+[node name="Tree070" type="StaticBody3D" parent="." unique_id=1840358128]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.841423, 4, 41.410786)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree070" unique_id=2145001440]
+[node name="Shape" type="CollisionShape3D" parent="Tree070" unique_id=1289995407]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree070" unique_id=869441046]
+[node name="Mesh" type="MeshInstance3D" parent="Tree070" unique_id=189493312]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree071" type="StaticBody3D" parent="." unique_id=1752508625]
+[node name="Tree071" type="StaticBody3D" parent="." unique_id=1130714]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.722914, 4, 57.266407)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree071" unique_id=1366408725]
+[node name="Shape" type="CollisionShape3D" parent="Tree071" unique_id=2075111357]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree071" unique_id=1236430333]
+[node name="Mesh" type="MeshInstance3D" parent="Tree071" unique_id=1841555873]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree072" type="StaticBody3D" parent="." unique_id=219210110]
+[node name="Tree072" type="StaticBody3D" parent="." unique_id=1631033601]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.788698, 4, 63.372)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree072" unique_id=1287207714]
+[node name="Shape" type="CollisionShape3D" parent="Tree072" unique_id=1198625036]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree072" unique_id=676572261]
+[node name="Mesh" type="MeshInstance3D" parent="Tree072" unique_id=602928394]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree073" type="StaticBody3D" parent="." unique_id=486849454]
+[node name="Tree073" type="StaticBody3D" parent="." unique_id=8917840]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.183765, 4, 82.76849)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree073" unique_id=442300888]
+[node name="Shape" type="CollisionShape3D" parent="Tree073" unique_id=1834837551]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree073" unique_id=1616732141]
+[node name="Mesh" type="MeshInstance3D" parent="Tree073" unique_id=445458113]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree074" type="StaticBody3D" parent="." unique_id=1005814249]
+[node name="Tree074" type="StaticBody3D" parent="." unique_id=33198824]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.25909, 4, 88.2596)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree074" unique_id=1258948894]
+[node name="Shape" type="CollisionShape3D" parent="Tree074" unique_id=1879581133]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree074" unique_id=1057094322]
+[node name="Mesh" type="MeshInstance3D" parent="Tree074" unique_id=1561089461]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree075" type="StaticBody3D" parent="." unique_id=1074931210]
+[node name="Tree075" type="StaticBody3D" parent="." unique_id=960476648]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.188215, 4, 27.575792)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree075" unique_id=781436610]
+[node name="Shape" type="CollisionShape3D" parent="Tree075" unique_id=1421538569]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree075" unique_id=2041686605]
+[node name="Mesh" type="MeshInstance3D" parent="Tree075" unique_id=576007036]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree076" type="StaticBody3D" parent="." unique_id=1237245077]
+[node name="Tree076" type="StaticBody3D" parent="." unique_id=1828296193]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.162268, 4, 31.466486)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree076" unique_id=1368670357]
+[node name="Shape" type="CollisionShape3D" parent="Tree076" unique_id=872153530]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree076" unique_id=1489250936]
+[node name="Mesh" type="MeshInstance3D" parent="Tree076" unique_id=948714504]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree077" type="StaticBody3D" parent="." unique_id=1860915036]
+[node name="Tree077" type="StaticBody3D" parent="." unique_id=161194042]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.37745, 4, 37.135937)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree077" unique_id=1541823830]
+[node name="Shape" type="CollisionShape3D" parent="Tree077" unique_id=1651664513]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree077" unique_id=222521519]
+[node name="Mesh" type="MeshInstance3D" parent="Tree077" unique_id=314102999]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree078" type="StaticBody3D" parent="." unique_id=61917775]
+[node name="Tree078" type="StaticBody3D" parent="." unique_id=1978662584]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.672653, 4, 43.959957)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree078" unique_id=837192934]
+[node name="Shape" type="CollisionShape3D" parent="Tree078" unique_id=2018844653]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree078" unique_id=1373645998]
+[node name="Mesh" type="MeshInstance3D" parent="Tree078" unique_id=1895075828]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree079" type="StaticBody3D" parent="." unique_id=100866690]
+[node name="Tree079" type="StaticBody3D" parent="." unique_id=907160769]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.094437, 4, 47.479897)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree079" unique_id=1116646307]
+[node name="Shape" type="CollisionShape3D" parent="Tree079" unique_id=951584857]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree079" unique_id=1476403497]
+[node name="Mesh" type="MeshInstance3D" parent="Tree079" unique_id=86626757]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree080" type="StaticBody3D" parent="." unique_id=261640155]
+[node name="Tree080" type="StaticBody3D" parent="." unique_id=526860944]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.425945, 4, 82.88869)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree080" unique_id=683129278]
+[node name="Shape" type="CollisionShape3D" parent="Tree080" unique_id=140045940]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree080" unique_id=594336788]
+[node name="Mesh" type="MeshInstance3D" parent="Tree080" unique_id=514498093]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree081" type="StaticBody3D" parent="." unique_id=1418608746]
+[node name="Tree081" type="StaticBody3D" parent="." unique_id=1575226249]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.985273, 4, 87.42528)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree081" unique_id=1204115190]
+[node name="Shape" type="CollisionShape3D" parent="Tree081" unique_id=152673715]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree081" unique_id=1533449051]
+[node name="Mesh" type="MeshInstance3D" parent="Tree081" unique_id=531925711]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree082" type="StaticBody3D" parent="." unique_id=655011807]
+[node name="Tree082" type="StaticBody3D" parent="." unique_id=2024310883]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.838264, 4, 27.08944)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree082" unique_id=287204958]
+[node name="Shape" type="CollisionShape3D" parent="Tree082" unique_id=976203560]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree082" unique_id=1392574261]
+[node name="Mesh" type="MeshInstance3D" parent="Tree082" unique_id=1965284615]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree083" type="StaticBody3D" parent="." unique_id=1603540079]
+[node name="Tree083" type="StaticBody3D" parent="." unique_id=729867149]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.224724, 4, 32.499233)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree083" unique_id=62690710]
+[node name="Shape" type="CollisionShape3D" parent="Tree083" unique_id=1488223483]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree083" unique_id=942767638]
+[node name="Mesh" type="MeshInstance3D" parent="Tree083" unique_id=1699177425]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree084" type="StaticBody3D" parent="." unique_id=1484570592]
+[node name="Tree084" type="StaticBody3D" parent="." unique_id=191186206]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.634567, 4, 38.32443)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree084" unique_id=2146480161]
+[node name="Shape" type="CollisionShape3D" parent="Tree084" unique_id=597272307]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree084" unique_id=1434011890]
+[node name="Mesh" type="MeshInstance3D" parent="Tree084" unique_id=1873980206]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree085" type="StaticBody3D" parent="." unique_id=328915533]
+[node name="Tree085" type="StaticBody3D" parent="." unique_id=813989144]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.91627, 4, 58.91031)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree085" unique_id=1162053431]
+[node name="Shape" type="CollisionShape3D" parent="Tree085" unique_id=76448829]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree085" unique_id=1257311382]
+[node name="Mesh" type="MeshInstance3D" parent="Tree085" unique_id=989566716]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree086" type="StaticBody3D" parent="." unique_id=1285841561]
+[node name="Tree086" type="StaticBody3D" parent="." unique_id=300447501]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.118784, 4, 62.82623)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree086" unique_id=652506747]
+[node name="Shape" type="CollisionShape3D" parent="Tree086" unique_id=1730159672]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree086" unique_id=102339019]
+[node name="Mesh" type="MeshInstance3D" parent="Tree086" unique_id=1766349656]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree087" type="StaticBody3D" parent="." unique_id=1737825870]
+[node name="Tree087" type="StaticBody3D" parent="." unique_id=1643376805]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.719215, 4, 77.20922)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree087" unique_id=189341468]
+[node name="Shape" type="CollisionShape3D" parent="Tree087" unique_id=1339673257]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree087" unique_id=380103304]
+[node name="Mesh" type="MeshInstance3D" parent="Tree087" unique_id=602226742]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree088" type="StaticBody3D" parent="." unique_id=581416682]
+[node name="Tree088" type="StaticBody3D" parent="." unique_id=977933512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.476799, 4, 83.2428)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree088" unique_id=1400118911]
+[node name="Shape" type="CollisionShape3D" parent="Tree088" unique_id=151729812]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree088" unique_id=1099038809]
+[node name="Mesh" type="MeshInstance3D" parent="Tree088" unique_id=1552242364]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree089" type="StaticBody3D" parent="." unique_id=525578449]
+[node name="Tree089" type="StaticBody3D" parent="." unique_id=1478399303]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.850838, 4, 2.0957372)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree089" unique_id=862536965]
+[node name="Shape" type="CollisionShape3D" parent="Tree089" unique_id=354625836]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree089" unique_id=705853278]
+[node name="Mesh" type="MeshInstance3D" parent="Tree089" unique_id=1332642245]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree090" type="StaticBody3D" parent="." unique_id=1587769654]
+[node name="Tree090" type="StaticBody3D" parent="." unique_id=1944735637]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.180534, 4, 27.388283)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree090" unique_id=1773122571]
+[node name="Shape" type="CollisionShape3D" parent="Tree090" unique_id=1034839264]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree090" unique_id=900553769]
+[node name="Mesh" type="MeshInstance3D" parent="Tree090" unique_id=1433406272]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree091" type="StaticBody3D" parent="." unique_id=2119926166]
+[node name="Tree091" type="StaticBody3D" parent="." unique_id=494320559]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.311363, 4, 32.95699)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree091" unique_id=111061777]
+[node name="Shape" type="CollisionShape3D" parent="Tree091" unique_id=1170647342]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree091" unique_id=843406751]
+[node name="Mesh" type="MeshInstance3D" parent="Tree091" unique_id=330209360]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree092" type="StaticBody3D" parent="." unique_id=254684513]
+[node name="Tree092" type="StaticBody3D" parent="." unique_id=1477466354]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.776703, 4, 47.434258)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree092" unique_id=719103998]
+[node name="Shape" type="CollisionShape3D" parent="Tree092" unique_id=63609569]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree092" unique_id=149327447]
+[node name="Mesh" type="MeshInstance3D" parent="Tree092" unique_id=1963205734]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree093" type="StaticBody3D" parent="." unique_id=1392119886]
+[node name="Tree093" type="StaticBody3D" parent="." unique_id=609267460]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.546616, 4, 63.802902)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree093" unique_id=8705255]
+[node name="Shape" type="CollisionShape3D" parent="Tree093" unique_id=905489469]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree093" unique_id=1171352629]
+[node name="Mesh" type="MeshInstance3D" parent="Tree093" unique_id=1064115110]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree094" type="StaticBody3D" parent="." unique_id=2132281839]
+[node name="Tree094" type="StaticBody3D" parent="." unique_id=218906225]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.228436, 4, 78.84889)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree094" unique_id=1675309178]
+[node name="Shape" type="CollisionShape3D" parent="Tree094" unique_id=63091979]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree094" unique_id=1437997679]
+[node name="Mesh" type="MeshInstance3D" parent="Tree094" unique_id=1743945679]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree095" type="StaticBody3D" parent="." unique_id=1708377367]
+[node name="Tree095" type="StaticBody3D" parent="." unique_id=1055490535]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.390266, 4, 83.94032)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree095" unique_id=559644211]
+[node name="Shape" type="CollisionShape3D" parent="Tree095" unique_id=652711413]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree095" unique_id=1639177010]
+[node name="Mesh" type="MeshInstance3D" parent="Tree095" unique_id=1675938643]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree096" type="StaticBody3D" parent="." unique_id=1642482297]
+[node name="Tree096" type="StaticBody3D" parent="." unique_id=503283932]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.2618, 4, 86.4041)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree096" unique_id=112888950]
+[node name="Shape" type="CollisionShape3D" parent="Tree096" unique_id=1516976682]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree096" unique_id=1079492620]
+[node name="Mesh" type="MeshInstance3D" parent="Tree096" unique_id=183574884]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree097" type="StaticBody3D" parent="." unique_id=2103495739]
+[node name="Tree097" type="StaticBody3D" parent="." unique_id=1892240934]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.2371, 4, 3.2793908)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree097" unique_id=916090835]
+[node name="Shape" type="CollisionShape3D" parent="Tree097" unique_id=958690422]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree097" unique_id=1370201788]
+[node name="Mesh" type="MeshInstance3D" parent="Tree097" unique_id=1125348117]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree098" type="StaticBody3D" parent="." unique_id=961336137]
+[node name="Tree098" type="StaticBody3D" parent="." unique_id=243307392]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.001442, 4, 6.3506565)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree098" unique_id=985179210]
+[node name="Shape" type="CollisionShape3D" parent="Tree098" unique_id=2116616559]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree098" unique_id=2046531412]
+[node name="Mesh" type="MeshInstance3D" parent="Tree098" unique_id=1633051761]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree099" type="StaticBody3D" parent="." unique_id=1007012644]
+[node name="Tree099" type="StaticBody3D" parent="." unique_id=1963764554]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.762375, 4, 16.059242)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree099" unique_id=1400257274]
+[node name="Shape" type="CollisionShape3D" parent="Tree099" unique_id=1880955693]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree099" unique_id=1302633543]
+[node name="Mesh" type="MeshInstance3D" parent="Tree099" unique_id=1227886149]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree100" type="StaticBody3D" parent="." unique_id=1437936212]
+[node name="Tree100" type="StaticBody3D" parent="." unique_id=476404841]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.80719, 4, 37.675667)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree100" unique_id=2103131827]
+[node name="Shape" type="CollisionShape3D" parent="Tree100" unique_id=43550937]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree100" unique_id=1560596711]
+[node name="Mesh" type="MeshInstance3D" parent="Tree100" unique_id=1189719093]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree101" type="StaticBody3D" parent="." unique_id=1481446236]
+[node name="Tree101" type="StaticBody3D" parent="." unique_id=1770531072]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.548325, 4, 42.657837)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree101" unique_id=668108593]
+[node name="Shape" type="CollisionShape3D" parent="Tree101" unique_id=1659907420]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree101" unique_id=1888330844]
+[node name="Mesh" type="MeshInstance3D" parent="Tree101" unique_id=1043726512]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree102" type="StaticBody3D" parent="." unique_id=281877406]
+[node name="Tree102" type="StaticBody3D" parent="." unique_id=1495956775]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.646206, 4, 46.079617)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree102" unique_id=1435106198]
+[node name="Shape" type="CollisionShape3D" parent="Tree102" unique_id=518921411]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree102" unique_id=218744672]
+[node name="Mesh" type="MeshInstance3D" parent="Tree102" unique_id=1757762331]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree103" type="StaticBody3D" parent="." unique_id=1122017368]
+[node name="Tree103" type="StaticBody3D" parent="." unique_id=63058800]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.700794, 4, 51.417553)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree103" unique_id=1651599118]
+[node name="Shape" type="CollisionShape3D" parent="Tree103" unique_id=1655657311]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree103" unique_id=1815956491]
+[node name="Mesh" type="MeshInstance3D" parent="Tree103" unique_id=1437521944]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree104" type="StaticBody3D" parent="." unique_id=1993185661]
+[node name="Tree104" type="StaticBody3D" parent="." unique_id=551085702]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.59261, 4, 63.102497)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree104" unique_id=977245462]
+[node name="Shape" type="CollisionShape3D" parent="Tree104" unique_id=921648335]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree104" unique_id=655437168]
+[node name="Mesh" type="MeshInstance3D" parent="Tree104" unique_id=681414438]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree105" type="StaticBody3D" parent="." unique_id=297093053]
+[node name="Tree105" type="StaticBody3D" parent="." unique_id=1776777925]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.53192, 4, 77.75711)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree105" unique_id=1240757256]
+[node name="Shape" type="CollisionShape3D" parent="Tree105" unique_id=1812192177]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree105" unique_id=1948471507]
+[node name="Mesh" type="MeshInstance3D" parent="Tree105" unique_id=1778798628]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree106" type="StaticBody3D" parent="." unique_id=1222927848]
+[node name="Tree106" type="StaticBody3D" parent="." unique_id=1967743296]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.35298, 4, 81.957436)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree106" unique_id=143323442]
+[node name="Shape" type="CollisionShape3D" parent="Tree106" unique_id=608858312]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree106" unique_id=1292545707]
+[node name="Mesh" type="MeshInstance3D" parent="Tree106" unique_id=1832250912]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree107" type="StaticBody3D" parent="." unique_id=934758103]
+[node name="Tree107" type="StaticBody3D" parent="." unique_id=1679738725]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.622505, 4, 86.96299)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree107" unique_id=932256644]
+[node name="Shape" type="CollisionShape3D" parent="Tree107" unique_id=244952956]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree107" unique_id=1011092862]
+[node name="Mesh" type="MeshInstance3D" parent="Tree107" unique_id=1341194238]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree108" type="StaticBody3D" parent="." unique_id=1970023798]
+[node name="Tree108" type="StaticBody3D" parent="." unique_id=442830105]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.056087, 4, 3.3827364)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree108" unique_id=2142422318]
+[node name="Shape" type="CollisionShape3D" parent="Tree108" unique_id=1845979361]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree108" unique_id=655866493]
+[node name="Mesh" type="MeshInstance3D" parent="Tree108" unique_id=700265660]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree109" type="StaticBody3D" parent="." unique_id=1514786501]
+[node name="Tree109" type="StaticBody3D" parent="." unique_id=1455758497]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.96276, 4, 7.074806)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree109" unique_id=1848812667]
+[node name="Shape" type="CollisionShape3D" parent="Tree109" unique_id=964420253]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree109" unique_id=1103571523]
+[node name="Mesh" type="MeshInstance3D" parent="Tree109" unique_id=339384813]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree110" type="StaticBody3D" parent="." unique_id=2110097689]
+[node name="Tree110" type="StaticBody3D" parent="." unique_id=2066624255]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.45794, 4, 16.689432)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree110" unique_id=2114117209]
+[node name="Shape" type="CollisionShape3D" parent="Tree110" unique_id=2118473030]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree110" unique_id=117680247]
+[node name="Mesh" type="MeshInstance3D" parent="Tree110" unique_id=677951169]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree111" type="StaticBody3D" parent="." unique_id=1611930402]
+[node name="Tree111" type="StaticBody3D" parent="." unique_id=181477132]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.23044, 4, 36.275)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree111" unique_id=1699329906]
+[node name="Shape" type="CollisionShape3D" parent="Tree111" unique_id=1529063407]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree111" unique_id=165599120]
+[node name="Mesh" type="MeshInstance3D" parent="Tree111" unique_id=35744888]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree112" type="StaticBody3D" parent="." unique_id=238951586]
+[node name="Tree112" type="StaticBody3D" parent="." unique_id=138663651]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.11654, 4, 43.573032)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree112" unique_id=1486644931]
+[node name="Shape" type="CollisionShape3D" parent="Tree112" unique_id=1476712399]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree112" unique_id=1083708429]
+[node name="Mesh" type="MeshInstance3D" parent="Tree112" unique_id=1338574221]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree113" type="StaticBody3D" parent="." unique_id=2001205526]
+[node name="Tree113" type="StaticBody3D" parent="." unique_id=78948835]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.037666, 4, 47.64532)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree113" unique_id=506109173]
+[node name="Shape" type="CollisionShape3D" parent="Tree113" unique_id=825363099]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree113" unique_id=613903942]
+[node name="Mesh" type="MeshInstance3D" parent="Tree113" unique_id=907935535]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree114" type="StaticBody3D" parent="." unique_id=69701192]
+[node name="Tree114" type="StaticBody3D" parent="." unique_id=863279340]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.157608, 4, 52.39092)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree114" unique_id=1693983549]
+[node name="Shape" type="CollisionShape3D" parent="Tree114" unique_id=1030837504]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree114" unique_id=878812581]
+[node name="Mesh" type="MeshInstance3D" parent="Tree114" unique_id=364893]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree115" type="StaticBody3D" parent="." unique_id=1692858515]
+[node name="Tree115" type="StaticBody3D" parent="." unique_id=721536920]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.40503, 4, 71.42133)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree115" unique_id=901400073]
+[node name="Shape" type="CollisionShape3D" parent="Tree115" unique_id=1841761286]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree115" unique_id=1867134350]
+[node name="Mesh" type="MeshInstance3D" parent="Tree115" unique_id=1289121933]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree116" type="StaticBody3D" parent="." unique_id=213645991]
+[node name="Tree116" type="StaticBody3D" parent="." unique_id=633312765]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.84224, 4, 82.64198)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree116" unique_id=1622018207]
+[node name="Shape" type="CollisionShape3D" parent="Tree116" unique_id=351303373]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree116" unique_id=1399872025]
+[node name="Mesh" type="MeshInstance3D" parent="Tree116" unique_id=1759989473]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree117" type="StaticBody3D" parent="." unique_id=187972897]
+[node name="Tree117" type="StaticBody3D" parent="." unique_id=1481008230]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.414864, 4, 86.96203)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree117" unique_id=77940159]
+[node name="Shape" type="CollisionShape3D" parent="Tree117" unique_id=1678768442]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree117" unique_id=766991915]
+[node name="Mesh" type="MeshInstance3D" parent="Tree117" unique_id=164807033]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree118" type="StaticBody3D" parent="." unique_id=263066169]
+[node name="Tree118" type="StaticBody3D" parent="." unique_id=1892549859]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51.903496, 4, 7.581112)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree118" unique_id=1298317306]
+[node name="Shape" type="CollisionShape3D" parent="Tree118" unique_id=370421445]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree118" unique_id=352986641]
+[node name="Mesh" type="MeshInstance3D" parent="Tree118" unique_id=1532709879]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree119" type="StaticBody3D" parent="." unique_id=213269154]
+[node name="Tree119" type="StaticBody3D" parent="." unique_id=1739093321]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.308655, 4, 16.126425)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree119" unique_id=1609297075]
+[node name="Shape" type="CollisionShape3D" parent="Tree119" unique_id=1558037423]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree119" unique_id=1250548166]
+[node name="Mesh" type="MeshInstance3D" parent="Tree119" unique_id=705402210]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree120" type="StaticBody3D" parent="." unique_id=647870651]
+[node name="Tree120" type="StaticBody3D" parent="." unique_id=880570932]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.07707, 4, 47.347694)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree120" unique_id=347764079]
+[node name="Shape" type="CollisionShape3D" parent="Tree120" unique_id=664069922]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree120" unique_id=758609193]
+[node name="Mesh" type="MeshInstance3D" parent="Tree120" unique_id=1234479593]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree121" type="StaticBody3D" parent="." unique_id=1913236561]
+[node name="Tree121" type="StaticBody3D" parent="." unique_id=2046449508]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.780457, 4, 53.759914)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree121" unique_id=2135939760]
+[node name="Shape" type="CollisionShape3D" parent="Tree121" unique_id=1441769692]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree121" unique_id=119338433]
+[node name="Mesh" type="MeshInstance3D" parent="Tree121" unique_id=228270726]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree122" type="StaticBody3D" parent="." unique_id=338320747]
+[node name="Tree122" type="StaticBody3D" parent="." unique_id=1537171732]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.050766, 4, 56.166386)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree122" unique_id=1552687557]
+[node name="Shape" type="CollisionShape3D" parent="Tree122" unique_id=791938225]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree122" unique_id=940271494]
+[node name="Mesh" type="MeshInstance3D" parent="Tree122" unique_id=1178951220]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree123" type="StaticBody3D" parent="." unique_id=245021925]
+[node name="Tree123" type="StaticBody3D" parent="." unique_id=1905007466]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.541737, 4, 73.000275)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree123" unique_id=1444973791]
+[node name="Shape" type="CollisionShape3D" parent="Tree123" unique_id=511748822]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree123" unique_id=142184849]
+[node name="Mesh" type="MeshInstance3D" parent="Tree123" unique_id=123113995]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree124" type="StaticBody3D" parent="." unique_id=268319065]
+[node name="Tree124" type="StaticBody3D" parent="." unique_id=1104656876]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.325672, 4, 82.46094)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree124" unique_id=1193678842]
+[node name="Shape" type="CollisionShape3D" parent="Tree124" unique_id=1445948589]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree124" unique_id=409987367]
+[node name="Mesh" type="MeshInstance3D" parent="Tree124" unique_id=33645730]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree125" type="StaticBody3D" parent="." unique_id=805891565]
+[node name="Tree125" type="StaticBody3D" parent="." unique_id=1288703319]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.865273, 4, 87.125984)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree125" unique_id=248162948]
+[node name="Shape" type="CollisionShape3D" parent="Tree125" unique_id=1952891535]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree125" unique_id=1611889169]
+[node name="Mesh" type="MeshInstance3D" parent="Tree125" unique_id=639420707]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree126" type="StaticBody3D" parent="." unique_id=120720032]
+[node name="Tree126" type="StaticBody3D" parent="." unique_id=1375175052]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.467625, 4, 1.8425143)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree126" unique_id=1464036989]
+[node name="Shape" type="CollisionShape3D" parent="Tree126" unique_id=1720616139]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree126" unique_id=518960299]
+[node name="Mesh" type="MeshInstance3D" parent="Tree126" unique_id=600264865]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree127" type="StaticBody3D" parent="." unique_id=1723457017]
+[node name="Tree127" type="StaticBody3D" parent="." unique_id=346609112]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.815197, 4, 26.960033)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree127" unique_id=1505547739]
+[node name="Shape" type="CollisionShape3D" parent="Tree127" unique_id=538437299]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree127" unique_id=316938502]
+[node name="Mesh" type="MeshInstance3D" parent="Tree127" unique_id=1392621769]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree128" type="StaticBody3D" parent="." unique_id=1568004345]
+[node name="Tree128" type="StaticBody3D" parent="." unique_id=1378235192]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.061718, 4, 71.33436)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree128" unique_id=1105476202]
+[node name="Shape" type="CollisionShape3D" parent="Tree128" unique_id=1120872525]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree128" unique_id=574835394]
+[node name="Mesh" type="MeshInstance3D" parent="Tree128" unique_id=989465889]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree129" type="StaticBody3D" parent="." unique_id=1939588932]
+[node name="Tree129" type="StaticBody3D" parent="." unique_id=283554769]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.008564, 4, 81.84888)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree129" unique_id=1861392421]
+[node name="Shape" type="CollisionShape3D" parent="Tree129" unique_id=1281037829]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree129" unique_id=669480611]
+[node name="Mesh" type="MeshInstance3D" parent="Tree129" unique_id=1932742449]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree130" type="StaticBody3D" parent="." unique_id=2037827326]
+[node name="Tree130" type="StaticBody3D" parent="." unique_id=60218638]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.27517, 4, 87.68816)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree130" unique_id=575939217]
+[node name="Shape" type="CollisionShape3D" parent="Tree130" unique_id=1060952645]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree130" unique_id=162245961]
+[node name="Mesh" type="MeshInstance3D" parent="Tree130" unique_id=1421042012]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree131" type="StaticBody3D" parent="." unique_id=1355615901]
+[node name="Tree131" type="StaticBody3D" parent="." unique_id=1828092471]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.33825, 4, 23.073833)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree131" unique_id=105751181]
+[node name="Shape" type="CollisionShape3D" parent="Tree131" unique_id=1621431047]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree131" unique_id=1104698480]
+[node name="Mesh" type="MeshInstance3D" parent="Tree131" unique_id=1462160177]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree132" type="StaticBody3D" parent="." unique_id=917614700]
+[node name="Tree132" type="StaticBody3D" parent="." unique_id=3912021]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.55368, 4, 56.43835)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree132" unique_id=2098407196]
+[node name="Shape" type="CollisionShape3D" parent="Tree132" unique_id=1729226467]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree132" unique_id=1161286096]
+[node name="Mesh" type="MeshInstance3D" parent="Tree132" unique_id=756744119]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree133" type="StaticBody3D" parent="." unique_id=715921663]
+[node name="Tree133" type="StaticBody3D" parent="." unique_id=1684520917]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.742813, 4, 67.31199)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree133" unique_id=1388712153]
+[node name="Shape" type="CollisionShape3D" parent="Tree133" unique_id=476190354]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree133" unique_id=44489682]
+[node name="Mesh" type="MeshInstance3D" parent="Tree133" unique_id=45207279]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree134" type="StaticBody3D" parent="." unique_id=1136099539]
+[node name="Tree134" type="StaticBody3D" parent="." unique_id=1858757230]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.41949, 4, 72.90929)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree134" unique_id=803818023]
+[node name="Shape" type="CollisionShape3D" parent="Tree134" unique_id=1588957798]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree134" unique_id=47360661]
+[node name="Mesh" type="MeshInstance3D" parent="Tree134" unique_id=616483816]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree135" type="StaticBody3D" parent="." unique_id=1642666897]
+[node name="Tree135" type="StaticBody3D" parent="." unique_id=1349873230]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.5653, 4, 81.59726)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree135" unique_id=1183776438]
+[node name="Shape" type="CollisionShape3D" parent="Tree135" unique_id=1317996935]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree135" unique_id=679111324]
+[node name="Mesh" type="MeshInstance3D" parent="Tree135" unique_id=324797084]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree136" type="StaticBody3D" parent="." unique_id=456834194]
+[node name="Tree136" type="StaticBody3D" parent="." unique_id=611757833]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.820946, 4, 56.25551)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree136" unique_id=81760193]
+[node name="Shape" type="CollisionShape3D" parent="Tree136" unique_id=1847352722]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree136" unique_id=1008605947]
+[node name="Mesh" type="MeshInstance3D" parent="Tree136" unique_id=698880182]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree137" type="StaticBody3D" parent="." unique_id=148975116]
+[node name="Tree137" type="StaticBody3D" parent="." unique_id=126996706]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.0439, 4, 68.08382)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree137" unique_id=1238251540]
+[node name="Shape" type="CollisionShape3D" parent="Tree137" unique_id=1580451841]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree137" unique_id=300591566]
+[node name="Mesh" type="MeshInstance3D" parent="Tree137" unique_id=250507688]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree138" type="StaticBody3D" parent="." unique_id=685676713]
+[node name="Tree138" type="StaticBody3D" parent="." unique_id=304824039]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.782265, 4, 71.45505)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree138" unique_id=610288350]
+[node name="Shape" type="CollisionShape3D" parent="Tree138" unique_id=504437616]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree138" unique_id=817842740]
+[node name="Mesh" type="MeshInstance3D" parent="Tree138" unique_id=261784899]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree139" type="StaticBody3D" parent="." unique_id=1659646946]
+[node name="Tree139" type="StaticBody3D" parent="." unique_id=1453013281]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.72146, 4, 83.730125)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree139" unique_id=486838506]
+[node name="Shape" type="CollisionShape3D" parent="Tree139" unique_id=1929154415]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree139" unique_id=2146605885]
+[node name="Mesh" type="MeshInstance3D" parent="Tree139" unique_id=1135517520]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree140" type="StaticBody3D" parent="." unique_id=1940459147]
+[node name="Tree140" type="StaticBody3D" parent="." unique_id=338130527]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.606514, 4, 23.752876)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree140" unique_id=1230553705]
+[node name="Shape" type="CollisionShape3D" parent="Tree140" unique_id=849756432]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree140" unique_id=2030903405]
+[node name="Mesh" type="MeshInstance3D" parent="Tree140" unique_id=604907726]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree141" type="StaticBody3D" parent="." unique_id=2020802452]
+[node name="Tree141" type="StaticBody3D" parent="." unique_id=778035895]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.20218, 4, 26.51185)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree141" unique_id=2119342953]
+[node name="Shape" type="CollisionShape3D" parent="Tree141" unique_id=667074327]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree141" unique_id=13414539]
+[node name="Mesh" type="MeshInstance3D" parent="Tree141" unique_id=123803665]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree142" type="StaticBody3D" parent="." unique_id=556504865]
+[node name="Tree142" type="StaticBody3D" parent="." unique_id=1691855938]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.20292, 4, 56.98878)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree142" unique_id=94731279]
+[node name="Shape" type="CollisionShape3D" parent="Tree142" unique_id=132791313]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree142" unique_id=1908301663]
+[node name="Mesh" type="MeshInstance3D" parent="Tree142" unique_id=858864706]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree143" type="StaticBody3D" parent="." unique_id=467391082]
+[node name="Tree143" type="StaticBody3D" parent="." unique_id=310793204]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.61955, 4, 68.83997)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree143" unique_id=1690164224]
+[node name="Shape" type="CollisionShape3D" parent="Tree143" unique_id=82515988]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree143" unique_id=2092141898]
+[node name="Mesh" type="MeshInstance3D" parent="Tree143" unique_id=1133125221]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree144" type="StaticBody3D" parent="." unique_id=404628113]
+[node name="Tree144" type="StaticBody3D" parent="." unique_id=1245652353]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 73.46961, 4, 71.859215)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree144" unique_id=205535768]
+[node name="Shape" type="CollisionShape3D" parent="Tree144" unique_id=1823253792]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree144" unique_id=2106809771]
+[node name="Mesh" type="MeshInstance3D" parent="Tree144" unique_id=1545996805]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree145" type="StaticBody3D" parent="." unique_id=1398005073]
+[node name="Tree145" type="StaticBody3D" parent="." unique_id=670955653]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.637115, 4, 1.8288251)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree145" unique_id=730476498]
+[node name="Shape" type="CollisionShape3D" parent="Tree145" unique_id=1451459896]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree145" unique_id=747605348]
+[node name="Mesh" type="MeshInstance3D" parent="Tree145" unique_id=699336528]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree146" type="StaticBody3D" parent="." unique_id=203518100]
+[node name="Tree146" type="StaticBody3D" parent="." unique_id=1914001375]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.12486, 4, 48.84959)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree146" unique_id=436135531]
+[node name="Shape" type="CollisionShape3D" parent="Tree146" unique_id=524232266]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree146" unique_id=204789590]
+[node name="Mesh" type="MeshInstance3D" parent="Tree146" unique_id=1109779451]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree147" type="StaticBody3D" parent="." unique_id=333472901]
+[node name="Tree147" type="StaticBody3D" parent="." unique_id=51786203]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.71336, 4, 52.896362)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree147" unique_id=1071516106]
+[node name="Shape" type="CollisionShape3D" parent="Tree147" unique_id=1899820826]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree147" unique_id=2014856909]
+[node name="Mesh" type="MeshInstance3D" parent="Tree147" unique_id=1005167503]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree148" type="StaticBody3D" parent="." unique_id=708799678]
+[node name="Tree148" type="StaticBody3D" parent="." unique_id=1318194200]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.61785, 4, 56.76721)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree148" unique_id=1241286750]
+[node name="Shape" type="CollisionShape3D" parent="Tree148" unique_id=468294694]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree148" unique_id=973325476]
+[node name="Mesh" type="MeshInstance3D" parent="Tree148" unique_id=1455798698]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree149" type="StaticBody3D" parent="." unique_id=977160250]
+[node name="Tree149" type="StaticBody3D" parent="." unique_id=1936645166]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.67246, 4, 67.03546)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree149" unique_id=199151062]
+[node name="Shape" type="CollisionShape3D" parent="Tree149" unique_id=611436859]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree149" unique_id=2118161104]
+[node name="Mesh" type="MeshInstance3D" parent="Tree149" unique_id=599268986]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree150" type="StaticBody3D" parent="." unique_id=111827465]
+[node name="Tree150" type="StaticBody3D" parent="." unique_id=711610698]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.84391, 4, 72.1681)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree150" unique_id=461274893]
+[node name="Shape" type="CollisionShape3D" parent="Tree150" unique_id=1712368165]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree150" unique_id=143344809]
+[node name="Mesh" type="MeshInstance3D" parent="Tree150" unique_id=1827800446]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree151" type="StaticBody3D" parent="." unique_id=451559407]
+[node name="Tree151" type="StaticBody3D" parent="." unique_id=1255957064]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.236694, 4, 88.23409)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree151" unique_id=839701383]
+[node name="Shape" type="CollisionShape3D" parent="Tree151" unique_id=193541384]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree151" unique_id=187778773]
+[node name="Mesh" type="MeshInstance3D" parent="Tree151" unique_id=748686832]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree152" type="StaticBody3D" parent="." unique_id=835358611]
+[node name="Tree152" type="StaticBody3D" parent="." unique_id=1913861342]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 81.05282, 4, 1.9931307)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree152" unique_id=205766793]
+[node name="Shape" type="CollisionShape3D" parent="Tree152" unique_id=1325461711]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree152" unique_id=1009138081]
+[node name="Mesh" type="MeshInstance3D" parent="Tree152" unique_id=1808018919]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree153" type="StaticBody3D" parent="." unique_id=2125364972]
+[node name="Tree153" type="StaticBody3D" parent="." unique_id=854266097]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 83.97525, 4, 8.990971)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree153" unique_id=1828993479]
+[node name="Shape" type="CollisionShape3D" parent="Tree153" unique_id=1580100084]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree153" unique_id=1724815246]
+[node name="Mesh" type="MeshInstance3D" parent="Tree153" unique_id=5379003]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree154" type="StaticBody3D" parent="." unique_id=1009504807]
+[node name="Tree154" type="StaticBody3D" parent="." unique_id=169659847]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.691475, 4, 17.478529)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree154" unique_id=295109105]
+[node name="Shape" type="CollisionShape3D" parent="Tree154" unique_id=1193578091]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree154" unique_id=2144245510]
+[node name="Mesh" type="MeshInstance3D" parent="Tree154" unique_id=1088240162]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree155" type="StaticBody3D" parent="." unique_id=2144270322]
+[node name="Tree155" type="StaticBody3D" parent="." unique_id=229843934]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.06389, 4, 41.577637)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree155" unique_id=703395908]
+[node name="Shape" type="CollisionShape3D" parent="Tree155" unique_id=55299595]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree155" unique_id=291154511]
+[node name="Mesh" type="MeshInstance3D" parent="Tree155" unique_id=1771292163]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree156" type="StaticBody3D" parent="." unique_id=445838672]
+[node name="Tree156" type="StaticBody3D" parent="." unique_id=920970086]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 81.508545, 4, 52.63492)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree156" unique_id=914011352]
+[node name="Shape" type="CollisionShape3D" parent="Tree156" unique_id=694909768]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree156" unique_id=288846235]
+[node name="Mesh" type="MeshInstance3D" parent="Tree156" unique_id=815215859]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree157" type="StaticBody3D" parent="." unique_id=243096702]
+[node name="Tree157" type="StaticBody3D" parent="." unique_id=1257791358]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 81.11206, 4, 61.735107)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree157" unique_id=1289310798]
+[node name="Shape" type="CollisionShape3D" parent="Tree157" unique_id=1469892062]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree157" unique_id=2040632806]
+[node name="Mesh" type="MeshInstance3D" parent="Tree157" unique_id=1201642287]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree158" type="StaticBody3D" parent="." unique_id=2138093109]
+[node name="Tree158" type="StaticBody3D" parent="." unique_id=1102719797]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 83.43602, 4, 68.73089)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree158" unique_id=1844842701]
+[node name="Shape" type="CollisionShape3D" parent="Tree158" unique_id=1148594343]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree158" unique_id=467207873]
+[node name="Mesh" type="MeshInstance3D" parent="Tree158" unique_id=195226882]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree159" type="StaticBody3D" parent="." unique_id=1830285725]
+[node name="Tree159" type="StaticBody3D" parent="." unique_id=1996518328]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 81.23314, 4, 73.467636)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree159" unique_id=1671064640]
+[node name="Shape" type="CollisionShape3D" parent="Tree159" unique_id=1501996485]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree159" unique_id=512029715]
+[node name="Mesh" type="MeshInstance3D" parent="Tree159" unique_id=1082216396]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree160" type="StaticBody3D" parent="." unique_id=1331012074]
+[node name="Tree160" type="StaticBody3D" parent="." unique_id=882095619]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 83.75496, 4, 83.46708)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree160" unique_id=225734750]
+[node name="Shape" type="CollisionShape3D" parent="Tree160" unique_id=2855521]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree160" unique_id=80402947]
+[node name="Mesh" type="MeshInstance3D" parent="Tree160" unique_id=306592122]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree161" type="StaticBody3D" parent="." unique_id=1570261577]
+[node name="Tree161" type="StaticBody3D" parent="." unique_id=1280557437]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 81.1796, 4, 87.13951)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree161" unique_id=747758648]
+[node name="Shape" type="CollisionShape3D" parent="Tree161" unique_id=54381054]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree161" unique_id=715994517]
+[node name="Mesh" type="MeshInstance3D" parent="Tree161" unique_id=861718352]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree162" type="StaticBody3D" parent="." unique_id=1914470384]
+[node name="Tree162" type="StaticBody3D" parent="." unique_id=123647273]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.7097, 4, 2.1137917)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree162" unique_id=1179126251]
+[node name="Shape" type="CollisionShape3D" parent="Tree162" unique_id=2114218617]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree162" unique_id=838905603]
+[node name="Mesh" type="MeshInstance3D" parent="Tree162" unique_id=417386303]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree163" type="StaticBody3D" parent="." unique_id=521557264]
+[node name="Tree163" type="StaticBody3D" parent="." unique_id=1003937277]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.29832, 4, 7.8268023)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree163" unique_id=276098601]
+[node name="Shape" type="CollisionShape3D" parent="Tree163" unique_id=586453995]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree163" unique_id=51318558]
+[node name="Mesh" type="MeshInstance3D" parent="Tree163" unique_id=1401946702]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree164" type="StaticBody3D" parent="." unique_id=1871701785]
+[node name="Tree164" type="StaticBody3D" parent="." unique_id=402019665]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.42959, 4, 17.257126)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree164" unique_id=14951056]
+[node name="Shape" type="CollisionShape3D" parent="Tree164" unique_id=1048865911]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree164" unique_id=1584206265]
+[node name="Mesh" type="MeshInstance3D" parent="Tree164" unique_id=563783091]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree165" type="StaticBody3D" parent="." unique_id=1755524181]
+[node name="Tree165" type="StaticBody3D" parent="." unique_id=1898025566]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.2592, 4, 43.914894)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree165" unique_id=308829305]
+[node name="Shape" type="CollisionShape3D" parent="Tree165" unique_id=68537863]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree165" unique_id=1812138854]
+[node name="Mesh" type="MeshInstance3D" parent="Tree165" unique_id=1724464577]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree166" type="StaticBody3D" parent="." unique_id=1196978601]
+[node name="Tree166" type="StaticBody3D" parent="." unique_id=983626955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.93756, 4, 63.579624)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree166" unique_id=398915370]
+[node name="Shape" type="CollisionShape3D" parent="Tree166" unique_id=563967718]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree166" unique_id=98615604]
+[node name="Mesh" type="MeshInstance3D" parent="Tree166" unique_id=317922675]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree167" type="StaticBody3D" parent="." unique_id=1161455206]
+[node name="Tree167" type="StaticBody3D" parent="." unique_id=941814605]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.6756, 4, 68.438354)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree167" unique_id=986462405]
+[node name="Shape" type="CollisionShape3D" parent="Tree167" unique_id=130970252]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree167" unique_id=1856299900]
+[node name="Mesh" type="MeshInstance3D" parent="Tree167" unique_id=2100863409]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree168" type="StaticBody3D" parent="." unique_id=916563014]
+[node name="Tree168" type="StaticBody3D" parent="." unique_id=431829037]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.54724, 4, 71.45719)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree168" unique_id=357546423]
+[node name="Shape" type="CollisionShape3D" parent="Tree168" unique_id=224604957]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree168" unique_id=603371077]
+[node name="Mesh" type="MeshInstance3D" parent="Tree168" unique_id=2114509826]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree169" type="StaticBody3D" parent="." unique_id=1045053473]
+[node name="Tree169" type="StaticBody3D" parent="." unique_id=1229431081]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.63962, 4, 83.902596)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree169" unique_id=110656862]
+[node name="Shape" type="CollisionShape3D" parent="Tree169" unique_id=1911799403]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree169" unique_id=1039180737]
+[node name="Mesh" type="MeshInstance3D" parent="Tree169" unique_id=1798872117]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree170" type="StaticBody3D" parent="." unique_id=1467635050]
+[node name="Tree170" type="StaticBody3D" parent="." unique_id=1770935093]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.632164, 4, 86.08207)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree170" unique_id=317955676]
+[node name="Shape" type="CollisionShape3D" parent="Tree170" unique_id=457141407]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree170" unique_id=2127119412]
+[node name="Mesh" type="MeshInstance3D" parent="Tree170" unique_id=2144526395]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree171" type="StaticBody3D" parent="." unique_id=1037872413]
+[node name="Tree171" type="StaticBody3D" parent="." unique_id=615273016]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91.61726, 4, 2.4770508)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree171" unique_id=171255216]
+[node name="Shape" type="CollisionShape3D" parent="Tree171" unique_id=1078176187]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree171" unique_id=195736352]
+[node name="Mesh" type="MeshInstance3D" parent="Tree171" unique_id=998412495]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree172" type="StaticBody3D" parent="." unique_id=1125359520]
+[node name="Tree172" type="StaticBody3D" parent="." unique_id=487761421]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.41119, 4, 23.966766)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree172" unique_id=971899884]
+[node name="Shape" type="CollisionShape3D" parent="Tree172" unique_id=1168539533]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree172" unique_id=265875739]
+[node name="Mesh" type="MeshInstance3D" parent="Tree172" unique_id=61854120]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree173" type="StaticBody3D" parent="." unique_id=324322980]
+[node name="Tree173" type="StaticBody3D" parent="." unique_id=1998104307]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.90541, 4, 26.324944)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree173" unique_id=35265882]
+[node name="Shape" type="CollisionShape3D" parent="Tree173" unique_id=584124997]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree173" unique_id=906000520]
+[node name="Mesh" type="MeshInstance3D" parent="Tree173" unique_id=2092102657]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree174" type="StaticBody3D" parent="." unique_id=1935845391]
+[node name="Tree174" type="StaticBody3D" parent="." unique_id=1238954878]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91.572136, 4, 37.91608)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree174" unique_id=1527698528]
+[node name="Shape" type="CollisionShape3D" parent="Tree174" unique_id=1813437242]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree174" unique_id=729295823]
+[node name="Mesh" type="MeshInstance3D" parent="Tree174" unique_id=123802616]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree175" type="StaticBody3D" parent="." unique_id=1996791221]
+[node name="Tree175" type="StaticBody3D" parent="." unique_id=711269999]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.46354, 4, 41.55793)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree175" unique_id=1176583170]
+[node name="Shape" type="CollisionShape3D" parent="Tree175" unique_id=974852007]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree175" unique_id=66627719]
+[node name="Mesh" type="MeshInstance3D" parent="Tree175" unique_id=584690484]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree176" type="StaticBody3D" parent="." unique_id=368119589]
+[node name="Tree176" type="StaticBody3D" parent="." unique_id=1978561107]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.74088, 4, 47.718273)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree176" unique_id=324067454]
+[node name="Shape" type="CollisionShape3D" parent="Tree176" unique_id=1776663313]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree176" unique_id=253149331]
+[node name="Mesh" type="MeshInstance3D" parent="Tree176" unique_id=621180751]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree177" type="StaticBody3D" parent="." unique_id=272912057]
+[node name="Tree177" type="StaticBody3D" parent="." unique_id=108063227]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 93.02179, 4, 62.745426)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree177" unique_id=690087681]
+[node name="Shape" type="CollisionShape3D" parent="Tree177" unique_id=2009924071]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree177" unique_id=665014919]
+[node name="Mesh" type="MeshInstance3D" parent="Tree177" unique_id=2110024973]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree178" type="StaticBody3D" parent="." unique_id=1115653769]
+[node name="Tree178" type="StaticBody3D" parent="." unique_id=1657406639]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91.750465, 4, 67.170395)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree178" unique_id=637750450]
+[node name="Shape" type="CollisionShape3D" parent="Tree178" unique_id=2032668461]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree178" unique_id=1266946975]
+[node name="Mesh" type="MeshInstance3D" parent="Tree178" unique_id=1542234461]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree179" type="StaticBody3D" parent="." unique_id=925839525]
+[node name="Tree179" type="StaticBody3D" parent="." unique_id=1843184615]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.469246, 4, 71.24499)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree179" unique_id=1551938004]
+[node name="Shape" type="CollisionShape3D" parent="Tree179" unique_id=1062771100]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree179" unique_id=906041432]
+[node name="Mesh" type="MeshInstance3D" parent="Tree179" unique_id=1989227894]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree180" type="StaticBody3D" parent="." unique_id=485021064]
+[node name="Tree180" type="StaticBody3D" parent="." unique_id=1066070954]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 96.24296, 4, 22.732563)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree180" unique_id=1184809846]
+[node name="Shape" type="CollisionShape3D" parent="Tree180" unique_id=931603925]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree180" unique_id=546941644]
+[node name="Mesh" type="MeshInstance3D" parent="Tree180" unique_id=2078303430]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree181" type="StaticBody3D" parent="." unique_id=1390188195]
+[node name="Tree181" type="StaticBody3D" parent="." unique_id=2089878817]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 96.783745, 4, 26.342962)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree181" unique_id=916437347]
+[node name="Shape" type="CollisionShape3D" parent="Tree181" unique_id=339647655]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree181" unique_id=1423347397]
+[node name="Mesh" type="MeshInstance3D" parent="Tree181" unique_id=154296338]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree182" type="StaticBody3D" parent="." unique_id=1305140625]
+[node name="Tree182" type="StaticBody3D" parent="." unique_id=1320381687]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.53687, 4, 37.568184)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree182" unique_id=52453255]
+[node name="Shape" type="CollisionShape3D" parent="Tree182" unique_id=1676137125]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree182" unique_id=513830406]
+[node name="Mesh" type="MeshInstance3D" parent="Tree182" unique_id=1850235703]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree183" type="StaticBody3D" parent="." unique_id=1576377281]
+[node name="Tree183" type="StaticBody3D" parent="." unique_id=858055561]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.56676, 4, 41.24292)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree183" unique_id=1049840949]
+[node name="Shape" type="CollisionShape3D" parent="Tree183" unique_id=158747507]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree183" unique_id=959204241]
+[node name="Mesh" type="MeshInstance3D" parent="Tree183" unique_id=1802716403]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree184" type="StaticBody3D" parent="." unique_id=739255070]
+[node name="Tree184" type="StaticBody3D" parent="." unique_id=2013503144]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.17594, 4, 47.685944)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree184" unique_id=1800145424]
+[node name="Shape" type="CollisionShape3D" parent="Tree184" unique_id=1834289319]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree184" unique_id=1772578630]
+[node name="Mesh" type="MeshInstance3D" parent="Tree184" unique_id=961514876]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree185" type="StaticBody3D" parent="." unique_id=1105454669]
+[node name="Tree185" type="StaticBody3D" parent="." unique_id=1360203869]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.615456, 4, 73.93228)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree185" unique_id=1234597190]
+[node name="Shape" type="CollisionShape3D" parent="Tree185" unique_id=224742209]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree185" unique_id=1882596259]
+[node name="Mesh" type="MeshInstance3D" parent="Tree185" unique_id=746562518]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree186" type="StaticBody3D" parent="." unique_id=1700531816]
+[node name="Tree186" type="StaticBody3D" parent="." unique_id=1704905462]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.86135, 4, 78.24661)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree186" unique_id=84386259]
+[node name="Shape" type="CollisionShape3D" parent="Tree186" unique_id=1514000756]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree186" unique_id=714708338]
+[node name="Mesh" type="MeshInstance3D" parent="Tree186" unique_id=1574070456]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree187" type="StaticBody3D" parent="." unique_id=854150809]
+[node name="Tree187" type="StaticBody3D" parent="." unique_id=1317827164]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.99169, 4, 81.59939)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree187" unique_id=1555494623]
+[node name="Shape" type="CollisionShape3D" parent="Tree187" unique_id=1460240992]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree187" unique_id=1459917578]
+[node name="Mesh" type="MeshInstance3D" parent="Tree187" unique_id=130352457]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree188" type="StaticBody3D" parent="." unique_id=974734306]
+[node name="Tree188" type="StaticBody3D" parent="." unique_id=2030495293]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.3482, 4, 88.2109)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree188" unique_id=1878835078]
+[node name="Shape" type="CollisionShape3D" parent="Tree188" unique_id=1013399916]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree188" unique_id=130345396]
+[node name="Mesh" type="MeshInstance3D" parent="Tree188" unique_id=1239283362]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree189" type="StaticBody3D" parent="." unique_id=168655853]
+[node name="Tree189" type="StaticBody3D" parent="." unique_id=888476887]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.945015, 4, 23.59783)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree189" unique_id=944351789]
+[node name="Shape" type="CollisionShape3D" parent="Tree189" unique_id=2041697264]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree189" unique_id=2069512654]
+[node name="Mesh" type="MeshInstance3D" parent="Tree189" unique_id=1415955082]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree190" type="StaticBody3D" parent="." unique_id=1794166614]
+[node name="Tree190" type="StaticBody3D" parent="." unique_id=383669176]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.30631, 4, 26.232239)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree190" unique_id=794646134]
+[node name="Shape" type="CollisionShape3D" parent="Tree190" unique_id=883298831]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree190" unique_id=541403617]
+[node name="Mesh" type="MeshInstance3D" parent="Tree190" unique_id=1482913833]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree191" type="StaticBody3D" parent="." unique_id=1490121858]
+[node name="Tree191" type="StaticBody3D" parent="." unique_id=1296838829]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.319435, 4, 37.262215)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree191" unique_id=1882642242]
+[node name="Shape" type="CollisionShape3D" parent="Tree191" unique_id=876534113]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree191" unique_id=1250998167]
+[node name="Mesh" type="MeshInstance3D" parent="Tree191" unique_id=1922593272]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree192" type="StaticBody3D" parent="." unique_id=1961063523]
+[node name="Tree192" type="StaticBody3D" parent="." unique_id=13219855]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.23573, 4, 42.261154)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree192" unique_id=529034139]
+[node name="Shape" type="CollisionShape3D" parent="Tree192" unique_id=1642879891]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree192" unique_id=1412225577]
+[node name="Mesh" type="MeshInstance3D" parent="Tree192" unique_id=1458390436]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree193" type="StaticBody3D" parent="." unique_id=1387141326]
+[node name="Tree193" type="StaticBody3D" parent="." unique_id=122729660]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.20641, 4, 47.943634)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree193" unique_id=326517849]
+[node name="Shape" type="CollisionShape3D" parent="Tree193" unique_id=1766457008]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree193" unique_id=485574347]
+[node name="Mesh" type="MeshInstance3D" parent="Tree193" unique_id=955299570]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree194" type="StaticBody3D" parent="." unique_id=1720486802]
+[node name="Tree194" type="StaticBody3D" parent="." unique_id=1998124280]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.291, 4, 81.57901)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree194" unique_id=1167084482]
+[node name="Shape" type="CollisionShape3D" parent="Tree194" unique_id=2117197705]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree194" unique_id=723457841]
+[node name="Mesh" type="MeshInstance3D" parent="Tree194" unique_id=1524222034]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree195" type="StaticBody3D" parent="." unique_id=1778918838]
+[node name="Tree195" type="StaticBody3D" parent="." unique_id=1487643741]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.85133, 4, 86.28522)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree195" unique_id=865060110]
+[node name="Shape" type="CollisionShape3D" parent="Tree195" unique_id=2035415782]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree195" unique_id=239651633]
+[node name="Mesh" type="MeshInstance3D" parent="Tree195" unique_id=1500086418]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree196" type="StaticBody3D" parent="." unique_id=1962953617]
+[node name="Tree196" type="StaticBody3D" parent="." unique_id=1479354581]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.35701, 4, 1.9547372)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree196" unique_id=878168188]
+[node name="Shape" type="CollisionShape3D" parent="Tree196" unique_id=847792177]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree196" unique_id=1022839690]
+[node name="Mesh" type="MeshInstance3D" parent="Tree196" unique_id=1199578751]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree197" type="StaticBody3D" parent="." unique_id=280552067]
+[node name="Tree197" type="StaticBody3D" parent="." unique_id=550832753]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.57018, 4, 23.564154)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree197" unique_id=1200319006]
+[node name="Shape" type="CollisionShape3D" parent="Tree197" unique_id=742718631]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree197" unique_id=449512805]
+[node name="Mesh" type="MeshInstance3D" parent="Tree197" unique_id=1383653838]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree198" type="StaticBody3D" parent="." unique_id=552480398]
+[node name="Tree198" type="StaticBody3D" parent="." unique_id=1037653298]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.090836, 4, 27.762432)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree198" unique_id=1950808953]
+[node name="Shape" type="CollisionShape3D" parent="Tree198" unique_id=1645432675]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree198" unique_id=1688106216]
+[node name="Mesh" type="MeshInstance3D" parent="Tree198" unique_id=780755141]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree199" type="StaticBody3D" parent="." unique_id=986545890]
+[node name="Tree199" type="StaticBody3D" parent="." unique_id=1420750874]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.249275, 4, 43.364975)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree199" unique_id=970059602]
+[node name="Shape" type="CollisionShape3D" parent="Tree199" unique_id=329605808]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree199" unique_id=2093315730]
+[node name="Mesh" type="MeshInstance3D" parent="Tree199" unique_id=1829020431]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree200" type="StaticBody3D" parent="." unique_id=1518668324]
+[node name="Tree200" type="StaticBody3D" parent="." unique_id=1929711116]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.80676, 4, 46.249744)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree200" unique_id=1812133314]
+[node name="Shape" type="CollisionShape3D" parent="Tree200" unique_id=275742475]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree200" unique_id=279570833]
+[node name="Mesh" type="MeshInstance3D" parent="Tree200" unique_id=1742768107]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree201" type="StaticBody3D" parent="." unique_id=1865221912]
+[node name="Tree201" type="StaticBody3D" parent="." unique_id=1690747967]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.25334, 4, 51.29986)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree201" unique_id=599066744]
+[node name="Shape" type="CollisionShape3D" parent="Tree201" unique_id=24202540]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree201" unique_id=1986295521]
+[node name="Mesh" type="MeshInstance3D" parent="Tree201" unique_id=1272828968]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree202" type="StaticBody3D" parent="." unique_id=45633210]
+[node name="Tree202" type="StaticBody3D" parent="." unique_id=1879600725]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106.26933, 4, 87.75566)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree202" unique_id=1846876426]
+[node name="Shape" type="CollisionShape3D" parent="Tree202" unique_id=473310910]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree202" unique_id=563523218]
+[node name="Mesh" type="MeshInstance3D" parent="Tree202" unique_id=942754963]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree203" type="StaticBody3D" parent="." unique_id=493595167]
+[node name="Tree203" type="StaticBody3D" parent="." unique_id=1723743349]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.218445, 4, 3.5345442)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree203" unique_id=566312353]
+[node name="Shape" type="CollisionShape3D" parent="Tree203" unique_id=873774925]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree203" unique_id=1628396788]
+[node name="Mesh" type="MeshInstance3D" parent="Tree203" unique_id=1967515760]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree204" type="StaticBody3D" parent="." unique_id=244300283]
+[node name="Tree204" type="StaticBody3D" parent="." unique_id=1700045957]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112.37838, 4, 7.8337736)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree204" unique_id=618808009]
+[node name="Shape" type="CollisionShape3D" parent="Tree204" unique_id=377447409]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree204" unique_id=1492416027]
+[node name="Mesh" type="MeshInstance3D" parent="Tree204" unique_id=833549446]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree205" type="StaticBody3D" parent="." unique_id=966232360]
+[node name="Tree205" type="StaticBody3D" parent="." unique_id=596011766]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.92217, 4, 13.638258)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree205" unique_id=1512922435]
+[node name="Shape" type="CollisionShape3D" parent="Tree205" unique_id=330836571]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree205" unique_id=779501139]
+[node name="Mesh" type="MeshInstance3D" parent="Tree205" unique_id=22239585]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree206" type="StaticBody3D" parent="." unique_id=1421238206]
+[node name="Tree206" type="StaticBody3D" parent="." unique_id=1548450117]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.856544, 4, 17.527893)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree206" unique_id=54742036]
+[node name="Shape" type="CollisionShape3D" parent="Tree206" unique_id=1316986768]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree206" unique_id=2005084975]
+[node name="Mesh" type="MeshInstance3D" parent="Tree206" unique_id=1300276243]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree207" type="StaticBody3D" parent="." unique_id=693200277]
+[node name="Tree207" type="StaticBody3D" parent="." unique_id=348618304]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 111.20538, 4, 42.721405)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree207" unique_id=747322086]
+[node name="Shape" type="CollisionShape3D" parent="Tree207" unique_id=734272523]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree207" unique_id=1023792578]
+[node name="Mesh" type="MeshInstance3D" parent="Tree207" unique_id=138743662]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree208" type="StaticBody3D" parent="." unique_id=2124171993]
+[node name="Tree208" type="StaticBody3D" parent="." unique_id=1920977848]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113.47449, 4, 46.07084)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree208" unique_id=1487646342]
+[node name="Shape" type="CollisionShape3D" parent="Tree208" unique_id=2059746834]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree208" unique_id=1321369719]
+[node name="Mesh" type="MeshInstance3D" parent="Tree208" unique_id=214043900]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree209" type="StaticBody3D" parent="." unique_id=526512363]
+[node name="Tree209" type="StaticBody3D" parent="." unique_id=957915985]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.5358, 4, 3.6751056)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree209" unique_id=957195144]
+[node name="Shape" type="CollisionShape3D" parent="Tree209" unique_id=1564217754]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree209" unique_id=1094286592]
+[node name="Mesh" type="MeshInstance3D" parent="Tree209" unique_id=78105440]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree210" type="StaticBody3D" parent="." unique_id=1720129736]
+[node name="Tree210" type="StaticBody3D" parent="." unique_id=764092272]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118.31898, 4, 16.36258)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree210" unique_id=1046941389]
+[node name="Shape" type="CollisionShape3D" parent="Tree210" unique_id=1953592023]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree210" unique_id=1868778332]
+[node name="Mesh" type="MeshInstance3D" parent="Tree210" unique_id=1985422632]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree211" type="StaticBody3D" parent="." unique_id=1684851441]
+[node name="Tree211" type="StaticBody3D" parent="." unique_id=662280329]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.50544, 4, 22.216211)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree211" unique_id=1460739266]
+[node name="Shape" type="CollisionShape3D" parent="Tree211" unique_id=691026085]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree211" unique_id=730020905]
+[node name="Mesh" type="MeshInstance3D" parent="Tree211" unique_id=288403532]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree212" type="StaticBody3D" parent="." unique_id=206378540]
+[node name="Tree212" type="StaticBody3D" parent="." unique_id=1839002887]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.72669, 4, 1.767477)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree212" unique_id=1929621007]
+[node name="Shape" type="CollisionShape3D" parent="Tree212" unique_id=1986288404]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree212" unique_id=889564477]
+[node name="Mesh" type="MeshInstance3D" parent="Tree212" unique_id=68927232]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree213" type="StaticBody3D" parent="." unique_id=1603589774]
+[node name="Tree213" type="StaticBody3D" parent="." unique_id=759532024]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.32735, 4, 16.053366)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree213" unique_id=1539806375]
+[node name="Shape" type="CollisionShape3D" parent="Tree213" unique_id=1424052838]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree213" unique_id=2069484920]
+[node name="Mesh" type="MeshInstance3D" parent="Tree213" unique_id=1517078594]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree214" type="StaticBody3D" parent="." unique_id=1357434679]
+[node name="Tree214" type="StaticBody3D" parent="." unique_id=1150152424]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 121.121, 4, 22.365555)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree214" unique_id=1595493129]
+[node name="Shape" type="CollisionShape3D" parent="Tree214" unique_id=1891716747]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree214" unique_id=68656606]
+[node name="Mesh" type="MeshInstance3D" parent="Tree214" unique_id=1519579144]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree215" type="StaticBody3D" parent="." unique_id=1024600289]
+[node name="Tree215" type="StaticBody3D" parent="." unique_id=377354253]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.440414, 4, 28.46279)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree215" unique_id=383900788]
+[node name="Shape" type="CollisionShape3D" parent="Tree215" unique_id=183302404]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree215" unique_id=1149255143]
+[node name="Mesh" type="MeshInstance3D" parent="Tree215" unique_id=193965891]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree216" type="StaticBody3D" parent="." unique_id=751121335]
+[node name="Tree216" type="StaticBody3D" parent="." unique_id=270801279]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.52253, 4, 37.17403)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree216" unique_id=108095744]
+[node name="Shape" type="CollisionShape3D" parent="Tree216" unique_id=621100916]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree216" unique_id=611624790]
+[node name="Mesh" type="MeshInstance3D" parent="Tree216" unique_id=980943223]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree217" type="StaticBody3D" parent="." unique_id=592494891]
+[node name="Tree217" type="StaticBody3D" parent="." unique_id=1456751280]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.694954, 4, 43.839344)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree217" unique_id=34593232]
+[node name="Shape" type="CollisionShape3D" parent="Tree217" unique_id=1197319154]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree217" unique_id=772356648]
+[node name="Mesh" type="MeshInstance3D" parent="Tree217" unique_id=1090864673]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree218" type="StaticBody3D" parent="." unique_id=2111479642]
+[node name="Tree218" type="StaticBody3D" parent="." unique_id=913894125]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.49063, 4, 48.291782)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree218" unique_id=131769538]
+[node name="Shape" type="CollisionShape3D" parent="Tree218" unique_id=1519437720]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree218" unique_id=204843897]
+[node name="Mesh" type="MeshInstance3D" parent="Tree218" unique_id=1371238187]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree219" type="StaticBody3D" parent="." unique_id=427032239]
+[node name="Tree219" type="StaticBody3D" parent="." unique_id=1101109652]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.8275, 4, 87.52685)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree219" unique_id=2013766843]
+[node name="Shape" type="CollisionShape3D" parent="Tree219" unique_id=1942237176]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree219" unique_id=1963830436]
+[node name="Mesh" type="MeshInstance3D" parent="Tree219" unique_id=250017035]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree220" type="StaticBody3D" parent="." unique_id=1142724432]
+[node name="Tree220" type="StaticBody3D" parent="." unique_id=84469429]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.02549, 4, 3.5906894)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree220" unique_id=2079735122]
+[node name="Shape" type="CollisionShape3D" parent="Tree220" unique_id=1627939932]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree220" unique_id=1642278626]
+[node name="Mesh" type="MeshInstance3D" parent="Tree220" unique_id=1706954070]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree221" type="StaticBody3D" parent="." unique_id=1410705821]
+[node name="Tree221" type="StaticBody3D" parent="." unique_id=987563624]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.471016, 4, 16.290722)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree221" unique_id=1175641029]
+[node name="Shape" type="CollisionShape3D" parent="Tree221" unique_id=1590500097]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree221" unique_id=1574905510]
+[node name="Mesh" type="MeshInstance3D" parent="Tree221" unique_id=1131839403]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree222" type="StaticBody3D" parent="." unique_id=1596406812]
+[node name="Tree222" type="StaticBody3D" parent="." unique_id=1280808958]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.87437, 4, 22.996912)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree222" unique_id=750313394]
+[node name="Shape" type="CollisionShape3D" parent="Tree222" unique_id=1887091011]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree222" unique_id=1338336743]
+[node name="Mesh" type="MeshInstance3D" parent="Tree222" unique_id=1167318232]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree223" type="StaticBody3D" parent="." unique_id=166255127]
+[node name="Tree223" type="StaticBody3D" parent="." unique_id=1099665176]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.98507, 4, 27.243496)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree223" unique_id=615734554]
+[node name="Shape" type="CollisionShape3D" parent="Tree223" unique_id=1134928638]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree223" unique_id=1961804330]
+[node name="Mesh" type="MeshInstance3D" parent="Tree223" unique_id=707273617]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree224" type="StaticBody3D" parent="." unique_id=489745441]
+[node name="Tree224" type="StaticBody3D" parent="." unique_id=1864790544]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.94733, 4, 32.8883)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree224" unique_id=1409061026]
+[node name="Shape" type="CollisionShape3D" parent="Tree224" unique_id=702726252]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree224" unique_id=1873753284]
+[node name="Mesh" type="MeshInstance3D" parent="Tree224" unique_id=1214370883]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree225" type="StaticBody3D" parent="." unique_id=1998948637]
+[node name="Tree225" type="StaticBody3D" parent="." unique_id=397948491]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.72834, 4, 36.4065)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree225" unique_id=362465225]
+[node name="Shape" type="CollisionShape3D" parent="Tree225" unique_id=959292149]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree225" unique_id=252851503]
+[node name="Mesh" type="MeshInstance3D" parent="Tree225" unique_id=1141180887]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree226" type="StaticBody3D" parent="." unique_id=856703233]
+[node name="Tree226" type="StaticBody3D" parent="." unique_id=1309655522]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.54941, 4, 43.23794)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree226" unique_id=266943031]
+[node name="Shape" type="CollisionShape3D" parent="Tree226" unique_id=457022315]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree226" unique_id=423264685]
+[node name="Mesh" type="MeshInstance3D" parent="Tree226" unique_id=784071458]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree227" type="StaticBody3D" parent="." unique_id=1838495218]
+[node name="Tree227" type="StaticBody3D" parent="." unique_id=1410602669]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.52473, 4, 48.141697)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree227" unique_id=791504472]
+[node name="Shape" type="CollisionShape3D" parent="Tree227" unique_id=67180648]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree227" unique_id=751898582]
+[node name="Mesh" type="MeshInstance3D" parent="Tree227" unique_id=130869704]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree228" type="StaticBody3D" parent="." unique_id=1908304306]
+[node name="Tree228" type="StaticBody3D" parent="." unique_id=1298124791]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.44696, 4, 2.9174185)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree228" unique_id=931873196]
+[node name="Shape" type="CollisionShape3D" parent="Tree228" unique_id=867867431]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree228" unique_id=477738797]
+[node name="Mesh" type="MeshInstance3D" parent="Tree228" unique_id=1891871976]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree229" type="StaticBody3D" parent="." unique_id=299701620]
+[node name="Tree229" type="StaticBody3D" parent="." unique_id=205701478]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.90695, 4, 16.631016)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree229" unique_id=1756582179]
+[node name="Shape" type="CollisionShape3D" parent="Tree229" unique_id=870025755]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree229" unique_id=1282170274]
+[node name="Mesh" type="MeshInstance3D" parent="Tree229" unique_id=742027976]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree230" type="StaticBody3D" parent="." unique_id=1677733439]
+[node name="Tree230" type="StaticBody3D" parent="." unique_id=1386703144]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.79936, 4, 23.621187)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree230" unique_id=731344115]
+[node name="Shape" type="CollisionShape3D" parent="Tree230" unique_id=859639644]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree230" unique_id=1439744831]
+[node name="Mesh" type="MeshInstance3D" parent="Tree230" unique_id=532441901]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree231" type="StaticBody3D" parent="." unique_id=1957002965]
+[node name="Tree231" type="StaticBody3D" parent="." unique_id=1515122902]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.38615, 4, 27.492014)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree231" unique_id=525736391]
+[node name="Shape" type="CollisionShape3D" parent="Tree231" unique_id=161750059]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree231" unique_id=228681973]
+[node name="Mesh" type="MeshInstance3D" parent="Tree231" unique_id=1634493607]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree232" type="StaticBody3D" parent="." unique_id=1499848197]
+[node name="Tree232" type="StaticBody3D" parent="." unique_id=1531189350]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.95537, 4, 32.52536)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree232" unique_id=279793319]
+[node name="Shape" type="CollisionShape3D" parent="Tree232" unique_id=903647705]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree232" unique_id=1426323047]
+[node name="Mesh" type="MeshInstance3D" parent="Tree232" unique_id=1855572792]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree233" type="StaticBody3D" parent="." unique_id=1766858725]
+[node name="Tree233" type="StaticBody3D" parent="." unique_id=561936502]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.98782, 4, 51.869244)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree233" unique_id=755212071]
+[node name="Shape" type="CollisionShape3D" parent="Tree233" unique_id=1126695965]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree233" unique_id=1687500699]
+[node name="Mesh" type="MeshInstance3D" parent="Tree233" unique_id=1091806424]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree234" type="StaticBody3D" parent="." unique_id=1373486077]
+[node name="Tree234" type="StaticBody3D" parent="." unique_id=1647713211]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.38597, 4, 71.600204)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree234" unique_id=1083517439]
+[node name="Shape" type="CollisionShape3D" parent="Tree234" unique_id=1403424923]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree234" unique_id=782552178]
+[node name="Mesh" type="MeshInstance3D" parent="Tree234" unique_id=2100063060]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree235" type="StaticBody3D" parent="." unique_id=651021485]
+[node name="Tree235" type="StaticBody3D" parent="." unique_id=529534104]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.44044, 4, 77.767166)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree235" unique_id=682652863]
+[node name="Shape" type="CollisionShape3D" parent="Tree235" unique_id=1542934517]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree235" unique_id=815895419]
+[node name="Mesh" type="MeshInstance3D" parent="Tree235" unique_id=45364349]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree236" type="StaticBody3D" parent="." unique_id=1138547717]
+[node name="Tree236" type="StaticBody3D" parent="." unique_id=710919962]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.13246, 4, 83.84938)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree236" unique_id=1436503625]
+[node name="Shape" type="CollisionShape3D" parent="Tree236" unique_id=875547268]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree236" unique_id=261396699]
+[node name="Mesh" type="MeshInstance3D" parent="Tree236" unique_id=52886900]
 mesh = SubResource("BoxMesh_0tu1q")
 
-[node name="Tree237" type="StaticBody3D" parent="." unique_id=1481215529]
+[node name="Tree237" type="StaticBody3D" parent="." unique_id=1108375633]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.47902, 4, 87.82573)
 
-[node name="Shape" type="CollisionShape3D" parent="Tree237" unique_id=1078009939]
+[node name="Shape" type="CollisionShape3D" parent="Tree237" unique_id=21939768]
 shape = SubResource("BoxShape3D_qladq")
 
-[node name="Mesh" type="MeshInstance3D" parent="Tree237" unique_id=1981756621]
+[node name="Mesh" type="MeshInstance3D" parent="Tree237" unique_id=822895227]
 mesh = SubResource("BoxMesh_0tu1q")

@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bolbqonqxnr6q"]
+[gd_scene format=3 uid="uid://c3iomirtq0mo8"]
 
 [ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="1_6eu23"]
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="2_qbigh"]
@@ -17,90 +17,90 @@ size = Vector3(2, 0.45, 0.5)
 material = ExtResource("2_qbigh")
 size = Vector3(2, 0.45, 0.5)
 
-[node name="Bonfire" type="Node3D" unique_id=1460775311]
+[node name="Bonfire" type="Node3D" unique_id=164074289]
 
-[node name="FirePit01" type="StaticBody3D" parent="." unique_id=1587854697]
+[node name="FirePit01" type="StaticBody3D" parent="." unique_id=1403415343]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="FirePit01" unique_id=1818695355]
+[node name="Shape" type="CollisionShape3D" parent="FirePit01" unique_id=105250562]
 shape = SubResource("BoxShape3D_vdgv4")
 
-[node name="Mesh" type="MeshInstance3D" parent="FirePit01" unique_id=578327515]
+[node name="Mesh" type="MeshInstance3D" parent="FirePit01" unique_id=162445246]
 mesh = SubResource("BoxMesh_beexo")
 
-[node name="Bench01" type="StaticBody3D" parent="." unique_id=540215150]
+[node name="Bench01" type="StaticBody3D" parent="." unique_id=1285652817]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 7, 0.225, 0)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench01" unique_id=2016445118]
+[node name="Shape" type="CollisionShape3D" parent="Bench01" unique_id=1440087305]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench01" unique_id=2094337955]
+[node name="Mesh" type="MeshInstance3D" parent="Bench01" unique_id=187241584]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench02" type="StaticBody3D" parent="." unique_id=1776353768]
+[node name="Bench02" type="StaticBody3D" parent="." unique_id=1732539897]
 transform = Transform3D(-0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, -0.70710677, 4.9497476, 0.225, 4.9497476)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench02" unique_id=205534164]
+[node name="Shape" type="CollisionShape3D" parent="Bench02" unique_id=1535405888]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench02" unique_id=1014738168]
+[node name="Mesh" type="MeshInstance3D" parent="Bench02" unique_id=1990639167]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench03" type="StaticBody3D" parent="." unique_id=186194364]
+[node name="Bench03" type="StaticBody3D" parent="." unique_id=1837590391]
 transform = Transform3D(-0.9238796, 0, -0.38268328, 0, 1, 0, 0.38268328, 0, -0.9238796, 2.678784, 0.225, 6.4671564)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench03" unique_id=1555995726]
+[node name="Shape" type="CollisionShape3D" parent="Bench03" unique_id=1872433672]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench03" unique_id=2147188790]
+[node name="Mesh" type="MeshInstance3D" parent="Bench03" unique_id=305829885]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench04" type="StaticBody3D" parent="." unique_id=920520812]
+[node name="Bench04" type="StaticBody3D" parent="." unique_id=444135731]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -3.2782555e-07, 0.225, 7)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench04" unique_id=112949560]
+[node name="Shape" type="CollisionShape3D" parent="Bench04" unique_id=441518058]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench04" unique_id=484844001]
+[node name="Mesh" type="MeshInstance3D" parent="Bench04" unique_id=1849126098]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench05" type="StaticBody3D" parent="." unique_id=1205762374]
+[node name="Bench05" type="StaticBody3D" parent="." unique_id=1420524634]
 transform = Transform3D(-0.70710695, 0, 0.7071066, 0, 1, 0, -0.7071066, 0, -0.70710695, -4.9497476, 0.225, 4.9497476)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench05" unique_id=839767154]
+[node name="Shape" type="CollisionShape3D" parent="Bench05" unique_id=1330928503]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench05" unique_id=1928657327]
+[node name="Mesh" type="MeshInstance3D" parent="Bench05" unique_id=803688903]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench06" type="StaticBody3D" parent="." unique_id=1817834979]
+[node name="Bench06" type="StaticBody3D" parent="." unique_id=908615275]
 transform = Transform3D(-0.38268372, 0, 0.9238794, 0, 1, 0, -0.9238794, 0, -0.38268372, -6.4671564, 0.225, 2.6787844)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench06" unique_id=1987176853]
+[node name="Shape" type="CollisionShape3D" parent="Bench06" unique_id=1038373603]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench06" unique_id=117317296]
+[node name="Mesh" type="MeshInstance3D" parent="Bench06" unique_id=282258024]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench07" type="StaticBody3D" parent="." unique_id=1996934459]
+[node name="Bench07" type="StaticBody3D" parent="." unique_id=141239116]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -7, 0.225, -5.9604645e-07)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench07" unique_id=1764518601]
+[node name="Shape" type="CollisionShape3D" parent="Bench07" unique_id=515671155]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench07" unique_id=850364780]
+[node name="Mesh" type="MeshInstance3D" parent="Bench07" unique_id=470472828]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Bench08" type="StaticBody3D" parent="." unique_id=1556448293]
+[node name="Bench08" type="StaticBody3D" parent="." unique_id=1311360156]
 transform = Transform3D(0.9238796, 0, 0.38268328, 0, 1, 0, -0.38268328, 0, 0.9238796, -2.678785, 0.225, -6.4671564)
 
-[node name="Shape" type="CollisionShape3D" parent="Bench08" unique_id=1993385779]
+[node name="Shape" type="CollisionShape3D" parent="Bench08" unique_id=1398031646]
 shape = SubResource("BoxShape3D_nhce1")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bench08" unique_id=767645491]
+[node name="Mesh" type="MeshInstance3D" parent="Bench08" unique_id=2038814883]
 mesh = SubResource("BoxMesh_52pht")
 
-[node name="Name" type="Label3D" parent="." unique_id=1508299439]
+[node name="Name" type="Label3D" parent="." unique_id=1135617101]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 billboard = 1
 text = "Bonfire"
