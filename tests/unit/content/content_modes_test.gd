@@ -188,7 +188,15 @@ func test_the_scenarios_levels_are_flat() -> void:
 			var hall := shapes.filter(func(s: Node) -> bool: return s.get_parent() != floor_node)
 			for piece: Node in hall:
 				var placed := _in_level(piece as CollisionShape3D, root)
-				var size := ((piece as CollisionShape3D).shape as BoxShape3D).size
+				var box_shape := (piece as CollisionShape3D).shape as BoxShape3D
+				(
+					assert_object(box_shape)
+					. override_failure_message(str(piece.get_path()))
+					. is_not_null()
+				)
+				if box_shape == null:
+					continue
+				var size := box_shape.size
 				var bottom := placed.origin.y - size.y / 2.0
 				assert_float(bottom).override_failure_message(str(piece.get_path())).is_greater(
 					-1e-6

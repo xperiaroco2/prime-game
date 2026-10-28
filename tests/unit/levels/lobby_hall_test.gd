@@ -96,13 +96,18 @@ func test_the_walls_and_the_floor_close_the_hall() -> void:
 			continue
 		assert_int(wall.collision_layer & 1).is_equal(1)
 		var bounds := _bounds(_shape_of(wall))
-		# On the floor, within it, and higher than a player jumps.
+		# On the floor, within its plan, and higher than a player jumps.
 		assert_float(bounds.position.y).override_failure_message(wall_name).is_equal_approx(
 			0.0, EPS
 		)
-		assert_bool(
-			floor_bounds.grow(EPS).encloses(AABB(bounds.position - Vector3(0, 1, 0), bounds.size))
+		var plan := Rect2(
+			floor_bounds.position.x,
+			floor_bounds.position.z,
+			floor_bounds.size.x,
+			floor_bounds.size.z
 		)
+		var footing := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
+		assert_bool(plan.grow(EPS).encloses(footing)).override_failure_message(wall_name).is_true()
 		assert_float(bounds.size.y).override_failure_message(wall_name).is_greater_equal(3.0)
 	# The walls meet at the corners: the inner rectangle is closed on all four sides.
 	var inside := _inner_rect()
@@ -140,7 +145,7 @@ func test_the_window_and_the_sealed_door_are_looks_on_the_walls() -> void:
 		DOOR_SIZE, Vector2(EPS, EPS)
 	)
 	assert_float(door.transform.origin.y - door_size.y / 2.0).is_equal_approx(0.0, EPS)
-	var inside := _inner_rect().grow(EPS)
+	var inside := _inner_rect()
 	for look: MeshInstance3D in [window, door]:
 		var at := look.transform.origin
 		var half := (look.mesh as BoxMesh).size / 2.0
@@ -198,8 +203,10 @@ func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> voi
 				from = to
 
 
-## Each bot's walks to points in the lobby, in order: a scenario starts in the lobby, so the
-## StepWalkTo steps before its first StepWaitFor (any later phase is waited for).
+## Each bot's walks to points in the lobby, in order. A scenario starts in the lobby and stays there
+## through a wait for a join or for the Countdown (the departure is at Loading); any other wait
+## leaves it (the match is played in the map), and a StepReturnToLobby brings the bot back. Each
+## stay in the lobby is one walk.
 func _lobby_walks() -> Array[Array]:
 	var walks: Array[Array] = []
 	for file: String in DirAccess.get_files_at(SCENARIOS_DIR):
@@ -210,15 +217,30 @@ func _lobby_walks() -> Array[Array]:
 			continue
 		for bot: int in range(1, scenario.scripts.size() + 1):
 			var walk: Array[Vector2] = []
+			var in_lobby := true
 			for step: ScenarioStep in scenario.steps_of(bot):
-				if step is StepWaitFor:
-					break
-				var to := step as StepWalkTo
-				if to != null and to.target != null and to.target.kind == ScenarioTarget.Kind.POINT:
-					walk.append(Vector2(to.target.point.x, to.target.point.z))
+				if step is StepReturnToLobby:
+					in_lobby = true
+				elif step is StepWaitFor and not _stays_in_lobby(step as StepWaitFor):
+					in_lobby = false
+					if not walk.is_empty():
+						walks.append(walk)
+						walk = []
+				elif in_lobby and step is StepWalkTo:
+					var to := step as StepWalkTo
+					if to.target != null and to.target.kind == ScenarioTarget.Kind.POINT:
+						walk.append(Vector2(to.target.point.x, to.target.point.z))
 			if not walk.is_empty():
 				walks.append(walk)
 	return walks
+
+
+## Whether a wait ends while the bot is still in the lobby: a join, the lobby phase, the Countdown.
+func _stays_in_lobby(wait: StepWaitFor) -> bool:
+	if wait.event == &"PlayerJoined":
+		return true
+	var phase := str(wait.fields.get("phase", ""))
+	return wait.event == &"PhaseChanged" and phase in ["lobby", "countdown"]
 
 
 ## Whether the segment from `from` to `to` meets `rect` (the slab test).
