@@ -55,9 +55,7 @@ static func read(
 static func read_scene(
 	level_path: String, world: WorldQuery, floor_tags: Array[StringName] = []
 ) -> Read:
-	var scene: PackedScene = null
-	if ResourceLoader.exists(level_path, "PackedScene"):
-		scene = load(level_path) as PackedScene
+	var scene := LevelScenes.load_packed(level_path)
 	if scene == null:
 		var failed := Read.new()
 		failed.layout = LevelLayout.new(level_path)
