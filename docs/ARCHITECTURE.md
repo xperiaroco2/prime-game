@@ -8348,9 +8348,9 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     give their markers only, read into `LevelLayout`s by `server/`'s `MarkerReader`. The §5 invariants are
     checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
     declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
-    error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat, marker-only
-    lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, the map
-    a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
+    error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat lobby hall (one floor, walls and pieces
+    standing on it, kept clear of every walk, #1354) and the marker-only map (§9.6). Only the levels the
+    scenarios play on must be flat: the mode's lobby, the map a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
     (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House). The
     four-level House (#626), the one map players play (#767), is played by people in the host's real world, and since
     #1197 by bot scenarios (below); the runners
