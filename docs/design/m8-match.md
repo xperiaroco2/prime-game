@@ -15,9 +15,10 @@
   2 found Amazon's PRIME mark covers online games).
 - **The sides:** the players are aliens; the humans (the existing dissident role) are disguised as aliens and spoil
   the party out of envy (#1031, plan #1039).
-- **The lobby is the aliens' spaceship;** each match the crew flies down to Earth to party, which later allows several
-  party maps with different tasks (an idea, #1031). Open: whether the aliens live in the House or visit it; what the
-  House's garage tech becomes if the ship is the lobby; how the trip maps onto Lobby, Countdown, Loading and Pregame.
+- **The lobby is a space station where the aliens' ship, the skat, stands docked** (2026-10-28, #1095; GDD §3 Base
+  mode); each match the crew flies down to Earth to party, which later allows several party maps with different tasks
+  (an idea, #1031). Open: whether the aliens live in the House or visit it; how the trip maps onto Lobby, Countdown,
+  Loading and Pregame.
 - **Tone:** teens and adults, adult and funny, comic violence, no guts or dismemberment (GDD §1).
 - **References:** parody, never another work's names, logos, characters or assets (GDD §1). Research round 2
   proposed a frame (the aliens learned Earth from bad broadcasts, so every Earth reference comes out recognisable but
