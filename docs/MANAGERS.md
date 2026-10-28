@@ -23,8 +23,9 @@ and again after a compaction (#836). This repo's root `CLAUDE.md` only points to
 do not carry it; the design repo's skill reads it at its start.
 
 ## 1. The session: mode and effort
-- A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, with
-  the mode and effort he picks: **bypass permissions, effort high**. High, not xhigh: the effort ADR's amendment of
+- A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, or
+  when his secretary starts it on his word (AGENT_WORKFLOW §7.2), with the mode and effort he picks: **bypass
+  permissions, effort high**. High, not xhigh: the effort ADR's amendment of
   2026-10-04 ([#308](https://github.com/xperiaroco2/prime-game/issues/308)). `effortLevel` never goes into shared
   settings.
 - Your first message says your permission mode and effort. Not bypass or not high: say so in your first "For you:"
