@@ -4175,7 +4175,9 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     on a placement and on a reset, and holds while standing. A remote player's plan is `AvatarViews.plan_of`
     (drawn before `WorldSounds`, priority -80) and its length the rig's clip (`CharacterRig.cycle_of`, slice_m1's
     real lengths), the table's cycle for a capsule; the own player's plan comes from its drawn move against a body
-    yaw `WorldSounds` keeps by `HeadLook.body_follow`. Without a plan or contacts the interval above holds. Both
+    yaw `WorldSounds` keeps by `HeadLook.body_follow`, its length the character set's (`CharacterSet.cycle_of`, what
+    the others' clients draw it with, so it hears its steps at their pace; the table's without a set). Without a
+    plan or contacts the interval above holds. Both
     modes keep `step_speed_mps` from the drawn feet, so quiet and silent stay speed-based. A blend's clips run
     in step at a synced length, which may sit a little off the main clip's: an accepted offset.
   - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
@@ -4739,7 +4741,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   albedo: the body colour of #551 (§4.7.50) stays on the character.
 - `client/player/character/HeadLook` (#1334): a `SkeletonModifier3D` on the living rig's skeleton (`make(set,
   true)`, only with the `Neck` and `Head` bones; a ragdoll's and a picture's rig have none) that turns `Neck` and
-  `Head` (half each, a placeholder) over any clip by the aim against the body, clamped to the art's yaw ±70°, pitch
+  `Head` (the Neck half the aim, a placeholder; the Head, which inherits it, the rest of the whole turn, so yaw and
+  pitch together leave no roll) over any clip by the aim against the body, clamped to the art's yaw ±70°, pitch
   up 40°, down 35° (`CharacterRig.set_look`). Own code from the art's spec: the engine's `LookAtModifier3D` and
   `AimModifier3D` aim one bone at a node. `HeadLook.body_follow(body_yaw, aim_yaw, dead_zone)`: the body keeps
   its yaw while the aim is within the zone and turns to hold the aim on its edge beyond it, the short way round
@@ -4750,8 +4753,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   follows the aim by `body_follow` with the engineer's 45° dead zone (`BODY_DEAD_ZONE`; the first pose and
   `snap_look()` after a placement seed it at the aim). The root keeps the aim's yaw, so the head, the spectate
   camera, the mouth and the sight point face the aim; only the rig child turns, by the body's lag, and its head
-  looks the rest of the way with the pose's pitch. A knocked-down ragdoll starts from the aim's yaw: a jump of up
-  to 45° at knockdown, named in #1334.
+  looks the rest of the way with the pose's pitch. A knocked-down ragdoll starts turned as the character was drawn
+  (`RemotePlayerBody.drawn_yaw`: the body's yaw, the aim's for a capsule), so it does not jump by the lag.
 - The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
@@ -5801,11 +5804,15 @@ The local player's controller (#46, `client/player/`):
   back family at most `back_speed_mps` (`Locomotion.speed_cap`; 0: no cap). Where the cap is at or below the speed
   without Shift, the step is not in the sprint state (no stamina spent for no speed). The speed ramps linearly
   to the step's target over `PlayerTuning.accel_seconds` (0.2 s, client feel) both ways, a start and a stop; the
-  ramped velocity is clamped to the step's speed, so a lower speed (stamina out, a crouch) applies at once and the
+  ramped velocity is clamped to the step's own speed before the direction cap (the walk's for a coast: a tick
+  without own movement is allowed only the walk's travel, §7.1.5, Shift held or not), so a lower speed (stamina
+  out, a crouch, letting go of the keys while sprinting) applies at once, a direction cap's drop eases, and the
   host's travel check never sees more than allowed. Teleports, life changes and the downed hold reset it. The caps
   are client-honoured: the host checks only the overall travel (§7.1.5), as for the crouch's speeds. Tests:
   `tests/integration/client/player/player_controller_locomotion_test.gd` (a strafe and a backpedal capped, no
-  sprint state or stamina while capped, the diagonals' parts, the ramp's start and stop, none at 0 s).
+  sprint state or stamina while capped, the diagonals' parts, the ramp's start and stop, a coast from a sprint at
+  most the walk, a cap's drop eased, none at 0 s) and `player_network_sprint_test.gd` (letting go of the keys with
+  Shift held, never corrected).
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
   a step counts as moving only while the player gives movement input, so a push is free (§7.1.3 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
