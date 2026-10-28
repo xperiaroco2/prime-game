@@ -4168,7 +4168,16 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     speed and 0.32 s at its sprint speed, the stride interpolated between them and held outside (placeholders);
     none below 0.5 m/s, and a still frame keeps the place in the step; a move faster than
     `SnapshotBuffer.SNAP_SPEED_MPS` in a frame (a respawn, a round start, a correction) plays none and starts the
-    cadence again.
+    cadence again. On the clips' contacts (#1334): given the step's `AvatarClips.Plan` and its clip's length, a
+    step falls where the playing clip's phase (advanced by the plan's rate over the length) crosses one of the
+    clip's foot contacts (`Locomotion.CONTACTS`, the art table's contact times over its cycle), so at rate r the
+    steps fall the contacts' times / r apart; the phase restarts with the rig's slot (a family or clip change),
+    on a placement and on a reset, and holds while standing. A remote player's plan is `AvatarViews.plan_of`
+    (drawn before `WorldSounds`, priority -80) and its length the rig's clip (`CharacterRig.cycle_of`, slice_m1's
+    real lengths), the table's cycle for a capsule; the own player's plan comes from its drawn move against a body
+    yaw `WorldSounds` keeps by `HeadLook.body_follow`. Without a plan or contacts the interval above holds. Both
+    modes keep `step_speed_mps` from the drawn feet, so quiet and silent stay speed-based. A blend's clips run
+    in step at a synced length, which may sit a little off the main clip's: an accepted offset.
   - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
     player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
     none (never muffled).
@@ -4217,7 +4226,9 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   `footstep_cadence_test.gd` (`quiet_of` at, below, between and above the speeds; a mode without them; equal
   crouch speeds a hard edge; the step's speed over the step) and `world_sounds_steps_test.gd` (−6 dB and 6 m at
   crouch speed, a walk's at the fast crouch's (#991) and at the walk speed whatever the flag, eased between, cut
-  beyond 6 m, the own slow steps too).
+  beyond 6 m, the own slow steps too). The contacts (#1334): `footstep_cadence_test.gd` (a jog's and a sprint's
+  steps at the contacts over the rate, a slot change restarts the phase, standing holds it, no contacts falls back
+  to the interval) and `world_sounds_steps_test.gd` (a backpedal steps on `Jog_Bwd`'s contacts over its rate).
 #### 4.7.44 The solo tutorial session in the game (#601)
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
@@ -4670,7 +4681,8 @@ knocked-down body as its skeleton's ragdoll. Not built: the cast (heads, hair, f
 body colour (a follow-up of #522), and a mirror or shadow of the own living player.
 - `client/player/AvatarClips` (pure, `RefCounted`): the drawn state in, the clip out. The state is what the client may
   draw (invariants 2 and 7): a remote avatar's drawn move (its interpolated position's change over the drawn frame,
-  never `Pose.velocity`, a claimed or host velocity; a source test holds it), its pose's yaw and public `crouched` bit
+  never `Pose.velocity`, a claimed or host velocity; a source test holds it), its drawn body's yaw (the lagging
+  `RemotePlayerBody.body_yaw`, #1334), its public `crouched` bit
   (#790), whether its hand item (`ClientModel.hand_item`, from events it already received) is two-handed, and its
   life (knocked down, or a dead player's body). The rates are the drawn speed over the clip's ground speed at rate 1
   (the art's table: `Jog_*` and `Strafe_*` 4.5 m/s, `Sprint_Fwd` 7.0, `Crouch_Fwd` 0.75), clamped to 0.25..4.0 (a
@@ -4682,23 +4694,41 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   | drawn speed under 0.5 m/s (`FootstepCadence.MIN_SPEED_MPS`), crouched | `Crouch_Idle` | 1 |
   | drawn speed under 0.5 m/s, standing (sneaking too) | `Idle` | 1 |
   | moving, crouched (any heading) | `Crouch_Fwd` | speed / 0.75 |
-  | moving within 45° of the body's back | `Jog_Bwd` | speed / 4.5 |
-  | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` | speed / 4.5 |
-  | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` | speed / 4.5 |
+  | moving in the back family (`Locomotion.family_of`: past 110° off the body's forward; back to the front below 90°) | `Jog_Bwd` (slot `Back`) | speed / 4.5 |
+  | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` (slot `Front`) | speed / 4.5 |
+  | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` (slot `Front`) | speed / 4.5 |
   | moving ahead, faster | `Sprint_Fwd` | speed / 7.0 |
 
   Holding a two-handed item adds the `Carry_Upper` layer over any base (carry idle = `Idle` + `Carry_Upper`, carry
   walk = `Jog_Fwd` + `Carry_Upper`). Picking up and putting down are one-shots (`one_shot()`): `Pickup_Package` and
   `Putdown_Package` for a two-handed item, `Pickup_One` and `Putdown_One` for another. Not mapped (they stay in the
-  GLB): jump, turn, raise, talk, push and knife clips, and the head's pitch.
+  GLB): jump, turn, raise, talk, push and knife clips. A plan also names the rig's `slot` (the clip, or the move's
+  family `Front` or `Back`) and its `blend` (the move's unit direction in the body's frame, x right, y ahead); `base`
+  stays the art MVP set's clip nearest the move (the label tests and footsteps read). `back` feeds the next state's
+  `was_back`, the family switch's dead zone.
+- `client/player/Locomotion` (pure, #1334, art#196's table copied into #1334): the eight-direction data and maths.
+  `POINTS`: the art's eight clips with their headings (positive to the body's left) and families: front
+  (`Jog_Fwd`, `Jog_Fwd_Left`/`Right` at 45°, `Strafe_Left`/`Right` at 90°) and back (`Jog_Bwd`,
+  `Jog_Bwd_Left`/`Right` at 135°), never blended into each other; a point is `required` only when the art MVP
+  set (slice_m1, the import contract) has its clip, so the four diagonals are optional: no `all_clips()` entry, no
+  contract row, the rig adds them when the character has them (they arrive by data with the alien GLBs). The
+  family switch at 100° off forward with a ±10° dead zone each way (`family_of(heading, was_back)`). `speed_cap`:
+  the back family (its diagonals too) at most `PlayerRules.back_speed_mps`, any move's sideways part at most
+  `side_speed_mps` (0: none). `CONTACTS`: the table's cycle and foot contacts per clip at rate 1 (§4.7.43).
+  Blocked on the alien GLBs (not built): `Walk` (to 2 m/s), the four diagonals' clips, `Crouch_Run` and the table's
+  rates and ground speeds (AvatarClips keeps slice_m1's).
 - `client/player/character/CharacterSet`: the injected character (the GLB's scene and its ragdoll data), null for the
   placeholder capsule. It is a set only when the instantiated scene is the character (one `Skeleton3D` with the bones
-  the rig names, one `AnimationPlayer` with every mapped clip), never judged from the GLB's bytes: CI's empty LFS
+  the rig names, one `AnimationPlayer` with every required clip, `AvatarClips.all_clips()`; Locomotion's optional
+  points never), never judged from the GLB's bytes: CI's empty LFS
   stand-in and a missing file give null silently, so no test needs LFS content.
 - `client/player/character/CharacterRig`: one avatar's instance of the set, turned to face -Z, on an `AnimationTree`
-  in the physics step (base clips cross-faded, a time scale, the carry layer filtered to `Torso` and every bone below
-  it, a one-shot), with no root motion (the clips are in place; the body's code moves the body, the collision capsule
-  is unchanged) and no physical bones while living. Sockets (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
+  in the physics step (a Transition of slots cross-faded: a clip, or a move family as an `AnimationNodeBlendSpace2D`
+  of its points whose clip the character has, at the plan's `blend`, its clips kept in step; a family with fewer
+  than three such points, slice_m1's back, plays its main clip alone; then a time scale, the carry layer filtered
+  to `Torso` and every bone below it, a one-shot), with no root motion (the clips are in place; the body's code moves
+  the body, the collision capsule is unchanged) and no physical bones while living. Sockets
+  (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
   the hand, belt and carry points, each a point in its bone's own frame measured on the art from close-up shots (#1050):
   the hand's at the right palm (a one-handed item's bottom in the fist), the belt's on the outside of the left hip at
   the waist, the carry's the bottom of a two-handed item held between both palms in front of the chest. Each socket
@@ -4707,6 +4737,21 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   the carry layer's bones (the art's carry leans the chest forward, so a socket fitted at idle tipped the package).
   A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own
   albedo: the body colour of #551 (§4.7.50) stays on the character.
+- `client/player/character/HeadLook` (#1334): a `SkeletonModifier3D` on the living rig's skeleton (`make(set,
+  true)`, only with the `Neck` and `Head` bones; a ragdoll's and a picture's rig have none) that turns `Neck` and
+  `Head` (half each, a placeholder) over any clip by the aim against the body, clamped to the art's yaw ±70°, pitch
+  up 40°, down 35° (`CharacterRig.set_look`). Own code from the art's spec: the engine's `LookAtModifier3D` and
+  `AimModifier3D` aim one bone at a node. `HeadLook.body_follow(body_yaw, aim_yaw, dead_zone)`: the body keeps
+  its yaw while the aim is within the zone and turns to hold the aim on its edge beyond it, the short way round
+  across ±180°. A `shot` of remote aliens running the directions, a head shake, a nod and an aim the body follows:
+  `client/dev/locomotion_preview.tscn` (needs the LFS art).
+- The body and the aim (#1334): the pose's yaw is the aim (the relayed facing the host already validates, §7.1.5;
+  no wire change). Each observer derives the body's yaw from the poses it draws: `RemotePlayerBody.body_yaw`
+  follows the aim by `body_follow` with the engineer's 45° dead zone (`BODY_DEAD_ZONE`; the first pose and
+  `snap_look()` after a placement seed it at the aim). The root keeps the aim's yaw, so the head, the spectate
+  camera, the mouth and the sight point face the aim; only the rig child turns, by the body's lag, and its head
+  looks the rest of the way with the pose's pitch. A knocked-down ragdoll starts from the aim's yaw: a jump of up
+  to 45° at knockdown, named in #1334.
 - The living avatars: `RemotePlayerBody.set_character` puts the rig in the capsule's place; the collision capsule,
   the head (its pitch, the spectate camera's eye), the mouth and the sight point stay the capsule's; the capsule mesh
   and the visor hide, the rig hides by the capsule's rule (knocked down, or watched from its eyes) and takes the body
@@ -4714,9 +4759,11 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   (the tree runs in the physics callback; the skeleton applies its pose in its deferred update, so a socket, and an item on
   it, may show the previous step's bone pose: a one-step lag, accepted). `AvatarViews` (its
   `character` and `mode` set by `Game`) plays each frame `AvatarClips.plan` of the drawn move since its last frame (a
-  move faster than `SnapshotBuffer.SNAP_SPEED_MPS` is a placement and counts as none), the pose's yaw and crouch bit
-  and the model's hand item. One-shots: `ItemPickedUp` (its `peer`) plays the pick-up, and `ItemPlaced` with the cause
-  `put_down` the put-down on the peer the last physics frame drew holding the item (the event names no holder and
+  move faster than `SnapshotBuffer.SNAP_SPEED_MPS` is a placement, counts as none and re-seeds the body's yaw), the
+  body's yaw, the crouch bit, the last plan's family and the model's hand item, for every body (a capsule too:
+  `plan_of(peer)` feeds the footsteps, §4.7.43). One-shots: `ItemPickedUp` (its `peer`) plays the pick-up, and
+  `ItemPlaced` with the cause `put_down` the put-down on the peer the last physics frame drew holding the
+  item (the event names no holder and
   the model has already folded it); each plays once the interpolation delay has passed since the event arrived, when
   the drawn body reaches its tick, on a body still drawn standing; other causes (thrown, swap, death, leave) and the
   own player play none. The own living player has no character on its own screen (no mirror or shadow yet).
@@ -4750,9 +4797,15 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   at the right middle knuckle, the belt beyond the left hip joint, the carry in front of the chest between the
   palms: seen failing on a flipped hand point and a mirrored belt point; without the LFS art, as in CI, it checks
   only that the GLB is a pointer),
+  `tests/unit/client/player/locomotion_test.gd` (the points' blend positions, the family switch and its dead zone,
+  the caps, the contacts) and `head_look_test.gd` (`body_follow` in the zone, past it and across ±180°, the
+  clamps), the rig's families in `character_rig_test.gd` (a blend between two points' angles, the diagonals added
+  by data, the back family's single clip, the head look's turn and clamps, no look without the bones),
   `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
-  sockets; the clip per drawn move, a claimed sprint standing still is `Idle`: seen failing on a planted
-  `pose.velocity`; a placement's jump; the carry layer; the one-shots per cause after the delay; a knocked-down
+  sockets; a head shake inside the dead zone turns only the head, the root stays on the aim, past it the body
+  follows, a nod, a placement re-seeds; the family by the body's yaw; the clip per drawn move, a claimed sprint
+  standing still is `Idle`: seen failing on a planted `pose.velocity`; a placement's jump; the carry layer;
+  the one-shots per cause after the delay; a knocked-down
   player's ragdoll is the skeleton), `tests/integration/client/player/ragdoll_view_character_test.gd` (the anchor, the
   bones' layers, the fall to rest over the point, the snap, lying at rest, off a ledge, a lifted point: the vertical
   term seen failing with a horizontal-only pull; dead on no layer; `of_collider`; the handover),
@@ -5741,7 +5794,18 @@ The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its movement numbers (speeds, jump height,
   capsule, eye and step height, stamina) are the client's own copy of the mode's `PlayerRules` (§9.5), the same
   numbers `core/` checks with (M4-7); `client/player/player_tuning.tres` (`PlayerTuning`) keeps the client's feel
-  only (the push factors, the view's easing), with script defaults of 0 so no number is repeated in code.
+  only (the push factors, the view's easing, the move's ramp), with script defaults of 0 so no number is repeated
+  in code.
+- The move's direction (#1334, art #196): against the aim (the move input's heading, the family switch of
+  `Locomotion.family_of` with its dead zone), a move's sideways part is at most `side_speed_mps` and a move in the
+  back family at most `back_speed_mps` (`Locomotion.speed_cap`; 0: no cap). Where the cap is at or below the speed
+  without Shift, the step is not in the sprint state (no stamina spent for no speed). The speed ramps linearly
+  to the step's target over `PlayerTuning.accel_seconds` (0.2 s, client feel) both ways, a start and a stop; the
+  ramped velocity is clamped to the step's speed, so a lower speed (stamina out, a crouch) applies at once and the
+  host's travel check never sees more than allowed. Teleports, life changes and the downed hold reset it. The caps
+  are client-honoured: the host checks only the overall travel (§7.1.5), as for the crouch's speeds. Tests:
+  `tests/integration/client/player/player_controller_locomotion_test.gd` (a strafe and a backpedal capped, no
+  sprint state or stamina while capped, the diagonals' parts, the ramp's start and stop, none at 0 s).
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
   a step counts as moving only while the player gives movement input, so a push is free (§7.1.3 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
@@ -7079,7 +7143,10 @@ Settings:
   the height); step 0.3 m (0 to 1); the crouch (§7.1.17, the crouch ADR's KE2, #790): crouched height 1.2 m
   (`crouch_height_m`, twice the radius to the height), crouched eye 1.0 m (`crouch_eye_height_m`, below the crouched
   height), crouch walk 2.0 m/s (`crouch_speed_mps`, 0.1 to the walk) and with Shift 2.8 m/s (`crouch_fast_speed_mps`,
-  the crouch walk to the walk), playing everywhere (no per-map list since #991, the engineer's change on #989).
+  the crouch walk to the walk), playing everywhere (no per-map list since #991, the engineer's change on #989);
+  the move's direction caps (#1334, art #196's numbers, the engineer's 2.0 for the back): sideways 3.0 m/s
+  (`side_speed_mps`) and backward, its diagonals too, 2.0 m/s (`back_speed_mps`), each 0 (none) to the sprint,
+  client-honoured (§7, the controller).
   A knockdown moves the body on the House alone (`motion_maps`, KE12 (a), #847: each one of the mode's
   maps, empty is every map),
   and the motion rests once the host's reports stay under 0.1 m/s (`rest_speed_mps`, 0.01 to 2) for 0.5 s (`rest_s`,
