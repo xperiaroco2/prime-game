@@ -211,3 +211,21 @@ func test_snapshot_for_builds_the_avatars_alone_the_history_keeps_items_and_bodi
 	var recorded: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]
 	assert_array(recorded.keys()).contains_exactly_in_any_order(["avatars", "items", "bodies"])
 	assert_dict(snapshot["avatars"] as Dictionary).is_equal(recorded["avatars"] as Dictionary)
+
+
+## The avatar row names both belt places, the lower non-selected place first (GDD §6): a snapshot
+## that repeated the first belt item or dropped the second would draw the wrong belt (#1218).
+func test_an_avatar_row_names_the_hand_and_both_belt_items() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var carrier := game.state.player(P2)
+	carrier.places = PackedInt32Array([11, 12, 13])
+	carrier.selected_place = 1
+	FixtureModes.run_ticks(game, 1)
+	var avatar: Dictionary = game.snapshot_for(P1)["avatars"][P2]
+	assert_int(avatar["held_item"] as int).is_equal(12)
+	assert_int(avatar["belt_item"] as int).is_equal(11)
+	assert_int(avatar["belt_item2"] as int).is_equal(13)
+	carrier.places = PackedInt32Array([-1, 12, 13])
+	avatar = game.snapshot_for(P1)["avatars"][P2]
+	assert_int(avatar["belt_item"] as int).is_equal(-1)
+	assert_int(avatar["belt_item2"] as int).is_equal(13)
