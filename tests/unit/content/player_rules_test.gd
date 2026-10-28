@@ -69,6 +69,23 @@ func test_the_crouch_numbers_are_bounded_by_the_standing_ones() -> void:
 	assert_array(Array(rules.check(null))).is_empty()
 
 
+func test_the_direction_caps_are_none_or_up_to_the_sprint() -> void:
+	# #1334: 0 is no cap (the neutral default passes); a cap above the sprint means nothing.
+	var rules := FixtureModes.player_rules()
+	rules.side_speed_mps = 0.0
+	rules.back_speed_mps = 0.0
+	assert_array(Array(rules.check(null))).is_empty()
+	rules.sprint_speed_mps = 7.0
+	rules.side_speed_mps = 8.0
+	rules.back_speed_mps = -1.0
+	var found := "\n".join(rules.check(null))
+	assert_str(found).contains("side_speed_mps is 8, outside 0 to 7")
+	assert_str(found).contains("back_speed_mps is -1, outside 0 to 7")
+	rules.side_speed_mps = 3.0
+	rules.back_speed_mps = 2.0
+	assert_array(Array(rules.check(null))).is_empty()
+
+
 func test_the_crouch_has_no_per_map_option() -> void:
 	# The engineer's change (#989, #991): the crouch plays everywhere, "we need no such option
 	# at all". crouch_maps and crouch_plays_on (the crouch ADR's KE10 (a)) are gone for good.

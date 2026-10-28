@@ -53,6 +53,12 @@ extends ContentPart
 @export var crouch_eye_height_m := 0.0
 @export var crouch_speed_mps := 0.0
 @export var crouch_fast_speed_mps := 0.0
+## The direction caps of a move on the ground (#1334, art #196: the engineer's 3.0 and 2.0 m/s): its
+## sideways part at most `side_speed_mps`, a move in the back family (Locomotion.family_of) at
+## most `back_speed_mps`, its diagonals too; 0 is no cap. Client-honoured: the own controller
+## keeps them, the host checks only the overall travel (§7), as for the crouch's speeds.
+@export var side_speed_mps := 0.0
+@export var back_speed_mps := 0.0
 ## The paths of the mode's maps on which a knockdown starts a motion: the host's physics moves the
 ## body (the knockdown rework's §4, KE12 (a)), empty for every map, the shape of TaskType.maps. On
 ## a map it leaves out a knockdown takes no launch and starts no host body. Each path must be one
@@ -112,6 +118,8 @@ func check(mode: GameMode) -> PackedStringArray:
 			out_of_bounds(
 				"crouch_fast_speed_mps", crouch_fast_speed_mps, crouch_speed_mps, walk_speed_mps
 			),
+			out_of_bounds("side_speed_mps", side_speed_mps, 0, sprint_speed_mps),
+			out_of_bounds("back_speed_mps", back_speed_mps, 0, sprint_speed_mps),
 			out_of_bounds("rest_speed_mps", rest_speed_mps, 0.01, 2),
 			out_of_bounds("rest_s", rest_s, 0.05, 5),
 			out_of_bounds("longest_motion_s", longest_motion_s, maxf(1.0, rest_s), 60),
