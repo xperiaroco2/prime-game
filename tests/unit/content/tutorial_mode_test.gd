@@ -125,6 +125,8 @@ func test_the_accepts_as_the_design_s_table() -> void:
 		Intents.SWAP: LIVING,
 		Intents.THROW: LIVING,
 		Intents.NEXT_STAGE: HOST,
+		# Drawing from the belt (GDD §6, #1218): wherever X is taught.
+		Intents.DRAW: LIVING,
 	}
 	var raising := items.duplicate()
 	# The throw is taught in lessons only (#901, LD3 (a)); a flight outlives NextStage (FlightTicks).
