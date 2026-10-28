@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
 const NEAR := Vector3(1e-3, 1e-3, 1e-3)
+## A tree trunk's half width: its side, not its centre, must stay out of a clearing.
+const TRUNK_HALF_WIDTH := 0.4
 ## The map-wide pieces, each at the origin: the ground with its fence and roads, the creek, the
 ## paths and the tree strips.
 const GROUNDS: Array[String] = ["Plot", "Creek", "Paths", "Trees"]
@@ -93,8 +95,8 @@ func test_the_map_places_only_its_pieces_each_once() -> void:
 			. starts_with(EstateDoc.ROOMS)
 		)
 	assert_array(names).contains_exactly_in_any_order(expected)
-	for name in GROUNDS:
-		var node := map.get_node(NodePath(name)) as Node3D
+	for ground in GROUNDS:
+		var node := map.get_node(NodePath(ground)) as Node3D
 		assert_bool(node.transform.is_equal_approx(Transform3D.IDENTITY)).is_true()
 
 
@@ -104,15 +106,15 @@ func test_the_creek_s_crossings_stand_at_the_doc_s_points() -> void:
 		["log bridge", "stepping stones", "drainage pipe", "plank footbridge"]
 	)
 	var creek := _map().get_node(^"Creek")
-	for name in crossings:
-		var node := creek.get_node_or_null(NodePath(EstateDoc.pascal(name))) as Node3D
+	for crossing in crossings:
+		var node := creek.get_node_or_null(NodePath(EstateDoc.pascal(crossing))) as Node3D
 		(
 			assert_object(node)
-			. override_failure_message("no crossing %s in the creek" % name)
+			. override_failure_message("no crossing %s in the creek" % crossing)
 			. is_not_null()
 		)
 		if node != null:
-			var at := Vector3(crossings[name].x, 0, crossings[name].y)
+			var at := Vector3(crossings[crossing].x, 0, crossings[crossing].y)
 			assert_vector(node.position).is_equal_approx(at, NEAR)
 
 
@@ -125,12 +127,12 @@ func test_no_tree_stands_in_a_clearing() -> void:
 		for module in EstateDoc.modules():
 			if module.radius <= 0:
 				continue
-			var off := Vector2(at.x, at.z).distance_to(module.centre)
+			var off := Vector2(at.x, at.z).distance_to(module.centre) - TRUNK_HALF_WIDTH
 			(
 				assert_float(off)
 				. override_failure_message(
 					(
-						"%s stands %.1f m from the %s, inside its %.0f m clearing"
+						"%s's side stands %.1f m from the %s, inside its %.0f m clearing"
 						% [tree.name, off, module.name, module.radius]
 					)
 				)
