@@ -93,9 +93,23 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     photo booth to take photos; one light game, a pinball machine (a metal ball, two flippers); a mirror where you
     change your alien's look: walk up, press interact, a customisation menu opens, and the others watch your alien
     change live. No mutation workbench, and the look is not in the Esc suit menu. More games later.
+  - **The bar** (the engineer, 2026-10-28, [#1095 c6473429898](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473429898)):
+    you pour a mug yourself at the tap and hold it in your hands; you can carry it and give it to a friend, then drink
+    it. Drunk shows as your own camera swaying, your walk drifting (everyone sees it) and your voice changed in the
+    voice chat for a while. Too much: you fall limp like a rag doll, the others can push you around, and you get up by
+    yourself after a moment.
+  - **The mirror** (same day, [#1095 c6473619521](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473619521)):
+    you change your alien's colour, clothes and body shape (accessories such as hats and glasses were not picked). You
+    see yourself in the mirror, your reflection, in first person. One wide mirror has several places; each player
+    stands at a part of it.
+  - **The photo booth** (same day, [#1095 c6473780162](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473780162)):
+    a strip of frames: a button, a countdown, several flashes in a row, and between them you change your pose with the
+    pose wheel (§8, Photo). The whole party squeezes in. No screen: you do not see yourself before the shot, only the
+    finished photo, a surprise. A printed strip drops out into your hands; you carry it and can give it to a friend
+    (a file saved to the computer and a board on the hall wall were not picked).
   - **The layout** is set on the hall scene in the game, with the bar, the booth, the pinball and the mirror as
-    separate objects placed there; the details of each (how drunk, what the booth keeps, the pinball's rules, several
-    players at one mirror) come with their design.
+    separate objects placed there. The pinball's rules come with its design; the numbers (how many mugs, how long)
+    are tuned on the hall greybox (#1354).
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
