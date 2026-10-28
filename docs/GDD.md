@@ -107,9 +107,12 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     pose wheel (§8, Photo). The whole party squeezes in. No screen: you do not see yourself before the shot, only the
     finished photo, a surprise. A printed strip drops out into your hands; you carry it and can give it to a friend
     (a file saved to the computer and a board on the hall wall were not picked).
+  - **The pinball** (2026-10-29, [#1095 c6482062788](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6482062788)):
+    one player works both flippers while the others stand by and watch. After interact the camera moves in close to
+    the table. The machine's display shows this lobby's best score and whose it is. The machine cannot be nudged.
   - **The layout** is set on the hall scene in the game, with the bar, the booth, the pinball and the mirror as
-    separate objects placed there. The pinball's rules come with its design; the numbers (how many mugs, how long)
-    are tuned on the hall greybox (#1354).
+    separate objects placed there. The numbers (how many mugs, how long, how many balls) are tuned on the hall
+    greybox (#1354).
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
