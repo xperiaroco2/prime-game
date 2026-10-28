@@ -25,8 +25,18 @@ func test_the_real_mode_starts_with_its_content_hash_and_welcomes_its_own_client
 	session.replay_dir = ""
 	var cache := ContentFingerprintCache.shared()
 	var host_asked := cache.asked
+	var reads := LevelScenes.reads.duplicate()
 	assert_bool(session.start(mode, 7301, 8, 0)).is_true()
 	assert_int(cache.asked).is_equal(host_asked + 1)
+	# One read of each level scene per start, shared by the worlds and the markers (#1068).
+	for path: String in MarkerReader.level_paths_of(mode):
+		(
+			assert_int(LevelScenes.reads.get(path, 0) - reads.get(path, 0))
+			. override_failure_message(
+				"%s read %d times" % [path, LevelScenes.reads.get(path, 0) - reads.get(path, 0)]
+			)
+			. is_equal(1)
+		)
 	assert_array(Array(session.errors)).is_empty()
 	var fingerprint := ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	assert_int(session.content_hash).is_equal(fingerprint)
