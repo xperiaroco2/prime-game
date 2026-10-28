@@ -56,7 +56,7 @@ Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; pla
 each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment's notes end with the ready
 kickoff, which your last For-you carries too and I paste into a new session (handover.md); route C only if I ask for it.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
-it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop (game, meta and UI: also the counter's 80%), the PC cap and the args apply.
+it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop (meta and UI: also the counter's 80%), the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
 PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
 Rules: into main only through the gate; you close issues, workflow agents never; each agent only in its worktree;

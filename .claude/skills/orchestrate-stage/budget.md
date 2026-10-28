@@ -15,34 +15,33 @@ over all of a track's sessions, its handovers and its other checkout included. `
 weekly counter (the desktop app's `get_usage` tool) is the check.
 
 ## Budgets per track
-From the reset of 2026-10-13 10:00 UTC, the engineer's answer 1A to the weekly report
-([#302 comment 6145513919](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919)); design and
-art for the month from 2026-10-15 (below):
+From the reset of 2026-10-27 10:00 UTC, the engineer's answer 2A to the weekly review
+([#302 comment 6474823471](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6474823471), on the
+proposal of [comment 6473700454](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6473700454)):
 
 | track | game | UI | art | meta | design | the engineer | buffer |
 |---|---|---|---|---|---|---|---|
-| % of the week | 34 | 6 | **50** (20 before 2026-10-15) | 12 | **50** | 5 | 16 |
+| % of the week | **25** | **3** | **35** | **5** | **20** | 5 | **0** |
 
-- **Design 50%, art 50% of the week for the next month**, from 2026-10-15: the engineer's decision, "for the next
-  month we move in this vector" ([#1095 comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169)).
-  It replaces design's "unlimited for now" (his word of the same day,
-  [#1095 comment 6199371817](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6199371817)) and art's
-  20%. The other rows stay as he left them: "the project lives its own life, as it did"
-  ([#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331)). So the
-  row adds up to more than 100%: each share is its track's limit, not a slice of the week (his answer (a),
-  [PR #1127 comment 6201363154](https://github.com/xperiaroco2/prime-game/pull/1127#issuecomment-6201363154)); the account's weekly limit and the 93% stop (below) bind
-  every track. When the month ends, the meta track's weekly proposal (below) asks him for the next budgets.
+- **The row adds up to 93, the stop:** every point has an owner and there is no buffer. Last week art (58.8%) and UI
+  (15.9%) took the counter while game spent 0%; game writes code again from approved design text, so its share no
+  longer waits behind the counter (the 80% rule below binds meta and UI only).
+- Before: game 34, UI 6, meta 12, buffer 16 (answer 1A,
+  [#302 comment 6145513919](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6145513919)), and design
+  50, art 50 for the month from 2026-10-15 ([#1095 comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169)),
+  each share a limit, not a slice ([PR #1127 comment 6201363154](https://github.com/xperiaroco2/prime-game/pull/1127#issuecomment-6201363154)).
+  2A replaces those shares from the reset of 2026-10-27.
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
   `main`), **design** (game design with the engineer, AGENT_WORKFLOW §7.3, plan #1095; the private repo
   `D:\prime-game-design`, committed straight to its `main`, and its decisions in `D:\prime-game` through docs PRs). The
   engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until he says otherwise.
-  The buffer lies below the 93% stop (below).
+  The buffer, when the row has one, lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
 - What a budget buys is planned at row 8's all-in cost, re-measured at each reset (2026-10-13: game 0.60% a run, meta
   0.30% a run, art 0.77% an issue; UI not measured, 1.18% a run before). A run is not a task: relaunches make a game
-  PR cost 0.89%, so plan game tasks at that. A day's share (game 4.9%, UI 0.9%, art 7.1%, meta 1.7%, design 7.1%) is a
+  PR cost 0.89%, so plan game tasks at that. A day's share (game 3.6%, UI 0.4%, art 5.0%, meta 0.7%, design 2.9%) is a
   guide; the weekly budget is the limit.
 - From the next reset on, the meta track posts with its weekly report the past week's spend per track against its
   budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones. A workflow that
@@ -81,17 +80,19 @@ art for the month from 2026-10-15 (below):
 - **At 80%** of its budget: plan no wave larger than what is left at row 8's cost per task; merges and handovers go
   on.
 - **At 100%**: launch nothing and let your runs finish (a killed run's spend is lost and it must run again). Say so in
-  the wave comment and ask once in "For you:" for a share of the buffer, with the amount and what it buys. With no
+  the wave comment and ask once in "For you:" for a share of the buffer (with none, of another track's unspent
+  budget), with the amount and what it buys. With no
   answer, stop without a keep-alive (§7): a fresh session later costs less than a warm wait of days.
 - **The last 24 hours** before the reset (from Monday 10:00 UTC) open every track's unspent budget and the buffer to
   any track with work queued, up to the 93% stop, without asking: what is left at the reset is lost. The 80%
-  rule for game, meta and UI below still holds in these hours.
+  rule for meta and UI below still holds in these hours.
 - **The 93% stop**, a standing rule: no new launch while the weekly counter reads 93% or more, whatever the track's
   own budget; runs in flight finish. Read the counter before each wave's launches.
-- **80% for game, meta and UI** while design 50% and art 50% hold (the month from 2026-10-15): the game, meta and UI
-  managers launch nothing new once the weekly counter (get_usage) reads 80% or more, the last 24 hours included;
-  design and art go on up to the 93% stop. Runs in flight finish (the engineer's answer 1A,
-  [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723)).
+- **80% for meta and UI**: the meta and UI managers launch nothing new once the weekly counter (get_usage) reads 80%
+  or more, the last 24 hours included; game, design and art go on up to their budgets and the 93% stop. Runs in
+  flight finish (the engineer's answer 1A,
+  [#302 comment 6291039723](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6291039723); game
+  left the rule with answer 2A for the week to 2026-11-03, [#302 comment 6474823471](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6474823471); the weekly report then proposes whether it stays).
 
 ## The PC (N3 (b))
 - At most **four task workflows of this repo** at once: by day the game 3 and meta 1; at night either track up to 3,
