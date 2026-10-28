@@ -10,7 +10,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, metrics, wave_flight
+from runner import cli, metrics, sessions, wave_flight
 from runner.tests import test_wave as tw
 
 ART = "0c5fbfbd-5726-4dbb-9659-0dff2db6da32"
@@ -54,21 +54,12 @@ class Session:
     def background(self, m: float, tool_id: str, task_id: str, *, agent: bool, done: bool = False) -> None:
         """A background Agent (its result names the agentId) or Bash call (its result names the backgroundTaskId), as
         the art session of 2026-10-28 launched its builders and waits; done: its notification came 20 min later."""
-        if agent:
-            call = {"type": "tool_use", "id": tool_id, "name": "Agent",
-                    "input": {"description": "Builder C1: dungarees on both bodies", "run_in_background": True}}
-            tur = {"isAsync": True, "status": "async_launched", "agentId": task_id, "description": "Builder C1"}
-            summary = 'Agent "Builder C1: dungarees on both bodies" finished'
-        else:
-            call = {"type": "tool_use", "id": tool_id, "name": "Bash",
-                    "input": {"command": "tools/run.sh wait tools/out/verify.log", "run_in_background": True}}
-            tur = {"stdout": "", "stderr": "", "interrupted": False, "backgroundTaskId": task_id}
-            summary = 'Background command "wait" completed (exit code 0)'
-        block = {"type": "tool_result", "tool_use_id": tool_id, "content": f"Started in the background: {task_id}"}
+        call, tur, block = bg_call(tool_id, task_id, agent)
         self.lines += [tw.assistant(m, f"msg-{tool_id}", [call]),
                        {"type": "user", "timestamp": tw.at(m), "toolUseResult": tur,
                         "message": {"role": "user", "content": [block]}}]  # fmt: skip
         if done:
+            summary = 'Agent "Builder C1" finished' if agent else 'Background command "wait" completed (exit code 0)'
             note = tw.note_text(tool_id, task_id, "completed", summary=summary)
             self.lines += [tw.enqueue(m + 20, note), tw.user_note(m + 20, note)]
 
@@ -80,6 +71,28 @@ class Session:
         tw.write_lines(path, [{**x, "cwd": self.cwd} if isinstance(x, dict) and "timestamp" in x else x
                               for x in self.lines])  # fmt: skip
         return path
+
+
+def bg_call(tool_id: str, task_id: str, agent: bool) -> tuple[dict, dict, dict]:
+    """A background call, its toolUseResult and its tool_result block, with the texts of Claude Code 2.1.308."""
+    if agent:
+        call = {"type": "tool_use", "id": tool_id, "name": "Agent",
+                "input": {"description": "Builder C1: dungarees on both bodies", "run_in_background": True}}
+        tur = {"isAsync": True, "status": "async_launched", "agentId": task_id, "description": "Builder C1"}
+        text = ("Async agent launched successfully. (This tool result is internal metadata.)\nagentId: "
+                f"{task_id} (internal ID - do not mention to user.)\nThe agent is working in the background.")
+        return call, tur, {"type": "tool_result", "tool_use_id": tool_id, "content": [{"type": "text", "text": text}]}
+    call = {"type": "tool_use", "id": tool_id, "name": "Bash",
+            "input": {"command": "tools/run.sh wait tools/out/verify.log", "run_in_background": True}}
+    tur = {"stdout": "", "stderr": "", "interrupted": False, "backgroundTaskId": task_id}
+    text = f"Command running in background with ID: {task_id}. Output is being written to: C:\\tmp\\{task_id}.output."
+    return call, tur, {"type": "tool_result", "tool_use_id": tool_id, "content": text}
+
+
+def bare_note(task_id: str = "", tool_id: str = "") -> str:
+    """A notification naming only a task id or only a call."""
+    ids = (f"<task-id>{task_id}</task-id>\n" if task_id else "") + (f"<tool-use-id>{tool_id}</tool-use-id>\n" if tool_id else "")
+    return f"<task-notification>\n{ids}<status>completed</status>\n<summary>done</summary>\n</task-notification>"
 
 
 class InFlightTest(unittest.TestCase):
@@ -110,10 +123,11 @@ class InFlightTest(unittest.TestCase):
         self.art.write()
         self.design.write()
 
-    def main(self, alive: object = lambda sid: True) -> tuple[int, str]:
+    def main(self, alive: object = lambda sid: True, started: float | None = None,
+             host: str | None = None) -> tuple[int, str]:  # fmt: skip
         out = io.StringIO()
         with redirect_stdout(out):
-            rc = wave_flight.main(now=NOW, alive=alive)  # type: ignore[arg-type]
+            rc = wave_flight.main(now=NOW, live=lambda sid: wave_flight.Live(alive(sid), started, host))  # type: ignore[operator]
         return rc, out.getvalue()
 
     def test_only_the_run_in_flight_is_listed_with_what_matches_list_sessions(self) -> None:
@@ -220,11 +234,87 @@ class InFlightTest(unittest.TestCase):
         self.assertNotIn("blvhy8ak3", out)
         self.assertIn("command bkeep0000 `tools/run.sh wait tools/out/verify.log`", out)
 
-    def test_a_workflow_is_no_background_task(self) -> None:
-        self.art.launch(88, "t2", "wf_c2-flight", done=False, name="clothes-step")
+    def test_parallel_background_launches_share_one_record(self) -> None:
+        # Two builders launched in one message: their results share one user record, which then has no toolUseResult;
+        # the texts name them. A Bash call moved to the background after its timeout names its id too.
+        a, _tur, ra = bg_call("t5", "a09349bc181adc576", agent=True)
+        b, _tur, rb = bg_call("t6", "a1151b23daa05c484", agent=True)
+        c = {"type": "tool_use", "id": "t7", "name": "Bash", "input": {"command": "tools/run.sh verify"}}
+        rc_ = {"type": "tool_result", "tool_use_id": "t7", "content": "Command did not complete within its 120s "
+               "timeout and was moved to the background (ID: beaidszb8). Output is being written to: C:\\tmp\\x"}
+        self.art.lines += [tw.assistant(85, "m-par", [a, b]),
+                           {"type": "user", "timestamp": tw.at(85), "message": {"role": "user", "content": [ra, rb]}},
+                           tw.assistant(86, "m-slow", [c]),
+                           {"type": "user", "timestamp": tw.at(88), "message": {"role": "user", "content": [rc_]}}]  # fmt: skip
         self.art.write()
         _rc, out = self.main()
-        self.assertNotIn("agent ", out.split("in flight: ")[1].split("\n")[0].split("):", 1)[1])
+        for want in ("agent a09349bc181adc576", "agent a1151b23daa05c484", "command beaidszb8 `tools/run.sh verify`"):
+            self.assertIn(want, out)
+
+    def test_a_notification_only_queued_or_naming_only_its_call_ends_the_task(self) -> None:
+        # Queued while the session was busy (never delivered yet), or naming only the call: either ends the task.
+        self.art.background(60, "t5", "bqueued00", agent=False)
+        self.art.background(61, "t6", "bcallonly", agent=False)
+        self.art.background(62, "t7", "bstill000", agent=False)
+        self.art.lines += [tw.enqueue(70, bare_note(task_id="bqueued00")), tw.user_note(71, bare_note(tool_id="t6"))]
+        self.art.write()
+        _rc, out = self.main()
+        self.assertNotIn("bqueued00", out)
+        self.assertNotIn("bcallonly", out)
+        self.assertIn("command bstill000", out)
+
+    def test_killshell_stops_a_command_too(self) -> None:
+        self.art.background(60, "t5", "bkilled00", agent=False)
+        kill = {"type": "tool_use", "id": "k1", "name": "KillShell", "input": {"shell_id": "bkilled00"}}
+        self.art.lines += [tw.assistant(70, "m-kill", [kill]),
+                           {"type": "user", "timestamp": tw.at(70), "message": {"role": "user", "content": [
+                               {"type": "tool_result", "tool_use_id": "k1", "content": "Shell bkilled00 killed"}]}}]  # fmt: skip
+        self.art.write()
+        _rc, out = self.main()
+        self.assertNotIn("bkilled00", out)
+
+    def test_a_stopped_workflow_with_no_notification_is_done(self) -> None:
+        self.art.launch(60, "t2", "wf_stopped", done=False)
+        stop = {"type": "tool_use", "id": "s1", "name": "TaskStop", "input": {"task_id": "wt2"}}
+        self.art.lines += [tw.assistant(70, "m-stop", [stop]),
+                           {"type": "user", "timestamp": tw.at(70), "message": {"role": "user", "content": [
+                               {"type": "tool_result", "tool_use_id": "s1", "content": "Successfully stopped task: wt2"}]}}]  # fmt: skip
+        self.art.write()
+        _rc, out = self.main()
+        self.assertNotIn("wf_stopped", out)
+
+    def test_work_launched_before_the_live_process_started_died_with_it(self) -> None:
+        # The Desktop app restarted at 09:20 under the same session: what the earlier process launched sent nothing.
+        self.art.launch(60, "t1", "wf_before", done=False)
+        self.art.background(70, "t5", "a0before0", agent=True)
+        self.art.background(85, "t6", "a1after00", agent=True)
+        self.art.write()
+        _rc, out = self.main(started=minutes(80), host="local_21526497-c313-4642-ac4b-b8faef877a92")
+        self.assertNotIn("wf_before", out)
+        self.assertNotIn("a0before0", out)
+        self.assertIn("in flight: 'Анімації прибульців (art #196)' (desktop local_21526497-c313-4642-ac4b-b8faef877a92, "
+                      "checkout prime-game-art", out)  # fmt: skip
+        self.assertIn("agent a1after00", out)
+
+    def test_liveness_names_the_live_process_start_and_desktop_id(self) -> None:
+        def file(pid: int, sid: str, started: float, host: str = "") -> sessions.Session:
+            return sessions.Session(pid=pid, session_id=sid, cwd="D:/prime-game-art", status="idle", updated=0,
+                                    name="x", started=started, host_session=host)  # fmt: skip
+
+        files = [file(1, ART, 100.0, "local_old"), file(2, ART, 200.0, "local_new"), file(3, DESIGN, 50.0)]
+        check = wave_flight.liveness(read=lambda: files, alive=lambda pid, start: pid != 3)
+        self.assertEqual(check(ART), wave_flight.Live(True, 200.0, "local_new"))
+        self.assertEqual(check(DESIGN), wave_flight.Live(False))
+        self.assertEqual(check("unnamed"), wave_flight.Live(False))
+        self.assertEqual(wave_flight.liveness(read=lambda: [])("any"), wave_flight.Live(None))
+
+    def test_a_workflow_is_no_background_task(self) -> None:
+        # Even a Workflow result that carried an agentId is read by wave.build_runs, never as an agent.
+        self.art.launch(88, "t2", "wf_c2-flight", done=False, name="clothes-step")
+        self.art.lines[-1]["toolUseResult"]["agentId"] = "a-not-an-agent"
+        self.art.write()
+        _rc, out = self.main()
+        self.assertNotIn("a-not-an-agent", out)
         self.assertIn("(1 workflow run, 0 agents, 0 commands)", out)
 
     def test_the_command_line(self) -> None:

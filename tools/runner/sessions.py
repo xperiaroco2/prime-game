@@ -29,6 +29,8 @@ class Session:
     updated: float  # seconds since the epoch
     name: str
     proc_start: str = ""  # Windows: the process creation time as a FILETIME, as Claude Code writes it
+    started: float = 0.0  # the process start, seconds since the epoch (startedAt); 0 when the file has none
+    host_session: str = ""  # the Desktop app's id of the session (hostSessionId, local_...); "" outside the app
 
     def describe(self, now: float) -> str:
         minutes = max(0, int((now - self.updated) // 60))
@@ -58,6 +60,8 @@ def read_all(folder: Path | None = None) -> list[Session]:
                     updated=updated,
                     name=str(data.get("name", "")),
                     proc_start=str(data.get("procStart", "")),
+                    started=float(data.get("startedAt") or 0) / 1000,
+                    host_session=str(data.get("hostSessionId") or ""),
                 )
             )
         except (OSError, ValueError, KeyError, TypeError):

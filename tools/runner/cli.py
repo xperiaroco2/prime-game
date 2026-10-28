@@ -766,7 +766,8 @@ def build_parser() -> argparse.ArgumentParser:
         "main checkout behind origin/main, or a failed read, #930); --args N prints issue N's latest launch args as JSON; "
         "--stalled flags the other sessions on this machine with a run finished or a notification queued over "
         "--minutes ago and no turn after it (#731; exit 3 when one is flagged); --in-flight lists the other sessions "
-        "on this machine with a workflow run of their own still in flight (#1355; exit 0 either way).",
+        "on this machine with a workflow run, background agent or background command of their own still running "
+        "(#1355; exit 0 either way).",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
@@ -780,8 +781,9 @@ def build_parser() -> argparse.ArgumentParser:
     what.add_argument(
         "--in-flight",
         action="store_true",
-        help="list the other sessions with a workflow run of their own still running, across the four checkouts, "
-        "with their title, cwd and transcript id (#1355); read-only, exit 0 either way",
+        help="list the other sessions with a workflow run, background agent or background command of their own still "
+        "running, across the four checkouts, with their Desktop id, title, cwd and transcript id (#1355); read-only, "
+        "exit 0 either way",
     )
     p.add_argument("--minutes", type=float, metavar="M", help="--stalled: how old, in minutes (default 30)")
     p.add_argument("--session", help="the manager session's id or its prefix (default: this Claude Code session)")
