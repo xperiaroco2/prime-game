@@ -170,6 +170,7 @@ static func _avatar() -> Dictionary:
 		"sneaking": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 
 

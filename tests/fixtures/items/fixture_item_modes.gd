@@ -39,6 +39,14 @@ static func swapping(mode: GameMode) -> GameMode:
 
 
 ## An item kind of `hands` hands (1, or 2 for a package, as the base mode's data has it).
+## The Draw (GDD §6, #1218: keys 1, 2, 3 and the wheel) as the base mode has it: PlaceInRange, then
+## PlaceChanges, then DrawPlace; Round accepts it from the living.
+static func drawing(mode: GameMode) -> GameMode:
+	mode.actions.append(draw_rule())
+	mode.find_phase(&"round").accepts.append(AcceptSpec.of(Intents.DRAW, AcceptSpec.From.LIVING))
+	return mode
+
+
 static func item_kind(id: StringName, actions: Array[Rule], hands := 1) -> ItemKind:
 	var kind := ItemKind.new()
 	kind.id = id
@@ -66,6 +74,12 @@ static func put_down_rule(distance_m: float) -> Rule:
 static func swap_rule() -> Rule:
 	return FixtureModes.rule(
 		Intents.SWAP, [CarriesItem.new(), HandNotTwoHanded.new()], [SwapHands.new()]
+	)
+
+
+static func draw_rule() -> Rule:
+	return FixtureModes.rule(
+		Intents.DRAW, [PlaceInRange.new(), PlaceChanges.new()], [DrawPlace.new()]
 	)
 
 
@@ -106,6 +120,10 @@ static func put_down(game: Match, peer: int, facing: Vector3, seq: int = 0) -> v
 
 static func swap(game: Match, peer: int, seq: int = 0) -> void:
 	FixtureModes.send(game, Intents.SWAP, peer, {}, seq)
+
+
+static func draw(game: Match, peer: int, place: int, seq: int = 0) -> void:
+	FixtureModes.send(game, Intents.DRAW, peer, {"place": place}, seq)
 
 
 ## The names of the events `peer` received after its first `skip` events.

@@ -7,7 +7,8 @@ extends MatchEvent
 ## within the camera's range plus PhotoTask.RECORD_MARGIN_M of the lens, its feet outside the
 ## camera's cylinder, in peer order, at most PhotoTask.MAX_RECORD rows. A row is the snapshot's
 ## avatar row without its velocity and invulnerability, plus its peer: `peer`, `position`,
-## `facing`, `downed`, `crouched` (the crouch ADR, KE2), `held_item`, `belt_item` (-1: none).
+## `facing`, `downed`, `crouched` (the crouch ADR, KE2), `held_item`, `belt_item`, `belt_item2`
+## (-1: none).
 ##
 ## Audience: everyone. The record holds what every player receives in the snapshots anyway, taken
 ## at the shot's command; the one addition is the recipient's own pose, which it knows (§3.3). It

@@ -9,6 +9,12 @@ extends RefCounted
 ## leaves mid-round is left. DOWNED took the ghosts' value, and that value is never reused for DEAD.
 enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
+## The number of item places: the hand and the two belt slots (GDD §6).
+const PLACES := 3
+## last_place at the start and after clear_places(): the first belt place, so the first X (Swap)
+## of a fresh player hangs its hand item on the belt, as the swap of one belt slot did.
+const FIRST_LAST_PLACE := 1
+
 var peer: int
 var name: String
 ## The player's number in the host session (§3.5, the returning-players ADR, Decision 2): the
@@ -52,11 +58,33 @@ var sneaking := false
 var claim_tick := -1
 ## Raised by every placement; a claim of another epoch is dropped as stale (§7).
 var epoch := 0
-## The hand item's id, or -1: the hand slot (vision revision 1, Two hands).
-var held_item := -1
-## The belt item's id, or -1: the belt slot, which holds at most one one-handed item and is
-## visible to everyone, as the hand item is.
-var belt_item := -1
+## The three item places, the hand and the two belt slots (GDD §6 "Drawing from the belt", #1040
+## c6320249563): each an item id or -1. An item keeps its place; `selected_place` is in the hand,
+## the other two hang on the belt. Index 0..2 here and on the wire; the HUD and the keys say 1..3.
+## Only Items moves items between them (a two-handed item is only ever in the selected place);
+## clear_places() resets them. All of it is public, as the avatar's hand and belt are.
+var places := PackedInt32Array([-1, -1, -1])
+## The place in the hand, 0..2. Items.select is its one writer (a Draw, X, a take into a free
+## place).
+var selected_place := 0
+## The place held before the selected one, 0..2, never equal to it: X (Swap) goes back to it.
+var last_place := FIRST_LAST_PLACE
+## The hand item's id, or -1: the selected place's item (vision revision 1, Two hands). Writing
+## it writes the selected place.
+var held_item: int:
+	get:
+		return places[selected_place]
+	set(value):
+		places[selected_place] = value
+## The belt items' ids, or -1: the item of the lower- and of the higher-numbered place not
+## selected, each visible to everyone, as the hand item is. Not compacted: an empty lower place
+## leaves `belt_item` -1 beside a `belt_item2`. Read-only: Items writes `places`.
+var belt_item: int:
+	get:
+		return places[belt_places()[0]]
+var belt_item2: int:
+	get:
+		return places[belt_places()[1]]
 var health := 0
 var stamina := 0
 ## The host tick up to which stamina is settled (§7.1), or -1.
@@ -89,3 +117,38 @@ func is_invulnerable(tick: int) -> bool:
 
 func is_present() -> bool:
 	return life != Life.LEFT
+
+
+## The two places not selected, the lower first: the belt.
+func belt_places() -> PackedInt32Array:
+	var belt := PackedInt32Array()
+	for place in PLACES:
+		if place != selected_place:
+			belt.append(place)
+	return belt
+
+
+## The place that holds `item_id`, or -1.
+func place_of(item_id: int) -> int:
+	if item_id < 0:
+		return -1
+	return places.find(item_id)
+
+
+## The ids the player carries, the hand's first, then the belt's in place order: the order a
+## death or a leave drops them in.
+func carried_items() -> PackedInt32Array:
+	var carried := PackedInt32Array()
+	if held_item >= 0:
+		carried.append(held_item)
+	for place in belt_places():
+		if places[place] >= 0:
+			carried.append(places[place])
+	return carried
+
+
+## Empties every place; place 0 is in the hand again (MatchState.reset_player).
+func clear_places() -> void:
+	places = PackedInt32Array([-1, -1, -1])
+	selected_place = 0
+	last_place = FIRST_LAST_PLACE

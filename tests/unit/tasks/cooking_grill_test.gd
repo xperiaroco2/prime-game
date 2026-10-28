@@ -124,6 +124,8 @@ func test_a_take_off_with_a_full_belt_puts_the_hand_item_down_at_the_feet_first(
 	FixtureModes.run_ticks(_game, 1)
 	_take(P2, &"bun_a")
 	_take(P2, &"bun_b")
+	# All three places full (GDD §6): the hand item goes to the feet.
+	_take(P2, &"bun_a")
 	FixtureModes.run_ticks(_game, 1)
 	var hand := FixtureCookingModes.held(_game, P2)
 	var belt := FixtureCookingModes.belted(_game, P2)

@@ -176,6 +176,7 @@ static func _avatar(at: Vector3) -> Dictionary:
 		"sneaking": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 
 

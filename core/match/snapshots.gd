@@ -8,10 +8,10 @@ extends RefCounted
 ## avatar's flag `downed` marks a downed player, and `invulnerable` one whom strikes skip at that
 ## tick (after a respawn or a revive,
 ## vision revision 1: public, so nobody swings at it in vain unawares). The hand and belt items are
-## public too (`held_item`, `belt_item`: vision revision 1, Two hands). An item in flight shows
-## `where` FLYING at its launch's origin (§7.1.16; items are not on the wire, E3: clients draw the
-## arc from the throw's event). Private numbers (health, stamina) are never avatar fields: they
-## travel in SelfStatus.
+## public too (`held_item`, `belt_item`, `belt_item2`: vision revision 1, Two hands; GDD §6). An
+## item in flight shows `where` FLYING at its launch's origin (§7.1.16; items are not on the wire,
+## E3: clients draw the arc from the throw's event). Private numbers (health, stamina) are never
+## avatar fields: they travel in SelfStatus.
 
 
 ## What `viewer` is entitled to see at host tick `at_tick` (the tick whose state it shows): the
@@ -47,5 +47,6 @@ static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Diction
 			"sneaking": player.sneaking,
 			"held_item": player.held_item,
 			"belt_item": player.belt_item,
+			"belt_item2": player.belt_item2,
 		}
 	return avatars

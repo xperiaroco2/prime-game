@@ -18,7 +18,8 @@ const RAISE := &"Raise"
 const STOP_RAISE := &"StopRaise"
 ## A downed player gives up and dies at once (M4-4).
 const GIVE_UP := &"GiveUp"
-## A living player swaps its hand and belt items (M4-5, vision revision 1: Two hands).
+## X: a living player draws the place it held last back into the hand (M4-5, vision revision 1:
+## Two hands; GDD §6 "Drawing from the belt": with one item it moves it between hand and belt).
 const SWAP := &"Swap"
 ## The host's player asks a scripted mode to go on (#599, the tutorial's stages): a session control
 ## like ReturnToLobby, no argument. The base mode accepts it in no phase (`not_accepted`).
@@ -40,6 +41,10 @@ const THROW := &"Throw"
 ## `nothing_to_do` before any owner is tried. The host checks reach and sight itself (AtStation and
 ## StationInSight; InReach and InSight).
 const INTERACT := &"Interact"
+## A living player draws its place `place` (0..2) into the hand (GDD §6 "Drawing from the belt",
+## #1218): keys 1, 2 and 3, and the mouse wheel stepping through the three. The host checks the
+## place (PlaceInRange, PlaceChanges); a two-handed hand item is put down at the feet first.
+const DRAW := &"Draw"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -60,12 +65,13 @@ const ALL: Array[StringName] = [
 	SET_PROFILE,
 	THROW,
 	INTERACT,
+	DRAW,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
 ## none of them, not even the host under HOST (Match._accepts, vision revision 1).
 const PLAYER_ACTIONS: Array[StringName] = [
-	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW, INTERACT
+	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW, INTERACT, DRAW
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -130,6 +136,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	SET_PROFILE: {"name": TYPE_STRING, "colour": TYPE_INT},
 	THROW: {"facing": TYPE_VECTOR3},
 	INTERACT: {"station": TYPE_INT, "item": TYPE_INT},
+	DRAW: {"place": TYPE_INT},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},

@@ -140,6 +140,8 @@ func test_pick_ups_exchange_leaves_another_item_on_the_camera_and_empties_it() -
 	var game := _loaded()
 	var film := FixturePhotoModes.dealt_film(game)
 	var other := FixturePhotoModes.give_film(game, P2)
+	# All three places full (GDD §6): the take exchanges the hand item for the picked one.
+	FixturePhotoModes.take(game, P2, FixtureItemModes.lay(game, &"tool", Vector3(21, 0, 0)))
 	var tool := FixtureItemModes.lay(game, &"tool", Vector3(20, 0, 0))
 	FixturePhotoModes.take(game, P2, tool)
 	assert_object(Items.belted_by(game.state, P2)).is_same(other)

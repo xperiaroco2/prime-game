@@ -5,19 +5,25 @@ extends RefCounted
 ## emits ItemPickedUp, Swapped and ItemPlaced, and raises the fact `item_rested`. The parts of
 ## core/items/ call it, and so do the parts of later stages:
 ##
-## - take(): a pickup, into the hand; the hand item goes to the belt or rests where the picked one
+## A player's three places (PlayerState.places: the hand and the two belt slots, GDD §6 "Drawing
+## from the belt"): an item keeps its place, the selected place is in the hand. A take or a give
+## fills the selected place when it is empty, else the lowest free place, which becomes selected
+## (the hand item stays in its place, now on the belt); with all three full the hand item leaves.
+##
+## - take(): a pickup, into the hand; the hand item stays on the belt or rests where the picked one
 ##   lay. Beside a two-handed hand item a one-handed picked item goes onto the belt instead
 ##   (give()'s belt move, the cooking ADR CE21).
 ## - give(): an item a source hands out (a box's, a bed's, the grill's take; the cooking ADR §2's
-##   table, CD3 (b), CD5 (b), CE19, CE20) goes to a player, who makes room: the hand item to an
-##   empty belt or down at the taker's feet; beside a two-handed hand item the new item goes onto
-##   the belt, a full belt's item first down at the feet.
+##   table, CD3 (b), CD5 (b), CE19, CE20) goes to a player, who makes room: the hand item stays on
+##   the belt when a place is free, else it is put down at the taker's feet; beside a two-handed
+##   hand item the new item goes onto the belt, a full belt's lower item first down at the feet.
+## - select(), back(): another place comes into the hand (a Draw: keys 1, 2, 3 and the wheel; X:
+##   back to the place held last); a two-handed hand item is put down at the feet first.
 ## - change_kind(): an item becomes another kind, in place (the cooking ADR, CE4): ItemChanged.
 ## - lock_at(), lay_on_station(): an item goes onto a station (the cooking ADR, CE5): locked at
 ##   the station's spot (a patty on the grill, an ingredient on a plate), or lying there,
 ##   interactive, with item_rested (`on_station`; a wrong ingredient at a place until #1101, no
 ##   caller since). The station's own event announces both.
-## - swap(): the hand and belt items change places.
 ## - place(): an item comes to rest at a spot (a put-down, a pickup's swap, a dead player's items
 ##   at its body: the life rule, 2g, after player_died): ItemPlaced, then item_rested.
 ## - drop_carried(): a leaving player's items, the hand's first, fall to the floor below the
@@ -41,10 +47,10 @@ extends RefCounted
 ## - vanish(): an item leaves the match for good (VanishTicks; C1's cap): ItemVanished to everyone,
 ##   its id freed for reuse (MatchState.remove_item).
 ##
-## A move into a hand, onto a belt, into flight or into the locked state (take(), give(), swap(),
+## A move into a hand, onto a belt, into flight or into the locked state (take(), give(),
 ## launch(), lock(), lock_at()) clears the rest tick. Every lay and every move into a hand, onto a
 ## belt, into flight or into the locked state bumps the move serial, ItemState.moves (the photo
-## ADR, PE17); swap() between one player's own slots does not.
+## ADR, PE17); select() between one player's own places does not.
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
 ##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
@@ -89,26 +95,53 @@ static func held_by(state: MatchState, peer: int) -> ItemState:
 	return state.items.get(player.held_item)
 
 
-## The item `peer` carries on the belt, or null.
+## The first item `peer` carries on the belt (the lower-numbered belt place's, else the higher
+## one's), or null. Every belt item: belted_items().
 static func belted_by(state: MatchState, peer: int) -> ItemState:
+	var belt := belted_items(state, peer)
+	return belt[0] if not belt.is_empty() else null
+
+
+## The items `peer` carries on the belt, in place order; empty without a player.
+static func belted_items(state: MatchState, peer: int) -> Array[ItemState]:
+	var belt: Array[ItemState] = []
 	var player := state.player(peer)
-	if player == null or player.belt_item < 0:
-		return null
-	return state.items.get(player.belt_item)
+	if player == null:
+		return belt
+	for place in player.belt_places():
+		var item: ItemState = state.items.get(player.places[place])
+		if item != null:
+			belt.append(item)
+	return belt
+
+
+## The items `peer` carries, the hand's first, then the belt's in place order
+## (PlayerState.carried_items); empty without a player.
+static func carried_by(state: MatchState, peer: int) -> Array[ItemState]:
+	var carried: Array[ItemState] = []
+	var player := state.player(peer)
+	if player == null:
+		return carried
+	for id in player.carried_items():
+		var item: ItemState = state.items.get(id)
+		if item != null:
+			carried.append(item)
+	return carried
 
 
 ## `item`, lying on the ground, goes to `peer` (vision revision 1, Two hands, as the cooking ADR's
 ## CE21 amends it). Beside a two-handed hand item a one-handed `item` goes onto the belt through
 ## give()'s belt move (a full belt's item down at the taker's feet first, ItemPlaced `put_down`;
 ## ItemPickedUp with `belted` the item itself), the two-handed item staying in the hand.
-## Otherwise `item` goes into the hand: the hand item, if any, moves to the belt when it is
-## one-handed and the belt is empty; else it rests where the picked-up one lay, a spot already
-## known to be valid (§7.1): a one-handed hand item beside a full belt, or a two-handed one when
-## `item` is two-handed too (the belt holds only a one-handed item). Emits ItemPickedUp (with
-## `belted`, the item moved to the belt, E29), then for a hand item that rests ItemPlaced (swap)
-## and item_rested. The rule's conditions checked the ground, the reach and the sight; an item
-## that is not on the ground here is a rule error, and the sender of the intent gets
-## `unavailable`.
+## Otherwise `item` goes into the hand (GDD §6): into the selected place when it is empty; beside a
+## one-handed hand item into the lowest free place, which becomes selected, the hand item staying
+## in its place, now on the belt; else (all three places full, or a two-handed hand item and a
+## two-handed `item`: the belt holds only a one-handed item) the hand item rests where the
+## picked-up one lay, a spot already known to be valid (§7.1), and `item` takes the selected
+## place. Emits ItemPickedUp (with `belted`, the hand item that went onto the belt, E29, and
+## `place`), then for a hand item that rests ItemPlaced (swap) and item_rested. The rule's
+## conditions checked the ground, the reach and the sight; an item that is not on the ground here
+## is a rule error, and the sender of the intent gets `unavailable`.
 static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or item == null or item.where != ItemState.Where.GROUND:
@@ -124,13 +157,15 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var spot := item.position
 	var belted: ItemState = null
 	var rests: ItemState = null
+	var into := player.selected_place
 	if before != null:
-		if not before.kind.is_two_handed() and player.belt_item < 0:
+		var free := _free_place(player)
+		if not before.kind.is_two_handed() and free >= 0:
 			belted = before
-			_to_belt(player, belted)
+			into = free
 		else:
 			rests = before
-	_into_hand(ctx, peer, item, belted)
+	_into_hand(ctx, peer, item, belted, into)
 	if rests != null:
 		place(ctx, rests, spot, SWAP)
 
@@ -138,13 +173,14 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 ## `item`, a new item from a source or one locked on a station (a box's, a bed's or the grill's
 ## take, the cooking ADR §2), goes to `peer`, who makes room (§2's table; CD3 (b), CD5 (b), both
 ## the engineer's; CE19, CE20):
-## - empty hands: into the hand;
-## - a one-handed hand item and an empty belt: into the hand, the hand item to the belt
-##   (ItemPickedUp's `belted`, as a pickup's);
-## - a one-handed hand item and a full belt: into the hand, the hand item put down at the taker's
-##   feet first (ItemPlaced `put_down`, then item_rested);
-## - a two-handed hand item: onto the belt, a full belt's item put down at the feet first; the
-##   two-handed item stays in the hand, and ItemPickedUp's `belted` names `item` itself.
+## - an empty hand (the selected place empty): into the hand;
+## - a one-handed hand item and a free place: into the lowest free place, which becomes selected;
+##   the hand item stays in its place, now on the belt (ItemPickedUp's `belted`, as a pickup's);
+## - a one-handed hand item and all three places full: into the hand, the hand item put down at
+##   the taker's feet first (ItemPlaced `put_down`, then item_rested);
+## - a two-handed hand item: onto the belt's lowest free place, a full belt's lower item put down
+##   at the feet first; the two-handed item stays in the hand, and ItemPickedUp's `belted` names
+##   `item` itself.
 ## The feet: WorldQuery.rest_position from the eye straight down, the spot PutDownInFront uses for a
 ## facing with no horizontal direction. A given kind is one-handed (CE14): a two-handed one, or an
 ## item carried or in flight, is a rule error, logged, and nothing moves. Emits ItemPickedUp last.
@@ -161,13 +197,15 @@ static func give(ctx: MatchContext, peer: int, item: ItemState) -> void:
 		_onto_belt(ctx, peer, item)
 		return
 	var belted: ItemState = null
+	var into := player.selected_place
 	if hand != null:
-		if player.belt_item < 0:
+		var free := _free_place(player)
+		if free >= 0:
 			belted = hand
-			_to_belt(player, belted)
+			into = free
 		else:
 			place(ctx, hand, _feet(ctx, player), PUT_DOWN)
-	_into_hand(ctx, peer, item, belted)
+	_into_hand(ctx, peer, item, belted, into)
 
 
 ## `item` becomes `kind` where it is (the cooking ADR, CE4: a patty on the grill turning fried,
@@ -212,30 +250,50 @@ static func lay_on_station(ctx: MatchContext, item: ItemState, at: Vector3) -> v
 	raise_rested(ctx, item, ON_STATION)
 
 
-## `peer`'s hand and belt items change places; either may be empty. Swapped (everyone). The rule's
-## conditions (CarriesItem, HandNotTwoHanded) refuse a swap with both slots empty or a two-handed
-## item in the hand; one that would put a two-handed item on the belt here is a rule error,
-## logged, and nothing moves: the sender's Swap is rejected with `two_handed`, as `take` rejects its
-## own rule error.
-static func swap(ctx: MatchContext, peer: int) -> void:
+## `peer`'s place `to` (0..2) comes into the hand (GDD §6, a Draw: keys 1, 2, 3 and the wheel): the
+## hand item stays in its place, now on the belt, and the place held so far becomes the last place
+## (X goes back to it). An empty place is an empty hand. A two-handed hand item is put down at the
+## player's feet first (ItemPlaced `put_down`, then item_rested: no refusal), since the belt holds
+## only a one-handed item. Swapped (everyone) with the new place. The rule's conditions
+## (PlaceInRange, PlaceChanges) refuse a place out of range or the selected one; either here is a
+## rule error, logged, and nothing moves: the sender's intent is rejected with that condition's
+## reason.
+static func select(ctx: MatchContext, peer: int, to: int) -> void:
 	var player := ctx.state.player(peer)
 	if player == null:
-		ctx.error("swap: no player %d" % peer)
+		ctx.error("select: no player %d" % peer)
+		return
+	if to < 0 or to >= PlayerState.PLACES or to == player.selected_place:
+		ctx.error("select: player %d cannot draw place %d" % [peer, to])
+		if ctx.command != null:
+			var bad := to < 0 or to >= PlayerState.PLACES
+			ctx.reject(ctx.command, PlaceInRange.NO_SUCH_PLACE if bad else PlaceChanges.SAME_PLACE)
 		return
 	var hand := held_by(ctx.state, peer)
-	var belt := belted_by(ctx.state, peer)
 	if hand != null and hand.kind.is_two_handed():
-		ctx.error("swap: player %d holds two-handed item %d" % [peer, hand.id])
+		place(ctx, hand, _feet(ctx, player), PUT_DOWN)
+	_move_selection(ctx, player, to)
+	ctx.emit(SwappedEvent.new(peer, to))
+
+
+## X (Swap): `peer`'s last place comes back into the hand (select()), so with one item X moves it
+## between the hand and the belt, as the swap of one belt slot did. X keeps V13: the rule's
+## conditions (CarriesItem, HandNotTwoHanded) refuse it with every place empty or a two-handed
+## item in the hand (GDD §6 puts a two-handed item down only for 1, 2, 3 and the wheel). A
+## two-handed hand item here is a rule error, logged, and nothing moves: the sender's Swap is
+## rejected with `two_handed`, as `take` rejects its own rule error.
+static func back(ctx: MatchContext, peer: int) -> void:
+	var player := ctx.state.player(peer)
+	if player == null:
+		ctx.error("back: no player %d" % peer)
+		return
+	var hand := held_by(ctx.state, peer)
+	if hand != null and hand.kind.is_two_handed():
+		ctx.error("back: player %d holds two-handed item %d" % [peer, hand.id])
 		if ctx.command != null:
 			ctx.reject(ctx.command, HandNotTwoHanded.TWO_HANDED)
 		return
-	player.held_item = belt.id if belt != null else -1
-	player.belt_item = hand.id if hand != null else -1
-	if belt != null:
-		belt.where = ItemState.Where.HAND
-	if hand != null:
-		hand.where = ItemState.Where.BELT
-	ctx.emit(SwappedEvent.new(peer))
+	select(ctx, peer, player.last_place)
 
 
 ## `item` comes to rest at `at` for `cause`: on the ground, out of any hand, belt or flight.
@@ -321,7 +379,7 @@ static func fallback_rest(ctx: MatchContext, feet: Vector3) -> Vector3:
 ## (§3.4, §9.2); a death places the items at the body instead (place_carried), which was found the
 ## same way.
 static func drop_carried(ctx: MatchContext, peer: int, cause: StringName) -> void:
-	if held_by(ctx.state, peer) == null and belted_by(ctx.state, peer) == null:
+	if carried_by(ctx.state, peer).is_empty():
 		return
 	var from := ctx.state.player(peer).position
 	var at := ctx.world.floor_below(lifted(from))
@@ -331,16 +389,15 @@ static func drop_carried(ctx: MatchContext, peer: int, cause: StringName) -> voi
 	place_carried(ctx, peer, at, cause)
 
 
-## Places the items `peer` carries at `at` for `cause`, the hand's first, then the belt's: a
-## death's at the body (LifeRules.die), a leave's below the player (drop_carried).
+## Places the items `peer` carries at `at` for `cause`, the hand's first, then the belt's in place
+## order: a death's at the body (LifeRules.die), a leave's below the player (drop_carried).
 static func place_carried(ctx: MatchContext, peer: int, at: Vector3, cause: StringName) -> void:
-	var hand := held_by(ctx.state, peer)
-	if hand != null:
-		place(ctx, hand, at, cause)
-	# Looked up after the hand's item_rested, whose reactions ran in between.
-	var belt := belted_by(ctx.state, peer)
-	if belt != null:
-		place(ctx, belt, at, cause)
+	# One at a time, looked up again after each item_rested, whose reactions ran in between.
+	for _place in PlayerState.PLACES:
+		var carried := carried_by(ctx.state, peer)
+		if carried.is_empty():
+			return
+		place(ctx, carried[0], at, cause)
 
 
 ## Raises item_rested for `item`, at rest where it is, with `cause` (§9.2). Use it for an item
@@ -389,37 +446,60 @@ static func lifted(point: Vector3) -> Vector3:
 	return point + Vector3.UP * SURFACE_CLEARANCE_M
 
 
-## give()'s belt move, which take() shares beside a two-handed hand item (CE21): a full belt's item
-## put down at `peer`'s feet (ItemPlaced `put_down`, item_rested), then `item` onto the belt, and
-## ItemPickedUp with `belted` the item itself (CE20). The hand item stays where it is.
+## give()'s belt move, which take() shares beside a two-handed hand item (CE21): `item` onto the
+## belt's lowest free place; with both belt places full the lower one's item is put down at
+## `peer`'s feet first (ItemPlaced `put_down`, item_rested). ItemPickedUp with `belted` the item
+## itself (CE20) and its place. The hand item and the selection stay as they are.
 static func _onto_belt(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
-	var full := belted_by(ctx.state, peer)
-	if full != null:
-		place(ctx, full, _feet(ctx, player), PUT_DOWN)
+	var into := _free_place(player)
+	if into < 0:
+		into = player.belt_places()[0]
+		var full: ItemState = ctx.state.items.get(player.places[into])
+		if full != null:
+			place(ctx, full, _feet(ctx, player), PUT_DOWN)
 	item.holder = peer
 	item.rest_tick = -1
 	item.moves += 1
-	_to_belt(player, item)
-	ctx.emit(ItemPickedUpEvent.new(peer, item.id, item.id))
+	item.where = ItemState.Where.BELT
+	player.places[into] = item.id
+	ctx.emit(ItemPickedUpEvent.new(peer, item.id, item.id, into))
 
 
-## `item` into `peer`'s hand, held by it, no longer lying; ItemPickedUp with `belted` (the hand
-## item that moved to the belt, or none).
-static func _into_hand(ctx: MatchContext, peer: int, item: ItemState, belted: ItemState) -> void:
+## `item` into `peer`'s place `into`, held by it, no longer lying; `into` becomes the selected place
+## when it is not (_move_selection: the hand item stays in its place, on the belt). ItemPickedUp
+## with `belted` (the hand item that went onto the belt, or none) and the place.
+static func _into_hand(
+	ctx: MatchContext, peer: int, item: ItemState, belted: ItemState, into: int
+) -> void:
 	var player := ctx.state.player(peer)
+	if into != player.selected_place:
+		_move_selection(ctx, player, into)
 	item.where = ItemState.Where.HAND
 	item.rest_tick = -1
 	item.moves += 1
 	item.holder = peer
-	player.held_item = item.id
-	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1))
+	player.places[into] = item.id
+	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1, into))
 
 
-## `item`, already held by `player` or being given to it, onto its belt.
-static func _to_belt(player: PlayerState, item: ItemState) -> void:
-	item.where = ItemState.Where.BELT
-	player.belt_item = item.id
+## `to` becomes `player`'s selected place and the one held so far its last place: the item there
+## (if any) comes into the hand, the old hand item (if any) onto the belt. No move serial bump:
+## the items stay with their player.
+static func _move_selection(ctx: MatchContext, player: PlayerState, to: int) -> void:
+	var hand: ItemState = ctx.state.items.get(player.held_item)
+	if hand != null:
+		hand.where = ItemState.Where.BELT
+	player.last_place = player.selected_place
+	player.selected_place = to
+	var drawn: ItemState = ctx.state.items.get(player.held_item)
+	if drawn != null:
+		drawn.where = ItemState.Where.HAND
+
+
+## `player`'s lowest-numbered empty place, or -1 when all three are full.
+static func _free_place(player: PlayerState) -> int:
+	return player.places.find(-1)
 
 
 ## Where an item a take displaces is put down (CE19): below `player`'s eye (Items.eye_of), as
@@ -435,15 +515,17 @@ static func _feet(ctx: MatchContext, player: PlayerState) -> Vector3:
 	return ctx.world.rest_position(eye, eye)
 
 
-## Empties the hand or belt slot that holds `item`, if any.
+## Empties the place that holds `item`, if any; the selection stays (an empty place is an empty
+## hand).
 static func _release(ctx: MatchContext, item: ItemState) -> void:
 	if not item.is_carried():
 		return
 	var holder := ctx.state.player(item.holder)
-	if holder != null and holder.held_item == item.id:
-		holder.held_item = -1
-	if holder != null and holder.belt_item == item.id:
-		holder.belt_item = -1
+	if holder == null:
+		return
+	var at := holder.place_of(item.id)
+	if at >= 0:
+		holder.places[at] = -1
 
 
 static func _id(item: ItemState) -> String:

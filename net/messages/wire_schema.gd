@@ -58,7 +58,10 @@ extends RefCounted
 ## 35 since #1101 dropped IngredientPlaced's `right` (kind 80) and added Cooking's BurgerPlated
 ## (kind 85) and BurgerServed (kind 86): a burger is checked when it is served. (It was 33 before
 ## its rebase onto #810's 34.)
-const VERSION := 35
+## 36 since #1218 (GDD §6, drawing from the belt): the intent Draw (kind 19, its place), the
+## `place` of ItemPickedUp (48) and Swapped (64), and the avatar rows' `belt_item2` (Snapshot 96,
+## ShotTaken 78), appended after `belt_item`.
+const VERSION := 36
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -312,6 +315,8 @@ static func _intents() -> Array[WireRow]:
 				WireField.maybe("item", WireField.Type.ITEM),
 			]
 		),
+		# seq 4, place 1 (0..2; PlaceInRange refuses another byte, #1218).
+		_up(19, &"Draw", 5, [_seq(), _of("place", WireField.Type.U8)]),
 	]
 
 
@@ -450,8 +455,13 @@ static func _events() -> Array[WireRow]:
 		_down(
 			48,
 			&"ItemPickedUp",
-			8,
-			[_peer("peer"), _item("item"), WireField.maybe("belted", WireField.Type.ITEM)]
+			9,
+			[
+				_peer("peer"),
+				_item("item"),
+				WireField.maybe("belted", WireField.Type.ITEM),
+				_of("place", WireField.Type.U8),
+			]
 		),
 		_down(49, &"ItemPlaced", 47, [_item("item"), _vec3("position"), _id("cause")]),
 		_down(50, &"PackageDelivered", 4, [_item("item"), _station("station")]),
@@ -486,7 +496,7 @@ static func _events() -> Array[WireRow]:
 		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
 		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
 		_down(63, &"Revived", 4, [_peer("peer")]),
-		_down(64, &"Swapped", 4, [_peer("peer")]),
+		_down(64, &"Swapped", 5, [_peer("peer"), _of("place", WireField.Type.U8)]),
 		_down(
 			65,
 			&"TaskState",
@@ -575,7 +585,7 @@ static func _events() -> Array[WireRow]:
 
 
 ## The photo camera's shot (the photo ADR §3.3): the record is the snapshot's avatar row without
-## its velocity and invulnerability, with its peer, at most MAX_OTHER_AVATARS rows (15 * 33
+## its velocity and invulnerability, with its peer, at most MAX_OTHER_AVATARS rows (15 * 35
 ## bytes): a downed player takes no shot, so its own avatar is never in it. Its
 ## rows grow with the mode's players, so WireBudget holds its worst case (the photo ADR §3.3).
 static func _shot_taken() -> WireRow:
@@ -590,13 +600,14 @@ static func _shot_taken() -> WireRow:
 				WireField.bits(PackedStringArray(["downed", "crouched"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
+				WireField.maybe("belt_item2", WireField.Type.ITEM),
 			]
 		)
 	)
 	var shot := _down(
 		78,
 		&"ShotTaken",
-		502,
+		532,
 		[
 			_station("station"),
 			_item("film"),
@@ -622,6 +633,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
+				WireField.maybe("belt_item2", WireField.Type.ITEM),
 			]
 		)
 	)

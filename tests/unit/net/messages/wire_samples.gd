@@ -66,7 +66,9 @@ static func events() -> Dictionary[String, Array]:
 		ItemSpawnedEvent.new(1, &"knife", Vector3(0, 1, 0)),
 		ItemSpawnedEvent.new(0xFFFE, &"package", Vector3(2, 1, 0), 0xFFFE, Color.RED),
 	]
-	found["ItemPickedUpEvent"] = [ItemPickedUpEvent.new(2, 1), ItemPickedUpEvent.new(2, 0, 0xFFFE)]
+	found["ItemPickedUpEvent"] = [
+		ItemPickedUpEvent.new(2, 1), ItemPickedUpEvent.new(2, 0, 0xFFFE, 2)
+	]
 	found["ItemPlacedEvent"] = [ItemPlacedEvent.new(1, Vector3(0.5, 0.05, 0.5), &"put_down")]
 	found["PackageDeliveredEvent"] = [PackageDeliveredEvent.new(3, 1)]
 	found["ItemVanishedEvent"] = [ItemVanishedEvent.new(1), ItemVanishedEvent.new(0xFFFE)]
@@ -97,7 +99,7 @@ static func events() -> Dictionary[String, Array]:
 	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
 	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
 	found["RevivedEvent"] = [RevivedEvent.new(2)]
-	found["SwappedEvent"] = [SwappedEvent.new(0x7FFFFFFF)]
+	found["SwappedEvent"] = [SwappedEvent.new(0x7FFFFFFF), SwappedEvent.new(2, 2)]
 	found["TaskStateEvent"] = [
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
 	]
@@ -140,6 +142,7 @@ static func events() -> Dictionary[String, Array]:
 			"crouched": true,
 			"held_item": -1,
 			"belt_item": 3,
+			"belt_item2": -1,
 		},
 		{
 			"peer": WireField.PEER_MAX,
@@ -149,6 +152,7 @@ static func events() -> Dictionary[String, Array]:
 			"crouched": false,
 			"held_item": 0xFFFE,
 			"belt_item": -1,
+			"belt_item2": 0xFFFD,
 		},
 	]
 	var none: Array[Dictionary] = []
@@ -227,6 +231,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"StopRaise", {}, 15),
 		WireMessage.new(&"GiveUp", {}, 16),
 		WireMessage.new(&"Swap", {}, 17),
+		WireMessage.new(&"Draw", {"place": 2}, 17),
+		WireMessage.new(&"Draw", {"place": 255}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
@@ -258,7 +264,7 @@ static func state_and_voice() -> Array[WireMessage]:
 	var avatars := {
 		2: _avatar(Vector3(1, 0, 1), false, false, -1, -1),
 		5: _avatar(Vector3(-3, 1.5, 0), true, false, 0xFFFE, 0),
-		7: _avatar(Vector3(4, 0, -4), false, true, 3, 0xFFFE),
+		7: _avatar(Vector3(4, 0, -4), false, true, 3, 0xFFFE, 0xFFFD),
 	}
 	var frame := PackedByteArray()
 	frame.resize(WireSchema.MAX_OPUS)
@@ -390,7 +396,7 @@ static func _claim() -> Dictionary:
 
 
 static func _avatar(
-	at: Vector3, downed: bool, invulnerable: bool, held: int, belt: int
+	at: Vector3, downed: bool, invulnerable: bool, held: int, belt: int, belt2: int = -1
 ) -> Dictionary:
 	return {
 		"position": at,
@@ -402,4 +408,5 @@ static func _avatar(
 		"sneaking": invulnerable and not downed,
 		"held_item": held,
 		"belt_item": belt,
+		"belt_item2": belt2,
 	}

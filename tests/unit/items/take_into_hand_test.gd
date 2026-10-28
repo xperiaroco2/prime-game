@@ -23,7 +23,7 @@ func test_a_living_player_picks_up_an_item_within_reach() -> void:
 	assert_int(game.state.player(P1).held_item).is_equal(item.id)
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
 	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[0] as ItemPickedUpEvent
-	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": item.id, "belted": -1})
+	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": item.id, "belted": -1, "place": 0})
 	assert_array(game.view_of(P1).events_named(&"ItemPickedUp")).has_size(1)
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	assert_array(Array(game.diagnostics)).is_empty()
@@ -205,7 +205,9 @@ func test_a_one_handed_hand_item_moves_to_an_empty_belt() -> void:
 	# No ItemPlaced: the hand item did not rest anywhere.
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
 	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[1] as ItemPickedUpEvent
-	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": package.id, "belted": tool.id})
+	assert_dict(picked.to_dict()).is_equal(
+		{"peer": P1, "item": package.id, "belted": tool.id, "place": 1}
+	)
 	assert_array(FixtureModes.notes(game)).is_empty()
 
 
@@ -216,6 +218,8 @@ func test_with_a_full_belt_the_hand_item_rests_where_the_picked_one_lay() -> voi
 	var held := FixtureItemModes.lay(game, &"tool", Vector3(-1, 0, 0))
 	var package := FixtureItemModes.lay(game, &"package", Vector3(0, 0, 1.5))
 	FixtureItemModes.pick_up(game, P1, belted)
+	# A full belt: both belt places taken (GDD §6).
+	_take_lying(game, Vector3(0, 0, -1))
 	FixtureItemModes.pick_up(game, P1, held)
 	var seen := game.view_of(P2).events.size()
 	FixtureItemModes.pick_up(game, P1, package)
@@ -228,7 +232,7 @@ func test_with_a_full_belt_the_hand_item_rests_where_the_picked_one_lay() -> voi
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal(
 		[&"ItemPickedUp", &"ItemPlaced", &"FixtureNote", &"FixtureNote"]
 	)
-	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[2] as ItemPickedUpEvent
+	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[3] as ItemPickedUpEvent
 	assert_int(picked.belted).is_equal(-1)
 	var placed := game.view_of(P2).events_named(&"ItemPlaced")[0] as ItemPlacedEvent
 	assert_dict(placed.to_dict()).is_equal(
@@ -256,7 +260,9 @@ func test_beside_a_two_handed_hand_item_a_one_handed_pick_goes_onto_the_belt() -
 	assert_int(tool.rest_tick).is_equal(-1)
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
 	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[1] as ItemPickedUpEvent
-	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": tool.id, "belted": tool.id})
+	assert_dict(picked.to_dict()).is_equal(
+		{"peer": P1, "item": tool.id, "belted": tool.id, "place": 1}
+	)
 	assert_array(FixtureModes.notes(game)).is_empty()
 
 
@@ -272,6 +278,8 @@ func test_beside_a_two_handed_hand_item_a_full_belt_s_item_goes_down_at_the_feet
 	var second := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1.5))
 	FixtureItemModes.pick_up(game, P1, first)
 	FixtureItemModes.pick_up(game, P1, package)
+	# A full belt: both belt places taken (GDD §6).
+	_take_lying(game, Vector3(0, 0, -1))
 	assert_int(first.where).is_equal(ItemState.Where.BELT)
 	var seen := game.view_of(P2).events.size()
 	FixtureItemModes.pick_up(game, P1, second)
@@ -289,8 +297,10 @@ func test_beside_a_two_handed_hand_item_a_full_belt_s_item_goes_down_at_the_feet
 	assert_dict(placed.to_dict()).is_equal(
 		{"item": first.id, "position": feet, "cause": &"put_down"}
 	)
-	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[2] as ItemPickedUpEvent
-	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": second.id, "belted": second.id})
+	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[3] as ItemPickedUpEvent
+	assert_dict(picked.to_dict()).is_equal(
+		{"peer": P1, "item": second.id, "belted": second.id, "place": 0}
+	)
 	assert_array(FixtureModes.notes(game)).is_equal(
 		[FixtureRestedNote.text(first.id, &"put_down", feet), "task item_rested"]
 	)
@@ -341,3 +351,10 @@ func test_taking_an_item_that_is_not_on_the_ground_is_a_rule_error() -> void:
 	# The sender still gets an answer, and only the sender.
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"unavailable"])
 	assert_array(game.view_of(P2).events_named(&"Rejected")).is_empty()
+
+
+## A tool laid at `at` and picked up by P1.
+func _take_lying(game: Match, at: Vector3) -> ItemState:
+	var item := FixtureItemModes.lay(game, &"tool", at)
+	FixtureItemModes.pick_up(game, P1, item)
+	return item
