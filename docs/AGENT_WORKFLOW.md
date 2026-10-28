@@ -500,21 +500,32 @@ Rules for every workflow run:
 (#485; the engineer's answers on [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
 recorded in the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), Q5, amended
 2026-10-07.) With four tracks' managers and his own sessions, the engineer went from session to session to find
-what waited for him. One more session, the **secretary**, does that and is no manager: it runs nothing.
+what waited for him. One more session, the **secretary**, does that and is no manager: it runs no workflow or task
+itself.
 
 - **Who:** one session of the engineer's, Opus at medium effort, in `D:\prime-game` (it only reads the checkout), on
   the skill `secretary` (`.claude/skills/secretary/SKILL.md`). Its cost counts in the engineer's own 5% of the week
   (the skill's `budget.md`) until he says otherwise.
 - **Powers:** it reads every session and the four repos, digests, and relays the engineer's answers to the session
-  that asked, which records them on GitHub as usual. It never merges, launches, closes, creates or decides; it never
-  answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
-  comments and `send_message`.
+  that asked, which records them on GitHub as usual. On his word for each session it starts the tracks' sessions
+  itself (below). It never merges, launches a workflow, closes, creates an issue or decides; it never answers a
+  permission card (they are the human's by design). Its only writes: the inbox issue's body, relay comments,
+  `send_message`, and the sessions it starts on his word (`start_session`, `set_session_effort`).
 - **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites when he asks ("що там?",
   "що нового?"; no timer, his word of 2026-10-28, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)):
   what to approve or decide and what to look at, numbered, each item with a link or a ready command, every other
   session in one group (waits for you, running, silent). In its chat, one short line on what changed.
-- **His personal assistant** (the same word): it also hands him a ready kickoff for any new session (folder,
-  permission mode, effort, the text); it starts none itself.
+- **His personal assistant, a wrapper over the tracks' sessions** (the same word, and his word of 2026-10-28
+  ~22:05 UTC, [copied on #1359](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481695312)): on
+  his word for each session it starts it with the Desktop app's `start_session`: the track's checkout, the
+  permission mode (bypass for a manager, [MANAGERS.md](MANAGERS.md) §1), the effort and the kickoff, each taken from
+  where a session or the track's docs give it (a handover comment, a meta session's prepared kickoff), never made up.
+  The app allows its own mode and effort or lower, so a manager's high effort is a `set_session_effort` right after
+  the start, which applies from the manager's second turn on. A session it starts is linked: each end of its turn
+  sends the secretary a note, which it reads and turns into a chat line when it holds a "For you:" item, else ends
+  its turn at once; each note costs it a turn of context inside his 5%, so its context limit and the
+  fresh-secretary handover stay. Sessions it did not start (already open) are read and messaged as before and
+  send no notes. When he wants to paste a kickoff himself, it hands him one (folder, mode, effort, the text).
 - **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
   `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news;
   `tools\run.cmd wave --in-flight` (§11.11) tells a session that waits on its own background work from a silent one.
@@ -548,8 +559,9 @@ cd D:\prime-game; gh issue pin <the new issue's number>
 ```
 **Start** (the engineer, when he sits down): a plain new Desktop session (not a scheduled task) in `D:\prime-game`,
 no worktree, model Opus, effort medium, the permission mode he uses for his own sessions, with the kickoff below
-pasted. A plain session, because the secretary lives on his chat and its relays, and a scheduled-task run is the
-wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
+pasted. Bypass, if it is to start managers in bypass (the app refuses a start above the starter's mode) and raise
+their effort without a card. A plain session, because the secretary lives on his chat and its relays, and a
+scheduled-task run is the wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
 allows only the writes the task file names; no other session can `send_message` to it; it starts in `acceptEdits`
 at medium whatever its creator ran in; and an unattended session cannot `run_scheduled_task`, so a scheduled-task
 manager could not start it anyway. Whether the engineer can type into a scheduled-task run is still unprobed.
@@ -562,8 +574,9 @@ The kickoff:
 Digest now; after that, only when I ask. I am here and answer in this chat.
 ```
 No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
-share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
-`send_message` load (ToolSearch) and names any that does not in its chat line.
+share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events`,
+`search_session_transcripts`, `send_message`, `start_session` and `set_session_effort` load (ToolSearch) and names
+any that does not in its chat line.
 
 **No timer** (his word of 2026-10-28, replacing the 30-to-60-minute `sleep 3000` timer of his answer (a) on
 [#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361)): it costs nothing between his

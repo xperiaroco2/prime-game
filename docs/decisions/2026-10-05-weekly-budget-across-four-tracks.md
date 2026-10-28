@@ -14,6 +14,9 @@
   Amended 2026-10-13 (#930): changed instructions no longer force a handover; the manager reads their diff and goes
   on (answer A, [#302 comment
   6146986010](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6146986010)).
+  Amended 2026-10-28 (#1355): the secretary digests only when he asks and hands him kickoffs for new sessions (Q5).
+  Amended 2026-10-28 (#1359): on the engineer's word for each session, the secretary starts the tracks' sessions
+  itself (Q5).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -231,7 +234,15 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   - Its cost counts in the engineer's own 5% (N1), until he says otherwise: no budget of its own, no track.
   **Amended 2026-10-28** (#1355; his word, [copied on #1355](https://github.com/xperiaroco2/prime-game/issues/1355#issuecomment-6474332502)): the secretary digests only when he asks, with
   no timer, sorts the other sessions into waits for him, running and silent, and hands him a ready kickoff for any
-  new session (folder, permission mode, effort); it still starts nothing itself.
+  new session (folder, permission mode, effort); it still starts nothing itself (until the next amendment).
+  **Amended 2026-10-28 again** (#1359; his word,
+  [copied on #1359](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481695312)): the secretary is
+  a wrapper over the tracks' sessions. On his word for each session it starts it itself with the Desktop app's
+  `start_session` (the track's checkout, the permission mode, the effort and the kickoff, taken from where a session
+  or the track's docs give them), reads the notes those linked sessions send back, and relays. It still never merges,
+  launches a workflow, closes, decides or answers a permission card; its cost, the linked sessions' notes that wake
+  it included, stays in his 5%. Approved by the engineer:
+  [#1359 comment 6481775658](https://github.com/xperiaroco2/prime-game/issues/1359#issuecomment-6481775658).
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the
