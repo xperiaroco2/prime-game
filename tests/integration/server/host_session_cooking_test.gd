@@ -50,12 +50,15 @@ func test_a_burger_and_its_leftovers_reach_every_client_as_its_view() -> void:
 	var order := task_state.orders[0]
 	var place := order.station
 	var second_peer := _h.peer_of(second)
-	# The package in the hands: the bun goes onto the belt; a second take puts it down at the feet.
+	# The package in the hands: the bun goes onto the belt, a second onto the belt's second place;
+	# a third, with both belt places full, puts the first down at the feet.
 	second.send_intent(Intents.PICK_UP, {"item": _package(game).id})
 	_h.pump_seconds(AFTER_TAKE_S)
 	_take(second, game, order.bun.id)
 	var first_bun := FixtureCookingModes.belted(game, second_peer)
 	assert_object(first_bun).is_not_null()
+	_take(second, game, order.bun.id)
+	assert_int(first_bun.where).is_not_equal(ItemState.Where.GROUND)
 	_take(second, game, order.bun.id)
 	assert_str(FixtureCookingModes.held(game, second_peer).kind.id).is_equal("package")
 	assert_int(first_bun.where).is_equal(ItemState.Where.GROUND)
