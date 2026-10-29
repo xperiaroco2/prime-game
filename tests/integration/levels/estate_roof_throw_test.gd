@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
-## No throw at the base mode's numbers puts an item where no player can reach it on the estate
-## (#1374; the throwing ADR, TD5 (a), as House's house_roof_throw_test.gd, #646): the flat tops no
-## player stands on (the outbuildings' roofs, the gazebo's, the ship's, the fallen trunk's) are out
-## of reach, so the throw is kept too weak to reach them and no "no rest" volume guards them. Read
+## No throw at the base mode's numbers puts an item on an estate roof (EstateThrows.TOPS) where no
+## player can reach it (#1374; the throwing ADR, TD5 (a), as House's house_roof_throw_test.gd,
+## #646): the flat tops no player stands on (the outbuildings' roofs, the gazebo's, the ship's, the
+## fallen trunk's) are out of reach, so the throw is kept too weak to reach them and no "no rest"
+## volume guards them. Every other flat top: estate_tops_reach_test.gd. Read
 ## in the host's collision world of the level with the Throw rule's own ThrowItem numbers and the
 ## mode's PlayerRules: a later change of the speed, the gravity, the radius, the eye height or the
 ## level that lets a throw rest on a top turns this red. The tops, spots and fan: estate_throws.gd.

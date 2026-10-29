@@ -168,3 +168,49 @@ static func _add_column(
 		if world.line_of_sight(feet, head) and world.line_of_sight(head, feet):
 			into.append(floor_point)
 		from = floor_point + Vector3.DOWN * COLUMN_STEP_M
+
+
+## Every flat box top of a layer-1 StaticBody3D in the level scene under `root` (the shapes the
+## host's LevelWorld builds), each {"piece" (the root's child it is in), "body" (its path),
+## "centre" (the top's centre), "narrow" and "long" (its sides, metres), "across" and "along" (the
+## unit plan directions across its narrow side and along it)}. A box tilted off the vertical has
+## no flat top and is left out. For estate_tops_reach_test.gd.
+static func box_tops(root: Node) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	_add_box_tops(found, root, root)
+	return found
+
+
+static func _add_box_tops(into: Array[Dictionary], node: Node, root: Node) -> void:
+	for child in node.get_children():
+		_add_box_tops(into, child, root)
+	var shape_node := node as CollisionShape3D
+	if shape_node == null or not shape_node.shape is BoxShape3D or shape_node.disabled:
+		return
+	var body := shape_node.get_parent() as StaticBody3D
+	if body == null or body.collision_layer & LevelWorld.WORLD_LAYER == 0:
+		return
+	var at := LevelWorld.transform_in_scene(shape_node, root)
+	if not at.basis.y.normalized().is_equal_approx(Vector3.UP):
+		return
+	var size := (shape_node.shape as BoxShape3D).size * at.basis.get_scale()
+	var across_local := Vector3.RIGHT if size.x <= size.z else Vector3.BACK
+	var across := at.basis * across_local
+	across.y = 0.0
+	var piece := body as Node
+	while piece.get_parent() != root and piece.get_parent() != null:
+		piece = piece.get_parent()
+	(
+		into
+		. append(
+			{
+				"piece": String(piece.name),
+				"body": String(root.get_path_to(body)),
+				"centre": at * Vector3(0.0, (shape_node.shape as BoxShape3D).size.y / 2.0, 0.0),
+				"narrow": minf(size.x, size.z),
+				"long": maxf(size.x, size.z),
+				"across": across.normalized(),
+				"along": Vector3.UP.cross(across).normalized(),
+			}
+		)
+	)
