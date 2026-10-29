@@ -1915,7 +1915,7 @@ P11): invariant 1 (the host validates every intent) against what a modified clie
 `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
 shipped base mode's default draw, one package, since #804 (from #649 to #804 also one zone on the greybox); bot 4
 walks to `ChaosScenario.STAND_AT`, where that zone stood, and freezes, bot 1 then knocks it down, bot 2 delivers and
-bot 3 waits for the end) carries two chaos peers that are never peer 1: a
+bot 3 draws its second place and then its first, two accepted `Draw`s (#1377), and waits for the end) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -8460,7 +8460,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
   `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (rewritten in M4-2: a
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
-  `not_accepted`; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
+  `not_accepted`, and so is its `Draw` (#1377); both die at the end of their knockdown and a dead bot's `PickUp` and
+  `Draw` are `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
   step, and over WebRTC `bots-webrtc`, §4.6.7), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
@@ -8477,7 +8478,7 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   returns as Player2; in the round bot 3 leaves and, after `ReturnToLobby`, returns as Player3; the `bots-enet` and
   `bots-webrtc` steps play it with 4 instances after `dissident_kills_the_crew`),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
-  `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
+  `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; #1377: a `Draw` in the lobby is `not_accepted`, one of place 3 in the round `no_such_place`, one of the place already in the hand `same_place`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
   M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
   only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6.4.1),
@@ -8487,10 +8488,11 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
   network runner's travel after a respawn). #646: `crew_throws_a_package_into_its_circle` (a crew bot picks up the
   only package, walks to 3.6 m short of its circle and throws it 45 degrees up with the base mode's `Throw` rule; it
-  rests in the circle and is delivered, TD4 (a), and the crew wins). The first
+  rests in the circle and is delivered, TD4 (a), and the crew wins). #1377: `crew_draws_each_belt_place` (a crew bot picks up three knives, `knives` 3 and one
+  package, and draws the places 0, 1 and 2 in turn; 60 s limit). The first
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
   `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
-  `none`. None of M4-5's runs in `bots-enet`.
+  and `crew_draws_each_belt_place` `none`. None of M4-5's runs in `bots-enet`.
   M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m from the middle towards -z and bot 2
   about 5 m towards +z, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to
   about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6.4.1), which
