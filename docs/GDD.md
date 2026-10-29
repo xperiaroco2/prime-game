@@ -426,7 +426,14 @@ the expert knows every fix by heart.
   the problem count per stage stays), carry it to the charger in the lens room on its side (8 to 9 m) and put it in
   its one slot; press, and the charger's two inner prongs orbit it in lightning for 10 s (placeholder), then it
   shines and waits until someone takes it,
-  so the player can fix something else meanwhile; then take it back and fit it. With both sockets of a side spent,
+  so the player can fix something else meanwhile; then take it back and fit it. The charge shows on the alcove's back
+  panel (the engineer, 2026-10-28, [#1095 c6468773545](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6468773545)
+  and [c6469284284](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6469284284); approved in the
+  game, [c6495952484](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6495952484)): dark navy, with
+  cyan circuit traces that run in from the sides into a ring behind the crystal. Idle, the traces are dim; while it
+  charges, the light fills along them toward the ring, so the fill shows how far the charge has got, with arcs from
+  the prongs into the crystal, sparks and pulses in the conduits; at full, a big flash and the ring flares, then the
+  pattern glows steady while the crystal waits; taken out, it fades back to dim. With both sockets of a side spent,
   the second crystal waits for that charger or runs across the hall to the other one. There are no spare crystals to
   spam.
   - **The crystal never leaves the ship**, so it cannot be hidden (the engineer, 2026-10-27,
