@@ -37,6 +37,8 @@ func test_the_real_mode_starts_with_its_content_hash_and_welcomes_its_own_client
 			)
 			. is_equal(1)
 		)
+		# Not held for the match: nothing keeps the scene cached once start has released it.
+		assert_bool(ResourceLoader.has_cached(path)).is_false()
 	assert_array(Array(session.errors)).is_empty()
 	var fingerprint := ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	assert_int(session.content_hash).is_equal(fingerprint)
