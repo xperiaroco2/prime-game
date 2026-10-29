@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## TakePose and the Pose intent (#1296; GDD §12 "The camera wall": the seated watcher): a living
 ## player's Pose in the round sets `posed`, which every other peer's snapshot shows on its avatar;
-## any own move ends it (a claim's moving input or a new jump, also a refused claim), a push without
-## input does not; a placement, a knockdown and a reset end it; the lobby and the downed are not
+## any own move ends it (a claim's moving input, a moved tick it covers or a new jump, also a
+## refused claim; an accepted claim's travel with no one near to push it), a push without input
+## does not; a placement, a knockdown and a reset end it; the lobby and the downed are not
 ## accepted. The rule is FixtureMoves.posing()'s: no shipped mode has one yet.
 
 const P1 := 1
@@ -139,6 +140,22 @@ func test_a_displacement_without_input_keeps_the_pose() -> void:
 	assert_array(game.view_of(P1).events_named(&"Correction")).has_size(corrections)
 	assert_vector(game.state.player(P1).position).is_equal_approx(NORTH * 0.1, Vector3.ONE * 1e-4)
 	assert_bool(game.state.player(P1).posed).is_true()
+
+
+func test_travel_without_input_and_without_a_pusher_ends_the_pose() -> void:
+	# The host measures the move itself: a claim that clears its input bits and its mask but
+	# travels, with nobody near to push it, is a walk all the same (the coasting allowance).
+	var game := _posing_round([P1, P2])
+	FixtureItemModes.stand(game, P1, Vector3.ZERO)
+	FixtureItemModes.stand(game, P2, Vector3(10, 0, 10))
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	var corrections := game.view_of(P1).events_named(&"Correction").size()
+	FixtureMoves.step(game, P1, NORTH * 0.1, {"moved_ticks": 0})
+	assert_array(game.view_of(P1).events_named(&"Correction")).has_size(corrections)
+	assert_vector(game.state.player(P1).position).is_equal_approx(NORTH * 0.1, Vector3.ONE * 1e-4)
+	assert_bool(game.state.player(P1).posed).is_false()
+	assert_bool(_shown(game, P2, P1)).is_false()
 
 
 func test_the_downed_cannot_pose_and_the_knockdown_ends_it() -> void:

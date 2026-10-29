@@ -189,6 +189,8 @@ class Checked:
 	var travel := 0.0
 	## The claim gave movement input and moved horizontally: what sprint stamina counts.
 	var moved_itself := false
+	## Another living player was near enough to push this one (the push allowance).
+	var pushed := false
 	var settled: StaminaLedger.Settlement
 
 
@@ -309,10 +311,10 @@ static func _check(
 		if not StaminaLedger.covers(player, _jumps_cost(rules, checked.new_jumps)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
-	var pushed := (
+	checked.pushed = (
 		player.is_alive() and _near_living_player(ctx.state, player, claim.position, ctx.tick)
 	)
-	var allowed := _allowed_travel(rules, covered, checked.settled, pushed)
+	var allowed := _allowed_travel(rules, covered, checked.settled, checked.pushed)
 	if checked.travel > allowed:
 		return null
 	var jumping := jumped or motion.jumping
@@ -347,6 +349,12 @@ static func _accept(
 			# slack of a rounded bottom on a step's corner, bound the base from below.
 			motion.base_y = maxf(landing.y, claim.position.y - landing_slack(rules))
 	_spend(ctx, player, motion, claim, checked.covered)
+	if checked.travel > MOVE_EPSILON and not checked.pushed:
+		# The host's own measure of a move (#1296): a claim that travels with no input bit and no
+		# one near to push it moved itself all the same (the coasting allowance grants walk speed
+		# whatever `moving` says), so the watcher is not shown seated while it walks. A posing
+		# client holds its body still.
+		player.posed = false
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.on_floor = claim.on_floor
