@@ -174,11 +174,34 @@ func test_the_scenarios_levels_are_flat() -> void:
 	# a floor collider whose top is at y = 0 and covers every marker, and every marker stands on it.
 	# A map with storeys (the House, ScenarioLevels.STOREYED_MAPS) is no level of these: its scenarios
 	# play in the fake world with its storeys (#1209), people play it in the host's world (#626).
+	# The lobby is a hall (#1354): its one floor is `Floor`; its walls and pieces stand on it (none
+	# makes another floor at y = 0 or below), and lobby_hall_test.gd keeps them clear of every lobby
+	# marker and of every walk a scenario takes in the lobby, so the fake world's floor holds there.
+	# A map stays its floor alone.
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in ScenarioLevels.of(mode):
 		var root: Node = auto_free((load(path) as PackedScene).instantiate())
 		var shapes := root.find_children("*", "CollisionShape3D", true, false)
+		if path == mode.lobby_level:
+			var floor_node := root.get_node_or_null("Floor")
+			var hall := shapes.filter(func(s: Node) -> bool: return s.get_parent() != floor_node)
+			for piece: Node in hall:
+				var placed := _in_level(piece as CollisionShape3D, root)
+				var box_shape := (piece as CollisionShape3D).shape as BoxShape3D
+				(
+					assert_object(box_shape)
+					. override_failure_message(str(piece.get_path()))
+					. is_not_null()
+				)
+				if box_shape == null:
+					continue
+				var size := box_shape.size
+				var bottom := placed.origin.y - size.y / 2.0
+				assert_float(bottom).override_failure_message(str(piece.get_path())).is_greater(
+					-1e-6
+				)
+			shapes = shapes.filter(func(s: Node) -> bool: return s.get_parent() == floor_node)
 		assert_int(shapes.size()).override_failure_message(path).is_equal(1)
 		if shapes.size() != 1:
 			continue
@@ -201,6 +224,17 @@ func test_the_scenarios_levels_are_flat() -> void:
 					. override_failure_message("%s: %s at %s" % [path, tag, at])
 					. is_true()
 				)
+
+
+## A shape's place in its level's space: the level is not in a tree, so its ancestors' transforms
+## up to `root`, in turn (an unrotated box: the bottom is its centre's y less half its height).
+func _in_level(shape: CollisionShape3D, root: Node) -> Transform3D:
+	var placed := shape.transform
+	var node := shape.get_parent()
+	while node != root and node is Node3D:
+		placed = (node as Node3D).transform * placed
+		node = node.get_parent()
+	return placed
 
 
 func test_a_match_of_the_base_mode_starts_in_the_lobby() -> void:
