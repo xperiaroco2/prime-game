@@ -124,7 +124,6 @@ material = ExtResource("5_xxhdr")
 size = Vector3(6, 0.03, 3)
 
 [node name="Plot" type="Node3D" unique_id=187007501]
-metadata/size_m = Vector2i(141, 96)
 
 [node name="Ground01" type="StaticBody3D" parent="." unique_id=801692986]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.2, -0.5, 48)

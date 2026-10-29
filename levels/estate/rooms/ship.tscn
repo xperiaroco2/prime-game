@@ -118,6 +118,9 @@ size = Vector3(0.6, 1, 0.6)
 
 [node name="Ship" type="Node3D" unique_id=777999643]
 metadata/size_m = Vector2i(26, 14)
+metadata/room_id = &"ship"
+metadata/name_key = "room.ship"
+metadata/centred = true
 
 [node name="Deck01" type="StaticBody3D" parent="." unique_id=1125715369]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)

@@ -18,6 +18,9 @@ size = Vector3(12, 0.2, 3)
 
 [node name="FallenTrunk" type="Node3D" unique_id=760403846]
 metadata/size_m = Vector2i(12, 3)
+metadata/room_id = &"fallen_trunk"
+metadata/name_key = "room.fallen_trunk"
+metadata/centred = true
 
 [node name="Side01" type="StaticBody3D" parent="." unique_id=1317188028]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.4)
