@@ -6672,15 +6672,17 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   in a phase whose mode takes `Pose` from the living (as `throw()` checks `Throw`), whose feet stand at a chair:
   `PoseUse` reads the non-negated `AtMarker` of the mode's first `Pose` action rule (no tag or number in client
   code), and `ItemWorld.chair_spots` gives the loaded scene's `Marker3D`s of its group (`spawn_` + tag);
-  `AtMarker.contains` is the host's test. A mode with no such row sends nothing. Any own move: a living `MoveClaim` whose `moving` input is set, whose `moved_ticks` mask has a
+  `AtMarker.contains` is the host's test. A mode with no such row sends nothing.
+- **What ends it.** Any own move: a living `MoveClaim` whose `moving` input is set, whose `moved_ticks` mask has a
   bit in the client ticks it covers (the whole mask for a fresh claim: the `LATEST` lane may have merged the moving
   claims away, §4.5) or that adds a jump, before the checks, so a claim the checks refuse (`Correction`) ends it too,
   as its client has stood up already. The host also measures the move itself: an accepted claim that travels more
   than `MOVE_EPSILON` with no other living player near enough to push it (the push allowance's test) ends it, input
   bits or not, as the coasting allowance grants walk speed whatever `moving` says; a posing client holds its body
   still. A push by another player leaves the watcher seated: "any move" reads as the watcher's own (an engineer's
-  question in #1296's PR). A placement, a knockdown, a respawn and a reset (`MatchState.reset_player`) end it as they end the
-  crouch. Picking up, using or swapping does not.
+  question in #1296's PR). A placement, a knockdown, a death (`LifeRules._to_dead`, also a kill of a living
+  player from the chair), a respawn and a reset (`MatchState.reset_player`) end it as they end the crouch.
+  Picking up, using or swapping does not.
 - **The look.** A posed remote avatar plays `AvatarClips.SEATED`, still at any drawn speed (`SnapshotBuffer.Pose.posed`,
   the snapshot's at or before the drawn tick, never blended; §4.7.53's table). The art set has no seated clip yet,
   so `SEATED` is `Idle` (`Crouch_Idle` if also crouched): blocked on art. The host keeps the standing capsule and eye
@@ -6691,7 +6693,10 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   every end of a pose (the movement rule, a placement, a knockdown, a death, a respawn) touch its `SelfStatusFeed`,
   whose record compares `posed` with the numbers, so a change sends one at the end of the tick (a reset clears the
   record and the client's `ClientModel.posed` with the match). The camera wall's full-screen view will read it. A push
-  keeps the watcher seated (answer 3a on PR #1382, above). Not in scope, decided with the seated clip: the seated
+  keeps the watcher seated (answer 3a on PR #1382, above), so `posed` can stay true while the body stands
+  outside the chair's `AtMarker` cylinder: that view must not grant the feed on `posed` alone, but also
+  re-check the chair's reach (`AtMarker.contains`) on the host, or a pushed watcher keeps the security room's
+  view from anywhere. Not in scope, decided with the seated clip: the seated
   capsule and eye and `ShotTaken`'s posed bit.
 - **Tests:** `tests/unit/movement/take_pose_test.gd` (the flag and every other peer's view, a second `Pose`, the
   lobby's `not_accepted`, a still claim keeps it, a moving claim, a moved tick of a merged claim (not one before the
@@ -8526,7 +8531,9 @@ levels/
   group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`, the House's `drop_*`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
-  The players' markers (`round_player`, `respawn`) are read as placed: on the House,
+  The players' markers (`round_player`, `respawn`) and a mode's `AtMarker` tags (`spawn_chair`, the estate house's
+  camera-wall chair, #1383) are read as placed, not snapped (`AtMarker` takes the station cylinder, so that marker
+  sits 0.05 m below the floor top); no check demands the chair tag on a map. On the House,
   `tests/integration/levels/house_markers_test.gd` checks each `round_player` and `respawn` marker stands within
   2 cm of the floor under it with a standing capsule clear of the level (#1042).
   This convention is provisional until 4e settles it with the designer (§10).
