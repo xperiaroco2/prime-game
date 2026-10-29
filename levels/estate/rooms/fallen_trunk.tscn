@@ -3,11 +3,11 @@
 [ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="1_l8ag5"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_iaana"]
-size = Vector3(12, 2.2, 0.2)
+size = Vector3(12, 3, 0.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_hasrf"]
 material = ExtResource("1_l8ag5")
-size = Vector3(12, 2.2, 0.2)
+size = Vector3(12, 3, 0.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_p5tbn"]
 size = Vector3(12, 0.2, 3)
@@ -23,7 +23,7 @@ metadata/name_key = "room.fallen_trunk"
 metadata/centred = true
 
 [node name="Side01" type="StaticBody3D" parent="." unique_id=1317188028]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -1.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -1.4)
 
 [node name="Shape" type="CollisionShape3D" parent="Side01" unique_id=694112750]
 shape = SubResource("BoxShape3D_iaana")
@@ -32,7 +32,7 @@ shape = SubResource("BoxShape3D_iaana")
 mesh = SubResource("BoxMesh_hasrf")
 
 [node name="Side02" type="StaticBody3D" parent="." unique_id=289045855]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 1.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 1.4)
 
 [node name="Shape" type="CollisionShape3D" parent="Side02" unique_id=855441184]
 shape = SubResource("BoxShape3D_iaana")
@@ -41,7 +41,7 @@ shape = SubResource("BoxShape3D_iaana")
 mesh = SubResource("BoxMesh_hasrf")
 
 [node name="Top01" type="StaticBody3D" parent="." unique_id=1975913366]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1, 0)
 
 [node name="Shape" type="CollisionShape3D" parent="Top01" unique_id=1822960632]
 shape = SubResource("BoxShape3D_p5tbn")
