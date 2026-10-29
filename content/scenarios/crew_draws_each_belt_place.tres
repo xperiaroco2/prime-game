@@ -1,0 +1,63 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="3_pickup"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="4_ready"]
+[ext_resource type="Script" uid="uid://1hh10681472r" path="res://core/content/scenario/step_draw.gd" id="5_draw"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_waitfor"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="7_walkto"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="8_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="9_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="11_target"]
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("4_ready")
+
+[sub_resource type="Resource" id="Wait_round"]
+script = ExtResource("6_waitfor")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_knife"]
+script = ExtResource("11_target")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="Walk_to_knife"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_knife")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Pick_up_knife"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_knife")
+
+[sub_resource type="Resource" id="Draw_place_1"]
+script = ExtResource("5_draw")
+
+[sub_resource type="Resource" id="Draw_place_2"]
+script = ExtResource("5_draw")
+place = 1
+
+[sub_resource type="Resource" id="Draw_place_3"]
+script = ExtResource("5_draw")
+place = 2
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("9_script")
+steps = Array[ExtResource("10_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("Walk_to_knife"), SubResource("Pick_up_knife"), SubResource("Walk_to_knife"), SubResource("Pick_up_knife"), SubResource("Walk_to_knife"), SubResource("Pick_up_knife"), SubResource("Draw_place_1"), SubResource("Draw_place_2"), SubResource("Draw_place_3")])
+
+[resource]
+script = ExtResource("8_scenario")
+mode = ExtResource("1_mode")
+session_seed = 137700000001
+settings = Dictionary[StringName, int]({
+&"knives": 3,
+&"packages": 1
+})
+scripts = Array[ExtResource("9_script")]([SubResource("B1_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0
