@@ -8261,8 +8261,8 @@ levels/
   `tests/integration/levels/estate_walk_test.gd` (the map in the host's world: the walks between the lots and the
   house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere, each hidden passage
   both ways, the ducts too low upright, each hole's fall in reach),
-  `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, the layout the
-  base mode accepts), `tests/unit/levels/estate_room_records_test.gd`,
+  `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, each circle where it
+  is placed, on flat floor, the layout the base mode accepts), `tests/unit/levels/estate_room_records_test.gd`,
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
   `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped); the
   playcheck `estate` (the round and the map screen on it).

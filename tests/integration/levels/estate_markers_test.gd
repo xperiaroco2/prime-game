@@ -96,6 +96,44 @@ func test_each_package_lies_on_the_floor_outside_every_circle() -> void:
 			)
 
 
+## levels/CLAUDE.md: a station marker sits on flat floor. The host snaps a circle marker down onto
+## the floor below it, so one over a hole (a passage's manhole, #1373) would read below the ground,
+## on its ramp: each reads at the height it is placed at, and the floor under its rim is as high.
+func test_each_circle_reads_where_it_stands_on_a_flat_floor() -> void:
+	var mode := _base_mode()
+	var world := _world(LevelWorld.build(MAP), mode.player_rules)
+	var no_tags: Array[StringName] = []
+	var placed := MarkerReader.read_scene(MAP, world, no_tags).layout.positions(&"circle")
+	var read := (
+		MarkerReader
+		. read_scene(MAP, world, MarkerReader.floor_tags_of(mode))
+		. layout
+		. positions(&"circle")
+	)
+	var circle := _circle_kind(mode)
+	assert_object(circle).is_not_null()
+	assert_int(read.size()).is_equal(placed.size())
+	for i in mini(read.size(), placed.size()):
+		var where := "the circle marker at %s" % placed[i]
+		(
+			assert_float(absf(read[i].y - placed[i].y))
+			. override_failure_message(where + ": read at %s" % read[i])
+			. is_less_equal(SPAWN_FLOOR_M)
+		)
+		for step in 8:
+			var rim := (
+				placed[i] + Vector3.FORWARD.rotated(Vector3.UP, step * TAU / 8) * circle.radius_m
+			)
+			var floor_at := world.floor_below(Items.lifted(rim))
+			(
+				assert_float(absf(floor_at.y - placed[i].y))
+				. override_failure_message(
+					where + ": the floor at its rim %s is %s" % [rim, floor_at]
+				)
+				. is_less_equal(SPAWN_FLOOR_M)
+			)
+
+
 func _base_mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
 

@@ -243,11 +243,11 @@ material = ExtResource("2_6p06x")
 size = Vector3(0.2, 2.6, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_selkx"]
-size = Vector3(65, 0.2, 2)
+size = Vector3(68, 0.2, 2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_ectpn"]
 material = ExtResource("1_7iogq")
-size = Vector3(65, 0.2, 2)
+size = Vector3(68, 0.2, 2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wufa6"]
 size = Vector3(31.2, 2.6, 0.2)
@@ -257,18 +257,18 @@ material = ExtResource("2_6p06x")
 size = Vector3(31.2, 2.6, 0.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_h63xi"]
-size = Vector3(32.2, 2.6, 0.2)
+size = Vector3(35.2, 2.6, 0.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_5pjmd"]
 material = ExtResource("2_6p06x")
-size = Vector3(32.2, 2.6, 0.2)
+size = Vector3(35.2, 2.6, 0.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_j4gyc"]
-size = Vector3(61, 2.6, 0.2)
+size = Vector3(64, 2.6, 0.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_pqorm"]
 material = ExtResource("2_6p06x")
-size = Vector3(61, 2.6, 0.2)
+size = Vector3(64, 2.6, 0.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6pwax"]
 size = Vector3(0.2, 2.6, 2)
@@ -669,859 +669,859 @@ size = Vector3(1, 0.2, 3.5377429)
 material = ExtResource("2_6p06x")
 size = Vector3(1, 0.2, 3.5377429)
 
-[node name="Passages" type="Node3D" unique_id=1499417060]
+[node name="Passages" type="Node3D" unique_id=1087597996]
 
-[node name="TunnelFloor01" type="StaticBody3D" parent="." unique_id=905670339]
+[node name="TunnelFloor01" type="StaticBody3D" parent="." unique_id=1512110542]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.700005, -3.3000002, 14)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelFloor01" unique_id=1210632610]
+[node name="Shape" type="CollisionShape3D" parent="TunnelFloor01" unique_id=2076263505]
 shape = SubResource("BoxShape3D_hs827")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelFloor01" unique_id=438220685]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelFloor01" unique_id=1003866132]
 mesh = SubResource("BoxMesh_3n8qr")
 
-[node name="TunnelWall01" type="StaticBody3D" parent="." unique_id=288554857]
+[node name="TunnelWall01" type="StaticBody3D" parent="." unique_id=241311382]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.7, -2.2, 12.900001)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall01" unique_id=271163615]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall01" unique_id=80343217]
 shape = SubResource("BoxShape3D_x2tmq")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall01" unique_id=96464739]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall01" unique_id=446332973]
 mesh = SubResource("BoxMesh_he7h7")
 
-[node name="TunnelWall02" type="StaticBody3D" parent="." unique_id=2003636492]
+[node name="TunnelWall02" type="StaticBody3D" parent="." unique_id=1379049972]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.7, -2.2, 15.1)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall02" unique_id=206912951]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall02" unique_id=93369992]
 shape = SubResource("BoxShape3D_g7bie")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall02" unique_id=1359279712]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall02" unique_id=854556051]
 mesh = SubResource("BoxMesh_4nngg")
 
-[node name="TunnelFloor02" type="StaticBody3D" parent="." unique_id=1978742935]
+[node name="TunnelFloor02" type="StaticBody3D" parent="." unique_id=1150358848]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, -3.3000002, 14)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelFloor02" unique_id=214134667]
+[node name="Shape" type="CollisionShape3D" parent="TunnelFloor02" unique_id=694459158]
 shape = SubResource("BoxShape3D_qot84")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelFloor02" unique_id=676292824]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelFloor02" unique_id=253873107]
 mesh = SubResource("BoxMesh_qgvbv")
 
-[node name="TunnelWall03" type="StaticBody3D" parent="." unique_id=1134018719]
+[node name="TunnelWall03" type="StaticBody3D" parent="." unique_id=286925663]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.1, -2.2, 15.1)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall03" unique_id=237659539]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall03" unique_id=121995829]
 shape = SubResource("BoxShape3D_coine")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall03" unique_id=267394215]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall03" unique_id=1702303900]
 mesh = SubResource("BoxMesh_j2fco")
 
-[node name="TunnelWall04" type="StaticBody3D" parent="." unique_id=250237989]
+[node name="TunnelWall04" type="StaticBody3D" parent="." unique_id=507849207]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99.1, -2.2, 14)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall04" unique_id=1855847820]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall04" unique_id=1305110681]
 shape = SubResource("BoxShape3D_gkifh")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall04" unique_id=2010205717]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall04" unique_id=414234608]
 mesh = SubResource("BoxMesh_2kc67")
 
-[node name="TunnelRamp01" type="StaticBody3D" parent="." unique_id=1325695320]
+[node name="TunnelRamp01" type="StaticBody3D" parent="." unique_id=1334310431]
 transform = Transform3D(1, 0, 0, 0, 0.8422714, -0.5390537, 0, 0.5390537, 0.8422714, 98, -1.6842271, 10.4460945)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelRamp01" unique_id=134254]
+[node name="Shape" type="CollisionShape3D" parent="TunnelRamp01" unique_id=2097618712]
 shape = SubResource("BoxShape3D_tgqhc")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelRamp01" unique_id=1056176213]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelRamp01" unique_id=272965274]
 mesh = SubResource("BoxMesh_26to8")
 
-[node name="TunnelWall05" type="StaticBody3D" parent="." unique_id=372183328]
+[node name="TunnelWall05" type="StaticBody3D" parent="." unique_id=862661087]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, -2.2, 7.9)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall05" unique_id=102845470]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall05" unique_id=754652456]
 shape = SubResource("BoxShape3D_6um1s")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall05" unique_id=1461282836]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall05" unique_id=1558418812]
 mesh = SubResource("BoxMesh_aneki")
 
-[node name="TunnelWall06" type="StaticBody3D" parent="." unique_id=1778654205]
+[node name="TunnelWall06" type="StaticBody3D" parent="." unique_id=72952961]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 96.9, -2.2, 10.5)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall06" unique_id=976029550]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall06" unique_id=1239671201]
 shape = SubResource("BoxShape3D_i22p2")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall06" unique_id=78833007]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall06" unique_id=327875073]
 mesh = SubResource("BoxMesh_ea2h4")
 
-[node name="TunnelWall07" type="StaticBody3D" parent="." unique_id=417687396]
+[node name="TunnelWall07" type="StaticBody3D" parent="." unique_id=725295247]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99.1, -2.2, 10.5)
 
-[node name="Shape" type="CollisionShape3D" parent="TunnelWall07" unique_id=563715182]
+[node name="Shape" type="CollisionShape3D" parent="TunnelWall07" unique_id=1757871569]
 shape = SubResource("BoxShape3D_tbp3r")
 
-[node name="Mesh" type="MeshInstance3D" parent="TunnelWall07" unique_id=483611554]
+[node name="Mesh" type="MeshInstance3D" parent="TunnelWall07" unique_id=440411390]
 mesh = SubResource("BoxMesh_8rle6")
 
-[node name="SewerRamp01" type="StaticBody3D" parent="." unique_id=1292335028]
+[node name="SewerRamp01" type="StaticBody3D" parent="." unique_id=509064708]
 transform = Transform3D(0.8422714, -0.5390537, 0, 0.5390537, 0.8422714, 0, 0, 0, 1, 63.553905, -4.8842273, 12)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerRamp01" unique_id=1633630977]
+[node name="Shape" type="CollisionShape3D" parent="SewerRamp01" unique_id=39913154]
 shape = SubResource("BoxShape3D_oq1nh")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerRamp01" unique_id=1122693585]
+[node name="Mesh" type="MeshInstance3D" parent="SewerRamp01" unique_id=1517787956]
 mesh = SubResource("BoxMesh_tpr1b")
 
-[node name="SewerWall01" type="StaticBody3D" parent="." unique_id=1535733163]
+[node name="SewerWall01" type="StaticBody3D" parent="." unique_id=881658291]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.6, -5, 10.900001)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall01" unique_id=1739253712]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall01" unique_id=986038374]
 shape = SubResource("BoxShape3D_t4qkn")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall01" unique_id=484759507]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall01" unique_id=1967299065]
 mesh = SubResource("BoxMesh_t7b7r")
 
-[node name="SewerWall02" type="StaticBody3D" parent="." unique_id=1783228348]
+[node name="SewerWall02" type="StaticBody3D" parent="." unique_id=949851538]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.6, -5, 13.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall02" unique_id=1761734230]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall02" unique_id=172562475]
 shape = SubResource("BoxShape3D_txvh5")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall02" unique_id=2049983117]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall02" unique_id=977367564]
 mesh = SubResource("BoxMesh_5fxkb")
 
-[node name="SewerWall03" type="StaticBody3D" parent="." unique_id=2109737863]
+[node name="SewerWall03" type="StaticBody3D" parent="." unique_id=526881531]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.1, -5, 12)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall03" unique_id=1397310440]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall03" unique_id=335329681]
 shape = SubResource("BoxShape3D_pq282")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall03" unique_id=1468457063]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall03" unique_id=1036710303]
 mesh = SubResource("BoxMesh_abmbq")
 
-[node name="SewerFloor01" type="StaticBody3D" parent="." unique_id=1673007045]
+[node name="SewerFloor01" type="StaticBody3D" parent="." unique_id=918672417]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, -6.5, 16.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor01" unique_id=1867030993]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor01" unique_id=1772888333]
 shape = SubResource("BoxShape3D_f3d3r")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor01" unique_id=1389703929]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor01" unique_id=718569440]
 mesh = SubResource("BoxMesh_2po54")
 
-[node name="SewerWall04" type="StaticBody3D" parent="." unique_id=1707722069]
+[node name="SewerWall04" type="StaticBody3D" parent="." unique_id=1957688143]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.899998, -5, 10.900001)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall04" unique_id=806651254]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall04" unique_id=703863529]
 shape = SubResource("BoxShape3D_ay6mm")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall04" unique_id=735291143]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall04" unique_id=868766917]
 mesh = SubResource("BoxMesh_6i5f8")
 
-[node name="SewerWall05" type="StaticBody3D" parent="." unique_id=983692212]
+[node name="SewerWall05" type="StaticBody3D" parent="." unique_id=800380113]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.899998, -5, 16.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall05" unique_id=1530846171]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall05" unique_id=907431886]
 shape = SubResource("BoxShape3D_4tuvy")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall05" unique_id=1392627770]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall05" unique_id=1690369598]
 mesh = SubResource("BoxMesh_etll4")
 
-[node name="SewerWall06" type="StaticBody3D" parent="." unique_id=530852110]
+[node name="SewerWall06" type="StaticBody3D" parent="." unique_id=1468348067]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.1, -5, 17.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall06" unique_id=1443705068]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall06" unique_id=1713484319]
 shape = SubResource("BoxShape3D_ig3qj")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall06" unique_id=1097059194]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall06" unique_id=1009896086]
 mesh = SubResource("BoxMesh_xt8g8")
 
-[node name="SewerRamp02" type="StaticBody3D" parent="." unique_id=191000627]
+[node name="SewerRamp02" type="StaticBody3D" parent="." unique_id=770592358]
 transform = Transform3D(1, 0, 0, 0, 0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 60, -4.8842273, 24.553905)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerRamp02" unique_id=703982236]
+[node name="Shape" type="CollisionShape3D" parent="SewerRamp02" unique_id=25827986]
 shape = SubResource("BoxShape3D_cuap2")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerRamp02" unique_id=410148490]
+[node name="Mesh" type="MeshInstance3D" parent="SewerRamp02" unique_id=380721824]
 mesh = SubResource("BoxMesh_7ntk7")
 
-[node name="SewerWall07" type="StaticBody3D" parent="." unique_id=1593846575]
+[node name="SewerWall07" type="StaticBody3D" parent="." unique_id=1301664540]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.899998, -3.7999997, 24.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall07" unique_id=695087327]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall07" unique_id=156199011]
 shape = SubResource("BoxShape3D_eiyy1")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall07" unique_id=708452290]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall07" unique_id=421685012]
 mesh = SubResource("BoxMesh_yudco")
 
-[node name="SewerWall08" type="StaticBody3D" parent="." unique_id=1025174159]
+[node name="SewerWall08" type="StaticBody3D" parent="." unique_id=869003806]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.1, -3.7999997, 24.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall08" unique_id=1635482058]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall08" unique_id=598001586]
 shape = SubResource("BoxShape3D_n3sc6")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall08" unique_id=718364017]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall08" unique_id=1750064730]
 mesh = SubResource("BoxMesh_c5bbw")
 
-[node name="SewerFloor02" type="StaticBody3D" parent="." unique_id=48987093]
+[node name="SewerFloor02" type="StaticBody3D" parent="." unique_id=517897148]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.5, -3.3000002, 28)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor02" unique_id=607492888]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor02" unique_id=863608298]
 shape = SubResource("BoxShape3D_8eayg")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor02" unique_id=1533277922]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor02" unique_id=728536292]
 mesh = SubResource("BoxMesh_p4axl")
 
-[node name="SewerWall09" type="StaticBody3D" parent="." unique_id=257994580]
+[node name="SewerWall09" type="StaticBody3D" parent="." unique_id=565959059]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.6, -2.2, 26.9)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall09" unique_id=1303127657]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall09" unique_id=38051267]
 shape = SubResource("BoxShape3D_cwopa")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall09" unique_id=1452646146]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall09" unique_id=2118254170]
 mesh = SubResource("BoxMesh_nqwr3")
 
-[node name="SewerWall10" type="StaticBody3D" parent="." unique_id=733000240]
+[node name="SewerWall10" type="StaticBody3D" parent="." unique_id=1752382984]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.399998, -2.2, 29.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall10" unique_id=202296196]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall10" unique_id=247556226]
 shape = SubResource("BoxShape3D_uyoob")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall10" unique_id=2074485423]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall10" unique_id=421783343]
 mesh = SubResource("BoxMesh_6bl1a")
 
-[node name="SewerWall11" type="StaticBody3D" parent="." unique_id=1418795764]
+[node name="SewerWall11" type="StaticBody3D" parent="." unique_id=344708933]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.899998, -2.2, 28)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall11" unique_id=171379489]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall11" unique_id=690906065]
 shape = SubResource("BoxShape3D_721gf")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall11" unique_id=178363721]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall11" unique_id=1277481064]
 mesh = SubResource("BoxMesh_yluuj")
 
-[node name="SewerWall12" type="StaticBody3D" parent="." unique_id=1408314233]
+[node name="SewerWall12" type="StaticBody3D" parent="." unique_id=100001045]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.1, -2.2, 28)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall12" unique_id=37882064]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall12" unique_id=1582706826]
 shape = SubResource("BoxShape3D_8owl0")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall12" unique_id=378604837]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall12" unique_id=721710440]
 mesh = SubResource("BoxMesh_rpf4q")
 
-[node name="SewerFloor03" type="StaticBody3D" parent="." unique_id=1771414621]
+[node name="SewerFloor03" type="StaticBody3D" parent="." unique_id=199887639]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67, -3.3000002, 46)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor03" unique_id=1456384934]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor03" unique_id=1821896090]
 shape = SubResource("BoxShape3D_blq6c")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor03" unique_id=2114652376]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor03" unique_id=1990097462]
 mesh = SubResource("BoxMesh_ya51j")
 
-[node name="SewerWall13" type="StaticBody3D" parent="." unique_id=1795985512]
+[node name="SewerWall13" type="StaticBody3D" parent="." unique_id=2094406239]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.9, -2.2, 39.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall13" unique_id=1687200841]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall13" unique_id=301700369]
 shape = SubResource("BoxShape3D_mwox4")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall13" unique_id=838512216]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall13" unique_id=2044878509]
 mesh = SubResource("BoxMesh_6oay6")
 
-[node name="SewerWall14" type="StaticBody3D" parent="." unique_id=1015513083]
+[node name="SewerWall14" type="StaticBody3D" parent="." unique_id=767725122]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.9, -2.2, 57.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall14" unique_id=653219806]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall14" unique_id=1240579849]
 shape = SubResource("BoxShape3D_xjyya")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall14" unique_id=1526240215]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall14" unique_id=1607294838]
 mesh = SubResource("BoxMesh_65xxy")
 
-[node name="SewerWall15" type="StaticBody3D" parent="." unique_id=1169187285]
+[node name="SewerWall15" type="StaticBody3D" parent="." unique_id=177152268]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68.1, -2.2, 46)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall15" unique_id=1939774862]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall15" unique_id=2104730782]
 shape = SubResource("BoxShape3D_2phdk")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall15" unique_id=927585043]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall15" unique_id=1377005207]
 mesh = SubResource("BoxMesh_k5sqf")
 
-[node name="SewerRamp03" type="StaticBody3D" parent="." unique_id=1609212018]
+[node name="SewerRamp03" type="StaticBody3D" parent="." unique_id=499383646]
 transform = Transform3D(0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 0, 0, 0, 1, 63.446095, -1.6842271, 51)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerRamp03" unique_id=2054055708]
+[node name="Shape" type="CollisionShape3D" parent="SewerRamp03" unique_id=628849598]
 shape = SubResource("BoxShape3D_kpfe1")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerRamp03" unique_id=27344430]
+[node name="Mesh" type="MeshInstance3D" parent="SewerRamp03" unique_id=1400796137]
 mesh = SubResource("BoxMesh_jomab")
 
-[node name="SewerWall16" type="StaticBody3D" parent="." unique_id=1661124622]
+[node name="SewerWall16" type="StaticBody3D" parent="." unique_id=1996174388]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.399998, -2.2, 49.899998)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall16" unique_id=1820075303]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall16" unique_id=1019755137]
 shape = SubResource("BoxShape3D_g6fyg")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall16" unique_id=2089185018]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall16" unique_id=18728128]
 mesh = SubResource("BoxMesh_tu8u1")
 
-[node name="SewerWall17" type="StaticBody3D" parent="." unique_id=1569566558]
+[node name="SewerWall17" type="StaticBody3D" parent="." unique_id=402274172]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.399998, -2.2, 52.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall17" unique_id=997738427]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall17" unique_id=1062051356]
 shape = SubResource("BoxShape3D_13f7v")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall17" unique_id=1323283394]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall17" unique_id=1228738940]
 mesh = SubResource("BoxMesh_qq7y7")
 
-[node name="SewerWall18" type="StaticBody3D" parent="." unique_id=1659849372]
+[node name="SewerWall18" type="StaticBody3D" parent="." unique_id=1556526622]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60.899998, -2.2, 51)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall18" unique_id=1228706912]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall18" unique_id=1760315617]
 shape = SubResource("BoxShape3D_le7lj")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall18" unique_id=1622797365]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall18" unique_id=1574039176]
 mesh = SubResource("BoxMesh_04ykb")
 
-[node name="SewerFloor04" type="StaticBody3D" parent="." unique_id=852513109]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.5, -3.3000002, 64)
+[node name="SewerFloor04" type="StaticBody3D" parent="." unique_id=1369966754]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69, -3.3000002, 64)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor04" unique_id=1573688601]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor04" unique_id=989981355]
 shape = SubResource("BoxShape3D_selkx")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor04" unique_id=66037207]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor04" unique_id=2012761002]
 mesh = SubResource("BoxMesh_ectpn")
 
-[node name="SewerWall19" type="StaticBody3D" parent="." unique_id=1184363919]
+[node name="SewerWall19" type="StaticBody3D" parent="." unique_id=608138181]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.4, -2.2, 62.899998)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall19" unique_id=48670285]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall19" unique_id=1930476856]
 shape = SubResource("BoxShape3D_wufa6")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall19" unique_id=1723360664]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall19" unique_id=599882006]
 mesh = SubResource("BoxMesh_ab2as")
 
-[node name="SewerWall20" type="StaticBody3D" parent="." unique_id=1567111906]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.1, -2.2, 62.899998)
+[node name="SewerWall20" type="StaticBody3D" parent="." unique_id=1707159562]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.6, -2.2, 62.899998)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall20" unique_id=1891031570]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall20" unique_id=1494693785]
 shape = SubResource("BoxShape3D_h63xi")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall20" unique_id=1946830368]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall20" unique_id=2009819686]
 mesh = SubResource("BoxMesh_5pjmd")
 
-[node name="SewerWall21" type="StaticBody3D" parent="." unique_id=1554311058]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.5, -2.2, 65.1)
+[node name="SewerWall21" type="StaticBody3D" parent="." unique_id=1229105358]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69, -2.2, 65.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall21" unique_id=1695287235]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall21" unique_id=746955479]
 shape = SubResource("BoxShape3D_j4gyc")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall21" unique_id=251820711]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall21" unique_id=2085285510]
 mesh = SubResource("BoxMesh_pqorm")
 
-[node name="SewerWall22" type="StaticBody3D" parent="." unique_id=613958555]
+[node name="SewerWall22" type="StaticBody3D" parent="." unique_id=632908978]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.899998, -2.2, 64)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall22" unique_id=226257906]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall22" unique_id=998628888]
 shape = SubResource("BoxShape3D_6pwax")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall22" unique_id=637084262]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall22" unique_id=932804026]
 mesh = SubResource("BoxMesh_78hi2")
 
-[node name="SewerWall23" type="StaticBody3D" parent="." unique_id=1185954254]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.1, -2.2, 64)
+[node name="SewerWall23" type="StaticBody3D" parent="." unique_id=1359119149]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.1, -2.2, 64)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall23" unique_id=686813537]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall23" unique_id=853511193]
 shape = SubResource("BoxShape3D_0gjpt")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall23" unique_id=1950809890]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall23" unique_id=1255232248]
 mesh = SubResource("BoxMesh_ga8h2")
 
-[node name="SewerFloor05" type="StaticBody3D" parent="." unique_id=57846037]
+[node name="SewerFloor05" type="StaticBody3D" parent="." unique_id=1611281271]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, -3.3000002, 67)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor05" unique_id=1553401792]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor05" unique_id=1369033763]
 shape = SubResource("BoxShape3D_aomyo")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor05" unique_id=1842101543]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor05" unique_id=166064238]
 mesh = SubResource("BoxMesh_a5mvl")
 
-[node name="SewerWall24" type="StaticBody3D" parent="." unique_id=1090212328]
+[node name="SewerWall24" type="StaticBody3D" parent="." unique_id=1348525106]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.1, -2.2, 69.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall24" unique_id=1613385555]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall24" unique_id=635713247]
 shape = SubResource("BoxShape3D_c8851")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall24" unique_id=2138472849]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall24" unique_id=1071049283]
 mesh = SubResource("BoxMesh_akt6d")
 
-[node name="SewerWall25" type="StaticBody3D" parent="." unique_id=1427350107]
+[node name="SewerWall25" type="StaticBody3D" parent="." unique_id=1938571259]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.899998, -2.2, 66)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall25" unique_id=1530676609]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall25" unique_id=790486063]
 shape = SubResource("BoxShape3D_fye8m")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall25" unique_id=2020011288]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall25" unique_id=833437199]
 mesh = SubResource("BoxMesh_a0kwy")
 
-[node name="SewerWall26" type="StaticBody3D" parent="." unique_id=865605635]
+[node name="SewerWall26" type="StaticBody3D" parent="." unique_id=798297483]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.1, -2.2, 67)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall26" unique_id=1846823237]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall26" unique_id=269466006]
 shape = SubResource("BoxShape3D_m53qb")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall26" unique_id=1468962380]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall26" unique_id=1398289532]
 mesh = SubResource("BoxMesh_hsput")
 
-[node name="SewerRamp04" type="StaticBody3D" parent="." unique_id=1321971336]
+[node name="SewerRamp04" type="StaticBody3D" parent="." unique_id=1853086298]
 transform = Transform3D(0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 0, 0, 0, 1, 32.446095, -1.6842271, 68)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerRamp04" unique_id=1374733560]
+[node name="Shape" type="CollisionShape3D" parent="SewerRamp04" unique_id=536964604]
 shape = SubResource("BoxShape3D_uvvx8")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerRamp04" unique_id=394123427]
+[node name="Mesh" type="MeshInstance3D" parent="SewerRamp04" unique_id=394299030]
 mesh = SubResource("BoxMesh_1y6oo")
 
-[node name="SewerWall27" type="StaticBody3D" parent="." unique_id=97629213]
+[node name="SewerWall27" type="StaticBody3D" parent="." unique_id=405211789]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.399998, -2.2, 66.9)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall27" unique_id=284228864]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall27" unique_id=1806263084]
 shape = SubResource("BoxShape3D_gqywq")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall27" unique_id=1099551778]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall27" unique_id=1407837048]
 mesh = SubResource("BoxMesh_56o2s")
 
-[node name="SewerWall28" type="StaticBody3D" parent="." unique_id=701459282]
+[node name="SewerWall28" type="StaticBody3D" parent="." unique_id=860355059]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.399998, -2.2, 69.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall28" unique_id=262276550]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall28" unique_id=1568012587]
 shape = SubResource("BoxShape3D_guqj5")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall28" unique_id=1264839187]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall28" unique_id=652036040]
 mesh = SubResource("BoxMesh_2b8ck")
 
-[node name="SewerWall29" type="StaticBody3D" parent="." unique_id=1345711598]
+[node name="SewerWall29" type="StaticBody3D" parent="." unique_id=1300182127]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.9, -2.2, 68)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall29" unique_id=66710666]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall29" unique_id=1888173057]
 shape = SubResource("BoxShape3D_cl4b2")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall29" unique_id=1674087408]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall29" unique_id=1747907971]
 mesh = SubResource("BoxMesh_5208a")
 
-[node name="SewerFloor06" type="StaticBody3D" parent="." unique_id=1282922275]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, -3.3000002, 66.5)
+[node name="SewerFloor06" type="StaticBody3D" parent="." unique_id=605059109]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, -3.3000002, 66.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerFloor06" unique_id=588970962]
+[node name="Shape" type="CollisionShape3D" parent="SewerFloor06" unique_id=1571097049]
 shape = SubResource("BoxShape3D_jsk8u")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerFloor06" unique_id=1548131835]
+[node name="Mesh" type="MeshInstance3D" parent="SewerFloor06" unique_id=1496386005]
 mesh = SubResource("BoxMesh_eyg2f")
 
-[node name="SewerWall30" type="StaticBody3D" parent="." unique_id=392658156]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.9, -2.2, 66.5)
+[node name="SewerWall30" type="StaticBody3D" parent="." unique_id=760337381]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.9, -2.2, 66.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall30" unique_id=413573513]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall30" unique_id=867528969]
 shape = SubResource("BoxShape3D_dvtqv")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall30" unique_id=480898913]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall30" unique_id=1483601960]
 mesh = SubResource("BoxMesh_hppl1")
 
-[node name="SewerWall31" type="StaticBody3D" parent="." unique_id=458793825]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.1, -2.2, 66.5)
+[node name="SewerWall31" type="StaticBody3D" parent="." unique_id=1737032014]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.1, -2.2, 66.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall31" unique_id=588888568]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall31" unique_id=1160583386]
 shape = SubResource("BoxShape3D_0w6ak")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall31" unique_id=690775594]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall31" unique_id=115319660]
 mesh = SubResource("BoxMesh_0rrmo")
 
-[node name="SewerRamp05" type="StaticBody3D" parent="." unique_id=284623457]
-transform = Transform3D(1, 0, 0, 0, 0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 99, -1.6842271, 70.5539)
+[node name="SewerRamp05" type="StaticBody3D" parent="." unique_id=1753424045]
+transform = Transform3D(1, 0, 0, 0, 0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 102, -1.6842271, 70.5539)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerRamp05" unique_id=1440387297]
+[node name="Shape" type="CollisionShape3D" parent="SewerRamp05" unique_id=1548676637]
 shape = SubResource("BoxShape3D_u2rak")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerRamp05" unique_id=1438052649]
+[node name="Mesh" type="MeshInstance3D" parent="SewerRamp05" unique_id=1200245643]
 mesh = SubResource("BoxMesh_quwv6")
 
-[node name="SewerWall32" type="StaticBody3D" parent="." unique_id=1158068392]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, -2.2, 73.1)
+[node name="SewerWall32" type="StaticBody3D" parent="." unique_id=757768443]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, -2.2, 73.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall32" unique_id=617848070]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall32" unique_id=538671060]
 shape = SubResource("BoxShape3D_jo0jj")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall32" unique_id=1394251354]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall32" unique_id=1854816889]
 mesh = SubResource("BoxMesh_ljxn6")
 
-[node name="SewerWall33" type="StaticBody3D" parent="." unique_id=873743448]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.9, -2.2, 70.5)
+[node name="SewerWall33" type="StaticBody3D" parent="." unique_id=3361182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.9, -2.2, 70.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall33" unique_id=1673327635]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall33" unique_id=1009309680]
 shape = SubResource("BoxShape3D_se3sp")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall33" unique_id=700311956]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall33" unique_id=1260605560]
 mesh = SubResource("BoxMesh_vowb7")
 
-[node name="SewerWall34" type="StaticBody3D" parent="." unique_id=274232309]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.1, -2.2, 70.5)
+[node name="SewerWall34" type="StaticBody3D" parent="." unique_id=1643558348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.1, -2.2, 70.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SewerWall34" unique_id=1257527326]
+[node name="Shape" type="CollisionShape3D" parent="SewerWall34" unique_id=1181663081]
 shape = SubResource("BoxShape3D_winap")
 
-[node name="Mesh" type="MeshInstance3D" parent="SewerWall34" unique_id=325005913]
+[node name="Mesh" type="MeshInstance3D" parent="SewerWall34" unique_id=1405939662]
 mesh = SubResource("BoxMesh_stssx")
 
-[node name="PantryDuctFloor01" type="StaticBody3D" parent="." unique_id=620337057]
+[node name="PantryDuctFloor01" type="StaticBody3D" parent="." unique_id=1852030744]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.7, -3.3000002, 20.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor01" unique_id=1602037040]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor01" unique_id=1235531485]
 shape = SubResource("BoxShape3D_osg5i")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor01" unique_id=2130815663]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor01" unique_id=706324497]
 mesh = SubResource("BoxMesh_rd04t")
 
-[node name="PantryDuctWall01" type="StaticBody3D" parent="." unique_id=1737400652]
+[node name="PantryDuctWall01" type="StaticBody3D" parent="." unique_id=1063987466]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.6, -2.2, 19.9)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall01" unique_id=1911233545]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall01" unique_id=1422417]
 shape = SubResource("BoxShape3D_4dlpp")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall01" unique_id=1380423548]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall01" unique_id=38953981]
 mesh = SubResource("BoxMesh_efkmn")
 
-[node name="PantryDuctWall02" type="StaticBody3D" parent="." unique_id=1876081358]
+[node name="PantryDuctWall02" type="StaticBody3D" parent="." unique_id=1934338857]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.2, -2.2, 21.1)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall02" unique_id=1983340646]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall02" unique_id=609921065]
 shape = SubResource("BoxShape3D_6ea0k")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall02" unique_id=131831920]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall02" unique_id=402419452]
 mesh = SubResource("BoxMesh_bie80")
 
-[node name="PantryDuctWall03" type="StaticBody3D" parent="." unique_id=1269394544]
+[node name="PantryDuctWall03" type="StaticBody3D" parent="." unique_id=1827557185]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.899998, -2.2, 20.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall03" unique_id=295386561]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall03" unique_id=1072489371]
 shape = SubResource("BoxShape3D_3g30l")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall03" unique_id=1035620692]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall03" unique_id=2120515066]
 mesh = SubResource("BoxMesh_bkftd")
 
-[node name="PantryDuctCeiling01" type="StaticBody3D" parent="." unique_id=534237916]
+[node name="PantryDuctCeiling01" type="StaticBody3D" parent="." unique_id=1209675499]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.7, -1.25, 20.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling01" unique_id=1535054633]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling01" unique_id=1655786368]
 shape = SubResource("BoxShape3D_e3j0q")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling01" unique_id=2108595726]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling01" unique_id=867539489]
 mesh = SubResource("BoxMesh_4hdmq")
 
-[node name="PantryDuctFloor02" type="StaticBody3D" parent="." unique_id=1444884309]
+[node name="PantryDuctFloor02" type="StaticBody3D" parent="." unique_id=395772667]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, -3.3000002, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor02" unique_id=1381201166]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor02" unique_id=470794805]
 shape = SubResource("BoxShape3D_ub8pk")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor02" unique_id=1014549850]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor02" unique_id=1956893592]
 mesh = SubResource("BoxMesh_ypd1n")
 
-[node name="PantryDuctWall04" type="StaticBody3D" parent="." unique_id=1665382741]
+[node name="PantryDuctWall04" type="StaticBody3D" parent="." unique_id=1978849071]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.6, -2.2, 26.1)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall04" unique_id=1603045740]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall04" unique_id=1912927560]
 shape = SubResource("BoxShape3D_clmok")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall04" unique_id=1581218476]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall04" unique_id=1350803549]
 mesh = SubResource("BoxMesh_4ave6")
 
-[node name="PantryDuctWall05" type="StaticBody3D" parent="." unique_id=1127929667]
+[node name="PantryDuctWall05" type="StaticBody3D" parent="." unique_id=1042266183]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.899998, -2.2, 23)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall05" unique_id=1161777759]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall05" unique_id=1831511982]
 shape = SubResource("BoxShape3D_jy1wi")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall05" unique_id=1847606480]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall05" unique_id=1879499475]
 mesh = SubResource("BoxMesh_mcust")
 
-[node name="PantryDuctWall06" type="StaticBody3D" parent="." unique_id=2142958011]
+[node name="PantryDuctWall06" type="StaticBody3D" parent="." unique_id=1057851398]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.1, -2.2, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall06" unique_id=750982022]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall06" unique_id=1487896712]
 shape = SubResource("BoxShape3D_55cyx")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall06" unique_id=1575342237]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall06" unique_id=620111695]
 mesh = SubResource("BoxMesh_2xiqd")
 
-[node name="PantryDuctCeiling02" type="StaticBody3D" parent="." unique_id=650992633]
+[node name="PantryDuctCeiling02" type="StaticBody3D" parent="." unique_id=1253631704]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, -1.25, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling02" unique_id=2119308716]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling02" unique_id=2055364739]
 shape = SubResource("BoxShape3D_8b3xc")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling02" unique_id=669173587]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling02" unique_id=2017808273]
 mesh = SubResource("BoxMesh_olb5g")
 
-[node name="PantryDuctFloor03" type="StaticBody3D" parent="." unique_id=1445038015]
+[node name="PantryDuctFloor03" type="StaticBody3D" parent="." unique_id=1355374174]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, -3.3000002, 25.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor03" unique_id=4663292]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctFloor03" unique_id=466478188]
 shape = SubResource("BoxShape3D_hbdaj")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor03" unique_id=1661171678]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctFloor03" unique_id=2128590762]
 mesh = SubResource("BoxMesh_t60ka")
 
-[node name="PantryDuctWall07" type="StaticBody3D" parent="." unique_id=2103698202]
+[node name="PantryDuctWall07" type="StaticBody3D" parent="." unique_id=331422467]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, -2.2, 24.9)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall07" unique_id=1700257834]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall07" unique_id=494686053]
 shape = SubResource("BoxShape3D_4kq4c")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall07" unique_id=476505622]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall07" unique_id=1263079006]
 mesh = SubResource("BoxMesh_13wem")
 
-[node name="PantryDuctWall08" type="StaticBody3D" parent="." unique_id=2082833979]
+[node name="PantryDuctWall08" type="StaticBody3D" parent="." unique_id=990892886]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, -2.2, 26.1)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall08" unique_id=251419794]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall08" unique_id=202419893]
 shape = SubResource("BoxShape3D_5sv3t")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall08" unique_id=1363128170]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall08" unique_id=1107142032]
 mesh = SubResource("BoxMesh_td83j")
 
-[node name="PantryDuctCeiling03" type="StaticBody3D" parent="." unique_id=180327310]
+[node name="PantryDuctCeiling03" type="StaticBody3D" parent="." unique_id=1910035855]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, -1.25, 25.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling03" unique_id=770224043]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctCeiling03" unique_id=532982088]
 shape = SubResource("BoxShape3D_mw70b")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling03" unique_id=2116022716]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctCeiling03" unique_id=2134675399]
 mesh = SubResource("BoxMesh_mes8p")
 
-[node name="PantryDuctRamp01" type="StaticBody3D" parent="." unique_id=1622790279]
+[node name="PantryDuctRamp01" type="StaticBody3D" parent="." unique_id=787374031]
 transform = Transform3D(0.8422714, 0.5390537, 0, -0.5390537, 0.8422714, 0, 0, 0, 1, 49.446095, -1.6842271, 25.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctRamp01" unique_id=1662693969]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctRamp01" unique_id=1752825691]
 shape = SubResource("BoxShape3D_vbdj8")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctRamp01" unique_id=495240440]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctRamp01" unique_id=642199471]
 mesh = SubResource("BoxMesh_nqnxs")
 
-[node name="PantryDuctWall09" type="StaticBody3D" parent="." unique_id=326684322]
+[node name="PantryDuctWall09" type="StaticBody3D" parent="." unique_id=201165501]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49.399998, -2.2, 24.9)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall09" unique_id=215962050]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall09" unique_id=2713402]
 shape = SubResource("BoxShape3D_lfs1f")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall09" unique_id=101482980]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall09" unique_id=17224955]
 mesh = SubResource("BoxMesh_ojkne")
 
-[node name="PantryDuctWall10" type="StaticBody3D" parent="." unique_id=1395250883]
+[node name="PantryDuctWall10" type="StaticBody3D" parent="." unique_id=1530908408]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49.399998, -2.2, 26.1)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall10" unique_id=555038225]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall10" unique_id=520297809]
 shape = SubResource("BoxShape3D_r72ue")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall10" unique_id=2131492753]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall10" unique_id=8999700]
 mesh = SubResource("BoxMesh_r7jjq")
 
-[node name="PantryDuctWall11" type="StaticBody3D" parent="." unique_id=2024235258]
+[node name="PantryDuctWall11" type="StaticBody3D" parent="." unique_id=753455636]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.899998, -2.2, 25.5)
 
-[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall11" unique_id=1337295813]
+[node name="Shape" type="CollisionShape3D" parent="PantryDuctWall11" unique_id=1327558673]
 shape = SubResource("BoxShape3D_y3qqu")
 
-[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall11" unique_id=890867814]
+[node name="Mesh" type="MeshInstance3D" parent="PantryDuctWall11" unique_id=1504285894]
 mesh = SubResource("BoxMesh_qrgts")
 
-[node name="SecurityDuctRamp01" type="StaticBody3D" parent="." unique_id=459833085]
+[node name="SecurityDuctRamp01" type="StaticBody3D" parent="." unique_id=1375746200]
 transform = Transform3D(1, 0, 0, 0, 0.8574929, -0.5144958, 0, 0.5144958, 0.8574929, 71.5, -4.185749, 10.44855)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctRamp01" unique_id=1534271828]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctRamp01" unique_id=2079135717]
 shape = SubResource("BoxShape3D_6law6")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctRamp01" unique_id=1963519313]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctRamp01" unique_id=806906845]
 mesh = SubResource("BoxMesh_i4n1t")
 
-[node name="SecurityDuctWall01" type="StaticBody3D" parent="." unique_id=754504843]
+[node name="SecurityDuctWall01" type="StaticBody3D" parent="." unique_id=397578195]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, -4.3, 8.900001)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall01" unique_id=1389897914]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall01" unique_id=72378677]
 shape = SubResource("BoxShape3D_pk2pv")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall01" unique_id=1080299780]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall01" unique_id=875482088]
 mesh = SubResource("BoxMesh_dsf3y")
 
-[node name="SecurityDuctWall02" type="StaticBody3D" parent="." unique_id=2116157573]
+[node name="SecurityDuctWall02" type="StaticBody3D" parent="." unique_id=1338784331]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70.9, -4.3, 10.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall02" unique_id=1016678795]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall02" unique_id=1772051141]
 shape = SubResource("BoxShape3D_hstfy")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall02" unique_id=635914819]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall02" unique_id=1418872182]
 mesh = SubResource("BoxMesh_bi2vi")
 
-[node name="SecurityDuctWall03" type="StaticBody3D" parent="." unique_id=1362748007]
+[node name="SecurityDuctWall03" type="StaticBody3D" parent="." unique_id=382901931]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.1, -4.3, 10.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall03" unique_id=251199272]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall03" unique_id=635313924]
 shape = SubResource("BoxShape3D_pkr0y")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall03" unique_id=463844398]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall03" unique_id=1796946409]
 mesh = SubResource("BoxMesh_ndajk")
 
-[node name="SecurityDuctFloor01" type="StaticBody3D" parent="." unique_id=721437942]
+[node name="SecurityDuctFloor01" type="StaticBody3D" parent="." unique_id=1151309866]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, -5.1, 17)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor01" unique_id=2034823239]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor01" unique_id=1163805278]
 shape = SubResource("BoxShape3D_4s40k")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor01" unique_id=2023067879]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor01" unique_id=669982722]
 mesh = SubResource("BoxMesh_x2td4")
 
-[node name="SecurityDuctWall04" type="StaticBody3D" parent="." unique_id=1040220976]
+[node name="SecurityDuctWall04" type="StaticBody3D" parent="." unique_id=2130476493]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70.9, -4.3, 17)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall04" unique_id=432581632]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall04" unique_id=1482546515]
 shape = SubResource("BoxShape3D_qeix0")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall04" unique_id=262011861]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall04" unique_id=1383179835]
 mesh = SubResource("BoxMesh_kcbw1")
 
-[node name="SecurityDuctWall05" type="StaticBody3D" parent="." unique_id=1550769942]
+[node name="SecurityDuctWall05" type="StaticBody3D" parent="." unique_id=938485450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.1, -4.3, 17)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall05" unique_id=1394001933]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall05" unique_id=1512472783]
 shape = SubResource("BoxShape3D_aoee8")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall05" unique_id=746826181]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall05" unique_id=160747673]
 mesh = SubResource("BoxMesh_nje6u")
 
-[node name="SecurityDuctFloor02" type="StaticBody3D" parent="." unique_id=450946602]
+[node name="SecurityDuctFloor02" type="StaticBody3D" parent="." unique_id=1494414722]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, -5.1, 23)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor02" unique_id=1708673451]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor02" unique_id=831983933]
 shape = SubResource("BoxShape3D_7tt43")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor02" unique_id=1114728387]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor02" unique_id=646775562]
 mesh = SubResource("BoxMesh_uotsm")
 
-[node name="SecurityDuctWall06" type="StaticBody3D" parent="." unique_id=310313682]
+[node name="SecurityDuctWall06" type="StaticBody3D" parent="." unique_id=1337393521]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.4, -3.1000001, 24.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall06" unique_id=182169858]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall06" unique_id=1637493910]
 shape = SubResource("BoxShape3D_vh17i")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall06" unique_id=874204072]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall06" unique_id=229033556]
 mesh = SubResource("BoxMesh_6hp85")
 
-[node name="SecurityDuctWall07" type="StaticBody3D" parent="." unique_id=518057061]
+[node name="SecurityDuctWall07" type="StaticBody3D" parent="." unique_id=1805067107]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70.9, -3.1000001, 23)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall07" unique_id=778715382]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall07" unique_id=1437527329]
 shape = SubResource("BoxShape3D_6xtoy")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall07" unique_id=85619080]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall07" unique_id=1778092287]
 mesh = SubResource("BoxMesh_wbewe")
 
-[node name="SecurityDuctWall08" type="StaticBody3D" parent="." unique_id=1369106244]
+[node name="SecurityDuctWall08" type="StaticBody3D" parent="." unique_id=2011613709]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.1, -3.1000001, 22.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall08" unique_id=1365361022]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall08" unique_id=825782991]
 shape = SubResource("BoxShape3D_h0my8")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall08" unique_id=1325611262]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall08" unique_id=1082875260]
 mesh = SubResource("BoxMesh_ig16q")
 
-[node name="SecurityDuctCeiling01" type="StaticBody3D" parent="." unique_id=1782543433]
+[node name="SecurityDuctCeiling01" type="StaticBody3D" parent="." unique_id=409649715]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, -2.15, 23)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling01" unique_id=342182553]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling01" unique_id=1213181880]
 shape = SubResource("BoxShape3D_0ultc")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling01" unique_id=764400260]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling01" unique_id=111513364]
 mesh = SubResource("BoxMesh_4mbre")
 
-[node name="SecurityDuctFloor03" type="StaticBody3D" parent="." unique_id=1137243933]
+[node name="SecurityDuctFloor03" type="StaticBody3D" parent="." unique_id=533294731]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.5, -5.1, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor03" unique_id=474303365]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctFloor03" unique_id=1026899275]
 shape = SubResource("BoxShape3D_xbiug")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor03" unique_id=1966035275]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctFloor03" unique_id=1603902409]
 mesh = SubResource("BoxMesh_w73np")
 
-[node name="SecurityDuctWall09" type="StaticBody3D" parent="." unique_id=1993356953]
+[node name="SecurityDuctWall09" type="StaticBody3D" parent="." unique_id=1581865559]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.6, -3.1000001, 22.9)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall09" unique_id=954675437]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall09" unique_id=1566691393]
 shape = SubResource("BoxShape3D_ixju6")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall09" unique_id=1634084197]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall09" unique_id=276928362]
 mesh = SubResource("BoxMesh_5n808")
 
-[node name="SecurityDuctWall10" type="StaticBody3D" parent="." unique_id=1685498087]
+[node name="SecurityDuctWall10" type="StaticBody3D" parent="." unique_id=1497754855]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, -3.1000001, 24.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall10" unique_id=1965089168]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall10" unique_id=1594167410]
 shape = SubResource("BoxShape3D_uox4s")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall10" unique_id=1751104889]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall10" unique_id=239942645]
 mesh = SubResource("BoxMesh_4biad")
 
-[node name="SecurityDuctWall11" type="StaticBody3D" parent="." unique_id=1872344878]
+[node name="SecurityDuctWall11" type="StaticBody3D" parent="." unique_id=1155593067]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.1, -3.1000001, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall11" unique_id=214067260]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall11" unique_id=1207487695]
 shape = SubResource("BoxShape3D_ait3k")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall11" unique_id=1797484907]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall11" unique_id=945821724]
 mesh = SubResource("BoxMesh_phqvv")
 
-[node name="SecurityDuctCeiling02" type="StaticBody3D" parent="." unique_id=1403623726]
+[node name="SecurityDuctCeiling02" type="StaticBody3D" parent="." unique_id=2113472103]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74.5, -2.15, 23.5)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling02" unique_id=2114934631]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling02" unique_id=1790178587]
 shape = SubResource("BoxShape3D_bnjg7")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling02" unique_id=1687305500]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling02" unique_id=1271454949]
 mesh = SubResource("BoxMesh_rmrhw")
 
-[node name="SecurityDuctRamp02" type="StaticBody3D" parent="." unique_id=1609238739]
+[node name="SecurityDuctRamp02" type="StaticBody3D" parent="." unique_id=79363780]
 transform = Transform3D(1, 0, 0, 0, 0.8479983, 0.5299989, 0, -0.5299989, 0.8479983, 76.5, -2.5847998, 28.053)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctRamp02" unique_id=1313428068]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctRamp02" unique_id=1086555564]
 shape = SubResource("BoxShape3D_4lasw")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctRamp02" unique_id=330256559]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctRamp02" unique_id=1976907568]
 mesh = SubResource("BoxMesh_prknu")
 
-[node name="SecurityDuctWall12" type="StaticBody3D" parent="." unique_id=1860418359]
+[node name="SecurityDuctWall12" type="StaticBody3D" parent="." unique_id=1950504019]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.5, -3.1000001, 32.1)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall12" unique_id=484408477]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall12" unique_id=665196458]
 shape = SubResource("BoxShape3D_xl27c")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall12" unique_id=248525213]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall12" unique_id=1644432504]
 mesh = SubResource("BoxMesh_jvhhu")
 
-[node name="SecurityDuctWall13" type="StaticBody3D" parent="." unique_id=506041665]
+[node name="SecurityDuctWall13" type="StaticBody3D" parent="." unique_id=129350027]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75.9, -3.1000001, 28)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall13" unique_id=2071449824]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall13" unique_id=1673011241]
 shape = SubResource("BoxShape3D_mxhbw")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall13" unique_id=1899554687]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall13" unique_id=670547097]
 mesh = SubResource("BoxMesh_vnki5")
 
-[node name="SecurityDuctWall14" type="StaticBody3D" parent="." unique_id=1280895533]
+[node name="SecurityDuctWall14" type="StaticBody3D" parent="." unique_id=549726352]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77.1, -3.1000001, 28)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall14" unique_id=1629428909]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctWall14" unique_id=1636855857]
 shape = SubResource("BoxShape3D_r121h")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall14" unique_id=2049064395]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctWall14" unique_id=211920764]
 mesh = SubResource("BoxMesh_bgijq")
 
-[node name="SecurityDuctCeiling03" type="StaticBody3D" parent="." unique_id=1756652575]
+[node name="SecurityDuctCeiling03" type="StaticBody3D" parent="." unique_id=845632753]
 transform = Transform3D(1, 0, 0, 0, 0.8479983, 0.5299989, 0, -0.5299989, 0.8479983, 76.5, -2.3777003, 25.447)
 
-[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling03" unique_id=2038045160]
+[node name="Shape" type="CollisionShape3D" parent="SecurityDuctCeiling03" unique_id=1451757592]
 shape = SubResource("BoxShape3D_kwjfh")
 
-[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling03" unique_id=1587015439]
+[node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling03" unique_id=305047534]
 mesh = SubResource("BoxMesh_gxmhx")

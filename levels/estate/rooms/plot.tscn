@@ -147,18 +147,18 @@ material = ExtResource("1_mkcyu")
 size = Vector3(62.600006, 1, 23)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cground21"]
-size = Vector3(19.600006, 1, 5)
+size = Vector3(22.600006, 1, 5)
 
 [sub_resource type="BoxMesh" id="BoxMesh_cground21"]
 material = ExtResource("1_mkcyu")
-size = Vector3(19.600006, 1, 5)
+size = Vector3(22.600006, 1, 5)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cground22"]
-size = Vector3(41, 1, 5)
+size = Vector3(38, 1, 5)
 
 [sub_resource type="BoxMesh" id="BoxMesh_cground22"]
 material = ExtResource("1_mkcyu")
-size = Vector3(41, 1, 5)
+size = Vector3(38, 1, 5)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cground23"]
 size = Vector3(18.600006, 1, 5)
@@ -432,7 +432,7 @@ shape = SubResource("BoxShape3D_cground20")
 mesh = SubResource("BoxMesh_cground20")
 
 [node name="Ground21" type="StaticBody3D" parent="." unique_id=309614070]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.2, -0.5, 70.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 89.7, -0.5, 70.5)
 
 [node name="Shape" type="CollisionShape3D" parent="Ground21" unique_id=190406240]
 shape = SubResource("BoxShape3D_cground21")
@@ -441,7 +441,7 @@ shape = SubResource("BoxShape3D_cground21")
 mesh = SubResource("BoxMesh_cground21")
 
 [node name="Ground22" type="StaticBody3D" parent="." unique_id=758885519]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.5, -0.5, 70.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122, -0.5, 70.5)
 
 [node name="Shape" type="CollisionShape3D" parent="Ground22" unique_id=1238036800]
 shape = SubResource("BoxShape3D_cground22")

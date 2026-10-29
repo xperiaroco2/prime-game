@@ -189,9 +189,9 @@ const PASSAGES := {
 		[
 			Vector3(67, -3.2, 51),
 			Vector3(67, 0, 64),
-			Vector3(99, 0, 64),
-			Vector3(99, 0, 67),
-			Vector3(99, 0, 73.6),
+			Vector3(102, 0, 64),
+			Vector3(102, 0, 67),
+			Vector3(102, 0, 73.6),
 		],
 		false
 	],
@@ -228,13 +228,14 @@ const DUCT_LOW_POINTS: Array[Vector3] = [
 	Vector3(76.5, -3.6, 26),
 ]
 ## The passages' holes at their ends: in the ground (§5b's points; the garage's pit; the pantry's
-## grate inside the pantry, east of its food printer), and in the
-## basement's floor (the cellar's manhole, the security room's duct).
+## grate inside the pantry, east of its food printer; the ship's manhole 3 m east of §5b's point,
+## between the ship's west wall and the two circles by it, clear of their 1 m and of the lower
+## loop's path), and in the basement's floor (the cellar's manhole, the security room's duct).
 const PASSAGE_HOLES: Array[Vector2] = [
 	Vector2(98, 10.5),
 	Vector2(65.3, 51),
 	Vector2(30, 68),
-	Vector2(99, 73),
+	Vector2(102, 73),
 	Vector2(49.5, 25.5),
 	Vector2(76.4, 30.8),
 	Vector2(64, 12),
