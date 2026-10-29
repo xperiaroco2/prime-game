@@ -77,6 +77,9 @@ var station_near_hit := Callable()
 var aim_of := Callable()
 ## The photo camera's viewfinder (ItemWorld's, #786); null: a tap on a loaded camera opens nothing.
 var viewfinder: PhotoViewfinder
+## The level's marker positions of a spawn group (ItemWorld's: the loaded scene's Marker3Ds in it,
+## #1383): group -> PackedVector3Array; unset: no chair anywhere, so E never sends Pose.
+var chair_spots := Callable()
 
 var _target := -1
 var _station := -1
@@ -143,9 +146,10 @@ func station_target() -> int:
 
 ## E: Interact(station, item -1) for the station target (#801; the host decides what it does:
 ## a switch toggles, the generator's button starts the charge, an empty photo camera takes the
-## carried fresh film, #786), else PickUp for the item target; the sequence number sent, or -1
-## when nothing was sent. On a station whose Interact starts a hold (the lift panel, the car's
-## fit; StationUse.holds) the hold is remembered for release_hold().
+## carried fresh film, #786), else PickUp for the item target, else Pose at a chair (pose(),
+## #1383); the sequence number sent, or -1 when nothing was sent. On a station whose Interact
+## starts a hold (the lift panel, the car's fit; StationUse.holds) the hold is remembered for
+## release_hold().
 func interact() -> int:
 	if _station >= 0 and _acts():
 		# A loaded photo camera shoots only from the viewfinder (#786; its tap opens that).
@@ -155,6 +159,8 @@ func interact() -> int:
 		if station != null and StationUse.holds(mode, station.kind):
 			_hold_station = _station
 		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
+	if _target < 0:
+		return pose()
 	return pick_up()
 
 
@@ -289,6 +295,24 @@ func pick_up() -> int:
 	return session.send_intent(Intents.PICK_UP, {"item": _target})
 
 
+## E with no station and no item aimed at (#1383): Pose() once (one press, no hold: the
+## engineer's answer 2a on PR #1382) while the own player lives, sits not posed already (only its
+## own move ends the pose, answer 3a), the phase takes Pose from the living and its feet stand at
+## a chair of the mode's Pose row (PoseUse); the sequence number sent, or -1 when nothing was
+## sent. The claim twin goes first (ClientSession.send_intent), so the host tests the feet this
+## key tested.
+func pose() -> int:
+	if not _acts() or model.posed or not chair_spots.is_valid():
+		return -1
+	var chair := PoseUse.chair_of(mode)
+	if chair == null or not _phase_takes(Intents.POSE):
+		return -1
+	var spots: PackedVector3Array = chair_spots.call(PoseUse.group_of(chair))
+	if not PoseUse.at_chair(chair, spots, player.global_position):
+		return -1
+	return session.send_intent(Intents.POSE)
+
+
 ## Q: PutDown(facing) while the own hand holds an item.
 func put_down() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
@@ -360,9 +384,7 @@ func throw() -> int:
 	var item: ClientModel.Item = model.items.get(model.hand_item(model.own_peer))
 	if item == null or ItemArc.rule_of(mode, item.kind, model.role) == null:
 		return -1
-	var phase := mode.find_phase(model.phase)
-	var living := AcceptSpec.From.LIVING | AcceptSpec.From.PLAYER
-	if phase == null or (phase.senders_of(Intents.THROW) & living) == 0:
+	if not _phase_takes(Intents.THROW):
 		return -1
 	if predicting.is_valid() and predicting.call() as bool:
 		return -1
@@ -503,6 +525,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		step_place(1)
 	elif wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
 		step_place(-1)
+
+
+## Whether the phase now takes `intent` from the living (the own mode copy's accepts).
+func _phase_takes(intent: StringName) -> bool:
+	var phase := mode.find_phase(model.phase) if mode != null else null
+	var living := AcceptSpec.From.LIVING | AcceptSpec.From.PLAYER
+	return phase != null and (phase.senders_of(intent) & living) != 0
 
 
 ## Whether the item keys act: a session, a local player, the own player living and not limp.

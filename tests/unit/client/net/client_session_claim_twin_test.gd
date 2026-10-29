@@ -148,6 +148,8 @@ func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 		Intents.SWAP: {},
 		Intents.THROW: {"facing": Vector3.FORWARD},
 		Intents.INTERACT: {"station": 1, "item": -1},
+		Intents.DRAW: {"place": 1},
+		Intents.POSE: {},
 	}
 	_harness.welcome(&"lobby", 1)
 	for intent: StringName in controls:
