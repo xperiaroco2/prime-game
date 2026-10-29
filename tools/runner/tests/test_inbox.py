@@ -1,4 +1,4 @@
-"""`inbox` (#485): the GitHub half of the secretary's digest, from canned gh output."""
+"""`inbox` (#485): the GitHub half of the director's digest, from canned gh output."""
 
 import io
 import unittest

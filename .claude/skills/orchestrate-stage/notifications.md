@@ -7,7 +7,7 @@ worktree is due for cleanup.
 - When the human is needed (a refused merge, questions, a stop), end your turn with a short summary, the "For you:"
   block, and send a PushNotification. It is suppressed while the human is active in the session, and the desktop app
   only flashes its icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
-- The secretary reads your "For you:" block (AGENT_WORKFLOW §7.2): label alone, numbered, an English copy in wave notes.
+- The director reads your "For you:" block (AGENT_WORKFLOW §7.2): label alone, numbered, an English copy in wave notes.
 - Merged tasks' worktrees: once the task's PR is merged into `main`, run `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) yourself when no live session
   sits in that worktree (no workflow of yours running there; a solo session's worktree is its owner's); a worktree
   whose branch never reached main but whose work did (merged into a parent) takes `--pushed` or says so. A release branch's

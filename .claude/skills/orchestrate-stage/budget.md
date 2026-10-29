@@ -35,7 +35,8 @@ proposal of [comment 6473700454](https://github.com/xperiaroco2/prime-game/issue
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
   `main`), **design** (game design with the engineer, AGENT_WORKFLOW §7.3, plan #1095; the private repo
   `D:\prime-game-design`, committed straight to its `main`, and its decisions in `D:\prime-game` through docs PRs). The
-  engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until he says otherwise.
+  engineer's 5% is his own sessions', the director's among them (AGENT_WORKFLOW §7.2, #485, #1364), until he says
+  otherwise.
   The buffer, when the row has one, lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).

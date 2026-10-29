@@ -4,7 +4,7 @@ On 2026-10-09/10 the meta manager ran a guarded command (a branch delete outside
 guard's `ask` became a permission card, and Claude Code held every task notification of that session in its queue
 while the call waited: four finished runs and the keep-alive timer arrived together at 07:29Z, when the engineer
 allowed the call. Nothing outside the session showed it. This command shows it to any other session (a manager at its
-wake, the secretary) or to the engineer.
+wake, the director) or to the engineer.
 
 Read-only. It reads the session transcripts of the track checkouts (the main, -ui, -art and -design ones) and their
 worktrees (metrics.track_checkouts) written in the last RECENT_HOURS, never the caller's own (CLAUDE_CODE_SESSION_ID), and Claude Code's live-session

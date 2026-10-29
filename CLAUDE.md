@@ -82,7 +82,7 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
 3. Docs updated if durable knowledge changed; intervention and credit entries if any.
 4. Engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; others ask once: "Publish now?". Then
    `publish`, the PR, the handoff comment.
-5. Merges: the engineer's manager (`merge <pr> --base main`, the trust ADR's gate, task PRs included); gate exceptions, the designer's PRs and solo sessions without his word go
+5. Merges: the engineer's manager, or his director on his word (AGENT_WORKFLOW §7.2) (`merge <pr> --base main`, the trust ADR's gate, task PRs included); gate exceptions, the designer's PRs and solo sessions without his word go
    to the engineer. A child left on a merged parent: `gh pr edit <n> --base <its base>` (AGENT_WORKFLOW §8.5).
 
 ## Stop and ask before

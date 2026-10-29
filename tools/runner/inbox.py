@@ -1,6 +1,6 @@
-"""`inbox [--since T] [--repo OWNER/NAME ...]`: the GitHub half of the secretary's digest (#485), read-only.
+"""`inbox [--since T] [--repo OWNER/NAME ...]`: the GitHub half of the director's digest (#485, #1364), read-only.
 
-The secretary session (.claude/skills/secretary/SKILL.md, docs/AGENT_WORKFLOW.md §7.2) runs it once a digest and
+The director session (.claude/skills/director/SKILL.md, docs/AGENT_WORKFLOW.md §7.2) runs it once a digest and
 reads the sessions' half itself. Per repo (default REPOS: the game's, the UI's, the art's and the design's, #1124),
 two gh calls:
 - `gh pr list --state open` with bodies and files: each open PR's "Needs the engineer" items without "Answered: <GitHub
