@@ -218,6 +218,11 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		if covered > 0:
 			_refuse(ctx, player, motion)
 		return
+	if claim.moving or claim.jumps > motion.jumps:
+		# Any own move ends the seated pose (#1296; GDD §12: "any move gets you up"): the claim's
+		# moving input or a new jump, also on a claim the checks below refuse, as its client has
+		# stood up already. A push or a carrying floor (no input) leaves the watcher seated.
+		player.posed = false
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick
 	if covered > motion.credit:

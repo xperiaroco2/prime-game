@@ -45,6 +45,11 @@ const INTERACT := &"Interact"
 ## #1218): keys 1, 2 and 3, and the mouse wheel stepping through the three. The host checks the
 ## place (PlaceInRange, PlaceChanges); a two-handed hand item is put down at the feet first.
 const DRAW := &"Draw"
+## A living player takes the seated pose where it stands (#1296; GDD §12 "The camera wall": the
+## watcher sits in the chair): PlayerState.posed, which every peer sees on the avatar. The mode's
+## rule decides where it may (a TakePose rule and its conditions); any own move ends it
+## (MovementRule). No argument.
+const POSE := &"Pose"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -66,12 +71,24 @@ const ALL: Array[StringName] = [
 	THROW,
 	INTERACT,
 	DRAW,
+	POSE,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
 ## none of them, not even the host under HOST (Match._accepts, vision revision 1).
 const PLAYER_ACTIONS: Array[StringName] = [
-	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW, INTERACT, DRAW
+	MOVE_CLAIM,
+	PICK_UP,
+	PUT_DOWN,
+	USE,
+	RAISE,
+	STOP_RAISE,
+	GIVE_UP,
+	SWAP,
+	THROW,
+	INTERACT,
+	DRAW,
+	POSE
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -137,6 +154,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	THROW: {"facing": TYPE_VECTOR3},
 	INTERACT: {"station": TYPE_INT, "item": TYPE_INT},
 	DRAW: {"place": TYPE_INT},
+	POSE: {},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},

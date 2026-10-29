@@ -135,6 +135,7 @@ static func knock_down(ctx: MatchContext, peer: int, launch := Vector3.ZERO) -> 
 	downed.sprinting = false
 	downed.crouched = false
 	downed.sneaking = false
+	downed.posed = false
 	downed.epoch += 1
 	if moves:
 		# The body starts at the last accepted position with the launch (§4, step 2): the
@@ -357,6 +358,7 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	back.sprinting = false
 	back.crouched = false
 	back.sneaking = false
+	back.posed = false
 	back.sprint_held = false
 	back.moving = false
 	back.position = at
