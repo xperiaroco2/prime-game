@@ -90,6 +90,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Draw": From.LIVING,
 		&"Throw": From.LIVING,
 		&"Interact": From.LIVING,
+		&"Pose": From.LIVING,
 		&"GiveUp": From.DOWNED,
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
@@ -99,8 +100,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 ## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
 ## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
 ## Interact (#796) left it when the Generator (G5, #800) gave Round its row.
-## Pose (#1296) waits here for the camera wall's chair, whose rule gives it a location.
-const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Pose"]
+## Pose (#1296) left it when the camera wall's chair (#1383) gave Round its row.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
@@ -211,6 +212,10 @@ static func _rule(
 			answer_now = NOTHING_TO_SWAP if empty else &"?"
 		Intents.DRAW:
 			answer_now = _draw(args.get("place", -1), player)
+		Intents.POSE:
+			# The levels the chaos runs play (ScenarioLevels.of: the greybox) hold no chair marker of
+			# the base mode's Pose row (chaos_test pins it), so no sender stands at one.
+			answer_now = OUT_OF_REACH
 		Intents.STOP_RAISE:
 			answer_now = NOT_CHANNELING
 		Intents.RAISE:
