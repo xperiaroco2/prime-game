@@ -238,7 +238,7 @@ func test_take_pose_emits_nothing() -> void:
 
 func test_a_pose_away_from_every_seat_is_out_of_reach() -> void:
 	var game := _posing_round([P1, P2])
-	# The seats stand beside the placement spots; 3 m east of P1's own is outside every one.
+	# The seats stand beside the placement spots; 3 m north of P1's own is outside every one.
 	FixtureItemModes.stand(game, P1, game.state.player(P1).position + Vector3(0, 0, 3))
 	FixtureMoves.pose(game, P1)
 	FixtureModes.run_ticks(game, 1)

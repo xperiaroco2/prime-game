@@ -104,6 +104,19 @@ func test_a_kill_sends_posed_false() -> void:
 	assert_bool(FixtureMoves.statuses(game, P1).back().posed).is_false()
 
 
+func test_a_kill_of_a_posed_player_at_zero_health_still_sends_posed_false() -> void:
+	# kill() touches the feed only when it changes the health; here the health is 0 already (a
+	# match with no player rules), so only _to_dead's touch tells the client it stands up.
+	var game := _posing_round([P1, P2])
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.player(P1).health = 0
+	LifeRules.kill(FixtureMoves.context(game), P1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_false()
+	assert_bool(FixtureMoves.statuses(game, P1).back().posed).is_false()
+
+
 func test_a_placement_sends_posed_false() -> void:
 	var game := _posing_round([P1, P2])
 	FixtureMoves.pose(game, P1)
