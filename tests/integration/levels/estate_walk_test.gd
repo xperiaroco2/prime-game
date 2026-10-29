@@ -185,7 +185,7 @@ func test_each_round_spawn_walks_to_the_bonfire_where_every_walk_starts() -> voi
 	for node in map.find_children("*", "Marker3D", true, false):
 		if not node.is_in_group(&"spawn_round_player"):
 			continue
-		var at := (node.get_parent() as Node3D).transform * (node as Node3D).position
+		var at := LevelWorld.transform_in_scene(node as Node3D, map).origin
 		_walk("from %s" % node.name, [at, _from_bonfire(at)], 0.0)
 		spawns += 1
 	assert_int(spawns).is_greater(0)
