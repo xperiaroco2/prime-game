@@ -4,8 +4,9 @@ extends RefCounted
 ## (#1388; a part's unit test never loads `content/`, ARCHITECTURE §9.6): FixtureItemModes' item
 ## kinds (`package` two-handed, `tool` one-handed with a Use that notes "tool used") and its
 ## PickUp, PutDown, Swap and Draw; the mode's Use with an empty hand starts a FixtureChannel of
-## 1 s; an Interact on a placed station notes "interacted"; Lobby and Countdown accept Interact, PickUp, PutDown, Swap, Draw and Use from the living
-## and run ChannelTicks. No Throw, no Pose. The `countdown_done` row runs no action.
+## 1 s; an Interact on a placed station notes "interacted". Lobby and Countdown accept Interact,
+## PickUp, PutDown, Swap, Draw and Use from the living and run ChannelTicks. No Throw, no Pose.
+## The `countdown_done` row runs no action (clearing(): ClearItems).
 
 const P1 := 1
 const P2 := 2
@@ -65,3 +66,16 @@ static func give(game: Match, peer: int, kind_id: StringName) -> ItemState:
 	var item := FixtureItemModes.lay(game, kind_id, at)
 	FixtureItemModes.pick_up(game, peer, item)
 	return item
+
+
+## `made` with ClearItems as the `countdown_done` row's action, as the base mode has it.
+static func clearing(made: GameMode) -> GameMode:
+	for row: Transition in made.transitions:
+		if row.from == &"countdown" and row.outcome == CountdownPhase.COUNTDOWN_DONE:
+			row.actions.append(ClearItems.new())
+	return made
+
+
+## The countdown's ticks through its end tick (entry + 100): loading.
+static func through_countdown(game: Match) -> void:
+	FixtureModes.run_ticks(game, 101)
