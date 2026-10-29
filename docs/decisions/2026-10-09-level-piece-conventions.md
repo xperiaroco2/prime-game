@@ -48,6 +48,12 @@ A design doc's plan maps straight onto Godot: plan x is X, plan y is Z, a level 
 north-west floor corner, so the map places each room at the doc's (x, level height, y), with no rotation. Moving a room
 in the doc and in the map is the same number.
 
+**Amendment 2026-10-29 (#1375): a lot is placed by its centre.** A map whose design doc gives a lot's centre
+(`docs/design/estate-map.md` §3) places that piece by its centre, not its north-west corner: the piece's origin is its
+module's centre, at the doc's numbers. Every other room keeps the north-west corner. PR #1370's estate (`levels/estate/`)
+is the first such map. This records what `levels/CLAUDE.md` and that PR already do; no other rule here changes.
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/1039#issuecomment-6495878671
+
 ### A room declares itself
 - Its size on its root: `metadata/size_m = Vector2i(<width>, <depth>)` in whole metres.
 - Its door openings: `Marker3D` children of a `Doors` node, one per opening, at the opening's centre on the floor.
