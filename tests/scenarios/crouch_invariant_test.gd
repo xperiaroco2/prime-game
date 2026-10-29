@@ -55,14 +55,14 @@ func test_a_sneaking_living_player_passes_and_a_downed_or_crouched_one_is_caught
 	assert_str(ScenarioInvariants.sneak_problem(game, P2, _avatar(game, P2))).contains("not alive")
 
 
-func test_a_posed_still_player_passes_and_a_moving_or_downed_one_is_caught() -> void:
+func test_a_posed_living_player_passes_and_a_downed_one_is_caught() -> void:
 	# The seated pose (#1296): ScenarioInvariants.pose_problem, beside the sneak's.
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	game.state.player(P2).posed = true
 	assert_bool(_avatar(game, P2)["posed"] as bool).is_true()
 	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).is_empty()
+	# Sitting down out of a walk: the claim twin (still moving) is accepted, then the Pose.
 	game.state.player(P2).moving = true
-	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains("moving")
-	game.state.player(P2).moving = false
+	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).is_empty()
 	game.state.player(P2).life = PlayerState.Life.DOWNED
 	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains("not alive")

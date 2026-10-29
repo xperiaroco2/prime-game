@@ -35,7 +35,7 @@ extends RefCounted
 ##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
 ##   plays in every phase and on every map. The sneak alike (#990): no snapshot shows an avatar
 ##   sneaking unless its player is alive and not crouched (sneak_problem); none posed unless its
-##   player is alive and its last accepted claim did not move it (pose_problem, #1296).
+##   player is alive (pose_problem, #1296).
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -440,15 +440,17 @@ static func sneak_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 
 
 ## Why the snapshot avatar `avatar` of `peer` breaks the seated pose's invariant (#1296), or ""
-## when it does not: it shows `posed` though the player is not alive, or though its last accepted
-## claim moved it by its own input (any own move ends the pose). Read from the player's state,
-## written apart from MovementRule, like crouch_problem.
+## when it does not: it shows `posed` though the player is not alive. Read from the player's state,
+## written apart from MovementRule, like crouch_problem. `player.moving` is no sign of a bug: an
+## honest client that sits down out of a walk sends its claim twin first, which repeats its last
+## (moving) claim, so the tick of its Pose shows it posed with `moving` still set (the move-ends
+## rules are take_pose_test's).
 static func pose_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 	if avatar.get("posed") != true:
 		return ""
 	var player := game.state.player(peer)
-	if player == null or player.life != PlayerState.Life.ALIVE or player.moving:
-		return "shows peer %d posed, not alive or moving" % peer
+	if player == null or player.life != PlayerState.Life.ALIVE:
+		return "shows peer %d posed, not alive" % peer
 	return ""
 
 
