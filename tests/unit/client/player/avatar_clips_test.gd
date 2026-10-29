@@ -103,6 +103,25 @@ func test_knocked_down_or_dead_is_the_ragdoll_whatever_else() -> void:
 	assert_bool(AvatarClips.all_clips().has(AvatarClips.RAGDOLL)).is_false()
 
 
+func test_posed_is_the_seated_clip_still_whatever_the_drawn_move() -> void:
+	# #1296: no seated clip exists yet, so SEATED is Idle (blocked on art); a posed body is still,
+	# even while the interpolation still draws its last step, and keeps its carry layer.
+	assert_str(String(AvatarClips.SEATED)).is_equal("Idle")
+	for speed: float in [0.0, WALK, SPRINT]:
+		var posed := _moving(speed, PI)
+		posed.posed = true
+		posed.carrying = true
+		var plan := _plan(posed)
+		assert_str(String(plan.base)).is_equal(String(AvatarClips.SEATED))
+		assert_str(String(plan.slot)).is_equal(String(AvatarClips.SEATED))
+		assert_float(plan.rate).is_equal(1.0)
+		assert_bool(plan.carry).is_true()
+		posed.crouched = true
+		assert_str(String(_plan(posed).base)).is_equal("Crouch_Idle")
+		posed.downed = true
+		assert_str(String(_plan(posed).base)).is_equal(String(AvatarClips.RAGDOLL))
+
+
 func test_a_vertical_move_or_a_broken_number_is_idle() -> void:
 	var falling := AvatarClips.State.new()
 	falling.drawn_move = Vector3(0.0, -9.0, 0.0)

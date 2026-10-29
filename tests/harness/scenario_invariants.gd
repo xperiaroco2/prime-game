@@ -34,7 +34,8 @@ extends RefCounted
 ## - The crouch invariant (the crouch ADR, KE1; KE10 as #991 amended it, #790): per tick, no
 ##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
 ##   plays in every phase and on every map. The sneak alike (#990): no snapshot shows an avatar
-##   sneaking unless its player is alive and not crouched (sneak_problem).
+##   sneaking unless its player is alive and not crouched (sneak_problem); none posed unless its
+##   player is alive (pose_problem, #1296).
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -82,6 +83,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"invulnerable",
 	"crouched",
 	"sneaking",
+	"posed",
 	"held_item",
 	"belt_item",
 	"belt_item2",
@@ -227,6 +229,9 @@ func check_tick() -> PackedStringArray:
 			var sneak := sneak_problem(_game, other, avatar)
 			if sneak != "":
 				found.append("peer %d's snapshot %s" % [peer, sneak])
+			var pose := pose_problem(_game, other, avatar)
+			if pose != "":
+				found.append("peer %d's snapshot %s" % [peer, pose])
 		# A phase that sends no snapshot (End, Loading) has none to check.
 		var downed := _life_of(peer) == PlayerState.Life.DOWNED
 		var own := own_avatar_problem(peer, avatars, downed) if not snapshot.is_empty() else ""
@@ -431,6 +436,21 @@ static func sneak_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 	var player := game.state.player(peer)
 	if player == null or player.life != PlayerState.Life.ALIVE or player.crouched:
 		return "shows peer %d sneaking, not alive or crouched" % peer
+	return ""
+
+
+## Why the snapshot avatar `avatar` of `peer` breaks the seated pose's invariant (#1296), or ""
+## when it does not: it shows `posed` though the player is not alive. Read from the player's state,
+## written apart from MovementRule, like crouch_problem. `player.moving` is no sign of a bug: an
+## honest client that sits down out of a walk sends its claim twin first, which repeats its last
+## (moving) claim, so the tick of its Pose shows it posed with `moving` still set (the move-ends
+## rules are take_pose_test's).
+static func pose_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	if avatar.get("posed") != true:
+		return ""
+	var player := game.state.player(peer)
+	if player == null or player.life != PlayerState.Life.ALIVE:
+		return "shows peer %d posed, not alive" % peer
 	return ""
 
 

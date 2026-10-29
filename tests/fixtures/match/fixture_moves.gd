@@ -9,6 +9,8 @@ extends RefCounted
 ## MovementRule.push_reach(), 2.2 m, of the claim's path), and the check adds 0.05 m; sprint
 ## costs 1000 thousandths per tick, regeneration gives 750; a downed player moves nothing (its
 ## claims carry its facing only, KE4).
+##
+## posing(mode): `mode` with a Pose rule (TakePose) and Round accepting it from the living (#1296).
 
 
 ## A match of the fixture mode on `world` (FixtureTerrainWorld when null) whose `peers` joined,
@@ -101,3 +103,17 @@ static func statuses(game: Match, peer: int) -> Array[SelfStatusEvent]:
 	for event: MatchEvent in game.view_of(peer).events_named(&"SelfStatus"):
 		found.append(event as SelfStatusEvent)
 	return found
+
+
+## `mode` with a Pose rule (TakePose, no condition) appended to its actions and Round accepting
+## Pose from the living only (#1296): the fixture's rule, as no shipped mode has one yet (the
+## camera wall's chair gives it its location condition).
+static func posing(mode: GameMode) -> GameMode:
+	mode.actions.append(FixtureModes.rule(Intents.POSE, [], [TakePose.new()]))
+	mode.find_phase(&"round").accepts.append(AcceptSpec.of(Intents.POSE, AcceptSpec.From.LIVING))
+	return mode
+
+
+## `peer` sends the Pose intent, applied on the next host tick.
+static func pose(game: Match, peer: int, seq: int = 0) -> void:
+	FixtureModes.send(game, Intents.POSE, peer, {}, seq)

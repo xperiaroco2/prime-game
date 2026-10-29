@@ -168,6 +168,7 @@ static func _avatar() -> Dictionary:
 		"invulnerable": false,
 		"crouched": false,
 		"sneaking": false,
+		"posed": false,
 		"held_item": -1,
 		"belt_item": -1,
 		"belt_item2": -1,

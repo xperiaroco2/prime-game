@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The crouch invariant (ScenarioInvariants.crouch_problem, the crouch ADR, KE1, #790; KE10 as #991
 ## amended it) over snapshots of a fixture match whose state is set by hand: a crouched living
 ## player passes in the round and in the lobby (the crouch plays everywhere, the engineer's change
-## on #989); a crouched downed player is caught.
+## on #989); a crouched downed player is caught. The sneak and the seated pose (#1296) alike.
 
 const P1 := 1
 const P2 := 2
@@ -53,3 +53,16 @@ func test_a_sneaking_living_player_passes_and_a_downed_or_crouched_one_is_caught
 	game.state.player(P2).crouched = false
 	game.state.player(P2).life = PlayerState.Life.DOWNED
 	assert_str(ScenarioInvariants.sneak_problem(game, P2, _avatar(game, P2))).contains("not alive")
+
+
+func test_a_posed_living_player_passes_and_a_downed_one_is_caught() -> void:
+	# The seated pose (#1296): ScenarioInvariants.pose_problem, beside the sneak's.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	game.state.player(P2).posed = true
+	assert_bool(_avatar(game, P2)["posed"] as bool).is_true()
+	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).is_empty()
+	# Sitting down out of a walk: the claim twin (still moving) is accepted, then the Pose.
+	game.state.player(P2).moving = true
+	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).is_empty()
+	game.state.player(P2).life = PlayerState.Life.DOWNED
+	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains("not alive")

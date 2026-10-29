@@ -189,6 +189,8 @@ class Checked:
 	var travel := 0.0
 	## The claim gave movement input and moved horizontally: what sprint stamina counts.
 	var moved_itself := false
+	## Another living player was near enough to push this one (the push allowance).
+	var pushed := false
 	var settled: StaminaLedger.Settlement
 
 
@@ -218,6 +220,12 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		if covered > 0:
 			_refuse(ctx, player, motion)
 		return
+	if claim.moving or _moved_in(claim, covered, fresh) or claim.jumps > motion.jumps:
+		# Any own move ends the seated pose (#1296; GDD §12: "any move gets you up"): the claim's
+		# moving input, a moved tick it covers (moved_ticks: the LATEST lane may have merged the
+		# moving claims away) or a new jump, also on a claim the checks below refuse, as its
+		# client has stood up already. A push (no input) leaves the watcher seated.
+		player.posed = false
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick
 	if covered > motion.credit:
@@ -232,6 +240,14 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		_take_look(ctx, player, motion, claim, covered)
 	else:
 		_check_and_accept(ctx, player, motion, claim, covered, fresh)
+
+
+## Whether `claim`'s mask says the player moved itself in a client tick the claim covers
+## (moved_ticks; a covered tick older than the mask takes the oldest bit). A fresh claim's span is
+## unknown (`covered` is 1 there), so its whole mask counts.
+static func _moved_in(claim: Claim, covered: int, fresh: bool) -> bool:
+	var ticks := MASK_TICKS if fresh else mini(covered, MASK_TICKS)
+	return claim.moved_ticks & ((1 << ticks) - 1) != 0
 
 
 ## Runs the movement checks on a living player's claim that passed the tick checks, and accepts
@@ -295,10 +311,10 @@ static func _check(
 		if not StaminaLedger.covers(player, _jumps_cost(rules, checked.new_jumps)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
-	var pushed := (
+	checked.pushed = (
 		player.is_alive() and _near_living_player(ctx.state, player, claim.position, ctx.tick)
 	)
-	var allowed := _allowed_travel(rules, covered, checked.settled, pushed)
+	var allowed := _allowed_travel(rules, covered, checked.settled, checked.pushed)
 	if checked.travel > allowed:
 		return null
 	var jumping := jumped or motion.jumping
@@ -333,6 +349,12 @@ static func _accept(
 			# slack of a rounded bottom on a step's corner, bound the base from below.
 			motion.base_y = maxf(landing.y, claim.position.y - landing_slack(rules))
 	_spend(ctx, player, motion, claim, checked.covered)
+	if checked.travel > MOVE_EPSILON and not checked.pushed:
+		# The host's own measure of a move (#1296): a claim that travels with no input bit and no
+		# one near to push it moved itself all the same (the coasting allowance grants walk speed
+		# whatever `moving` says), so the watcher is not shown seated while it walks. A posing
+		# client holds its body still.
+		player.posed = false
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.on_floor = claim.on_floor

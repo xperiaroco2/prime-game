@@ -9,7 +9,8 @@ extends RefCounted
 ## tools/assets/asset_contract.json, lists each one this table can return).
 ##
 ## Checked in this order:
-## knocked down or a dead body -> RAGDOLL; slower than MIN_SPEED_MPS -> Crouch_Idle or Idle;
+## knocked down or a dead body -> RAGDOLL; posed (#1296) -> SEATED (Crouch_Idle if crouched), still
+## whatever the drawn move; slower than MIN_SPEED_MPS -> Crouch_Idle or Idle;
 ## crouched -> Crouch_Fwd (the only crouched move clip, whatever the heading); in Locomotion's back
 ## family (beyond about 100 degrees off the body's forward, with its dead zone, #1334) -> Jog_Bwd;
 ## more to a side than ahead -> Strafe_Left or Strafe_Right; ahead at most halfway from the walk to
@@ -33,6 +34,9 @@ const STRAFE_RIGHT := &"Strafe_Right"
 const SPRINT_FWD := &"Sprint_Fwd"
 const CROUCH_IDLE := &"Crouch_Idle"
 const CROUCH_FWD := &"Crouch_Fwd"
+## The seated watcher's clip (#1296; GDD §12): Idle until the art set has a seated clip, which no
+## character has yet (blocked on art). Not a decision.
+const SEATED := IDLE
 ## The upper-body layer over the base clip while carrying (the rig filters it to Torso and below).
 const CARRY_UPPER := &"Carry_Upper"
 const PICKUP_ONE := &"Pickup_One"
@@ -62,6 +66,8 @@ class State:
 	var drawn_move := Vector3.ZERO
 	## The body's yaw (the pose's), radians; forward is -Z turned by it.
 	var yaw := 0.0
+	## The public seated pose (#1296).
+	var posed := false
 	## The public crouch bit (#790).
 	var crouched := false
 	## Holding a two-handed item (the package) in the hand.
@@ -96,6 +102,10 @@ static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
 		return out
 	out.carry = state.carrying
 	out.back = state.was_back
+	if state.posed:
+		out.base = CROUCH_IDLE if state.crouched else SEATED
+		out.slot = out.base
+		return out
 	var flat := Vector3(state.drawn_move.x, 0.0, state.drawn_move.z)
 	var speed := flat.length()
 	if not is_finite(speed) or not is_finite(state.yaw) or speed < MIN_SPEED_MPS:

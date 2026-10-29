@@ -70,7 +70,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 ## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
 ## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
 ## Interact (#796) left it when the Generator (G5, #800) gave Round its row.
-const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
+## Pose (#1296) waits here for the camera wall's chair, whose rule gives it a location.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Pose"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
