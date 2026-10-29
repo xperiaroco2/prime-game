@@ -1367,8 +1367,8 @@ round).
   other layers are left out. Only a root CSG node with `use_collision` and a `GridMap` whose used items have shapes
   count as collision. An `AnimatableBody3D` is a `StaticBody3D`: built where the scene puts it, it never moves on the
   host. `HostWorldQuery` (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule
-  radius, `errors`; `add_level`, `use_level`; `scenes` and `release_scenes()`, below) answers as above; with no level (an empty or unknown path) it answers like
-  an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
+  radius, `errors`; `add_level`, `use_level`; `scenes` and `release_scenes()`, below) answers as above; with no level (an empty or unknown path) it
+  answers like an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
   (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1.9's limit that the host does not check walls),
   and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as `core/` does.
   `MarkerReader.read_levels` calls `use_level(path)` before reading each level.

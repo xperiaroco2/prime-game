@@ -4,7 +4,7 @@ extends RefCounted
 ## PackedScene loaded from disk once and held here, so LevelWorld.build (HostWorldQuery.for_mode)
 ## and MarkerReader.read_scene (read_levels) share it. Without a held reference ResourceLoader
 ## frees the scene when the first reader returns and the second reads the file again: about
-## 2 s for the House. HostWorldQuery.for_mode makes one and HostSession.start releases it once
+## 1.6 s of a House start. HostWorldQuery.for_mode makes one and HostSession.start releases it once
 ## the markers are read, so the node-heavy scene is not held for the whole match.
 ##
 ## load_packed() is the one place server/ loads a level scene; `reads` counts its loads per path
