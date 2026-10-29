@@ -82,18 +82,21 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
 3. Docs updated if durable knowledge changed; intervention and credit entries if any.
 4. Engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; others ask once: "Publish now?". Then
    `publish`, the PR, the handoff comment.
-5. Merges: the engineer's manager, or his director on his word (AGENT_WORKFLOW §7.2) (`merge <pr> --base main`, the trust ADR's gate, task PRs included); gate exceptions, the designer's PRs and solo sessions without his word go
+5. Merges: the engineer's manager, or his director (AGENT_WORKFLOW §7.2) (`merge <pr> --base main`, the trust ADR's gate, task PRs included); gate exceptions, the designer's PRs and solo sessions' non-technical PRs without his word go
    to the engineer. A child left on a merged parent: `gh pr edit <n> --base <its base>` (AGENT_WORKFLOW §8.5).
 
 ## Stop and ask before
-- Adding a dependency or addon; changing an architecture boundary; the content area without the engineer's word, or
-  engine code from the designer's session.
+- Adding a dependency or addon; changing an architecture boundary (each an ADR); the content area without the
+  engineer's word, or engine code from the designer's session.
 - Anything destructive to git history or discarding work outside your own worktree and task branch (inside them git
   and deletes are free); anything costing money.
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->
-- What the trust ADR reserves for the humans ("ask and wait": game rules and taste, a milestone's goal, a go/no-go,
-  the items above): one batched question: options, a recommendation.
+- What the trust ADR reserves for the humans ("ask and wait": taste, i.e. art, visuals, game and level design, a
+  milestone's goal, a go/no-go, the items above): one batched question: options, a recommendation. A technical choice
+  (code, engine, netcode, tooling, meta, docs, process) is never asked: take the recommendation, list it in your
+  report.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
+<!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - A new permission ask or deny rule: first "can an agent work alone overnight?" (routine work must not prompt,
   AGENT_WORKFLOW §8.1).
 

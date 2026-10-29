@@ -3,11 +3,12 @@
 - **Status:** Accepted: the engineer's decision on #170 and #300; its wording approved by merging its PR (#300), the
   last PR of the tooling track the engineer merges by hand under the old rule; the launch budget amended 2026-10-05
   (the weekly budget ADR's N1 (b), below); the designer's PRs and the content area amended 2026-10-08 (#518), and
-  the content area's gate the same day (#563, the last section)
+  the content area's gate the same day (#563, its section); the decision tiers amended 2026-10-29 (#1380: only
+  taste questions are asked, every technical choice takes the recommendation; the last section)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
-  the reporting rule of 2026-10-04 ~23:20 UTC, recorded on #300)
+  the reporting rule of 2026-10-04 ~23:20 UTC, recorded on #300; the taste-only tiers of 2026-10-29, recorded on #507)
 - **Amends:** [only humans merge](2026-09-28-humans-merge-prs.md), [a release branch per
   milestone](2026-10-01-release-branch-per-milestone.md), [the orchestrator
   session](2026-09-30-orchestrator-session.md), [pipeline v2](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)
@@ -45,6 +46,7 @@ not large in scale, or can easily be changed later, and what the agent judges be
 - **(c) Ask and wait:** game rules and taste; money and budget above the set budget; how the humans work; model
   policy; milestone goals, the design's D items and go/no-go; new dependencies; anything irreversible or destructive;
   the gate's exceptions.
+  (Amended 2026-10-29, #1380: technical choices moved to (a); see the last amendment.)
 
 **What else changes** (the engineer's answers to the M5 manager, #300):
 - **The manager closes issues and does the housekeeping.** When an issue's work is on `main` and its acceptance
@@ -158,3 +160,22 @@ engineer's approval recorded on GitHub, as for an ADR. The ADR and the permissio
 The stripped HTML hint of the PR template (see the gate's bullet on the exceptions above) now carries the approval line's
 placeholder, not the relay phrase.
 Built in `tools/runner/merge.py` (`CONTENT_PREFIXES`, `CONTENT_FILES`, `exception_reasons`) and `inbox.py`.
+
+## Amendment 2026-10-29: only taste questions are asked (#1380)
+
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155
+
+His word in the director's chat (the link above, quoted and translated there): merge the meta, code and documentation
+questions; he fully trusts the AI with everything technical; ask him only about art, visuals, game and level design,
+the human questions of taste. The decision tiers now read:
+- **(c) Ask and wait** keeps: game rules and taste (art, visuals, game design, level design); milestone goals,
+  go/no-go and the design's D items that are taste; how the humans work (what a human must do, when, where); money
+  and budget above the set budget; new dependencies (each an ADR); anything irreversible or destructive; the gate's
+  exceptions (an ADR added or changed, the permission and safety files, the content area's approval line).
+- **(a) Decide and report** gains every technical choice: code, engine, netcode, tooling, meta, docs, the agents'
+  process, model policy and a technical D item. The recommended option is taken, the PR merges through the gate
+  without asking him, and the report (a wave comment, a handoff, the director's shift report) lists each such choice
+  with the option taken, so he can reverse it.
+- A technical "Needs the engineer" item in a PR is answered with that standing word: its line ends "Answered:
+  https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155 (the recommendation, option <x>)",
+  added with `gh pr edit --body-file`, and the choice goes into the report. A taste item still waits for his answer.
