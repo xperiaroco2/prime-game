@@ -3,16 +3,16 @@
 [ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="1_uk6ec"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_uocob"]
-size = Vector3(0.4, 2.4, 0.4)
+size = Vector3(0.4, 3.2, 0.4)
 
 [sub_resource type="BoxMesh" id="BoxMesh_04o2w"]
 material = ExtResource("1_uk6ec")
-size = Vector3(0.4, 2.4, 0.4)
+size = Vector3(0.4, 3.2, 0.4)
 
 [node name="Gate" type="Node3D" unique_id=27917435]
 
 [node name="Post01" type="StaticBody3D" parent="." unique_id=1312521388]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1.6, 0)
 
 [node name="Shape" type="CollisionShape3D" parent="Post01" unique_id=1242308676]
 shape = SubResource("BoxShape3D_uocob")
@@ -21,7 +21,7 @@ shape = SubResource("BoxShape3D_uocob")
 mesh = SubResource("BoxMesh_04o2w")
 
 [node name="Post02" type="StaticBody3D" parent="." unique_id=829443656]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 1.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 1.6, 0)
 
 [node name="Shape" type="CollisionShape3D" parent="Post02" unique_id=1690209282]
 shape = SubResource("BoxShape3D_uocob")

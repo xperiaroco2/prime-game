@@ -35,7 +35,7 @@ material = ExtResource("3_52pht")
 size = Vector3(0.6, 1.5, 0.6)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_tl20p"]
-size = Vector3(0.2, 2.85, 0.2)
+size = Vector3(0.2, 3.3, 0.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_bj0bn"]
 material = ExtResource("4_jf3tm")
@@ -192,6 +192,7 @@ outline_size = 8
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 1.425, -7.8)
 
 [node name="Shape" type="CollisionShape3D" parent="CameraMarkers/CameraPost01" unique_id=1616558361]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.225, 0)
 shape = SubResource("BoxShape3D_tl20p")
 
 [node name="Mesh" type="MeshInstance3D" parent="CameraMarkers/CameraPost01" unique_id=1221231038]
