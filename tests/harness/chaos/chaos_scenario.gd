@@ -8,7 +8,9 @@ extends RefCounted
 ##   for the end;
 ## - bot 2 takes the package to its circle, waits there until bot 4 is downed (with `until_dead`,
 ##   until it has died) and puts it down: the crew wins (every task done);
-## - bot 3 waits for the end and stays two seconds into End;
+## - bot 3 draws its second place into the hand and then its first (two accepted Draws over the
+##   network, #1377: its empty places, an empty hand), waits for the end and stays two seconds into
+##   End;
 ## - bot 4 is the "hostile but valid" chaos peer's own bot: it gets ready, walks to STAND_AT,
 ##   stands there a second, then **freezes** (the zone task ADR's freeze row, ZE10): for FREEZE_S
 ##   (190 ticks) its client sends no claim while it polls on, and then one claim spends the stored
@@ -145,7 +147,7 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 				_expect(&"KnockedDown", {"peer": HOSTILE}, WAIT_AT_CIRCLE_S),
 			]
 		),
-		_script([StepReady.new(), round_started, ended, stay]),
+		_script([StepReady.new(), round_started, _draw(1), _draw(0), ended, stay]),
 		_script(
 			[StepReady.new(), round_started, to_stand, _wait(SETTLE_S), freeze, walk_away, knocked]
 		),
@@ -181,6 +183,12 @@ static func _wait_for(event: StringName, fields: Dictionary) -> StepWaitFor:
 	var step := StepWaitFor.new()
 	step.event = event
 	step.fields = fields
+	return step
+
+
+static func _draw(place: int) -> StepDraw:
+	var step := StepDraw.new()
+	step.place = place
 	return step
 
 
