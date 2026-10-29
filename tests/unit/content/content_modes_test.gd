@@ -18,6 +18,8 @@ const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const SCENARIOS_DIR := "res://content/scenarios/"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 const HOUSE := "res://levels/house/house.tscn"
+## The estate (#1374): a test bench too, until the engineer puts it in the lobby's picker.
+const ESTATE := "res://levels/estate/estate.tscn"
 
 
 func test_every_mode_in_content_passes_the_mode_check() -> void:
@@ -112,7 +114,9 @@ func test_players_always_play_the_house_and_the_greybox_is_a_test_bench() -> voi
 	# those that play the House's stations one storey at a time (#1197, the engineer's answer on
 	# the issue): the House is no flat level the fake world must describe.
 	var mode := _base_mode()
-	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX])
+	# The estate (#1374) is a bench after the greybox, so the scenarios' default stays the greybox.
+	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX, ESTATE])
+	assert_str(mode.bench_maps[0]).is_equal(GREYBOX)
 	assert_array(Array(mode.player_maps())).contains_exactly([HOUSE])
 	assert_str(mode.default_map()).is_equal(HOUSE)
 	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
