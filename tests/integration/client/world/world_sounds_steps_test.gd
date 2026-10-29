@@ -8,6 +8,7 @@ extends GdUnitTestSuite
 ## fast crouch's speed, by the speed and never the flag.
 
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
+const Fixture := preload("res://tests/integration/client/player/character_fixture.gd")
 const PEER := 2
 const EARS := Vector3(0, 1.5, 0)
 const FRAME_USEC := 16667
@@ -61,6 +62,52 @@ func test_a_walker_steps_from_its_poses_not_its_claimed_velocity() -> void:
 	assert_float((step["position"] as Vector3).y).is_equal_approx(0.0, 0.01)
 	var concrete := _sounds.sfx.stream_for(SfxSet.footstep(FootstepSurface.DEFAULT))
 	assert_object(step["stream"] as AudioStream).is_same(concrete)
+
+
+func test_a_walker_steps_on_its_clip_s_foot_contacts() -> void:
+	# Backing off at 2.5 m/s: AvatarViews plans Jog_Bwd at 2.5 / JOG_MPS; with no character its
+	# cycle is the table's 0.583 s, contacts half a cycle apart: a step every 0.292 s / rate (#1334).
+	var speed := 2.5
+	var start := Vector3(0, 0, -4)
+	var frames: Array[int] = []
+	for i: int in 180:
+		var before := _sounds.steps()
+		var at := start + Vector3.BACK * speed * i / 60.0
+		await _walk(at, Vector3.BACK * speed, Vector3.ZERO, 1)
+		if _sounds.steps() > before:
+			frames.append(i)
+	var plan := _views.plan_of(PEER)
+	assert_str(String(plan.base)).is_equal(String(AvatarClips.JOG_BWD))
+	var gap_s := 0.2915 / plan.rate
+	assert_int(frames.size()).is_greater(3)
+	for i: int in range(2, frames.size()):
+		assert_float((frames[i] - frames[i - 1]) / 60.0).is_equal_approx(gap_s, 2.5 / 60.0)
+
+
+func test_the_local_player_steps_at_its_character_s_clip_length() -> void:
+	# The others' clients time this player's steps by the character's clip (Jog_Bwd 1.0 s in
+	# the fixture, the table's 0.583 s): the own steps keep the same pace, contacts half a cycle
+	# apart at the plan's rate (#1334).
+	_views.character = CharacterSet.from_scene(Fixture.scene(), Fixture.ragdoll())
+	var cycle := _views.character.cycle_of(AvatarClips.JOG_BWD)
+	assert_float(cycle).is_equal_approx(1.0, 0.001)
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.move_input = Vector2(0, -1)
+	var frames: Array[int] = []
+	for i: int in 240:
+		var before := _sounds.steps()
+		await _world.frames(1)
+		if _sounds.steps() > before:
+			frames.append(i)
+	player.move_input = Vector2.ZERO
+	var rate := FixtureModes.player_rules().walk_speed_mps / AvatarClips.JOG_MPS
+	assert_int(frames.size()).is_greater(3)
+	for i: int in range(2, frames.size()):
+		assert_float((frames[i] - frames[i - 1]) / 60.0).is_equal_approx(
+			0.5 * cycle / rate, 2.5 / 60.0
+		)
 
 
 func test_a_claimed_run_standing_still_makes_no_step() -> void:

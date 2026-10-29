@@ -18,6 +18,13 @@ extends RefCounted
 ## quiet_of() of the step's own speed (step_speed_mps), never the crouch flag. A sneaking player's
 ## step is silent (#989, #990): silent_of() reads the sneak flag the pose carries AND the step's own
 ## speed, so a peer that claims the sneak while it walks faster is heard as quiet_of() says.
+##
+## The clip mode (#1334, art #196): given the drawn body's AvatarClips plan and its clip's cycle,
+## a step falls when the clip's phase crosses one of its foot contacts (Locomotion.contacts, the
+## issue's table as fractions of the cycle): the phase runs at the plan's rate over the cycle, and
+## starts at 0 when the plan's slot changes (the rig's Transition starts the new input) and on a
+## placement. A plan whose clip has no contacts, or no cycle, falls back to the speed's interval.
+## Both modes keep step_speed_mps, quiet_of() and silent_of() on the measured speed.
 
 ## Below this horizontal speed a player stands. A placeholder, "not a decision".
 const MIN_SPEED_MPS := 0.5
@@ -51,6 +58,9 @@ var step_speed_mps := 0.0
 
 var _walked_m := 0.0
 var _walked_s := 0.0
+## The clip mode's phase through the clip's cycle, 0 to 1, and the slot it runs in.
+var _phase := 0.0
+var _slot := &""
 
 
 ## The time between two steps at `speed_mps` for a mode that walks at `walk_mps` and sprints at
@@ -92,14 +102,28 @@ static func silent_of(sneaking: bool, speed_mps: float, crouch_speed_mps: float)
 
 ## Whether a step falls in this frame, in which the feet moved `moved` in `delta` seconds; at most
 ## one per frame. A placement starts the cadence again and plays none. A step that falls sets
-## step_speed_mps.
-func advance(moved: Vector3, delta: float, walk_mps: float, sprint_mps: float) -> bool:
+## step_speed_mps. With `plan` (the drawn body's AvatarClips plan) and `clip_cycle_s` (its base
+## clip's length at rate 1), the step falls on the clip's contacts (the clip mode).
+func advance(
+	moved: Vector3,
+	delta: float,
+	walk_mps: float,
+	sprint_mps: float,
+	plan: AvatarClips.Plan = null,
+	clip_cycle_s := 0.0
+) -> bool:
 	if delta <= 0.0:
 		return false
 	var horizontal := Vector2(moved.x, moved.z).length()
 	if horizontal > SnapshotBuffer.SNAP_SPEED_MPS * delta:
 		reset()
 		return false
+	if plan != null and plan.slot != _slot:
+		_slot = plan.slot
+		_phase = 0.0
+	var contacts := Locomotion.contacts(plan.base) if plan != null else PackedFloat32Array()
+	if not contacts.is_empty() and clip_cycle_s > 0.0 and plan.rate > 0.0:
+		return _advance_clip(horizontal, delta, contacts, plan.rate / clip_cycle_s)
 	var interval := interval_s(horizontal / delta, walk_mps, sprint_mps)
 	if is_inf(interval):
 		return false
@@ -109,10 +133,7 @@ func advance(moved: Vector3, delta: float, walk_mps: float, sprint_mps: float) -
 	if progress < 1.0:
 		return false
 	progress = fmod(progress, 1.0)
-	step_speed_mps = _walked_m / _walked_s
-	_walked_m = 0.0
-	_walked_s = 0.0
-	return true
+	return _step()
 
 
 ## Starts the cadence again (a placement, a life change).
@@ -120,3 +141,31 @@ func reset() -> void:
 	progress = START
 	_walked_m = 0.0
 	_walked_s = 0.0
+	_phase = 0.0
+	_slot = &""
+
+
+## The clip mode: the phase runs `cycles_per_s`; a step when it crosses a contact (a fraction of
+## the cycle), at most one a frame. Standing (below MIN_SPEED_MPS) holds the phase.
+func _advance_clip(
+	horizontal: float, delta: float, contacts: PackedFloat32Array, cycles_per_s: float
+) -> bool:
+	if horizontal / delta < MIN_SPEED_MPS:
+		return false
+	_walked_m += horizontal
+	_walked_s += delta
+	var from := _phase
+	var to := from + delta * cycles_per_s
+	_phase = fmod(to, 1.0)
+	for contact: float in contacts:
+		if (from < contact and contact <= to) or (from < contact + 1.0 and contact + 1.0 <= to):
+			return _step()
+	return false
+
+
+## A step fell: its speed is the distance walked since the last over the time spent moving.
+func _step() -> bool:
+	step_speed_mps = _walked_m / _walked_s
+	_walked_m = 0.0
+	_walked_s = 0.0
+	return true

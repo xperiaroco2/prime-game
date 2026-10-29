@@ -75,6 +75,9 @@ var _given_tick := -1
 var _level := -1
 ## Peer -> its body's drawn position last physics frame (the drawn move picks the clip).
 var _drawn_pos: Dictionary[int, Vector3] = {}
+## Each drawn peer's last AvatarClips plan (#1334): its move family's hysteresis, and WorldSounds
+## times the footsteps by it (plan_of).
+var _plans: Dictionary[int, AvatarClips.Plan] = {}
 ## Item -> the peer the last physics frame drew holding it in the hand.
 var _held: Dictionary[int, int] = {}
 ## One-shots waiting for the interpolation delay: [peer, clip, due in clock microseconds].
@@ -158,6 +161,7 @@ func clear() -> void:
 	_ragdolls.clear()
 	_parked.clear()
 	_drawn_pos.clear()
+	_plans.clear()
 	_held.clear()
 	_shots.clear()
 	_drawn_at = -1.0
@@ -200,6 +204,7 @@ func _physics_process(delta: float) -> void:
 			_drop(_bodies[peer])
 			_bodies.erase(peer)
 			_drawn_pos.erase(peer)
+			_plans.erase(peer)
 	_put_away_ragdolls()
 	_drawn_at = buffer.render_tick(now_usec())
 	for key: Variant in model.avatars:
@@ -232,6 +237,8 @@ func _physics_process(delta: float) -> void:
 		# Before set_pose places it: the push search of this frame reads the crouched capsule.
 		body.set_crouched(pose.crouched, ease_s)
 		body.set_sneaking(pose.sneaking)
+		if _is_placement(peer, pose, delta):
+			body.snap_look()
 		body.set_pose(pose)
 		_animate(body, pose, delta)
 	_fire_shots()
@@ -242,25 +249,39 @@ func _physics_process(delta: float) -> void:
 			_held[item] = key as int
 
 
-## Plays on `body`'s character (if any) AvatarClips' plan of what is drawn at `pose`, `delta`
-## seconds after the last frame.
+## `peer`'s last drawn AvatarClips plan (#1334), or null before its body was drawn (or for the
+## own player, never drawn here).
+func plan_of(peer: int) -> AvatarClips.Plan:
+	return _plans.get(peer)
+
+
+## Whether `pose` jumped from `peer`'s last drawn place faster than anyone moves: a placement (a
+## respawn, a snap), no move.
+func _is_placement(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> bool:
+	if not _drawn_pos.has(peer) or delta <= 0.0:
+		return false
+	var moved := pose.position - _drawn_pos[peer]
+	return Vector2(moved.x, moved.z).length() > SnapshotBuffer.SNAP_SPEED_MPS * delta
+
+
+## Plans AvatarClips' clips of what is drawn at `pose`, `delta` seconds after the last frame,
+## against the body's yaw (it lags the aim, #1334), and plays them on `body`'s character (if any).
 func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -> void:
-	if body.character() == null:
-		return
 	var state := AvatarClips.State.new()
 	state.downed = body.is_downed()
-	state.yaw = pose.yaw
+	state.yaw = body.body_yaw
 	state.crouched = pose.crouched
 	state.carrying = _two_handed(model.hand_item(body.peer))
-	if _drawn_pos.has(body.peer) and delta > 0.0:
-		var moved := pose.position - _drawn_pos[body.peer]
-		# Faster than anyone moves is a placement (a respawn, a snap), no move.
-		if Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
-			state.drawn_move = moved / delta
+	var last: AvatarClips.Plan = _plans.get(body.peer)
+	state.was_back = last != null and last.back
+	if _drawn_pos.has(body.peer) and delta > 0.0 and not _is_placement(body.peer, pose, delta):
+		state.drawn_move = (pose.position - _drawn_pos[body.peer]) / delta
 	_drawn_pos[body.peer] = pose.position
 	var walk := rules.walk_speed_mps if rules != null else 0.0
 	var sprint := rules.sprint_speed_mps if rules != null else 0.0
-	body.apply_plan(AvatarClips.plan(state, walk, sprint))
+	var plan := AvatarClips.plan(state, walk, sprint)
+	_plans[body.peer] = plan
+	body.apply_plan(plan)
 
 
 ## Queues `peer`'s one-shot `shot` for `item` (two-handed or not) to play after the interpolation
@@ -308,7 +329,11 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	if ragdoll == null:
 		ragdoll = RagdollView.new()
 		ragdoll.setup(rules, peer, colour, character)
-		ragdoll.start(pose.position, pose.yaw, velocity)
+		# Turned as the living character was drawn (its body lags the aim), not by the aim.
+		var body: RemotePlayerBody = _bodies.get(peer)
+		ragdoll.start(
+			pose.position, body.drawn_yaw(pose.yaw) if body != null else pose.yaw, velocity
+		)
 		ragdoll.add_to_group(SightHider.GROUP)
 		_ragdolls[peer] = ragdoll
 		add_child(ragdoll)

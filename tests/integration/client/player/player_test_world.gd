@@ -8,6 +8,10 @@ const REMOTE_SCENE := preload("res://client/player/remote_player_body.tscn")
 
 ## The fixture mode's movement numbers (FixtureModes.player_rules), the client's PlayerRules.
 var rules := FixtureModes.player_rules()
+## The added players' PlayerTuning.accel_seconds (on a copy of the shipped tuning): 0, so a suite's
+## speeds and places are the mode's from the first step; the ramp itself (#1334):
+## player_controller_locomotion_test.gd, and the network suites keep the shipped one.
+var accel_seconds := 0.0
 
 
 func _ready() -> void:
@@ -18,6 +22,8 @@ func add_player(at: Vector3) -> PlayerController:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.reads_device_input = false
 	player.rules = rules
+	player.tuning = player.tuning.duplicate() as PlayerTuning
+	player.tuning.accel_seconds = accel_seconds
 	player.position = at
 	add_child(player)
 	return player
@@ -28,6 +34,8 @@ func add_downed(at: Vector3) -> PlayerController:
 	player.reads_device_input = false
 	player.rules = rules
 	player.life = ClientModel.Life.DOWNED
+	player.tuning = player.tuning.duplicate() as PlayerTuning
+	player.tuning.accel_seconds = accel_seconds
 	player.position = at
 	add_child(player)
 	return player

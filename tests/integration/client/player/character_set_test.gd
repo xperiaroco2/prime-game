@@ -83,3 +83,11 @@ func test_the_shipped_ragdoll_file() -> void:
 			joints += 1
 	assert_int((data["bones"] as Array).size()).is_equal(16)
 	assert_int(joints).is_equal(15)
+
+
+func test_the_eight_way_points_are_optional_clips() -> void:
+	# The art MVP set (no diagonals) and the alien set (with them) are both characters (#1334).
+	var bare := CharacterSet.from_scene(Fixture.scene(AvatarClips.all_clips()), Fixture.ragdoll())
+	assert_object(bare).is_not_null()
+	var full := CharacterSet.from_scene(Fixture.scene(Fixture.eight_way_clips()), Fixture.ragdoll())
+	assert_object(full).is_not_null()

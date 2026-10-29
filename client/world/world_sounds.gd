@@ -98,6 +98,10 @@ var _steps := 0
 ## under 0 (no peer is 0).
 var _feet: Dictionary[int, Vector3] = {}
 var _cadences: Dictionary[int, FootstepCadence] = {}
+## The own player's body yaw (it lags the aim, RemotePlayerBody.BODY_DEAD_ZONE) and last plan: its
+## steps fall on the clip contacts as others hear a remote body's (#1334).
+var _own_body_yaw := NAN
+var _own_plan: AvatarClips.Plan = null
 ## The throw's placeholder (throw_blip()), made once.
 var _throw_blip: AudioStreamWAV = null
 ## The photo sounds' placeholders (photo_blip()), each made once, by sound id.
@@ -361,6 +365,9 @@ func _physics_process(delta: float) -> void:
 		if not walking.has(gone):
 			_feet.erase(gone)
 			_cadences.erase(gone)
+			if gone == 0:
+				_own_body_yaw = NAN
+				_own_plan = null
 	if walking.is_empty():
 		return
 	var heard_from: Variant = _heard_from()
@@ -373,8 +380,9 @@ func _physics_process(delta: float) -> void:
 		var rules := _rules_of(peer)
 		if rules == null:
 			continue
+		var plan := _plan_of(peer, moved, delta, rules)
 		var due := _cadences[peer].advance(
-			moved, delta, rules.walk_speed_mps, rules.sprint_speed_mps
+			moved, delta, rules.walk_speed_mps, rules.sprint_speed_mps, plan, _cycle_of(peer, plan)
 		)
 		if not due or not heard_from is Vector3:
 			continue
@@ -385,6 +393,39 @@ func _physics_process(delta: float) -> void:
 			step_speed, rules.crouch_speed_mps, rules.crouch_fast_speed_mps
 		)
 		_step(at, heard_from as Vector3, peer != 0, quiet)
+
+
+## `peer`'s AvatarClips plan now (0: the own player, planned here from its feet's move `moved` in
+## `delta` against its body yaw; a remote peer's is AvatarViews', drawn this frame before), or null.
+func _plan_of(peer: int, moved: Vector3, delta: float, rules: PlayerRules) -> AvatarClips.Plan:
+	if peer != 0:
+		return avatars.plan_of(peer) if avatars != null else null
+	var aim := player.rotation.y
+	if is_nan(_own_body_yaw):
+		_own_body_yaw = aim
+	_own_body_yaw = HeadLook.body_follow(_own_body_yaw, aim, RemotePlayerBody.BODY_DEAD_ZONE)
+	var state := AvatarClips.State.new()
+	state.yaw = _own_body_yaw
+	state.crouched = player.is_crouched()
+	state.was_back = _own_plan != null and _own_plan.back
+	if delta > 0.0 and Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
+		state.drawn_move = moved / delta
+	_own_plan = AvatarClips.plan(state, rules.walk_speed_mps, rules.sprint_speed_mps)
+	return _own_plan
+
+
+## The cycle of `plan`'s base clip in seconds: `peer`'s character's own length when it has one,
+## the own player's the character set's (what the others' clients draw it with, so it hears its
+## steps at their pace), else Locomotion's table; 0 without a plan.
+func _cycle_of(peer: int, plan: AvatarClips.Plan) -> float:
+	if plan == null:
+		return 0.0
+	var body := avatars.body_of(peer) if peer != 0 and avatars != null else null
+	if body != null and body.character() != null:
+		return body.character().cycle_of(plan.base)
+	if peer == 0 and avatars != null and avatars.character != null:
+		return avatars.character.cycle_of(plan.base)
+	return Locomotion.cycle_s(plan.base)
 
 
 ## The movement numbers of `peer`'s steps (0: the own player): the client's own copy of the mode's.

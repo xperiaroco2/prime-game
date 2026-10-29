@@ -133,12 +133,16 @@ func aim(player: PlayerController, point: Vector3) -> void:
 
 
 ## Walks `player` toward `target` on the floor, turning to it every frame; false when it is not
-## within 0.2 m after MAX_WALK_FRAMES frames. It stops giving input once there.
+## within 0.2 m after MAX_WALK_FRAMES frames. It stops giving input once there, or earlier by
+## the coast of the shipped ramp (#1334: PlayerTuning.accel_seconds eases the stop, a coast of
+## the speed times accel_seconds / 2), so the feet still come to rest about 0.2 m short.
 func walk_to(player: PlayerController, target: Vector3) -> bool:
 	for i: int in MAX_WALK_FRAMES:
 		var to := target - player.global_position
 		to.y = 0.0
-		if to.length() < 0.2:
+		var coast := Vector2(player.velocity.x, player.velocity.z).length()
+		coast *= player.tuning.accel_seconds * 0.5
+		if to.length() < 0.2 + coast:
 			player.move_input = Vector2.ZERO
 			return true
 		player.look(angle_difference(player.rotation.y, atan2(-to.x, -to.z)), 0.0)

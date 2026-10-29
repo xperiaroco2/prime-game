@@ -19,8 +19,10 @@ const BONES: Array[StringName] = [
 	&"Wrist.R",
 	&"UpperLeg.L",
 	&"Foot.L",
+	&"Neck",
+	&"Head",
 ]
-const PARENTS: Array[int] = [-1, 0, 1, 2, 3, 4, 5, 6, 2, 8]
+const PARENTS: Array[int] = [-1, 0, 1, 2, 3, 4, 5, 6, 2, 8, 5, 10]
 const OFFSETS: Array[Vector3] = [
 	Vector3.ZERO,
 	Vector3(0.0, 0.9, 0.0),
@@ -32,6 +34,8 @@ const OFFSETS: Array[Vector3] = [
 	Vector3(0.0, 0.5, 0.0),
 	Vector3(-0.1, -0.05, 0.0),
 	Vector3(0.0, -0.8, 0.0),
+	Vector3(0.0, 0.25, 0.0),
+	Vector3(0.0, 0.1, 0.0),
 ]
 const SKELETON_PATH := "Armature/Skeleton3D"
 const CARRY_ARM := 1.0
@@ -42,9 +46,35 @@ const SHOT_S := 0.5
 const ALBEDO := Color(0.8, 0.6, 0.4)
 
 
-## The angle a base clip turns UpperLeg.L to.
+## The angle a base clip (or one of Locomotion's optional points, #1334) turns UpperLeg.L to.
 static func base_angle(clip: StringName) -> float:
-	return 0.1 * (AvatarClips.base_clips().find(clip) + 1)
+	var at := AvatarClips.base_clips().find(clip)
+	if at < 0:
+		at = AvatarClips.base_clips().size() + Locomotion.optional_clips().find(clip)
+	return 0.1 * (at + 1)
+
+
+## Every clip AvatarClips plays plus Locomotion's optional points (the alien set's diagonals).
+static func eight_way_clips() -> Array[StringName]:
+	var out := AvatarClips.all_clips()
+	out.append_array(Locomotion.optional_clips())
+	return out
+
+
+## A plan playing the base `clip` as AvatarClips.plan() would: a move clip in its family's slot at
+## its point's direction.
+static func plan(clip: StringName, rate := 1.0, carry := false) -> AvatarClips.Plan:
+	var out := AvatarClips.Plan.new()
+	out.base = clip
+	out.rate = rate
+	out.carry = carry
+	out.slot = clip
+	for point: Dictionary in Locomotion.POINTS:
+		if point["clip"] == clip:
+			out.slot = point["family"] as StringName
+			out.back = out.slot == Locomotion.BACK
+			out.blend = Locomotion.blend_position(deg_to_rad(point["heading_deg"] as float))
+	return out
 
 
 ## A character scene with `clips` (default: all AvatarClips plays) and `bones` (default: BONES);

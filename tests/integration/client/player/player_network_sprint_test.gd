@@ -63,6 +63,28 @@ func test_letting_go_of_every_key_with_jitter_is_never_corrected() -> void:
 	await _lets_go_at_every_step([true])
 
 
+## #1334: with the shipped PlayerTuning.accel_seconds the drive eases to a stop; letting go of
+## the move keys with Shift still held coasts on ticks the host allows only walk speed for. Six
+## sprints, each one physics frame longer, so the release falls on every step of a claim's three.
+func test_letting_go_of_the_keys_holding_sprint_is_never_corrected() -> void:
+	assert_bool(await _pair.start()).is_true()
+	var player := _pair.client.player()
+	assert_float(player.tuning.accel_seconds).is_greater(0.0)
+	await _walk_away(player)
+	player.sprint_held = true
+	var sprinted := 0
+	for offset: int in 6:
+		player.move_input = Vector2(0.0, 1.0)
+		for i: int in 30 + offset:
+			await _run(player)
+			sprinted += 1 if player.is_sprinting() else 0
+		player.move_input = Vector2.ZERO
+		for i: int in 25:
+			await _run(player)
+	assert_int(sprinted).is_greater(100)
+	await _stop_and_assert_no_correction(player)
+
+
 func test_sprinting_until_stamina_runs_out_is_never_corrected() -> void:
 	await _sprint_until_empty()
 

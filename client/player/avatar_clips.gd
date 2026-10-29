@@ -10,9 +10,12 @@ extends RefCounted
 ##
 ## Checked in this order:
 ## knocked down or a dead body -> RAGDOLL; slower than MIN_SPEED_MPS -> Crouch_Idle or Idle;
-## crouched -> Crouch_Fwd (the only crouched move clip, whatever the heading); within 45 degrees
-## of the body's back -> Jog_Bwd; more to a side than ahead -> Strafe_Left or Strafe_Right; ahead
-## at most halfway from the walk to the sprint speed -> Jog_Fwd, faster -> Sprint_Fwd. A move clip
+## crouched -> Crouch_Fwd (the only crouched move clip, whatever the heading); in Locomotion's back
+## family (beyond about 100 degrees off the body's forward, with its dead zone, #1334) -> Jog_Bwd;
+## more to a side than ahead -> Strafe_Left or Strafe_Right; ahead at most halfway from the walk to
+## the sprint speed -> Jog_Fwd, faster -> Sprint_Fwd. That clip is the plan's `base`, the nearest
+## point of the art MVP set; the rig plays a family's move as a blend of its points at the plan's
+## `blend` (the direction) and switches families by the plan's `slot`. A move clip
 ## plays at the drawn speed over its ground speed at rate 1 (the art's "play at speed /
 ## speed_m_s"), clamped to MIN_RATE..MAX_RATE. Holding a two-handed item adds the Carry_Upper layer
 ## over any of them (carry idle = Idle + Carry_Upper, carry walk = Jog_Fwd + Carry_Upper). Picking
@@ -46,8 +49,6 @@ const CROUCH_MPS := 0.75
 ## The rate clamp: a placeholder, "not a decision" (wide enough for the fast crouch over 0.75 m/s).
 const MIN_RATE := 0.25
 const MAX_RATE := 4.0
-## Within this angle of the body's back the move is backward (else a side wins over ahead).
-const BACK_RAD := PI * 0.25
 
 
 ## What the avatar does, as drawn.
@@ -65,6 +66,8 @@ class State:
 	var crouched := false
 	## Holding a two-handed item (the package) in the hand.
 	var carrying := false
+	## Whether the last plan was in the back family (Plan.back): the family switch's dead zone.
+	var was_back := false
 
 
 ## What to play.
@@ -76,6 +79,13 @@ class Plan:
 	var rate := 1.0
 	## The Carry_Upper layer on.
 	var carry := false
+	## The rig's base input: the clip for Idle, Sprint_Fwd and the crouch's, else the move's family
+	## (Locomotion.FRONT or BACK), blended at `blend`.
+	var slot: StringName = IDLE
+	## The move's direction in the body's frame (Locomotion.blend_position()); zero standing.
+	var blend := Vector2.ZERO
+	## Whether the move is in the back family (feeds the next State.was_back).
+	var back := false
 
 
 ## The plan for `state`, with the mode's walk and sprint speeds (the client's PlayerRules).
@@ -85,26 +95,31 @@ static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
 		out.base = RAGDOLL
 		return out
 	out.carry = state.carrying
+	out.back = state.was_back
 	var flat := Vector3(state.drawn_move.x, 0.0, state.drawn_move.z)
 	var speed := flat.length()
 	if not is_finite(speed) or not is_finite(state.yaw) or speed < MIN_SPEED_MPS:
 		out.base = CROUCH_IDLE if state.crouched else IDLE
+		out.slot = out.base
 		return out
 	if state.crouched:
 		out.base = CROUCH_FWD
+		out.slot = out.base
 		out.rate = _rate(speed, CROUCH_MPS)
 		return out
-	# The move in the body's frame: -Z ahead, +X to its right.
-	var local := Basis(Vector3.UP, state.yaw).inverse() * flat
-	var ahead := -local.z
-	if ahead < -speed * cos(BACK_RAD):
+	var heading := Locomotion.heading_of(flat, state.yaw)
+	out.blend = Locomotion.blend_position(heading)
+	out.back = Locomotion.family_of(heading, state.was_back) == Locomotion.BACK
+	out.slot = Locomotion.BACK if out.back else Locomotion.FRONT
+	if out.back:
 		out.base = JOG_BWD
 		out.rate = _rate(speed, JOG_MPS)
-	elif absf(local.x) > ahead:
-		out.base = STRAFE_RIGHT if local.x > 0.0 else STRAFE_LEFT
+	elif absf(out.blend.x) > out.blend.y:
+		out.base = STRAFE_RIGHT if out.blend.x > 0.0 else STRAFE_LEFT
 		out.rate = _rate(speed, JOG_MPS)
 	elif speed > (walk_mps + sprint_mps) * 0.5:
 		out.base = SPRINT_FWD
+		out.slot = out.base
 		out.rate = _rate(speed, SPRINT_MPS)
 	else:
 		out.base = JOG_FWD
@@ -119,7 +134,8 @@ static func one_shot(shot: Shot, two_handed: bool) -> StringName:
 	return PUTDOWN_PACKAGE if two_handed else PUTDOWN_ONE
 
 
-## The base clips the table can return (RAGDOLL aside).
+## The base clips the table can return (RAGDOLL aside): the art MVP set's, which every character
+## must have (CharacterSet); Locomotion's optional points are never among them.
 static func base_clips() -> Array[StringName]:
 	return [IDLE, JOG_FWD, JOG_BWD, STRAFE_LEFT, STRAFE_RIGHT, SPRINT_FWD, CROUCH_IDLE, CROUCH_FWD]
 

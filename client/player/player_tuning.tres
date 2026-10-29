@@ -8,3 +8,4 @@ push_speed_factor = 0.5
 push_side_bias = 0.1
 push_max_overlap = 0.2
 view_catch_up_seconds = 0.1
+accel_seconds = 0.2

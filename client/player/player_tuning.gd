@@ -22,3 +22,9 @@ extends Resource
 @export_group("View")
 ## Seconds the view takes to catch up with the body after a step-up lifts it at once.
 @export var view_catch_up_seconds: float = 0.0
+
+@export_group("Moving")
+## Seconds the own move takes to reach a new speed and direction, from rest to a run and back to
+## rest alike (#1334, art #196: about 0.2 s). Feel only: it never moves faster than the mode's
+## speeds, which the host checks; 0 is at once.
+@export var accel_seconds: float = 0.0
