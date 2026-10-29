@@ -103,7 +103,7 @@
 [ext_resource type="Script" uid="uid://dihlo2m7dhely" path="res://core/items/place_in_range.gd" id="153_place_in_range"]
 [ext_resource type="Script" uid="uid://c4h8e42diao85" path="res://core/items/place_changes.gd" id="154_place_changes"]
 [ext_resource type="Script" uid="uid://bhwvvhmc81yi8" path="res://core/items/draw_place.gd" id="155_draw_place"]
-[ext_resource type="Script" path="res://core/items/clear_items.gd" id="170_clear_items"]
+[ext_resource type="Script" uid="uid://cny7mcnry3til" path="res://core/items/clear_items.gd" id="170_clear_items"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
