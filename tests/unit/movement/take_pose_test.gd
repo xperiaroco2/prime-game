@@ -200,6 +200,28 @@ func test_a_reset_ends_the_pose() -> void:
 	assert_bool(player.posed).is_false()
 
 
+func test_a_pose_stops_the_posers_raise() -> void:
+	# A player action (RuleRunner's channel stop, §9.2): the raiser who sits down stops raising.
+	var game := FixtureCombatModes.in_round(
+		FixtureMoves.posing(FixtureCombatModes.raising()), [P1, P2, P3]
+	)
+	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
+	FixtureItemModes.stand(game, P2, NORTH)
+	FixtureItemModes.stand(game, P3, Vector3(1.5, 0, 1))
+	FixtureCombatModes.use(game, P1, NORTH)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, P1, NORTH)
+	FixtureCombatModes.raise(game, P3, P2)
+	FixtureModes.run_ticks(game, 1)
+	assert_object(Channels.of_actor(game.state, P3)).is_not_null()
+	var seen := game.view_of(P1).events.size()
+	FixtureMoves.pose(game, P3)
+	FixtureModes.run_ticks(game, 1)
+	assert_object(Channels.of_actor(game.state, P3)).is_null()
+	assert_bool(game.state.player(P3).posed).is_true()
+	assert_array(FixtureItemModes.names_after(game, P1, seen)).is_equal([&"RaiseStopped"])
+
+
 func test_take_pose_emits_nothing() -> void:
 	# The flag travels in the snapshot only: no event names the poser to anyone.
 	assert_array(TakePose.new().emits()).is_empty()
