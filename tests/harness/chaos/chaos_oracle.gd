@@ -36,6 +36,8 @@ const PICK_UP_REACH_M := 2.0
 ## Round takes Throw from the living (the base mode's Throw rule, 37f, #646): with an empty hand
 ## HoldsItem refuses it as `empty_hand` before OverFloor's `no_floor` is asked; the hostile's own
 ## bot never holds an item, so a hostile Throw is never thrown.
+## Lobby and Countdown take the hand, the belt and Interact from the living as Round does (#1388),
+## with the same refusals (no item or station is in the hall yet); not Throw, Raise or Pose.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -44,8 +46,25 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"SetReady": From.PLAYER,
 		&"ChangeSettings": From.HOST,
 		&"SetProfile": From.PLAYER,
+		&"Interact": From.LIVING,
+		&"PickUp": From.LIVING,
+		&"PutDown": From.LIVING,
+		&"Use": From.LIVING,
+		&"Swap": From.LIVING,
+		&"Draw": From.LIVING,
 	},
-	&"countdown": {&"Hello": From.NEWCOMER, &"MoveClaim": From.LIVING, &"SetReady": From.PLAYER},
+	&"countdown":
+	{
+		&"Hello": From.NEWCOMER,
+		&"MoveClaim": From.LIVING,
+		&"SetReady": From.PLAYER,
+		&"Interact": From.LIVING,
+		&"PickUp": From.LIVING,
+		&"PutDown": From.LIVING,
+		&"Use": From.LIVING,
+		&"Swap": From.LIVING,
+		&"Draw": From.LIVING,
+	},
 	&"loading": {&"LoadAck": From.PLAYER},
 	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
 	&"pregame": {},

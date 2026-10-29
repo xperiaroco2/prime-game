@@ -25,14 +25,14 @@ func test_replayed_and_out_of_order_seqs_each_get_their_own_rejected() -> void:
 	var chaos := _player()
 	var seqs: Array[int] = [SEQ, SEQ, SEQ - 1, SEQ, 3]
 	for seq: int in seqs:
-		var put_down := WireMessage.new(&"PutDown", {"facing": Vector3.FORWARD}, seq)
-		assert_int(chaos.send(put_down)).is_equal(OK)
+		var throw := WireMessage.new(&"Throw", {"facing": Vector3.FORWARD}, seq)
+		assert_int(chaos.send(throw)).is_equal(OK)
 	_h.pump_frames(4)
 	var rejected := chaos.named(&"Rejected")
 	var echoed: Array[int] = []
 	for message: WireMessage in rejected:
 		echoed.append(message.fields["seq"] as int)
-		# The lobby takes no PutDown (§3.2): the same answer for every copy.
+		# The lobby takes no Throw (§3.2, #1388): the same answer for every copy.
 		assert_str(str(message.fields["reason"])).is_equal("not_accepted")
 	assert_array(echoed).is_equal(seqs)
 	assert_int(_h.own.view.events_named(&"Rejected").size()).is_equal(0)

@@ -103,6 +103,7 @@
 [ext_resource type="Script" uid="uid://dihlo2m7dhely" path="res://core/items/place_in_range.gd" id="153_place_in_range"]
 [ext_resource type="Script" uid="uid://c4h8e42diao85" path="res://core/items/place_changes.gd" id="154_place_changes"]
 [ext_resource type="Script" uid="uid://bhwvvhmc81yi8" path="res://core/items/draw_place.gd" id="155_draw_place"]
+[ext_resource type="Script" path="res://core/items/clear_items.gd" id="170_clear_items"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -235,6 +236,51 @@ script = ExtResource("6_accept")
 intent = &"SetProfile"
 from = 2
 
+[sub_resource type="Resource" id="Accept_lobby_interact"]
+script = ExtResource("6_accept")
+intent = &"Interact"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_pick_up"]
+script = ExtResource("6_accept")
+intent = &"PickUp"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_put_down"]
+script = ExtResource("6_accept")
+intent = &"PutDown"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_use"]
+script = ExtResource("6_accept")
+intent = &"Use"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_swap"]
+script = ExtResource("6_accept")
+intent = &"Swap"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_draw"]
+script = ExtResource("6_accept")
+intent = &"Draw"
+from = 4
+
+[sub_resource type="Resource" id="Respawn_lobby"]
+script = ExtResource("66_respawn")
+tag = &"lobby_player"
+rng_purpose = &"respawn"
+
+[sub_resource type="Resource" id="LifeTicks_lobby"]
+script = ExtResource("65_life_ticks")
+respawn = SubResource("Respawn_lobby")
+
+[sub_resource type="Resource" id="ChannelTicks_lobby"]
+script = ExtResource("67_channel_ticks")
+
+[sub_resource type="Resource" id="VanishTicks_lobby"]
+script = ExtResource("148_vanish_ticks")
+
 [sub_resource type="Resource" id="Voice_lobby"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -243,7 +289,8 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -263,6 +310,36 @@ script = ExtResource("6_accept")
 intent = &"SetReady"
 from = 2
 
+[sub_resource type="Resource" id="Accept_countdown_interact"]
+script = ExtResource("6_accept")
+intent = &"Interact"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_pick_up"]
+script = ExtResource("6_accept")
+intent = &"PickUp"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_put_down"]
+script = ExtResource("6_accept")
+intent = &"PutDown"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_use"]
+script = ExtResource("6_accept")
+intent = &"Use"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_swap"]
+script = ExtResource("6_accept")
+intent = &"Swap"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_draw"]
+script = ExtResource("6_accept")
+intent = &"Draw"
+from = 4
+
 [sub_resource type="Resource" id="Voice_countdown"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -274,7 +351,8 @@ phase_class = ExtResource("10_countdown")
 settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby")])
 voice_rule = SubResource("Voice_countdown")
 level = 1
 snapshots = true
@@ -563,11 +641,15 @@ from = &"countdown"
 outcome = &"cancelled"
 to = &"lobby"
 
+[sub_resource type="Resource" id="Clear_items"]
+script = ExtResource("170_clear_items")
+
 [sub_resource type="Resource" id="Row_countdown_done"]
 script = ExtResource("7_row")
 from = &"countdown"
 outcome = &"countdown_done"
 to = &"loading"
+actions = Array[ExtResource("14_effect")]([SubResource("Clear_items")])
 
 [sub_resource type="Resource" id="Quota_dissidents"]
 script = ExtResource("59_quota")
