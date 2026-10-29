@@ -1,0 +1,206 @@
+[gd_scene format=3 uid="uid://dbo17efl6cfyk"]
+
+[ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="1_beexo"]
+[ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="2_nhce1"]
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_52pht"]
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="4_jf3tm"]
+[ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="5_ayfcy"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gfocq"]
+size = Vector3(4, 0.5, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_8khtq"]
+material = ExtResource("1_beexo")
+size = Vector3(4, 0.5, 4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_s2sgg"]
+size = Vector3(2, 0.45, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vah86"]
+material = ExtResource("2_nhce1")
+size = Vector3(2, 0.45, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_octx3"]
+size = Vector3(0.6, 0.9, 1.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_uhc08"]
+material = ExtResource("3_52pht")
+size = Vector3(0.6, 0.9, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_khmwe"]
+size = Vector3(0.6, 1.5, 0.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_saysr"]
+material = ExtResource("3_52pht")
+size = Vector3(0.6, 1.5, 0.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tl20p"]
+size = Vector3(0.2, 2.85, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bj0bn"]
+material = ExtResource("4_jf3tm")
+size = Vector3(0.2, 2.85, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_h7ju0"]
+material = ExtResource("5_ayfcy")
+size = Vector3(0.3, 0.25, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_btfmt"]
+material = ExtResource("1_beexo")
+size = Vector3(0.1, 0.1, 0.1)
+
+[node name="Bonfire" type="Node3D" unique_id=151878207]
+
+[node name="FirePit01" type="StaticBody3D" parent="." unique_id=1725571921]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="FirePit01" unique_id=489687251]
+shape = SubResource("BoxShape3D_gfocq")
+
+[node name="Mesh" type="MeshInstance3D" parent="FirePit01" unique_id=1184416066]
+mesh = SubResource("BoxMesh_8khtq")
+
+[node name="Bench01" type="StaticBody3D" parent="." unique_id=1334711725]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 7, 0.225, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench01" unique_id=1665339421]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench01" unique_id=910314371]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench02" type="StaticBody3D" parent="." unique_id=1300421675]
+transform = Transform3D(-0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, -0.70710677, 4.9497476, 0.225, 4.9497476)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench02" unique_id=1068032853]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench02" unique_id=1138212640]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench03" type="StaticBody3D" parent="." unique_id=272473371]
+transform = Transform3D(-0.9238796, 0, -0.38268328, 0, 1, 0, 0.38268328, 0, -0.9238796, 2.678784, 0.225, 6.4671564)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench03" unique_id=1208710807]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench03" unique_id=1855391025]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench04" type="StaticBody3D" parent="." unique_id=1556300479]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -3.2782555e-07, 0.225, 7)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench04" unique_id=1642040535]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench04" unique_id=1880835824]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench05" type="StaticBody3D" parent="." unique_id=728200916]
+transform = Transform3D(-0.70710695, 0, 0.7071066, 0, 1, 0, -0.7071066, 0, -0.70710695, -4.9497476, 0.225, 4.9497476)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench05" unique_id=577294374]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench05" unique_id=42668993]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench06" type="StaticBody3D" parent="." unique_id=1754430115]
+transform = Transform3D(-0.38268372, 0, 0.9238794, 0, 1, 0, -0.9238794, 0, -0.38268372, -6.4671564, 0.225, 2.6787844)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench06" unique_id=585336958]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench06" unique_id=2099626433]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench07" type="StaticBody3D" parent="." unique_id=1745998145]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -7, 0.225, -5.9604645e-07)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench07" unique_id=806921709]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench07" unique_id=415845400]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Bench08" type="StaticBody3D" parent="." unique_id=315230122]
+transform = Transform3D(0.9238796, 0, 0.38268328, 0, 1, 0, -0.38268328, 0, 0.9238796, -2.678785, 0.225, -6.4671564)
+
+[node name="Shape" type="CollisionShape3D" parent="Bench08" unique_id=177104922]
+shape = SubResource("BoxShape3D_s2sgg")
+
+[node name="Mesh" type="MeshInstance3D" parent="Bench08" unique_id=90902452]
+mesh = SubResource("BoxMesh_vah86")
+
+[node name="Name" type="Label3D" parent="." unique_id=1518491453]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+billboard = 1
+text = "Bonfire"
+font_size = 72
+outline_size = 16
+
+[node name="StationMarkers" type="Node3D" parent="." unique_id=1246877080]
+
+[node name="Grill01" type="StaticBody3D" parent="StationMarkers" unique_id=1087725486]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.9, 0.45, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/Grill01" unique_id=380698593]
+shape = SubResource("BoxShape3D_octx3")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/Grill01" unique_id=1992662465]
+mesh = SubResource("BoxMesh_uhc08")
+
+[node name="GrillName01" type="Label3D" parent="StationMarkers" unique_id=1600735563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.9, 1.2, 0)
+billboard = 1
+text = "Grill"
+outline_size = 8
+
+[node name="Loudspeaker01" type="StaticBody3D" parent="StationMarkers" unique_id=535306776]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.75, -2)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/Loudspeaker01" unique_id=1497354905]
+shape = SubResource("BoxShape3D_khmwe")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/Loudspeaker01" unique_id=1897346027]
+mesh = SubResource("BoxMesh_saysr")
+
+[node name="LoudspeakerName01" type="Label3D" parent="StationMarkers" unique_id=1001092812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.8, -2)
+billboard = 1
+text = "Loudspeaker"
+outline_size = 8
+
+[node name="Loudspeaker02" type="StaticBody3D" parent="StationMarkers" unique_id=249079516]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.75, 2)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/Loudspeaker02" unique_id=15406216]
+shape = SubResource("BoxShape3D_khmwe")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/Loudspeaker02" unique_id=1457129942]
+mesh = SubResource("BoxMesh_saysr")
+
+[node name="LoudspeakerName02" type="Label3D" parent="StationMarkers" unique_id=1420233172]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.8, 2)
+billboard = 1
+text = "Loudspeaker"
+outline_size = 8
+
+[node name="CameraMarkers" type="Node3D" parent="." unique_id=2075764133]
+
+[node name="CameraPost01" type="StaticBody3D" parent="CameraMarkers" unique_id=781070688]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 1.425, -7.8)
+
+[node name="Shape" type="CollisionShape3D" parent="CameraMarkers/CameraPost01" unique_id=1616558361]
+shape = SubResource("BoxShape3D_tl20p")
+
+[node name="Mesh" type="MeshInstance3D" parent="CameraMarkers/CameraPost01" unique_id=1221231038]
+mesh = SubResource("BoxMesh_bj0bn")
+
+[node name="Camera01" type="MeshInstance3D" parent="CameraMarkers" unique_id=1119048879]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3, -7.8)
+mesh = SubResource("BoxMesh_h7ju0")
+
+[node name="Lamp01" type="MeshInstance3D" parent="CameraMarkers" unique_id=1367410715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.18, -7.8)
+mesh = SubResource("BoxMesh_btfmt")

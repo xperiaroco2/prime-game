@@ -1,0 +1,282 @@
+[gd_scene format=3 uid="uid://df33jhnu3njqs"]
+
+[ext_resource type="Material" uid="uid://58jl5s3aasga" path="res://levels/kit/greybox_floor_yard.tres" id="1_7jepu"]
+[ext_resource type="Material" uid="uid://ed3wjf1x0byn" path="res://levels/kit/greybox_station_clear.tres" id="2_nkgt0"]
+[ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="3_dpfrh"]
+[ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_1r0nu"]
+[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="5_piveg"]
+[ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="6_hputj"]
+[ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="7_2i6uk"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_2dmxn"]
+material = ExtResource("1_7jepu")
+size = Vector3(10, 0.04, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_uukfc"]
+size = Vector3(10, 3, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_0sy12"]
+material = ExtResource("2_nkgt0")
+size = Vector3(10, 3, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ogj4a"]
+size = Vector3(4.3, 3, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_au61h"]
+material = ExtResource("2_nkgt0")
+size = Vector3(4.3, 3, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bo5bd"]
+size = Vector3(1.3999996, 0.85, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vafri"]
+material = ExtResource("3_dpfrh")
+size = Vector3(1.3999996, 0.85, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5fxka"]
+size = Vector3(6, 3, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vtvik"]
+material = ExtResource("2_nkgt0")
+size = Vector3(6, 3, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_p4lsr"]
+size = Vector3(2.3, 3, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_y02l6"]
+material = ExtResource("2_nkgt0")
+size = Vector3(2.3, 3, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_aiao6"]
+size = Vector3(10, 0.2, 6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_2iga8"]
+material = ExtResource("2_nkgt0")
+size = Vector3(10, 0.2, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5fulo"]
+size = Vector3(1.4, 0.4, 1.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_o3r2c"]
+material = ExtResource("4_1r0nu")
+size = Vector3(1.4, 0.4, 1.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dg5qt"]
+size = Vector3(0.6, 1, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_4yuj3"]
+material = ExtResource("5_piveg")
+size = Vector3(0.6, 1, 0.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_h7ju0"]
+material = ExtResource("6_hputj")
+size = Vector3(0.3, 0.25, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_btfmt"]
+material = ExtResource("7_2i6uk")
+size = Vector3(0.1, 0.1, 0.1)
+
+[node name="Greenhouse" type="Node3D" unique_id=150794519]
+metadata/size_m = Vector2i(10, 6)
+
+[node name="Floor01" type="MeshInstance3D" parent="." unique_id=913632189]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("BoxMesh_2dmxn")
+
+[node name="Glass01" type="StaticBody3D" parent="." unique_id=1801815073]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -2.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass01" unique_id=1329935558]
+shape = SubResource("BoxShape3D_uukfc")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass01" unique_id=352933965]
+mesh = SubResource("BoxMesh_0sy12")
+
+[node name="Doors" type="Node3D" parent="." unique_id=540758627]
+
+[node name="Door01" type="Marker3D" parent="Doors" unique_id=822364459]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2.9)
+
+[node name="Door02" type="Marker3D" parent="Doors" unique_id=1009854848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 0, 0)
+
+[node name="Glass02" type="StaticBody3D" parent="." unique_id=139018111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.85, 1.5, 2.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass02" unique_id=1974385493]
+shape = SubResource("BoxShape3D_ogj4a")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass02" unique_id=274089670]
+mesh = SubResource("BoxMesh_au61h")
+
+[node name="Lintel01" type="StaticBody3D" parent="." unique_id=1541326129]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.575, 2.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Lintel01" unique_id=727579195]
+shape = SubResource("BoxShape3D_bo5bd")
+
+[node name="Mesh" type="MeshInstance3D" parent="Lintel01" unique_id=1976004871]
+mesh = SubResource("BoxMesh_vafri")
+
+[node name="Glass03" type="StaticBody3D" parent="." unique_id=288568295]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.85, 1.5, 2.9)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass03" unique_id=2111271134]
+shape = SubResource("BoxShape3D_ogj4a")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass03" unique_id=253925189]
+mesh = SubResource("BoxMesh_au61h")
+
+[node name="Glass04" type="StaticBody3D" parent="." unique_id=575942587]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -4.9, 1.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass04" unique_id=1903076862]
+shape = SubResource("BoxShape3D_5fxka")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass04" unique_id=1829352580]
+mesh = SubResource("BoxMesh_vtvik")
+
+[node name="Glass05" type="StaticBody3D" parent="." unique_id=623928391]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 4.9, 1.5, -1.85)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass05" unique_id=42140106]
+shape = SubResource("BoxShape3D_p4lsr")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass05" unique_id=1687647093]
+mesh = SubResource("BoxMesh_y02l6")
+
+[node name="Lintel02" type="StaticBody3D" parent="." unique_id=1654555844]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 4.9, 2.575, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Lintel02" unique_id=384441653]
+shape = SubResource("BoxShape3D_bo5bd")
+
+[node name="Mesh" type="MeshInstance3D" parent="Lintel02" unique_id=502701950]
+mesh = SubResource("BoxMesh_vafri")
+
+[node name="Glass06" type="StaticBody3D" parent="." unique_id=140998467]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 4.9, 1.5, 1.85)
+
+[node name="Shape" type="CollisionShape3D" parent="Glass06" unique_id=434719932]
+shape = SubResource("BoxShape3D_p4lsr")
+
+[node name="Mesh" type="MeshInstance3D" parent="Glass06" unique_id=855180348]
+mesh = SubResource("BoxMesh_y02l6")
+
+[node name="Roof01" type="StaticBody3D" parent="." unique_id=17134839]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Roof01" unique_id=987461921]
+shape = SubResource("BoxShape3D_aiao6")
+
+[node name="Mesh" type="MeshInstance3D" parent="Roof01" unique_id=1142407865]
+mesh = SubResource("BoxMesh_2iga8")
+
+[node name="Name" type="Label3D" parent="." unique_id=1601680280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+billboard = 1
+text = "Greenhouse"
+font_size = 72
+outline_size = 16
+
+[node name="StationMarkers" type="Node3D" parent="." unique_id=611319233]
+
+[node name="FlowerBed01" type="StaticBody3D" parent="StationMarkers" unique_id=1700431884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 0.2, -1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/FlowerBed01" unique_id=377312289]
+shape = SubResource("BoxShape3D_5fulo")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/FlowerBed01" unique_id=378625776]
+mesh = SubResource("BoxMesh_o3r2c")
+
+[node name="FlowerBedName01" type="Label3D" parent="StationMarkers" unique_id=1264956711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 0.7, -1.6)
+billboard = 1
+text = "Flower bed"
+outline_size = 8
+
+[node name="FlowerBed02" type="StaticBody3D" parent="StationMarkers" unique_id=1984475240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, 0.2, -1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/FlowerBed02" unique_id=1220910933]
+shape = SubResource("BoxShape3D_5fulo")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/FlowerBed02" unique_id=2040256362]
+mesh = SubResource("BoxMesh_o3r2c")
+
+[node name="FlowerBedName02" type="Label3D" parent="StationMarkers" unique_id=1449001875]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, 0.7, -1.6)
+billboard = 1
+text = "Flower bed"
+outline_size = 8
+
+[node name="FlowerBed03" type="StaticBody3D" parent="StationMarkers" unique_id=1334010118]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/FlowerBed03" unique_id=1857288248]
+shape = SubResource("BoxShape3D_5fulo")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/FlowerBed03" unique_id=948725047]
+mesh = SubResource("BoxMesh_o3r2c")
+
+[node name="FlowerBedName03" type="Label3D" parent="StationMarkers" unique_id=1360677378]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, -1.6)
+billboard = 1
+text = "Flower bed"
+outline_size = 8
+
+[node name="FlowerBed04" type="StaticBody3D" parent="StationMarkers" unique_id=896960138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 0.2, -1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/FlowerBed04" unique_id=1715242284]
+shape = SubResource("BoxShape3D_5fulo")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/FlowerBed04" unique_id=946374408]
+mesh = SubResource("BoxMesh_o3r2c")
+
+[node name="FlowerBedName04" type="Label3D" parent="StationMarkers" unique_id=877748280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 0.7, -1.6)
+billboard = 1
+text = "Flower bed"
+outline_size = 8
+
+[node name="FlowerBed05" type="StaticBody3D" parent="StationMarkers" unique_id=744783133]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.2, -1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/FlowerBed05" unique_id=1772993281]
+shape = SubResource("BoxShape3D_5fulo")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/FlowerBed05" unique_id=1569986079]
+mesh = SubResource("BoxMesh_o3r2c")
+
+[node name="FlowerBedName05" type="Label3D" parent="StationMarkers" unique_id=211047275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.7, -1.6)
+billboard = 1
+text = "Flower bed"
+outline_size = 8
+
+[node name="WateringCans01" type="StaticBody3D" parent="StationMarkers" unique_id=1418008725]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 0.5, 1.6)
+
+[node name="Shape" type="CollisionShape3D" parent="StationMarkers/WateringCans01" unique_id=770281600]
+shape = SubResource("BoxShape3D_dg5qt")
+
+[node name="Mesh" type="MeshInstance3D" parent="StationMarkers/WateringCans01" unique_id=1076016945]
+mesh = SubResource("BoxMesh_4yuj3")
+
+[node name="WateringCansName01" type="Label3D" parent="StationMarkers" unique_id=302994489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 1.3, 1.6)
+billboard = 1
+text = "Watering cans"
+outline_size = 8
+
+[node name="CameraMarkers" type="Node3D" parent="." unique_id=534286005]
+
+[node name="Camera01" type="MeshInstance3D" parent="CameraMarkers" unique_id=2085908526]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.6, -2.5)
+mesh = SubResource("BoxMesh_h7ju0")
+
+[node name="Lamp01" type="MeshInstance3D" parent="CameraMarkers" unique_id=1030255928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.78, -2.5)
+mesh = SubResource("BoxMesh_btfmt")
