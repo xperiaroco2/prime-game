@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 
 const LEVEL := "res://tests/fixtures/levels/wall_ledge_crate.tscn"
 const ROOM := "res://tests/fixtures/levels/platform_room.tscn"
+const MISSING := "res://tests/fixtures/levels/no_such_level.tscn"
 ## The fixture mode's capsule radius (FixtureModes.player_rules).
 const RADIUS := 0.4
 const NEAR := Vector3(1e-3, 1e-3, 1e-3)
@@ -190,6 +191,19 @@ func test_for_mode_and_read_levels_read_each_level_once_with_the_same_layouts() 
 	assert_array(levels.layouts.keys()).is_equal(old.layouts.keys())
 	for path: String in old.layouts:
 		assert_dict(levels.layouts[path].to_dict()).is_equal(old.layouts[path].to_dict())
+
+
+func test_read_levels_reports_a_missing_level_through_a_world_that_holds_scenes() -> void:
+	var mode := FixtureModes.basic()
+	mode.lobby_level = ROOM
+	mode.maps = PackedStringArray([MISSING])
+	var query := HostWorldQuery.for_mode(mode)
+	var room := _reads(ROOM)
+	var levels := MarkerReader.read_levels(mode, query)
+	assert_int(levels.errors.size()).is_equal(1)
+	assert_str(levels.errors[0]).is_equal("%s: not a scene" % MISSING)
+	assert_bool(LevelScenes.reads.has(MISSING)).is_false()
+	assert_int(_reads(ROOM) - room).is_equal(0)
 
 
 func test_release_scenes_drops_the_held_scenes_and_the_worlds_still_answer() -> void:
