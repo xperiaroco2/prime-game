@@ -116,8 +116,10 @@ until the follow-up's PR merges and a human closes both). The whole texts are in
 says where; a `result` line has the `key` of its agent's `started` line): read it only when a field you act on points
 there. `handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it
 into `main` when the gate in §5 holds, and tell the human what you merged and in which
-order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
-what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
+order, one line per merge into `main`; explain each taste "Needs the engineer" item in plain words: a concrete
+scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". A technical item
+takes your recommendation with the standing word's "Answered:" line (the trust ADR's amendment of 2026-10-29,
+`docs/MANAGERS.md` §3) and goes into the wave comment. End every message to the
 human with one short "For you:" block in their language, numbered, listing only what needs them now (a merge the gate
 refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy every `human_steps` command
 into the chat itself, never only a pointer ("it is in PR #235's body"; fetch what a step only points to): one fenced

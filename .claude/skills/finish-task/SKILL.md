@@ -79,9 +79,11 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    the PR link. Then `tools\run.cmd board move <n> in-review`.
 8. **Tell the human** the PR link and that CI runs on it. A stage's task PR is merged by its manager
    session through the gate ([ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). A workflow agent (`issue-task`,
-   `pr-rebase`) stops after telling: its manager merges. A PR into `main` from an interactive solo session: in the
-   engineer's session ask once, "merge it yourself, or shall I merge it through the gate?", and only on the engineer's
-   word for this PR (or this session) run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr> --base main
+   `pr-rebase`) stops after telling: its manager merges. A PR into `main` from an interactive solo session: a session
+   the director started tells the director, which merges a technical one (a taste one waits for his word). In the
+   engineer's own session, a technical PR (no gate exception, no open taste item) needs no question (the trust ADR's amendment of 2026-10-29); otherwise ask once,
+   "merge it yourself, or shall I merge it through the gate?", and only on the engineer's word for this PR (or this
+   session). Then run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr> --base main
    --dry-run`, then without `--dry-run` (from the main checkout: it refuses a task's checkout); tell the refusals in
    plain words. The gate's exceptions and the designer's PRs are merged by the engineer, with "Create a merge commit".
    For a stacked PR: GitHub retargets the child to the parent's base when the parent's branch is deleted on merge; if the

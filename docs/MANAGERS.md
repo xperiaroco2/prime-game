@@ -48,6 +48,11 @@ do not carry it; the design repo's skill reads it at its start.
   needs him now (a merge the gate refused, a decision, a command, a paste), or `For you: nothing.`
   ([intervention](interventions/2026-10-04-engineer-for-you-block.md)). Everything else goes into the plan issue's
   comment.
+- A decision there is a taste question only (art, visuals, game design, level design, a milestone's goal or
+  go/no-go). A technical choice is no item: take your recommended option, merge through the gate, and list it in the
+  plan-issue comment with the option taken, so he can reverse it; a technical "Needs the engineer" item in a PR gets
+  the standing word's "Answered:" line of the trust ADR's last amendment (`gh pr edit --body-file`)
+  ([intervention](interventions/2026-10-29-engineer-asks-only-taste.md); the trust ADR's tiers, amended 2026-10-29).
 - The label `For you:` (or `Для вас:`) on a line of its own, then numbered items at the line's start; the same block
   goes, in English, into the plan-issue comment's notes, where the director's `inbox` reads it (AGENT_WORKFLOW §7.2).
 - Each item gives a direct link to what he must open (the PR, the issue, the comment) or the ready command itself: one

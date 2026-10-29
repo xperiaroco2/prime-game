@@ -35,7 +35,9 @@ it relays.
    moved for an hour may have died: say when it last wrote.
 5. **Merge into one list.** One item per thing: a PR named by a session, its wave comment and `inbox` is one item,
    with the best link. Drop what a later comment or event answered (the engineer's words, an "Answered:" link, a
-   merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at.
+   merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at. A decision
+   item is a taste question only; a technical one is relayed back with his standing word ("take your recommended
+   option", SKILL.md's Limits) and goes into the shift report's "taken for you", not the inbox.
 6. **Rewrite the inbox body** in the format below (a file in your scratchpad, then `gh issue edit <n> --body-file`),
    only when something changed; the header's time either way is not worth an edit.
 7. **The chat line:** one or two short lines in his language: what came and went since the last digest, with the
@@ -78,4 +80,8 @@ Updated <UTC time> by the director "<your title>" (<first 8 of its id>); digests
     the director session <id> (<UTC time>):", his words quoted, then the item's link.
 - The session that asked records the answer where it belongs ("Answered: <link>", an ADR line); you never do.
 - Then drop the item from the inbox body at the next digest, and say in the chat line where each answer went.
+- **His standing word** for a technical question (SKILL.md's Limits), sent the same way without asking him: "The
+  engineer's standing word (https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155): take your
+  recommended option, <x>, and record it" with the item's link; a PR item is recorded as the trust ADR's last
+  amendment says. The choice goes into your shift report's "taken for you".
 

@@ -1,6 +1,6 @@
 ---
 name: director
-description: The engineer's director for prime-game - one main session that runs every track's work as its own linked sub-sessions, in two shifts a day (night, day). During a shift it reads the linked notes, relays his answers, and digests on demand into the pinned "Engineer's inbox" issue ("що там?", "що нового?"; no timer); the night director reports in the morning; on his word it merges through the gate and starts sessions. At the shift change it refreshes the same sessions by clear and kickoff (each sub-session hands over, is cleared and gets its kickoff back; the director posts its own handover on the inbox issue, clears itself, and after the clear carries out the kickoff from that comment); new sessions only as the fallback. Never launches a workflow, closes or decides. Use when the engineer types /director (his director session in D:\prime-game, AGENT_WORKFLOW §7.2, at its start and after each clear) or says "директор" or "що нового?" inside that session; also when a session in D:\prime-game with no earlier conversation but linked sub-sessions gets his first message or a sub-session's note. Not in a manager's or a task session.
+description: The engineer's director for prime-game - one main session that runs every track's work as its own linked sub-sessions, in two shifts a day (night, day). During a shift it reads the linked notes, relays his answers, and digests on demand into the pinned "Engineer's inbox" issue ("що там?", "що нового?"; no timer); the night director reports in the morning; on his word it merges through the gate and starts sessions; only taste questions go to him, a technical one gets his standing word "take your recommended option". At the shift change it refreshes the same sessions by clear and kickoff (each sub-session hands over, is cleared and gets its kickoff back; the director posts its own handover on the inbox issue, clears itself, and after the clear carries out the kickoff from that comment); new sessions only as the fallback. Never launches a workflow, closes or decides a taste question. Use when the engineer types /director (his director session in D:\prime-game, AGENT_WORKFLOW §7.2, at its start and after each clear) or says "директор" or "що нового?" inside that session; also when a session in D:\prime-game with no earlier conversation but linked sub-sessions gets his first message or a sub-session's note. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -61,9 +61,17 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
 ## Limits
 - **You read, digest, relay, clear, start and archive sessions, and merge, each on his word.** You never launch a
   workflow, close, reopen or create an issue, edit a PR or any issue body but the inbox's, commit, push, run
-  `publish`, `start` or `verify`, answer a permission card, or decide anything for anyone. A sub-session does its own
-  work (a task session runs its own `start`). A question that is not the engineer's to answer (a manager's technical
-  choice) you leave to its session.
+  `publish`, `start` or `verify`, answer a permission card, or decide anything for anyone: the option a technical
+  question takes is its session's own recommendation. A sub-session does its own work (a task session runs its own
+  `start`); a technical choice it asks him about gets his standing word back (below).
+- **Only taste goes to him** (his word of 2026-10-29,
+  [#507 comment 6495904155](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155); the trust
+  ADR's tiers): art, visuals, game design, level design, a milestone's goal or go/no-go. A sub-session's technical
+  question (code, engine, netcode, tooling, meta, docs, process) is no item for him: relay his standing word, "take
+  your recommended option", with that link ([digest.md](digest.md)), and list the choice in your shift report. Still
+  his: how the humans work, a new dependency (its ADR), anything destructive, anything costing money beyond a
+  track's weekly budget, and the gate's exceptions.
+<!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - **Your writes:** the inbox issue's body (`gh issue edit <inbox> --body-file <file>`), its comments (the night
   report, your handover), relay comments ([digest.md](digest.md)), `send_message`, the sub-sessions you clear,
   start, rename and archive ([shift-change.md](shift-change.md)), and the merges he asks for (below). Files only in
@@ -119,13 +127,16 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
 ## The night report (night director, in the morning)
 - When he first writes in the morning, before anything else: a report in his chat and as a comment on the inbox
   issue, "Night report DD.MM": what each sub-session did (one line each, with its link), what merged (PR links),
-  what waits for him (the inbox's numbered items, [digest.md](digest.md)), and the spend (the `metrics` line of
-  "Limits", and each linked session's when he asks).
+  what waits for him (the inbox's numbered items, [digest.md](digest.md)), **taken for you** (each technical choice
+  you or a sub-session took by the recommendation, with the option and its link, so he can reverse it), and the
+  spend (the `metrics` line of "Limits", and each linked session's when he asks). The day shift's handover carries
+  the same list.
 - Then he decides, and you finish what he decided during the morning: relays, merges on his word (below), sessions
   to start. Then the shift change to the day director, on his word.
 
 ## Merges on his word
-- Only a PR he names in your chat ("зливай #1361"), and only in this repo: `tools\run.cmd merge <pr> --base main
+- A PR he names in your chat ("зливай #1361"), or a technical PR (no open taste item, no gate exception) that a
+  sub-session asks you to merge (his standing word above), and only in this repo: `tools\run.cmd merge <pr> --base main
   --dry-run` first, then `tools\run.cmd merge <pr> --base main` from `D:\prime-game` (the trust ADR's gate). Before
   the command, the manager's own check: the PR's fresh reviews left no open blocker or major. A refusal goes to him
   as the gate prints it; you never fix the PR. A PR in another repo, or a gate exception (an ADR, the permission and

@@ -7,6 +7,12 @@ not). A workflow agent runs unattended and does not need it; root `CLAUDE.md` po
 every call).
 
 ## Talking to the humans
+- Ask the engineer only taste questions: art, visuals, game design, level design (and a milestone's goal or go/no-go).
+  A technical choice (code, engine, netcode, tooling, meta, docs, process) takes your recommended option without a
+  question; say it in your report with the option taken, so he can reverse it (the trust ADR's tiers). Still asked:
+  how the humans work, a new dependency (its ADR), anything destructive, anything costing money, the gate's
+  exceptions.
+<!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - Voice dictation: infer the meaning, read the file name back before editing, ask a question only if a misreading
   changes what gets built; read back a design answer with two readings (AGENT_WORKFLOW §13).
 <!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->

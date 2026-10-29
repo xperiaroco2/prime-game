@@ -332,7 +332,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `D:\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `D:\prime-game` is sent there |
-| `director` | engineer | The engineer's director, one main session in two shifts a day (night, day) over every track's sub-sessions: clears, starts and archives them on his word, digests what needs him into the pinned "Engineer's inbox" issue when he asks, relays his answers, reports the night, merges on his word through the gate, and changes the shift by clear and kickoff; launches no workflow and decides nothing (§7.2; the secretary until #1364) |
+| `director` | engineer | The engineer's director, one main session in two shifts a day (night, day) over every track's sub-sessions: clears, starts and archives them on his word, digests what needs him into the pinned "Engineer's inbox" issue when he asks, relays his answers, reports the night, merges through the gate on his word or, for a technical PR, his standing word, and changes the shift by clear and kickoff; launches no workflow and decides nothing (§7.2; the secretary until #1364) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -479,8 +479,9 @@ Rules for every workflow run:
   goes through the gate, the other rebases on its base (`main`; a release branch a kickoff names: after `merge --sync-main`; orchestrate-stage `stage-setup.md` item 8, `merges.md`). After a
   change to a shared file reaches `main`, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
-  weekly limit), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges
-  the gate's exceptions. The manager closes issues whose work is on `main` and runs `worktree-done` for its merged
+  weekly limit), answers the numbered "Needs the engineer" questions of taste (a technical one takes the
+  recommendation since #1380, the trust ADR's last amendment), gives each milestone's go (a playtest) and merges the
+  gate's exceptions. The manager closes issues whose work is on `main` and runs `worktree-done` for its merged
   tasks when no live session sits there. Every message from the manager ends with one short "For you:" block, each
   command the human must run goes into the chat itself as one runnable PowerShell block, and the manager keeps its
   prompt cache warm while a run is in flight: [`docs/MANAGERS.md`](MANAGERS.md) ("The \"For you:\" block", "The
@@ -512,16 +513,20 @@ task itself. It was the **secretary** (#485) until his word of 2026-10-29 ~00:30
   engineer's own 5% of the week (the skill's `budget.md`) until he says otherwise.
 - **Powers:** it reads every session and the four repos, digests, and relays the engineer's answers to the session
   that asked, which records them on GitHub as usual. On his word it clears, starts, renames and archives the tracks'
-  sessions, and merges a PR he names through the gate (`merge <pr> --base main`, the
-  [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). It never launches a workflow,
-  closes, creates an issue or decides; it never answers a permission card (they are the human's by design). Its only
+  sessions, and merges through the gate (`merge <pr> --base main`, the
+  [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)) a PR he names or a technical PR a
+  sub-session asks it to merge (his standing word, that ADR's amendment of 2026-10-29). Only taste questions go to
+  him: a sub-session's technical question gets his standing word back, "take your recommended option", and the
+  choice goes into the shift report. It never launches a workflow, closes, creates an issue or decides a taste
+  question; it never answers a permission card (they are the human's by design). Its only
   writes: the inbox issue's body and comments, relay comments, `send_message`, its sub-sessions (`clear_session`,
   `start_session`, `set_session_effort`, `set_session_title`, `archive_session`, with `set_pinned` and
   `set_remote_control` before a clear or an archive), and those merges.
 - **Two shifts:** night, evening to morning; day, morning to evening (DD.MM is the date of the morning the night
   ends). During a shift it reads the linked notes, relays, and digests on demand, with no timer: the notes and his
   messages wake it. The night director reports in the morning, in his chat and as a "Night report DD.MM" comment on
-  the inbox issue: what was done, what merged, what waits for him, and the spend. He decides; the director finishes
+  the inbox issue: what was done, what merged, what waits for him, the technical choices taken for him (each with the
+  option, so he can reverse it), and the spend. He decides; the director finishes
   what he decided, then changes the shift on his word.
 - **Shift change: clear and kickoff** (his words of 2026-10-29,
   [~00:45 local](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482091385) and
@@ -2026,7 +2031,7 @@ waits on them; the engineer's sessions do the content work otherwise.
   step.
 - **The agent explains choices plainly:** start from a concrete scenario of what goes wrong (which person, agent and
   machine), then the options; jargon comes after. Before designing enforcement, it asks how the humans actually work.
-- Human-reserved decisions (KICKOFF §0) come as one batched question.
+- Human-reserved decisions (the trust ADR's tier (c) as amended 2026-10-29, #1380) come as one batched question.
 
 ## 14. Open questions
 
