@@ -218,10 +218,11 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		if covered > 0:
 			_refuse(ctx, player, motion)
 		return
-	if claim.moving or claim.jumps > motion.jumps:
+	if claim.moving or _moved_in(claim, covered, fresh) or claim.jumps > motion.jumps:
 		# Any own move ends the seated pose (#1296; GDD §12: "any move gets you up"): the claim's
-		# moving input or a new jump, also on a claim the checks below refuse, as its client has
-		# stood up already. A push or a carrying floor (no input) leaves the watcher seated.
+		# moving input, a moved tick it covers (moved_ticks: the LATEST lane may have merged the
+		# moving claims away) or a new jump, also on a claim the checks below refuse, as its
+		# client has stood up already. A push (no input) leaves the watcher seated.
 		player.posed = false
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick
@@ -237,6 +238,14 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		_take_look(ctx, player, motion, claim, covered)
 	else:
 		_check_and_accept(ctx, player, motion, claim, covered, fresh)
+
+
+## Whether `claim`'s mask says the player moved itself in a client tick the claim covers
+## (moved_ticks; a covered tick older than the mask takes the oldest bit). A fresh claim's span is
+## unknown (`covered` is 1 there), so its whole mask counts.
+static func _moved_in(claim: Claim, covered: int, fresh: bool) -> bool:
+	var ticks := MASK_TICKS if fresh else mini(covered, MASK_TICKS)
+	return claim.moved_ticks & ((1 << ticks) - 1) != 0
 
 
 ## Runs the movement checks on a living player's claim that passed the tick checks, and accepts

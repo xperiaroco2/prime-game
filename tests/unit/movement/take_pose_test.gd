@@ -84,6 +84,34 @@ func test_a_new_jump_ends_the_pose() -> void:
 	assert_bool(game.state.player(P1).posed).is_false()
 
 
+func test_a_moved_tick_of_a_merged_claim_ends_the_pose() -> void:
+	# The LATEST lane merged the moving claims away: the last one is still, its mask says it moved.
+	var game := _posing_round([P1, P2])
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 2)
+	var player := game.state.player(P1)
+	FixtureMoves.claim(
+		game, P1, player.position, {"client_tick": player.claim_tick + 2, "moved_ticks": 0b10}
+	)
+	FixtureModes.run_ticks(game, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_bool(player.posed).is_false()
+
+
+func test_a_moved_tick_before_the_covered_ones_keeps_the_pose() -> void:
+	var game := _posing_round([P1, P2])
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 2)
+	var player := game.state.player(P1)
+	FixtureMoves.claim(
+		game, P1, player.position, {"client_tick": player.claim_tick + 2, "moved_ticks": 0b100}
+	)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(player.posed).is_true()
+
+
 func test_a_refused_moving_claim_ends_the_pose_too() -> void:
 	# Its client stood up already; the host corrects the place and keeps nobody seated.
 	var game := _posing_round([P1, P2])
