@@ -9,8 +9,8 @@ const NEAR := Vector3(1e-3, 1e-3, 1e-3)
 ## A tree trunk's half width: its side, not its centre, must stay out of a clearing.
 const TRUNK_HALF_WIDTH := 0.4
 ## The map-wide pieces, each at the origin: the ground with its fence and roads, the creek, the
-## paths, the tree strips and the base mode's markers (#1374).
-const GROUNDS: Array[String] = ["Plot", "Creek", "Paths", "Trees", "Markers"]
+## paths, the tree strips, the base mode's markers (#1374) and the hidden passages (#1373).
+const GROUNDS: Array[String] = ["Plot", "Creek", "Paths", "Trees", "Markers", "Passages"]
 
 
 func test_the_doc_s_module_rows_all_parse() -> void:
