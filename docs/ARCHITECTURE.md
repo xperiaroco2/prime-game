@@ -8239,7 +8239,11 @@ levels/
   lists the estate, its stand-in task until the estate's own); every place a placeholder, "not a decision". Each lot
   with a footprint carries its room record, centred (§4.7.33). No throw at the base mode's numbers rests on a top no
   player stands on (the outbuildings', the gazebo's, the ship's, the fallen trunk's, raised to 3.2 m for it): the
-  throwing ADR's TD5 (a), as House's roof. §5b's tunnel, sewer and ducts are not built yet. Each lot's piece sits at its module's centre with `metadata/size_m` its footprint
+  throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd). Every other flat box top outside the House's
+  lot is a floor, a step, in reach or over every throw (estate_tops_reach_test.gd), so the fence stands 1.8 m, the
+  creek's banks 3.5 m, the gate's posts 3.2 m, the ship's tunnel walls 4.4 m (its throat's) and the bonfire's camera
+  post collides up to 3.3 m, over its camera. §5b's tunnel, sewer and ducts are not built yet. Each lot's piece sits
+  at its module's centre with `metadata/size_m` its footprint
   where §3 gives W × D: the ADR's "the map places a room at the doc's numbers" with a doc that gives centres; the
   plot, creek, paths and trees are map-wide pieces at the origin. The creek blocks but at its doc's crossings, the
   east road included. Its sizes beyond the doc (fences, crossings, trees, markers, the ship's hull) are
