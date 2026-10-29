@@ -6586,16 +6586,21 @@ then no shipped mode accepts the intent.
   after `sneaking` (the wire record's order: the avatar flags' bit 16, §4.3.5; protocol 37). It is visible body
   state, never hidden information (invariant 2): every peer that sees the avatar sees it. A downed or dead player is
   never posed (`ScenarioInvariants.pose_problem` checks every snapshot the scenarios see: posed only for a living
-  player whose last accepted claim did not move it).
+  player; not `moving`, which an honest sit out of a walk still shows on its `Pose`'s tick, as the claim twin
+  repeats the last, moving claim).
 - **Taking it.** `Pose()` (§4.1; wire kind 20), a player action from the living: the mode's `Pose` rule (trigger
   `Pose`, the conditions it names, the effect `TakePose`, §9.4) sets the flag. A second `Pose` changes nothing. As
   every applied action, it stops the sender's raise first (§9.2). No hold time: the GDD names none, so one press
   takes the pose (a timed hold would be the engineer's number). The client sends its reliable claim twin first
   (§4.5.6), so a moving claim still in flight cannot arrive after the `Pose` and stand the player up at once.
-- **What ends it.** Any own move: a living `MoveClaim` whose `moving` input is set or that adds a jump, before the
-  checks, so a claim the checks refuse (`Correction`) ends it too, as its client has stood up already. A displacement
-  without input (a push by another player, a carrying floor) leaves the watcher seated: "any move" reads as the
-  watcher's own. A placement, a knockdown, a respawn and a reset (`MatchState.reset_player`) end it as they end the
+- **What ends it.** Any own move: a living `MoveClaim` whose `moving` input is set, whose `moved_ticks` mask has a
+  bit in the client ticks it covers (the whole mask for a fresh claim: the `LATEST` lane may have merged the moving
+  claims away, §4.5) or that adds a jump, before the checks, so a claim the checks refuse (`Correction`) ends it too,
+  as its client has stood up already. The host also measures the move itself: an accepted claim that travels more
+  than `MOVE_EPSILON` with no other living player near enough to push it (the push allowance's test) ends it, input
+  bits or not, as the coasting allowance grants walk speed whatever `moving` says; a posing client holds its body
+  still. A push by another player leaves the watcher seated: "any move" reads as the watcher's own (an engineer's
+  question in #1296's PR). A placement, a knockdown, a respawn and a reset (`MatchState.reset_player`) end it as they end the
   crouch. Picking up, using or swapping does not.
 - **The look.** A posed remote avatar plays `AvatarClips.SEATED`, still at any drawn speed (`SnapshotBuffer.Pose.posed`,
   the snapshot's at or before the drawn tick, never blended; §4.7.53's table). The art set has no seated clip yet,
@@ -6606,8 +6611,10 @@ then no shipped mode accepts the intent.
   host-side end (a knockdown, a placement). The camera wall's full-screen view will need it: a `SelfStatus` field or
   an event, which that issue adds.
 - **Tests:** `tests/unit/movement/take_pose_test.gd` (the flag and every other peer's view, a second `Pose`, the
-  lobby's `not_accepted`, a still claim keeps it, a moving claim, a new jump and a refused moving claim end it, a push
-  keeps it, the downed cannot pose and the knockdown, the placement and a reset end it, `TakePose` emits nothing;
+  lobby's `not_accepted`, a still claim keeps it, a moving claim, a moved tick of a merged claim (not one before the
+  covered ticks), a new jump, a refused moving claim and travel without input or a pusher end it, a push keeps it,
+  the downed cannot pose and the knockdown, the placement and a reset end it, a `Pose` stops the poser's raise,
+  `TakePose` emits nothing;
   over a fixture mode, `FixtureMoves.posing`), `view_of_test.gd` (the key order), `respawn_test.gd`, the wire's
   `wire_samples.gd`, `snapshot_encoder_test.gd`, `decoded_view_test.gd`, `client_session_snapshots_test.gd`,
   `tests/scenarios/crouch_invariant_test.gd` (`pose_problem`), `avatar_clips_test.gd` and `snapshot_buffer_test.gd`.

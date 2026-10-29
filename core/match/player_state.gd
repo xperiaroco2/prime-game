@@ -55,8 +55,9 @@ var crouched := false
 ## of a sneaking body only at the crouch walk's speed (FootstepCadence.silent_of).
 var sneaking := false
 ## The seated pose (#1296; GDD §12 "The camera wall"): set by TakePose (the Pose intent, where the
-## mode's rule allows it); ended by any own move, that is a claim with moving input or a new jump,
-## even one the host refuses (MovementRule), and at every placement, knockdown, respawn and reset.
+## mode's rule allows it); ended by any own move, that is a claim with moving input, a moved tick
+## it covers or a new jump, even one the host refuses, or an accepted claim's travel with no one
+## near to push it (MovementRule), and at every placement, knockdown, respawn and reset.
 ## Public body state: the snapshot relays it to every peer. The host keeps the standing capsule
 ## and eye for it (only `crouched` lowers them).
 var posed := false
