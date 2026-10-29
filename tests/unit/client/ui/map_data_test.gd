@@ -34,6 +34,19 @@ func test_rooms_come_from_the_size_metadata_in_tree_order_with_their_ids() -> vo
 	assert_that(data.rooms[1].rect).is_equal(Rect2(2, 5, 3, 2))
 
 
+func test_a_centred_room_s_rect_runs_half_its_size_each_way_from_its_origin() -> void:
+	# A lot placed by its centre (the level-piece ADR's 2026-10-29 amendment, the estate) says so
+	# with `metadata/centred`; every other room keeps its north-west corner.
+	var level: Node3D = auto_free(Node3D.new())
+	var lot := _room(level, "Pantry", Vector3(48, 0, 27), Vector2i(8, 6))
+	lot.set_meta(MapData.CENTRED_KEY, true)
+	_room(level, "Shed", Vector3(48, 0, 27), Vector2i(8, 6))
+	var rooms := MapData.rooms_of(level)
+	assert_int(rooms.size()).is_equal(2)
+	assert_that(rooms[0].rect).is_equal(Rect2(44, 24, 8, 6))
+	assert_that(rooms[1].rect).is_equal(Rect2(48, 27, 8, 6))
+
+
 func test_a_room_record_gives_its_id_and_name_key_else_the_node_name_does() -> void:
 	# The room record (#306): the id and the deck key on the room node; without them the node name
 	# in snake_case and `room.<id>`.
