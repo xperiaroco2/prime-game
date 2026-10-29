@@ -8344,6 +8344,7 @@ told. One format runs in two runners.
 | `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
 | `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
 | `Swap` | sends `Swap`: back to the place held last (M4-5; #1218) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
+| `Draw(place)` | sends `Draw` of `place`, 0 to 2, as it is (#1218, #1377: a refusal step may name another) | its own `Swapped` of that place arrives (`no_such_place`, `same_place`, `not_accepted` when refused) |
 | `NextStage` | (the host's bot) sends `NextStage`: a scripted mode (the tutorial's stages) moves on (#599) | a `PhaseChanged` arrives, whichever phase (an `Expect` after it names one); the base mode refuses it (`not_accepted`). `tests/scenarios/next_stage_step_test.gd` |
 | `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
 
