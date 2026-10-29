@@ -9,10 +9,9 @@ extends GdUnitTestSuite
 ## bonfire (#1374).
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
+const BASE_MODE := "res://content/modes/base_mode.tres"
 const RADIUS := 0.4
 const HEIGHT := 1.8
-## The base mode's crouched capsule (crouch_height_m): the ducts are gone through crouched (§5b).
-const CROUCH_HEIGHT := 1.2
 const STEP := 0.3
 const JUMP := 1.0
 const SPACING := 0.1
@@ -280,7 +279,7 @@ func test_each_walk_can_be_walked() -> void:
 func test_each_hidden_passage_can_be_walked_both_ways() -> void:
 	for walk: String in PASSAGES:
 		var corners: Array = (PASSAGES[walk] as Array)[0]
-		var height := CROUCH_HEIGHT if (PASSAGES[walk] as Array)[1] else HEIGHT
+		var height := _crouch_height() if (PASSAGES[walk] as Array)[1] else HEIGHT
 		_walk(walk, corners, (corners[-1] as Vector3).y, height)
 		var back := corners.duplicate()
 		back.reverse()
@@ -296,7 +295,7 @@ func test_the_ducts_are_too_low_to_go_through_upright() -> void:
 		var feet := Vector3(point.x, floor_y, point.z)
 		assert_bool(_fits(feet)).override_failure_message("upright fits at %s" % feet).is_false()
 		(
-			assert_bool(_fits(feet, CROUCH_HEIGHT))
+			assert_bool(_fits(feet, _crouch_height()))
 			. override_failure_message("crouched does not fit at %s" % feet)
 			. is_true()
 		)
@@ -375,9 +374,16 @@ func _in_reach(feet: Dictionary[Vector2i, Array], item: Vector3, reach: float) -
 	return false
 
 
+## The base mode's crouched capsule (crouch_height_m): the ducts are gone through crouched (§5b).
+func _crouch_height() -> float:
+	var height := (load(BASE_MODE) as GameMode).player_rules.crouch_height_m
+	assert_float(height).is_greater(0.0).is_less(HEIGHT)
+	return height
+
+
 ## The base mode's PickUp reach: the InReach condition of the rule that picks an item up.
 func _pick_up_reach() -> float:
-	var mode := load("res://content/modes/base_mode.tres") as GameMode
+	var mode := load(BASE_MODE) as GameMode
 	for rule: Rule in mode.actions:
 		var picks := false
 		var reach := 0.0
