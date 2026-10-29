@@ -15,7 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://drwdw65attu1k" path="res://levels/estate/rooms/ship.tscn" id="13_6dnp2"]
 [ext_resource type="PackedScene" uid="uid://d011bo581m25d" path="res://levels/estate/rooms/fallen_trunk.tscn" id="14_mv35b"]
 [ext_resource type="PackedScene" uid="uid://d20854n1abwot" path="res://levels/estate/rooms/gate.tscn" id="15_bqbxw"]
-[ext_resource type="PackedScene" path="res://levels/estate/rooms/markers.tscn" id="16_mrkrs"]
+[ext_resource type="PackedScene" uid="uid://2ny57byoappi" path="res://levels/estate/rooms/markers.tscn" id="16_mrkrs"]
 [ext_resource type="PackedScene" uid="uid://jj4e3k8pw0vu" path="res://levels/estate/rooms/passages.tscn" id="17_psgs"]
 
 [node name="Estate" type="Node3D" unique_id=743513984]
