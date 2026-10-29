@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## the ship's ramp into its hall and wings (§5a), and the creek crossed only at its crossings (the
 ## east road included). Each walk: from point to point every rise is a step the player can take
 ## (rules.step_height_m, 0.3 m) and the player's capsule fits, in the host's collision world of
-## the level (LevelWorld), as house_stairs_test walks the House.
+## the level (LevelWorld), as house_stairs_test walks the House; and from each round spawn to the
+## bonfire (#1374).
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
 const RADIUS := 0.4
@@ -174,6 +175,20 @@ func test_each_walk_can_be_walked() -> void:
 		if corners[-1] == Vector3.ZERO:
 			corners[-1] = _from_bonfire(corners[-2] as Vector3)
 		_walk(walk, corners, (corners[-1] as Vector3).y)
+
+
+func test_each_round_spawn_walks_to_the_bonfire_where_every_walk_starts() -> void:
+	# The base mode's round spawns (#1374, the Markers piece): a player spawned at any of them
+	# reaches the ring round the bonfire, so every lot by the walks above.
+	var map: Node3D = auto_free((load(EstateDoc.MAP) as PackedScene).instantiate())
+	var spawns := 0
+	for node in map.find_children("*", "Marker3D", true, false):
+		if not node.is_in_group(&"spawn_round_player"):
+			continue
+		var at := (node.get_parent() as Node3D).transform * (node as Node3D).position
+		_walk("from %s" % node.name, [at, _from_bonfire(at)], 0.0)
+		spawns += 1
+	assert_int(spawns).is_greater(0)
 
 
 func test_each_crossing_carries_a_walk_over_the_creek() -> void:
