@@ -186,7 +186,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepNextStage.new(),
 		StepTalk.new(),
 		StepThrow.new(),
-		StepInteract.new()
+		StepInteract.new(),
+		StepDraw.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -213,7 +214,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"NextStage",
 			&"Talk",
 			&"Throw",
-			&"Interact"
+			&"Interact",
+			&"Draw"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -228,7 +230,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepSwap.new(),
 		StepNextStage.new(),
 		StepThrow.new(),
-		StepInteract.new()
+		StepInteract.new(),
+		StepDraw.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
 

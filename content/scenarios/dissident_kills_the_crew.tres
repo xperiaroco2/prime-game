@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="12_jpsys"]
 [ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="13_4x1nm"]
 [ext_resource type="Script" uid="uid://btw85s6sw667k" path="res://core/content/scenario/step_expect_none.gd" id="14_none"]
+[ext_resource type="Script" uid="uid://1hh10681472r" path="res://core/content/scenario/step_draw.gd" id="15_draw"]
 
 [sub_resource type="Resource" id="Never_damaged_bot1"]
 script = ExtResource("2_e57gy")
@@ -150,9 +151,14 @@ script = ExtResource("10_5lfhm")
 target = SubResource("Target_package")
 expect_rejected = &"not_accepted"
 
+[sub_resource type="Resource" id="B2_draw_refused"]
+script = ExtResource("15_draw")
+place = 1
+expect_rejected = &"not_accepted"
+
 [sub_resource type="Resource" id="B2_script"]
 script = ExtResource("4_vgual")
-steps = Array[ExtResource("5_oe6iu")]([SubResource("Ready"), SubResource("B2_wait_damaged"), SubResource("Wait_knocked_down_2"), SubResource("B2_not_hit_while_downed"), SubResource("B2_pick_up_refused"), SubResource("Wait_died_2"), SubResource("B2_pick_up_refused"), SubResource("Wait_ended")])
+steps = Array[ExtResource("5_oe6iu")]([SubResource("Ready"), SubResource("B2_wait_damaged"), SubResource("Wait_knocked_down_2"), SubResource("B2_not_hit_while_downed"), SubResource("B2_pick_up_refused"), SubResource("B2_draw_refused"), SubResource("Wait_died_2"), SubResource("B2_pick_up_refused"), SubResource("B2_draw_refused"), SubResource("Wait_ended")])
 
 [sub_resource type="Resource" id="Wait_knocked_down_3"]
 script = ExtResource("7_le1xd")
