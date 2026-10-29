@@ -84,10 +84,24 @@ class Shown:
 	var stamina := 1.0
 	## Whether anyone hears the own player.
 	var mic := false
-	## The own hand and belt show.
+	## The own three places show (GDD §6: the hand and the two belt slots, numbered 1 to 3).
 	var slots := false
-	var hand := Slot.new()
-	var belt := Slot.new()
+	## Each place's item, in place order (0 to 2).
+	var places: Array[Slot] = [Slot.new(), Slot.new(), Slot.new()]
+	## The place in the hand (0 to 2), lit.
+	var selected := 0
+	## The place in the hand.
+	var hand: Slot:
+		get:
+			return places[selected]
+		set(value):
+			places[selected] = value
+	## The first belt place (the lowest place not in the hand).
+	var belt: Slot:
+		get:
+			return places[1 if selected == 0 else 0]
+		set(value):
+			places[1 if selected == 0 else 0] = value
 	## The name of the item under the crosshair; "" hides Aim.
 	var aim := ""
 	## The own raise's progress, 0 to 1; negative hides the bar (it replaces Aim).
@@ -116,8 +130,10 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	shown.stamina = stamina_of(local, mode)
 	shown.mic = local.mic
 	shown.slots = true
-	shown.hand = slot_of(model, mode, model.hand_item(model.own_peer))
-	shown.belt = slot_of(model, mode, model.belt_item(model.own_peer))
+	shown.selected = model.selected_place(model.own_peer)
+	for place in shown.places.size():
+		var item_id := model.item_in_place(model.own_peer, place)
+		shown.places[place] = slot_of(model, mode, item_id)
 	shown.raising = local.raising
 	if local.raising >= 0.0:
 		return shown

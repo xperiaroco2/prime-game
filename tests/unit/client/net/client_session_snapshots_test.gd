@@ -122,6 +122,7 @@ func _snapshot(tick: int, at: Vector3) -> void:
 		"sneaking": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 	_harness.send_message(WireMessage.new(&"Snapshot", {"tick": tick, "avatars": {1: avatar}}))
 	_harness.pump()

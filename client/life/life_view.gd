@@ -556,7 +556,7 @@ func _hold_as_seen(peer: int) -> void:
 	if items == null:
 		return
 	# A throw is hung at the body's hand until its launch is drawn: the hand is empty already.
-	var hidden: Array[int] = [model.hand_item(peer), model.belt_item(peer)]
+	var hidden: Array[int] = [model.hand_item(peer), model.belt_item(peer), model.belt_item2(peer)]
 	hidden.append_array(items.flights.awaiting_launch_of(peer))
 	for item_id: int in hidden:
 		var item_view := items.view_of(item_id)

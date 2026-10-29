@@ -83,7 +83,9 @@ func test_cycling_shows_the_left_target_and_its_items_again() -> void:
 	_spawn(FIRST_BELT, &"wrench")
 	_spawn(SECOND_HAND, &"package")
 	_model.fold(&"ItemPickedUp", {"peer": FIRST, "item": FIRST_BELT})
-	_model.fold(&"ItemPickedUp", {"peer": FIRST, "item": FIRST_HAND, "belted": FIRST_BELT})
+	_model.fold(
+		&"ItemPickedUp", {"peer": FIRST, "item": FIRST_HAND, "belted": FIRST_BELT, "place": 1}
+	)
 	_model.fold(&"ItemPickedUp", {"peer": SECOND, "item": SECOND_HAND})
 	_model.lives[OWN] = ClientModel.Life.DEAD
 	await _drawn()

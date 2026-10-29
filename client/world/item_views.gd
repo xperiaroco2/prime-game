@@ -34,6 +34,9 @@ const PHYSICS_PRIORITY := 1
 ## A photo farther than this from the drawing camera shows no picture, so its texture can go
 ## (PhotoPictures frees what nobody asks for). A look, "not a decision".
 const PICTURE_RANGE_M := 12.0
+## The second belt item (the higher belt place, GDD §6) hangs this far from the belt socket, in
+## its frame, until the art gives the belt a second socket. A look, "not a decision" (#1218).
+const SECOND_BELT_OFFSET := Vector3(-0.15, 0.0, 0.0)
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands, and the Throw rule's numbers.
@@ -233,7 +236,10 @@ func _place_at_body(view: ItemView, item: ClientModel.Item, body: RemotePlayerBo
 	var point := body.belt_point()
 	if not item.belted:
 		point = body.carry_point() if _two_handed(item.kind) else body.hand_point()
-	view.global_transform = point.global_transform
+	var at := point.global_transform
+	if item.belted and model.items.get(model.belt_item2(item.holder)) == item:
+		at = at.translated_local(SECOND_BELT_OFFSET)
+	view.global_transform = at
 	view.show_look(true)
 
 

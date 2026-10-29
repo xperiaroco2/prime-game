@@ -72,6 +72,8 @@ func test_a_box_carrier_s_herb_goes_onto_the_belt_and_the_box_stays_in_the_hand(
 func test_a_box_carrier_with_a_full_belt_puts_the_belt_item_down_at_the_feet_first() -> void:
 	FixtureCookingModes.take(_game, P2, &"bun_a")
 	var bun := FixtureCookingModes.held(_game, P2)
+	# Both belt places full (GDD §6): the first bun on the lower one, which goes down.
+	FixtureCookingModes.take(_game, P2, &"bun_b")
 	FixtureModes.run_ticks(_game, 1)
 	var box := _carry_box(P2)
 	assert_object(FixtureCookingModes.belted(_game, P2)).is_same(bun)

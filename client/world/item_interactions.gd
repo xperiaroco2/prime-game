@@ -33,6 +33,13 @@ const PHYSICS_PRIORITY := 6
 ## How long E is held on a box to pick it up rather than take from it (the cooking ADR's CD4 (a);
 ## a placeholder, not a decision): a release before it is the tap.
 const HOLD_SECONDS := 0.4
+## The keys 1, 2 and 3 (GDD §6 "Drawing from the belt"): the action of each place, 0..2.
+const PLACE_ACTIONS: Array[StringName] = [&"place_1", &"place_2", &"place_3"]
+## How long a Draw sent stays "not yet answered" for the wheel (the host's Swapped ends it sooner),
+## and the least gap between two wheel Draws: a smooth-scrolling pad sends dozens of notches per
+## flick, and the host's intent budget (PeerBudget) is for honest actions (a placeholder).
+const PENDING_MSEC := 400
+const WHEEL_GAP_MSEC := 60
 
 var model: ClientModel
 var session: ClientSession
@@ -51,6 +58,8 @@ var predicting := Callable()
 ## that never touches Input (a playcheck window's, #1114) still lets the left button act; tests
 ## replace it too, as headless Godot keeps no mouse mode (CAPTURED reads back as VISIBLE).
 var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+## The clock in milliseconds (Time's unless replaced; tests step it).
+var now_msec := func() -> int: return Time.get_ticks_msec()
 
 ## Which station a collider of the level belongs to (StationViews.station_of_body, given by
 ## ItemWorld), -1 for none; unset: only the use spot names a station.
@@ -87,6 +96,13 @@ var _held_camera := -1
 var _hold_station := -1
 ## The own photo held up close (#787), -1 for none.
 var _close_item := -1
+## The last Draw sent, the selected place it was sent from and when (-1 for none): the wheel
+## counts on from it while it waits for the host's Swapped, so a burst of notches within one round
+## trip steps on instead of sending the same place again, which the host refuses (`same_place`).
+var _pending_place := -1
+var _pending_from := -1
+var _pending_at := 0
+var _wheel_at := -WHEEL_GAP_MSEC
 
 
 func _init() -> void:
@@ -293,12 +309,46 @@ func use() -> int:
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
 
-## X: Swap() while the own hand or belt holds an item.
+## X: Swap() while the own player carries an item: back to the place it held last (GDD §6).
 func swap() -> int:
 	var own := model.own_peer if model != null else 0
 	if not _acts() or (model.hand_item(own) < 0 and model.belt_item(own) < 0):
 		return -1
 	return session.send_intent(Intents.SWAP)
+
+
+## 1, 2, 3: Draw(place), the place 0..2 into the hand (GDD §6 "Drawing from the belt"); not the
+## place the hand holds or is drawing, which the host would refuse (`same_place`).
+func draw(place: int) -> int:
+	if not _acts() or place < 0 or place >= ClientModel.PLACES:
+		return -1
+	if place == _place_ahead():
+		return -1
+	var from := model.selected_place(model.own_peer)
+	var seq := session.send_intent(Intents.DRAW, {"place": place})
+	if seq > 0:
+		_pending_place = place
+		_pending_from = from
+		_pending_at = now_msec.call() as int
+	return seq
+
+
+## The mouse wheel: Draw of the next place (`step` 1) or the one before (-1), round the three,
+## counted from the Draw still waiting for its answer, if any.
+func step_place(step: int) -> int:
+	if not _acts():
+		return -1
+	return draw(posmod(_place_ahead() + step, ClientModel.PLACES))
+
+
+## The place the hand holds once the Draw in flight is answered: the selected place, or the place
+## of the last Draw sent while the selection has not moved yet and PENDING_MSEC is not over.
+func _place_ahead() -> int:
+	var selected := model.selected_place(model.own_peer)
+	if _pending_place >= 0 and _pending_from == selected:
+		if (now_msec.call() as int) - _pending_at < PENDING_MSEC:
+			return _pending_place
+	return selected
 
 
 ## G: Throw(facing) of the own hand item, when the client's own copy of the mode has a Throw rule
@@ -425,12 +475,34 @@ func _process(delta: float) -> void:
 		return
 	if Input.is_action_just_pressed(&"put_down"):
 		put_down()
+	for place: int in ClientModel.PLACES:
+		if Input.is_action_just_pressed(PLACE_ACTIONS[place]):
+			draw(place)
 	if Input.is_action_just_pressed(&"swap"):
 		swap()
 	if Input.is_action_just_pressed(&"throw"):
 		throw()
 	if captured and was_captured and Input.is_action_just_pressed(&"use"):
 		use()
+
+
+## The mouse wheel draws the next place down, the one before up (GDD §6). It is no InputMap action:
+## the wheel is no binding (Controls.NOT_BINDABLE_BUTTONS).
+func _unhandled_input(event: InputEvent) -> void:
+	var wheel := event as InputEventMouseButton
+	if wheel == null or not wheel.pressed or not reads_device_input or not listening:
+		return
+	if viewing() or not mouse_captured.call():
+		return
+	var now: int = now_msec.call()
+	if now - _wheel_at < WHEEL_GAP_MSEC:
+		return
+	if wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN or wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_wheel_at = now
+	if wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		step_place(1)
+	elif wheel.button_index == MOUSE_BUTTON_WHEEL_UP:
+		step_place(-1)
 
 
 ## Whether the item keys act: a session, a local player, the own player living.

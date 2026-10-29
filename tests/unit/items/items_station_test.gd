@@ -48,7 +48,9 @@ func test_a_locked_item_is_given_back_through_give() -> void:
 	assert_int(raw.rest_tick).is_equal(-1)
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
 	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[-1] as ItemPickedUpEvent
-	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": raw.id, "belted": raw.id})
+	assert_dict(picked.to_dict()).is_equal(
+		{"peer": P1, "item": raw.id, "belted": raw.id, "place": 1}
+	)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
@@ -142,7 +144,7 @@ func test_every_lay_and_lift_bumps_the_move_serial() -> void:
 	Items.lock(herb)
 	assert_int(herb.moves).is_equal(moves + 5)
 	Items.give(ctx, P1, herb)
-	Items.swap(ctx, P1)
+	Items.back(ctx, P1)
 	assert_int(herb.moves).is_equal(moves + 6)
 	Items.launch(ctx, herb, ItemFlight.new())
 	assert_int(herb.moves).is_equal(moves + 7)

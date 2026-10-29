@@ -102,6 +102,7 @@ static func _shot_taken() -> WireMessage:
 					"crouched": true,
 					"held_item": 0xFFFE,
 					"belt_item": 0xFFFD,
+					"belt_item2": 0xFFFC,
 				}
 			)
 		)

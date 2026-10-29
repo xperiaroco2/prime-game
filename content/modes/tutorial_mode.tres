@@ -50,6 +50,9 @@
 [ext_resource type="Script" uid="uid://dtq8afy52ua35" path="res://core/items/throw_item.gd" id="51_throw"]
 [ext_resource type="Script" uid="uid://uvlgs3p3qbgt" path="res://core/items/over_floor.gd" id="52_over_floor"]
 [ext_resource type="Script" uid="uid://doh8ordg6dl1t" path="res://core/items/flight_ticks.gd" id="53_flight_ticks"]
+[ext_resource type="Script" uid="uid://dihlo2m7dhely" path="res://core/items/place_in_range.gd" id="54_place_in_range"]
+[ext_resource type="Script" uid="uid://c4h8e42diao85" path="res://core/items/place_changes.gd" id="55_place_changes"]
+[ext_resource type="Script" uid="uid://bhwvvhmc81yi8" path="res://core/items/draw_place.gd" id="56_draw_place"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("19_on_ground")
@@ -217,6 +220,26 @@ script = ExtResource("8_accept")
 intent = &"Swap"
 from = 4
 
+[sub_resource type="Resource" id="Draw_in_range"]
+script = ExtResource("54_place_in_range")
+
+[sub_resource type="Resource" id="Draw_changes"]
+script = ExtResource("55_place_changes")
+
+[sub_resource type="Resource" id="Draw_place"]
+script = ExtResource("56_draw_place")
+
+[sub_resource type="Resource" id="Rule_draw"]
+script = ExtResource("2_rule")
+trigger = &"Draw"
+conditions = Array[ExtResource("18_condition")]([SubResource("Draw_in_range"), SubResource("Draw_changes")])
+effects = Array[ExtResource("16_effect")]([SubResource("Draw_place")])
+
+[sub_resource type="Resource" id="Accept_draw"]
+script = ExtResource("8_accept")
+intent = &"Draw"
+from = 4
+
 [sub_resource type="Resource" id="Accept_throw"]
 script = ExtResource("8_accept")
 intent = &"Throw"
@@ -238,7 +261,7 @@ script = ExtResource("53_flight_ticks")
 script = ExtResource("7_phase")
 id = &"lessons"
 phase_class = ExtResource("14_round")
-accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_throw"), SubResource("Accept_host_next_stage")])
+accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_throw"), SubResource("Accept_host_next_stage"), SubResource("Accept_draw")])
 tick_systems = Array[ExtResource("9_tick_system")]([SubResource("FlightTicks_lessons")])
 voice_rule = SubResource("Voice_lessons")
 level = 2
@@ -273,7 +296,7 @@ living_m = 8.0
 script = ExtResource("7_phase")
 id = &"raise_stage"
 phase_class = ExtResource("14_round")
-accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise"), SubResource("Accept_host_next_stage")])
+accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise"), SubResource("Accept_host_next_stage"), SubResource("Accept_draw")])
 tick_systems = Array[ExtResource("9_tick_system")]([SubResource("ChannelTicks_raise_stage"), SubResource("FlightTicks_raise_stage")])
 voice_rule = SubResource("Voice_raise_stage")
 level = 2
@@ -302,7 +325,7 @@ living_m = 8.0
 script = ExtResource("7_phase")
 id = &"death_stage"
 phase_class = ExtResource("14_round")
-accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise")])
+accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise"), SubResource("Accept_draw")])
 tick_systems = Array[ExtResource("9_tick_system")]([SubResource("LifeTicks_death_stage"), SubResource("ChannelTicks_death_stage"), SubResource("FlightTicks_death_stage")])
 voice_rule = SubResource("Voice_death_stage")
 level = 2
@@ -426,7 +449,7 @@ roles = Array[ExtResource("15_role")]([ExtResource("30_crew")])
 item_kinds = Array[ExtResource("3_item_kind")]([ExtResource("25_package"), ExtResource("33_knife")])
 maps = PackedStringArray("res://levels/tutorial/tutorial.tscn")
 bench_maps = null
-actions = Array[ExtResource("2_rule")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_next_stage")])
+actions = Array[ExtResource("2_rule")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_next_stage"), SubResource("Rule_draw")])
 phases = Array[ExtResource("7_phase")]([SubResource("Phase_gather"), SubResource("Phase_loading"), SubResource("Phase_lessons"), SubResource("Phase_raise_stage"), SubResource("Phase_death_stage")])
 first_phase = &"gather"
 transitions = Array[ExtResource("10_row")]([SubResource("Row_gather_all_ready"), SubResource("Row_loading_all_loaded"), SubResource("Row_lessons_next"), SubResource("Row_raise_stage_next")])

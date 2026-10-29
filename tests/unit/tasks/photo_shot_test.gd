@@ -47,6 +47,7 @@ func _row(game: Match, peer: int) -> Dictionary:
 		"crouched": player.crouched,
 		"held_item": player.held_item,
 		"belt_item": player.belt_item,
+		"belt_item2": player.belt_item2,
 	}
 
 

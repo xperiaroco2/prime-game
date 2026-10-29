@@ -17,6 +17,11 @@
   to be drawn through walls. D10 (b)'s marker and item 5's one exception go when its D3a removes the marker; until
   then the client still draws that one marker (`client/world/circle_views.gd`), the exception covers it alone, and no
   new marker may cite it. The D10 row and item 5 below keep the original text, each with a note
+- **Amended 2026-10-29 (issue #1218):** §2's key table, for drawing from the belt (GDD §6): the hand and the two
+  belt slots are three places; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of that place, the mouse
+  wheel (no action: the wheel is no binding) steps round the three by `Draw`, and X (`swap`) sends `Swap()`, now
+  back to the place held last. The "Swap hand and belt" row below is revised in place. Approved by the engineer:
+  https://github.com/xperiaroco2/prime-game/issues/1040#issuecomment-6320249563
 - **Date:** 2026-10-01
 - **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134). The engineer, in
   chat with the M4 manager session on 2026-10-01: E31 to E33, and the designer's D4 to D10 by relay
@@ -95,7 +100,8 @@ The input actions (D6 (a); every existing action keeps its key in `project.godot
 | Pick up the item under the crosshair; held on a downed player, raise them | E (`interact`) | `PickUp(item)`; `Raise(target)` on press and `StopRaise()` on release |
 | Put the hand item down | Q (`put_down`) | `PutDown(facing)` |
 | Use the hand item | left mouse button (`use`); the click that captures the mouse is not a use | `Use(facing)` |
-| Swap hand and belt | X (`swap`) | `Swap()` |
+| Back to the place held last (revised by #1218; was "Swap hand and belt") | X (`swap`) | `Swap()` |
+| Draw a place into the hand (#1218, GDD §6) | 1, 2, 3 (`place_1`, `place_2`, `place_3`); the mouse wheel steps round the three (down: the next place, a placeholder direction, not a decision) | `Draw(place)`, place 0 to 2 |
 | Give up, while downed | hold G for 1 s (`give_up`, a placeholder) | `GiveUp()` |
 | Task screen (revised by #253: the map and tasks screen, M toggles it, the action `map`) | hold Tab (`task_screen`) | nothing |
 | Next and previous spectate target, while dead | left and right mouse buttons | nothing: the target never leaves the client |

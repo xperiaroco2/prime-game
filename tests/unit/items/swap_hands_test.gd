@@ -29,7 +29,7 @@ func test_a_lone_hand_item_goes_to_the_belt_and_back() -> void:
 	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"Swapped"])
 	for peer: int in [P1, P2]:
 		var swapped := game.view_of(peer).events_named(&"Swapped")
-		assert_dict(swapped[0].to_dict()).is_equal({"peer": P1})
+		assert_dict(swapped[0].to_dict()).is_equal({"peer": P1, "place": 1})
 	FixtureItemModes.swap(game, P1)
 	assert_int(player.held_item).is_equal(tool.id)
 	assert_int(player.belt_item).is_equal(-1)

@@ -259,9 +259,8 @@ func test_a_part_from_each_bin() -> void:
 		assert_object(held).is_not_null()
 		if held != null:
 			assert_object(held.kind).is_same(type.parts[i])
-	# Each take makes room as cooking's sources do (Items.give, ADR §2 row 16): the second take's
-	# hand part went onto the empty belt; with both slots full, a later take's hand part went down
-	# at the feet and the belt kept the first part. Three parts, one in each place.
+	# A take with the hand full goes into the lowest free place and is selected (GDD §6, #1218):
+	# the three parts are carried, one in each place, none on the ground.
 	var parts := 0
 	for kind: ItemKind in type.parts:
 		parts += _items_of(kind).size()
@@ -271,9 +270,11 @@ func test_a_part_from_each_bin() -> void:
 	assert_object(belted).is_not_null()
 	if belted != null:
 		assert_object(belted.kind).is_same(type.parts[0])
-	for i in range(1, type.parts.size() - 1):
+	for i in type.parts.size():
 		for item: ItemState in _items_of(type.parts[i]):
-			assert_int(item.where).override_failure_message(str(i)).is_equal(ItemState.Where.GROUND)
+			assert_int(item.where).override_failure_message(str(i)).is_not_equal(
+				ItemState.Where.GROUND
+			)
 	_assert_clean()
 
 
@@ -299,13 +300,13 @@ func test_a_package_carrier_takes_parts_onto_the_belt_and_is_refused_two_handed(
 		return
 	assert_object(first.kind).is_same(type.parts[0])
 	assert_int(_id(Items.held_by(_game.state, carrier))).is_equal(package.id)
-	# A second take: the belt's part goes down at the feet first, the new one onto the belt.
+	# A second take fills the belt's second place; a third puts the lower part down at the feet.
 	var placed := _game.view_of(carrier).events_named(&"ItemPlaced").size()
 	_take_from(carrier, task_state.bins[1])
-	var second := Items.belted_by(_game.state, carrier)
-	assert_object(second).is_not_null()
-	if second != null:
-		assert_object(second.kind).is_same(type.parts[1])
+	assert_int(Items.belted_items(_game.state, carrier).size()).is_equal(2)
+	_take_from(carrier, task_state.bins[2])
+	var third := Items.belted_by(_game.state, carrier)
+	assert_bool(third != null and third.kind == type.parts[2]).is_true()
 	assert_int(_id(Items.held_by(_game.state, carrier))).is_equal(package.id)
 	assert_int(_game.view_of(carrier).events_named(&"ItemPlaced").size()).is_equal(placed + 1)
 	assert_int(first.where).is_equal(ItemState.Where.GROUND)

@@ -137,7 +137,10 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	assert_str(String(Controls.ACTIONS[&"sneak"])).is_equal("control.sneak")
 	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
-	assert_dict(Controls.UNLISTED).is_empty()
+	# UNLISTED holds only the three places' 1, 2 and 3 (#1218) until the copy deck has their rows.
+	assert_array(Controls.UNLISTED.keys()).is_equal([&"place_1", &"place_2", &"place_3"])
+	for place: StringName in Controls.UNLISTED:
+		assert_int(Controls.UNLISTED[place]).is_equal(Controls.ControlContext.ALIVE)
 	assert_str(Controls.name_of(&"sneak")).is_equal("Sneak")
 	TranslationServer.set_locale("uk")
 	assert_str(Controls.name_of(&"sneak")).is_equal("Крастися")

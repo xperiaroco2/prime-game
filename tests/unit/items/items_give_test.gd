@@ -31,7 +31,7 @@ func test_empty_hands_take_it_into_the_hand() -> void:
 		[&"ItemSpawned", &"ItemPickedUp"]
 	)
 	assert_dict(_last_pick(game, P2).to_dict()).is_equal(
-		{"peer": P1, "item": herb.id, "belted": -1}
+		{"peer": P1, "item": herb.id, "belted": -1, "place": 0}
 	)
 	assert_array(FixtureModes.notes(game)).is_empty()
 	assert_array(Array(game.diagnostics)).is_empty()
@@ -51,13 +51,15 @@ func test_a_one_handed_hand_item_moves_to_an_empty_belt() -> void:
 		[&"ItemSpawned", &"ItemPickedUp"]
 	)
 	assert_dict(_last_pick(game, P2).to_dict()).is_equal(
-		{"peer": P1, "item": herb.id, "belted": hand.id}
+		{"peer": P1, "item": herb.id, "belted": hand.id, "place": 1}
 	)
 
 
 func test_with_a_full_belt_the_hand_item_is_put_down_at_the_feet_first() -> void:
 	var game := _game()
 	var belted := _picked(game, &"tool")
+	# A full belt: both belt places taken (GDD §6).
+	_picked(game, &"tool")
 	var held := _picked(game, &"herb")
 	assert_int(belted.where).is_equal(ItemState.Where.BELT)
 	var seen := game.view_of(P2).events.size()
@@ -81,7 +83,7 @@ func test_with_a_full_belt_the_hand_item_is_put_down_at_the_feet_first() -> void
 		{"item": held.id, "position": FEET, "cause": &"put_down"}
 	)
 	assert_dict(_last_pick(game, P2).to_dict()).is_equal(
-		{"peer": P1, "item": given.id, "belted": -1}
+		{"peer": P1, "item": given.id, "belted": -1, "place": 2}
 	)
 	assert_array(FixtureModes.notes(game)).is_equal(
 		[FixtureRestedNote.text(held.id, &"put_down", FEET), "task item_rested"]
@@ -105,13 +107,15 @@ func test_beside_a_two_handed_hand_item_it_goes_onto_the_empty_belt() -> void:
 		[&"ItemSpawned", &"ItemPickedUp"]
 	)
 	assert_dict(_last_pick(game, P2).to_dict()).is_equal(
-		{"peer": P1, "item": herb.id, "belted": herb.id}
+		{"peer": P1, "item": herb.id, "belted": herb.id, "place": 1}
 	)
 
 
 func test_beside_a_two_handed_hand_item_a_full_belt_s_item_goes_down_at_the_feet_first() -> void:
 	var game := _game()
 	var belted := _picked(game, &"tool")
+	# A full belt: both belt places taken (GDD §6).
+	_picked(game, &"tool")
 	var package := _picked(game, &"package")
 	assert_int(belted.where).is_equal(ItemState.Where.BELT)
 	var seen := game.view_of(P2).events.size()
@@ -130,10 +134,10 @@ func test_beside_a_two_handed_hand_item_a_full_belt_s_item_goes_down_at_the_feet
 		{"item": belted.id, "position": FEET, "cause": &"put_down"}
 	)
 	assert_dict(_last_pick(game, P2).to_dict()).is_equal(
-		{"peer": P1, "item": herb.id, "belted": herb.id}
+		{"peer": P1, "item": herb.id, "belted": herb.id, "place": 0}
 	)
 	# The taker learns the same public events.
-	assert_array(game.view_of(P1).events_named(&"ItemPickedUp")).has_size(3)
+	assert_array(game.view_of(P1).events_named(&"ItemPickedUp")).has_size(4)
 
 
 func test_a_two_handed_given_item_is_a_rule_error_and_nothing_moves() -> void:

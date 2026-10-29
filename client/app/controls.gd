@@ -14,7 +14,8 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: the three
+##   places' keys 1, 2 and 3 until the copy deck has their rows, #1218;
 ##   `throw`, `crouch` and `sneak` left it for a row, #851, #951, #1009) keeps its key for the
 ##   phases it acts in: a binding that would put an action of such a phase on it is refused, as a
 ##   fixed key is, so one press never does both.
@@ -37,9 +38,14 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: none now; `throw`, G, became a Settings row in #851, `crouch` in #951 and the
+## those phases: the places' 1, 2 and 3 (#1218, GDD §6) until the copy deck has `control.place_1`
+## to `control.place_3`; `throw`, G, became a Settings row in #851, `crouch` in #951 and the
 ## sneak (Alt) in #1009.
-const UNLISTED: Dictionary[StringName, int] = {}
+const UNLISTED: Dictionary[StringName, int] = {
+	&"place_1": ControlContext.ALIVE,
+	&"place_2": ControlContext.ALIVE,
+	&"place_3": ControlContext.ALIVE,
+}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,

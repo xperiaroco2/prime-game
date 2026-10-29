@@ -51,7 +51,8 @@ static func hold(
 	model: ClientModel, id: int, kind: StringName, peer: int = OWN, at := Vector3(0, 0, 25)
 ) -> void:
 	fold(model, ItemSpawnedEvent.new(id, kind, at))
-	fold(model, ItemPickedUpEvent.new(peer, id))
+	# Into its selected place, as a take with that place empty goes (GDD §6).
+	fold(model, ItemPickedUpEvent.new(peer, id, -1, model.selected_place(peer)))
 
 
 ## Film `id` held by the own player and loaded into the camera.
@@ -100,4 +101,5 @@ static func row(
 		"crouched": false,
 		"held_item": held,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}

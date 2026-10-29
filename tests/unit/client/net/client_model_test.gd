@@ -211,7 +211,7 @@ func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
 	_fold(ItemPickedUpEvent.new(OWN, 1))
 	assert_int(_model.hand_item(OWN)).is_equal(1)
 	# The knife goes to the empty belt as the package comes into the hand.
-	_fold(ItemPickedUpEvent.new(OWN, 2, 1))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 1, 1))
 	assert_int(_model.hand_item(OWN)).is_equal(2)
 	assert_int(_model.belt_item(OWN)).is_equal(1)
 	assert_int(_model.items[1].holder).is_equal(OWN)
@@ -219,15 +219,15 @@ func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
 	_fold(ItemPlacedEvent.new(2, Vector3(5, 0, 5), &"put_down"))
 	assert_int(_model.hand_item(OWN)).is_equal(-1)
 	assert_int(_model.belt_item(OWN)).is_equal(1)
-	_fold(SwappedEvent.new(OWN))
+	_fold(SwappedEvent.new(OWN, 0))
 	assert_int(_model.hand_item(OWN)).is_equal(1)
 	assert_int(_model.belt_item(OWN)).is_equal(-1)
 	# Another player's slots fold the same way; a full belt sends the hand item to rest (ItemPlaced).
 	_fold(ItemPickedUpEvent.new(1, 3))
-	_fold(SwappedEvent.new(1))
+	_fold(SwappedEvent.new(1, 1))
 	assert_int(_model.hand_item(1)).is_equal(-1)
 	assert_int(_model.belt_item(1)).is_equal(3)
-	_fold(ItemPickedUpEvent.new(1, 2))
+	_fold(ItemPickedUpEvent.new(1, 2, -1, 1))
 	assert_int(_model.hand_item(1)).is_equal(2)
 	assert_int(_model.belt_item(1)).is_equal(3)
 	assert_int(_model.hand_item(OWN)).is_equal(1)
@@ -268,8 +268,8 @@ func test_an_item_thrown_leaves_the_hand_and_keeps_its_flight_until_it_rests() -
 	assert_bool(item.position == Vector3(6, 0, -9)).is_true()
 	# A belted item thrown after a swap leaves the belt flag behind it.
 	_fold(ItemPickedUpEvent.new(OWN, 7))
-	_fold(ItemPickedUpEvent.new(OWN, 2, 7))
-	_fold(SwappedEvent.new(OWN))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 7, 1))
+	_fold(SwappedEvent.new(OWN, 0))
 	_fold(ItemThrownEvent.new(7, OWN, origin, velocity, gravity, 90))
 	assert_int(_model.hand_item(OWN)).is_equal(-1)
 	assert_int(_model.belt_item(OWN)).is_equal(2)
@@ -353,18 +353,18 @@ func test_a_pick_up_straight_onto_the_belt_keeps_the_hand_item_held() -> void:
 	_fold(ItemSpawnedEvent.new(2, &"knife", Vector3(2, 0, 0)))
 	_fold(ItemSpawnedEvent.new(3, &"knife", Vector3(3, 0, 0)))
 	_fold(ItemPickedUpEvent.new(OWN, 1))
-	_fold(ItemPickedUpEvent.new(OWN, 2, 2))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 2, 1))
 	assert_int(_model.hand_item(OWN)).is_equal(1)
 	assert_int(_model.belt_item(OWN)).is_equal(2)
 	assert_bool(_model.items[2].belted).is_true()
 	assert_bool(_model.items[1].belted).is_false()
 	_fold(ItemPlacedEvent.new(2, Vector3(0, 0, 0), &"put_down"))
-	_fold(ItemPickedUpEvent.new(OWN, 3, 3))
+	_fold(ItemPickedUpEvent.new(OWN, 3, 3, 1))
 	assert_int(_model.hand_item(OWN)).is_equal(1)
 	assert_int(_model.belt_item(OWN)).is_equal(3)
 	assert_bool(_model.items[2].rests()).is_true()
 	# Another player's take folds the same way.
-	_fold(ItemPickedUpEvent.new(1, 2, 2))
+	_fold(ItemPickedUpEvent.new(1, 2, 2, 1))
 	assert_int(_model.hand_item(1)).is_equal(-1)
 	assert_int(_model.belt_item(1)).is_equal(2)
 
@@ -761,3 +761,39 @@ func test_the_car_folds_its_fitter_and_a_fitted_part_leaves_the_hand() -> void:
 	_fold(FitChangedEvent.new(9, OWN, 60))
 	_fold(PartFittedEvent.new(9, 4))
 	assert_bool(_model.stations.has(9)).is_false()
+
+
+## GDD §6 (#1218): three places; an item keeps its place, `Swapped` names the place now in the
+## hand, and the belt reads the two other places in place order (belt_item the lower).
+func test_three_places_follow_the_places_of_pickups_and_swaps() -> void:
+	_to_round()
+	for id: int in [1, 2, 3]:
+		_fold(ItemSpawnedEvent.new(id, &"knife", Vector3(id, 0, 0)))
+	_fold(ItemPickedUpEvent.new(OWN, 1))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 1, 1))
+	_fold(ItemPickedUpEvent.new(OWN, 3, 2, 2))
+	assert_int(_model.selected_place(OWN)).is_equal(2)
+	assert_int(_model.hand_item(OWN)).is_equal(3)
+	assert_int(_model.belt_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item2(OWN)).is_equal(2)
+	(
+		assert_array([0, 1, 2].map(func(at: int) -> int: return _model.item_in_place(OWN, at)))
+		. is_equal([1, 2, 3])
+	)
+	# Draw (Swapped) of place 0: the knife in place 0 comes into the hand, the others hang.
+	_fold(SwappedEvent.new(OWN, 0))
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item(OWN)).is_equal(2)
+	assert_int(_model.belt_item2(OWN)).is_equal(3)
+	assert_int(_model.items[3].carry_place).is_equal(2)
+	# An empty place is an empty hand: place 1's knife put down, then place 1 drawn.
+	_fold(ItemPlacedEvent.new(2, Vector3(5, 0, 5), &"put_down"))
+	_fold(SwappedEvent.new(OWN, 1))
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	assert_int(_model.belt_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item2(OWN)).is_equal(3)
+	# Another player's places fold apart from the own ones.
+	_fold(ItemPickedUpEvent.new(1, 2, -1, 2))
+	assert_int(_model.selected_place(1)).is_equal(2)
+	assert_int(_model.hand_item(1)).is_equal(2)
+	assert_int(_model.selected_place(OWN)).is_equal(1)

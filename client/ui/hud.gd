@@ -11,7 +11,8 @@ extends Control
 ##   `Raising`, the own raise's progress, replaces Aim (the engineer, 2026-10-06).
 ## - `Vitals` (bottom left): health (its fill coloured by the ramp's stop, ToyBar), stamina and the
 ##   microphone (on: `mic` tinted `icon_on`; off: `mic-off` tinted `icon_off`).
-## - `Slots` (bottom right): the hand, always the active slot, and the belt (HudSlot).
+## - `Slots` (bottom right): the three places, numbered 1 to 3, the one in the hand lit (HudSlot;
+##   GDD §6, #1218).
 ## Downed, only the microphone shows; dead, nothing (the handoff s09, #497: LifeScreen draws the
 ## downed, spectating and respawn plates over it).
 ## Styled only through the shared theme's variations (no override; a size constant read into
@@ -45,8 +46,16 @@ var stamina := ToyBar.new(ToyBar.STAMINA)
 var mic := PanelContainer.new()
 var mic_icon := TextureRect.new()
 var slots := HBoxContainer.new()
-var hand := HudSlot.new("Hand", &"ToySlotActive", "hud.slot.hand", &"ToySlotText")
-var belt := HudSlot.new("Belt", &"ToySlot", "hud.slot.belt", &"ToyTextOnDark")
+## The three places (GDD §6), numbered 1 to 3, the one in the hand lit (HudSlot).
+var places: Array[HudSlot] = [HudSlot.new(1), HudSlot.new(2), HudSlot.new(3)]
+## The place in the hand now.
+var hand: HudSlot:
+	get:
+		return places[_shown.selected]
+## The first belt place now (the lowest place not in the hand).
+var belt: HudSlot:
+	get:
+		return places[1 if _shown.selected == 0 else 0]
 var raising := PanelContainer.new()
 var raising_bar := ProgressBar.new()
 ## The crosshair, Aim and Raising show; off while the map covers the middle or the player is not
@@ -95,8 +104,9 @@ func show_hud(shown: HudText.Shown) -> void:
 	mic_icon.texture = ToyIcons.texture(&"mic" if shown.mic else &"mic-off")
 	_tint_mic()
 	slots.visible = shown.slots
-	hand.show_slot(shown.hand)
-	belt.show_slot(shown.belt)
+	for place in places.size():
+		places[place].light(place == shown.selected)
+		places[place].show_slot(shown.places[place])
 	_show_aim_text()
 	raising_bar.value = maxf(0.0, shown.raising)
 	_show_middle()
@@ -236,8 +246,9 @@ func _build_slots() -> void:
 	slots.theme_type_variation = &"ToyRowTwelve"
 	var corner := Vector2(-EDGE, -EDGE)
 	_pin(slots, Control.PRESET_BOTTOM_RIGHT, corner, GROW_DIRECTION_BEGIN, GROW_DIRECTION_BEGIN)
-	slots.add_child(hand)
-	slots.add_child(belt)
+	for place: HudSlot in places:
+		place.light(place == hand)
+		slots.add_child(place)
 
 
 ## Adds `node` anchored at `preset` with all four offsets at `at` (a point: the node takes its

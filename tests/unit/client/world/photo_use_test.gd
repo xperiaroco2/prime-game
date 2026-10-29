@@ -40,7 +40,7 @@ func test_the_empty_camera_needs_a_fresh_film_carried() -> void:
 
 func test_a_fresh_film_on_the_belt_offers_the_load_too() -> void:
 	P.hold(_model, FILM, &"film")
-	P.fold(_model, SwappedEvent.new(P.OWN))
+	P.fold(_model, SwappedEvent.new(P.OWN, 1))
 	assert_bool(_usable(P.CAMERA)).is_true()
 
 
@@ -80,7 +80,7 @@ func test_once_the_task_is_done_the_load_the_printer_and_the_board_are_not_offer
 
 func test_a_two_handed_item_in_the_hand_offers_no_camera_printer_or_board() -> void:
 	P.hold(_model, FILM, &"film")
-	P.fold(_model, SwappedEvent.new(P.OWN))
+	P.fold(_model, SwappedEvent.new(P.OWN, 1))
 	P.hold(_model, 41, &"package")
 	assert_bool(_usable(P.CAMERA)).is_false()
 	# The box's rule has no HandNotTwoHanded: a take is a take (CD3 (b)).

@@ -343,14 +343,9 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	if rules == null:
 		ctx.error("respawn: the mode has no PlayerRules")
 		return
-	if back.held_item >= 0 or back.belt_item >= 0:
-		# The death dropped them (die); a full slot is a rule error, and its item drops here.
-		ctx.error(
-			(
-				"respawn: player %d still carries items %d and %d"
-				% [peer, back.held_item, back.belt_item]
-			)
-		)
+	if not back.carried_items().is_empty():
+		# The death dropped them (die); a full place is a rule error, and its item drops here.
+		ctx.error("respawn: player %d still carries items %s" % [peer, back.carried_items()])
 		Items.drop_carried(ctx, peer, Items.DEATH)
 	ctx.state.bodies.erase(peer)
 	back.life = PlayerState.Life.ALIVE

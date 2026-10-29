@@ -170,6 +170,7 @@ static func _avatar() -> Dictionary:
 		"sneaking": false,
 		"held_item": -1,
 		"belt_item": -1,
+		"belt_item2": -1,
 	}
 
 
@@ -185,3 +186,17 @@ func _decoded(payload: PackedByteArray) -> Dictionary:
 	var decoded := _schema.decode(_schema.kind_of(&"Snapshot"), payload)
 	assert_object(decoded).is_not_null()
 	return decoded.fields["avatars"] if decoded != null else {}
+
+
+## A second belt item that is not -1 survives the codec, beside the first (#1218).
+func test_a_second_belt_item_round_trips_beside_the_first() -> void:
+	var avatar := _avatar()
+	avatar["held_item"] = 4
+	avatar["belt_item"] = 5
+	avatar["belt_item2"] = 6
+	var avatars := {2: avatar}
+	var decoded := _decoded(_encoded(7, avatars))
+	assert_int((decoded[2] as Dictionary)["belt_item"] as int).is_equal(5)
+	assert_int((decoded[2] as Dictionary)["belt_item2"] as int).is_equal(6)
+	assert_bool(Samples.same(decoded, avatars)).is_true()
+	assert_int(_errors.count()).is_equal(0)

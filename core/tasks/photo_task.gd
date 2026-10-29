@@ -590,13 +590,11 @@ func _loaded_in(state: MatchState, task_state: State) -> ItemState:
 	return item
 
 
-## The items of `kind` the actor carries: the hand's, then the belt's.
+## The items of `kind` the actor carries: the hand's, then the belt's in place order.
 func _carried(ctx: MatchContext, kind: ItemKind) -> Array[ItemState]:
 	var found: Array[ItemState] = []
-	for item: ItemState in [
-		Items.held_by(ctx.state, ctx.actor), Items.belted_by(ctx.state, ctx.actor)
-	]:
-		if item != null and item.kind == kind:
+	for item: ItemState in Items.carried_by(ctx.state, ctx.actor):
+		if item.kind == kind:
 			found.append(item)
 	return found
 
@@ -686,6 +684,7 @@ func _shoot(ctx: MatchContext, task_state: State, station: StationState, item: I
 						"crouched": player.crouched,
 						"held_item": player.held_item,
 						"belt_item": player.belt_item,
+						"belt_item2": player.belt_item2,
 					}
 				)
 			)

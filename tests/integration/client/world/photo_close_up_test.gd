@@ -107,7 +107,7 @@ func test_a_swap_to_the_belt_photo_shows_its_picture_and_ends_the_close_up() -> 
 	await _frames(2)
 	assert_object(_player.hand_view().view().picture()).is_same(_red)
 	_keys.use()
-	_model.fold(&"Swapped", SwappedEvent.new(_model.own_peer).to_dict())
+	_model.fold(&"Swapped", SwappedEvent.new(_model.own_peer, 0).to_dict())
 	await _frames(2)
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(PHOTO_B)
 	assert_object(_player.hand_view().view().picture()).is_same(_blue)
@@ -160,6 +160,8 @@ func _hold(id: int, shot: int, belted := -1) -> void:
 	var fields := {"peer": _model.own_peer, "item": id}
 	if belted >= 0:
 		fields["belted"] = belted
+		# The belted item keeps place 0; this one goes into the free place 1 (GDD §6).
+		fields["place"] = 1
 	_model.fold(&"ItemPickedUp", fields)
 
 

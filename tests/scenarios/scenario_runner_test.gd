@@ -132,7 +132,9 @@ func test_another_player_s_throw_leaves_the_bot_s_hands_alone() -> void:
 	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
 	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", Vector3.ZERO))).is_empty()
 	assert_str(_receive(bot, ItemSpawnedEvent.new(8, &"package", Vector3.ONE))).is_empty()
-	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7, 8))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 8))).is_empty()
+	# 7 into place 1, now selected: 8 stays in place 0, now on the belt (GDD §6).
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7, 8, 1))).is_empty()
 	var other := bot.peer + 1
 	var flight := ItemThrownEvent.new(9, other, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 3)
 	assert_str(_receive(bot, flight)).is_empty()
@@ -147,22 +149,23 @@ func test_another_player_s_throw_leaves_the_bot_s_hands_alone() -> void:
 
 ## The engineer's belt rule for every take (the cooking ADR, CD3 (b), CE20, CE21): beside a
 ## two-handed hand item a one-handed item goes straight onto the belt, ItemPickedUp's `belted`
-## naming the item itself, and the bot keeps the package held; with a full belt the belt's item is
-## put down at the feet first (ItemPlaced), then the new one goes onto the belt.
+## naming the item itself and `place` its belt place, and the bot keeps the package held; with both
+## belt places full a belt item is put down at the feet first (ItemPlaced), then the new one goes
+## into its place.
 func test_a_take_straight_onto_the_belt_keeps_the_hand_item_held() -> void:
 	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
 	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", Vector3.ZERO))).is_empty()
 	assert_str(_receive(bot, ItemSpawnedEvent.new(8, &"knife", Vector3.ONE))).is_empty()
 	assert_str(_receive(bot, ItemSpawnedEvent.new(9, &"knife", Vector3.ONE * 2))).is_empty()
 	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7))).is_empty()
-	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 8, 8))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 8, 8, 1))).is_empty()
 	assert_int(bot.held).is_equal(7)
 	assert_int(bot.belted).is_equal(8)
 	assert_int(bot.items[7]["where"]).is_equal(ScenarioBot.Where.HAND)
 	assert_int(bot.items[8]["where"]).is_equal(ScenarioBot.Where.BELT)
 	var feet := Vector3(0, 0, 3)
 	assert_str(_receive(bot, ItemPlacedEvent.new(8, feet, Items.PUT_DOWN))).is_empty()
-	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 9, 9))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 9, 9, 1))).is_empty()
 	assert_int(bot.held).is_equal(7)
 	assert_int(bot.belted).is_equal(9)
 	assert_int(bot.items[8]["where"]).is_equal(ScenarioBot.Where.GROUND)

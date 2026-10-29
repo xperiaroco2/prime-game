@@ -153,6 +153,7 @@ func _avatars(others: Dictionary) -> Dictionary:
 			"invulnerable": false,
 			"held_item": -1,
 			"belt_item": -1,
+			"belt_item2": -1,
 		}
 	return made
 

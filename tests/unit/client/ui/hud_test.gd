@@ -333,4 +333,4 @@ func _arm_player2(model: ClientModel) -> void:
 	model.fold(&"ItemSpawned", {"item": 20, "kind": &"wrench", "position": Vector3(2, 0, 0)})
 	model.fold(&"ItemSpawned", {"item": 21, "kind": &"knife", "position": Vector3(2, 0, 1)})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 20})
-	model.fold(&"ItemPickedUp", {"peer": 2, "item": 21, "belted": 20})
+	model.fold(&"ItemPickedUp", {"peer": 2, "item": 21, "belted": 20, "place": 1})

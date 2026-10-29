@@ -62,6 +62,8 @@ func test_a_package_carriers_full_belt_puts_its_item_down_first() -> void:
 	var package := FixtureItemModes.lay(game, &"package", Vector3(22, 0, 0))
 	FixturePhotoModes.take(game, P1, knife)
 	FixturePhotoModes.take(game, P1, package)
+	# Both belt places full (GDD §6): the second goes onto the belt beside the package.
+	FixturePhotoModes.take(game, P1, FixtureItemModes.lay(game, &"knife", Vector3(21, 0, 0)))
 	assert_object(Items.belted_by(game.state, P1)).is_same(knife)
 	var seen := game.view_of(P2).events.size()
 	FixturePhotoModes.use(game, P1, _box(game))

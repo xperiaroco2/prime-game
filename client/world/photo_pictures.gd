@@ -288,13 +288,22 @@ func _puppet(row: Dictionary) -> RemotePlayerBody:
 		var flat := Basis(Vector3.UP, pose.yaw) * Basis(Vector3.RIGHT, -PI / 2.0)
 		body.global_transform = Transform3D(flat, pose.position + Vector3.UP * radius)
 	_hold(body, row.get("held_item", -1) as int, false)
-	_hold(body, row.get("belt_item", -1) as int, true)
+	# The row's belt places are not compacted (a belt item may sit in the higher one alone), the
+	# live view's are (ClientModel.belt_item2): the picture shows the belt as the live view does.
+	var belted: Array[int] = []
+	for key: String in ["belt_item", "belt_item2"]:
+		var id: int = row.get(key, -1)
+		if id >= 0:
+			belted.append(id)
+	for index in belted.size():
+		_hold(body, belted[index], true, index == 1)
 	PhotoLayers.assign(body, PhotoLayers.PHOTO, false)
 	return body
 
 
-## Item `id`, as the model knows it, at `body`'s hand (or carried in front), or on its belt.
-func _hold(body: RemotePlayerBody, id: int, belted: bool) -> void:
+## Item `id`, as the model knows it, at `body`'s hand (or carried in front), or on its belt (the
+## second belt item beside the first, as `ItemViews` draws it).
+func _hold(body: RemotePlayerBody, id: int, belted: bool, second := false) -> void:
 	var item: ClientModel.Item = model.items.get(id) if id >= 0 else null
 	if item == null:
 		return
@@ -304,6 +313,8 @@ func _hold(body: RemotePlayerBody, id: int, belted: bool) -> void:
 		point = body.carry_point() if kind != null and kind.is_two_handed() else body.hand_point()
 	var view := ItemView.make(id, item.kind, item.colour, mode)
 	point.add_child(view)
+	if second:
+		view.position = ItemViews.SECOND_BELT_OFFSET
 
 
 func _free(render: Render) -> void:

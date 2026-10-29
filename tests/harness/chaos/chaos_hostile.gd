@@ -155,6 +155,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.USE,
 		Intents.THROW,
 		Intents.SWAP,
+		Intents.DRAW,
 		Intents.STOP_RAISE,
 		Intents.RAISE,
 		Intents.HELLO,
@@ -210,6 +211,9 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 			_hellos += 1
 		Intents.SET_PROFILE:
 			args = _profile_args(phase)
+		Intents.DRAW:
+			# A place past the three (0..2) that the wire's byte still carries: no_such_place.
+			args = {"place": rng.randi_range(PlayerState.PLACES, 255)}
 	return args
 
 

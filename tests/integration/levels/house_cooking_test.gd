@@ -316,6 +316,11 @@ func test_a_box_carrier_takes_onto_the_belt_and_is_refused_two_handed_at_a_place
 		return
 	assert_object(herb.kind).is_same(task_state.bed_herbs[0])
 	assert_int(_id(Items.held_by(_game.state, carrier))).is_equal(box.id)
+	# A second bed fills the belt's second place (GDD §6, #1218): the belt is full.
+	_walk(carrier, [_station(task_state.beds[1]).position])
+	_use(carrier, task_state.beds[1])
+	assert_int(Items.belted_items(_game.state, carrier).size()).is_equal(2)
+	assert_object(Items.belted_by(_game.state, carrier)).is_same(herb)
 	# Another player (a dissident: nothing reads a role) loads the grill; the carrier waits there.
 	_walk(carrier, [_station(task_state.grill).position])
 	_take(griller, _box_giving(type.raw_patties[0]))
@@ -326,7 +331,7 @@ func test_a_box_carrier_takes_onto_the_belt_and_is_refused_two_handed_at_a_place
 	_walk(griller, [_station(task_state.grill).position])
 	_use(griller, task_state.grill)
 	_fry()
-	# The carrier takes the patty off: onto the belt, the belt's herb put down at its feet first.
+	# The carrier takes the patty off: onto the belt, the lower belt place's herb put down first.
 	var placed := _game.view_of(carrier).events_named(&"ItemPlaced").size()
 	_use(carrier, task_state.grill)
 	assert_int(_id(Items.belted_by(_game.state, carrier))).is_equal(patty.id)
