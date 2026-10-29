@@ -601,6 +601,9 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 	# PlayerRules' class defaults are 0, so each number below is written in the file (§9.5).
 	var mode := load(MODES_DIR.path_join("base_mode.tres")) as GameMode
 	var expected := FixtureModes.player_rules()
+	# The move's direction caps (#1334, art #196; the fixture keeps 0, no cap, for the suites).
+	expected.side_speed_mps = 3.0
+	expected.back_speed_mps = 2.0
 	for property: Dictionary in expected.get_property_list():
 		var number: String = property["name"]
 		var usage: int = property["usage"]
