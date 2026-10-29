@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 
 const LEVEL := "res://tests/fixtures/levels/wall_ledge_crate.tscn"
 const ROOM := "res://tests/fixtures/levels/platform_room.tscn"
+const MISSING := "res://tests/fixtures/levels/no_such_level.tscn"
 ## The fixture mode's capsule radius (FixtureModes.player_rules).
 const RADIUS := 0.4
 const NEAR := Vector3(1e-3, 1e-3, 1e-3)
@@ -168,6 +169,72 @@ func test_for_mode_builds_every_level_with_the_mode_s_capsule_radius() -> void:
 	var broken := HostWorldQuery.for_mode(mode)
 	assert_int(broken.errors.size()).is_equal(1)
 	assert_str(broken.errors[0]).contains("no_such_level").contains("not a scene")
+
+
+func test_for_mode_and_read_levels_read_each_level_once_with_the_same_layouts() -> void:
+	# #1068: the worlds and the markers share one read of each scene, and read what they did when
+	# each loaded its own.
+	var mode := FixtureModes.basic()
+	mode.lobby_level = ROOM
+	mode.maps = PackedStringArray([LEVEL, ROOM])
+	var room := _reads(ROOM)
+	var level := _reads(LEVEL)
+	var query := HostWorldQuery.for_mode(mode)
+	var levels := MarkerReader.read_levels(mode, query)
+	assert_array(Array(levels.errors)).is_empty()
+	assert_int(_reads(ROOM) - room).is_equal(1)
+	assert_int(_reads(LEVEL) - level).is_equal(1)
+	var apart := HostWorldQuery.new(RADIUS)
+	apart.add_level(LevelWorld.build(ROOM))
+	apart.add_level(LevelWorld.build(LEVEL))
+	var old := MarkerReader.read_levels(mode, apart)
+	assert_array(levels.layouts.keys()).is_equal(old.layouts.keys())
+	for path: String in old.layouts:
+		assert_dict(levels.layouts[path].to_dict()).is_equal(old.layouts[path].to_dict())
+
+
+func test_read_levels_reports_a_missing_level_through_a_world_that_holds_scenes() -> void:
+	var mode := FixtureModes.basic()
+	mode.lobby_level = ROOM
+	mode.maps = PackedStringArray([MISSING])
+	var query := HostWorldQuery.for_mode(mode)
+	var room := _reads(ROOM)
+	var levels := MarkerReader.read_levels(mode, query)
+	assert_int(levels.errors.size()).is_equal(1)
+	assert_str(levels.errors[0]).is_equal("%s: not a scene" % MISSING)
+	assert_bool(LevelScenes.reads.has(MISSING)).is_false()
+	assert_int(_reads(ROOM) - room).is_equal(0)
+
+
+func test_release_scenes_drops_the_held_scenes_and_the_worlds_still_answer() -> void:
+	var mode := FixtureModes.basic()
+	mode.lobby_level = ROOM
+	mode.maps = PackedStringArray([LEVEL])
+	var query := HostWorldQuery.for_mode(mode)
+	var first := MarkerReader.read_levels(mode, query)
+	var held := _weak_scene(query, ROOM)
+	assert_bool(held.get_ref() != null).is_true()
+	query.release_scenes()
+	assert_object(query.scenes).is_null()
+	# Booleans, not assert_object: an object assert keeps its value alive.
+	assert_bool(held.get_ref() == null).is_true()
+	query.use_level(LEVEL)
+	assert_float(query.floor_below(Vector3(0, 5, 0)).y).is_not_equal(HostWorldQuery.NO_FLOOR.y)
+	# A later read loads from disk again and holds nothing.
+	var room := _reads(ROOM)
+	var again := MarkerReader.read_levels(mode, query)
+	assert_int(_reads(ROOM) - room).is_equal(1)
+	assert_object(query.scenes).is_null()
+	assert_dict(again.layouts[ROOM].to_dict()).is_equal(first.layouts[ROOM].to_dict())
+
+
+# A weak reference to the scene `query` holds, with no strong one left in the caller.
+func _weak_scene(query: HostWorldQuery, path: String) -> WeakRef:
+	return weakref(query.scenes.scene(path))
+
+
+func _reads(path: String) -> int:
+	return LevelScenes.reads.get(path, 0)
 
 
 func _level(radius: float = RADIUS) -> HostWorldQuery:

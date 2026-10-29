@@ -25,6 +25,9 @@ var errors := PackedStringArray()
 ## The knocked-down bodies the host simulates (KE13), in the current level's world: use_level()
 ## hands it the level's World3D, and a change to another level frees every body.
 var bodies: HostBodies
+## The level scenes for_mode read, held for MarkerReader.read_levels so the start reads each
+## scene file once (#1068); null after release_scenes() (or for a query not made by for_mode).
+var scenes: LevelScenes = null
 
 var _levels: Dictionary[String, LevelWorld] = {}
 var _current: LevelWorld = null
@@ -37,14 +40,25 @@ func _init(capsule_radius: float = 0.0, crouch_height: float = 0.0) -> void:
 
 ## The worlds of every level of `mode` (its lobby and its maps: MarkerReader.level_paths_of), with
 ## the mode's capsule radius, and bodies of its crouching capsule (capsule_radius_m by
-## crouch_height_m, KE13). Check `errors` before hosting: a level with errors is refused.
+## crouch_height_m, KE13). Check `errors` before hosting: a level with errors is refused. It holds
+## the level scenes it read (`scenes`) for MarkerReader.read_levels; release_scenes() after that.
 static func for_mode(mode: GameMode) -> HostWorldQuery:
 	var radius := mode.player_rules.capsule_radius_m if mode.player_rules != null else 0.0
 	var height := mode.player_rules.crouch_height_m if mode.player_rules != null else 0.0
 	var query := HostWorldQuery.new(radius, height)
+	query.scenes = LevelScenes.new()
 	for path: String in MarkerReader.level_paths_of(mode):
-		query.add_level(LevelWorld.build(path))
+		query.add_level(LevelWorld.build(path, query.scenes))
 	return query
+
+
+## Drops the held level scenes (for_mode's `scenes`): the worlds keep their own shapes, and a
+## later read loads from disk again, holding nothing. The host calls it once the markers are read,
+## so the node-heavy scenes are not kept for the whole match.
+func release_scenes() -> void:
+	if scenes != null:
+		scenes.release()
+	scenes = null
 
 
 ## Adds `level` under its path, replacing a level of the same path (and its errors).

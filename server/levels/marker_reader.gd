@@ -51,13 +51,15 @@ static func read(
 	return result
 
 
-## Loads the scene at `level_path`, reads it and frees it.
+## Loads the scene at `level_path` (from `scenes` when given: LevelScenes), reads it and frees the
+## instance.
 static func read_scene(
-	level_path: String, world: WorldQuery, floor_tags: Array[StringName] = []
+	level_path: String,
+	world: WorldQuery,
+	floor_tags: Array[StringName] = [],
+	scenes: LevelScenes = null
 ) -> Read:
-	var scene: PackedScene = null
-	if ResourceLoader.exists(level_path, "PackedScene"):
-		scene = load(level_path) as PackedScene
+	var scene := LevelScenes.scene_of(level_path, scenes)
 	if scene == null:
 		var failed := Read.new()
 		failed.layout = LevelLayout.new(level_path)
@@ -76,16 +78,19 @@ static func read_scene(
 ## is pointed at each level (WorldQuery.use_level) before that level is read, so the host's
 ## WorldQuery snaps each level's markers to that level's own floor (§4.5 Starting; the option #66
 ## recommended); a fake with one world ignores it. It is left at the last level read:
-## Match.start names the level it plays first.
+## Match.start names the level it plays first. A HostWorldQuery's held scenes (its `scenes`, from
+## for_mode) are read again from memory, not from disk (#1068).
 static func read_levels(
 	mode: GameMode, world: WorldQuery, unsnapped: PackedStringArray = PackedStringArray()
 ) -> Levels:
 	var levels := Levels.new()
 	var tags := floor_tags_of(mode)
+	var host := world as HostWorldQuery
+	var scenes: LevelScenes = host.scenes if host != null else null
 	for path: String in level_paths_of(mode):
 		world.use_level(path)
 		var no_tags: Array[StringName] = []
-		var result := read_scene(path, world, no_tags if unsnapped.has(path) else tags)
+		var result := read_scene(path, world, no_tags if unsnapped.has(path) else tags, scenes)
 		levels.layouts[path] = result.layout
 		levels.errors.append_array(result.errors)
 	return levels

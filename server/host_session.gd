@@ -172,6 +172,8 @@ func start(mode: GameMode, port: int, max_clients: int, now_usec: int) -> bool:
 		errors.append_array(world.errors)
 		return false
 	var levels := MarkerReader.read_levels(mode, world)
+	# Each level scene read once for both (#1068), and not held for the match.
+	world.release_scenes()
 	if not levels.errors.is_empty():
 		errors.append_array(levels.errors)
 		return false

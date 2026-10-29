@@ -1169,7 +1169,9 @@ client is a `ClientSession` on the loopback like any other (§4.6.1) and reads n
 world (3c, below), then read the markers with `MarkerReader.read_levels` (2j) through the host's `WorldQuery`, which
 `read_levels` points at each level with `use_level(path)` before reading it (3c; the flat fake ignores it). So the
 `circle` markers snap to the floor the host plays on: the reader reads each level in the host's space, as #66 recommended. A
-level with load errors stops the host with the errors shown. (2) The session seed: 8 bytes of
+level with load errors stops the host with the errors shown. Each level's scene file is read from disk once per start
+(#1068): `for_mode` holds the scenes it loads (`LevelScenes`), `read_levels` reads the markers from them, and the host
+releases them before `Match.new`, so they are not held for the match. (2) The session seed: 8 bytes of
 `Crypto.generate_random_bytes`, the operating system's entropy, never the time (§3.3). (3) `Match.new`; a refused
 mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). (4) Host on the
 transport and link the own client, then `Match.start(0)`: host tick 0 is the session's start (hosting first, so the
@@ -1365,13 +1367,22 @@ round).
   other layers are left out. Only a root CSG node with `use_collision` and a `GridMap` whose used items have shapes
   count as collision. An `AnimatableBody3D` is a `StaticBody3D`: built where the scene puts it, it never moves on the
   host. `HostWorldQuery` (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule
-  radius, `errors`; `add_level`, `use_level`) answers as above; with no level (an empty or unknown path) it answers like
-  an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
+  radius, `errors`; `add_level`, `use_level`; `scenes` and `release_scenes()`, below) answers as above; with no level (an empty or unknown path) it
+  answers like an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
   (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1.9's limit that the host does not check walls),
   and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as `core/` does.
-  `MarkerReader.read_levels` calls `use_level(path)` before reading each level. Tests: `tests/integration/server/`
-  (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
-  through a `Match`, and 2j's flat levels).
+  `MarkerReader.read_levels` calls `use_level(path)` before reading each level.
+- **One read of each scene (#1068).** `LevelScenes.load_packed(path)` (`server/levels/level_scenes.gd`) is the one
+  load of a level scene on the host, counted per path in its process-wide `reads`. A `LevelScenes` holds what it loaded
+  until `release()`: `for_mode` makes one (`HostWorldQuery.scenes`) and passes it to `LevelWorld.build(path, scenes)`,
+  and `MarkerReader.read_levels` hands a `HostWorldQuery`'s `scenes` to `read_scene`, so the markers come from the same
+  `PackedScene` (without a held reference `ResourceLoader` frees it and the second reader reads the file again: about
+  1.6 s of a House start). `HostSession.start` calls `release_scenes()` once the markers are read; after it (and with
+  no `scenes`) each read loads directly and holds nothing. Each reader still instantiates and frees its own copy (about
+  0.1 s for the House). Tests: `tests/integration/server/` (fixture levels with a wall, a ledge and a low crate in
+  `tests/fixtures/levels/`, a package put down beside the ledge through a `Match`, and 2j's flat levels;
+  `level_scenes_test`, the read counts and the release in `host_world_query_test`, one read per level of `base_mode` in
+  `host_session_test`).
 - **The bodies (KE13, #847).** The level's world also holds the host's knocked-down bodies: `HostWorldQuery.bodies`
   (`server/host_bodies.gd`, a capsule of `capsule_radius_m` by `crouch_height_m` per body, `BODY_MODE_RIGID_LINEAR`,
   on the `downed` layer with the world mask, CCD) is handed the current level's `World3D` by `use_level`; a change to

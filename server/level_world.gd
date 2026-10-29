@@ -36,11 +36,10 @@ var _bodies: Array[RID] = []
 var _shapes: Array[Shape3D] = []
 
 
-## The world of the level scene at `level_path`: loaded, read and freed.
-static func build(level_path: String) -> LevelWorld:
-	var scene: PackedScene = null
-	if ResourceLoader.exists(level_path, "PackedScene"):
-		scene = load(level_path) as PackedScene
+## The world of the level scene at `level_path`: loaded (from `scenes` when given, which keeps it
+## for the next reader of the start: LevelScenes), read and freed.
+static func build(level_path: String, scenes: LevelScenes = null) -> LevelWorld:
+	var scene := LevelScenes.scene_of(level_path, scenes)
 	if scene == null:
 		return _failed(level_path, "not a scene")
 	return from_packed(scene, level_path)
