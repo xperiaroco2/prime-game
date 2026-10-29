@@ -11,6 +11,8 @@ extends GdUnitTestSuite
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
 const RADIUS := 0.4
 const HEIGHT := 1.8
+## The base mode's crouched capsule (crouch_height_m): the ducts are gone through crouched (§5b).
+const CROUCH_HEIGHT := 1.2
 const STEP := 0.3
 const JUMP := 1.0
 const SPACING := 0.1
@@ -41,8 +43,8 @@ const WALKS := {
 		Vector3(72.8, 0, 11),
 		Vector3(76, 0, 11),
 		Vector3(98.1, 0, 17),
-		Vector3(98.1, 0, 13),
-		Vector3(104, 0, 13),
+		Vector3(98.1, 0, 14),
+		Vector3(104, 0, 14),
 		Vector3(108, 0, 11),
 		Vector3(114.9, 0, 34),
 		Vector3(82.8, 0, 30),
@@ -150,6 +152,103 @@ const OVER_THE_CREEK := {
 	"gazebo by the plank footbridge to the ship":
 	[Vector2(114.9, 34), "plank footbridge", Vector2(116, 58)],
 }
+## §5b's hidden passages (#1373), walked both ways from their first corner's height to their last
+## one's: [corners, crouched]. The tunnel and the sewer are walked upright, the ducts crouched.
+const PASSAGES := {
+	"tunnel, the garage's pit to the laboratory":
+	[[Vector3(98, 0, 7.7), Vector3(98, 0, 14), Vector3(79, 0, 14), Vector3(77, -3.2, 14)], false],
+	"sewer, the cellar to the bonfire's manhole":
+	[
+		[
+			Vector3(64, -3.2, 9),
+			Vector3(65.6, 0, 10.5),
+			Vector3(65.6, 0, 12),
+			Vector3(60, 0, 12),
+			Vector3(60, 0, 21.5),
+			Vector3(60, 0, 28),
+			Vector3(67, 0, 28),
+			Vector3(67, 0, 51),
+			Vector3(60.4, 0, 51),
+		],
+		false
+	],
+	"sewer, the bonfire's manhole by the fork to the well's":
+	[
+		[
+			Vector3(60.4, 0, 51),
+			Vector3(67, 0, 51),
+			Vector3(67, 0, 64),
+			Vector3(36, 0, 64),
+			Vector3(36, 0, 68),
+			Vector3(29.4, 0, 68),
+		],
+		false
+	],
+	"sewer, the fork to the ship's manhole":
+	[
+		[
+			Vector3(67, -3.2, 51),
+			Vector3(67, 0, 64),
+			Vector3(99, 0, 64),
+			Vector3(99, 0, 67),
+			Vector3(99, 0, 73.6),
+		],
+		false
+	],
+	"duct, the laboratory to the pantry's grate":
+	[
+		[
+			Vector3(60, -3.2, 20.5),
+			Vector3(57.5, 0, 20.5),
+			Vector3(57.5, 0, 25.5),
+			Vector3(46.4, 0, 25.5),
+		],
+		true
+	],
+	"duct, the security room to the grate by the bins":
+	[
+		[
+			Vector3(73.5, -3.2, 8),
+			Vector3(71.5, 0, 8),
+			Vector3(71.5, 0, 23.5),
+			Vector3(76.5, 0, 23.5),
+			Vector3(76.5, 0, 32.6),
+		],
+		true
+	],
+}
+## Points in the ducts too low for an upright player and not for a crouched one (x, a height a
+## step above the floor, z): their middles, the laboratory's opening and the grates' ends.
+const DUCT_LOW_POINTS: Array[Vector3] = [
+	Vector3(58.5, -3.2, 20.5),
+	Vector3(57.5, -3.2, 23),
+	Vector3(52.6, -3.2, 25.5),
+	Vector3(71.5, -5, 17),
+	Vector3(71.5, -5, 12.4),
+	Vector3(76.5, -3.6, 26),
+]
+## The passages' holes at their ends: in the ground (§5b's points; the garage's pit; the pantry's
+## grate inside the pantry, east of its food printer), and in the
+## basement's floor (the cellar's manhole, the security room's duct).
+const PASSAGE_HOLES: Array[Vector2] = [
+	Vector2(98, 10.5),
+	Vector2(65.3, 51),
+	Vector2(30, 68),
+	Vector2(99, 73),
+	Vector2(49.5, 25.5),
+	Vector2(76.4, 30.8),
+	Vector2(64, 12),
+	Vector2(71.5, 10.5),
+]
+## The ground's sample step, and how far below the ground a column's floor makes it a hole.
+const HOLE_STEP := 0.25
+const HOLE_DEPTH := 0.3
+## The House's lot over its basement (§5c): its stairs go down from its ground floor by design, so
+## in it the holes are looked for in the basement's floor (y -3.2). North of it the bookcase stair's
+## shaft (SecretWall01..03 under SecretRoof01) is closed on every side: no throw gets in.
+const HOUSE_LOT := Rect2(58.4, 6, 20, 16)
+const STAIR_SHAFT := Rect2(58.4, 4.4, 12, 1.8)
+const BASEMENT := -3.2
 
 var _level: LevelWorld
 
@@ -175,6 +274,120 @@ func test_each_walk_can_be_walked() -> void:
 		if corners[-1] == Vector3.ZERO:
 			corners[-1] = _from_bonfire(corners[-2] as Vector3)
 		_walk(walk, corners, (corners[-1] as Vector3).y)
+
+
+func test_each_hidden_passage_can_be_walked_both_ways() -> void:
+	for walk: String in PASSAGES:
+		var corners: Array = (PASSAGES[walk] as Array)[0]
+		var height := CROUCH_HEIGHT if (PASSAGES[walk] as Array)[1] else HEIGHT
+		_walk(walk, corners, (corners[-1] as Vector3).y, height)
+		var back := corners.duplicate()
+		back.reverse()
+		_walk(walk + ", back", back, (back[-1] as Vector3).y, height)
+
+
+func test_the_ducts_are_too_low_to_go_through_upright() -> void:
+	for point in DUCT_LOW_POINTS:
+		var floor_y := _rest_height(point.x, point.z, point.y)
+		assert_bool(is_nan(floor_y)).override_failure_message("no floor at %s" % point).is_false()
+		if is_nan(floor_y):
+			continue
+		var feet := Vector3(point.x, floor_y, point.z)
+		assert_bool(_fits(feet)).override_failure_message("upright fits at %s" % feet).is_false()
+		(
+			assert_bool(_fits(feet, CROUCH_HEIGHT))
+			. override_failure_message("crouched does not fit at %s" % feet)
+			. is_true()
+		)
+
+
+## The throw guard's intent (#1374) for the passages' holes: an item that falls into a hole in the
+## ground (or, in the House's lot, in the basement's floor) lands on a floor in the PickUp rule's
+## reach of a passage walk's feet, never in a void.
+func test_an_item_falling_into_a_hole_in_the_ground_lands_in_reach_of_a_passage_walk() -> void:
+	var reach := _pick_up_reach()
+	assert_float(reach).is_greater(0.0)
+	var feet := _passage_feet()
+	var red: Array[String] = []
+	var holes: Array[Vector2] = []
+	var x := HOLE_STEP / 2
+	while x < ROAD_EAST_EDGE:
+		var z := HOLE_STEP / 2
+		while z < 96.0:
+			if STAIR_SHAFT.has_point(Vector2(x, z)):
+				z += HOLE_STEP
+				continue
+			var level := BASEMENT if HOUSE_LOT.has_point(Vector2(x, z)) else 0.0
+			var landed := _drop(x, z, level + 0.5)
+			if not is_nan(landed) and landed >= level - HOLE_DEPTH:
+				z += HOLE_STEP
+				continue
+			holes.append(Vector2(x, z))
+			if is_nan(landed):
+				red.append("(%.2f, %.2f): falls into a void" % [x, z])
+			elif not _in_reach(feet, Vector3(x, landed, z), reach):
+				red.append("(%.2f, %.2f): lands at %.2f out of reach" % [x, z, landed])
+			z += HOLE_STEP
+		x += HOLE_STEP
+	assert_array(red).override_failure_message("\n".join(red.slice(0, 20))).is_empty()
+	for end in PASSAGE_HOLES:
+		var found := holes.any(func(h: Vector2) -> bool: return h.distance_to(end) <= 1.0)
+		assert_bool(found).override_failure_message("no hole found at %s" % end).is_true()
+
+
+## The top of the first thing straight down from `from_y` at (x, z) to 10 m below the ground; NAN
+## when there is none.
+func _drop(x: float, z: float, from_y: float) -> float:
+	var ray := PhysicsRayQueryParameters3D.create(
+		Vector3(x, from_y, z), Vector3(x, -10, z), LevelWorld.WORLD_LAYER
+	)
+	var hit := _level.space_state().intersect_ray(ray)
+	return NAN if hit.is_empty() else (hit["position"] as Vector3).y
+
+
+## The passage walks' feet every SPACING metres, bucketed by the metre of their plan position.
+func _passage_feet() -> Dictionary[Vector2i, Array]:
+	var out: Dictionary[Vector2i, Array] = {}
+	for walk: String in PASSAGES:
+		var corners: Array = (PASSAGES[walk] as Array)[0]
+		var floor_y := (corners[0] as Vector3).y
+		for at in _points(corners):
+			var found := _rest_height(at.x, at.z, floor_y)
+			if is_nan(found):
+				continue
+			floor_y = found
+			var key := Vector2i(floori(at.x), floori(at.z))
+			if not out.has(key):
+				out[key] = []
+			out[key].append(Vector3(at.x, floor_y, at.z))
+	return out
+
+
+func _in_reach(feet: Dictionary[Vector2i, Array], item: Vector3, reach: float) -> bool:
+	var span := ceili(reach)
+	var cell := Vector2i(floori(item.x), floori(item.z))
+	for dx in range(-span, span + 1):
+		for dz in range(-span, span + 1):
+			for at: Vector3 in feet.get(cell + Vector2i(dx, dz), []):
+				if at.distance_to(item) <= reach:
+					return true
+	return false
+
+
+## The base mode's PickUp reach: the InReach condition of the rule that picks an item up.
+func _pick_up_reach() -> float:
+	var mode := load("res://content/modes/base_mode.tres") as GameMode
+	for rule: Rule in mode.actions:
+		var picks := false
+		var reach := 0.0
+		for condition: Condition in rule.conditions:
+			if condition is ItemOnGround:
+				picks = true
+			if condition is InReach:
+				reach = (condition as InReach).reach_m
+		if picks and reach > 0.0:
+			return reach
+	return 0.0
 
 
 func test_each_round_spawn_walks_to_the_bonfire_where_every_walk_starts() -> void:
@@ -284,8 +497,9 @@ func _from_bonfire(toward: Vector3) -> Vector3:
 	return Vector3(out.x, 0, out.y)
 
 
-## Walks `corners`: every rise a step, the capsule fitting all the way, ending at `end`.
-func _walk(walk: String, corners: Array, end: float) -> void:
+## Walks `corners`: every rise a step, the capsule (`height` tall) fitting all the way, ending at
+## `end`.
+func _walk(walk: String, corners: Array, end: float, height: float = HEIGHT) -> void:
 	var floor_y := (corners[0] as Vector3).y
 	var start := true
 	for at in _points(corners):
@@ -307,7 +521,7 @@ func _walk(walk: String, corners: Array, end: float) -> void:
 			)
 		floor_y = found
 		start = false
-		var fits := _fits(Vector3(at.x, floor_y, at.z))
+		var fits := _fits(Vector3(at.x, floor_y, at.z), height)
 		(
 			assert_bool(fits)
 			. override_failure_message(
@@ -368,13 +582,13 @@ func _top_at(x: float, z: float) -> float:
 	return -1.0 if hit.is_empty() else (hit["position"] as Vector3).y
 
 
-## Whether the player's capsule, resting with its feet at `feet`, touches nothing.
-func _fits(feet: Vector3) -> bool:
+## Whether the player's capsule, `height` tall, resting with its feet at `feet`, touches nothing.
+func _fits(feet: Vector3, height: float = HEIGHT) -> bool:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = RADIUS
-	capsule.height = HEIGHT
+	capsule.height = height
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = capsule
 	query.collision_mask = LevelWorld.WORLD_LAYER
-	query.transform = Transform3D(Basis.IDENTITY, feet + Vector3(0, HEIGHT / 2 + 0.02, 0))
+	query.transform = Transform3D(Basis.IDENTITY, feet + Vector3(0, height / 2 + 0.02, 0))
 	return _level.space_state().intersect_shape(query, 1).is_empty()
