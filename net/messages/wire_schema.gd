@@ -61,7 +61,9 @@ extends RefCounted
 ## 36 since #1218 (GDD §6, drawing from the belt): the intent Draw (kind 19, its place), the
 ## `place` of ItemPickedUp (48) and Swapped (64), and the avatar rows' `belt_item2` (Snapshot 96,
 ## ShotTaken 78), appended after `belt_item`.
-const VERSION := 36
+## 37 since #1296 (the seated watcher, GDD §12): the intent Pose (kind 20, no argument) and the
+## avatar rows' fifth flag `posed` (Snapshot 96), after `sneaking`. ShotTaken's record is unchanged.
+const VERSION := 37
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -317,6 +319,8 @@ static func _intents() -> Array[WireRow]:
 		),
 		# seq 4, place 1 (0..2; PlaceInRange refuses another byte, #1218).
 		_up(19, &"Draw", 5, [_seq(), _of("place", WireField.Type.U8)]),
+		# seq 4 (#1296: the client sends its claim twin first, as before every player action).
+		_up(20, &"Pose", 4, [_seq()]),
 	]
 
 
@@ -629,7 +633,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("velocity"),
 				_vec3("facing"),
 				WireField.bits(
-					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking"])
+					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking", "posed"])
 				),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
