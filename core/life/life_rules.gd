@@ -142,8 +142,10 @@ static func knock_down(ctx: MatchContext, peer: int, launch := Vector3.ZERO) -> 
 	downed.sprinting = false
 	downed.crouched = false
 	downed.sneaking = false
+	# A posed player downed stands up from the chair: its client learns it in its SelfStatus (#1383).
+	var was_posed := downed.posed
 	downed.posed = false
-	if downed.sober():
+	if downed.sober() or was_posed:
 		SelfStatusFeed.touch(ctx.state, peer)
 	downed.epoch += 1
 	if moves:
@@ -425,6 +427,11 @@ static func _to_dead(ctx: MatchContext, dead: PlayerState, what: String) -> void
 	var body := _floor_at(ctx, dead, what)
 	ctx.state.bodies[peer] = body
 	dead.life = PlayerState.Life.DEAD
+	if dead.posed:
+		# A kill from the chair (the car's drop) stands the body up: a corpse is never shown
+		# seated, and its client learns it in its SelfStatus (#1383).
+		dead.posed = false
+		SelfStatusFeed.touch(ctx.state, peer)
 	var rules := ctx.state.player_rules
 	dead.life_deadline = ctx.tick + Ticks.from_seconds(rules.respawn_s) if rules != null else -1
 	dead.knockdown_left = -1
