@@ -10,11 +10,14 @@ extends GdUnitTestSuite
 ##   floor beside it, is within the PickUp rule's InReach;
 ## - over every throw: higher than the arc's top (the eye over the highest floor within
 ##   PERCH_SPAN_M of its long sides, plus the Throw rule's speed squared over twice its gravity);
+## - covered: another body of the level's collision lies on it, over every point of a
+##   COVER_STEP_M grid COVER_PROBE_M above it, so no item rests there (the hidden passages' walls
+##   reach into the ground and the basement slab, #1373);
 ## - or left to another guard: in a footprint of EstateThrows.TOPS grown by its eave, at any
 ##   height (the roof sweep), or in the House's lot piece, as the roof sweep leaves it out.
 ## Anything else is a top a throw can reach and no player can: red, by body and piece.
-## Not read: a shape that is not a box (the estate has only boxes); a ceiling over a top (a throw
-## under it is taken as unbounded, so the check errs red).
+## Not read: a shape that is not a box (the estate has only boxes); a ceiling over a top with a
+## gap under it (a throw under it is taken as unbounded, so the check errs red).
 
 const EstateThrows := preload("res://tests/integration/levels/estate_throws.gd")
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
@@ -24,8 +27,14 @@ const PERCH_SPAN_M := 2.0
 const PERCH_STEP_M := 0.5
 ## A floor whose height under a player's footprint varies more than this is no place to stand.
 const STAND_STEP_M := 0.3
+## A covered top: the step of the grid on it, how far above it each point is asked, and how far in
+## from its edges the grid starts.
+const COVER_STEP_M := 0.5
+const COVER_PROBE_M := 0.05
+const COVER_INSET_M := 0.05
 
 var _world: HostWorldQuery
+var _level: LevelWorld
 var _rules: PlayerRules
 var _throw: ThrowItem
 var _reach_m := 0.0
@@ -52,13 +61,15 @@ func before() -> void:
 	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
 	_tops = EstateThrows.box_tops(root)
 	_world = HostWorldQuery.new(_rules.capsule_radius_m)
-	_world.add_level(LevelWorld.from_scene(root, EstateDoc.MAP))
+	_level = LevelWorld.from_scene(root, EstateDoc.MAP)
+	_world.add_level(_level)
 	_world.use_level(EstateDoc.MAP)
 	root.free()
 
 
 func after() -> void:
 	_world = null
+	_level = null
 	_rules = null
 	_throw = null
 	_tops.clear()
@@ -81,7 +92,7 @@ func test_every_top_outside_the_swept_roofs_is_a_floor_a_step_in_reach_or_over_e
 	for top: Dictionary in _tops:
 		var centre: Vector3 = top["centre"]
 		var plan := Vector2(centre.x, centre.z)
-		if top["piece"] == "House" or _in_a_swept_footprint(swept, plan):
+		if top["piece"] == "House" or _in_a_swept_footprint(swept, plan) or _covered(top):
 			continue
 		var why := _why_out_of_reach(top)
 		if why != "":
@@ -103,6 +114,21 @@ func test_a_fence_a_throw_reaches_and_no_player_does_is_red() -> void:
 		"along": Vector3.BACK,
 	}
 	assert_str(_why_out_of_reach(top)).is_not_empty()
+	assert_bool(_covered(top)).is_false()
+
+
+func test_a_passage_wall_under_the_ground_is_covered_and_a_top_half_out_of_it_is_not() -> void:
+	# The tunnel's wall reaches into the ground box (#1373): covered. The same top lifted out of
+	# the ground's top by half a metre is open, so the rule is not blind.
+	var wall := {}
+	for top: Dictionary in _tops:
+		if top["body"] == "Passages/TunnelWall01":
+			wall = top
+	assert_bool(wall.is_empty()).is_false()
+	assert_bool(_covered(wall)).is_true()
+	var lifted := wall.duplicate()
+	lifted["centre"] = (wall["centre"] as Vector3) + Vector3.UP * 1.4
+	assert_bool(_covered(lifted)).is_false()
 
 
 ## "" when the top is a floor, a step, in reach or over every throw; else what it is. The feet
@@ -152,6 +178,34 @@ func _why_out_of_reach(top: Dictionary) -> String:
 	var why := "top %.2f m, %.2f m over the floor beside it, " % [centre.y, lowest_rise]
 	why += "%.2f m from the nearest feet (reach %.1f), " % [nearest, _reach_m]
 	return why + "under a throw's top %.2f m" % arc_top
+
+
+## Whether a body of the level's collision holds every point of a COVER_STEP_M grid COVER_PROBE_M
+## over the top: points, not rays, as a ray does not hit from inside a box.
+func _covered(top: Dictionary) -> bool:
+	var centre: Vector3 = top["centre"]
+	var across: Vector3 = top["across"]
+	var along: Vector3 = top["along"]
+	var half := maxf((top["narrow"] as float) / 2.0 - COVER_INSET_M, 0.0)
+	var half_long := maxf((top["long"] as float) / 2.0 - COVER_INSET_M, 0.0)
+	var space := _level.space_state()
+	var query := PhysicsPointQueryParameters3D.new()
+	query.collision_mask = HostWorldQuery.WORLD_MASK
+	for a: float in _offsets(half):
+		for b: float in _offsets(half_long):
+			query.position = centre + Vector3.UP * COVER_PROBE_M + across * a + along * b
+			if space.intersect_point(query, 1).is_empty():
+				return false
+	return true
+
+
+## Offsets from -half to half, both ends included, at most COVER_STEP_M apart.
+func _offsets(half: float) -> Array[float]:
+	var count := maxi(ceili(2.0 * half / COVER_STEP_M), 1)
+	var offsets: Array[float] = []
+	for i: int in count + 1:
+		offsets.append(-half + 2.0 * half * i / count)
+	return offsets
 
 
 ## The floor a player stands on at `at` (x, z) under `under_y`: the height of the floor straight
