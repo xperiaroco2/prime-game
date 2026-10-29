@@ -1,13 +1,15 @@
 class_name SelfStatusFeed
 extends RefCounted
 ## SelfStatus to each player on change, at most once per tick (ARCHITECTURE §4.2, §7.1). A rule
-## that changes a player's health, stamina, sprint availability or drunk value touches that player
-## (the movement rule, StaminaCost, the knife's Strike, Drink, DrunkTicks, a sobering placement or
-## knockdown); at the end of every tick Match flushes: each touched player whose status differs
+## that changes a player's health, stamina, sprint availability, drunk value or pose touches that
+## player (the movement rule, StaminaCost, damage, the knife's Strike, Drink, DrunkTicks, a
+## sobering placement or knockdown, TakePose and every end of a pose: a placement, a knockdown, a
+## respawn); at the end of every tick Match flushes: each touched player whose status differs
 ## from the last one it was sent gets one SelfStatus,
 ## with the tick's final numbers and the client tick of its last settled claim (#155), which alone
 ## sends none: a client's prediction of an unchanged number needs no word. The first touch after
 ## a join or ResetMatch always sends one, because the record of what was sent lives in the
+## per-part state, which ResetMatch clears.
 ## per-part state, which ResetMatch clears.
 
 ## Its key in MatchState's per-part state (§9.1).
@@ -19,7 +21,8 @@ class FeedState:
 	extends RefCounted
 	## Peers touched since the last flush.
 	var touched: Dictionary[int, bool] = {}
-	## Peer -> the last SelfStatus it was sent, as [health, stamina, sprint available, drunk].
+	## Peer -> the last SelfStatus it was sent, as [health, stamina, sprint available, drunk,
+	## posed].
 	var sent: Dictionary[int, Array] = {}
 
 
@@ -43,14 +46,14 @@ static func flush(ctx: MatchContext) -> void:
 		if player == null or not player.is_present():
 			continue
 		var available := StaminaLedger.sprint_available(player, ctx.state.player_rules)
-		var status: Array = [player.health, player.stamina, available, player.drunk]
+		var status: Array = [player.health, player.stamina, available, player.drunk, player.posed]
 		if feed.sent.get(peer, []) == status:
 			continue
 		feed.sent[peer] = status
 		var claimed := MovementRule.settled_claim_tick(ctx.state, player)
 		ctx.emit(
 			SelfStatusEvent.new(
-				peer, player.health, player.stamina, available, claimed, player.drunk
+				peer, player.health, player.stamina, available, claimed, player.drunk, player.posed
 			)
 		)
 
