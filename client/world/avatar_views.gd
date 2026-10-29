@@ -271,6 +271,7 @@ func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -
 	state.downed = body.is_downed()
 	state.yaw = body.body_yaw
 	state.crouched = pose.crouched
+	state.posed = pose.posed
 	state.carrying = _two_handed(model.hand_item(body.peer))
 	var last: AvatarClips.Plan = _plans.get(body.peer)
 	state.was_back = last != null and last.back

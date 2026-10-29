@@ -153,6 +153,21 @@ func test_the_sneak_is_the_snapshots_at_or_before_the_drawn_tick_never_blended()
 	assert_bool(buffer.pose_of(PEER, 12.0).sneaking).is_false()
 
 
+func test_the_seated_pose_is_the_snapshots_at_or_before_the_drawn_tick_never_blended() -> void:
+	# #1296: taken as the crouch is; a snapshot without the flag (an older host's) is not posed.
+	var buffer := SnapshotBuffer.new()
+	var posed := _avatar(Vector3.ZERO, Vector3.RIGHT)
+	posed["posed"] = true
+	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.RIGHT)}, 500000)
+	buffer.add(11, {PEER: posed}, 550000)
+	buffer.add(12, {PEER: _avatar(Vector3(0.2, 0, 0), Vector3.RIGHT)}, 600000)
+	assert_bool(buffer.pose_of(PEER, 10.9).posed).is_false()
+	assert_bool(buffer.pose_of(PEER, 11.0).posed).is_true()
+	assert_bool(buffer.pose_of(PEER, 11.9).posed).is_true()
+	assert_bool(buffer.pose_of(PEER, 11.9).sneaking).is_false()
+	assert_bool(buffer.pose_of(PEER, 12.0).posed).is_false()
+
+
 func test_a_placement_snaps() -> void:
 	var buffer := SnapshotBuffer.new()
 	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3.FORWARD)}, 500000)
