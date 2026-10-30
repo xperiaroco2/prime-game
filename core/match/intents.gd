@@ -50,6 +50,11 @@ const DRAW := &"Draw"
 ## rule decides where it may (a TakePose rule and its conditions); any own move ends it
 ## (MovementRule). No argument.
 const POSE := &"Pose"
+## A living player hands its hand item to another living player, `target` (#1389; GDD §6 "The hand
+## and the belt"): the item arrives in the target's hand or on its belt by the rules of a take. The
+## host checks the item (HoldsItem, HandNotTwoHanded, HandHandable), the target (TargetLiving) and
+## the reach and the sight from the last accepted positions (TargetInReach, TargetInSight).
+const HAND_OVER := &"HandOver"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -72,6 +77,7 @@ const ALL: Array[StringName] = [
 	INTERACT,
 	DRAW,
 	POSE,
+	HAND_OVER,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -88,7 +94,8 @@ const PLAYER_ACTIONS: Array[StringName] = [
 	THROW,
 	INTERACT,
 	DRAW,
-	POSE
+	POSE,
+	HAND_OVER
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -155,6 +162,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	INTERACT: {"station": TYPE_INT, "item": TYPE_INT},
 	DRAW: {"place": TYPE_INT},
 	POSE: {},
+	HAND_OVER: {"target": TYPE_INT},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},

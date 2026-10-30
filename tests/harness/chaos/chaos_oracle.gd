@@ -90,7 +90,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 ## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
 ## Interact (#796) left it when the Generator (G5, #800) gave Round its row.
 ## Pose (#1296) waits here for the camera wall's chair, whose rule gives it a location.
-const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Pose"]
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Pose", &"HandOver"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
