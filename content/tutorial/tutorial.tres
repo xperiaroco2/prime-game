@@ -79,7 +79,7 @@ fields = {
 script = ExtResource("3_step")
 title_key = &"tutorial.step.hand_belt_draw.title"
 how_key = &"tutorial.step.hand_belt_draw.how"
-keys = Array[StringName]([&"place_1", &"place_2", &"place_3"])
+keys = Array[StringName]([&"place_2", &"place_1", &"place_3"])
 triggers = Array[ExtResource("4_trigger")]([SubResource("Event_swapped")])
 
 [sub_resource type="Resource" id="Step_hand_belt"]
