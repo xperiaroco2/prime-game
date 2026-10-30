@@ -66,6 +66,12 @@ func test_only_a_phase_that_takes_hand_over_from_the_living_offers_it() -> void:
 		func(entry: AcceptSpec) -> bool: return entry.intent != Intents.HAND_OVER
 	)
 	assert_bool(HandOverUse.can_hand(_model, _mode)).is_false()
+	# A phase that takes HandOver only from others than the living (the downed here) refuses the
+	# living sender, as the host's accept check does.
+	_mode.find_phase(&"lobby").accepts.append(
+		AcceptSpec.of(Intents.HAND_OVER, AcceptSpec.From.DOWNED)
+	)
+	assert_bool(HandOverUse.can_hand(_model, _mode)).is_false()
 
 
 func test_the_own_player_hands_over_only_while_living() -> void:
