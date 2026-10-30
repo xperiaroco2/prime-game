@@ -140,12 +140,21 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	# A downed player under the crosshair matters more than an item lying near it: E raises it.
 	if not local.raise_key.is_empty():
 		shown.raise_key = local.raise_key
-	elif local.aim >= 0:
-		shown.aim = slot_of(model, mode, local.aim).item
-	elif model.stations.has(local.aim_station):
-		# The station's name alone: never a switch's on or off (#801).
-		shown.aim = ContentNames.station(model.stations[local.aim_station].kind)
+	else:
+		shown.aim = aim_of(model, mode, local)
 	return shown
+
+
+## Aim's text: the deck key (else name) of the item under the crosshair, else of the station E
+## would use there; "" for neither. The round's HUD and the lobby's (#1408: the tap, the hall's
+## items) show it.
+static func aim_of(model: ClientModel, mode: GameMode, local: Local) -> String:
+	if local.aim >= 0:
+		return slot_of(model, mode, local.aim).item
+	if model.stations.has(local.aim_station):
+		# The station's name alone: never a switch's on or off (#801).
+		return ContentNames.station(model.stations[local.aim_station].kind)
+	return ""
 
 
 ## The rescuer's cue in Aim, translated, with the raise key's label `key` (`RAISE_CUE`).

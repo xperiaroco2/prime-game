@@ -22,6 +22,9 @@ const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
 ## so a test moves a body only by setting mode.maps to this map alone before start().
 const MOTION_LEVEL := "res://tests/fixtures/client/steps_room_motion.tscn"
 const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
+## steps_room with a `tap` marker at BAR_TAP, the lobby of with_tap() (#1408).
+const BAR_ROOM := "res://tests/fixtures/client/steps_room_bar.tscn"
+const BAR_TAP := Vector3(3, 0, -2)
 const PORT := 7400
 ## One physics frame at 60 Hz, in microseconds.
 const FRAME_USEC := 16667
@@ -184,6 +187,16 @@ func with_life(respawn_s: float) -> void:
 func with_crouch_room() -> void:
 	mode.lobby_level = CROUCH_ROOM
 	mode.maps = PackedStringArray([CROUCH_ROOM, STEPS_ROOM, MOTION_LEVEL])
+
+
+## Plays FixtureBar's mode (#1408: its lobby's tap, mug, drink and sobering up, and the hand keys
+## accepted from the living in the lobby), before start(): the lobby is the fixture
+## `steps_room_bar.tscn`, steps_room with the `tap` marker at BAR_TAP, the maps stay this pair's.
+func with_tap() -> void:
+	mode = FixtureBar.mode()
+	mode.lobby_level = BAR_ROOM
+	mode.maps = PackedStringArray([STEPS_ROOM, MOTION_LEVEL])
+	mode.player_rules.motion_maps = PackedStringArray([MOTION_LEVEL])
 
 
 ## Gives the mode knives and the pick-up (#319's suite), before start(): the item kind `knife`,

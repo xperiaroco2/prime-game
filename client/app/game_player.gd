@@ -29,7 +29,10 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	life.reads_device_input = game.device_input
 	life.listening = listening and now == GameFlow.Screen.ROUND
 	items.interactions.reads_device_input = game.device_input
-	items.interactions.listening = listening and now == GameFlow.Screen.ROUND
+	# The hand keys count in the lobby too (#1408: the hall's tap and mugs; the Lobby accepts them,
+	# #1388); the raise is the round's alone.
+	var hands := now == GameFlow.Screen.ROUND or now == GameFlow.Screen.LOBBY
+	items.interactions.listening = listening and hands
 	if not listening:
 		# Nothing reads the keys now: W held when Esc opened must not keep walking.
 		player.release_keys()

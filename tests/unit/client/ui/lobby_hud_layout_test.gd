@@ -29,9 +29,12 @@ func after_test() -> void:
 
 func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	var hud := await _hud()
-	# [path, class, variation] of every node the handoff lists in `wait` (VoiceHint: M5-6's, kept).
+	# [path, class, variation] of every node the handoff lists in `wait` (VoiceHint: M5-6's, kept;
+	# Aim: the round HUD's chip, #1408).
 	var nodes: Array[Array] = [
 		["Cross", "Panel", &"ToyCrosshair"],
+		["Aim", "PanelContainer", &"ToyChipPlate"],
+		["Aim/Text", "Label", &"ToyChipPlateText"],
 		["Status", "PanelContainer", &"ToyPlate"],
 		["Status/Text", "Label", &"ToyPlateText"],
 		["Players", "PanelContainer", &"ToyPlate"],
@@ -63,7 +66,7 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		assert_object(found).override_failure_message(node[0] as String).is_not_null()
 		assert_str(found.get_class()).override_failure_message(node[0] as String).is_equal(node[1])
 		assert_str(found.theme_type_variation).is_equal(node[2])
-	assert_array(_names(hud)).is_equal(["Cross", "Status", "Players", "Bottom"])
+	assert_array(_names(hud)).is_equal(["Cross", "Aim", "Status", "Players", "Bottom"])
 	assert_array(_names(hud.rows)).is_equal(["HostRow", "Row2", "OwnRow", "Row4"])
 	assert_array(_names(hud.bottom)).is_equal(["VoiceHint", "ReadyChip", "Mic"])
 	# Texts: the deck's keys; data never translated (#208).
@@ -99,6 +102,7 @@ func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
 	# [node, anchors (left, top, right, bottom), offsets, grow h, grow v]
 	var placed: Array[Array] = [
 		[hud.cross, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 0, 0, 0), both, both],
+		[hud.aim, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 38, 0, 38), both, both],
 		[hud.status, Vector4(0.5, 0, 0.5, 0), Vector4(0, 40, 0, 40), both, end],
 		[hud.players, Vector4(1, 0, 1, 0), Vector4(-40, 40, -40, 40), begin, end],
 		[hud.bottom, Vector4(0, 1, 0, 1), Vector4(40, -40, 40, -40), end, begin],
@@ -288,6 +292,18 @@ func test_the_voice_hint_shows_only_with_a_text() -> void:
 	assert_bool(hud.voice_hint.visible).is_true()
 	hud.show_voice_hint("")
 	assert_bool(hud.voice_hint.visible).is_false()
+
+
+func test_aim_shows_only_with_a_text_its_key_translated() -> void:
+	# The round HUD's Aim under the crosshair (#1408): the tap or a hall item E would use.
+	var hud := await _hud()
+	assert_bool(hud.aim.visible).is_false()
+	hud.show_aim("item.knife")
+	assert_bool(hud.aim.visible).is_true()
+	assert_str(hud.aim_label.text).is_equal("item.knife")
+	assert_int(hud.aim_label.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	hud.show_aim("")
+	assert_bool(hud.aim.visible).is_false()
 
 
 ## The handoff's lobby: Olena hosts (peer 1), the own player is `own`; everyone but the own player
