@@ -306,6 +306,28 @@ func test_aim_shows_only_with_a_text_its_key_translated() -> void:
 	assert_bool(hud.aim.visible).is_false()
 
 
+func test_the_bars_aim_names_read_the_deck_in_both_languages() -> void:
+	# #1430 (ui-2.5.2): the tap and the two mugs are the deck's `station.tap`, `item.mug`,
+	# `item.mug_empty`, never a raw id; Aim translates them, so a switch rewrites the chip.
+	var locale := TranslationServer.get_locale()
+	TranslationServer.set_locale(Languages.ENGLISH)
+	var hud := await _hud()
+	hud.show_aim(ContentNames.station(&"tap"))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Beer tap")
+	hud.show_aim(ContentNames.item(&"mug", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Mug of beer")
+	hud.show_aim(ContentNames.item(&"mug_empty", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Empty mug")
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Порожній кухоль")
+	hud.show_aim(ContentNames.item(&"mug", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Кухоль пива")
+	hud.show_aim(ContentNames.station(&"tap"))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Пивний кран")
+	TranslationServer.set_locale(locale)
+
+
 func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_change() -> void:
 	# #1411: Aim under the crosshair holds the hand-over's cue while E would hand over.
 	var hud := await _hud()
@@ -314,10 +336,10 @@ func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_cha
 	assert_bool(hud.aim.visible).is_true()
 	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E"))
-	assert_str(hud.aim_label.text).is_equal("Press E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	await get_tree().process_frame
-	assert_str(hud.aim_label.text).is_equal("Натисни E")
+	assert_str(hud.aim_label.text).is_equal("Натисни E, щоб передати")
 	TranslationServer.set_locale(Languages.ENGLISH)
 	hud.show_hand_over("")
 	assert_bool(hud.aim.visible).is_false()
@@ -328,7 +350,7 @@ func test_the_hand_over_cue_takes_aim_from_the_taps_text_and_gives_it_back() -> 
 	var hud := await _hud()
 	hud.show_aim(ContentNames.station(&"tap"))
 	hud.show_hand_over("E")
-	assert_str(hud.aim_label.text).is_equal("Press E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
 	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	hud.show_hand_over("")
 	assert_bool(hud.aim.visible).is_true()

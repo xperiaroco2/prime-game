@@ -319,11 +319,11 @@ func test_the_hand_over_cue_takes_aims_place_with_the_interact_key() -> void:
 	cue.hand_over_key = "E"
 	hud.show_hud(cue)
 	assert_bool(hud.aim.visible).is_true()
-	assert_str(hud.aim_label.text).is_equal("Press E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
 	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	TranslationServer.set_locale("uk")
 	hud.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
-	assert_str(hud.aim_label.text).is_equal("Натисни E")
+	assert_str(hud.aim_label.text).is_equal("Натисни E, щоб передати")
 	cue.hand_over_key = ""
 	hud.show_hud(cue)
 	assert_bool(hud.aim.visible).is_false()

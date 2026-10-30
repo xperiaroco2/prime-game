@@ -25,10 +25,8 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 ## the nearest key with `{key}`, the tutorial's raise step ("Hold {key} next to them"). 6B on
 ## PR #721 asked for a deck key; the engineer to confirm this one.
 const RAISE_CUE := "tutorial.step.downed.how"
-## The hand-over's cue (#1411): the deck has no hand-over sentence and it is pinned from
-## prime-game-ui, so this is a stopgap, the nearest key with `{key}`, "Press {key}"; the engineer to
-## confirm it or add the wanted key (`hud.hand_over`, "Press {key} to hand it over").
-const HAND_OVER_CUE := "tutorial.step.press"
+## The hand-over's cue (#1411): the deck's `hud.hand_over` "Press {key} to hand it over" (ui-2.5.2).
+const HAND_OVER_CUE := "hud.hand_over"
 
 
 ## What the HUD knows besides the model and the mode.

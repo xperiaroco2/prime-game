@@ -2778,7 +2778,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   would refuse. Any other target of E wins (an item or station `ItemInteractions` offers, a downed player to raise,
   the viewfinder): then no target and no prompt. The prompt is `cue()` (the interact key's label): Aim's
   hand-over cue in the round HUD (`Shown.hand_over_key`, after the rescuer's) and `LobbyHud`'s `Aim` (§4.7.47),
-  worded by `HudText.hand_over_cue` with the deck's `tutorial.step.press` until a key of its own lands. A refusal
+  worded by `HudText.hand_over_cue` with the deck's `hud.hand_over` ("Press {key} to hand it over", ui-2.5.2, #1430). A refusal
   shows nothing, as every refusal of an action in the world (§4.3.2); the client predicts nothing of it.
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay (a handed-over one at the receiver, #1389), `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
@@ -4097,7 +4097,7 @@ confirms or swaps for a deck key), with the bound
 (`raise_target()`, within `raise_hint_reach_of()`) and nobody raises them yet (`raiser_of()`: the host lets one raiser
 at a time, so a second Raise would be `busy`), so it offers what E does: the base mode's raise has no team condition,
 so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
-(both are on E); the hand-over's cue (#1411, §4.7.10: `HudText.hand_over_cue`, `tutorial.step.press` "Press {key}" as a stopgap) takes the same place after it; the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
+(both are on E); the hand-over's cue (#1411, §4.7.10: `HudText.hand_over_cue`, the deck's `hud.hand_over` "Press {key} to hand it over") takes the same place after it; the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
 - **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
   a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
@@ -4484,7 +4484,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   ready chip (plain English, as before). The round HUD's `Aim` (#1408): a ToyChipPlate > `Text` ToyChipPlateText
   38 px under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
   (`HudText.aim_of`, the round's own: the item's deck key, else the station's `ContentNames.station`; the lobby's
-  tap reads its id `tap` until the deck has `station.tap`), fed by `GameUi.refresh_round` on the lobby screen
+  tap reads the deck's `station.tap` "Beer tap", the mugs `item.mug` and `item.mug_empty`, #1430), fed by `GameUi.refresh_round` on the lobby screen
   from `ItemWorld.hud_local`. Besides `players_few` the status shows the host's other shortfalls, one line each by its deck key (`players_many` is `lobby.too_many`, `markers` is `lobby.need_markers`, `no_layout` and `no_task_types` their own, #718); `colours` (and `markers_exact`) have no key and stay #548's neutral line. The Esc Lobby page's Shortfalls label words them the same way.
 - **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
   the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
@@ -8222,7 +8222,7 @@ drift (#1391), the voice (#1392), the limp (#1393). The hand-over (#1389 built t
 handable, the empty one not, and the Lobby and Countdown accept `HandOver`, §4.1, the base mode's `HandOver_*` rows)
 has its client key in #1411: the full mug goes to a friend by E aimed at them (`HandOverUse`, §4.7.10).
 - **The client** (#1408): `StationUse` offers the tap (a kind of no task type, §4.7.54), the lobby HUD's `Aim`
-  names it (`tap` until the deck has `station.tap`, §4.7.47), E sends `Interact(tap, -1)` and the left button
+  names it (the deck's `station.tap`, §4.7.47), E sends `Interact(tap, -1)` and the left button
   `Use(facing)` with the mug in the hand: the item keys listen in the lobby (§4.7.28's `Controls.PHASES`).
 - **Tests:** `tests/unit/content/base_mode_lobby_test.gd` (the shipped tap, mug and drink, cleared at countdown_done)
   and the parts' suites of §7.1.20; `tests/unit/items/hand_over_test.gd` and
