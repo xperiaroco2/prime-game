@@ -183,6 +183,46 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
   not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
   the ragdoll on screen.
 
+### Melee: any item hits (2026-10-30)
+The engineer's mechanic ([#1095 c6525499430](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6525499430)
+and the picks after it, approved in [c6526363661](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6526363661); mechanic issue #1436): "We need the ability to fight with anything. Whatever you hold in your
+hand, even just a fist, or a bottle, anything you hold, you can kill a person with it" (translated). The first version
+is plain, as in Lockdown Protocol: you can fight, and that is all; how a hit looks and sounds by its strength comes
+later (his word, the same day). Engine parts: #1437, #1438, #1439.
+
+Rules:
+- **The left mouse button always hits**, with whatever is in the hand or with the bare fist. An item's own action
+  moves to the **right mouse button**: the mug of beer is drunk on RMB. The pistol, once it exists (m8-match §7),
+  shoots on LMB instead of hitting.
+- **Each item has three numbers:** damage to the front, damage to the back, and the stamina a swing costs. An item
+  without its own numbers takes the base, the fist's:
+
+  | Who hits | Front | Back | Stamina |
+  |---|---|---|---|
+  | The fist and any one-handed item (the base) | 5 | 10 | 25 |
+  | Any two-handed item (the ship's crystal, the boxes) | 20 | 40 | 25 |
+  | The knife | 50 | 75 | 25 |
+
+- **Reach and rate** are the knife's for every item: a 30° zone, 1.5 m, at most once per 0.5 s.
+- **No stamina, no swing**, as for the knife today: a swing needs its full cost.
+- **A hit never knocks the item out** of the victim's hand.
+- At 0 health the round's knockdown applies (above), the launch included.
+- **In the lobby too:** hits work there as in the round, but 0 health in the lobby makes the player limp as from too
+  much beer (the bar, above): it falls, lies for the limp's time (6 s, #1393) and gets up by itself with full health; nobody dies there.
+
+Hidden information: as the knife today (ARCHITECTURE §7.1 "Hits"): everyone sees a swing; only the victim learns its
+damage; a knockdown is public. No damage readout: no number on screen, on the item or on a wall (his word: a slot
+number, a tag on the item and a lobby poster were rejected); players learn an item's strength by trying it.
+
+Edge cases: a limp player is not hit (as today, #1393); the downed and the invulnerable are not hit (as today).
+
+Numbers: the table, the reach and the rate are placeholders until a playtest; the engineer gave them.
+
+Open questions:
+- How a hit's strength shows (its sound, the victim, the flight): research round 14 in prime-game-design has the ideas
+  (`ideas/2026-10-30-melee-readout.md`); later.
+- What counts as "the back" (recommended: the attacker stands in the victim's rear half), until a playtest.
+
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
   is not central.
