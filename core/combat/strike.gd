@@ -196,6 +196,11 @@ func check(_mode: GameMode) -> PackedStringArray:
 			out_of_bounds("Strike two_handed_back_damage", two_handed_back_damage, 0, 1000),
 			out_of_bounds("Strike launch_mps", launch_mps, 0, 20),
 			out_of_bounds("Strike launch_up_mps", launch_up_mps, 0, 10),
+			(
+				"Strike two_handed_back_damage is set but two_handed_damage is 0 (the pair is unused)"
+				if two_handed_back_damage > 0 and two_handed_damage == 0
+				else ""
+			),
 		]
 	)
 	return found

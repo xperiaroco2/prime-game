@@ -122,6 +122,27 @@ func test_a_kind_with_its_own_use_rule_overrides_the_mode_fallback() -> void:
 	assert_array(FixtureModes.notes(game)).contains(["tool used"])
 
 
+func test_a_knife_on_the_belt_does_not_count_the_empty_hand_hits_by_the_fallback() -> void:
+	var game := FixtureCombatModes.in_round(
+		FixtureItemModes.swapping(FixtureCombatModes.fisting()), [P1, P2]
+	)
+	_hold(game, &"knife")
+	FixtureItemModes.swap(game, P1)
+	assert_int(game.state.player(P1).held_item).is_equal(-1)
+	assert_int(game.state.player(P1).belt_item).is_not_equal(-1)
+	FixtureItemModes.stand(game, P2, AHEAD)
+	_face(game, P2, SOUTH)
+	FixtureCombatModes.use(game, P1, NORTH, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_int(_lost(game)).is_equal(FixtureCombatModes.FIST)
+	# From behind: the fallback's 10, not the knife's 75.
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	game.state.player(P2).health = HEALTH
+	_face(game, P2, NORTH)
+	FixtureCombatModes.use(game, P1, NORTH, 2)
+	assert_int(_lost(game)).is_equal(FixtureCombatModes.FIST_BACK)
+
+
 func test_an_empty_hand_use_swings_where_the_mode_has_a_use_rule_else_nothing_to_do() -> void:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.fisting(), [P1, P2])
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
@@ -234,6 +255,14 @@ func test_the_mode_check_bounds_the_back_and_two_handed_damage() -> void:
 	assert_str(errors).contains("Strike back_damage is -1, outside 0 to 1000")
 	assert_str(errors).contains("Strike two_handed_damage is -1, outside 0 to 1000")
 	assert_str(errors).contains("Strike two_handed_back_damage is -1, outside 0 to 1000")
+	# A two-handed back value beside no two-handed front value would be ignored: say so.
+	mode = FixtureCombatModes.basic()
+	mode.actions.append(FixtureCombatModes.fist_rule(5, 10, 0, 40))
+	errors = ";".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("two_handed_back_damage is set but two_handed_damage is 0")
+	mode = FixtureCombatModes.basic()
+	mode.actions.append(FixtureCombatModes.fist_rule(5, 10, 20, 0))
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
 
 
 ## The whole points P2, 1 m north of P1, loses to one Use of P1 facing north, with P2 facing
