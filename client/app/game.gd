@@ -663,8 +663,11 @@ func _on_welcomed(own_peer: int) -> void:
 	)
 
 
+## Every snapshot: into the buffer, and the own body follows the own avatar's limp flag (§7.1.21),
+## which only snapshots carry.
 func _on_snapshot(tick: int, poses: Dictionary) -> void:
 	_buffer.add(tick, poses, _avatars.now_usec())
+	GamePlayer.sync_life(self)
 
 
 func _on_corrected(position: Vector3, velocity: Vector3) -> void:

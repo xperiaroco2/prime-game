@@ -558,8 +558,8 @@ func _check_intent(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 
 
 ## Class 5: a Correction (a new epoch, the position it had) when the phase takes the claim from its
-## life state, the epoch is its own and it is not knocked down (KE4: none for any of its claims),
-## else nothing (§7.1, E15); the position never changes.
+## life state, the epoch is its own and it is not knocked down nor limp (KE4, #1393: none for any
+## of its claims), else nothing (§7.1, E15); the position never changes.
 func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 	var peer := command.peer
 	var player := game.state.player(peer)
@@ -570,7 +570,7 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 		player != null
 		and ChaosOracle.accepts(Intents.MOVE_CLAIM, peer, game.phase_id(), player)
 		and command.args.get("epoch") == before_epoch
-		and player.life != PlayerState.Life.DOWNED
+		and not player.holds_still()
 	)
 	var most := 1 if taken else 0
 	var least := 1 if taken and shape != ChaosFrames.Claim.STALE_TICK else 0

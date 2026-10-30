@@ -589,7 +589,10 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 ## no intents as players (vision revision 1): PLAYER, LIVING and DOWNED accept none, so an intent
 ## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead
 ## for the session's controls (ReturnToLobby on the end screen, where whoever died in the round is
-## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS).
+## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS). A limp
+## player (#1393) sends no player's action but its MoveClaim (a facing: MovementRule holds its body
+## still), so it interacts with nothing and uses nothing while it lies; Ready and the session's
+## controls stay its own.
 func _accepts(command: MatchCommand) -> bool:
 	var from := _phase_spec.senders_of(command.kind)
 	var player := state.player(command.peer)
@@ -600,6 +603,9 @@ func _accepts(command: MatchCommand) -> bool:
 	var host := from & AcceptSpec.From.HOST != 0 and command.peer == MatchState.HOST_PEER
 	if player.life == PlayerState.Life.DEAD:
 		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
+	if player.is_limp() and command.kind != Intents.MOVE_CLAIM:
+		if Intents.PLAYER_ACTIONS.has(command.kind):
+			return false
 	var living := from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE
 	var downed := from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED
 	return from & AcceptSpec.From.PLAYER != 0 or living or downed or host

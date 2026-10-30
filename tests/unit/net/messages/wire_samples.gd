@@ -417,6 +417,7 @@ static func _avatar(
 		"crouched": not (downed or invulnerable),
 		"sneaking": invulnerable and not downed,
 		"posed": not (downed or invulnerable),
+		"limp": not (downed or invulnerable),
 		"drunk": drunk,
 		"held_item": held,
 		"belt_item": belt,

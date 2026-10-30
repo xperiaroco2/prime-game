@@ -642,6 +642,20 @@ func test_the_crouched_flag_comes_from_the_newest_snapshot() -> void:
 	assert_bool(_model.is_crouched(1)).is_false()
 
 
+func test_a_limp_avatar_plays_downed_while_its_life_stays_alive() -> void:
+	_to_round()
+	var limp := {"position": Vector3.ONE, "downed": false, "limp": true}
+	var standing := {"position": Vector3.ZERO, "downed": false, "limp": false}
+	_model.fold_snapshot({"tick": 42, "avatars": {OWN: limp, 9: standing}})
+	assert_int(_model.body_life_of(OWN)).is_equal(ClientModel.Life.DOWNED)
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_model.body_life_of(9)).is_equal(ClientModel.Life.ALIVE)
+	# No avatar (the own player standing again, a stranger): its life as the events tell it.
+	_model.fold_snapshot({"tick": 43, "avatars": {9: standing}})
+	assert_int(_model.body_life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_model.body_life_of(5)).is_equal(ClientModel.Life.ALIVE)
+
+
 func test_a_new_match_makes_everyone_living_again() -> void:
 	_to_round()
 	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))

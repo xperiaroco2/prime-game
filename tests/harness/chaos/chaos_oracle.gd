@@ -136,6 +136,9 @@ static func accepts(intent: StringName, peer: int, phase: StringName, player: Pl
 	if player.life == PlayerState.Life.DEAD or player.life == PlayerState.Life.LEFT:
 		# The dead send no intents as players (§3.1); the host's own controls are peer 1's.
 		return false
+	if player.is_limp() and intent != Intents.MOVE_CLAIM and Intents.PLAYER_ACTIONS.has(intent):
+		# A limp player sends no player's action but its facing (#1393, §7.1.21).
+		return false
 	var living := player.life == PlayerState.Life.ALIVE
 	return (
 		from & From.PLAYER != 0

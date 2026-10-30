@@ -6,7 +6,7 @@ extends RuleEffect
 ## A target is every living player other than the attacker (never a downed one: strikes skip the
 ## downed, vision revision 1; never an invulnerable one, for PlayerRules.invulnerable_s after a
 ## respawn or a revive: PlayerState.is_invulnerable, which nothing ends early, not even the
-## player's own attack, the engineer's answer 3 on PR #133) such that:
+## player's own attack, the engineer's answer 3 on PR #133; never a limp one, #1393) such that:
 ## - its capsule (the mode's PlayerRules radius and height, standing on its last accepted
 ##   position) has a point in the sector, measured horizontally: its circle of `capsule_radius_m`
 ##   around its position touches the sector;
@@ -64,7 +64,7 @@ func run(ctx: MatchContext) -> void:
 	for peer: int in hit:
 		# A target no longer alive when its turn comes is skipped (a defensive check behind the
 		# kill queue, the car repair ADR's RE17): damage() would log a rule error for it.
-		if not ctx.state.players[peer].is_alive():
+		if not ctx.state.players[peer].is_alive() or ctx.state.players[peer].is_limp():
 			continue
 		var launch := launch_of(attacker, ctx.state.players[peer], ahead)
 		LifeRules.damage(ctx, peer, Ticks.thousandths(damage), launch)
@@ -92,7 +92,9 @@ func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array
 	var eye := Vector3.INF
 	for peer: int in ctx.state.peers():
 		var target := ctx.state.players[peer]
-		if peer == attacker.peer or not target.is_alive() or target.is_invulnerable(ctx.tick):
+		if peer == attacker.peer or not target.is_alive() or target.is_limp():
+			continue
+		if target.is_invulnerable(ctx.tick):
 			continue
 		var dy := target.position.y - attacker.position.y
 		if dy < -rules.height_of(target.crouched) or dy > rules.height_of(attacker.crouched):

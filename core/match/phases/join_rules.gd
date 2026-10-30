@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 39
+const PROTOCOL_VERSION := 40
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -127,7 +127,10 @@ static func leave(ctx: MatchContext, peer: int) -> bool:
 	if not ctx.state.is_present(peer):
 		return false
 	Channels.interrupt_involving(ctx, peer)
-	ctx.state.player(peer).life = PlayerState.Life.LEFT
+	var leaver := ctx.state.player(peer)
+	# A limp body leaves with its player: StopBody frees the host's body (#1393).
+	LifeRules.clear_limp(ctx, leaver)
+	leaver.life = PlayerState.Life.LEFT
 	ctx.emit(PlayerLeftEvent.new(peer))
 	Items.drop_carried(ctx, peer, Items.LEAVE)
 	ctx.state.remove_player(peer)

@@ -465,12 +465,15 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	return Result.WAITING
 
 
-## Why a bot cannot walk now, or "": the dead send no claims, and the downed only their look.
+## Why a bot cannot walk now, or "": the dead send no claims, the downed and the limp only their
+## look.
 func _cannot_walk(bot: ScenarioBot) -> String:
 	if bot.dead:
 		return "a dead bot cannot walk: the dead send no claims"
 	if bot.downed:
 		return "a knocked-down bot cannot walk: the host takes only its look (KE4)"
+	if bot.limp:
+		return "a limp bot cannot walk: the host takes only its look (#1393)"
 	return ""
 
 

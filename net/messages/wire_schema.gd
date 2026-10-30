@@ -66,7 +66,9 @@ extends RefCounted
 ## 38 since #1390 (the bar, GDD §3): the avatar rows' `drunk` (U8, Snapshot 96), after the flags,
 ## and SelfStatus' `drunk` (U8, kind 54), after `claim_tick`. ShotTaken's record is unchanged.
 ## 39 since #1389 (GDD §6, the hand-over): the intent HandOver (kind 21, its target).
-const VERSION := 39
+## 40 since #1393 (the limp, GDD §3): the avatar rows' sixth flag `limp` (Snapshot 96), after
+## `posed`. ShotTaken's record is unchanged.
+const VERSION := 40
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -639,7 +641,9 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("velocity"),
 				_vec3("facing"),
 				WireField.bits(
-					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking", "posed"])
+					PackedStringArray(
+						["downed", "invulnerable", "crouched", "sneaking", "posed", "limp"]
+					)
 				),
 				_of("drunk", WireField.Type.U8),
 				WireField.maybe("held_item", WireField.Type.ITEM),

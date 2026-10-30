@@ -133,7 +133,9 @@ func step_clients() -> void:
 		client.step(now_usec)
 		if client.model.snapshot_tick != _snapshot_seen.get(bot.number, -1):
 			_snapshot_seen[bot.number] = client.model.snapshot_tick
-			bot.see(client.model.avatars)
+			var problem := bot.see(client.model.avatars)
+			if not problem.is_empty():
+				_fail_step(bot, problem)
 	_claims_due = claims_after_moves
 
 

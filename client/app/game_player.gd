@@ -59,13 +59,14 @@ static func point_for(game: Game, now: GameFlow.Screen, menu_closed: bool) -> vo
 ## The own player's body follows its own life fold (M4-9): it holds still and looks while downed (a
 ## KnockedDown naming it, KE4), has no body while dead (Died; apply_flags stops the physics step,
 ## so it neither walks nor claims until its Respawned), and walks again once living (Revived,
-## Respawned, a new match, the lobby). Only a change switches the body, since switching stops it.
+## Respawned, a new match, the lobby). Limp (its own avatar's flag, §7.1.21) it holds still as if
+## downed until it gets up. Only a change switches the body, since switching stops it.
 static func sync_life(game: Game) -> void:
 	var player := game.player()
 	if player == null:
 		return
 	var model := game.client().model
-	var own_life := model.life_of(model.own_peer)
+	var own_life := model.body_life_of(model.own_peer)
 	if player.life != own_life:
 		player.life = own_life
 

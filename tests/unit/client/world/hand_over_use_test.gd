@@ -81,6 +81,36 @@ func test_the_own_player_hands_over_only_while_living() -> void:
 	assert_bool(HandOverUse.offers(_model, _mode, FRIEND, FEET, Vector3(1, 0, 0), 2.0)).is_false()
 
 
+## §7.1.21 (#1393): a limp own player is living, but the host refuses it every action, HandOver
+## included: its own avatar's limp flag in the snapshot keeps the key from offering and sending.
+func test_a_limp_own_player_hands_over_nothing() -> void:
+	_hold(41, &"gift")
+	assert_bool(HandOverUse.can_hand(_model, _mode)).is_true()
+	(
+		_model
+		. fold_snapshot(
+			{
+				"tick": 1,
+				"avatars":
+				{
+					OWN:
+					{
+						"position": FEET,
+						"velocity": Vector3.ZERO,
+						"facing": Vector3.FORWARD,
+						"downed": false,
+						"limp": true,
+						"held_item": 41,
+					}
+				},
+			}
+		)
+	)
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_bool(HandOverUse.can_hand(_model, _mode)).is_false()
+	assert_bool(HandOverUse.offers(_model, _mode, FRIEND, FEET, Vector3(1, 0, 0), 2.0)).is_false()
+
+
 func test_the_target_is_a_present_living_other_player_within_the_reach_of_the_feet() -> void:
 	_hold(41, &"gift")
 	var near := Vector3(1.5, 0, 0)
