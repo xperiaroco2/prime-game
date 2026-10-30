@@ -169,8 +169,9 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		return
 	var own := item.holder == model.own_peer
 	var body := avatars.body_of(item.holder) if avatars != null and not own else null
-	if model.life_of(item.holder) == ClientModel.Life.DOWNED:
-		# Downed, the own player too: the downed camera looks at the own body from outside.
+	if model.body_life_of(item.holder) == ClientModel.Life.DOWNED:
+		# Downed or limp (§7.1.21), the own player too: the downed camera looks at the own body
+		# from outside, and a limp body's upright capsule is hidden.
 		var lying: Node3D = body
 		if own:
 			lying = player
@@ -248,9 +249,14 @@ func _show_own_hand() -> void:
 		return
 	var hand_id := model.hand_item(model.own_peer)
 	var hand: ClientModel.Item = model.items.get(hand_id)
-	# Only the living look through the first-person camera; a downed player's items lie at its body.
+	# Only the living look through the first-person camera; a downed or limp player's items lie at
+	# its body.
 	# A thrown item left the hand at the press, though the host has not answered yet.
-	if hand == null or not model.is_alive(model.own_peer) or flights.hides_hand(hand_id):
+	if (
+		hand == null
+		or model.body_life_of(model.own_peer) != ClientModel.Life.ALIVE
+		or flights.hides_hand(hand_id)
+	):
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
 		player.hand_view().show_item(
