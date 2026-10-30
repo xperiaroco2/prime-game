@@ -7,11 +7,11 @@ extends GdUnitTestSuite
 const MODES := "res://content/modes"
 ## Shipped item kinds the deck (ui-0.8.0) has no key for yet, each with the display name it shows
 ## meanwhile: the photo task's film and photo (#784), Cooking's 22 kinds (#775, the cooking
-## ADR's §5.1 names; the burger of #1101) and car repair's three parts (#810). No deck key fits
-## any and none is invented (`strings.csv` is the UI track's, byte for byte), so the UI track is
-## asked for `item.<id>` of each. Self-expiring: the test fails once the deck carries the key, and
-## the entry goes. An exception the engineer approves in #784's, #775's, #810's and #1101's PRs,
-## not a decision.
+## ADR's §5.1 names; the burger of #1101), car repair's three parts (#810) and the lobby bar's
+## mugs (#1390). No deck key fits any and none is invented (`strings.csv` is the UI track's, byte
+## for byte), so the UI track is asked for `item.<id>` of each. Self-expiring: the test fails once
+## the deck carries the key, and the entry goes. An exception the engineer approves in #784's,
+## #775's, #810's, #1101's and #1390's PRs, not a decision.
 const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"film": "Film",
 	&"photo": "Photo",
@@ -40,6 +40,8 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"car_part_green": "Green part",
 	&"car_part_blue": "Blue part",
 	&"car_part_yellow": "Yellow part",
+	&"mug": "Mug of beer",
+	&"mug_empty": "Empty mug",
 }
 ## Shipped task types the deck has no key for yet and ContentNames.TASK_EXCEPTIONS does not map,
 ## each with the display name it shows meanwhile: car repair (#810), which runs beside client work

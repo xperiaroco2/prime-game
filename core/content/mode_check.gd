@@ -191,9 +191,14 @@ func _check_rules(mode: GameMode) -> void:
 			errors.append_array(ItemTargetCheck.target_rules(targets, kind.target_actions))
 	for kind: StationKind in Stations.kinds_in(mode):
 		var owner := "station kind %s.actions" % kind.id
+		# A kind a phase places (StationTicks: the lobby's tap) has no owning task type.
+		var uses: Array[TaskType] = []
 		var type := Stations.owner_of(mode, kind)
-		_check_owner(owner, kind.actions, station_intents(), false, [type])
+		if type != null:
+			uses.append(type)
+		_check_owner(owner, kind.actions, station_intents(), false, uses)
 	errors.append_array(ActorConditionCheck.problems(mode))
+	errors.append_array(DrunkCheck.problems(mode))
 
 
 ## The rules of one owner. `uses`: the task types whose use_emits() a UseStation in them can

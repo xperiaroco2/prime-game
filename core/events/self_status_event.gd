@@ -20,16 +20,25 @@ var sprint_available: bool
 ## settled ahead of the claims (StaminaLedger.settle_ahead, up to the ledger's lag), which the
 ## client settles again until a later status (ARCHITECTURE §7.1, "Accepted").
 var claim_tick: int
+## How drunk the player is (PlayerState.drunk, #1390): the same number every other peer sees on its
+## avatar, here for the own client, which gets no own avatar (the sway, #1391).
+var drunk: int
 
 
 func _init(
-	to_peer: int, health_now: int, stamina_now: int, can_sprint: bool, settled_claim := -1
+	to_peer: int,
+	health_now: int,
+	stamina_now: int,
+	can_sprint: bool,
+	settled_claim := -1,
+	drunk_now := 0
 ) -> void:
 	peer = to_peer
 	health = health_now
 	stamina = stamina_now
 	sprint_available = can_sprint
 	claim_tick = settled_claim
+	drunk = drunk_now
 
 
 func event_name() -> StringName:
@@ -46,4 +55,5 @@ func to_dict() -> Dictionary:
 		"stamina": stamina,
 		"sprint_available": sprint_available,
 		"claim_tick": claim_tick,
+		"drunk": drunk,
 	}

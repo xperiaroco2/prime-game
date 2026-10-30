@@ -250,8 +250,9 @@ func _fresh_seq() -> int:
 
 
 ## Interact's args (#770): a station id 0 to 9, an item (one its client knows, or NO_ITEM, which
-## names nothing), both or neither (-1 is none). Round takes Interact from the living (#800); on the
-## greybox each is bad_args or nothing_to_do (no target there has an Interact rule), else
+## names nothing), both or neither (-1 is none). Round takes Interact from the living (#800), and
+## Lobby and Countdown (#1388); on the greybox each is bad_args or nothing_to_do (no target there
+## has an Interact rule), in the lobby the tap's is out_of_reach from afar (#1390), else
 ## not_accepted.
 func _interact_args() -> Dictionary:
 	var named := rng.randi_range(0, 3)

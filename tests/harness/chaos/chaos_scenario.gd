@@ -8,7 +8,10 @@ extends RefCounted
 ##   for the end;
 ## - bot 2 takes the package to its circle, waits there until bot 4 is downed (with `until_dead`,
 ##   until it has died) and puts it down: the crew wins (every task done);
-## - bot 3 draws its second place into the hand and then its first (two accepted Draws over the
+## - bot 3 first goes to the lobby's tap (the bar, #1390), pours a mug and drinks it, so the
+##   drunk value runs in the lobby under the chaos peers (ScenarioInvariants.drunk_problem checks it
+##   every tick, and that the round's placement cleared it); then it gets ready,
+##   draws its second place into the hand and then its first (two accepted Draws over the
 ##   network, #1377: its empty places, an empty hand), waits for the end and stays two seconds into
 ##   End;
 ## - bot 4 is the "hostile but valid" chaos peer's own bot: it gets ready, walks to STAND_AT,
@@ -147,7 +150,7 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 				_expect(&"KnockedDown", {"peer": HOSTILE}, WAIT_AT_CIRCLE_S),
 			]
 		),
-		_script([StepReady.new(), round_started, _draw(1), _draw(0), ended, stay]),
+		_script(_bar([StepReady.new(), round_started, _draw(1), _draw(0), ended, stay])),
 		_script(
 			[StepReady.new(), round_started, to_stand, _wait(SETTLE_S), freeze, walk_away, knocked]
 		),
@@ -184,6 +187,29 @@ static func _wait_for(event: StringName, fields: Dictionary) -> StepWaitFor:
 	step.event = event
 	step.fields = fields
 	return step
+
+
+## Bot 3's lobby steps: along z = 0 to the bar's end of the row of lobby spots, north to the tap,
+## a mug poured and drunk, and its own drunk value up; then `after`.
+static func _bar(after: Array[ScenarioStep]) -> Array[ScenarioStep]:
+	var row_end := _target(ScenarioTarget.Kind.POINT)
+	row_end.point = Vector3(-15, 0, 0)
+	var tap := _target(ScenarioTarget.Kind.STATION)
+	tap.station_kind = &"tap"
+	var to_tap := _walk(tap, false)
+	to_tap.stop_m = 0.0
+	var pour := StepInteract.new()
+	pour.station = tap
+	pour.until = &"ItemPickedUp"
+	var drink := StepUse.new()
+	drink.towards = row_end
+	drink.until = &"ItemChanged"
+	var drunk := StepExpectDrunk.new()
+	drunk.at_least = 1
+	drunk.within_s = EXPECT_WITHIN_S
+	var steps: Array[ScenarioStep] = [_walk(row_end, false), to_tap, pour, drink, drunk]
+	steps.append_array(after)
+	return steps
 
 
 static func _draw(place: int) -> StepDraw:

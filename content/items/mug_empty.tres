@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://cmugempty2bar"]
+
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+
+[resource]
+script = ExtResource("1_kind")
+id = &"mug_empty"
+display_name = "Empty mug"
+hands = 1
+vanish_seconds = 30
+max_items = 12

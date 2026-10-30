@@ -381,6 +381,33 @@ func test_an_expect_that_times_out_or_an_expect_none_that_sees_its_event_fails()
 	assert_str(_text(runner)).contains("step 1 (ExpectNone)")
 
 
+## #1390: ExpectDrunk reads the bot's own SelfStatus (bot 0) or another bot's avatar in its last
+## snapshot; out of its range past `within_s` it fails and says what it saw.
+func test_an_expect_drunk_reads_its_own_status_or_another_s_avatar_and_fails_out_of_range() -> void:
+	var sober := StepExpectDrunk.new()
+	sober.at_most = 0
+	var other_sober := StepExpectDrunk.new()
+	other_sober.bot = 1
+	other_sober.at_most = 0
+	other_sober.within_s = 1.0
+	var later := StepWait.new()
+	later.seconds = 1.5
+	var runner := ScenarioRunner.play(_scenario([[sober, later], [other_sober]]))
+	assert_array(Array(runner.failures)).is_empty()
+	var drunk := StepExpectDrunk.new()
+	drunk.at_least = 1
+	drunk.within_s = 0.5
+	runner = ScenarioRunner.play(_scenario([[drunk]]))
+	assert_str(_text(runner)).contains("step 1 (ExpectDrunk)")
+	assert_str(_text(runner)).contains("the drunk value of itself is 0, not 1 to 255")
+	var drunk_other := StepExpectDrunk.new()
+	drunk_other.bot = 1
+	drunk_other.at_least = 40
+	drunk_other.within_s = 0.5
+	runner = ScenarioRunner.play(_scenario([[later], [drunk_other]]))
+	assert_str(_text(runner)).contains("the drunk value of bot 1 is 0, not 40 to 255")
+
+
 func test_a_station_target_is_the_n_th_station_of_its_kind_the_bot_was_told_of() -> void:
 	var walk := StepWalkTo.new()
 	walk.target = _station(&"circle", 2)

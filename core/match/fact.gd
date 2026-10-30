@@ -7,7 +7,7 @@ extends RefCounted
 var name: StringName
 ## The item (item_rested), or -1.
 var item := -1
-## The player (player_died, player_left), or 0.
+## The player (player_died, player_left, drunk_too_much: the drinker), or 0.
 var player := 0
 ## The task (subtask_done), or -1.
 var task := -1

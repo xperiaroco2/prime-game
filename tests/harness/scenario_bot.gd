@@ -75,6 +75,8 @@ var held: int:
 	get:
 		return places[selected]
 var sprint_available := true
+## Its own drunk value, from its SelfStatus (the bar, #1390).
+var drunk := 0
 ## Its first belt item (the lowest non-selected place that holds one), or -1.
 var belted: int:
 	get:
@@ -99,6 +101,8 @@ var stations: Dictionary[int, Vector3] = {}
 var station_kinds: Dictionary[int, StringName] = {}
 ## Peer -> where the bot last saw that player: PlayerJoined, Welcome, PlayersPlaced, snapshots.
 var seen: Dictionary[int, Vector3] = {}
+## Peer -> that player's drunk value in the bot's last snapshot that showed it (#1390).
+var drunk_seen: Dictionary[int, int] = {}
 
 var _next_seq := 1
 var _client_tick := 0
@@ -259,14 +263,16 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 	return ""
 
 
-## Takes the avatars of a snapshot: where it sees the other players. The own avatar, which a
-## knocked-down player's snapshot carries (KE5), is skipped: the bot knows where it is.
+## Takes the avatars of a snapshot: where it sees the other players and their drunk values. The
+## own avatar, which a knocked-down player's snapshot carries (KE5), is skipped: the bot knows
+## where it is.
 func see(avatars: Dictionary) -> void:
 	for other: int in avatars:
 		if other == peer:
 			continue
 		var avatar: Dictionary = avatars[other]
 		seen[other] = avatar["position"]
+		drunk_seen[other] = avatar.get("drunk", 0) as int
 
 
 ## The reason of the Rejected answering `seq` since the current step started, or "".
@@ -465,6 +471,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.erase(item)
 		&"SelfStatus":
 			sprint_available = fields["sprint_available"] as bool
+			drunk = fields.get("drunk", 0) as int
 
 
 ## The bot no longer holds or belts `item`.

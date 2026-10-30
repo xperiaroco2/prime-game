@@ -121,6 +121,7 @@ func _snapshot(tick: int, at: Vector3) -> void:
 		"crouched": false,
 		"sneaking": false,
 		"posed": false,
+		"drunk": 0,
 		"held_item": -1,
 		"belt_item": -1,
 		"belt_item2": -1,

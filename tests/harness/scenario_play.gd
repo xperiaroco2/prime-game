@@ -236,7 +236,7 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 	return result
 
 
-## The steps that only wait or check: WaitFor, Wait, Expect, ExpectNone.
+## The steps that only wait or check: WaitFor, Wait, Expect, ExpectNone, ExpectDrunk.
 func _check(bot: ScenarioBot, step: ScenarioStep, elapsed: int) -> Result:
 	var result := Result.WAITING
 	if step is StepWaitFor:
@@ -258,9 +258,40 @@ func _check(bot: ScenarioBot, step: ScenarioStep, elapsed: int) -> Result:
 			result = _fail_step(bot, "%s matching %s arrived" % [none.event, none.fields])
 		elif elapsed >= Ticks.from_seconds(none.for_s):
 			result = Result.DONE
+	elif step is StepExpectDrunk:
+		result = _expect_drunk(bot, step as StepExpectDrunk, elapsed)
 	else:
 		result = _fail_step(bot, "the runner has no rule for this step")
 	return result
+
+
+## ExpectDrunk (#1390): the bot's own drunk value (its SelfStatus) for `bot` 0, else that bot's
+## avatar in this bot's last snapshot; done once it lies in the step's range.
+func _expect_drunk(bot: ScenarioBot, step: StepExpectDrunk, elapsed: int) -> Result:
+	var value := bot.drunk
+	if step.bot != 0:
+		var other := peers.peer_of(step.bot)
+		if other == 0 or not bot.drunk_seen.has(other):
+			value = -1
+		else:
+			value = bot.drunk_seen[other]
+	if value >= step.at_least and value <= step.at_most:
+		return Result.DONE
+	if elapsed >= Ticks.from_seconds(step.within_s):
+		var seen := "unseen" if value < 0 else str(value)
+		return _fail_step(
+			bot,
+			(
+				"the drunk value of %s is %s, not %d to %d"
+				% [
+					"itself" if step.bot == 0 else "bot %d" % step.bot,
+					seen,
+					step.at_least,
+					step.at_most
+				]
+			)
+		)
+	return Result.WAITING
 
 
 func _ready_step(bot: ScenarioBot, step: StepReady) -> Result:

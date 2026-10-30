@@ -359,6 +359,9 @@ back_speed_mps = 2.0
 rest_speed_mps = 0.1
 rest_s = 0.5
 longest_motion_s = 8.0
+drunk_max = 100
+drunk_too_much_at = 90
+drunk_point_s = 1.0
 
 [sub_resource type="Resource" id="Setting_packages"]
 script = ExtResource("4_setting")

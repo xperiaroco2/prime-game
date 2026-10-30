@@ -187,7 +187,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepTalk.new(),
 		StepThrow.new(),
 		StepInteract.new(),
-		StepDraw.new()
+		StepDraw.new(),
+		StepExpectDrunk.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -215,7 +216,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Talk",
 			&"Throw",
 			&"Interact",
-			&"Draw"
+			&"Draw",
+			&"ExpectDrunk"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -299,6 +301,51 @@ func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
 	for pitch: float in [-90.0, 0.0, 30.0, 90.0]:
 		throw.pitch_deg = pitch
 		assert_array(Array(throw.problems())).is_empty()
+
+
+## #1390: ExpectDrunk names itself (0, never its own number) or another bot of the scenario, and
+## a range within 0 to 255.
+func test_an_expect_drunk_names_a_bot_of_the_scenario_and_a_range() -> void:
+	var drunk := StepExpectDrunk.new()
+	assert_bool(drunk.sends_intent()).is_false()
+	assert_array(Array(drunk.problems())).is_empty()
+	drunk.bot = 1
+	drunk.at_least = 90
+	drunk.at_most = 100
+	drunk.within_s = 2.0
+	assert_array(Array(drunk.problems())).is_empty()
+	var scenario := _scenario()
+	scenario.scripts[0].steps.append(drunk)
+	# Bot 1 naming itself by number: its own avatar is never in its snapshot (name it 0).
+	assert_array(Array(scenario.problems())).contains_exactly(
+		["bot 1, ExpectDrunk: bot 1 is this bot itself, which reads its own value as bot 0"]
+	)
+	drunk.bot = 0
+	assert_array(Array(scenario.problems())).is_empty()
+	drunk.bot = 2
+	assert_array(Array(scenario.problems())).is_empty()
+	drunk.bot = 3
+	assert_array(Array(scenario.problems())).contains_exactly(
+		["bot 1, ExpectDrunk: bot 3 is outside 0 to 2"]
+	)
+	drunk.bot = -1
+	drunk.at_least = 101
+	drunk.within_s = -1.0
+	(
+		assert_array(Array(drunk.problems()))
+		. contains_exactly(
+			[
+				"bot -1 is below 0",
+				"at_least 101 to at_most 100 is no range within 0 to 255",
+				"within_s is negative",
+			]
+		)
+	)
+	drunk.at_least = 0
+	drunk.at_most = 256
+	assert_array(Array(drunk.problems())).contains(
+		["at_least 0 to at_most 256 is no range within 0 to 255"]
+	)
 
 
 ## #1235: a misspelled event or field key in a `never`, an Expect, an ExpectNone or a WaitFor never

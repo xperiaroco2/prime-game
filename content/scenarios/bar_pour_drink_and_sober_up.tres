@@ -1,0 +1,114 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://bbarsober1390"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="5_target"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="6_walk"]
+[ext_resource type="Script" uid="uid://cibnmeghu3q31" path="res://core/content/scenario/step_interact.gd" id="7_interact"]
+[ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="8_use"]
+[ext_resource type="Script" uid="uid://bhwtl2j8jtmdj" path="res://core/content/scenario/step_expect_drunk.gd" id="9_drunk"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="10_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="11_wait_for"]
+
+[sub_resource type="Resource" id="Resource_b01"]
+script = ExtResource("5_target")
+point = Vector3(-15, 0, 0)
+
+[sub_resource type="Resource" id="Resource_b02"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_b01")
+
+[sub_resource type="Resource" id="Resource_b03"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"tap"
+
+[sub_resource type="Resource" id="Resource_b04"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_b03")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_b05"]
+script = ExtResource("9_drunk")
+at_most = 0
+
+[sub_resource type="Resource" id="Resource_b06"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"tap"
+
+[sub_resource type="Resource" id="Resource_b07"]
+script = ExtResource("7_interact")
+station = SubResource("Resource_b06")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_b08"]
+script = ExtResource("5_target")
+point = Vector3(-15, 0, -20)
+
+[sub_resource type="Resource" id="Resource_b09"]
+script = ExtResource("8_use")
+towards = SubResource("Resource_b08")
+until = &"ItemChanged"
+
+[sub_resource type="Resource" id="Resource_b10"]
+script = ExtResource("9_drunk")
+at_least = 36
+at_most = 40
+within_s = 2.0
+
+[sub_resource type="Resource" id="Resource_b11"]
+script = ExtResource("9_drunk")
+at_most = 0
+within_s = 45.0
+
+[sub_resource type="Resource" id="Resource_b12"]
+script = ExtResource("10_ready")
+
+[sub_resource type="Resource" id="Resource_b13"]
+script = ExtResource("11_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_b14"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_b02"), SubResource("Resource_b04"), SubResource("Resource_b05"), SubResource("Resource_b07"), SubResource("Resource_b09"), SubResource("Resource_b10"), SubResource("Resource_b11"), SubResource("Resource_b12"), SubResource("Resource_b13")])
+
+[sub_resource type="Resource" id="Resource_b15"]
+script = ExtResource("9_drunk")
+bot = 1
+at_least = 30
+within_s = 30.0
+
+[sub_resource type="Resource" id="Resource_b16"]
+script = ExtResource("9_drunk")
+bot = 1
+at_most = 0
+within_s = 45.0
+
+[sub_resource type="Resource" id="Resource_b17"]
+script = ExtResource("10_ready")
+
+[sub_resource type="Resource" id="Resource_b18"]
+script = ExtResource("11_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_b19"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_b15"), SubResource("Resource_b16"), SubResource("Resource_b17"), SubResource("Resource_b18")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 139000000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("Resource_b14"), SubResource("Resource_b19")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 120.0

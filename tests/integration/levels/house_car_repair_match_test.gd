@@ -106,7 +106,7 @@ func test_the_deal_places_each_station_on_its_marker_and_the_car_s_box_holds_no_
 	for i in task_state.bins.size():
 		_assert_on_marker(task_state.bins[i], type.bins[i].spawn_tag)
 	assert_int(task_state.total()).is_equal(CAR_PARTS)
-	var stations := 3 + type.bins.size()
+	var stations := 1 + 3 + type.bins.size()  # the lobby's tap (#1390), then the deal's
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(stations)

@@ -44,6 +44,8 @@ func run(ctx: MatchContext) -> void:
 		player.crouched = false
 		player.sneaking = false
 		player.posed = false
+		if player.sober():
+			SelfStatusFeed.touch(ctx.state, player.peer)
 		player.velocity = Vector3.ZERO
 		player.epoch += 1
 		placed[player.peer] = player.position

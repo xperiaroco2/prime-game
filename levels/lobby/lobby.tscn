@@ -212,3 +212,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 0)
 
 [node name="LobbyPlayer10" type="Marker3D" parent="." unique_id=626257198 groups=["spawn_lobby_player"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 0)
+
+[node name="Tap" type="Marker3D" parent="." unique_id=1390139001 groups=["spawn_tap"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -10)
