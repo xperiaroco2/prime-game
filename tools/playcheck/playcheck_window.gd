@@ -32,6 +32,8 @@ const PREFIX := "PLAYCHECK "
 ## How near (metres, flat) the feet must come to a route's waypoint before the aim turns to the next
 ## (a look, not a rule: the route's 0.5 m lattice and the capsule's room in a door).
 const WAYPOINT_M := 0.35
+## How far above the feet (metres) an `aim player` faces: about the avatar's chest.
+const AIM_PLAYER_LIFT_M := 1.2
 const PLAN_ARG := "--plan="
 const WINDOW_ARG := "--window="
 
@@ -235,6 +237,8 @@ var _aim_kind: StringName = &""
 ## still to walk before it turns to the station (each dropped once the feet are within
 ## WAYPOINT_M of it).
 var _aim_station := false
+## The scenario's player number an `aim player` step faces; 0 when the aim is at something else.
+var _aim_player := 0
 var _waypoints: Array = []
 var _wrote_peer := false
 var _ended := false
@@ -336,6 +340,7 @@ func _act(step: Dictionary) -> void:
 		"aim":
 			_aim_kind = StringName(str(step.get("kind", "")))
 			_aim_station = str(step.get("target", "")) == "station"
+			_aim_player = Steps.number(step.get("player", 0))
 			_waypoints = (step.get("via", []) as Array).duplicate()
 			_aim()
 		"shot":
@@ -412,7 +417,8 @@ func _aim() -> void:
 
 ## What the aim faces now (a non-finite vector: nothing): the next waypoint at eye height, dropping
 ## each the feet at `feet` have reached; then the nearest station of the kind (its use spot's aim
-## sphere, TargetChoice) or the middle of the nearest resting item of the kind.
+## sphere, TargetChoice), the chest of the avatar of `aim player`'s player, or the middle of the
+## nearest resting item of the kind.
 func _aim_target(model: ClientModel, feet: Vector3, eye: Vector3) -> Vector3:
 	while not _waypoints.is_empty():
 		var point: Array = _waypoints[0]
@@ -422,6 +428,8 @@ func _aim_target(model: ClientModel, feet: Vector3, eye: Vector3) -> Vector3:
 		if Vector2(at.x - feet.x, at.z - feet.z).length() > WAYPOINT_M:
 			return at
 		_waypoints.pop_front()
+	if _aim_player != 0:
+		return _player_target(model)
 	if _aim_station:
 		var id := Steps.nearest_station(model, _aim_kind, eye)
 		if id < 0:
@@ -510,6 +518,7 @@ func _fail_with_shot() -> void:
 		Input.action_release(action)
 	_held.clear()
 	_aim_kind = &""
+	_aim_player = 0
 	_waypoints.clear()
 	var why := _steps.failure
 	var path := _out.path_join("failed-window-%d.png" % _window)
@@ -528,3 +537,14 @@ func _quit_failed(why: String) -> void:
 		# host would end it from its _exit_tree, while the tree is removing children.
 		_game.leave()
 	quit(1)
+
+
+## The chest of the avatar of the scenario's player `_aim_player`, from the newest snapshot (a
+## non-finite vector: not in it yet). The number, not the join order, names the peer: its id comes
+## through the peers folder.
+func _player_target(model: ClientModel) -> Vector3:
+	var avatar: Dictionary = model.avatars.get(_view.peer_of(_aim_player), {})
+	var at: Variant = avatar.get("position")
+	if not at is Vector3:
+		return Vector3.INF
+	return (at as Vector3) + Vector3.UP * AIM_PLAYER_LIFT_M

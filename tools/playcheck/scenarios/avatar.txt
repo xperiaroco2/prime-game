@@ -1,11 +1,13 @@
 # The animated character on the remote avatars (#522, ARCHITECTURE §4.7.53) in the game's real
 # windows, on the greybox test bench. Needs the LFS art checked out (without it every avatar is the
-# greybox capsule). Window 1 hosts and only watches: it faces the one package and stands. Window 2
-# faces the same package and walks to it (Jog_Fwd), sprints (Sprint_Fwd), stops crouched
-# (Crouch_Idle) and crouch-walks (Crouch_Fwd); window 1 shoots each. Then player 3, a bot
-# (avatar_bots.tres), walks to the package, picks it up (Pickup_Package) and carries it towards
-# player 1 (Jog_Fwd with Carry_Upper). Window 2 shoots window 1 idle once it is near the package.
-# The frame counts only roughly line the two windows up: read the PNGs, a shot may miss its avatar.
+# greybox capsule). Window 1 hosts and only watches: it stands and turns to face the player it
+# shoots (`aim player`, #1418: the scenario's player number, so neither the join order nor the
+# random spawn spots decide which avatar it faces). Window 2 faces the one package and walks to it
+# (Jog_Fwd), sprints (Sprint_Fwd), stops crouched (Crouch_Idle) and crouch-walks (Crouch_Fwd);
+# window 1 shoots each. Then player 3, a bot (avatar_bots.tres), walks to the package, picks it up
+# (Pickup_Package) and carries it towards player 1 (Jog_Fwd with Carry_Upper). Window 2 turns to
+# window 1 once it is near the package and shoots it idle. The frame counts only roughly line the
+# windows' actions up: read the PNGs, a shot may catch its avatar mid-stride.
 players 3
 windows 2
 bots tools/playcheck/scenarios/avatar_bots.tres
@@ -19,7 +21,7 @@ window 1
 wait phase lobby
 press ready
 wait screen round timeout=60
-aim item package
+aim player 2
 frames 100
 shot remote_walk
 frames 70
@@ -28,6 +30,8 @@ frames 60
 shot remote_crouch_idle
 frames 60
 shot remote_crouch_walk
+aim off
+aim player 3
 wait event ItemPickedUp peer=3 timeout=60
 frames 8
 shot remote_pick_up
@@ -56,5 +60,7 @@ frames 60
 release move_forward
 release crouch
 aim off
+aim player 1
 frames 30
 shot near_the_package
+aim off
