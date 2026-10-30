@@ -24,8 +24,9 @@ const ARRIVED_SLACK_M := 0.001
 ## The most steps one bot may finish in one tick, against a script that never waits.
 const MAX_STEPS_PER_TICK := 32
 ## The fields that name a player: a scenario writes them as a bot's number, mapped through
-## ScenarioPeers (`peer`; RaiseStarted's and RaiseStopped's `raiser` and `target`, M4-4).
-const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
+## ScenarioPeers (`peer`; RaiseStarted's and RaiseStopped's `raiser` and `target`, M4-4; OfferMade's
+## and OfferEnded's `giver`, #1434).
+const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target", "giver"]
 ## What a Join after the bot's own Leave tries again after, every RETRY_S seconds until its
 ## deadline_s (P12 (t2) of the returning-players ADR): a refused connection (the loopback's
 ## connect_failed, the core runner's refusal) and joins_closed (ENet's refusal frame, #1233; the
