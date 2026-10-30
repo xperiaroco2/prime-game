@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## player in FixtureBar's lobby walks to the tap that StationTicks placed (no task type holds it),
 ## aims at its use spot and is offered it (StationUse.usable): the lobby HUD's Aim names it. E
 ## sends Interact and the host pours a mug into the hand; the left button's Use answers
-## nothing_to_do (#1437 takes it), the right button sends UseSecondary (#1438) and the host
-## drinks it: ItemChanged turns it into mug_empty and the own drunk value (SelfStatus) rises. No
-## other Rejected on the way.
+## nothing_to_do (FixtureBar has no Use rule; the base mode's is the hit, #1437), the right
+## button sends UseSecondary (#1438) and the host drinks it: ItemChanged turns it into mug_empty
+## and the own drunk value (SelfStatus) rises. No other Rejected on the way.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The most physics frames an answer of the host takes to arrive.
@@ -62,8 +62,8 @@ func test_e_at_the_tap_pours_a_mug_and_the_right_button_drinks_it() -> void:
 	assert_int(mug).is_greater_equal(0)
 	assert_str(String(model.items[mug].kind)).is_equal("mug")
 	assert_int(model.drunk).is_equal(0)
-	# The left button's Use is free for the hit (#1437): with a full mug the host answers
-	# nothing_to_do and the mug stays full.
+	# The left button's Use is not the drink: FixtureBar has no Use rule (the base mode hits, #1437),
+	# so the host answers nothing_to_do and the mug stays full.
 	assert_int(keys.use()).is_greater(0)
 	for i: int in ANSWER_FRAMES:
 		if not _rejected.is_empty():

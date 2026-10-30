@@ -55,7 +55,11 @@ expect_rejected = &"empty_hand"
 [sub_resource type="Resource" id="Resource_tw5kh"]
 script = ExtResource("10_cx5lg")
 towards = SubResource("Resource_av6v5")
-expect_rejected = &"nothing_to_do"
+
+[sub_resource type="Resource" id="Use_too_soon"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"too_soon"
 
 [sub_resource type="Resource" id="Resource_pkmmy"]
 script = ExtResource("9_mydoj")
@@ -160,7 +164,6 @@ expect_rejected = &"two_handed"
 [sub_resource type="Resource" id="Resource_eqf2n"]
 script = ExtResource("10_cx5lg")
 towards = SubResource("Resource_av6v5")
-expect_rejected = &"nothing_to_do"
 
 [sub_resource type="Resource" id="PutDown_package"]
 script = ExtResource("8_fvog8")
@@ -171,7 +174,7 @@ script = ExtResource("15_swap")
 
 [sub_resource type="Resource" id="Resource_ua3fo"]
 script = ExtResource("4_xk2kj")
-steps = Array[ExtResource("5_t4n04")]([SubResource("Draw_in_the_lobby"), SubResource("Resource_0bphy"), SubResource("Resource_8jjro"), SubResource("Draw_no_such_place"), SubResource("Draw_same_place"), SubResource("Swap_nothing"), SubResource("Resource_wg050"), SubResource("Resource_tw5kh"), SubResource("Resource_25ro2"), SubResource("Resource_t7go1"), SubResource("Resource_vwss4"), SubResource("Resource_ypjku"), SubResource("Resource_wfhj0"), SubResource("Resource_tiqiq"), SubResource("Resource_ek2f4"), SubResource("Resource_e3f3e"), SubResource("Resource_ds5xl"), SubResource("Resource_e01lq"), SubResource("Resource_rawql"), SubResource("Resource_13wd8"), SubResource("Resource_16adb"), SubResource("Resource_teo3a"), SubResource("Resource_vpijo"), SubResource("Resource_iytnx"), SubResource("Resource_ymmxy"), SubResource("Swap_two_handed"), SubResource("Resource_eqf2n"), SubResource("PutDown_package"), SubResource("Swap_belted_knife")])
+steps = Array[ExtResource("5_t4n04")]([SubResource("Draw_in_the_lobby"), SubResource("Resource_0bphy"), SubResource("Resource_8jjro"), SubResource("Draw_no_such_place"), SubResource("Draw_same_place"), SubResource("Swap_nothing"), SubResource("Resource_wg050"), SubResource("Resource_tw5kh"), SubResource("Use_too_soon"), SubResource("Resource_25ro2"), SubResource("Resource_t7go1"), SubResource("Resource_vwss4"), SubResource("Resource_ypjku"), SubResource("Resource_wfhj0"), SubResource("Resource_tiqiq"), SubResource("Resource_ek2f4"), SubResource("Resource_e3f3e"), SubResource("Resource_ds5xl"), SubResource("Resource_e01lq"), SubResource("Resource_rawql"), SubResource("Resource_13wd8"), SubResource("Resource_16adb"), SubResource("Resource_teo3a"), SubResource("Resource_vpijo"), SubResource("Resource_iytnx"), SubResource("Resource_ymmxy"), SubResource("Swap_two_handed"), SubResource("Resource_eqf2n"), SubResource("PutDown_package"), SubResource("Swap_belted_knife")])
 
 [resource]
 script = ExtResource("3_71ojc")

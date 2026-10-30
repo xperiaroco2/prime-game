@@ -1,6 +1,8 @@
 class_name Strike
 extends RuleEffect
-## A weapon's hit (ARCHITECTURE §7.1 "Hits", §9.4): the host picks the targets and damages each.
+## A hit on Use (ARCHITECTURE §7.1 "Hits", §9.4): the host picks the targets and damages each.
+## A kind's own rule (the knife's) or the mode's fallback rule (the base hit of the empty hand and
+## of every item without its own Use rule, #1437) runs it.
 ## The zone is the weapon's data: a horizontal sector from the attacker's last accepted position
 ## (its feet), `reach_m` long and `angle_deg` wide, centred on the horizontal part of the facing.
 ## A target is every living player other than the attacker (never a downed one: strikes skip the
@@ -15,7 +17,9 @@ extends RuleEffect
 ##   crouched (the crouch ADR, KE2, KD7 (a));
 ## - the line from the attacker's eye (Items.eye_of, crouched or not) to the middle of its own
 ##   capsule, crouched or not, is clear (WorldQuery.line_of_sight).
-## Each target then takes `damage` through the life rule (LifeRules.damage), in peer-id order; at 0
+## Each target then takes damage_to's amount through the life rule (LifeRules.damage), in peer-id
+## order: `damage` from the front, `back_damage` from behind (is_behind), or the two-handed pair
+## while the attacker's hand item is two-handed and `two_handed_damage` is set; at 0
 ## health it is knocked down there (KnockedDown, Correction; nothing drops). A target no longer
 ## alive when its turn comes (what an earlier target's damage set off downed or killed it) is
 ## skipped.
@@ -31,12 +35,24 @@ extends RuleEffect
 ## map PlayerRules.motion_maps lists LaunchBody (server) with launch_of's velocity (KE9). The
 ## attacker learns nothing of a hit but a knockdown, which everyone learns (an accepted exception).
 
+## How far below 0 the cosine of is_behind's angle must lie: exactly 90° stays the front.
+const BEHIND_EPSILON := 1e-6
+
 ## Degrees, 1 to 360. The neutral default is refused by the mode check: the data sets it.
 @export var angle_deg := 0.0
 ## Metres, 0.1 to 10, horizontal, from the attacker's feet. Neutral default: the data sets it.
 @export var reach_m := 0.0
-## Whole points, 1 to 1000. Neutral default: the data sets it.
+## Whole points, 1 to 1000: the damage of a hit from the front. Neutral default: the data sets it.
 @export var damage := 0
+## Whole points, 0 to 1000: the damage of a hit from behind (is_behind); 0 means `damage`.
+@export var back_damage := 0
+## Whole points, 0 to 1000: the front damage while the attacker's hand item is two-handed
+## (ItemKind.is_two_handed), with `two_handed_back_damage` from behind (0 means
+## `two_handed_damage`). 0 (the default) means such a hand hits as any other: `damage` and
+## `back_damage`. The mode's one fallback rule carries both pairs, since the dispatch reaches only
+## a mode's first Use rule (Match._find_action takes the first rule by trigger).
+@export var two_handed_damage := 0
+@export var two_handed_back_damage := 0
 ## The launch of a blow that knocks its target down (the knockdown rework's KD2, KE9): metres per
 ## second away from the attacker, horizontally, and upwards. 0 launches nothing (the default); a
 ## knockdown on a map PlayerRules.motion_maps leaves out drops it. Bounds 0 to 20 and 0 to 10,
@@ -67,7 +83,40 @@ func run(ctx: MatchContext) -> void:
 		if not ctx.state.players[peer].is_alive() or ctx.state.players[peer].is_limp():
 			continue
 		var launch := launch_of(attacker, ctx.state.players[peer], ahead)
-		LifeRules.damage(ctx, peer, Ticks.thousandths(damage), launch)
+		var amount := damage_to(ctx, attacker, ctx.state.players[peer])
+		LifeRules.damage(ctx, peer, Ticks.thousandths(amount), launch)
+
+
+## The whole points `target` takes from this blow. The pair is `two_handed_damage` and
+## `two_handed_back_damage` while the attacker's hand item is two-handed and `two_handed_damage` is
+## set, else `damage` and `back_damage`; then the pair's back value from behind (is_behind) when
+## set, else its front value. Judged per target at its turn, from the state of that tick.
+func damage_to(ctx: MatchContext, attacker: PlayerState, target: PlayerState) -> int:
+	var front := damage
+	var back := back_damage
+	var held := Items.held_by(ctx.state, attacker.peer)
+	if two_handed_damage > 0 and held != null and held.kind.is_two_handed():
+		front = two_handed_damage
+		back = two_handed_back_damage
+	if back > 0 and is_behind(attacker, target):
+		return back
+	return front
+
+
+## Whether `attacker` stands in `target`'s rear half (the engineer's answer on #1437,
+## issuecomment-6528751037): the angle between the target's facing and the horizontal direction
+## from the target's feet to the attacker's is over 90°. The positions are the host's last accepted
+## ones; the facing is the target's last accepted claim (Vector3.FORWARD before its first), a claim
+## like the attacker's own facing. Exactly 90°, within float rounding, is the front; so is a target
+## with no horizontal facing, and an attacker on the target's own spot.
+static func is_behind(attacker: PlayerState, target: PlayerState) -> bool:
+	var facing := horizontal(target.facing)
+	var away := Vector2(
+		attacker.position.x - target.position.x, attacker.position.z - target.position.z
+	)
+	if facing.is_zero_approx() or away.is_zero_approx():
+		return false
+	return facing.dot(away.normalized()) < -BEHIND_EPSILON
 
 
 ## The launch `target` takes if this blow knocks it down (KE9): `launch_mps` horizontally from the
@@ -142,8 +191,16 @@ func check(_mode: GameMode) -> PackedStringArray:
 			out_of_bounds("Strike angle_deg", angle_deg, 1, 360),
 			out_of_bounds("Strike reach_m", reach_m, 0.1, 10),
 			out_of_bounds("Strike damage", damage, 1, 1000),
+			out_of_bounds("Strike back_damage", back_damage, 0, 1000),
+			out_of_bounds("Strike two_handed_damage", two_handed_damage, 0, 1000),
+			out_of_bounds("Strike two_handed_back_damage", two_handed_back_damage, 0, 1000),
 			out_of_bounds("Strike launch_mps", launch_mps, 0, 20),
 			out_of_bounds("Strike launch_up_mps", launch_up_mps, 0, 10),
+			(
+				"Strike two_handed_back_damage is set but two_handed_damage is 0 (the pair is unused)"
+				if two_handed_back_damage > 0 and two_handed_damage == 0
+				else ""
+			),
 		]
 	)
 	return found

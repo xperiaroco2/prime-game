@@ -233,14 +233,15 @@ func test_the_hall_s_tap_pours_a_beer_that_lasts_into_the_countdown_only() -> vo
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	var mug := Items.held_by(game.state, P1)
 	assert_str(String(mug.kind.id)).is_equal("mug")
-	# The left button's Use finds no rule on a full mug (#1438): it drinks on UseSecondary only.
+	# The left button's Use on a full mug hits by the base mode's fallback (#1437, nobody in
+	# reach): the mug stays full; it drinks on UseSecondary only (#1438).
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 2)
-	assert_array(FixtureModes.rejections(game, P1)).is_equal([RejectReasons.NOTHING_TO_DO])
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	assert_str(String(mug.kind.id)).is_equal("mug")
 	assert_int(game.state.player(P1).drunk).is_equal(0)
 	FixtureBar.drink(game, P1, 3)
 	FixtureModes.run_ticks(game, 1)
-	assert_array(FixtureModes.rejections(game, P1)).is_equal([RejectReasons.NOTHING_TO_DO])
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	assert_str(String(mug.kind.id)).is_equal("mug_empty")
 	# One mug: 40 of 100, below the 90 of too much (provisional numbers).
 	var drunk := game.state.player(P1).drunk

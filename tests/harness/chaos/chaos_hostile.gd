@@ -17,7 +17,8 @@ extends RefCounted
 ##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
 ## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, PutDown,
-## Use and Throw (its facings: ChaosFrames.THROW_FACINGS) only with the empty hand its bot always
+## Use only in Loading (every hand hits where a phase takes it, #1437), PutDown and Throw (its
+## facings: ChaosFrames.THROW_FACINGS) only with the empty hand its bot always
 ## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
 ## is `empty_hand`), SetProfile with a new name and colour only while its client is in loading or
 ## pregame (the host cannot be back in the lobby then; the round ends in End and then the lobby)
@@ -152,7 +153,6 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.LOAD_ACK,
 		Intents.PICK_UP,
 		Intents.PUT_DOWN,
-		Intents.USE,
 		Intents.USE_SECONDARY,
 		Intents.THROW,
 		Intents.SWAP,
@@ -168,6 +168,10 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.TAKE_OFFER,
 		Intents.CANCEL_OFFER,
 	]
+	if phase == &"loading":
+		# Every hand hits (#1437): a living Use in the lobby, the countdown or the round would
+		# swing. Loading never takes it, nor the pregame that follows (no race into the round).
+		choices.append(Intents.USE)
 	if phase != &"round" or life == ClientModel.Life.DEAD:
 		# Outside the round, or dead, nothing can turn a GiveUp into a death.
 		choices.append(Intents.GIVE_UP)

@@ -327,14 +327,18 @@ func put_down() -> int:
 	return session.send_intent(Intents.PUT_DOWN, {"facing": player.look_vector()})
 
 
-## The left mouse button: Use(facing) while the own hand holds an item.
-## The primary button with a photo in the hand (#787) holds it up close or back and sends nothing
-## (a photo has no Use rule).
+## The left mouse button: Use(facing), with an item in the own hand or none: the host answers by
+## the hand item's own Use rule, else the mode's fallback hit (#1437). An empty hand sends only in
+## a phase that takes Use from the living. The primary button with a photo in the hand (#787)
+## holds it up close or back and sends nothing (a photo has no Use rule).
 func use() -> int:
-	if not _acts() or model.hand_item(model.own_peer) < 0:
+	if not _acts():
 		return -1
 	var hand_id := model.hand_item(model.own_peer)
-	if PhotoUse.is_photo(mode, model.items[hand_id].kind):
+	if hand_id < 0:
+		if not _phase_takes(Intents.USE):
+			return -1
+	elif PhotoUse.is_photo(mode, model.items[hand_id].kind):
 		_set_close(hand_id if _close_item != hand_id else -1)
 		return -1
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})

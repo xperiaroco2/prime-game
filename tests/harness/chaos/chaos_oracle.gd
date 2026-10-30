@@ -43,7 +43,8 @@ const PICK_UP_REACH_M := 2.0
 ## HoldsItem refuses it as `empty_hand` before OverFloor's `no_floor` is asked; the hostile's own
 ## bot never holds an item, so a hostile Throw is never thrown.
 ## Lobby and Countdown take the hand, the belt and Interact from the living as Round does (#1388),
-## with the same refusals (no item or station is in the hall yet); not Throw, Raise or Pose.
+## with the same refusals (no item or station is in the hall yet); not Throw, Raise or Pose. Use
+## from the living is never sent where a phase takes it: any hand hits (#1437).
 ## They also take HandOver, TakeOffer and CancelOffer from the living (#1389, #1434), as the Round
 ## does: HandOver's first condition is HoldsItem (`empty_hand`), and the hostile's own bot never
 ## holds an item.
@@ -216,7 +217,11 @@ static func _rule(
 			answer_now = _pick_up(args.get("item", -1) as int, player, state)
 		Intents.PUT_DOWN, Intents.THROW:
 			answer_now = EMPTY_HAND if player.held_item < 0 else &"?"
-		Intents.USE, Intents.USE_SECONDARY:
+		Intents.USE:
+			# Any hand hits (#1437), so the chaos peers never send Use where a phase takes it from
+			# them (ChaosHostile: Loading only); there it would swing, or be too_soon or tired.
+			answer_now = &"?"
+		Intents.USE_SECONDARY:
 			answer_now = RejectReasons.NOTHING_TO_DO if player.held_item < 0 else &"?"
 		Intents.SWAP:
 			var empty := player.carried_items().is_empty()
