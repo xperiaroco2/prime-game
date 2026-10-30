@@ -213,6 +213,23 @@ func test_a_seated_crouched_drinker_goes_limp_with_every_pose_ended() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## The scenarios' and the chaos run's oracle (ScenarioInvariants.limp_problem): an honest snapshot
+## passes; a limp flag that does not match the state, or a limp player not living, is reported.
+func test_the_invariant_catches_a_wrong_limp_flag() -> void:
+	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
+	var now := game.ticked_through()
+	var seen: Dictionary = Snapshots.avatars_for(game.state, P2, now)[P1]
+	assert_str(ScenarioInvariants.limp_problem(game, P1, seen)).is_empty()
+	var standing := seen.duplicate()
+	standing["limp"] = false
+	assert_str(ScenarioInvariants.limp_problem(game, P1, standing)).contains("its state true")
+	var other: Dictionary = Snapshots.avatars_for(game.state, P1, now)[P2]
+	other["limp"] = true
+	assert_str(ScenarioInvariants.limp_problem(game, P2, other)).contains("its state false")
+	game.state.player(P1).life = PlayerState.Life.DOWNED
+	assert_str(ScenarioInvariants.limp_problem(game, P1, seen)).contains("not alive")
+
+
 func test_a_leave_while_limp_frees_the_body() -> void:
 	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
 	var stops := _emitted(game, &"StopBody").size()
