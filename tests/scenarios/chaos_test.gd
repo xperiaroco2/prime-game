@@ -68,7 +68,8 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		# The hall takes the hand, the belt and Interact from the living as Round does (#1388).
 		[&"PutDown", facing, &"lobby", living, &"empty_hand"],
 		[&"PutDown", facing, &"countdown", living, &"empty_hand"],
-		[&"Use", facing, &"lobby", living, &"nothing_to_do"],
+		# Any hand hits (#1437): a living sender's Use has no answer the oracle knows.
+		[&"Use", facing, &"lobby", living, &"?"],
 		[&"UseSecondary", facing, &"lobby", living, &"nothing_to_do"],
 		[&"Swap", {}, &"countdown", living, &"nothing_to_swap"],
 		[&"PickUp", {"item": ChaosOracle.NO_ITEM}, &"lobby", living, &"unavailable"],
@@ -91,7 +92,7 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"HandOver", {"target": 3}, &"lobby", downed, &"not_accepted"],
 		[&"PutDown", facing, &"round", living, &"empty_hand"],
 		[&"PutDown", facing, &"round", downed, &"not_accepted"],
-		[&"Use", facing, &"round", living, &"nothing_to_do"],
+		[&"Use", facing, &"round", living, &"?"],
 		[&"Swap", {}, &"round", living, &"nothing_to_swap"],
 		[&"StopRaise", {}, &"round", living, &"not_channeling"],
 		[&"Raise", {"target": 4}, &"round", living, &"not_downed"],
