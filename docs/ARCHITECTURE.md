@@ -6764,9 +6764,9 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   "pushable" needs the host's body there. `GoLimp.check` (`LimpTicks.problems`) wants a phase listing `LimpTicks`,
   a `LifeTicks` beside each, and an `EndLimps` on every row out of such a phase into one without.
 - **Tests:** `tests/unit/life/limp_test.gd` (on `tests/fixtures/life/fixture_limp.gd`: the start, the flag on every
-  peer, the refusals, no hit, the push and its bounds, reports, the get-up, the countdown's end, a leave,
-  determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key order), the
-  wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
+  peer, the refusals, no hit, the push and its bounds, reports, the get-up, the countdown's end, a seated drinker,
+  a leave, determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key
+  order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
   the scenarios and the chaos run see (the flag matches the state, a limp player is living, in a phase listing
   `LimpTicks`), and the own-avatar check (`LeakCheck`, `ScenarioInvariants`) takes downed or limp. The client:
   `client_model_test.gd` (`body_life_of`), `avatar_views_test.gd` (the ragdoll until it stands) and

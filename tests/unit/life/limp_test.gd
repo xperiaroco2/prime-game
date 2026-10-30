@@ -186,6 +186,33 @@ func test_the_countdown_end_gets_everyone_up_before_loading() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## The plan review's go_limp steps: a seated, crouched, sprinting drinker going limp stands from
+## none of them: its seat, crouch, sneak and sprint end, its drunk value stays and no life deadline
+## is set (LifeTicks would log one for a living player).
+func test_a_seated_crouched_drinker_goes_limp_with_every_pose_ended() -> void:
+	var game := FixtureBar.at_bar(FixtureLimp.mode(), [P1, P2])
+	var drinker := game.state.player(P1)
+	for i in 2:
+		FixtureBar.pour(game, P1, 100 + 2 * i)
+		FixtureBar.drink(game, P1, 101 + 2 * i)
+	FixtureBar.pour(game, P1, 104)
+	drinker.posed = true
+	drinker.crouched = true
+	drinker.sneaking = true
+	drinker.sprinting = true
+	FixtureBar.drink(game, P1, 105)
+	assert_bool(drinker.is_limp()).is_true()
+	assert_bool(drinker.posed or drinker.crouched or drinker.sneaking).is_false()
+	assert_bool(drinker.sprinting).is_false()
+	assert_int(drinker.drunk).is_greater_equal(FixtureBar.TOO_MUCH)
+	assert_int(drinker.life_deadline).is_equal(-1)
+	for i in 3:
+		game.tick(game.ticked_through() + 1)
+	var seen: Dictionary = Snapshots.avatars_for(game.state, P2, game.ticked_through())[P1]
+	assert_bool(seen["posed"] as bool).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_a_leave_while_limp_frees_the_body() -> void:
 	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
 	var stops := _emitted(game, &"StopBody").size()
