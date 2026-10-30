@@ -2488,7 +2488,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   while living. The **sway** (own view only): `_process`, switched on only while the strength is above 0 (sober: no
   cost), rolls and pitches the camera under the head (`DrunkFeel.sway`, two sines on a render clock, the own peer id
   the phase), never its yaw; the head, whose look is the claim's facing (`look_vector()`), never sways, so the host's
-  sight and strike checks and the own aim do not move. The ears follow the swayed camera (`LifeView._place_ears`),
+  sight and strike checks and the own aim ray do not move. The crosshair, at the swayed camera's centre, then sits
+  up to 1 degree of pitch off that ray (a few cm at a 2 m reach): the aim is the head's, not the picture's. The ears follow the swayed camera (`LifeView._place_ears`),
   on purpose. The **drift**: `_walk` turns the keys' steering about UP by `DrunkFeel.drift_angle` (a wander plus
   an optional lean, on the physics clock) before the ease and the speed limit, never the walk out of `movers`; the
   turn keeps the length, so the walk is never faster and the host's travel check accepts it with no allowance
@@ -2498,11 +2499,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.7 Movement on the network: the code (M4-7, #143)
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
-  `ClientSession`, ends every physics step with `set_motion` (the head's look vector as the facing: the camera's without its drunk sway) and
-  `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
-  §7.1.5 Speed); `PlayerTuning` holds client feel only: the push factors, the view's and the move's easing, the drunk sway and drift. `RemotePlayerBody` takes its
-  capsule and eye height from the rules, turns the body by the yaw and the head (a visor) by the pitch, and is a
-  `StaticBody3D` (above).
+  `ClientSession`, ends every physics step with `set_motion` (the head's look vector as the facing: the camera's
+  without its drunk sway) and `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow
+  each `SelfStatus` (#155, §7.1.5 Speed); `PlayerTuning` holds client feel only: the push factors, the view's and
+  the move's easing, the drunk sway and drift. `RemotePlayerBody` takes its capsule and eye height from the rules,
+  turns the body by the yaw and the head (a visor) by the pitch, and is a `StaticBody3D` (above).
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and at a `PhaseChanged` to another level
@@ -2763,7 +2764,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   thin wall or a door jamb is never named.
   Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own places hold something; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three, counted on from the Draw still in flight and with at least 60 ms between two (#1218, GDD §6)
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
-  menu. The facing is the head's look vector (the camera's without its drunk sway, #1391).
+  menu. The facing is the head's look vector (the camera's without its drunk sway,
+  #1391).
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears, and nothing beyond; every `AudioStreamPlayer3D` sets `max_distance` to it and plays muffled behind the
@@ -5828,8 +5830,8 @@ The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its movement numbers (speeds, jump height,
   capsule, eye and step height, stamina) are the client's own copy of the mode's `PlayerRules` (§9.5), the same
   numbers `core/` checks with (M4-7); `client/player/player_tuning.tres` (`PlayerTuning`) keeps the client's feel
-  only (the push factors, the view's easing, the move's ramp, the drunk sway and drift), with script defaults of 0 so no number is repeated
-  in code.
+  only (the push factors, the view's easing, the move's ramp, the drunk sway and drift), with script defaults of 0
+  so no number is repeated in code.
 - The move's direction (#1334, art #196): against the aim (the move input's heading, the family switch of
   `Locomotion.family_of` with its dead zone), a move's sideways part is at most `side_speed_mps` and a move in the
   back family at most `back_speed_mps` (`Locomotion.speed_cap`; 0: no cap). Where the cap is at or below the speed
@@ -6664,8 +6666,10 @@ then no shipped mode accepts the intent.
   respawn and a reset (`MatchState.reset_player`, the lobby's return). So the Round never sees a drunk player.
 - **The walk drift needs no allowance** (#1391, §4.7.6 "Drunk"): the client turns its walk's direction and keeps
   its speed, and `MovementRule` checks travel per tick, not direction (§7.1.5), so it never reads `drunk`: a drunk
-  claim gets the same limits as a sober one, and a cheater gains nothing by being drunk. The camera's sway never
-  reaches the host (the claimed facing is the head's). Guard: `tests/unit/movement/movement_rule_drunk_test.gd`.
+  claim gets the same limits as a sober one, and a cheater gains nothing by being drunk. The drift is an honest
+  client's feel, not a rule: the host cannot enforce it, and a modified client that walks straight while drunk is
+  accepted (hobby-project threat model, no hardening). The camera's sway never reaches the host (the claimed
+  facing is the head's). Guard: `tests/unit/movement/movement_rule_drunk_test.gd`.
 - **Tests:** `tests/unit/drunk/drink_test.gd`, `drunk_ticks_test.gd`, `tests/unit/placement/station_ticks_test.gd`,
   `tests/unit/content/drunk_check_test.gd`, `base_mode_lobby_test.gd` (the shipped bar), `view_of_test.gd` (the key
   order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.drunk_problem` checks every
