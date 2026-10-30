@@ -25,7 +25,9 @@ var _held_kind: StringName = &""
 
 func test_the_mode_has_one_use_rule_the_fallback_hit() -> void:
 	var mode := load(BASE_MODE) as GameMode
-	var rules := mode.actions.filter(func(rule: Rule) -> bool: return rule.trigger == Intents.USE)
+	var rules := mode.actions.filter(
+		func(candidate: Rule) -> bool: return candidate.trigger == Intents.USE
+	)
 	assert_array(rules).has_size(1)
 	var rule: Rule = rules[0]
 	assert_int(rule.conditions.size()).is_equal(2)
