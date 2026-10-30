@@ -41,7 +41,9 @@ static func property_names_of(type: TaskType) -> PackedStringArray:
 	return names
 
 
-## Every station kind of `mode`'s task types, each once, in the mode's order.
+## Every station kind of `mode`, each once: its task types' in the mode's order, then the kinds its
+## phases place themselves (StationTicks, #1390: the lobby's tap, which no task type owns, so
+## owner_of returns null for it) in phase and list order.
 static func kinds_in(mode: GameMode) -> Array[StationKind]:
 	var found: Array[StationKind] = []
 	for type: TaskType in mode.task_types:
@@ -50,6 +52,13 @@ static func kinds_in(mode: GameMode) -> Array[StationKind]:
 		for kind: StationKind in kinds_of(type):
 			if not found.has(kind):
 				found.append(kind)
+	for phase: PhaseSpec in mode.phases:
+		if phase == null:
+			continue
+		for system: TickSystem in phase.tick_systems:
+			var placed := system as StationTicks
+			if placed != null and placed.kind != null and not found.has(placed.kind):
+				found.append(placed.kind)
 	return found
 
 
