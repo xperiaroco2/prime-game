@@ -1,14 +1,15 @@
 extends GdUnitTestSuite
 ## The downed cannot pick up, put down, swap or use items (MVP rules and vision revision 1,
-## ARCHITECTURE §7.1): no game mode in `content/modes/` accepts PickUp, PutDown, Swap or Use from
-## anyone but the living, in any phase. A rule of the game, not a number, so this test loads
-## `content/` like the mode check does (§9.6). The base mode's package takes both hands, its knife
-## one (vision revision 1, Two hands), and Delivery has a description for the task screen.
+## ARCHITECTURE §7.1): no game mode in `content/modes/` accepts PickUp, PutDown, Swap, Use or
+## UseSecondary from anyone but the living, in any phase. A rule of the game, not a number, so
+## this test loads `content/` like the mode check does (§9.6). The base mode's package takes both
+## hands, its knife one (vision revision 1, Two hands), and Delivery has a description for the
+## task screen.
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ITEM_INTENTS: Array[StringName] = [
-	Intents.PICK_UP, Intents.PUT_DOWN, Intents.USE, Intents.SWAP
+	Intents.PICK_UP, Intents.PUT_DOWN, Intents.USE, Intents.SWAP, Intents.USE_SECONDARY
 ]
 
 

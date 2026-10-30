@@ -275,6 +275,11 @@ script = ExtResource("6_accept")
 intent = &"Use"
 from = 4
 
+[sub_resource type="Resource" id="UseSecondary_accept_lobby"]
+script = ExtResource("6_accept")
+intent = &"UseSecondary"
+from = 4
+
 [sub_resource type="Resource" id="Accept_lobby_swap"]
 script = ExtResource("6_accept")
 intent = &"Swap"
@@ -359,7 +364,7 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
@@ -426,7 +431,7 @@ phase_class = ExtResource("10_countdown")
 settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
 voice_rule = SubResource("Voice_countdown")
 level = 1
@@ -645,7 +650,7 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round"), SubResource("Offer_ticks")])
 checks_wins = true
 clock_runs = true

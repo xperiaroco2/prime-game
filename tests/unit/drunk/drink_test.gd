@@ -1,10 +1,11 @@
 extends GdUnitTestSuite
 ## The tap and Drink (#1390; ARCHITECTURE §9.4.2): an Interact at the lobby's tap gives a mug (the
 ## hand, then the belt, then the feet; the cap vanishes the longest-lying loose mug, never a refusal
-## while one lies loose); a Use on a full mug turns it empty (ItemChanged to everyone) and raises
-## the drinker's drunk value, which every other peer sees on the avatar and the drinker in its
-## SelfStatus; a Use on an empty mug is refused `nothing_to_do`; the fact `drunk_too_much` comes on
-## each upward crossing of the threshold, never below it. Driven by FixtureBar.
+## while one lies loose); a UseSecondary (the right mouse button, #1438) on a full mug turns it
+## empty (ItemChanged to everyone) and raises the drinker's drunk value, which every other peer sees
+## on the avatar and the drinker in its SelfStatus; a Use on a full mug, and either on an empty one,
+## is refused `nothing_to_do`; the fact `drunk_too_much` comes on each upward crossing of the
+## threshold, never below it. Driven by FixtureBar.
 
 const P1 := FixtureBar.P1
 const P2 := FixtureBar.P2
@@ -136,12 +137,26 @@ func test_a_drink_empties_the_mug_and_everyone_sees_the_drunk_value() -> void:
 	assert_array(game.view_of(P2).events_named(&"SelfStatus").filter(_status_of(P1))).is_empty()
 
 
+func test_a_use_on_a_full_mug_does_nothing() -> void:
+	# The left button's Use is the hit's (#1437), not the drink's (#1438).
+	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
+	FixtureBar.pour(game, P1, 1)
+	var mug := Items.held_by(game.state, P1)
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 2)
+	FixtureModes.run_ticks(game, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do"])
+	assert_str(String(mug.kind.id)).is_equal("mug")
+	assert_int(game.state.player(P1).drunk).is_equal(0)
+	assert_array(game.view_of(P2).events_named(&"ItemChanged")).is_empty()
+
+
 func test_a_use_on_an_empty_mug_does_nothing() -> void:
 	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
 	FixtureBar.pour(game, P1, 1)
 	FixtureBar.drink(game, P1, 2)
 	FixtureBar.drink(game, P1, 3)
-	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do"])
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 4)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do", &"nothing_to_do"])
 	assert_int(game.state.player(P1).drunk).is_equal(FixtureBar.AMOUNT)
 
 
