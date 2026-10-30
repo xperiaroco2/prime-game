@@ -277,7 +277,9 @@ func test_a_posed_drinker_going_limp_hears_posed_false_and_a_limp_one_cannot_pos
 	FixtureMoves.pose(game, P1, 300)
 	FixtureModes.run_ticks(game, 1)
 	assert_bool(game.state.player(P1).posed).is_false()
-	assert_int(FixtureModes.rejections(game, P1).size()).is_equal(refused + 1)
+	assert_array(FixtureModes.rejections(game, P1).slice(refused)).is_equal(
+		[RejectReasons.NOT_ACCEPTED]
+	)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
