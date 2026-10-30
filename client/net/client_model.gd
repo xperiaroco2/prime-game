@@ -534,11 +534,11 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 		&"FilmLoaded", &"ShotTaken":
 			_fold_camera(event_name, fields)
 			if event_name == &"ShotTaken":
-				_fold_shot(fields)
-			_prune_shots()
+				ClientShotBook.record(shots, film_pictures, fields)
+			ClientShotBook.prune(shots, film_pictures, items)
 		&"PhotoPrinted", &"PhotoHung":
 			_fold_photo(event_name, fields)
-			_prune_shots()
+			ClientShotBook.prune(shots, film_pictures, items)
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
 			_unstation(fields["item"] as int)
@@ -556,7 +556,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			_unstation(fields["item"] as int)
 			items.erase(fields["item"] as int)
 			film_pictures.erase(fields["item"] as int)
-			_prune_shots()
+			ClientShotBook.prune(shots, film_pictures, items)
 			film_shots.erase(fields["item"] as int)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
@@ -922,23 +922,6 @@ func _enter(next: StringName) -> void:
 		clear_match()
 
 
-## A ShotTaken's record (#787, photo P8): the shot's picture is rendered from it, and stays while
-## a film lists the shot or a photo shows it. A shot id seen again is a new shot.
-func _fold_shot(fields: Dictionary) -> void:
-	var shot_id: int = fields["shot"]
-	var film_id: int = fields["film"]
-	var shot := Shot.new()
-	shot.station = fields["station"]
-	shot.film = film_id
-	for row: Dictionary in fields.get("record", []) as Array:
-		shot.record.append(row.duplicate(true))
-	_unlist_shot(shot_id)
-	shots[shot_id] = shot
-	var listed: PackedInt32Array = film_pictures.get(film_id, PackedInt32Array())
-	listed.append(shot_id)
-	film_pictures[film_id] = listed
-
-
 ## A printed photo shows its shot (PhotoPrinted), which leaves its film's list; a hung photo
 ## (PhotoHung) leaves the hand or belt for the board's next free slot: locked there when counted,
 ## else lying on it for a PickUp to take down. The host sends no ItemPlaced for a hang.
@@ -946,7 +929,7 @@ func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
 	var photo: Item = items.get(fields["item"] as int)
 	if event_name == &"PhotoPrinted":
 		var shot_id: int = fields["shot"]
-		_unlist_shot(shot_id)
+		ClientShotBook.unlist(film_pictures, shot_id)
 		if photo != null:
 			photo.shot = shot_id
 		return
@@ -974,33 +957,3 @@ func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
 static func hang_slot(board: Station) -> int:
 	var free := board.hung.find(-1)
 	return free if free >= 0 else board.hung.size()
-
-
-## Takes `shot_id` off every film's list.
-func _unlist_shot(shot_id: int) -> void:
-	for film_id: int in film_pictures.keys():
-		var listed := film_pictures[film_id]
-		var at := listed.find(shot_id)
-		if at < 0:
-			continue
-		listed.remove_at(at)
-		if listed.is_empty():
-			film_pictures.erase(film_id)
-		else:
-			film_pictures[film_id] = listed
-
-
-## Drops every shot no film lists and no photo shows (the host's PhotoTask._prune, mirrored).
-func _prune_shots() -> void:
-	if shots.is_empty():
-		return
-	var kept := {}
-	for listed: PackedInt32Array in film_pictures.values():
-		for shot_id: int in listed:
-			kept[shot_id] = true
-	for item: Item in items.values():
-		if item.shot >= 0:
-			kept[item.shot] = true
-	for shot_id: int in shots.keys():
-		if not kept.has(shot_id):
-			shots.erase(shot_id)
