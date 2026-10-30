@@ -67,6 +67,8 @@ func _staged() -> GameMode:
 	row.from = &"round"
 	row.outcome = &"next"
 	row.to = &"end"
+	# Every row out of the Round ends offers (OfferTicks.problems, #1434).
+	row.actions = [EndOffers.new()]
 	var rows: Array[Transition] = []
 	rows.assign(mode.transitions)
 	rows.append(row)
