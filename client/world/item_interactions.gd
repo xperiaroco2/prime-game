@@ -80,6 +80,9 @@ var viewfinder: PhotoViewfinder
 ## The level's marker positions of a spawn group (ItemWorld's: the loaded scene's Marker3Ds in it,
 ## #1383): group -> PackedVector3Array; unset: no chair anywhere, so E never sends Pose.
 var chair_spots := Callable()
+## Whether another E consumer has a target now (Game sets it: a raise or a hand-over target,
+## #1403): `() -> bool`; true makes pose() give way. Unset: nothing else claims the key.
+var pose_yields := Callable()
 
 var _target := -1
 var _station := -1
@@ -300,9 +303,11 @@ func pick_up() -> int:
 ## own move ends the pose, answer 3a), the phase takes Pose from the living and its feet stand at
 ## a chair of the mode's Pose row (PoseUse); the sequence number sent, or -1 when nothing was
 ## sent. The claim twin goes first (ClientSession.send_intent), so the host tests the feet this
-## key tested.
+## key tested. It gives way (-1) when pose_yields says the raise or the hand-over has the key.
 func pose() -> int:
 	if not _acts() or model.posed or not chair_spots.is_valid():
+		return -1
+	if pose_yields.is_valid() and pose_yields.call() as bool:
 		return -1
 	var chair := PoseUse.chair_of(mode)
 	if chair == null or not _phase_takes(Intents.POSE):

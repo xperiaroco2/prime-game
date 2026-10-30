@@ -254,6 +254,23 @@ func test_e_at_a_chair_with_nothing_aimed_sends_pose_right_after_the_claims_twin
 	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
 
 
+## The chair gives way to the other E consumers (#1403): with a downed player to raise or a
+## teammate to hand over to aimed at, E at a chair sends no Pose (Game's pose_yields).
+func test_e_at_a_chair_sends_no_pose_while_a_raise_or_hand_over_target_has_the_key() -> void:
+	_keys.setup(_harness.session, FixtureMoves.posing(FixtureItemModes.basic()))
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	await _look_at(Vector3(0, 1.0, -3))
+	var taken := [0]
+	_keys.pose_yields = func() -> bool: return taken[0] != 0
+	taken[0] = 7
+	assert_int(_keys.interact()).is_equal(-1)
+	taken[0] = 0
+	assert_int(_keys.interact()).is_greater(0)
+	_harness.deliver()
+	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
+
+
 func test_e_sends_no_pose_away_from_a_chair_or_without_a_row_a_phase_or_a_life() -> void:
 	var posing := FixtureMoves.posing(FixtureItemModes.basic())
 	_keys.setup(_harness.session, posing)

@@ -172,6 +172,9 @@ func _ready() -> void:
 	_life.mouse_captured = func() -> bool: return pointer.captured()
 	# E raises a downed player under the crosshair rather than hand over (#1411).
 	_items.hand_over.raise_target = _life.raise_target
+	# ...and the chair gives way to both (#1403).
+	_items.interactions.pose_yields = func() -> bool:
+		return _life.raise_target() != 0 or _items.hand_over.target() != 0
 	GameSettings.ready_settings(self)
 	ui.menu.bind_name(settings)
 	_voice_control = GameSettings.start_voice(self, _world)
