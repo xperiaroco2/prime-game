@@ -418,10 +418,11 @@ func test_the_base_mode_accepts_pose_in_round_from_the_living_only_at_a_chair() 
 		assert_bool(status.posed).is_false()
 
 
-func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
+func test_the_base_mode_round_accepts_both_uses_from_the_living_only() -> void:
 	var mode := _base_mode()
 	var in_round := mode.find_phase(&"round")
 	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.USE_SECONDARY)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
 	# MoveClaim from the living and the downed (the downed claims its look only, KE4).

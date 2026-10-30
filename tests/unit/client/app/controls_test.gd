@@ -136,7 +136,7 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 
 
 func test_the_hand_keys_act_in_the_lobby_so_a_lobby_key_on_them_clashes() -> void:
-	# #1408: the tap's E, the mug's Use, the put-down and the swap act in the lobby as in the round
+	# #1408: the tap's E, the Use, the put-down and the swap act in the lobby as in the round
 	# (the Lobby takes the hand intents, #1388); the Throw stays the round's (the Lobby takes none).
 	var both := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	for action: StringName in [&"interact", &"use", &"put_down", &"swap"]:
@@ -162,8 +162,11 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	assert_str(String(Controls.ACTIONS[&"sneak"])).is_equal("control.sneak")
 	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
-	# UNLISTED is empty: the three places (#1218) are Settings rows since ui-2.5.1 (#1421).
-	assert_dict(Controls.UNLISTED).is_empty()
+	# The three places (#1218) are Settings rows since ui-2.5.1 (#1421); UNLISTED holds only the
+	# item's own action on the right button (#1438), until the deck has its row.
+	assert_dict(Controls.UNLISTED).is_equal(
+		{&"use_secondary": Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE}
+	)
 	for place: StringName in [&"place_1", &"place_2", &"place_3"]:
 		assert_bool(Controls.ACTIONS.has(place)).override_failure_message(place).is_true()
 		# They draw in the lobby too (#1408: the Lobby takes Draw).
@@ -276,12 +279,33 @@ func test_one_key_in_one_phase_is_a_clash_and_in_two_phases_is_none() -> void:
 	controls.bind(&"sprint", _press(KEY_F))
 	assert_array(controls.clashes_of(&"sprint")).contains_exactly([&"ready"])
 	assert_array(controls.clashes_of(&"give_up")).is_empty()
-	# Use on the right mouse button: Previous player is the dead's alone.
+	# Give up (downed) on the right mouse button: Previous player is the dead's alone, and the
+	# item's own action (#1438, UNLISTED) the living's.
 	var right := InputEventMouseButton.new()
 	right.button_index = MOUSE_BUTTON_RIGHT
-	controls.bind(&"use", right)
-	assert_array(controls.clashes_of(&"use")).is_empty()
+	assert_bool(controls.bind(&"give_up", right)).is_true()
+	assert_array(controls.clashes_of(&"give_up")).is_empty()
 	assert_array(controls.clashes_of(&"spectate_previous")).is_empty()
+
+
+func test_use_on_the_right_button_is_refused_while_the_items_own_action_holds_it() -> void:
+	# #1438: `use_secondary` acts on the right button in the lobby and while living but is no
+	# Settings row yet (UNLISTED): Use there would send both on one press.
+	var controls := Controls.new()
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	assert_array(Controls.unlisted_on(&"use", right)).contains_exactly([&"use_secondary"])
+	assert_bool(controls.bind(&"use", right)).is_false()
+	assert_bool(controls.is_default(&"use")).is_true()
+	# A controls.cfg saved before #1438 with Use on the right button reads Use as its default.
+	var path := "user://controls_use_secondary_test.cfg"
+	var file := ConfigFile.new()
+	file.set_value(Controls.SECTION, "use", Controls.encode(right))
+	assert_int(file.save(path)).is_equal(OK)
+	var saved := Controls.new(path)
+	assert_int(saved.read()).is_equal(OK)
+	assert_bool(saved.is_default(&"use")).is_true()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:

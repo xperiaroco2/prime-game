@@ -62,7 +62,7 @@ var sneaking := false
 ## and eye for it (only `crouched` lowers them).
 var posed := false
 ## How drunk the player is (#1390; GDD §3 Base mode, "The bar"): 0 is sober, up to the mode's
-## PlayerRules.drunk_max. Raised by Drink (a mug's Use), lowered one point per
+## PlayerRules.drunk_max. Raised by Drink (a mug's UseSecondary), lowered one point per
 ## PlayerRules.drunk_point_s by DrunkTicks, and back to 0 (sober()) at every placement, knockdown,
 ## respawn and reset, so nobody is drunk in a round. Public body state: the snapshot relays it on
 ## the avatar to every other peer, and the player's own SelfStatus carries it to its own client

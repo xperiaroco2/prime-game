@@ -1,9 +1,9 @@
 class_name Rule
 extends ContentPart
 ## The unit of behaviour (ARCHITECTURE §9.2): a trigger, then conditions, then effects. An
-## **action** is a rule on an intent (`PickUp`, `Use`), held by an item kind, a role or the mode;
-## a **reaction** is a rule on a fact (`item_rested`), held by the mode. The owner decides whom
-## the rule applies to, so the rule needs no condition for that.
+## **action** is a rule on an intent (`PickUp`, `Use`, `UseSecondary`), held by an item kind, a
+## role or the mode; a **reaction** is a rule on a fact (`item_rested`), held by the mode. The
+## owner decides whom the rule applies to, so the rule needs no condition for that.
 
 ## The intent (Intents) or fact (Facts) the rule runs on.
 @export var trigger: StringName

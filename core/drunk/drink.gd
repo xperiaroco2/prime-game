@@ -1,21 +1,22 @@
 class_name Drink
 extends RuleEffect
 ## The actor drinks the item in its hand (#1390; GDD §3 Base mode, "The bar"; ARCHITECTURE §9.4.2):
-## a full mug's Use. The held item becomes `empty_kind` where it is (Items.change_kind:
-## ItemChanged to everyone; it keeps its id, place and holder), and the actor's PlayerState.drunk
-## rises by `amount`, at most to PlayerRules.drunk_max. A drink that lifts the value from below
-## PlayerRules.drunk_too_much_at to that or above raises the fact `drunk_too_much` (Fact.player:
-## the drinker), each upward crossing once; below it nothing is raised. A sober drinker's first
-## point falls one PlayerRules.drunk_point_s later (DrunkTicks); drinking while drunk adds to the
-## value and keeps the stamp. The value is public (the avatar) and the drinker's own SelfStatus
-## carries it (SelfStatusFeed).
+## a full mug's UseSecondary (the right mouse button, #1438). The held item becomes `empty_kind`
+## where it is (Items.change_kind: ItemChanged to everyone; it keeps its id, place and holder), and
+## the actor's PlayerState.drunk rises by `amount`, at most to PlayerRules.drunk_max. A drink
+## that lifts the value from below PlayerRules.drunk_too_much_at to that or above raises the fact
+## `drunk_too_much` (Fact.player: the drinker), each upward crossing once; below it nothing is
+## raised. A sober drinker's first point falls one PlayerRules.drunk_point_s later (DrunkTicks);
+## drinking while drunk adds to the value and keeps the stamp. The value is public (the avatar)
+## and the drinker's own SelfStatus carries it (SelfStatusFeed).
 ##
 ## The empty kind's cap: before the change, the loose empty that has lain longest makes room
 ## (GiveItem.make_room: ItemVanished), so spamming the tap and drinking never floods the hall with
 ## empties; with every empty held (a hand bounds them) the drink still goes ahead.
 ##
-## The rule's owner is the full kind's `actions` (a held item's Use, §9.3): the empty kind lists no
-## Use, so a Use with an empty mug in the hand finds no rule and is refused `nothing_to_do`.
+## The rule's owner is the full kind's `actions` (a held item's UseSecondary, §9.3): the empty kind
+## lists no rule, so either intent with an empty mug in the hand finds none and is refused
+## `nothing_to_do`; so does a Use with a full one (the left button is the hit's, #1437).
 ##
 ## Emits: ItemVanished (the empty's cap), ItemChanged; both to everyone. No demands. Only on an
 ## intent (an actor); a reaction or a row has none (a rule error, logged).

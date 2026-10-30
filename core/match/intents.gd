@@ -11,6 +11,10 @@ const MOVE_CLAIM := &"MoveClaim"
 const PICK_UP := &"PickUp"
 const PUT_DOWN := &"PutDown"
 const USE := &"Use"
+## A living player's held item's own action, on the right mouse button (#1438): routed as Use is
+## (the held item's kind, then the role, then the mode), but only a rule whose trigger names it
+## runs; the mug's Drink is one. Use never runs such a rule, nor this one a Use rule.
+const USE_SECONDARY := &"UseSecondary"
 const RETURN_TO_LOBBY := &"ReturnToLobby"
 ## A living player starts raising a downed one, `target` (M4-4, E28): sent on pressing E over it.
 const RAISE := &"Raise"
@@ -87,6 +91,7 @@ const ALL: Array[StringName] = [
 	HAND_OVER,
 	TAKE_OFFER,
 	CANCEL_OFFER,
+	USE_SECONDARY,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -106,7 +111,8 @@ const PLAYER_ACTIONS: Array[StringName] = [
 	POSE,
 	HAND_OVER,
 	TAKE_OFFER,
-	CANCEL_OFFER
+	CANCEL_OFFER,
+	USE_SECONDARY,
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -176,6 +182,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	HAND_OVER: {"target": TYPE_INT},
 	TAKE_OFFER: {"target": TYPE_INT},
 	CANCEL_OFFER: {},
+	USE_SECONDARY: {"facing": TYPE_VECTOR3},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},

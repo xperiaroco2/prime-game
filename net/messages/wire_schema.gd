@@ -72,7 +72,10 @@ extends RefCounted
 ## 42 since #1434 (GDD §6, the hand-over offer): the intents TakeOffer (kind 22, its target, the
 ## giver) and CancelOffer (kind 23, no argument), the events OfferMade (87) and OfferEnded (88),
 ## each its giver and target.
-const VERSION := 42
+## 43 since #1438 (an item's own action on the right mouse button): the intent UseSecondary
+## (kind 24, its facing, as Use's); the debug kinds moved to 28 (ForceRole) and 29 (ForceClock),
+## the intents' range now 1 to 27.
+const VERSION := 43
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -85,7 +88,7 @@ const REJECTED := 32
 
 ## Kind ranges (§4.3): 0 is the transport's ADMIT.
 const FIRST_INTENT := 1
-const FIRST_DEBUG := 24
+const FIRST_DEBUG := 28
 const FIRST_EVENT := 32
 const FIRST_STATE := 96
 const FIRST_VOICE := 112
@@ -132,7 +135,7 @@ class Encoded:
 	var problem := ""
 
 
-## The game's table. `debug`: a debug build's, the only one with the debug commands (kinds 24 to
+## The game's table. `debug`: a debug build's, the only one with the debug commands (kinds 28 to
 ## 31, E17): a release build neither sends nor decodes them.
 static func game(debug: bool) -> WireSchema:
 	if not _built.has(debug):
@@ -334,6 +337,8 @@ static func _intents() -> Array[WireRow]:
 		_up(21, &"HandOver", 8, [_seq(), _peer("target")]),
 		_up(22, &"TakeOffer", 8, [_seq(), _peer("target")]),
 		_up(23, &"CancelOffer", 4, [_seq()]),
+		# seq 4, facing 12 (#1438: as Use's; the mug's Drink ignores it, a later rule may aim).
+		_up(24, &"UseSecondary", 16, [_seq(), _vec3("facing")]),
 	]
 
 
@@ -359,8 +364,8 @@ static func _claim_fields() -> Array[WireField]:
 static func _debug_commands() -> Array[WireRow]:
 	var role := WireField.when("has_role", [WireField.id("role", true)], {"role": ""})
 	return [
-		_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
-		_up(25, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
+		_up(28, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
+		_up(29, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
 	]
 
 

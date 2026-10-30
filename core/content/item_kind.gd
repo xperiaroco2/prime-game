@@ -36,7 +36,8 @@ const MAX_VANISH_SECONDS := 3600
 ## the item may be used now (ItemOnGround, InReach, InSight); a kind with none here refuses an
 ## Interact naming one of its items `nothing_to_do`.
 @export var target_actions: Array[Rule] = []
-## Rules on the intents a player sends while holding an item of this kind in the hand (Use).
+## Rules on the intents a player sends while holding an item of this kind in the hand (Use,
+## UseSecondary).
 @export var actions: Array[Rule] = []
 
 

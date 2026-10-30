@@ -243,6 +243,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"TakeOffer", {"target": 2}, 17),
 		WireMessage.new(&"TakeOffer", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
 		WireMessage.new(&"CancelOffer", {}, 17),
+		WireMessage.new(&"UseSecondary", {"facing": Vector3(0, 0, -1)}, 17),
+		WireMessage.new(&"UseSecondary", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),

@@ -139,6 +139,7 @@ func test_a_floor_item_beyond_the_reach_gets_no_hint() -> void:
 func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 	assert_int(_keys.put_down()).is_equal(-1)
 	assert_int(_keys.use()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
 	_spawn(5, Vector3(0, 0, -1))
 	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 5})
@@ -146,12 +147,17 @@ func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 	var facing := _player.look_vector()
 	assert_int(_keys.put_down()).is_greater(0)
 	assert_int(_keys.use()).is_greater(0)
+	assert_int(_keys.use_secondary()).is_greater(0)
 	assert_int(_keys.swap()).is_greater(0)
 	_harness.pump()
 	var put := _harness.sent_named(Intents.PUT_DOWN)
 	var used := _harness.sent_named(Intents.USE)
+	# The item's own action (#1438), on the right button: the host answers what the item has.
+	var own_action := _harness.sent_named(Intents.USE_SECONDARY)
 	assert_int(put.size()).is_equal(1)
 	assert_int(used.size()).is_equal(1)
+	assert_int(own_action.size()).is_equal(1)
+	assert_bool((own_action[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
 	assert_int(_harness.sent_named(Intents.SWAP).size()).is_equal(1)
 	assert_bool((put[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
 	assert_bool((used[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
@@ -420,9 +426,25 @@ func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.target()).is_equal(-1)
 	assert_int(_keys.pick_up()).is_equal(-1)
 	assert_int(_keys.put_down()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
 	assert_int(_keys.draw(1)).is_equal(-1)
 	assert_int(_keys.step_place(1)).is_equal(-1)
+
+
+## #1438: a dead own player's right button is Previous player (LifeView's spectate cycling), never
+## the held item's own action: with an item still in the hand, UseSecondary sends nothing, nor Use.
+func test_the_dead_send_no_use_secondary_and_keep_the_right_button_for_spectating() -> void:
+	_hold(6)
+	assert_int(_keys.use_secondary()).is_greater(0)
+	_model.fold(&"Died", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_model.life_of(_model.own_peer)).is_equal(ClientModel.Life.DEAD)
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(6)
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_int(_keys.use()).is_equal(-1)
+	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
+	var own := InputMap.action_get_events(&"use_secondary")[0] as InputEventMouseButton
+	assert_int(previous.button_index).is_equal(own.button_index)
 
 
 ## §7.1.21 (#1393): a limp own player is living, but the host takes none of its item actions; the
@@ -446,6 +468,7 @@ func test_the_limp_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.target()).is_equal(-1)
 	assert_int(_keys.pick_up()).is_equal(-1)
 	assert_int(_keys.put_down()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
 	assert_int(_keys.draw(1)).is_equal(-1)
 	assert_int(_keys.step_place(1)).is_equal(-1)

@@ -153,6 +153,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.PICK_UP,
 		Intents.PUT_DOWN,
 		Intents.USE,
+		Intents.USE_SECONDARY,
 		Intents.THROW,
 		Intents.SWAP,
 		Intents.DRAW,
@@ -196,7 +197,7 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 			args = {"match_id": 1000 + rng.randi_range(0, 999)}
 		Intents.PICK_UP:
 			args = {"item": _item_to_pick()}
-		Intents.PUT_DOWN, Intents.USE:
+		Intents.PUT_DOWN, Intents.USE, Intents.USE_SECONDARY:
 			args = {"facing": Vector3.FORWARD}
 		Intents.THROW:
 			var facings := ChaosFrames.THROW_FACINGS

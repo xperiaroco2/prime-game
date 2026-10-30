@@ -14,6 +14,7 @@ const ACTIONS: Array[StringName] = [
 	&"put_down",
 	&"throw",
 	&"use",
+	&"use_secondary",
 	&"debug_overlay",
 	&"give_up",
 	&"spectate_next",
@@ -91,6 +92,15 @@ func test_give_up_is_f_and_the_mouse_buttons_cycle_the_spectate_target() -> void
 	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
 	assert_int(next.button_index).is_equal(MOUSE_BUTTON_LEFT)
 	assert_int(previous.button_index).is_equal(MOUSE_BUTTON_RIGHT)
+
+
+func test_the_items_own_action_is_the_right_mouse_button() -> void:
+	# #1438: the held item's own action (UseSecondary, the mug's drink) on the right button, the
+	# left one's Use free for the hit (#1437). The dead's right button stays Previous player.
+	var own := InputMap.action_get_events(&"use_secondary")[0] as InputEventMouseButton
+	var use := InputMap.action_get_events(&"use")[0] as InputEventMouseButton
+	assert_int(own.button_index).is_equal(MOUSE_BUTTON_RIGHT)
+	assert_int(use.button_index).is_equal(MOUSE_BUTTON_LEFT)
 
 
 func test_swap_is_x_and_the_map_is_m() -> void:

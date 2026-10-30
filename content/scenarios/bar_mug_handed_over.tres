@@ -131,6 +131,7 @@ point = Vector3(-15, 0, -20)
 script = ExtResource("8_use")
 towards = SubResource("Resource_h25")
 until = &"ItemChanged"
+secondary = true
 
 [sub_resource type="Resource" id="Resource_h27"]
 script = ExtResource("9_drunk")

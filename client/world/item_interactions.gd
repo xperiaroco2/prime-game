@@ -12,6 +12,8 @@ extends Node3D
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
 ##   that captures the mouse is not a use;
+## - the right mouse button (`use_secondary`) sends UseSecondary(facing), the item's own action
+##   (the mug's drink, #1438), the same way; the dead's right button cycles the spectate target;
 ## - X (`swap`) sends Swap() while the own hand or belt holds an item;
 ## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
 ##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
@@ -338,6 +340,15 @@ func use() -> int:
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
 
+## The right mouse button: UseSecondary(facing), the held item's own action (the mug's drink,
+## #1438), while the own hand holds an item; the host answers nothing_to_do where the item has
+## none. Only the living send it (`_acts`): the dead's right button cycles the spectate target.
+func use_secondary() -> int:
+	if not _acts() or model.hand_item(model.own_peer) < 0:
+		return -1
+	return session.send_intent(Intents.USE_SECONDARY, {"facing": player.look_vector()})
+
+
 ## X: Swap() while the own player carries an item: back to the place it held last (GDD §6).
 func swap() -> int:
 	var own := model.own_peer if model != null else 0
@@ -511,6 +522,8 @@ func _process(delta: float) -> void:
 		throw()
 	if captured and was_captured and Input.is_action_just_pressed(&"use"):
 		use()
+	if captured and was_captured and Input.is_action_just_pressed(&"use_secondary"):
+		use_secondary()
 
 
 ## The mouse wheel draws the next place down, the one before up (GDD §6). It is no InputMap action:

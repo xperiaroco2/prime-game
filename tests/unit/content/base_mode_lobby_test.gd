@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The base mode's Lobby and Countdown in `content/` (#1388, provisional data): both take Interact,
-## PickUp, PutDown, Swap, Draw and Use from the living, never Throw, Raise, StopRaise, GiveUp or
-## Pose; both run LifeTicks (its Respawn on the hall's `lobby_player` markers), ChannelTicks and
-## VanishTicks, which ModeCheck demands of those intents mode-wide; the `countdown_done` row runs
-## ClearItems, so a package picked up in the hall is gone in Loading and never reaches the round.
+## PickUp, PutDown, Swap, Draw, Use and UseSecondary from the living, never Throw, Raise,
+## StopRaise, GiveUp or Pose; both run LifeTicks (its Respawn on the hall's `lobby_player`
+## markers), ChannelTicks and VanishTicks, which ModeCheck demands of those intents mode-wide; the
+## `countdown_done` row runs ClearItems, so a package picked up in the hall is gone in Loading and
+## never reaches the round.
 ## The bar (#1390, provisional numbers): both also run StationTicks (the tap, on the hall's `tap`
 ## marker) and DrunkTicks; `countdown_done` runs ClearStations after ClearItems, and the drunk are
 ## sober again once placed on the map.
@@ -26,6 +27,7 @@ const TAKEN: Array[StringName] = [
 	Intents.SWAP,
 	Intents.DRAW,
 	Intents.USE,
+	Intents.USE_SECONDARY,
 	Intents.HAND_OVER,
 	Intents.TAKE_OFFER,
 	Intents.CANCEL_OFFER,
@@ -213,9 +215,14 @@ func test_the_hall_s_tap_pours_a_beer_that_lasts_into_the_countdown_only() -> vo
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	var mug := Items.held_by(game.state, P1)
 	assert_str(String(mug.kind.id)).is_equal("mug")
-	FixtureBar.drink(game, P1, 2)
+	# The left button's Use finds no rule on a full mug (#1438): it drinks on UseSecondary only.
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 2)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([RejectReasons.NOTHING_TO_DO])
+	assert_str(String(mug.kind.id)).is_equal("mug")
+	assert_int(game.state.player(P1).drunk).is_equal(0)
+	FixtureBar.drink(game, P1, 3)
 	FixtureModes.run_ticks(game, 1)
-	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([RejectReasons.NOTHING_TO_DO])
 	assert_str(String(mug.kind.id)).is_equal("mug_empty")
 	# One mug: 40 of 100, below the 90 of too much (provisional numbers).
 	var drunk := game.state.player(P1).drunk

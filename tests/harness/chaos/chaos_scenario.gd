@@ -204,6 +204,7 @@ static func _bar(after: Array[ScenarioStep]) -> Array[ScenarioStep]:
 	var drink := StepUse.new()
 	drink.towards = row_end
 	drink.until = &"ItemChanged"
+	drink.secondary = true
 	var drunk := StepExpectDrunk.new()
 	drunk.at_least = 1
 	drunk.within_s = EXPECT_WITHIN_S
