@@ -432,6 +432,21 @@ func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.step_place(1)).is_equal(-1)
 
 
+## #1438: a dead own player's right button is Previous player (LifeView's spectate cycling), never
+## the held item's own action: with an item still in the hand, UseSecondary sends nothing, nor Use.
+func test_the_dead_send_no_use_secondary_and_keep_the_right_button_for_spectating() -> void:
+	_hold(6)
+	assert_int(_keys.use_secondary()).is_greater(0)
+	_model.fold(&"Died", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_model.life_of(_model.own_peer)).is_equal(ClientModel.Life.DEAD)
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(6)
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_int(_keys.use()).is_equal(-1)
+	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
+	var own := InputMap.action_get_events(&"use_secondary")[0] as InputEventMouseButton
+	assert_int(previous.button_index).is_equal(own.button_index)
+
+
 ## §7.1.21 (#1393): a limp own player is living, but the host takes none of its item actions; the
 ## own avatar's limp flag in the snapshot keeps every item key from sending one.
 func test_the_limp_get_no_target_and_send_no_item_key() -> void:
