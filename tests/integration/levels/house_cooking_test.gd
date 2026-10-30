@@ -123,7 +123,8 @@ func test_the_markers_read_without_errors_and_the_deal_uses_each() -> void:
 		for marker: Vector3 in _layout.positions(box_kind.spawn_tag):
 			on_marker = on_marker or boxes[0].position.distance_to(marker) < NEAR
 		assert_bool(on_marker).override_failure_message(String(box_kind.id)).is_true()
-	var stations := 3 + type.herbs.size() + BURGERS
+	# The lobby's tap (StationTicks, #1390, cleared at countdown_done), then the deal's stations.
+	var stations := 1 + 3 + type.herbs.size() + BURGERS
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(stations)
