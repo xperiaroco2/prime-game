@@ -747,7 +747,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X), Lobby and Countdown (#1388); the downed and the dead get `not_accepted` | an item in one of the three places (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife by X, V13). Applied, the place held last comes into the hand (GDD §6, #1218: `PlayerState.last_place`, 0 to 2, at first 1: a first X hangs the hand item on the belt), the place left becomes the place held last, and a raise the sender runs stops (§9.2) |
 | `Draw(place)` | a living player; Round (#1218, GDD §6: the keys 1, 2, 3 and the mouse wheel), Lobby and Countdown (#1388) and the tutorial's stages that take `Swap`; the downed and the dead get `not_accepted` | `place` an int 0 to 2 (`no_such_place`; a missing or non-int one reads -1); not the place in the hand (`same_place`). An empty place is allowed: an empty hand. Applied, a two-handed hand item is first put down at the feet (`ItemPlaced` `put_down`, no refusal), then `place` comes into the hand (`Swapped`), the place left becomes the place held last, and a raise the sender runs stops (§9.2) |
-| `HandOver(target)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`); Lobby and Countdown (#1389, GDD §6 "The hand and the belt": the bar's mug "given to a friend", #1095); the base mode's Round lists it nowhere (`not_accepted`; provisional, for the engineer) | `target` an int (`bad_args`); the base mode's rule, its refusals in order: `HoldsItem` (`empty_hand`: a belt item is never handed over), `HandNotTwoHanded` (`two_handed`), `HandHandable` (`not_handable`: `ItemKind.handable`, §9.3), `TargetLiving` (`bad_args` for the sender itself, `not_living` for a target that is no present, living player: unknown, gone, downed or dead), `TargetInReach` (2 m of the sender's last accepted position, `out_of_reach`) and `TargetInSight` from eye to eye (`at_eye`, `blocked`). The receiver does not consent (provisional). Applied (§9.4 `HandOver`), the item leaves the giver's place (its selection stays: an empty hand) and arrives as a take's would: into the receiver's hand, or onto a free belt place beside a hand item, a full receiver's hand item put down at its feet first (`ItemPlaced` `put_down`); then `ItemPickedUp` (its `peer` the receiver, everyone), by which every client moves the item out of the giver's hand; a raise the sender runs stops (§9.2). A player action: the client sends its claim twin first. No client sends it yet: the key is #1411 (§9.5.26) |
+| `HandOver(target)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`); Lobby and Countdown (#1389, GDD §6 "The hand and the belt": the bar's mug "given to a friend", #1095); the base mode's Round lists it nowhere (`not_accepted`; provisional, for the engineer) | `target` an int (`bad_args`); the base mode's rule, its refusals in order: `HoldsItem` (`empty_hand`: a belt item is never handed over), `HandNotTwoHanded` (`two_handed`), `HandHandable` (`not_handable`: `ItemKind.handable`, §9.3), `TargetLiving` (`bad_args` for the sender itself, `not_living` for a target that is no present, living player: unknown, gone, downed or dead), `TargetInReach` (2 m of the sender's last accepted position, `out_of_reach`) and `TargetInSight` from eye to eye (`at_eye`, `blocked`). The receiver does not consent (provisional). Applied (§9.4 `HandOver`), the item leaves the giver's place (its selection stays: an empty hand) and arrives as a take's would: into the receiver's hand, or onto a free belt place beside a hand item, a full receiver's hand item put down at its feet first (`ItemPlaced` `put_down`); then `ItemPickedUp` (its `peer` the receiver, everyone), by which every client moves the item out of the giver's hand; a raise the sender runs stops (§9.2). A player action: the client sends its claim twin first. The client sends it from `HandOverUse` (§4.7.10, #1411): E aimed at a living player while a handable item is in the hand (provisional) |
 | `Pose()` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`); a phase whose mode accepts it (#1296, GDD §12 "The camera wall": the watcher sits in the chair; no shipped mode accepts it yet, §7.1.19) | none in the engine: the rule's conditions decide where (the camera wall's chair). Applied (`TakePose`, §9.4), the avatar's public `posed` flag is set, and a raise the sender runs stops (§9.2); a second `Pose` while posed changes nothing. Any own move ends the pose (§7.1.19) |
 | `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
 | `Interact(station or item)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host under `HOST`); a phase whose mode accepts it (the base mode's Round, from the living, since #800, the Generator's G5; its Lobby and Countdown since #1388, for the hall's things) | `station` and `item` ints, each optional (-1, none), and exactly one of them names something: both or neither is `bad_args` (the cooking ADR's CE1, #770). A `station` that names no placed station, which is all a fixed switch is, or a station of a display kind (`StationKind.display`, CE6: the order and herb boards): `nothing_to_do` before any owner is tried (a package carrier hears `nothing_to_do`, not `two_handed`). An `item` that names no item: `nothing_to_do` too; else only the first `Interact` rule of the item's kind's `target_actions` (none: `nothing_to_do`), never the role's, the mode's or the hand item's: a box's take, whose rule is `ItemOnGround` (`unavailable` for a carried box), `InReach`, `InSight`, then `GiveItem` (CE2, CE3; §9.4.2). Then the first `Interact` rule of the station's kind (`StationKind.actions`), the actor's role or the mode, never the hand item (§9.2; none: `nothing_to_do`). A station's rule, as the Generator's switch has it: `HandNotTwoHanded` (`two_handed`), `AtStation` (`out_of_reach`), `StationInSight` (`blocked`), `StationUsable` (its type's `use_problem`: `unavailable`, or another reason the type lists in `use_reasons()` among `StationUsable.REASONS`, `wrong_item`, `empty_hand`, `two_handed`, the cooking ADR's CE11, #780; `no_film`, `no_frames_left`, `film_exposed`, the photo ADR's PE16, #781; `nothing_to_print`, `no_photo`, #782), then `UseStation` (the Generator ADR's GE1 to GE4, #796). A kind's rule may instead hold the station (`HoldStation`, #805: `AtStation` and `ChannelFree`, `busy` while another channel runs on it), a channel its rule's conditions check again every tick, ended by `StopRaise` (§9.4.2). Applied, a channel the sender runs (a raise, a hold) stops; refused, nothing stops (§9.2) |
@@ -2768,6 +2768,18 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the head's look vector (the camera's without its drunk sway,
   #1391).
+- `HandOverUse` (`ItemWorld`'s child after `ItemInteractions`, physics priority 7; #1411, the engineer's to confirm
+  the key): E (`interact`) aimed at a living player sends `HandOver(target)` (§4.1, after the claim twin) while the
+  own player is living, in a phase whose own copy accepts it from the living (the base mode: the Lobby and the
+  Countdown), with a handable, one-handed item in the hand. The target is the first body along the camera's ray
+  (world and living layers, 4 m), a present living `RemotePlayerBody` whose feet stand within the rule's
+  `TargetInReach` of the own feet less the walking margin (`HandOverUse.hint_reach_of`, as `TargetChoice`'s), with
+  the line from eye to eye clear of the level: the host's checks mirrored, so the prompt hides where the host
+  would refuse. Any other target of E wins (an item or station `ItemInteractions` offers, a downed player to raise,
+  the viewfinder): then no target and no prompt. The prompt is `cue()` (the interact key's label): Aim's
+  hand-over cue in the round HUD (`Shown.hand_over_key`, after the rescuer's) and `LobbyHud`'s `Aim` (§4.7.47),
+  worded by `HudText.hand_over_cue` with the deck's `tutorial.step.press` until a key of its own lands. A refusal
+  shows nothing, as every refusal of an action in the world (§4.3.2); the client predicts nothing of it.
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay (a handed-over one at the receiver, #1389), `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears, and nothing beyond; every `AudioStreamPlayer3D` sets `max_distance` to it and plays muffled behind the
@@ -2790,7 +2802,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   1.7 m away get one and one 1.85 m away none (#319); seen failing with the reach measured from the eye),
   `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
   first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
-  margin) and `item_views_test.gd`. The `shot`s:
+  margin), `item_views_test.gd`, `tests/unit/client/world/hand_over_use_test.gd` (the hand-over's pure checks: the
+  reach, the handable one-handed hand item, the phase, the living target) and
+  `tests/integration/client/world/hand_over_network_test.gd` (#1411: a joiner holding a handable gift walks at the
+  host in the lobby and presses E the moment `HandOverUse` names it; the host accepts, the gift is in the host's hand
+  on both Games; no prompt with an empty hand, aimed past the player or out of reach). The `shot`s:
   `client/dev/hud_preview.tscn`, `map_preview.tscn`, `items_preview.tscn`
   and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
@@ -4080,7 +4096,7 @@ confirms or swaps for a deck key), with the bound
 (`raise_target()`, within `raise_hint_reach_of()`) and nobody raises them yet (`raiser_of()`: the host lets one raiser
 at a time, so a second Raise would be `busy`), so it offers what E does: the base mode's raise has no team condition,
 so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
-(both are on E); the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
+(both are on E); the hand-over's cue (#1411, §4.7.10: `HudText.hand_over_cue`, `tutorial.step.press` "Press {key}" as a stopgap) takes the same place after it; the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
 - **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
   a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
@@ -4436,7 +4452,7 @@ The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-g
 `check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
 at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
 - **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
-  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Status` ToyPlate (top centre, 40 px
+  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate > `Text` ToyChipPlateText (beyond the handoff, #1411: the round HUD's Aim chip, as far below the centre, with the hand-over's cue while `HandOverUse` names a player, else hidden); `Status` ToyPlate (top centre, 40 px
   down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
   ToyColumnSixteen > `Info` ToyColumnEight (`LobbyName` ToyTextMutedOnDark; `CodeRow` ToyRowEight > `Label`
   `common.code`, `Code` ToyKeyOnDark > `Text` ToyKeyText) and `List` ToyColumnEight (`Head` ToyTextOnDark, `Rows`
@@ -8201,9 +8217,9 @@ after 30 s, no Use). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_
 `drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)` and `DrunkTicks`;
 `countdown_done` runs `ClearItems` then `ClearStations`. The pour is instant, a mug is one drink, drinks stack.
 Every number is provisional (the engineer tunes them on the hall greybox, #1354). Not built here: the sway and walk
-drift (#1391), the voice (#1392), the limp (#1393), the client's key for a hand-over (#1411; #1389 built the rule: the
-full mug is handable, the empty one not, and the Lobby and Countdown accept `HandOver`, §4.1, the base mode's
-`HandOver_*` rows).
+drift (#1391), the voice (#1392), the limp (#1393). The hand-over (#1389 built the rule: the full mug is
+handable, the empty one not, and the Lobby and Countdown accept `HandOver`, §4.1, the base mode's `HandOver_*` rows)
+has its client key in #1411: the full mug goes to a friend by E aimed at them (`HandOverUse`, §4.7.10).
 - **The client** (#1408): `StationUse` offers the tap (a kind of no task type, §4.7.54), the lobby HUD's `Aim`
   names it (`tap` until the deck has `station.tap`, §4.7.47), E sends `Interact(tap, -1)` and the left button
   `Use(facing)` with the mug in the hand: the item keys listen in the lobby (§4.7.28's `Controls.PHASES`).
