@@ -148,7 +148,7 @@ func _show_aim_text() -> void:
 	if not _shown.raise_key.is_empty():
 		aim_label.text = HudText.raise_cue(_shown.raise_key)
 	else:
-		aim_label.text = HudText.hand_over_cue(_shown.hand_over_key)
+		aim_label.text = HudText.hand_over_cue(_shown.hand_over_key, _shown.hand_over_cue_key)
 
 
 func _notification(what: int) -> void:

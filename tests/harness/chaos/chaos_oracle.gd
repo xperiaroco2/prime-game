@@ -26,10 +26,10 @@ const NO_SUCH_PLACE := PlaceInRange.NO_SUCH_PLACE
 const SAME_PLACE := PlaceChanges.SAME_PLACE
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
-## The base mode's HandOver (#1389): HandNotTwoHanded, HandHandable, TargetLiving, then
-## TargetInReach (2 m between the two players' last accepted feet) after HoldsItem.
-const TWO_HANDED := HandNotTwoHanded.TWO_HANDED
-const NOT_HANDABLE := HandHandable.NOT_HANDABLE
+## The base mode's HandOver (#1389, #1434): a negated Offering, TargetLiving, then
+## TargetInReach (2 m between the two players' last accepted feet) after HoldsItem; TakeOffer's
+## OfferedTo and CancelOffer's Offering answer `no_offer` without an open offer.
+const NO_OFFER := Offers.NO_OFFER
 const NOT_LIVING := TargetLiving.NOT_LIVING
 const HAND_OVER_REACH_M := 2.0
 ## TargetDowned of a downed target whose body still moves (the knockdown rework's KE15).
@@ -44,8 +44,9 @@ const PICK_UP_REACH_M := 2.0
 ## bot never holds an item, so a hostile Throw is never thrown.
 ## Lobby and Countdown take the hand, the belt and Interact from the living as Round does (#1388),
 ## with the same refusals (no item or station is in the hall yet); not Throw, Raise or Pose.
-## They also take HandOver from the living (#1389), which the Round does not: its first condition
-## is HoldsItem (`empty_hand`), and the hostile's own bot never holds an item.
+## They also take HandOver, TakeOffer and CancelOffer from the living (#1389, #1434), as the Round
+## does: HandOver's first condition is HoldsItem (`empty_hand`), and the hostile's own bot never
+## holds an item.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -61,6 +62,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
 		&"HandOver": From.LIVING,
+		&"TakeOffer": From.LIVING,
+		&"CancelOffer": From.LIVING,
 	},
 	&"countdown":
 	{
@@ -74,6 +77,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
 		&"HandOver": From.LIVING,
+		&"TakeOffer": From.LIVING,
+		&"CancelOffer": From.LIVING,
 	},
 	&"loading": {&"LoadAck": From.PLAYER},
 	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
@@ -91,6 +96,9 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Throw": From.LIVING,
 		&"Interact": From.LIVING,
 		&"Pose": From.LIVING,
+		&"HandOver": From.LIVING,
+		&"TakeOffer": From.LIVING,
+		&"CancelOffer": From.LIVING,
 		&"GiveUp": From.DOWNED,
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
@@ -237,6 +245,10 @@ static func _rule(
 			answer_now = _interact(args, player, state, mode)
 		Intents.HAND_OVER:
 			answer_now = _hand_over(args.get("target", 0) as int, peer, player, state)
+		Intents.TAKE_OFFER:
+			answer_now = _take_offer(args.get("target", 0) as int, peer, player, state)
+		Intents.CANCEL_OFFER:
+			answer_now = _cancel_offer(peer, state)
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 
@@ -294,12 +306,12 @@ static func _draw(place: Variant, player: PlayerState) -> StringName:
 	return SAME_PLACE if place == player.selected_place else &"?"
 
 
-## HandOver's conditions in their order (§9.4, #1389): HoldsItem (`empty_hand`), HandNotTwoHanded
-## (`two_handed`), HandHandable (`not_handable`), TargetLiving (`bad_args` for the sender itself,
-## `not_living` for a peer that is no player, downed, dead or gone), then TargetInReach
-## (`out_of_reach`, more than 2 m between the last accepted feet). A target within reach is "?":
-## TargetInSight needs the level, and the hostile's own bot never holds an item, so its HandOver
-## stops at HoldsItem.
+## HandOver's conditions in their order (§9.4, #1389, #1434): HoldsItem (`empty_hand`), a negated
+## Offering (`not_allowed` while the sender's own offer is open), TargetLiving (`bad_args` for the
+## sender itself, `not_living` for a peer that is no player, limp, downed, dead or gone), then
+## TargetInReach (`out_of_reach`, more than 2 m between the last accepted feet). A target within
+## reach is "?": TargetInSight needs the level, and the hostile's own bot never holds an item, so
+## its HandOver stops at HoldsItem.
 static func _hand_over(
 	target_peer: int, peer: int, player: PlayerState, state: MatchState
 ) -> StringName:
@@ -308,14 +320,41 @@ static func _hand_over(
 	var held: ItemState = state.items.get(player.held_item) if state != null else null
 	if held == null:
 		return &"?"
-	if held.kind.is_two_handed():
-		return TWO_HANDED
-	if not held.kind.is_handable():
-		return NOT_HANDABLE
+	if Offers.live(state, peer) != null:
+		return RejectReasons.NOT_ALLOWED
+	return _living_in_reach(target_peer, peer, player, state)
+
+
+## TakeOffer's conditions in their order (§9.4, #1434): OfferedTo (`bad_args` for the sender itself,
+## `no_offer` unless `target_peer` offers the sender its hand item now), then TargetLiving and
+## TargetInReach as HandOver's. Nobody offers the hostile's bot anything (its bot names others, and
+## the honest bots never hand over), so its TakeOffer stops at `no_offer`.
+static func _take_offer(
+	target_peer: int, peer: int, player: PlayerState, state: MatchState
+) -> StringName:
+	if target_peer == peer:
+		return RejectReasons.BAD_ARGS
+	var offer := Offers.live(state, target_peer) if state != null else null
+	if offer == null or offer.target != peer:
+		return NO_OFFER
+	return _living_in_reach(target_peer, peer, player, state)
+
+
+## CancelOffer's Offering (§9.4, #1434): `no_offer` unless the sender's own offer is open, which the
+## hostile's bot, never holding an item, never has.
+static func _cancel_offer(peer: int, state: MatchState) -> StringName:
+	return NO_OFFER if state == null or Offers.live(state, peer) == null else &"?"
+
+
+## TargetLiving (`bad_args` for the sender itself, `not_living`), then TargetInReach
+## (`out_of_reach`); "?" past them (TargetInSight needs the level).
+static func _living_in_reach(
+	target_peer: int, peer: int, player: PlayerState, state: MatchState
+) -> StringName:
 	if target_peer == peer:
 		return RejectReasons.BAD_ARGS
 	var target := state.player(target_peer)
-	if target == null or target.life != PlayerState.Life.ALIVE:
+	if target == null or target.life != PlayerState.Life.ALIVE or target.is_limp():
 		return NOT_LIVING
 	if player.position.distance_to(target.position) > HAND_OVER_REACH_M:
 		return OUT_OF_REACH

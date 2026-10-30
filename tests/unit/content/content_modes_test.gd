@@ -731,10 +731,11 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_bool(time_up.conditions[0].negate).is_false()
 	assert_object(time_up.conditions[1]).is_instanceof(AllSubtasksDone)
 	assert_bool(time_up.conditions[1].negate).is_true()
-	# `Round, won -> End` runs EndMatch alone.
+	# `Round, won -> End` runs EndMatch, then EndOffers (#1434).
 	var won := mode.find_transition(&"round", Match.WON)
-	assert_int(won.actions.size()).is_equal(1)
+	assert_int(won.actions.size()).is_equal(2)
 	assert_object(won.actions[0]).is_instanceof(EndMatch)
+	assert_object(won.actions[1]).is_instanceof(EndOffers)
 
 
 func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> void:

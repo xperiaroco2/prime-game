@@ -164,6 +164,8 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.INTERACT,
 		Intents.POSE,
 		Intents.HAND_OVER,
+		Intents.TAKE_OFFER,
+		Intents.CANCEL_OFFER,
 	]
 	if phase != &"round" or life == ClientModel.Life.DEAD:
 		# Outside the round, or dead, nothing can turn a GiveUp into a death.
@@ -207,6 +209,12 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 			# Its own bot never holds an item, so whom it names, itself, another player or a peer
 			# that is no player, the answer is empty_hand (HoldsItem comes first, #1389).
 			args = {"target": _raise_target() if rng.randf() < 0.8 else ChaosOracle.NO_ITEM}
+		Intents.TAKE_OFFER:
+			# Nobody offers its bot anything: no_offer, or bad_args naming itself (#1434).
+			args = {"target": _raise_target() if rng.randf() < 0.8 else ChaosOracle.NO_ITEM}
+		Intents.CANCEL_OFFER:
+			# Its bot never offers: no_offer (Offering, #1434).
+			args = {}
 		Intents.HELLO:
 			args = {
 				"version": WireSchema.VERSION,

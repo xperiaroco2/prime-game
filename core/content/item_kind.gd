@@ -30,11 +30,6 @@ const MAX_VANISH_SECONDS := 3600
 ## its cap first vanishes the loose one of the kind that has lain longest; with none loose it is
 ## refused `unavailable`. A technical bound far above play, not a game rule.
 @export var max_items := 0
-## Whether a player may hand an item of this kind from its hand to another player (GDD §6 "The hand
-## and the belt", #1389; the HandOver effect, ARCHITECTURE §9.4): false, the default, never. Only a
-## one-handed kind may be handable (the check refuses another `hands`): a two-handed item is never
-## handed over. The HandHandable condition reads it.
-@export var handable := false
 ## Rules on the intents that name an item lying on the ground (Interact naming `item`; the cooking
 ## ADR's CE1, #770: a box's take): the only rules such an intent is routed to (Match), never the
 ## role's or the mode's, which are written for station targets. The rule's conditions say whether
@@ -50,11 +45,6 @@ func vanishes() -> bool:
 	return vanish_seconds > 0
 
 
-## Whether a player may hand it to another (`handable` set): the HandHandable condition.
-func is_handable() -> bool:
-	return handable
-
-
 ## Whether it takes both hands (`hands` 2): it is never on the belt.
 func is_two_handed() -> bool:
 	return hands >= 2
@@ -65,8 +55,6 @@ func check(_mode: GameMode) -> PackedStringArray:
 	if id.is_empty():
 		found.append("an item kind has no id")
 	append_found(found, [out_of_bounds("item kind %s hands" % id, hands, 1, 2)])
-	if handable and hands != 1:
-		found.append("item kind %s is handable but takes %d hands, not 1" % [id, hands])
 	if vanish_seconds != 0:
 		var label := "item kind %s vanish_seconds" % id
 		append_found(found, [out_of_bounds(label, vanish_seconds, 1, MAX_VANISH_SECONDS)])

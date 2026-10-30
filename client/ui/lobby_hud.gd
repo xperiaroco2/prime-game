@@ -68,6 +68,7 @@ var _row_checks: Array[TextureRect] = []
 var _mic_on := false
 ## The interact key's label in the hand-over's cue; "" for none.
 var _hand_over_key := ""
+var _hand_over_cue_key := ""
 ## Aim's text from show_aim(): a deck key or a name; "" for none.
 var _aim_text := ""
 
@@ -145,12 +146,14 @@ func show_aim(text: String) -> void:
 	_show_aim()
 
 
-## The hand-over's cue in Aim with the interact key's label `key` (HandOverUse.cue(), #1411);
+## The hand-over's cue in Aim with the interact key's label `key` (HandOverUse.cue(), #1411),
+## worded by the deck key `cue_key` (HandOverUse.cue_key(), #1434; "" the hand-over's own);
 ## "" gives Aim back to show_aim()'s text.
-func show_hand_over(key: String) -> void:
-	if key == _hand_over_key:
+func show_hand_over(key: String, cue_key: String = "") -> void:
+	if key == _hand_over_key and cue_key == _hand_over_cue_key:
 		return
 	_hand_over_key = key
+	_hand_over_cue_key = cue_key
 	_show_aim()
 
 
@@ -190,7 +193,7 @@ func _show_aim() -> void:
 		aim.visible = not _aim_text.is_empty()
 		return
 	aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	aim_label.text = HudText.hand_over_cue(_hand_over_key)
+	aim_label.text = HudText.hand_over_cue(_hand_over_key, _hand_over_cue_key)
 	aim.visible = true
 
 

@@ -100,7 +100,6 @@ func _check_mode(mode: GameMode) -> void:
 	errors.append_array(StationRuleCheck.kind_problems(mode))
 	_check_ticking(mode)
 	_check_vanishing(mode)
-	_check_handing(mode)
 	_check_rules(mode)
 	_check_rows(mode)
 	_check_phases(mode)
@@ -321,22 +320,28 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 				)
 
 
-## A HandOver of `rule` (#1389): only in an action on the HandOver intent (the only one with a
-## receiver, its `target`), and with every condition class it requires
-## (HandOver.required_conditions), so no mode hands over a belt item, a two-handed or unmarked
-## kind, or an item to a player out of reach or sight.
+## A HandOver, TakeOffer or CancelOffer of `rule` (#1389, #1434): only in an action on its own
+## intent (HandOver and TakeOffer the only ones with the other player, their `target`), and with
+## every condition class it requires (its required_conditions()), so no mode offers a belt item or
+## to a player out of reach or sight, or takes an item nobody offers.
 func _check_hand_over_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 	for effect: RuleEffect in rule.effects:
-		if not effect is HandOver:
+		var intent := _offer_intent(effect)
+		if intent.is_empty():
 			continue
-		if not on_intent or rule.trigger != Intents.HAND_OVER:
+		if not on_intent or rule.trigger != intent:
 			errors.append(
 				(
-					"%s: rule %s hands over an item, which only the intent HandOver can"
-					% [owner, rule.trigger]
+					"%s: rule %s hands over an item, which only the intent %s can"
+					% [owner, rule.trigger, intent]
 				)
 			)
-		for required: Script in HandOver.required_conditions():
+		var requires: Array[Script] = HandOver.required_conditions()
+		if effect is TakeOffer:
+			requires = TakeOffer.required_conditions()
+		elif effect is CancelOffer:
+			requires = CancelOffer.required_conditions()
+		for required: Script in requires:
 			if not _has_condition(rule, required):
 				(
 					errors
@@ -374,6 +379,17 @@ func _check_pose_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 						)
 					)
 				)
+
+
+## The intent an offer's effect belongs to (HandOver, TakeOffer, CancelOffer), else empty.
+static func _offer_intent(effect: RuleEffect) -> StringName:
+	if effect is HandOver:
+		return Intents.HAND_OVER
+	if effect is TakeOffer:
+		return Intents.TAKE_OFFER
+	if effect is CancelOffer:
+		return Intents.CANCEL_OFFER
+	return &""
 
 
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.
@@ -441,26 +457,13 @@ func _check_vanishing(mode: GameMode) -> void:
 			errors.append(found + ", but no phase lists VanishTicks: it never would")
 
 
-## A handable item kind (ItemKind.handable, #1389) where no phase accepts HandOver: nobody could
-## hand it over, so the flag says what the mode does not do.
-func _check_handing(mode: GameMode) -> void:
-	for spec: PhaseSpec in mode.phases:
-		if spec != null and spec.senders_of(Intents.HAND_OVER) != 0:
-			return
-	for kind: ItemKind in mode.item_kinds:
-		if kind != null and kind.is_handable():
-			errors.append(
-				"item kind %s is handable, but no phase accepts HandOver: nobody could" % kind.id
-			)
-
-
 ## A row's actions run with no actor, so a ChannelEffect or a ThrowItem among them is an error.
 func _check_rows(mode: GameMode) -> void:
 	for row: Transition in mode.transitions:
 		if row == null:
 			continue
 		for action: RuleEffect in row.actions:
-			if action is HandOver:
+			if not _offer_intent(action).is_empty():
 				errors.append(
 					(
 						"row %s, %s hands over an item, which only a player's intent can"

@@ -48,7 +48,7 @@ func test_the_circle_and_a_palette_for_the_most_packages() -> void:
 func test_round_runs_life_channel_flight_vanish_task_ticks_and_the_mode_deals_delivery() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var round_spec := mode.find_phase(&"round")
-	assert_int(round_spec.tick_systems.size()).is_equal(5)
+	assert_int(round_spec.tick_systems.size()).is_equal(6)
 	assert_bool(round_spec.tick_systems[0] is LifeTicks).is_true()
 	# The raise's channel (M4-4).
 	assert_bool(round_spec.tick_systems[1] is ChannelTicks).is_true()
@@ -57,6 +57,8 @@ func test_round_runs_life_channel_flight_vanish_task_ticks_and_the_mode_deals_de
 	# Ingredients left lying (#775, the cooking ADR's CD6 (c)): before TaskTicks.
 	assert_bool(round_spec.tick_systems[3] is VanishTicks).is_true()
 	assert_bool(round_spec.tick_systems[4] is TaskTicks).is_true()
+	# The hand-over offers end by timeout, distance and the rest (#1434): last, so no index moved.
+	assert_bool(round_spec.tick_systems[5] is OfferTicks).is_true()
 	# LifeTicks holds the Round's Respawn (M4-3): a Respawn is optional to the mode check.
 	var respawn := (round_spec.tick_systems[0] as LifeTicks).respawn
 	assert_object(respawn).is_not_null()

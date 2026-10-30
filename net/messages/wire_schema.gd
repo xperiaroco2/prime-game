@@ -69,7 +69,10 @@ extends RefCounted
 ## 40 since #1393 (the limp, GDD §3): the avatar rows' sixth flag `limp` (Snapshot 96), after
 ## `posed`. ShotTaken's record is unchanged.
 ## 41 since #1383 (the poser's own state): SelfStatus's `posed` (kind 54), after `drunk`.
-const VERSION := 41
+## 42 since #1434 (GDD §6, the hand-over offer): the intents TakeOffer (kind 22, its target, the
+## giver) and CancelOffer (kind 23, no argument), the events OfferMade (87) and OfferEnded (88),
+## each its giver and target.
+const VERSION := 42
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -329,6 +332,8 @@ static func _intents() -> Array[WireRow]:
 		_up(20, &"Pose", 4, [_seq()]),
 		# seq 4, target 4 (#1389: as Raise's, a peer id; TargetLiving refuses one nobody has).
 		_up(21, &"HandOver", 8, [_seq(), _peer("target")]),
+		_up(22, &"TakeOffer", 8, [_seq(), _peer("target")]),
+		_up(23, &"CancelOffer", 4, [_seq()]),
 	]
 
 
@@ -595,6 +600,8 @@ static func _events() -> Array[WireRow]:
 			[_item("item"), _station("station"), _id("bun"), _id("patty"), _id("herb")]
 		),
 		_down(86, &"BurgerServed", 3, [_station("station"), _bool("right")]),
+		_down(87, &"OfferMade", 8, [_peer("giver"), _peer("target")]),
+		_down(88, &"OfferEnded", 8, [_peer("giver"), _peer("target")]),
 	]
 
 

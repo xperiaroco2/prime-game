@@ -23,7 +23,6 @@ script = ExtResource("1_kind")
 id = &"mug"
 display_name = "Mug of beer"
 hands = 1
-handable = true
 vanish_seconds = 120
 max_items = 21
 actions = Array[ExtResource("2_rule")]([SubResource("Rule_use")])

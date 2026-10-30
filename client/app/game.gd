@@ -172,7 +172,8 @@ func _ready() -> void:
 	_life.mouse_captured = func() -> bool: return pointer.captured()
 	# E raises a downed player under the crosshair rather than hand over (#1411).
 	_items.hand_over.raise_target = _life.raise_target
-	# ...and the chair gives way to both (#1403).
+	# ...and the chair gives way to both (#1403): a hand-over target includes the cancel of the own
+	# open offer (#1434), so E cancels first and sits on the next press.
 	_items.interactions.pose_yields = func() -> bool:
 		return _life.raise_target() != 0 or _items.hand_over.target() != 0
 	GameSettings.ready_settings(self)

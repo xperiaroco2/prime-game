@@ -87,6 +87,7 @@ static func hud_local(game: Game, tick: float) -> HudText.Local:
 	var local := game.items().hud_local(tick, life.raise_shown(tick))
 	local.raise_key = life.raise_cue()
 	local.hand_over_key = game.items().hand_over.cue()
+	local.hand_over_cue_key = game.items().hand_over.cue_key()
 	local.mic = game.sender().live()
 	if player != null and not _dead(player):
 		local.placed = true

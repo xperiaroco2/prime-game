@@ -17,8 +17,8 @@ extends RefCounted
 ##   table, CD3 (b), CD5 (b), CE19, CE20) goes to a player, who makes room: the hand item stays on
 ##   the belt when a place is free, else it is put down at the taker's feet; beside a two-handed
 ##   hand item the new item goes onto the belt, a full belt's lower item first down at the feet.
-## - hand_over(): a player's hand item goes to another player (#1389): it leaves the giver's
-##   place, then the receiver makes room as for give().
+## - take_offered(): a hand item another player offers (#1434) goes to the receiver as take()
+##   would take it from the floor: it leaves the giver's place first.
 ## - select(), back(): another place comes into the hand (a Draw: keys 1, 2, 3 and the wheel; X:
 ##   back to the place held last); a two-handed hand item is put down at the feet first.
 ## - change_kind(): an item becomes another kind, in place (the cooking ADR, CE4): ItemChanged.
@@ -153,11 +153,40 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 		if ctx.command != null:
 			ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
 		return
+	_take_into(ctx, peer, item, item.position)
+
+
+## `item`, held out in another player's hand (a hand-over offer, #1434; GDD §6 "Handing over"),
+## goes to `receiver` exactly as a pick-up from the floor (take()): it leaves the giver's place
+## (the giver's selection stays: an empty hand), then take()'s moves, events and hand rules, a
+## two-handed hand item swapped out resting at the receiver's feet (where a floor pick-up rests it
+## where the picked one lay). The rule's conditions checked the offer (OfferedTo), the giver, the
+## reach and the sight; an item not in another player's hand is a rule error, logged, nothing
+## moves, and the sender of the intent gets `no_offer`.
+static func take_offered(ctx: MatchContext, receiver: int, item: ItemState) -> void:
+	var player := ctx.state.player(receiver)
+	if (
+		player == null
+		or item == null
+		or item.where != ItemState.Where.HAND
+		or item.holder == receiver
+	):
+		ctx.error("take_offered: item %s is not in a hand for player %d" % [_id(item), receiver])
+		if ctx.command != null:
+			ctx.reject(ctx.command, Offers.NO_OFFER)
+		return
+	_release(ctx, item)
+	_take_into(ctx, receiver, item, _feet(ctx, player))
+
+
+## take()'s and take_offered()'s moves of `item` to `peer`: a two-handed hand item it swaps out
+## rests at `spot`.
+static func _take_into(ctx: MatchContext, peer: int, item: ItemState, spot: Vector3) -> void:
+	var player := ctx.state.player(peer)
 	var before := held_by(ctx.state, peer)
 	if before != null and before.kind.is_two_handed() and not item.kind.is_two_handed():
 		_onto_belt(ctx, peer, item)
 		return
-	var spot := item.position
 	var belted: ItemState = null
 	var rests: ItemState = null
 	var into := player.selected_place
@@ -200,35 +229,7 @@ static func give(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	_give_checked(ctx, peer, item)
 
 
-## `giver`'s hand item `item` goes to `receiver` (a hand-over, #1389; GDD §6 "The hand and the
-## belt"): it leaves the giver's place (the giver's selection stays: an empty hand), then the
-## receiver makes room exactly as for give(). The rule's conditions checked the hand, the kind,
-## the receiver, the reach and the sight; an item not in the giver's hand, a two-handed one, or a
-## receiver that is the giver or not present is a rule error, logged, nothing moves, and the sender
-## of the intent gets `unavailable`. Emits what give() does: ItemPickedUp (its `peer` the
-## receiver) last.
-static func hand_over(ctx: MatchContext, giver: int, receiver: int, item: ItemState) -> void:
-	var to := ctx.state.player(receiver)
-	if (
-		item == null
-		or item.where != ItemState.Where.HAND
-		or item.holder != giver
-		or item.kind.is_two_handed()
-		or to == null
-		or not to.is_present()
-		or receiver == giver
-	):
-		ctx.error(
-			"hand_over: item %s cannot go from player %d to %d" % [_id(item), giver, receiver]
-		)
-		if ctx.command != null:
-			ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
-		return
-	_release(ctx, item)
-	_give_checked(ctx, receiver, item)
-
-
-## give()'s moves for a one-handed `item` that give() or hand_over() checked: `peer` makes room.
+## give()'s moves for a one-handed `item` that give() checked: `peer` makes room.
 static func _give_checked(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
 	var hand := held_by(ctx.state, peer)
