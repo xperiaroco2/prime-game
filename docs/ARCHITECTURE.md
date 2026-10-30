@@ -12,7 +12,7 @@
 | Folder | Contains | May use | Owner |
 |---|---|---|---|
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
-| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1), simulates the knocked-down bodies on the maps `PlayerRules.motion_maps` lists (`HostBodies`, §7.1.18) | `core/`, the `net/` abstraction | engineer |
+| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1), simulates the knocked-down bodies on the maps `PlayerRules.motion_maps` lists and the limp ones in the lobby (`HostBodies`, §7.1.18, §7.1.21) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
@@ -1001,7 +1001,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; 16 `posed`, #1296: only a living player, §7.1.19; other bits 0), `drunk: u8` (#1390, §7.1.20: how drunk the player is, 0..`PlayerRules.drunk_max`, the same for every peer), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down (§5) | 410 (9 avatars); 1024 (16 avatars: 773; a knocked-down viewer's holds its own, KE5) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; 16 `posed`, #1296: only a living player, §7.1.19; 32 `limp`, #1393: only a living player lying limp, §7.1.21; other bits 0), `drunk: u8` (#1390, §7.1.20: how drunk the player is, 0..`PlayerRules.drunk_max`, the same for every peer), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down or limp (§5) | 410 (9 avatars); 1024 (16 avatars: 773; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
@@ -1035,7 +1035,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21). M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21), 40 since #1393 added the avatar's `limp` flag (32), no `ShotTaken` change. M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1389,7 +1389,7 @@ round).
   `tests/fixtures/levels/`, a package put down beside the ledge through a `Match`, and 2j's flat levels;
   `level_scenes_test`, the read counts and the release in `host_world_query_test`, one read per level of `base_mode` in
   `host_session_test`).
-- **The bodies (KE13, #847).** The level's world also holds the host's knocked-down bodies: `HostWorldQuery.bodies`
+- **The bodies (KE13, #847).** The level's world also holds the host's knocked-down and limp (#1393, §7.1.21) bodies: `HostWorldQuery.bodies`
   (`server/host_bodies.gd`, a capsule of `capsule_radius_m` by `crouch_height_m` per body, `BODY_MODE_RIGID_LINEAR`,
   on the `downed` layer with the world mask, CCD) is handed the current level's `World3D` by `use_level`; a change to
   another level (or to none) frees every body, as the host's end does. A `World3D.new()` space steps its rigid bodies
@@ -1909,7 +1909,7 @@ The own-avatar check (KE5, 728b, #847), in `LeakCheck` and `ScenarioInvariants` 
 state): seen failing on a planted own avatar of a living bot and on a missing own avatar of a knocked-down one
 (`bots_runner_test.gd`'s `test_an_own_avatar_of_a_living_bot_or_none_of_a_knocked_down_one_is_a_leak`, and
 `tests/scenarios/body_motion_invariants_test.gd`); and run through a body in motion on every
-tick (that suite: no scenario moves a body, KE12).
+tick (that suite: no scenario moves a body, KE12, a limp one included: their worlds have no physics, §7.1.21).
 
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
@@ -5422,12 +5422,12 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   The rule is evaluated when the event is emitted, against the state after the command. An event has one audience: when
   parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
-  living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable`, `crouched`, `sneaking` and `posed` (#1296, §7.1.19: only a living player), the number `drunk` (#1390, §7.1.20: public body state, the same for every peer; the own client reads its own in `SelfStatus`),
+  living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable`, `crouched`, `sneaking`, `posed` (#1296, §7.1.19: only a living player) and `limp` (#1393, §7.1.21: only a living player lying limp), the number `drunk` (#1390, §7.1.20: public body state, the same for every peer; the own client reads its own in `SelfStatus`),
   the last two only for a living player and never together (#990, §9.5.24), `crouched` in any phase since #991, §7.1.17, #790; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`. #728's design (§7.1.18) adds one exception: the own avatar while
-  knocked down, on every map (the greybox included, where the body stays at rest), decided from the life state alone,
+  knocked down or limp (#1393, §7.1.21), on every map (the greybox included, where the body stays at rest), decided from the life state and the limp alone,
   not from whether the host moves the body (KE5). The photo task's `ShotTaken` (#781, §9.5.22) is another: its record
   holds a row for each living or downed player near the camera at the shot, the recipient's own pose included; it
   tells the recipient nothing new (its own pose is what its client sent, and every other row is what its snapshots
@@ -5548,7 +5548,7 @@ any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops ev
 and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
 replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
 `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5). The knockdown reworked
-(#728, §7.1.18) needs nothing here: "cannot talk" is this invariant.
+(#728, §7.1.18) needs nothing here: "cannot talk" is this invariant. A limp player (#1393, §7.1.21) is living, so it speaks and hears as any (provisional, the engineer may mute it).
 
 ### 6.4 `core/voice/` (2i, #65)
 `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
@@ -6581,14 +6581,15 @@ no `core/` change; the stand-in test now measures no sink and no `Correction`.
   the same commands can rest a body in two places on two runs (Godot 4.7.2 steps the host's spaces by physics frames,
   with no call that steps one, §7.1.16), so the replay holds through the logged reports, and the motion is checked
   by host-side integration tests that assert where a body may rest, not by `core/`'s determinism.
-- **The House only** (the engineer's answer; KE12). Bodies move only on the maps `PlayerRules.motion_maps` lists, the
+- **The House only** (the engineer's answer; KE12). Knocked-down bodies move only on the maps `PlayerRules.motion_maps` lists, the
   shape of `TaskType.maps` (the Generator ADR's GE15): the base mode lists the House alone, and the mode check
   refuses a path that is not one of the mode's maps (its KD11 crouch clause went with `crouch_maps` in #991:
   the crouch plays everywhere, §7.1.17). On the flat greybox a
   knockdown takes no launch and starts no host body, whatever the knife's numbers, so it is today's knockdown, still,
   mute and drawn as a ragdoll; the scenarios, the chaos run and the perf run, which play the greybox, see no motion,
   and the House's motion is checked by integration tests (bots play the House only on a flat fake floor, §9.7). Prevents: the knife's
-  launch, which travels with the knife to every map, bringing a new mechanic to the greybox.
+  launch, which travels with the knife to every map, bringing a new mechanic to the greybox. The limp (#1393, §7.1.21) is not a
+  knockdown: its body moves on the lobby level, which no `motion_maps` lists, as the bar's "pushable" (GDD §3) needs.
 - **Who gets what.** The knocked-down avatar reaches everyone as today, its position moving with the body; its own
   player gets it too while knocked down (KE5: the one exception to §5's "nobody gets their own avatar", with a
   protocol bump and the wire's `MAX_AVATARS` raised from 15 to 16, so a full match's snapshot still decodes), so its
@@ -6695,11 +6696,11 @@ then no shipped mode accepts the intent.
 - **Up.** `Drink` (§9.4.2), a mug's Use: `drunk` rises by its `amount`, clamped at `drunk_max`, and the stamp
   starts. Each upward crossing of `PlayerRules.drunk_too_much_at` (below before the drink, at or above after)
   raises the fact `drunk_too_much` (`Fact.player` the drinker; no event): a drunk player who sobers below it and
-  drinks again crosses it again. Nothing in this issue reacts to it (the limp, #1393, will).
+  drinks again crosses it again. The base mode reacts to it with the limp (`GoLimp`, §7.1.21).
 - **Down.** `DrunkTicks` (§9.4.5), listed on the base mode's Lobby and Countdown: one point per
   `drunk_point_s` (at least one tick), exactly. A phase that does not list it lowers nothing.
 - **Cleared** (`PlayerState.sober()`: 0, stamp -1, a SelfStatus touch): at a placement (`PlacePlayers`), a
-  knockdown (`LifeRules.knock_down`, so a knocked-down player lies sober: #1393 decides what its limp does), a
+  knockdown (`LifeRules.knock_down`, so a knocked-down player lies sober; a limp one is never hit, §7.1.21), a
   respawn and a reset (`MatchState.reset_player`, the lobby's return). So the Round never sees a drunk player.
 - **The walk drift needs no allowance** (#1391, §4.7.6 "Drunk"): the client turns its walk's direction and keeps
   its speed, and `MovementRule` checks travel per tick, not direction (§7.1.5), so it never reads `drunk`: a drunk
@@ -6712,6 +6713,58 @@ then no shipped mode accepts the intent.
   order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.drunk_problem` checks every
   snapshot the scenarios and the chaos run see (the state's value, within 0..`drunk_max`, 0 outside a phase listing
   `DrunkTicks`).
+
+#### 7.1.21 The limp (#1393)
+
+GDD §3 Base mode, "The bar": too much drink lays the drinker down as a limp rag-doll the others can push, and it gets
+up by itself. Every number below is provisional, "not a decision" (the engineer tunes them, §9.5.1).
+
+- **Not downed.** The limp is its own body state, `PlayerState.limp` (a `LimpState`: `until`, the tick it gets up,
+  and `push_tick`, its last push, -1 for none), or null; the life stays `ALIVE`. So no `KnockedDown`, no deadline,
+  no raise, no give-up, no health change, and the death paths never see it (Answered:
+  https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155, the recommendation: not downed).
+  `PlayerState.is_limp()`; `holds_still()` is downed or limp, the test every "the host moves this body" site reads.
+- **Down.** The base mode's reaction on `drunk_too_much` runs `GoLimp` (§9.4.2; `limp_s` 6.0): `LifeRules.go_limp`
+  stops every channel the drinker runs or is the target of, settles its stamina, ends its sprint, crouch, sneak and
+  seat, takes a new epoch and starts a `BodyMotion` (the floor below as its fallback rest), with its `Correction`
+  (the player) and `LaunchBody` (server) at its point with no velocity: the knockdown's body machinery (§7.1.18), no
+  second rag-doll. It keeps its drunk value (`DrunkTicks` lowers it on; a later crossing limps again), its hand and
+  its belt (provisional). Reports (`BodyMoved`) move a limp body as a downed one's (`LifeRules.body_moved` takes
+  `holds_still()`), and `LifeTicks`' longest motion bounds it.
+- **The push** (`LimpTicks`, §9.4.5; provisional: by contact, no key). Each tick of a phase that lists it, for each
+  limp player in peer order whose `cooldown_s` (0.25) has passed since its last push: every pusher (present, living,
+  not limp, in peer order) whose last accepted point lies within `reach_m` (1.0) horizontally and `height_m` (1.8)
+  vertically of the body's, walking toward it at a claimed horizontal speed of at least `min_speed_mps` (0.5), adds
+  the direction from it to the body times its speed (held to `PlayerRules.sprint_speed_mps`) times `gain` (1.0). The
+  sum, on top of the body's horizontal velocity, is held to `max_speed_mps` (3.0), its vertical velocity kept:
+  `LifeRules.push_limp` relaunches the body (`LaunchBody`, the same epoch: server/ reports only the live body, and
+  the limp player needs no `Correction`) with a fresh `BodyMotion` (its counters from 0; a rested body moves again).
+  No intent carries a push: it comes from the host's accepted points alone (invariants 1 and 7), so there is no wire
+  row and no directive beyond `LaunchBody` (Answered:
+  https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155, the recommendation: reuse
+  `LaunchBody`).
+- **Up.** At `until`, `LimpTicks` gets the player up where its body lies (`LifeRules.get_up`: a moving body rests
+  first, `StopBody`; with no motion left it stands where it rested), a new epoch and its `Correction`, as a placement
+  for the movement rule. A row from a phase listing `LimpTicks` into one without runs `EndLimps` (§9.4.3; the base
+  mode's Countdown -> Loading), so no limp, and no host body, outlasts the lobby level. A placement, a knockdown, a
+  death, a leave (`JoinRules.leave`) and a reset end it with no get-up (`LifeRules.clear_limp`, `StopBody`).
+- **Refused while limp.** `Match._accepts` refuses a limp player's `PLAYER_ACTIONS` but its `MoveClaim`
+  (`not_accepted`): `MovementRule` takes only its facing, as a downed player's, and never its point. `LifeRules.damage`
+  and `Strike` skip it: nobody hits a limp player. `Ready` is not a player's action, so a limp player readies.
+- **Seen.** Public body state: the avatar's `limp` flag (32, §4.3.5; protocol 39) on every peer, and the viewer's
+  own avatar while it is limp (as a knocked-down one's, KE5, §5), which tells the own client it lies limp: it draws
+  the rag-doll, holds its movement input still and sends only its facing until the get-up's `Correction`. It can
+  speak: the voice rule is unchanged (provisional; invariant 6, §6.3).
+- **Where.** The Lobby only: the base mode lists `LimpTicks` on its Lobby and Countdown, with `LifeTicks`. A limp
+  body moves on the lobby level, which `motion_maps` does not govern (it governs knockdowns, KE12): the issue's
+  "pushable" needs the host's body there. `GoLimp.check` (`LimpTicks.problems`) wants a phase listing `LimpTicks`,
+  a `LifeTicks` beside each, and an `EndLimps` on every row out of such a phase into one without.
+- **Tests:** `tests/unit/life/limp_test.gd` (on `tests/fixtures/life/fixture_limp.gd`: the start, the flag on every
+  peer, the refusals, no hit, the push and its bounds, reports, the get-up, the countdown's end, a leave,
+  determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key order), the
+  wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
+  the scenarios and the chaos run see (the flag matches the state, a limp player is living, in a phase listing
+  `LimpTicks`), and the own-avatar check (`LeakCheck`, `ScenarioInvariants`) takes downed or limp.
 
 ## 8. Debug tooling
 
@@ -7174,6 +7227,7 @@ names the facts that do.
 | `UseStation` | hands the named station to the task type owning its kind (`TaskType.use_station`), which alone writes its task state (§9.1) | none | what the type's `use_emits()` lists (none by default; the Generator's `SwitchChanged`, `ButtonPressed` and its progress, G4); the mode check requires `AtStation`, `StationInSight` and `StationUsable` in its rule, allows it only on an intent that names a station, and counts `use_emits()` for the role-reveal warning (§9.2) | `core/tasks/use_station.gd` |
 | `HoldStation` (a `ChannelEffect`) | a channel of the actor on the station the intent names (`Channel.station`, §9.3; the car repair ADR's RE1 to RE5): the actor holds E there for `seconds` (a fit at the car) or with no end (`endless`: the lift's hold, which only its stops end). Its rule's conditions run again every tick with the channel's station, so walking out of the cylinder or out of sight, or a `use_problem` the type now returns, stops it; `StopRaise` and every other stop of `Channels` stop it too. It hands its start, stop (`Channel.phase_ended` at the phase's end) and completion to the task type owning the station's kind (`TaskType.hold_started`, `hold_stopped`, `hold_completed`), which alone writes its task state | `seconds` (0.05 to 600 when timed; 0 when endless, else a check error), `endless` (false), `hit_stops` (true: a hit of the actor stops it; the lift's hold sets false, RD10 (c); a knockdown stops it either way) | what the type's `hold_emits()` lists (none by default); none itself. The mode check requires `AtStation` and `ChannelFree` in its rule (one holder per station, RE9), `StationInSight` too, and `ChannelFree` only after `AtStation` and `StationInSight` (as `StationUsable`: its `busy` must not tell a player anywhere that another holds a station), allows it only on an intent that names a station, counts `hold_emits()` for the role-reveal warning (§9.2), and refuses a phase that accepts its intent without `ChannelTicks` | `core/tasks/hold_station.gd` |
 | `GiveItem` | a new item of `kind` comes to the actor from the rule's target (the cooking ADR's CE2, CE3: a box's take): spawned at the position of the item the intent names, else of the station it names, then given (`Items.give`, which makes room: the hand item to the belt, or a full belt's item down at the feet; beside a two-handed hand item onto the belt, CE21). The cap: with `kind.max_items` items of the kind in the match, the loose one (on the ground) the cap ranks first vanishes first: the lowest `TaskType.cap_tier` (the highest any task of the match gives it; 0 by default; the photo task's PE10 tiers, #782), then the one that has lain longest (the earliest rest tick, then the lowest id) (`Items.vanish`), so a take is never refused for spam; with none loose (every one held, locked or flying) it refuses `unavailable` through `RuleEffect.refusal`, before anything is paid (§9.2). The given item never rests (no `item_rested`). Its body is the static `give_new(ctx, kind, position)`, which a task type calls for a source that is a station (Cooking's herb bed, C4); its cap step is the static `make_room(ctx, kind)`, which a task type calls before a spawn of its own (the photo task's print, #782) | `kind` (one-handed, capped and listed in the mode's `item_kinds`: its check refuses a two-handed kind, one without `max_items` or an unlisted one; a kind a station no task type owns gives (the lobby's tap) needs `max_items` of at least `2 x max_players + 1`, the dispensers' rule: `DispenserCapCheck` in ModeCheck, #1416) | `ItemVanished` (the cap), `ItemSpawned` (no station), then what `Items.give` emits (`ItemPlaced` and `item_rested` for an item put down at the feet, `ItemPickedUp`), all to everyone; the mode check allows it only in an action on an intent that names a target (`Interact`), never in a reaction or a row, which have no actor, and only after the conditions that make the host check the actor's reach and sight (`GiveItem.required_conditions`, in the refusal order of §2: in an item kind's `target_actions` `ItemOnGround`, `InReach`, `InSight`; in any other rule `AtStation`, `StationInSight`), else it is an error naming the missing class (`ItemTargetCheck`) | `core/items/give_item.gd` (`tests/unit/items/give_item_test.gd` on `FixtureGiveModes`) |
+| `GoLimp` | the player goes limp for `limp_s` (#1393, §7.1.21; `LifeRules.go_limp`): the fact's player (`drunk_too_much` names the drinker), else the actor; its channels stop, its sprint, crouch, sneak and seat end, its life stays `ALIVE` (not downed), its drunk value, hand and belt stay, a new epoch and a `BodyMotion` start. The base mode's reaction on `drunk_too_much`. Its check: `limp_s` in bounds and `LimpTicks.problems` | `limp_s` (0.5 to 60; the base mode 6.0, provisional, "not a decision") | `RaiseStopped` (everyone) for a stopped channel, `Correction` (the player), `LaunchBody` (server) | `core/life/go_limp.gd` (`tests/unit/life/limp_test.gd`) |
 
 #### 9.4.3 Transition actions
 (effects that a transition row runs; the base mode's rows are in §9.5):
@@ -7191,6 +7245,7 @@ names the facts that do.
 | `Drink` | the actor drinks the mug in its hand (#1390, §7.1.20): `drunk` rises by `amount` (clamped at `PlayerRules.drunk_max`), the item becomes `empty_kind` (`Items.change_kind`: `ItemChanged`, everyone) after `GiveItem.make_room` for that capped kind, and an upward crossing of `drunk_too_much_at` raises the fact `drunk_too_much`. Its check: `empty_kind` one-handed and capped, `amount` above 0, the mode's `drunk_max` set; `DrunkCheck` refuses a phase that accepts Use with a Drink in the mode and lists no `DrunkTicks` | `empty_kind`, `amount` | `ItemChanged` (everyone), `ItemVanished` from make_room; raises `drunk_too_much` | `core/drunk/drink.gd` (`tests/unit/drunk/drink_test.gd`) |
 | `ClearStations` | removes every station of the match and numbers the next one 1 again (`MatchState.clear_stations`, #1390): the base mode's `Countdown, countdown_done → Loading` row after `ClearItems`, so the hall's tap never reaches the map. Refused (a rule error) once a task is dealt. Clients forget their stations at `LoadMatch` | none | nothing | `core/placement/clear_stations.gd` (`tests/unit/placement/station_ticks_test.gd`) |
 | `ClearItems` | removes every item of the match, in ascending item id, as `VanishTicks` does (`Items.vanish`: out of any hand or belt, a two-handed item too, out of `MatchState`, its id queued for reuse); the base mode's `Countdown, countdown_done → Loading` row (#1388), so nothing held, stashed or put down in the lobby's hall reaches Pregame or Round. Items only: a station that holds an item keeps its own reference, so a lobby thing that locks an item on a station clears its own state at the same row | none | `ItemVanished` (everyone), per item | `core/items/clear_items.gd` |
+| `EndLimps` | everyone limp gets up where its body lies, in ascending peer order (`LifeRules.get_up`, #1393, §7.1.21): the base mode's `Countdown, countdown_done → Loading` row, so no limp and no host body outlasts the lobby level | none | `StopBody` (server), `Correction` (the player) | `core/life/end_limps.gd` (`tests/unit/life/limp_test.gd`) |
 
 #### 9.4.4 Demands
 Every placing action, and every task type through `DealTasks`, answers one question: given the settings
@@ -7239,6 +7294,7 @@ sizes `SettingsChanged`'s shortfalls by each type's `most_layout_problems()`.
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`), unless its effect is endless (`ChannelEffect.is_endless`, #805: it never completes). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | `core/channel/channel_ticks.gd` |
 | `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight; a phase that accepts an intent whose rule throws (a `ThrowItem`) lists it, or the mode check refuses the phase (#643) | none | `ItemPlaced`, and what the rules on `item_rested` emit | `core/items/flight_ticks.gd` |
 | `DrunkTicks` | tick system | the sobering up (#1390, §7.1.20): each drunk player, in ascending peer order, loses one point at each tick its `drunk_stamp` reaches, the stamp moving on by `PlayerRules.drunk_point_s` (at least one tick); the base mode's Lobby and Countdown | none | nothing (a SelfStatus touch) | `core/drunk/drunk_ticks.gd` (`tests/unit/drunk/drunk_ticks_test.gd`) |
+| `LimpTicks` | tick system | the limp's push and get-up (#1393, §7.1.21): each limp player, in ascending peer order, gets up at `LimpState.until` (`LifeRules.get_up`); else, `cooldown_s` after its last push, every living, not limp pusher whose accepted point is within `reach_m` horizontally and `height_m` vertically, walking toward the body at `min_speed_mps` or more, adds its direction to the body times its speed (held to the sprint) times `gain`; the sum on the body's horizontal velocity, held to `max_speed_mps`, relaunches it (`LifeRules.push_limp`); the base mode's Lobby and Countdown. `LimpTicks.problems` (read by `GoLimp.check`): a `LifeTicks` beside it, an `EndLimps` on every row out of its phases into one without | `reach_m` (0.5 to 3), `height_m` (0.5 to 3), `min_speed_mps` (0 to 8), `gain` (0.1 to 5), `max_speed_mps` (0.5 to 8), `cooldown_s` (0.05 to 5); bounds placeholders, "not a decision"; the base mode 1.0, 1.8, 0.5, 1.0, 3.0, 0.25 (provisional) | `StopBody` (server), `Correction` (the player), `LaunchBody` (server) | `core/life/limp_ticks.gd` (`tests/unit/life/limp_test.gd`) |
 | `StationTicks` | tick system | places its `kind` on the first marker of the kind's `spawn_tag` when no station of that kind stands (#1390: the lobby's tap, which no task type owns; `Stations.kinds_in` lists it, so ModeCheck checks its rules); demands exactly 1 such marker of the phase's level (LayoutCheck); a joiner gets each standing station again (`JoinRules.hello`, a stopgap until Welcome carries stations, #1404) | `kind` | `StationPlaced` (everyone) | `core/placement/station_ticks.gd` (`tests/unit/placement/station_ticks_test.gd`) |
 | `VanishTicks` | tick system | each item of a kind with `vanish_seconds` that lies on the ground and has lain that long since `Items.lay` set its `rest_tick` vanishes through `Items.vanish`, in ascending item id (never the item table's order, which a reused id breaks): an item lying since tick r of a kind of s seconds goes in the first tick t of a listing phase with t - r at least `Ticks.from_seconds(s)`. A pick-up and a put-down start it over; an item in a hand, on a belt, in flight or locked never vanishes. A phase that does not list it removes nothing, and a later one that does removes at once what lay long enough meanwhile; a vanishing item on the ground with no rest tick is a rule error, logged once, and its clock starts at that tick. A mode with a vanishing item kind lists it in some phase, or the mode check refuses it | none | `ItemVanished` (everyone) | `core/items/vanish_ticks.gd` (`tests/unit/items/vanish_ticks_test.gd`, `vanish_replay_test.gd`, id reuse in `tests/unit/match/match_state_item_ids_test.gd`; no player in `ItemVanished`'s keys or wire row: `tests/unit/events/cooking_events_name_no_player_test.gd`, the list the cooking events extend) |
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.18, #647), the Generator's (§9.5.19, #797: a held progress event, then the charge; Delivery has none) and Cooking's (§9.5.20, #773: the grill's patty turning fried, then burnt). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | `core/tasks/task_ticks.gd`; the ticking types: the zone task, the Generator, Cooking |
@@ -8215,10 +8271,10 @@ sight, paying `Cooldown(tap_pour, 0.25 s)` last as the flood guard the cooking b
 5 ticks per player, `too_soon` for the rest), runs `GiveItem(mug)`), `content/items/mug.tres` (one-handed, at most 21 = 2 x 10 players + 1, so a few hoarders never leave a pour `unavailable`, vanishing 120 s after it is put
 down; its Use runs `Drink(mug_empty, 40)`), `content/items/mug_empty.tres` (one-handed, at most 12, vanishing
 after 30 s, no Use). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_much_at` 90 (the third mug),
-`drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)` and `DrunkTicks`;
-`countdown_done` runs `ClearItems` then `ClearStations`. The pour is instant, a mug is one drink, drinks stack.
+`drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)`, `DrunkTicks` and `LimpTicks` (the limp, §7.1.21: `reach_m` 1.0, `height_m` 1.8, `min_speed_mps` 0.5, `gain` 1.0, `max_speed_mps` 3.0, `cooldown_s` 0.25); the reaction on `drunk_too_much` runs `GoLimp(6.0 s)`;
+`countdown_done` runs `ClearItems`, `ClearStations`, then `EndLimps`. The pour is instant, a mug is one drink, drinks stack.
 Every number is provisional (the engineer tunes them on the hall greybox, #1354). Not built here: the sway and walk
-drift (#1391), the voice (#1392), the limp (#1393). The hand-over (#1389 built the rule: the full mug is
+drift (#1391), the voice (#1392). The hand-over (#1389 built the rule: the full mug is
 handable, the empty one not, and the Lobby and Countdown accept `HandOver`, §4.1, the base mode's `HandOver_*` rows)
 has its client key in #1411: the full mug goes to a friend by E aimed at them (`HandOverUse`, §4.7.10).
 - **The client** (#1408): `StationUse` offers the tap (a kind of no task type, §4.7.54), the lobby HUD's `Aim`
