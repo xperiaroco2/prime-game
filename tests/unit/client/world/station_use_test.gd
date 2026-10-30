@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## offers, from the own ClientModel and the client's own copy of the mode only. A Generator's
 ## generator and switches until the charge is done; never with a two-handed item in the hand
 ## (HandNotTwoHanded); never a station of a type this client draws no view for; never by a
-## switch's state.
+## switch's state; a station a phase places itself (StationTicks: the lobby's tap, #1408) by its
+## Interact rule alone.
 
 const G := preload("res://tests/fixtures/client/fixture_generator_client.gd")
 
@@ -82,3 +83,22 @@ func test_the_generator_kinds_are_told_apart() -> void:
 	assert_int(StationUse.generator_station(_model, FixtureGeneratorModes.type_of(_mode))).is_equal(
 		G.GENERATOR
 	)
+
+
+func test_a_station_a_phase_places_itself_is_offered_by_its_rule_alone() -> void:
+	# The lobby's tap (StationTicks, #1408): no task type holds its kind, so no TaskClient owns it;
+	# its Interact rule decides, a hand holding a mug or a two-handed package included (the rule has
+	# no HandNotTwoHanded).
+	var mode := FixtureBar.mode()
+	var model := ClientModel.new(mode)
+	model.own_peer = G.OWN
+	G.fold(model, StationPlacedEvent.new(1, &"tap", Color.WHITE, FixtureBar.TAP))
+	assert_object(Stations.owner_of(mode, StationUse.kind_of(mode, &"tap"))).is_null()
+	assert_bool(StationUse.usable(model, mode, 1)).is_true()
+	model.fold(&"ItemSpawned", {"item": 50, "kind": &"package", "position": FixtureBar.TAP})
+	model.fold(&"ItemPickedUp", {"peer": G.OWN, "item": 50})
+	assert_int(model.hand_item(G.OWN)).is_equal(50)
+	assert_bool(StationUse.usable(model, mode, 1)).is_true()
+	# Without its Interact rule it is not offered.
+	StationUse.kind_of(mode, &"tap").actions = []
+	assert_bool(StationUse.usable(model, mode, 1)).is_false()

@@ -11,7 +11,10 @@ extends RefCounted
 ## used: the first of the mode's types whose TaskClient owns the kind answers (#1260, §4.7.59;
 ## today the Generator, #801: neither its generator nor a switch once the charge is done, the
 ## host's StationUsable; Cooking, #776: CookingUse; the photo task, #786: PhotoUse; the car repair,
-## #811: CarRepairUse); a kind no client owns is never offered. The other conditions of a rule
+## #811: CarRepairUse); a kind of a task type no client owns is never offered. A kind no task
+## type holds is one a phase places itself (StationTicks, #1390: the lobby's tap, which
+## Stations.kinds_in lists after the types' kinds): no task tracks it, so it is offered whenever
+## its Interact rule and the hand allow (#1408). The other conditions of a rule
 ## (AtStation, StationInSight) are TargetChoice's and ItemInteractions'; one this client does not
 ## know is left to the host. A fixed switch is no station at all (GE14), so it is never offered,
 ## and nothing here reads a switch's `on`: the hint never names a switch's state.
@@ -98,6 +101,10 @@ static func usable(model: ClientModel, mode: GameMode, id: int) -> bool:
 		return true
 	if not _hand_allows(model, mode, rule):
 		return false
+	# A kind no task type holds is one a phase places itself (StationTicks, #1408: the lobby's
+	# tap): no task can be done, so its Interact rule alone decides (the host checks it again).
+	if Stations.owner_of(mode, kind) == null:
+		return true
 	# The first of the mode's types whose TaskClient owns the kind answers (#1260).
 	for type: TaskType in mode.task_types:
 		var client := TaskClients.of(type)

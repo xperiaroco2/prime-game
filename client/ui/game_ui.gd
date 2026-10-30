@@ -223,11 +223,14 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 			end.refresh(model, mode, host_tick)
 
 
-## Refreshes the round's HUD and the map while open; `local` is what the game knows besides the
-## model.
+## Refreshes the round's HUD and the map while open, or in the lobby its Aim (#1408: the tap, the
+## hall's items); `local` is what the game knows besides the model.
 func refresh_round(
 	model: ClientModel, mode: GameMode, host_tick: float, local: HudText.Local
 ) -> void:
+	if screen == GameFlow.Screen.LOBBY:
+		lobby_hud.show_aim(HudText.aim_of(model, mode, local))
+		return
 	if screen != GameFlow.Screen.ROUND:
 		return
 	_model = model

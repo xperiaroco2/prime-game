@@ -5,6 +5,9 @@ extends Control
 ## edges sit 40 px in (px at the 1920x1080 base, #287); the name plates are GameUi's `Plates`
 ## under it (#257), as in the round:
 ## - `Cross` (centre): the crosshair.
+## - `Aim` (under the crosshair, as the round HUD's; not in the handoff, #1408): the name of the
+##   item E picks up or of the station E uses there (the bar's tap), HudText.aim_of; hidden when
+##   empty.
 ## - `Status` (top centre): the ready count, what the host says holds the start back (its
 ##   shortfalls, one line each: the players still missing, #548), or the countdown in
 ##   ToyTitleOnDark.
@@ -32,6 +35,9 @@ const CHECK_SIZE := Vector2(24, 24)
 const MIC_ICON := Vector2(28, 28)
 
 var cross := Panel.new()
+## Aim (show_aim()): the round HUD's chip, its deck key translated by the label.
+var aim := PanelContainer.new()
+var aim_label := UiParts.styled_label("", &"ToyChipPlateText")
 var status := PanelContainer.new()
 var status_label := UiParts.styled_label("", &"ToyPlateText")
 var players := PanelContainer.new()
@@ -64,6 +70,7 @@ func _init() -> void:
 	name = "LobbyHud"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_build_cross()
+	_build_aim()
 	_build_status()
 	_build_players()
 	_build_bottom()
@@ -121,6 +128,12 @@ func show_mic(on: bool) -> void:
 ## Whether the microphone shows on.
 func shows_mic_on() -> bool:
 	return _mic_on
+
+
+## Aim's text under the crosshair (HudText.aim_of: a deck key, else a name); "" hides it.
+func show_aim(text: String) -> void:
+	aim_label.text = text
+	aim.visible = not text.is_empty()
 
 
 ## The voice hint until a microphone is picked; "" hides it.
@@ -212,6 +225,16 @@ func _build_cross() -> void:
 	cross.theme_type_variation = &"ToyCrosshair"
 	_pin(cross, Control.PRESET_CENTER, Vector2.ZERO, GROW_DIRECTION_BOTH, GROW_DIRECTION_BOTH)
 	UiParts.sized(cross)
+
+
+func _build_aim() -> void:
+	aim.name = "Aim"
+	aim.theme_type_variation = &"ToyChipPlate"
+	var below := Vector2(0, Hud.AIM_BELOW)
+	_pin(aim, Control.PRESET_CENTER, below, GROW_DIRECTION_BOTH, GROW_DIRECTION_BOTH)
+	aim_label.name = "Text"
+	aim.add_child(aim_label)
+	aim.visible = false
 
 
 func _build_status() -> void:
