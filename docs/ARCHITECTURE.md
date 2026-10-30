@@ -4491,7 +4491,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
   key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
   lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
-  handoff's tree, anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
+  handoff's tree and #1411's `Aim` (hidden without a cue, the cue's text when shown), anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
   inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
   language change, seen failing without the notification; large text's keycap; `Aim` only with a text),
   `item_interactions_tap_network_test.gd` (`Aim` names the tap, §4.7.54), `esc_menu_input_test.gd` (no
@@ -4501,7 +4501,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   `lobby_hud_count_preview`, `lobby_hud_count_host_preview`, `lobby_hud_short_preview`,
   `lobby_hud_code_waiting_preview` and `lobby_hud_direct_preview`, each with a `_uk` twin, and
   `lobby_hud_large_uk_preview` (`short` and `code-waiting` fold the host's `players_few` against four players, the
-  handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
+  handoff's sample), and `lobby_hud_give_preview` (`wait` with the hand-over's cue in `Aim`, #1411). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
   (`esc_menu`, `end`).
 
 #### 4.7.48 No literal text, content names and the font's glyphs (#549)

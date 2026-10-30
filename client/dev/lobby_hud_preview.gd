@@ -12,7 +12,8 @@ extends "res://client/dev/hud_preview.gd"
 ## - `code-waiting`: the host alone before the code service made the room (always hosting; four
 ##   needed as in `short`: three more to start);
 ## - `direct`: `wait` joined directly, with no code.
-## The microphone on. Dev only: nothing here reaches the game.
+## With `hand_over`, Aim shows the hand-over's cue under the crosshair (#1411: E would hand the
+## hand item to a living player there). The microphone on. Dev only: nothing here reaches the game.
 
 ## The players the host's shortfall counts against in `short` and `code-waiting`: the handoff's
 ## sample, not a decision.
@@ -25,6 +26,8 @@ const TARAS_AT := Vector3(1.4, 0.0, -4.0)
 @export_enum("wait", "count", "short", "code-waiting", "direct") var lobby_state := "wait"
 ## The host's own view (its own row reads `player.you`) instead of a code joiner's.
 @export var hosting := false
+## The hand-over's cue in Aim (#1411).
+@export var hand_over := false
 
 
 func _ready() -> void:
@@ -56,6 +59,8 @@ func _ready() -> void:
 	ui.lobby_hud.show_code("" if waiting or lobby_state == "direct" else CODE, false, waiting)
 	ui.lobby_hud.show_mic(true)
 	ui.refresh(_model, mode, NOW, _hosts())
+	if hand_over:
+		ui.lobby_hud.show_hand_over(KeyLabel.of_action(&"interact"))
 
 
 func _hosts() -> bool:
