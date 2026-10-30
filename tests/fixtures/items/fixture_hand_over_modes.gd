@@ -13,7 +13,11 @@ const REACH_M := 2.0
 
 
 static func basic() -> GameMode:
-	var mode := FixtureItemModes.swapping(FixtureItemModes.basic())
+	return handing(FixtureItemModes.swapping(FixtureItemModes.basic()))
+
+
+## `mode` with the kinds `gift` and `cup`, the HandOver rule and the Round's HandOver row.
+static func handing(mode: GameMode) -> GameMode:
 	for id: StringName in [&"gift", &"cup"]:
 		var kind := FixtureItemModes.item_kind(id, [])
 		kind.handable = true

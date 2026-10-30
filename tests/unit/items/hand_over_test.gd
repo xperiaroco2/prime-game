@@ -160,6 +160,28 @@ func test_a_phase_without_the_accept_row_and_a_dead_sender_are_not_accepted() ->
 	_refused(dead, P2, RejectReasons.NOT_ACCEPTED)
 
 
+func test_an_applied_hand_over_stops_the_senders_raise() -> void:
+	# Any applied action of a raiser stops its raise (RuleRunner, M4-4): RaiseStopped, then the take.
+	var game := _raising(&"gift")
+	var gift: ItemState = game.state.items[game.state.player(P3).held_item]
+	var seen := game.view_of(P1).events.size()
+	FixtureHandOverModes.hand_over(game, P3, P1)
+	assert_object(Channels.of_actor(game.state, P3)).is_null()
+	assert_array(FixtureItemModes.names_after(game, P1, seen)).is_equal(
+		[&"RaiseStopped", &"ItemPickedUp"]
+	)
+	assert_int(gift.holder).is_equal(P1)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_refused_hand_over_does_not_stop_the_raise() -> void:
+	var game := _raising(&"knife")
+	FixtureHandOverModes.hand_over(game, P3, P1)
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([HandHandable.NOT_HANDABLE])
+	assert_object(Channels.of_actor(game.state, P3)).is_not_null()
+	assert_array(game.view_of(P1).events_named(&"RaiseStopped")).is_empty()
+
+
 func test_the_hand_over_is_deterministic_for_a_seed() -> void:
 	var logs: Array[String] = []
 	for i in 2:
@@ -178,6 +200,26 @@ func _game(world: WorldQuery = null, mode: GameMode = null) -> Match:
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, NEAR)
 	FixtureItemModes.stand(game, P3, FAR)
+	return game
+
+
+## P1 armed at the origin downs P2 (1 m north), and P3 (1.8 m from P1), holding an item of
+## `kind_id` (taken before the raise, as a take would stop it), starts raising P2.
+func _raising(kind_id: StringName) -> Match:
+	var mode := FixtureHandOverModes.handing(
+		FixtureItemModes.swapping(FixtureCombatModes.raising())
+	)
+	var game := FixtureCombatModes.in_round(mode, [P1, P2, P3])
+	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	FixtureItemModes.stand(game, P3, Vector3(1.5, 0, 1))
+	FixtureHandOverModes.hold(game, P3, kind_id)
+	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DOWNED)
+	FixtureCombatModes.raise(game, P3, P2)
+	assert_object(Channels.of_actor(game.state, P3)).is_not_null()
 	return game
 
 
