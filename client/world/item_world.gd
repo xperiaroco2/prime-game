@@ -7,7 +7,7 @@ extends Node3D
 ## flash (PhotoFlashes, #785) and the Generator's station scenes in the level (StationViews, #801)
 ## and its hum while it charges (StationHums, #801) and the photo camera's viewfinder
 ## (PhotoViewfinder, #786) and its scenes and items (PhotoViews, #787) and the shots' pictures
-## (PhotoPictures, #787),
+## (PhotoPictures, #787) and the hand-over key and its target (HandOverUse, #1411),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -25,6 +25,7 @@ const _ORDER: Array[StringName] = [
 	&"CircleViews",
 	&"ZoneViews",
 	&"ItemInteractions",
+	&"HandOverUse",
 	&"WorldSounds",
 	&"PhotoFlashes",
 	&"StationViews",
@@ -40,6 +41,8 @@ var items := ItemViews.new()
 ## The task types' views, keyed by their core script (TaskClients.make_views).
 var task_views: Dictionary[Script, Node3D] = TaskClients.make_views()
 var interactions := ItemInteractions.new()
+## The hand-over key (#1411): after the item keys, whose targets win over it.
+var hand_over := HandOverUse.new()
 var sounds := WorldSounds.new()
 var flashes := PhotoFlashes.new()
 ## The Generator's station scenes (its TaskClient's view): station_of_hit asks it first.
@@ -72,6 +75,7 @@ func _init() -> void:
 	for each: Node3D in [
 		items,
 		interactions,
+		hand_over,
 		sounds,
 		flashes,
 		hums,
@@ -97,6 +101,7 @@ func _init() -> void:
 	interactions.station_near_hit = car_repair.station_of_point
 	interactions.aim_of = aim_point
 	interactions.viewfinder = viewfinder
+	hand_over.interactions = interactions
 	items.station_point = drawn_point
 	hums.ears = sounds.ears
 	items.sound_due.connect(sounds.on_event)
@@ -129,6 +134,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
 	interactions.setup(client, game_mode)
+	hand_over.setup(client, game_mode)
 	viewfinder.model = _model
 	viewfinder.mode = game_mode
 	sounds.model = _model
@@ -147,6 +153,7 @@ func set_player(player: PlayerController) -> void:
 	_player = player
 	items.player = player
 	interactions.player = player
+	hand_over.player = player
 	viewfinder.player = player
 	sounds.player = player
 
@@ -173,6 +180,8 @@ func reset() -> void:
 	viewfinder.clear()
 	interactions.setup(null, _mode)
 	interactions.player = null
+	hand_over.setup(null, _mode)
+	hand_over.player = null
 	items.player = null
 	sounds.player = null
 	_model = null

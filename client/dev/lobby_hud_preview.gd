@@ -12,7 +12,8 @@ extends "res://client/dev/hud_preview.gd"
 ## - `code-waiting`: the host alone before the code service made the room (always hosting; four
 ##   needed as in `short`: three more to start);
 ## - `direct`: `wait` joined directly, with no code.
-## The microphone on. Dev only: nothing here reaches the game.
+## With `hand_over`, Aim shows the hand-over's cue under the crosshair (#1411: E would hand the
+## hand item to a living player there). The microphone on. Dev only: nothing here reaches the game.
 
 ## The players the host's shortfall counts against in `short` and `code-waiting`: the handoff's
 ## sample, not a decision.
@@ -21,10 +22,15 @@ const CODE := "K7Q2XR"
 ## Taras, in view to the right (the handoff's plate sits right of the centre).
 const TARAS := 2
 const TARAS_AT := Vector3(1.4, 0.0, -4.0)
+## Taras with `hand_over`: under the crosshair, within the base mode's 2 m reach of HandOver (less
+## the hint's margin), where the cue really shows.
+const TARAS_HANDED_AT := Vector3(0.0, 0.0, -1.4)
 
 @export_enum("wait", "count", "short", "code-waiting", "direct") var lobby_state := "wait"
 ## The host's own view (its own row reads `player.you`) instead of a code joiner's.
 @export var hosting := false
+## The hand-over's cue in Aim (#1411).
+@export var hand_over := false
 
 
 func _ready() -> void:
@@ -56,6 +62,8 @@ func _ready() -> void:
 	ui.lobby_hud.show_code("" if waiting or lobby_state == "direct" else CODE, false, waiting)
 	ui.lobby_hud.show_mic(true)
 	ui.refresh(_model, mode, NOW, _hosts())
+	if hand_over:
+		ui.lobby_hud.show_hand_over(KeyLabel.of_action(&"interact"))
 
 
 func _hosts() -> bool:
@@ -104,10 +112,12 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	return model
 
 
-## Taras at his spot, facing the camera, in the snapshot of `tick`.
+## Taras at his spot (TARAS_HANDED_AT with `hand_over`), facing the camera, in the snapshot of
+## `tick`.
 func _lobby_snapshot(tick: int) -> void:
+	var at := TARAS_HANDED_AT if hand_over else TARAS_AT
 	var avatars := {
-		TARAS: {"position": TARAS_AT, "velocity": Vector3.ZERO, "facing": Vector3.BACK},
+		TARAS: {"position": at, "velocity": Vector3.ZERO, "facing": Vector3.BACK},
 	}
 	_now += TICK_USEC
 	_model.fold_snapshot({"tick": tick, "avatars": avatars})

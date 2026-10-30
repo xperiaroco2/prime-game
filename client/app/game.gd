@@ -170,6 +170,8 @@ func _ready() -> void:
 	# The left button's use and shot need the mouse captured, as the game's pointer has it (#1114).
 	_items.interactions.mouse_captured = func() -> bool: return pointer.captured()
 	_life.mouse_captured = func() -> bool: return pointer.captured()
+	# E raises a downed player under the crosshair rather than hand over (#1411).
+	_items.hand_over.raise_target = _life.raise_target
 	GameSettings.ready_settings(self)
 	ui.menu.bind_name(settings)
 	_voice_control = GameSettings.start_voice(self, _world)

@@ -33,6 +33,10 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	# #1388); the raise is the round's alone.
 	var hands := now == GameFlow.Screen.ROUND or now == GameFlow.Screen.LOBBY
 	items.interactions.listening = listening and hands
+	# So is the hand-over (#1411: the bar's mug to a friend); the client's own copy of the phase
+	# decides whether it offers one (HandOverUse.can_hand).
+	items.hand_over.reads_device_input = game.device_input
+	items.hand_over.listening = listening and hands
 	if not listening:
 		# Nothing reads the keys now: W held when Esc opened must not keep walking.
 		player.release_keys()
@@ -81,6 +85,7 @@ static func hud_local(game: Game, tick: float) -> HudText.Local:
 	var player := game.player()
 	var local := game.items().hud_local(tick, life.raise_shown(tick))
 	local.raise_key = life.raise_cue()
+	local.hand_over_key = game.items().hand_over.cue()
 	local.mic = game.sender().live()
 	if player != null and not _dead(player):
 		local.placed = true

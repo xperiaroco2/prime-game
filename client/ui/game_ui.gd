@@ -230,6 +230,7 @@ func refresh_round(
 ) -> void:
 	if screen == GameFlow.Screen.LOBBY:
 		lobby_hud.show_aim(HudText.aim_of(model, mode, local))
+		lobby_hud.show_hand_over(local.hand_over_key)
 		return
 	if screen != GameFlow.Screen.ROUND:
 		return
