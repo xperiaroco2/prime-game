@@ -2075,7 +2075,7 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13, 15 to 20 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
+The C→H kinds 1 to 13, 15 to 24 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 28
 and 29 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
 `ButtonPressed`), 75 and 76 (#807: `LiftChanged`, `PartNeeded`), 77 and 78 (#781: `FilmLoaded`, `ShotTaken`), 79 and 80 (#773: `GrillLoaded`, `IngredientPlaced`), 81 and 82 (#808: `FitChanged`, `PartFitted`), 83 and 84 (#782: `PhotoPrinted`, `PhotoHung`), 85 and 86 (#1101: `BurgerPlated`, `BurgerServed`) sent the wrong way, one drawn
