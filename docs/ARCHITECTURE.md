@@ -2805,8 +2805,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   margin), `item_views_test.gd`, `tests/unit/client/world/hand_over_use_test.gd` (the hand-over's pure checks: the
   reach, the handable one-handed hand item, the phase, the living target) and
   `tests/integration/client/world/hand_over_network_test.gd` (#1411: a joiner holding a handable gift walks at the
-  host in the lobby and presses E the moment `HandOverUse` names it; the host accepts, the gift is in the host's hand
-  on both Games; no prompt with an empty hand, aimed past the player or out of reach). The `shot`s:
+  host in the lobby and presses E on the device the moment `HandOverUse` names it; the host accepts, the gift is in
+  the host's hand on both Games; no prompt with an empty hand, aimed past the player, out of reach, with a raise
+  target (E's other targets win) or with a level bar across the line from eye to eye). The `shot`s:
   `client/dev/hud_preview.tscn`, `map_preview.tscn`, `items_preview.tscn`
   and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
