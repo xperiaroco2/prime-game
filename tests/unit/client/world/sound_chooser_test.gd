@@ -38,6 +38,24 @@ func test_a_pickup_plays_where_the_item_lay() -> void:
 	assert_object(_choose(&"ItemPickedUp", {"peer": 2, "item": 77}, Vector3.ZERO)).is_null()
 
 
+func test_a_hand_over_plays_at_the_receiver_not_where_the_item_last_lay() -> void:
+	# #1389: a carried item another player takes was handed over; it last lay 10 m away, so the
+	# pick-up sound plays at the receiver, within the range of a listener beside the two.
+	_positions[3] = Vector3(4, 0, 4)
+	_model.fold(&"ItemPickedUp", {"peer": 3, "item": 5})
+	_model.fold(&"ItemPickedUp", {"peer": 2, "item": 5})
+	var listener := Vector3(3, 0, -4)
+	assert_float(listener.distance_to(Vector3(0, 0, 10))).is_greater(RANGE)
+	var sound := _choose(&"ItemPickedUp", {"peer": 2, "item": 5}, listener)
+	assert_object(sound).is_not_null()
+	assert_str(String(sound.id)).is_equal(String(SoundChooser.PICK_UP))
+	assert_that(sound.position).is_equal(Vector3(3, 0, 4))
+	assert_that(sound.aim).is_equal(Vector3(3, SoundChooser.ITEM_AIM_M, 4))
+	# A receiver the client draws nowhere makes no sound.
+	_model.fold(&"ItemPickedUp", {"peer": 9, "item": 5})
+	assert_object(_choose(&"ItemPickedUp", {"peer": 9, "item": 5}, listener)).is_null()
+
+
 func test_a_put_down_plays_at_its_position() -> void:
 	var at := Vector3(1, 0, 1)
 	var fields := {"item": 5, "position": at, "cause": &"put_down"}

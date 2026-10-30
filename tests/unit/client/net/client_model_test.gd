@@ -345,6 +345,24 @@ func test_an_item_changed_takes_its_new_kind_where_it_is() -> void:
 	assert_bool(_model.items.has(40)).is_false()
 
 
+func test_a_hand_over_moves_the_item_from_the_givers_hand_to_the_receivers() -> void:
+	# #1389: HandOver's ItemPickedUp names the receiver and an item another player carries; the
+	# giver's hand empties with no event of its own, and the take remembers who handed it.
+	_fold(ItemSpawnedEvent.new(4, &"mug", Vector3(5, 0, 5)))
+	_fold(ItemPickedUpEvent.new(1, 4))
+	assert_int(_model.items[4].handed_from).is_equal(ClientModel.NO_HOLDER)
+	_fold(ItemPickedUpEvent.new(OWN, 4))
+	assert_int(_model.hand_item(1)).is_equal(-1)
+	assert_int(_model.hand_item(OWN)).is_equal(4)
+	assert_int(_model.items[4].holder).is_equal(OWN)
+	assert_int(_model.items[4].handed_from).is_equal(1)
+	assert_bool(_model.items[4].rests()).is_false()
+	# Put down and taken from the floor again, it was handed by nobody.
+	_fold(ItemPlacedEvent.new(4, Vector3(1, 0, 1), &"put_down"))
+	_fold(ItemPickedUpEvent.new(1, 4))
+	assert_int(_model.items[4].handed_from).is_equal(ClientModel.NO_HOLDER)
+
+
 func test_a_pick_up_straight_onto_the_belt_keeps_the_hand_item_held() -> void:
 	# The cooking ADR, CE20, CE21: beside a two-handed hand item a one-handed take goes onto the
 	# belt, ItemPickedUp's `belted` naming the item itself; a full belt's item was put down first.

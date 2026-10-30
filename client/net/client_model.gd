@@ -38,6 +38,10 @@ class Item:
 	var position := Vector3.ZERO
 	## The peer carrying it; NO_HOLDER when it rests somewhere.
 	var holder := NO_HOLDER
+	## Who carried it right before its last ItemPickedUp: another player when that take was a
+	## hand-over (#1389, HandOver), NO_HOLDER for a take from the world. Only that event's fold
+	## writes it, so the sound chooser can tell where the take happened.
+	var handed_from := NO_HOLDER
 	## Carried on the holder's belt rather than in its hand (M4-5, E29).
 	var belted := false
 	## Its place among the holder's three (0..2, GDD §6 "Drawing from the belt"), or -1 when nobody
@@ -691,6 +695,8 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	_unstation(to_belt)
 	var picked: Item = items.get(id)
 	if picked != null:
+		# A carried item another player takes was handed over (#1389): it rests nowhere between.
+		picked.handed_from = picked.holder if picked.holder != peer else NO_HOLDER
 		picked.holder = peer
 		picked.carry_place = place
 	var belted: Item = items.get(to_belt)
