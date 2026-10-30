@@ -102,11 +102,14 @@ func test_the_pour_cooldown_is_per_player() -> void:
 
 
 func test_with_every_mug_held_a_pour_is_unavailable() -> void:
-	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
-	for seq in FixtureBar.MUGS:
-		FixtureBar.pour(game, P1, seq + 1)
-	FixtureBar.pour(game, P2, 9)
-	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable"])
+	var fourth := 4
+	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2, P3, fourth])
+	# The hand and the two belt places: three players hold three mugs each, all MUGS of them.
+	for peer: int in [P1, P2, P3]:
+		for seq in 3:
+			FixtureBar.pour(game, peer, seq + 1)
+	FixtureBar.pour(game, fourth, 1)
+	assert_array(FixtureModes.rejections(game, fourth)).is_equal([&"unavailable"])
 
 
 func test_a_drink_empties_the_mug_and_everyone_sees_the_drunk_value() -> void:

@@ -218,6 +218,40 @@ func test_the_hall_s_tap_pours_a_beer_that_lasts_into_the_countdown_only() -> vo
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_the_mug_cap_is_two_per_player_and_one_over() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var mug := mode.find_item_kind(&"mug")
+	assert_int(mug.max_items).is_equal(2 * mode.max_players + 1)
+	assert_array(Array(DispenserCapCheck.problems(mode))).is_empty()
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+func test_four_hoarders_with_three_mugs_each_leave_a_fifth_pour_available() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var layouts := _layouts_for(mode)
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
+	game.state.map = GREYBOX
+	game.keep_history = true
+	assert_bool(game.start(0)).is_true()
+	var peers: Array[int] = [P1, P2, 3, 4, 5]
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	var marker := layouts[mode.lobby_level].positions(&"tap")[0]
+	for peer: int in peers:
+		FixtureItemModes.stand(game, peer, marker + Vector3(0.2 * peer, 0, 0.5))
+	# The hand and the two belt places: three mugs held by each of four players.
+	for round_no in 3:
+		for peer: int in peers.slice(0, 4):
+			FixtureBar.pour(game, peer, round_no + 1)
+		FixtureModes.run_ticks(game, Ticks.from_seconds(0.3))
+	for peer: int in peers.slice(0, 4):
+		assert_array(FixtureModes.rejections(game, peer)).is_empty()
+	FixtureBar.pour(game, peers[4], 1)
+	assert_array(FixtureModes.rejections(game, peers[4])).is_empty()
+	assert_object(Items.held_by(game.state, peers[4])).is_not_null()
+
+
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
 	var levels := MarkerReader.read_levels(
 		mode, FlatWorldQuery.new(), ScenarioLevels.unsnapped(mode)

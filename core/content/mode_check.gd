@@ -200,6 +200,7 @@ func _check_rules(mode: GameMode) -> void:
 		_check_owner(owner, kind.actions, station_intents(), false, uses)
 	errors.append_array(ActorConditionCheck.problems(mode))
 	errors.append_array(DrunkCheck.problems(mode))
+	errors.append_array(DispenserCapCheck.problems(mode))
 
 
 ## The rules of one owner. `uses`: the task types whose use_emits() a UseStation in them can
