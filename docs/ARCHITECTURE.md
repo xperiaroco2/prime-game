@@ -8199,7 +8199,8 @@ levels/
                                    (#1374); it only places its pieces
   estate/rooms/*.tscn              one box piece per lot (house, bonfire, summer_kitchen, pantry, greenhouse, garage,
                                    gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees and
-                                   markers (the base mode's spawn markers, #1374)
+                                   markers (the base mode's spawn markers, #1374) and passages (§5b's tunnel, sewer
+                                   and ducts, #1373)
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
@@ -8242,7 +8243,14 @@ levels/
   throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd). Every other flat box top outside the House's
   lot is a floor, a step, in reach or over every throw (estate_tops_reach_test.gd), so the fence stands 1.8 m, the
   creek's banks 3.5 m, the gate's posts 3.2 m, the ship's tunnel walls 4.4 m (its throat's) and the bonfire's camera
-  post collides up to 3.3 m, over its camera. §5b's tunnel, sewer and ducts are not built yet. Each lot's piece sits
+  post collides up to 3.3 m, over its camera. §5b's hidden passages are box corridors in the map-wide `Passages`
+  piece (#1373), walled and roofed by the ground box and the basement slab: the tunnel from a pit behind the garage's
+  car to the laboratory, the sewer from the cellar to the manholes at the bonfire, the well and the ship, both walked
+  upright, and the two ducts (the laboratory to a grate in the pantry's floor, the security room to one by the
+  summer kitchen's bins), crawled (too low upright); ramps stand in for the ladders, and each entrance is a hole
+  cut in the plot's ground or the basement's floor and walls. A thrown item that falls into a hole lands in reach of
+  a passage walk's feet, never in a void; a wall top a body lies on (under the ground or the slab) holds no item.
+  Their ends, depths and hole sizes are placeholders, "not a decision". Each lot's piece sits
   at its module's centre with `metadata/size_m` its footprint
   where §3 gives W × D: the ADR's "the map places a room at the doc's numbers" with a doc that gives centres; the
   plot, creek, paths and trees are map-wide pieces at the origin. The creek blocks but at its doc's crossings, the
@@ -8251,10 +8259,12 @@ levels/
   scene against the doc's §3 rows, read by `tests/fixtures/estate_doc.gd`: each module's centre, footprint and name,
   the pieces each once, the crossings, no tree in a clearing, the six cameras) and
   `tests/integration/levels/estate_walk_test.gd` (the map in the host's world: the walks between the lots and the
-  house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere),
-  `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, the layout the
-  base mode accepts), `tests/unit/levels/estate_room_records_test.gd` and
-  `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`); the
+  house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere, each hidden passage
+  both ways, the ducts too low upright, each hole's fall in reach),
+  `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, each circle where it
+  is placed, on flat floor, the layout the base mode accepts), `tests/unit/levels/estate_room_records_test.gd`,
+  `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
+  `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
