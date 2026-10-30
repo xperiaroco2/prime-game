@@ -33,6 +33,10 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	# #1388); the raise is the round's alone.
 	var hands := now == GameFlow.Screen.ROUND or now == GameFlow.Screen.LOBBY
 	items.interactions.listening = listening and hands
+	# So is the hand-over (#1411: the bar's mug to a friend); the client's own copy of the phase
+	# decides whether it offers one (HandOverUse.can_hand).
+	items.hand_over.reads_device_input = game.device_input
+	items.hand_over.listening = listening and hands
 	if not listening:
 		# Nothing reads the keys now: W held when Esc opened must not keep walking.
 		player.release_keys()
@@ -55,13 +59,14 @@ static func point_for(game: Game, now: GameFlow.Screen, menu_closed: bool) -> vo
 ## The own player's body follows its own life fold (M4-9): it holds still and looks while downed (a
 ## KnockedDown naming it, KE4), has no body while dead (Died; apply_flags stops the physics step,
 ## so it neither walks nor claims until its Respawned), and walks again once living (Revived,
-## Respawned, a new match, the lobby). Only a change switches the body, since switching stops it.
+## Respawned, a new match, the lobby). Limp (its own avatar's flag, §7.1.21) it holds still as if
+## downed until it gets up. Only a change switches the body, since switching stops it.
 static func sync_life(game: Game) -> void:
 	var player := game.player()
 	if player == null:
 		return
 	var model := game.client().model
-	var own_life := model.life_of(model.own_peer)
+	var own_life := model.body_life_of(model.own_peer)
 	if player.life != own_life:
 		player.life = own_life
 
@@ -81,6 +86,8 @@ static func hud_local(game: Game, tick: float) -> HudText.Local:
 	var player := game.player()
 	var local := game.items().hud_local(tick, life.raise_shown(tick))
 	local.raise_key = life.raise_cue()
+	local.hand_over_key = game.items().hand_over.cue()
+	local.hand_over_cue_key = game.items().hand_over.cue_key()
 	local.mic = game.sender().live()
 	if player != null and not _dead(player):
 		local.placed = true

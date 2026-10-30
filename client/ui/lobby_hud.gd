@@ -5,9 +5,10 @@ extends Control
 ## edges sit 40 px in (px at the 1920x1080 base, #287); the name plates are GameUi's `Plates`
 ## under it (#257), as in the round:
 ## - `Cross` (centre): the crosshair.
-## - `Aim` (under the crosshair, as the round HUD's; not in the handoff, #1408): the name of the
-##   item E picks up or of the station E uses there (the bar's tap), HudText.aim_of; hidden when
-##   empty.
+## - `Aim` (under the crosshair, as the round HUD's; not in the handoff, #1408, #1411): the name of
+##   the item E picks up or of the station E uses there (the bar's tap), HudText.aim_of, or, while
+##   E would hand the hand item to the living player under the crosshair, the hand-over's cue
+##   (HudText.hand_over_cue; the bar's mug to a friend); hidden when empty.
 ## - `Status` (top centre): the ready count, what the host says holds the start back (its
 ##   shortfalls, one line each: the players still missing, #548), or the countdown in
 ##   ToyTitleOnDark.
@@ -17,7 +18,7 @@ extends Control
 ## - `Bottom` (bottom left): the own ready chip and the microphone (on: `mic` tinted `icon_on`;
 ##   off: `mic-off` tinted `icon_off`). Above them, beyond the handoff, the voice hint until a
 ##   microphone is picked (M5-6).
-## No key prompt: Ready is the bound `ready` key (F by default, #211) and the Esc Lobby tab's
+## No other key prompt: Ready is the bound `ready` key (F by default, #211) and the Esc Lobby tab's
 ## button; Copy is in that tab too. Styled only through the shared theme's variations (no
 ## override; size constants read into `custom_minimum_size` with UiParts.sized); every node ignores
 ## the mouse and takes no focus. Texts are deck keys (#208); names, the code and the counts are data
@@ -35,7 +36,8 @@ const CHECK_SIZE := Vector2(24, 24)
 const MIC_ICON := Vector2(28, 28)
 
 var cross := Panel.new()
-## Aim (show_aim()): the round HUD's chip, its deck key translated by the label.
+## Aim (show_aim(), show_hand_over()): the round HUD's chip; an item's or station's deck key
+## translated by the label, or the hand-over's cue written in code (#1411).
 var aim := PanelContainer.new()
 var aim_label := UiParts.styled_label("", &"ToyChipPlateText")
 var status := PanelContainer.new()
@@ -64,6 +66,11 @@ var _rows_key := ""
 var _row_names: Array[Label] = []
 var _row_checks: Array[TextureRect] = []
 var _mic_on := false
+## The interact key's label in the hand-over's cue; "" for none.
+var _hand_over_key := ""
+var _hand_over_cue_key := ""
+## Aim's text from show_aim(): a deck key or a name; "" for none.
+var _aim_text := ""
 
 
 func _init() -> void:
@@ -130,10 +137,24 @@ func shows_mic_on() -> bool:
 	return _mic_on
 
 
-## Aim's text under the crosshair (HudText.aim_of: a deck key, else a name); "" hides it.
+## Aim's text under the crosshair (HudText.aim_of: a deck key, else a name); "" hides it. The
+## hand-over's cue, while there is one, takes its place (show_hand_over()).
 func show_aim(text: String) -> void:
-	aim_label.text = text
-	aim.visible = not text.is_empty()
+	if text == _aim_text:
+		return
+	_aim_text = text
+	_show_aim()
+
+
+## The hand-over's cue in Aim with the interact key's label `key` (HandOverUse.cue(), #1411),
+## worded by the deck key `cue_key` (HandOverUse.cue_key(), #1434; "" the hand-over's own);
+## "" gives Aim back to show_aim()'s text.
+func show_hand_over(key: String, cue_key: String = "") -> void:
+	if key == _hand_over_key and cue_key == _hand_over_cue_key:
+		return
+	_hand_over_key = key
+	_hand_over_cue_key = cue_key
+	_show_aim()
 
 
 ## The voice hint until a microphone is picked; "" hides it.
@@ -163,11 +184,25 @@ func _notification(what: int) -> void:
 		_write()
 
 
+## Aim: the hand-over's cue (set in code, data inside, again on a language change) over the
+## item's or station's deck key (the label translates it).
+func _show_aim() -> void:
+	if _hand_over_key.is_empty():
+		aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_INHERIT
+		aim_label.text = _aim_text
+		aim.visible = not _aim_text.is_empty()
+		return
+	aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	aim_label.text = HudText.hand_over_cue(_hand_over_key, _hand_over_cue_key)
+	aim.visible = true
+
+
 ## The texts with placeholders and data, in the current language.
 func _write() -> void:
 	status_label.text = LobbyText.status_text(_shown)
 	lobby_name_label.text = LobbyText.title_text(_shown)
 	head_label.text = LobbyText.head_text(_shown)
+	_show_aim()
 	for index in mini(_row_names.size(), _shown.rows.size()):
 		var row := _shown.rows[index]
 		# The own row's `player.you` is a plain key: it translates itself.

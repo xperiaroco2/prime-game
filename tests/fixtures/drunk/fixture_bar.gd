@@ -2,11 +2,14 @@ class_name FixtureBar
 extends RefCounted
 ## FixtureLobbyHands with a bar as the base mode has one (#1390; a part's unit test never loads
 ## `content/`, ARCHITECTURE §9.6): item kinds `mug` (one-handed, at most MUGS, vanishing after
-## MUG_S, its Use a Drink of AMOUNT into `mug_empty`) and `mug_empty` (one-handed, at most EMPTIES,
-## vanishing after EMPTY_S, no Use); the station kind `tap` (spawn tag `tap`), whose Interact at the
-## tap and in sight gives a mug (GiveItem); PlayerRules' drunk scale MAX, TOO_MUCH, POINT_S. Lobby
-## and Countdown run StationTicks (the tap), DrunkTicks and VanishTicks; `countdown_done` runs
-## ClearItems and ClearStations. The mode has no Use rule of its own (the base mode has none).
+## MUG_S, its UseSecondary a Drink of AMOUNT into `mug_empty`, #1438) and `mug_empty` (one-handed,
+## at most EMPTIES, vanishing after EMPTY_S, no rule); the station kind `tap` (spawn tag `tap`),
+## whose Interact at the tap and in sight gives a mug (GiveItem); PlayerRules' drunk scale MAX,
+## TOO_MUCH, POINT_S. Lobby and Countdown also accept UseSecondary from the living (the mug's Drink
+## takes it; FixtureLobbyHands, with no rule for it, leaves it out), and both run StationTicks
+## (the tap), DrunkTicks and VanishTicks; `countdown_done` runs ClearItems and ClearStations.
+## The mode has no Use or UseSecondary rule of its own (unlike the base mode, whose Use is the
+## fallback hit since #1437), so a mug's Use and an empty mug's either find none.
 ## A reaction on `drunk_too_much` notes "too much <peer>" (the fact's player). The lobby layout
 ## holds one `tap` marker at TAP. guarded() adds the base mode's pour Cooldown.
 
@@ -14,7 +17,7 @@ const P1 := FixtureLobbyHands.P1
 const P2 := FixtureLobbyHands.P2
 const P3 := FixtureLobbyHands.P3
 const TAP := Vector3(6, 0, -2)
-const MUGS := 3
+const MUGS := 9
 const EMPTIES := 2
 const MUG_S := 10
 const EMPTY_S := 5
@@ -28,7 +31,8 @@ const POUR_S := 0.25
 
 static func mode() -> GameMode:
 	var made := FixtureLobbyHands.clearing(FixtureLobbyHands.mode())
-	# As in the base mode, no rule of the mode takes a Use: an empty mug's Use finds none.
+	# No rule of the mode takes a Use (the base mode's fallback hit, #1437, is not this part's): a
+	# mug's Use finds none (#1438).
 	var kept: Array[Rule] = []
 	for rule: Rule in made.actions:
 		if rule.trigger != Intents.USE:
@@ -41,7 +45,7 @@ static func mode() -> GameMode:
 	effect.empty_kind = empty
 	effect.amount = AMOUNT
 	var mug := FixtureItemModes.item_kind(
-		&"mug", [FixtureModes.rule(Intents.USE, [], [effect] as Array[RuleEffect])]
+		&"mug", [FixtureModes.rule(Intents.USE_SECONDARY, [], [effect] as Array[RuleEffect])]
 	)
 	mug.max_items = MUGS
 	mug.vanish_seconds = MUG_S
@@ -61,6 +65,7 @@ static func mode() -> GameMode:
 	)
 	for phase_id: StringName in [&"lobby", &"countdown"]:
 		var spec := made.find_phase(phase_id)
+		spec.accepts.append(AcceptSpec.of(Intents.USE_SECONDARY, AcceptSpec.From.LIVING))
 		spec.tick_systems.append(placing)
 		spec.tick_systems.append(DrunkTicks.new())
 		spec.tick_systems.append(VanishTicks.new())
@@ -134,6 +139,6 @@ static func pour(game: Match, peer: int, seq := 0) -> void:
 	FixtureModes.send(game, Intents.INTERACT, peer, {"station": tap_id(game)}, seq)
 
 
-## `peer` drinks what it holds (Use) with `seq`.
+## `peer` drinks what it holds (UseSecondary, the right mouse button, #1438) with `seq`.
 static func drink(game: Match, peer: int, seq := 0) -> void:
-	FixtureModes.send(game, Intents.USE, peer, {"facing": Vector3.FORWARD}, seq)
+	FixtureModes.send(game, Intents.USE_SECONDARY, peer, {"facing": Vector3.FORWARD}, seq)

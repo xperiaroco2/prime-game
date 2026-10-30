@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## ModeCheck on the bar (#1390; ARCHITECTURE §9.4.2, §9.4.5): the fixture bar passes; the tap, a
 ## station kind no task type owns (StationTicks), has its rules checked like a task type's, so a
-## take without AtStation is refused; a lobby phase that accepts Use, which drinks, must run
-## DrunkTicks; Drink, StationTicks and the PlayerRules drunk scale bound their data.
+## take without AtStation is refused; a lobby phase that accepts the intent the mug drinks on
+## (UseSecondary, #1438) must run DrunkTicks; Drink, StationTicks and the PlayerRules drunk scale
+## bound their data.
 
 
 func test_the_fixture_bar_passes() -> void:
@@ -26,7 +27,7 @@ func test_a_tap_take_without_at_station_is_refused() -> void:
 	assert_array(errors.filter(_mentions("station kind tap"))).is_not_empty()
 
 
-func test_a_lobby_use_without_drunk_ticks_is_refused() -> void:
+func test_a_lobby_drink_without_drunk_ticks_is_refused() -> void:
 	var made := FixtureBar.mode()
 	var lobby := made.find_phase(&"lobby")
 	var kept: Array[TickSystem] = []
@@ -36,6 +37,50 @@ func test_a_lobby_use_without_drunk_ticks_is_refused() -> void:
 	lobby.tick_systems = kept
 	var errors := Array(ModeCheck.run(made).errors)
 	assert_array(errors.filter(_mentions("lists no DrunkTicks"))).has_size(1)
+	assert_array(errors.filter(_mentions("accepts UseSecondary, which drinks"))).has_size(1)
+
+
+func test_the_check_follows_the_drink_rule_s_trigger() -> void:
+	# #1438: the mug drinks on UseSecondary, so a hall phase that accepts Use alone needs no
+	# DrunkTicks; moved to Use, the same Drink needs them where Use is accepted.
+	var made := FixtureBar.mode()
+	for phase_id: StringName in [&"lobby", &"countdown"]:
+		var spec := made.find_phase(phase_id)
+		var kept: Array[TickSystem] = []
+		for system: TickSystem in spec.tick_systems:
+			if not system is DrunkTicks:
+				kept.append(system)
+		spec.tick_systems = kept
+		for accept: AcceptSpec in spec.accepts.duplicate():
+			if accept.intent == Intents.USE_SECONDARY:
+				spec.accepts.erase(accept)
+	assert_array(Array(DrunkCheck.problems(made))).is_empty()
+	made.find_item_kind(&"mug").actions[0].trigger = Intents.USE
+	var found := Array(DrunkCheck.problems(made))
+	assert_array(found).has_size(2)
+	assert_array(found.filter(_mentions("accepts Use, which drinks"))).has_size(2)
+
+
+func test_a_dispensed_kind_capped_below_two_per_player_and_one_is_refused() -> void:
+	var made := FixtureBar.mode()
+	var least := 2 * made.max_players + 1
+	assert_array(Array(DispenserCapCheck.problems(made))).is_empty()
+	made.find_item_kind(&"mug").max_items = least - 1
+	var errors := Array(ModeCheck.run(made).errors)
+	assert_array(errors.filter(_mentions("station kind tap gives mug"))).has_size(1)
+	made.find_item_kind(&"mug").max_items = least
+	assert_array(Array(ModeCheck.run(made).errors)).is_empty()
+
+
+func test_a_dispensed_kind_of_the_old_cap_12_is_refused_with_ten_players() -> void:
+	var made := FixtureBar.mode()
+	made.max_players = 10
+	made.find_item_kind(&"mug").max_items = 12
+	var errors := Array(DispenserCapCheck.problems(made))
+	assert_array(errors).has_size(1)
+	assert_str(errors[0]).contains("below 21 (2 x 10 players + 1)")
+	made.find_item_kind(&"mug").max_items = 21
+	assert_array(Array(DispenserCapCheck.problems(made))).is_empty()
 
 
 func test_drink_bounds_its_data() -> void:

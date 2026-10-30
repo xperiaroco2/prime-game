@@ -50,6 +50,7 @@ point = Vector3(-15, 0, -20)
 script = ExtResource("8_use")
 towards = SubResource("Resource_b07")
 until = &"ItemChanged"
+secondary = true
 
 [sub_resource type="Resource" id="Resource_w01"]
 script = ExtResource("12_wait")
@@ -73,6 +74,7 @@ point = Vector3(-15, 0, -20)
 script = ExtResource("8_use")
 towards = SubResource("Resource_b11")
 until = &"ItemChanged"
+secondary = true
 
 [sub_resource type="Resource" id="Resource_w02"]
 script = ExtResource("12_wait")
@@ -96,6 +98,7 @@ point = Vector3(-15, 0, -20)
 script = ExtResource("8_use")
 towards = SubResource("Resource_b15")
 until = &"ItemChanged"
+secondary = true
 
 [sub_resource type="Resource" id="Resource_b17"]
 script = ExtResource("9_drunk")

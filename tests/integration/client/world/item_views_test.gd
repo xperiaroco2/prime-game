@@ -160,6 +160,33 @@ func test_the_own_downed_players_items_follow_its_avatars_point_not_the_controll
 	assert_vector(view.global_position).is_equal_approx(moved, Vector3.ONE * 0.001)
 
 
+## §7.1.21 (#1393): a limp holder is living, but its items lie at its body as a downed one's do:
+## another player's not at the hand of its hidden upright capsule, the own ones at its avatar.
+func test_a_limp_holders_items_lie_at_its_body_not_at_the_hidden_hand() -> void:
+	_spawn(1, &"knife", Vector3.ZERO)
+	_spawn(2, &"knife", Vector3.ZERO)
+	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
+	_model.fold(&"ItemPickedUp", {"peer": 1, "item": 2})
+	var moved := _player.global_position + Vector3(2, 0, -1)
+	for tick: int in range(1, 4):
+		_now += TICK_USEC
+		var avatars := {OTHER: _limp_avatar(Vector3(4, 0, 0)), _model.own_peer: _limp_avatar(moved)}
+		_model.fold_snapshot({"tick": tick, "avatars": avatars})
+		_avatars.buffer.add(tick, avatars, _now)
+	_now += TICK_USEC * 10
+	await _drawn()
+	assert_int(_model.life_of(OTHER)).is_equal(ClientModel.Life.ALIVE)
+	var body := _avatars.body_of(OTHER)
+	var view := _items.view_of(1)
+	assert_bool(view.is_look_shown()).is_true()
+	assert_vector(view.global_position).is_equal_approx(body.global_position, Vector3.ONE * 0.001)
+	assert_bool(view.global_position.is_equal_approx(body.hand_point().global_position)).is_false()
+	var own_view := _items.view_of(2)
+	assert_bool(own_view.is_look_shown()).is_true()
+	assert_vector(own_view.global_position).is_equal_approx(moved, Vector3.ONE * 0.001)
+	assert_str(String(_player.hand_view().shown_kind())).is_empty()
+
+
 func test_an_item_put_out_of_the_bodys_sight_is_hidden_in_that_physics_frame() -> void:
 	# The downed camera's sight hiding (SightHider, M4-9) must see the view where it is now: placed
 	# after it cast, the item would be drawn for a frame where the body's eye cannot see it.
@@ -315,6 +342,18 @@ func _other_at(at: Vector3) -> void:
 		_model.fold_snapshot(fields)
 		_avatars.buffer.add(tick, fields["avatars"] as Dictionary, _now)
 	_now += TICK_USEC * 10
+
+
+## A living avatar at `at` shown limp (§7.1.21): its own snapshot has it too (KE5).
+func _limp_avatar(at: Vector3) -> Dictionary:
+	return {
+		"position": at,
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"downed": false,
+		"limp": true,
+		"held_item": -1,
+	}
 
 
 ## The own avatar at `at` in three snapshots (KE5: a knocked-down player's own snapshot has it).

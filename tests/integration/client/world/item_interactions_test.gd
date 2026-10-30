@@ -138,7 +138,10 @@ func test_a_floor_item_beyond_the_reach_gets_no_hint() -> void:
 
 func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 	assert_int(_keys.put_down()).is_equal(-1)
-	assert_int(_keys.use()).is_equal(-1)
+	# An empty hand sends Use too, for the mode's fallback hit (#1437); the item's own action
+	# needs an item.
+	assert_int(_keys.use()).is_greater(0)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
 	_spawn(5, Vector3(0, 0, -1))
 	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 5})
@@ -146,17 +149,41 @@ func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 	var facing := _player.look_vector()
 	assert_int(_keys.put_down()).is_greater(0)
 	assert_int(_keys.use()).is_greater(0)
+	assert_int(_keys.use_secondary()).is_greater(0)
 	assert_int(_keys.swap()).is_greater(0)
 	_harness.pump()
 	var put := _harness.sent_named(Intents.PUT_DOWN)
 	var used := _harness.sent_named(Intents.USE)
+	# The item's own action (#1438), on the right button: the host answers what the item has.
+	var own_action := _harness.sent_named(Intents.USE_SECONDARY)
 	assert_int(put.size()).is_equal(1)
-	assert_int(used.size()).is_equal(1)
+	assert_int(used.size()).is_equal(2)
+	assert_int(own_action.size()).is_equal(1)
+	assert_bool((own_action[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
 	assert_int(_harness.sent_named(Intents.SWAP).size()).is_equal(1)
 	assert_bool((put[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
-	assert_bool((used[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
+	assert_bool((used[1].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
 	# Nothing predicted: the slots change only with the host's events.
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(5)
+
+
+func test_the_left_button_sends_use_with_an_empty_hand_where_the_phase_takes_it() -> void:
+	# The mode's fallback hit (#1437): the host answers an empty hand's Use, so the key sends it.
+	await _look_at(Vector3(0, 1.0, -3))
+	var facing := _player.look_vector()
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)
+	assert_int(_keys.use()).is_greater(0)
+	_harness.pump()
+	var used := _harness.sent_named(Intents.USE)
+	assert_int(used.size()).is_equal(1)
+	assert_bool((used[0].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
+	# Nothing predicted: the hand stays empty.
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)
+	# A phase that takes no Use (the base mode's pregame): an empty hand sends nothing.
+	_model.phase = &"pregame"
+	assert_int(_keys.use()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
 
 
 func test_the_throw_key_sends_throw_right_after_the_claims_twin() -> void:
@@ -219,6 +246,91 @@ func test_the_throw_key_sends_nothing_without_a_rule_a_phase_or_a_hand_item() ->
 	assert_int(_keys.throw()).is_equal(-1)
 	_harness.pump()
 	assert_array(_harness.sent_named(Intents.THROW)).is_empty()
+
+
+## E with nothing aimed at, at a chair (#1383): Pose() once, right after the claim's reliable twin,
+## from the seat AtMarker of the own mode copy's Pose row and the level's markers of its tag.
+func test_e_at_a_chair_with_nothing_aimed_sends_pose_right_after_the_claims_twin() -> void:
+	_keys.setup(_harness.session, FixtureMoves.posing(FixtureItemModes.basic()))
+	var groups: Array[StringName] = []
+	_keys.chair_spots = func(group: StringName) -> PackedVector3Array:
+		groups.append(group)
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	_harness.session.set_motion(Vector3(0, 0, 0), Vector3.ZERO, Vector3.FORWARD, true, true, true)
+	_harness.pump(50000)
+	await _look_at(Vector3(0, 1.0, -3))
+	assert_int(_keys.target()).is_equal(-1)
+	var seq := _keys.press_interact()
+	assert_int(seq).is_greater(0)
+	assert_array(groups).contains_exactly([&"spawn_seat"])
+	_harness.deliver()
+	var last := _harness.sent.slice(-3)
+	var names: Array[StringName] = []
+	for message: WireMessage in last:
+		names.append(message.name)
+	assert_array(names).contains_exactly(
+		[Intents.MOVE_CLAIM, WireSchema.RELIABLE_CLAIM, Intents.POSE]
+	)
+	assert_int(last[2].seq).is_equal(seq)
+	# Seated (the own SelfStatus says so), E sends nothing more: only the own move stands up.
+	_model.fold(
+		&"SelfStatus",
+		{"health": 1, "stamina": 1, "sprint_available": true, "claim_tick": -1, "posed": true}
+	)
+	assert_int(_keys.press_interact()).is_equal(-1)
+	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
+
+
+## The chair gives way to the other E consumers (#1403): with a downed player to raise or a
+## teammate to hand over to aimed at, E at a chair sends no Pose (Game's pose_yields).
+func test_e_at_a_chair_sends_no_pose_while_a_raise_or_hand_over_target_has_the_key() -> void:
+	_keys.setup(_harness.session, FixtureMoves.posing(FixtureItemModes.basic()))
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	await _look_at(Vector3(0, 1.0, -3))
+	var taken := [0]
+	_keys.pose_yields = func() -> bool: return taken[0] != 0
+	taken[0] = 7
+	assert_int(_keys.interact()).is_equal(-1)
+	taken[0] = 0
+	assert_int(_keys.interact()).is_greater(0)
+	_harness.deliver()
+	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
+
+
+func test_e_sends_no_pose_away_from_a_chair_or_without_a_row_a_phase_or_a_life() -> void:
+	var posing := FixtureMoves.posing(FixtureItemModes.basic())
+	_keys.setup(_harness.session, posing)
+	await _look_at(Vector3(0, 1.0, -3))
+	# No chair lookup: no chair anywhere.
+	assert_int(_keys.interact()).is_equal(-1)
+	# A chair beyond the seat's radius.
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([Vector3(FixtureMoves.SEAT_RADIUS_M + 0.2, 0, 0)])
+	assert_int(_keys.interact()).is_equal(-1)
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	# A mode copy with no Pose row.
+	_keys.setup(_harness.session, FixtureItemModes.basic())
+	assert_int(_keys.interact()).is_equal(-1)
+	_keys.setup(_harness.session, posing)
+	# A phase that takes no Pose from the living.
+	_model.phase = &"lobby"
+	assert_int(_keys.interact()).is_equal(-1)
+	_model.phase = &"round"
+	# An item aimed at is picked up instead.
+	var at := Vector3(0, 0, -1.5)
+	_spawn(8, at)
+	await _look_at(at)
+	assert_int(_keys.interact()).is_greater(0)
+	_model.items.clear()
+	await _look_at(Vector3(0, 1.0, -3))
+	# The downed sit nowhere.
+	_model.fold(&"KnockedDown", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_keys.interact()).is_equal(-1)
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.POSE)).is_empty()
+	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(1)
 
 
 ## 1, 2, 3 and the wheel (GDD §6, #1218): Draw(place) of a place 0..2 other than the one in the
@@ -335,6 +447,49 @@ func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.target()).is_equal(-1)
 	assert_int(_keys.pick_up()).is_equal(-1)
 	assert_int(_keys.put_down()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_int(_keys.swap()).is_equal(-1)
+	assert_int(_keys.draw(1)).is_equal(-1)
+	assert_int(_keys.step_place(1)).is_equal(-1)
+
+
+## #1438: a dead own player's right button is Previous player (LifeView's spectate cycling), never
+## the held item's own action: with an item still in the hand, UseSecondary sends nothing, nor Use.
+func test_the_dead_send_no_use_secondary_and_keep_the_right_button_for_spectating() -> void:
+	_hold(6)
+	assert_int(_keys.use_secondary()).is_greater(0)
+	_model.fold(&"Died", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_model.life_of(_model.own_peer)).is_equal(ClientModel.Life.DEAD)
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(6)
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_int(_keys.use()).is_equal(-1)
+	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
+	var own := InputMap.action_get_events(&"use_secondary")[0] as InputEventMouseButton
+	assert_int(previous.button_index).is_equal(own.button_index)
+
+
+## §7.1.21 (#1393): a limp own player is living, but the host takes none of its item actions; the
+## own avatar's limp flag in the snapshot keeps every item key from sending one.
+func test_the_limp_get_no_target_and_send_no_item_key() -> void:
+	var at := Vector3(0, 0, -1.5)
+	_spawn(6, at)
+	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 6})
+	_spawn(7, at)
+	var own := {
+		"position": Vector3.ZERO,
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"downed": false,
+		"limp": true,
+		"held_item": 6,
+	}
+	_model.fold_snapshot({"tick": 1, "avatars": {_model.own_peer: own}})
+	await _look_at(at)
+	assert_int(_model.life_of(_model.own_peer)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_keys.target()).is_equal(-1)
+	assert_int(_keys.pick_up()).is_equal(-1)
+	assert_int(_keys.put_down()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_int(_keys.swap()).is_equal(-1)
 	assert_int(_keys.draw(1)).is_equal(-1)
 	assert_int(_keys.step_place(1)).is_equal(-1)

@@ -93,6 +93,7 @@ static func events() -> Dictionary[String, Array]:
 		SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false),
 		SelfStatusEvent.new(2, 0, 0, true, 0xFFFFFFFF),
 		SelfStatusEvent.new(2, 70, 400, true, 12, 255),
+		SelfStatusEvent.new(2, 500, 250, false, 12, 3, true),
 	]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
@@ -100,6 +101,8 @@ static func events() -> Dictionary[String, Array]:
 	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
 	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
 	found["RevivedEvent"] = [RevivedEvent.new(2)]
+	found["OfferMadeEvent"] = [OfferMadeEvent.new(3, 0x7FFFFFFF)]
+	found["OfferEndedEvent"] = [OfferEndedEvent.new(0x7FFFFFFF, 1)]
 	found["SwappedEvent"] = [SwappedEvent.new(0x7FFFFFFF), SwappedEvent.new(2, 2)]
 	found["TaskStateEvent"] = [
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
@@ -237,6 +240,11 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"Pose", {}, 17),
 		WireMessage.new(&"HandOver", {"target": 2}, 17),
 		WireMessage.new(&"HandOver", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
+		WireMessage.new(&"TakeOffer", {"target": 2}, 17),
+		WireMessage.new(&"TakeOffer", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
+		WireMessage.new(&"CancelOffer", {}, 17),
+		WireMessage.new(&"UseSecondary", {"facing": Vector3(0, 0, -1)}, 17),
+		WireMessage.new(&"UseSecondary", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
@@ -417,6 +425,7 @@ static func _avatar(
 		"crouched": not (downed or invulnerable),
 		"sneaking": invulnerable and not downed,
 		"posed": not (downed or invulnerable),
+		"limp": not (downed or invulnerable),
 		"drunk": drunk,
 		"held_item": held,
 		"belt_item": belt,

@@ -69,22 +69,22 @@ func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() ->
 	assert_bool(await _until(func() -> bool: return runner.step() == 2)).is_true()
 	game.client().send_intent(Intents.PUT_DOWN, {"facing": Vector3.DOWN})
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 3)).is_true()
-	# 3: the knife in the hand, then Swap; 4, the throw, shows.
+	# 3: the knife in the hand; step 1 draws place 1 (the hand is empty, the knife stays on the
+	# belt), step 2 is Swap (the knife comes back into the hand); 4, the throw, shows.
 	assert_bool(await _walk(game, model.items[knife].position, NEAR_M)).is_true()
 	game.client().send_intent(Intents.PICK_UP, {"item": knife})
 	assert_bool(await _until(func() -> bool: return model.hand_item(own) == knife)).is_true()
+	assert_int(runner.lesson()).is_equal(3)
+	assert_int(runner.step()).is_equal(1)
+	game.client().send_intent(Intents.DRAW, {"place": 1})
+	assert_bool(await _until(func() -> bool: return runner.step() == 2)).is_true()
 	assert_int(runner.lesson()).is_equal(3)
 	game.client().send_intent(Intents.SWAP)
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 4)).is_true()
 	assert_bool(runner.is_done(3)).is_true()
 	assert_str(String(model.phase)).is_equal("lessons")
-	# 4 (#901): the hand is empty after the swap and a belt item is never thrown, so the package is
-	# taken in the hand again, then thrown into the room.
-	assert_int(model.hand_item(own)).is_equal(-1)
-	assert_bool(await _walk(game, model.items[package].position, NEAR_M)).is_true()
-	game.client().send_intent(Intents.PICK_UP, {"item": package})
-	assert_bool(await _until(func() -> bool: return model.hand_item(own) == package)).is_true()
-	assert_int(runner.lesson()).is_equal(4)
+	# 4 (#901): the swap brought the knife back into the hand, so it is thrown into the room.
+	assert_int(model.hand_item(own)).is_equal(knife)
 	game.client().send_intent(Intents.THROW, {"facing": Vector3(0.0, 0.5, 1.0).normalized()})
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 5)).is_true()
 	assert_bool(runner.is_done(4)).is_true()

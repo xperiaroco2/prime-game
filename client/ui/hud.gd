@@ -7,7 +7,8 @@ extends Control
 ##   "44:44", so the centred plate never changes width.
 ## - `Role` (top left): the own role's chip.
 ## - `Cross` and `Aim` (centre): the crosshair and the name of the item under it within reach, or
-##   over a downed player E would raise the rescuer's cue (#497, the engineer on PR #721);
+##   over a downed player E would raise the rescuer's cue (#497, the engineer on PR #721), over a
+##   living player E would hand the hand item to the hand-over's cue (#1411);
 ##   `Raising`, the own raise's progress, replaces Aim (the engineer, 2026-10-06).
 ## - `Vitals` (bottom left): health (its fill coloured by the ramp's stop, ToyBar), stamina and the
 ##   microphone (on: `mic` tinted `icon_on`; off: `mic-off` tinted `icon_off`).
@@ -126,23 +127,32 @@ func set_aiming(on: bool) -> void:
 func _show_middle() -> void:
 	cross.visible = aiming
 	raising.visible = aiming and _shown.raising >= 0.0
-	var named := not _shown.aim.is_empty() or not _shown.raise_key.is_empty()
+	var named := not _shown.aim.is_empty() or _keyed()
 	aim.visible = aiming and not raising.visible and named
 
 
+## Whether Aim shows a cue with a key in it (the rescuer's or the hand-over's, #1411).
+func _keyed() -> bool:
+	return not _shown.raise_key.is_empty() or not _shown.hand_over_key.is_empty()
+
+
 ## Aim's text: the item's deck key, translated by the label, or the rescuer's cue with the raise
-## key in it, set in code (data inside) and again when the language changes.
+## key in it, or the hand-over's with the interact key (#1411), set in code (data inside) and
+## again when the language changes.
 func _show_aim_text() -> void:
-	if _shown.raise_key.is_empty():
+	if not _keyed():
 		aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_INHERIT
 		aim_label.text = _shown.aim
 		return
 	aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	aim_label.text = HudText.raise_cue(_shown.raise_key)
+	if not _shown.raise_key.is_empty():
+		aim_label.text = HudText.raise_cue(_shown.raise_key)
+	else:
+		aim_label.text = HudText.hand_over_cue(_shown.hand_over_key, _shown.hand_over_cue_key)
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSLATION_CHANGED and not _shown.raise_key.is_empty():
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _keyed():
 		_show_aim_text()
 
 

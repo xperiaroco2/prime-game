@@ -376,8 +376,11 @@ func test_the_push_allowance_needs_a_living_player_within_reach_of_the_path() ->
 	# Near, with its feet more than the capsule's height (1.8 m) above: on another floor.
 	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8 + Vector3.UP * 1.9)).is_true()
 	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8 + Vector3.UP * 1.7)).is_false()
-	# The downed and the dead push nobody.
+	# The limp (living, but no capsule on the clients, §7.1.21), the downed and the dead push nobody.
 	var other := game.state.player(P2)
+	other.limp = LimpState.new(game.ticked_through() + 100)
+	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
+	other.limp = null
 	other.life = PlayerState.Life.DOWNED
 	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
 	other.life = PlayerState.Life.DEAD

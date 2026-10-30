@@ -8,7 +8,8 @@ extends RuleEffect
 ## host's player, peer 1, on the first) and nothing is drawn. Each placed player gets a new
 ## epoch, so claims still in flight from the old scene are dropped as stale.
 ##
-## Emits: PlayersPlaced (everyone: positions are public), then a Correction per player, in
+## Emits: StopBody (server) for a limp player's body (#1393), PlayersPlaced (everyone: positions
+## are public), then a Correction per player, in
 ## peer-id order (that player only: its new epoch). Demands: one `tag` marker per player.
 
 ## The spawn tag of the markers: `round_player` in the deal, `lobby_player` on `End -> Lobby`.
@@ -43,8 +44,12 @@ func run(ctx: MatchContext) -> void:
 		player.position = spots[order[i]]
 		player.crouched = false
 		player.sneaking = false
+		# The placed player stands up from the chair: its client learns it in its SelfStatus (#1383).
+		var was_posed := player.posed
 		player.posed = false
-		if player.sober():
+		# A limp body never outlasts a placement (#1393): StopBody frees the host's body.
+		LifeRules.clear_limp(ctx, player, true)
+		if player.sober() or was_posed:
 			SelfStatusFeed.touch(ctx.state, player.peer)
 		player.velocity = Vector3.ZERO
 		player.epoch += 1
@@ -56,7 +61,7 @@ func run(ctx: MatchContext) -> void:
 
 
 func emits() -> Array[Script]:
-	return [PlayersPlacedEvent, CorrectionEvent]
+	return [StopBodyEvent, PlayersPlacedEvent, CorrectionEvent]
 
 
 func add_demands(_settings: Dictionary[StringName, int], players: int, into: Demands) -> void:

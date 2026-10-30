@@ -101,8 +101,8 @@ func test_every_row_is_a_64_px_toy_setting_row() -> void:
 		assert_str(String(SettingRows.name_of(row).theme_type_variation)).is_equal(
 			"ToySettingRowText"
 		)
-	# Sound's 9 and its 2 debug rows, Controls' 19, Display's 1, Access' 2, Language's 1.
-	assert_int(count).is_equal(34)
+	# Sound's 9 and its 2 debug rows, Controls' 23, Display's 1, Access' 2, Language's 1.
+	assert_int(count).is_equal(38)
 	for dropdown: OptionButton in [page.voice.device_button, page.voice.mode_button]:
 		assert_str(String(dropdown.get_popup().theme_type_variation)).is_equal("ToyDropdownList")
 

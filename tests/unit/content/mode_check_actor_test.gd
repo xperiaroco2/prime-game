@@ -157,6 +157,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 	var none: Array[StringName] = []
 	var expected: Dictionary[StringName, Array] = {
 		&"AllSubtasksDone": [false, false, none],
+		&"AtMarker": [true, false, none],
 		&"AtStation": [true, true, none],
 		&"CarriesItem": [true, false, none],
 		&"ChannelFree": [true, false, none],
@@ -165,12 +166,13 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"Cooldown": [true, false, none],
 		&"Cost": [true, false, none],
 		&"HandNotTwoHanded": [true, false, none],
-		&"HandHandable": [true, false, none],
 		&"HoldsItem": [true, false, none],
 		&"InReach": [true, true, item],
 		&"InSight": [true, true, item],
 		&"ItemOnGround": [false, true, item],
 		&"NoneAlive": [false, false, none],
+		&"OfferedTo": [true, true, none],
+		&"Offering": [true, false, none],
 		&"OverFloor": [true, false, none],
 		&"PlaceChanges": [true, false, none],
 		&"PlaceInRange": [true, false, none],

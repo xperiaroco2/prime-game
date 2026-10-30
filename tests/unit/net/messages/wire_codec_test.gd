@@ -109,7 +109,8 @@ func test_force_role_carries_the_player_as_the_peer_and_clears_with_an_empty_rol
 	var cleared := WireMessage.new(&"ForceRole", {"role": &""}, 6, 9)
 	var payload := _schema.encode(cleared)
 	assert_int(payload.size()).is_equal(4 + 4 + 1)
-	assert_bool(Samples.same(_schema.decode(24, payload).fields, {"role": ""})).is_true()
+	var decoded := _schema.decode(WireSchema.FIRST_DEBUG, payload)
+	assert_bool(Samples.same(decoded.fields, {"role": ""})).is_true()
 
 
 func test_item_spawned_holds_a_station_only_for_a_package() -> void:
@@ -373,7 +374,7 @@ func test_a_release_table_neither_encodes_nor_decodes_debug_commands() -> void:
 	var release := WireSchema.game(false)
 	var forced := WireMessage.new(&"ForceRole", {"role": "crew"}, 1, 2)
 	assert_str(release.write(forced).problem).contains("no row")
-	assert_object(release.decode(24, _schema.encode(forced))).is_null()
+	assert_object(release.decode(WireSchema.FIRST_DEBUG, _schema.encode(forced))).is_null()
 
 
 ## A name (#550) round-trips as UTF-8: empty, ASCII, Cyrillic, four-byte characters, 80 bytes.

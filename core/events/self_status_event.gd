@@ -2,8 +2,10 @@ class_name SelfStatusEvent
 extends MatchEvent
 ## One player's own numbers (ARCHITECTURE §4.2, §5, §7.1): health and stamina in thousandths
 ## (§3.3), whether sprint is available now, and the client tick of the player's last claim the
-## host settled (#155). Private numbers are never avatar fields, so they travel only here. Sent on
-## change, at most once per tick (SelfStatusFeed). Audience: only that player.
+## host settled (#155), and whether the player is posed (#1383). Private numbers are never avatar
+## fields, so they travel only here; `posed` is an avatar field every other peer sees, but a client
+## gets no avatar of its own (Snapshots), so its own pose comes here too. Sent on change, at most
+## once per tick (SelfStatusFeed). Audience: only that player.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.ONLY
@@ -23,6 +25,9 @@ var claim_tick: int
 ## How drunk the player is (PlayerState.drunk, #1390): the same number every other peer sees on its
 ## avatar, here for the own client, which gets no own avatar (the sway, #1391).
 var drunk: int
+## Whether the player sits in the seated pose (PlayerState.posed, TakePose): its own client gets no
+## avatar of itself, so it learns it sits only here (#1383).
+var posed: bool
 
 
 func _init(
@@ -31,7 +36,8 @@ func _init(
 	stamina_now: int,
 	can_sprint: bool,
 	settled_claim := -1,
-	drunk_now := 0
+	drunk_now := 0,
+	is_posed := false
 ) -> void:
 	peer = to_peer
 	health = health_now
@@ -39,6 +45,7 @@ func _init(
 	sprint_available = can_sprint
 	claim_tick = settled_claim
 	drunk = drunk_now
+	posed = is_posed
 
 
 func event_name() -> StringName:
@@ -56,4 +63,5 @@ func to_dict() -> Dictionary:
 		"sprint_available": sprint_available,
 		"claim_tick": claim_tick,
 		"drunk": drunk,
+		"posed": posed,
 	}

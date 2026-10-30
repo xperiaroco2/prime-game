@@ -382,10 +382,47 @@ func test_knife() -> void:
 	assert_array(Array(check.warnings)).is_empty()
 
 
-func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
+func test_the_base_mode_accepts_pose_in_round_from_the_living_only_at_a_chair() -> void:
+	# The camera wall's chair (#1383, the engineer's answer 1a on PR #1382): Pose is gated by
+	# where the sender stands, an AtMarker on the levels' `chair` markers; its 1.0 m radius and
+	# 2.0 m height are placeholders "not a decision". TakePose is the rule's one effect.
+	var mode := _base_mode()
+	for phase: PhaseSpec in mode.phases:
+		var from := AcceptSpec.From.LIVING if phase.id == &"round" else 0
+		assert_int(phase.senders_of(Intents.POSE)).override_failure_message(phase.id).is_equal(from)
+	var rules := mode.actions.filter(func(rule: Rule) -> bool: return rule.trigger == Intents.POSE)
+	assert_array(rules).has_size(1)
+	var rule: Rule = rules[0]
+	assert_int(rule.conditions.size()).is_equal(1)
+	var chair := rule.conditions[0] as AtMarker
+	assert_object(chair).is_not_null()
+	assert_bool(chair.negate).is_false()
+	assert_str(String(chair.tag)).is_equal("chair")
+	assert_float(chair.radius_m).is_equal(1.0)
+	assert_float(chair.height_m).is_equal(2.0)
+	assert_int(rule.effects.size()).is_equal(1)
+	assert_object(rule.effects[0] as TakePose).is_not_null()
+	# The greybox has no chair: refused. A chair marker beside the sender: seated.
+	var game := _base_round(mode, [1, 2])
+	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
+	FixtureMoves.pose(game, 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(1).posed).is_false()
+	assert_array(FixtureModes.rejections(game, 1)).is_equal([AtMarker.OUT_OF_REACH])
+	game.layout(GREYBOX).add_marker(chair.tag, Vector3(0.5, 0, 100))
+	FixtureMoves.pose(game, 1, 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(1).posed).is_true()
+	assert_bool(FixtureMoves.statuses(game, 1)[-1].posed).is_true()
+	for status: SelfStatusEvent in FixtureMoves.statuses(game, 2):
+		assert_bool(status.posed).is_false()
+
+
+func test_the_base_mode_round_accepts_both_uses_from_the_living_only() -> void:
 	var mode := _base_mode()
 	var in_round := mode.find_phase(&"round")
 	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.USE_SECONDARY)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
 	# MoveClaim from the living and the downed (the downed claims its look only, KE4).
@@ -695,10 +732,11 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_bool(time_up.conditions[0].negate).is_false()
 	assert_object(time_up.conditions[1]).is_instanceof(AllSubtasksDone)
 	assert_bool(time_up.conditions[1].negate).is_true()
-	# `Round, won -> End` runs EndMatch alone.
+	# `Round, won -> End` runs EndMatch, then EndOffers (#1434).
 	var won := mode.find_transition(&"round", Match.WON)
-	assert_int(won.actions.size()).is_equal(1)
+	assert_int(won.actions.size()).is_equal(2)
 	assert_object(won.actions[0]).is_instanceof(EndMatch)
+	assert_object(won.actions[1]).is_instanceof(EndOffers)
 
 
 func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> void:

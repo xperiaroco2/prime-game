@@ -236,7 +236,7 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_refuse(ctx, player, motion)
 		return
-	if player.life == PlayerState.Life.DOWNED:
+	if player.holds_still():
 		_take_look(ctx, player, motion, claim, covered)
 	else:
 		_check_and_accept(ctx, player, motion, claim, covered, fresh)
@@ -267,10 +267,10 @@ static func _check_and_accept(
 	_accept(ctx, player, motion, claim, checked)
 
 
-## A claim that fails a tick check: a living player gets a Correction; a knocked-down one's is
+## A claim that fails a tick check: a living player gets a Correction; a downed or limp one's is
 ## dropped (KE4): the host takes no place from it, so it has none to correct.
 static func _refuse(ctx: MatchContext, player: PlayerState, motion: Motion) -> void:
-	if player.life != PlayerState.Life.DOWNED:
+	if not player.holds_still():
 		_correct(ctx, player, motion)
 
 
@@ -446,10 +446,10 @@ static func _allowed_travel(
 ## Whether a living player other than `player` may be pushing it: that player's last accepted
 ## position is within push_reach() of the claim's path (from `player`'s last accepted position to
 ## `to`), measured horizontally, with the feet at most the capsule's height from the path's. The
-## downed and the dead push nobody (§7.1: they move nothing). The reach grows by a tick of
-## sprinting for each host tick since that player's last accepted claim beyond the one between two
-## claims, up to PUSH_TICKS (`now`: the host tick): its lost claims leave its position behind where
-## it pushes.
+## downed, the limp and the dead push nobody (§7.1: they move nothing; §7.1.21: a limp body has no
+## capsule on the clients). The reach grows by a tick of sprinting for each host tick since that
+## player's last accepted claim beyond the one between two claims, up to PUSH_TICKS (`now`: the
+## host tick): its lost claims leave its position behind where it pushes.
 static func _near_living_player(
 	state: MatchState, player: PlayerState, to: Vector3, now: int
 ) -> bool:
@@ -463,7 +463,7 @@ static func _near_living_player(
 	var lowest := minf(player.position.y, to.y) - rules.capsule_height_m
 	var highest := maxf(player.position.y, to.y) + rules.capsule_height_m
 	for other: PlayerState in state.players.values():
-		if other == player or not other.is_alive():
+		if other == player or not other.is_alive() or other.is_limp():
 			continue
 		if other.position.y < lowest or other.position.y > highest:
 			continue

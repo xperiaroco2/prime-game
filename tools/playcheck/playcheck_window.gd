@@ -205,6 +205,7 @@ class GameView:
 			"life.left": ui.life.left_label,
 			"life.respawn": ui.life.respawn_label,
 			"life.protected": ui.life.protect_label,
+			"lobby.aim": ui.lobby_hud.aim_label,
 			"lobby.status": ui.lobby_hud.status_label,
 			"lobby.ready": ui.lobby_hud.ready_label,
 			"pregame.role": ui.pregame.role_label,

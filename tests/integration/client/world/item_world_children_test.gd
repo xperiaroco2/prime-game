@@ -10,6 +10,7 @@ const CHILDREN: Array[Array] = [
 	[&"CircleViews", "CircleViews"],
 	[&"ZoneViews", "ZoneViews"],
 	[&"ItemInteractions", "ItemInteractions"],
+	[&"HandOverUse", "HandOverUse"],
 	[&"WorldSounds", "WorldSounds"],
 	[&"PhotoFlashes", "PhotoFlashes"],
 	[&"StationViews", "StationViews"],

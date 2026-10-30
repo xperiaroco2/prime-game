@@ -170,6 +170,12 @@ func _ready() -> void:
 	# The left button's use and shot need the mouse captured, as the game's pointer has it (#1114).
 	_items.interactions.mouse_captured = func() -> bool: return pointer.captured()
 	_life.mouse_captured = func() -> bool: return pointer.captured()
+	# E raises a downed player under the crosshair rather than hand over (#1411).
+	_items.hand_over.raise_target = _life.raise_target
+	# ...and the chair gives way to both (#1403): a hand-over target includes the cancel of the own
+	# open offer (#1434), so E cancels first and sits on the next press.
+	_items.interactions.pose_yields = func() -> bool:
+		return _life.raise_target() != 0 or _items.hand_over.target() != 0
 	GameSettings.ready_settings(self)
 	ui.menu.bind_name(settings)
 	_voice_control = GameSettings.start_voice(self, _world)
@@ -661,8 +667,11 @@ func _on_welcomed(own_peer: int) -> void:
 	)
 
 
+## Every snapshot: into the buffer, and the own body follows the own avatar's limp flag (§7.1.21),
+## which only snapshots carry.
 func _on_snapshot(tick: int, poses: Dictionary) -> void:
 	_buffer.add(tick, poses, _avatars.now_usec())
+	GamePlayer.sync_life(self)
 
 
 func _on_corrected(position: Vector3, velocity: Vector3) -> void:

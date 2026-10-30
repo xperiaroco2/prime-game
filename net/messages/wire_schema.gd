@@ -66,7 +66,16 @@ extends RefCounted
 ## 38 since #1390 (the bar, GDD §3): the avatar rows' `drunk` (U8, Snapshot 96), after the flags,
 ## and SelfStatus' `drunk` (U8, kind 54), after `claim_tick`. ShotTaken's record is unchanged.
 ## 39 since #1389 (GDD §6, the hand-over): the intent HandOver (kind 21, its target).
-const VERSION := 39
+## 40 since #1393 (the limp, GDD §3): the avatar rows' sixth flag `limp` (Snapshot 96), after
+## `posed`. ShotTaken's record is unchanged.
+## 41 since #1383 (the poser's own state): SelfStatus's `posed` (kind 54), after `drunk`.
+## 42 since #1434 (GDD §6, the hand-over offer): the intents TakeOffer (kind 22, its target, the
+## giver) and CancelOffer (kind 23, no argument), the events OfferMade (87) and OfferEnded (88),
+## each its giver and target.
+## 43 since #1438 (an item's own action on the right mouse button): the intent UseSecondary
+## (kind 24, its facing, as Use's); the debug kinds moved to 28 (ForceRole) and 29 (ForceClock),
+## the intents' range now 1 to 27.
+const VERSION := 43
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -79,7 +88,7 @@ const REJECTED := 32
 
 ## Kind ranges (§4.3): 0 is the transport's ADMIT.
 const FIRST_INTENT := 1
-const FIRST_DEBUG := 24
+const FIRST_DEBUG := 28
 const FIRST_EVENT := 32
 const FIRST_STATE := 96
 const FIRST_VOICE := 112
@@ -126,7 +135,7 @@ class Encoded:
 	var problem := ""
 
 
-## The game's table. `debug`: a debug build's, the only one with the debug commands (kinds 24 to
+## The game's table. `debug`: a debug build's, the only one with the debug commands (kinds 28 to
 ## 31, E17): a release build neither sends nor decodes them.
 static func game(debug: bool) -> WireSchema:
 	if not _built.has(debug):
@@ -326,6 +335,10 @@ static func _intents() -> Array[WireRow]:
 		_up(20, &"Pose", 4, [_seq()]),
 		# seq 4, target 4 (#1389: as Raise's, a peer id; TargetLiving refuses one nobody has).
 		_up(21, &"HandOver", 8, [_seq(), _peer("target")]),
+		_up(22, &"TakeOffer", 8, [_seq(), _peer("target")]),
+		_up(23, &"CancelOffer", 4, [_seq()]),
+		# seq 4, facing 12 (#1438: as Use's; the mug's Drink ignores it, a later rule may aim).
+		_up(24, &"UseSecondary", 16, [_seq(), _vec3("facing")]),
 	]
 
 
@@ -351,8 +364,8 @@ static func _claim_fields() -> Array[WireField]:
 static func _debug_commands() -> Array[WireRow]:
 	var role := WireField.when("has_role", [WireField.id("role", true)], {"role": ""})
 	return [
-		_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
-		_up(25, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
+		_up(28, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
+		_up(29, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
 	]
 
 
@@ -480,13 +493,14 @@ static func _events() -> Array[WireRow]:
 		_down(
 			54,
 			&"SelfStatus",
-			18,
+			19,
 			[
 				_s32("health"),
 				_s32("stamina"),
 				_bool("sprint_available"),
 				_of("claim_tick", WireField.Type.S64),
 				_of("drunk", WireField.Type.U8),
+				_bool("posed"),
 			]
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
@@ -591,6 +605,8 @@ static func _events() -> Array[WireRow]:
 			[_item("item"), _station("station"), _id("bun"), _id("patty"), _id("herb")]
 		),
 		_down(86, &"BurgerServed", 3, [_station("station"), _bool("right")]),
+		_down(87, &"OfferMade", 8, [_peer("giver"), _peer("target")]),
+		_down(88, &"OfferEnded", 8, [_peer("giver"), _peer("target")]),
 	]
 
 
@@ -639,7 +655,9 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("velocity"),
 				_vec3("facing"),
 				WireField.bits(
-					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking", "posed"])
+					PackedStringArray(
+						["downed", "invulnerable", "crouched", "sneaking", "posed", "limp"]
+					)
 				),
 				_of("drunk", WireField.Type.U8),
 				WireField.maybe("held_item", WireField.Type.ITEM),

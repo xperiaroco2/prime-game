@@ -1,0 +1,48 @@
+# The lobby's beer tap (#1408, #1414) in the game's real window: window 1 hosts alone and stays in
+# the lobby. The hall's skat (the big black box) stands between the spawn point and the bar, so it
+# walks the route to_tap (west first, then up the lane beside the bar) towards the tap (`aim station
+# tap`, sprinting) until the Aim chip shows (`wait shown lobby.aim on`: the frame rate decides how far it
+# gets in a number of frames), then stops at the reach of the tap. The hand draws the item id as text. Its shots:
+#   tap_aim        the Aim chip under the crosshair: what E would do there (the tap's disc is on the floor)
+#   tap_mug        after E (`interact`) poured a mug: the mug in the first-person hand
+#   tap_mug_empty  after UseSecondary (the right button, `use_secondary`) drank it: the empty mug in the hand
+# The chip and the hand read the copy deck's text if it has the keys, else the raw ids (`tap`, `mug`,
+# `mug_empty`; #1417). The scenario asserts the pour and the drink through the hand's item (`mug`,
+# then `mug_empty`) and the chip (`lobby.aim`), so it fails and does not only draw. The own drunk value
+# has no field to wait on, so it is not asserted. The black box may
+# hide part of the bar, as in the `lobby_hall` shots.
+players 1
+windows 1
+route to_tap -15,-2
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517); `use_secondary` needs the captured pointer.
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+frames 30
+aim station tap via to_tap
+hold sprint
+hold move_forward
+wait shown lobby.aim on timeout=120
+release move_forward
+release sprint
+frames 10
+frames 30
+shot tap_aim
+press interact
+wait shown hand.item on
+wait text hand.item is mug
+frames 20
+shot tap_mug
+hold use_secondary
+frames 2
+release use_secondary
+wait text hand.item is mug_empty
+frames 20
+shot tap_mug_empty
+aim off

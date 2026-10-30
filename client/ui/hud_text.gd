@@ -25,6 +25,13 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 ## the nearest key with `{key}`, the tutorial's raise step ("Hold {key} next to them"). 6B on
 ## PR #721 asked for a deck key; the engineer to confirm this one.
 const RAISE_CUE := "tutorial.step.downed.how"
+## The hand-over's cue (#1411): the deck's `hud.hand_over` "Press {key} to hand it over" (ui-2.5.2).
+const HAND_OVER_CUE := "hud.hand_over"
+## The offer's other cues (#1434), in the deck since ui-2.5.3 (#1446): `hud.take_offer` "Press
+## {key} to take it" while a player offers the own player its hand item, `hud.offering` "Press
+## {key} to take it back" while the own offer is open.
+const TAKE_OFFER_CUE := "hud.take_offer"
+const OFFERING_CUE := "hud.offering"
 
 
 ## What the HUD knows besides the model and the mode.
@@ -47,6 +54,12 @@ class Local:
 	## The label of the raise key bound now while the crosshair is on a downed player E would raise
 	## (LifeView.raise_cue()); "" for none.
 	var raise_key := ""
+	## The label of the interact key bound now while the crosshair is on a living player E would
+	## hand the hand item to (HandOverUse.cue(), #1411); "" for none.
+	var hand_over_key := ""
+	## The deck key that words it (HandOverUse.cue_key(): HAND_OVER_CUE, TAKE_OFFER_CUE or
+	## OFFERING_CUE, #1434); "" means HAND_OVER_CUE.
+	var hand_over_cue_key := ""
 	## The own body's place for the map screen (#253): whether it has one (the dead have none), the
 	## place, and the heading in radians clockwise from north (-Z) seen from above.
 	var placed := false
@@ -109,6 +122,12 @@ class Shown:
 	## The rescuer's cue in Aim (#497, the engineer on PR #721): the raise key's label that fills
 	## RAISE_CUE's `{key}`, in place of the item's name; "" for none.
 	var raise_key := ""
+	## The hand-over's cue in Aim (#1411): the interact key's label that fills HAND_OVER_CUE's
+	## `{key}`; "" for none.
+	var hand_over_key := ""
+	## The deck key that words it (HandOverUse.cue_key(): HAND_OVER_CUE, TAKE_OFFER_CUE or
+	## OFFERING_CUE, #1434); "" means HAND_OVER_CUE.
+	var hand_over_cue_key := ""
 
 
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
@@ -140,6 +159,10 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	# A downed player under the crosshair matters more than an item lying near it: E raises it.
 	if not local.raise_key.is_empty():
 		shown.raise_key = local.raise_key
+	elif not local.hand_over_key.is_empty():
+		# HandOverUse offers one only where E has no item or station (#1411).
+		shown.hand_over_key = local.hand_over_key
+		shown.hand_over_cue_key = local.hand_over_cue_key
 	else:
 		shown.aim = aim_of(model, mode, local)
 	return shown
@@ -160,6 +183,13 @@ static func aim_of(model: ClientModel, mode: GameMode, local: Local) -> String:
 ## The rescuer's cue in Aim, translated, with the raise key's label `key` (`RAISE_CUE`).
 static func raise_cue(key: String) -> String:
 	return String(TranslationServer.translate(RAISE_CUE)).format({"key": key})
+
+
+## The hand-over's cue in Aim, translated, with the interact key's label `key`: the deck key
+## `cue_key` (HAND_OVER_CUE when empty; TAKE_OFFER_CUE, OFFERING_CUE, #1434).
+static func hand_over_cue(key: String, cue_key: String = "") -> String:
+	var deck_key := HAND_OVER_CUE if cue_key.is_empty() else cue_key
+	return String(TranslationServer.translate(deck_key)).format({"key": key})
 
 
 ## Whether the own player spectates: dead (or gone), with no body of its own to show.

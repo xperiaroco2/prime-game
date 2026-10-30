@@ -302,6 +302,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.sprint_held = false
 	someone.moving = false
 	someone.motion = null
+	someone.limp = null
 	someone.stamina_settled_tick = -1
 	if rules != null:
 		someone.health = Ticks.thousandths(rules.health)

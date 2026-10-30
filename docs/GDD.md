@@ -108,7 +108,9 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     yourself after a moment. Provisional numbers (#1390, the engineer tunes them): at most 12 mugs at once, a full
     mug put down vanishes after 120 s and an empty one after 30 s; a mug adds 40 on a scale of 100, too much at 90
     (the third mug); one point goes per second, so one mug lasts 40 s; the pour is instant and a mug is one drink;
-    one player pours at most once per 0.25 s.
+    one player pours at most once per 0.25 s. The limp (#1393, provisional, the engineer tunes it): it lasts 6 s, a
+    player walking into the limp body pushes it (no key; at most 3 m/s), the limp player keeps what it holds and
+    can still speak and hear; the countdown's end gets everyone up.
   - **The mirror** (same day, [#1095 c6473619521](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473619521)):
     you change your alien's colour, clothes and body shape (accessories such as hats and glasses were not picked). You
     see yourself in the mirror, your reflection, in first person. One wide mirror has several places; each player
@@ -180,6 +182,46 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
 - The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
   not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
   the ragdoll on screen.
+
+### Melee: any item hits (2026-10-30)
+The engineer's mechanic ([#1095 c6525499430](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6525499430)
+and the picks after it, approved in [c6526363661](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6526363661); mechanic issue #1436): "We need the ability to fight with anything. Whatever you hold in your
+hand, even just a fist, or a bottle, anything you hold, you can kill a person with it" (translated). The first version
+is plain, as in Lockdown Protocol: you can fight, and that is all; how a hit looks and sounds by its strength comes
+later (his word, the same day). Engine parts: #1437, #1438, #1439.
+
+Rules:
+- **The left mouse button always hits**, with whatever is in the hand or with the bare fist. An item's own action
+  moves to the **right mouse button**: the mug of beer is drunk on RMB. The pistol, once it exists (m8-match §7),
+  shoots on LMB instead of hitting.
+- **Each item has three numbers:** damage to the front, damage to the back, and the stamina a swing costs. An item
+  without its own numbers takes the base, the fist's:
+
+  | Who hits | Front | Back | Stamina |
+  |---|---|---|---|
+  | The fist and any one-handed item (the base) | 5 | 10 | 25 |
+  | Any two-handed item (the ship's crystal, the boxes) | 20 | 40 | 25 |
+  | The knife | 50 | 75 | 25 |
+
+- **Reach and rate** are the knife's for every item: a 30° zone, 1.5 m, at most once per 0.5 s.
+- **No stamina, no swing**, as for the knife today: a swing needs its full cost.
+- **A hit never knocks the item out** of the victim's hand.
+- At 0 health the round's knockdown applies (above), the launch included.
+- **In the lobby too:** hits work there as in the round, but 0 health in the lobby makes the player limp as from too
+  much beer (the bar, above): it falls, lies for the limp's time (6 s, #1393) and gets up by itself with full health; nobody dies there.
+
+Hidden information: as the knife today (ARCHITECTURE §7.1 "Hits"): everyone sees a swing; only the victim learns its
+damage; a knockdown is public. No damage readout: no number on screen, on the item or on a wall (his word: a slot
+number, a tag on the item and a lobby poster were rejected); players learn an item's strength by trying it.
+
+Edge cases: a limp player is not hit (as today, #1393); the downed and the invulnerable are not hit (as today).
+
+Numbers: the table, the reach and the rate are placeholders until a playtest; the engineer gave them.
+
+Open questions:
+- How a hit's strength shows (its sound, the victim, the flight): research round 14 in prime-game-design has the ideas
+  (`ideas/2026-10-30-melee-readout.md`); later.
+- What counts as "the back" (recommended: the attacker stands in the victim's rear half), until a playtest.
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
@@ -293,17 +335,22 @@ Open questions, for the engineer (built as today until he answers):
     visible action.
   - The draw is instant and seen by everyone: the item changes in the hand and leaves the belt. On screen, three
     numbered icons, the one in the hand lit.
-- **Handing over** (#1389; in the lobby only, provisional, for the engineer): a player holding a one-handed
-  item that may be given (the full mug, "carried and given to a friend":
-  [#1095 c6473429898](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473429898)) gives it to
-  another living player in reach and sight. It arrives as a take does: into the hand, or onto the belt beside a
-  hand item, a full belt's hand item dropping at the receiver's feet. The receiver cannot refuse, the round has no
-  hand-over, and the key is still to be chosen.
+- **Handing over** (#1389, #1434; a base rule, approved by the engineer:
+  [#1412 c6524456466](https://github.com/xperiaroco2/prime-game/pull/1412#issuecomment-6524456466),
+  [#1434 c6524576011](https://github.com/xperiaroco2/prime-game/issues/1434#issuecomment-6524576011)): with any item
+  in the hand, E aimed at another living player in reach (2 m) and sight offers it, in every phase where items are
+  held (the lobby, the countdown and the round). The other player sees the offer and takes it with E, aimed at the
+  giver: the item lands in the hand exactly as a pick-up from the floor would (onto the belt beside a hand item; a
+  two-handed item can be offered and at the take follows the pick-up's hand rules). The giver's E again takes the
+  offer back. An offer ends when it is taken or cancelled, after 5 s (provisional), when the item leaves the giver's
+  hand, when either player moves out of reach, is limp, downed, dead or gone, and when the match moves on. A limp
+  player can neither be offered to nor take (no prompt). Everyone sees the offer made and ended; the held-out hand
+  and the prompt's words are still to be chosen.
 - Consumables (a medkit, an energy drink) and rare two-handed gadgets come after the MVP (#1040).
 
 ### Open
-- How are items found, and can they be traded or stolen? (Given: in the lobby, by handing over, above; in the
-  round still open.)
+- How are items found, and can they be traded or stolen? (Given: by handing over, above, the round included;
+  stealing still open.)
 - Which items affect voice (for example radios, which the brief mentions)?
 - Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
   does a thrown package count when it lands in its circle; may an item land where nobody can reach it; does a throw

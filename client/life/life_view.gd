@@ -204,7 +204,7 @@ func ears() -> Ears:
 ## 0 to 1 while the living own player raises someone, the downed player's raise bar's value;
 ## negative otherwise.
 func raise_shown(tick: float) -> float:
-	if model == null or countdowns == null or _own_life() != ClientModel.Life.ALIVE:
+	if model == null or countdowns == null or _own_body_life() != ClientModel.Life.ALIVE:
 		return LifeCountdowns.NONE
 	if countdowns.raising() == 0:
 		return LifeCountdowns.NONE
@@ -219,7 +219,7 @@ func raise_shown(tick: float) -> float:
 ## it over a downed engineer too. Whether a player is downed and who raises them are public
 ## (RaiseStarted); nothing else of the downed player is in it.
 func raise_cue() -> String:
-	if model == null or _own_life() != ClientModel.Life.ALIVE:
+	if model == null or _own_body_life() != ClientModel.Life.ALIVE:
 		return ""
 	var downed := raise_target()
 	if downed == 0 or model.raiser_of(downed) != 0:
@@ -354,9 +354,11 @@ func _process(delta: float) -> void:
 		return
 	match _own_life():
 		ClientModel.Life.ALIVE:
-			if Input.is_action_just_pressed(&"interact"):
+			# Limp (§7.1.21), the own player raises nobody: the host refuses its actions.
+			var limp := _own_body_life() != ClientModel.Life.ALIVE
+			if Input.is_action_just_pressed(&"interact") and not limp:
 				press_raise()
-			elif _raise_wanted and not Input.is_action_pressed(&"interact"):
+			elif _raise_wanted and (limp or not Input.is_action_pressed(&"interact")):
 				release_raise()
 		ClientModel.Life.DOWNED:
 			hold_give_up(Input.is_action_pressed(&"give_up"), delta)
@@ -372,11 +374,11 @@ func _physics_process(_delta: float) -> void:
 	if model == null or player == null:
 		_raise_peer = 0
 		return
-	var alive := _own_life() == ClientModel.Life.ALIVE
+	var alive := _own_body_life() == ClientModel.Life.ALIVE
 	# None through the photo viewfinder's lens: the E that closes the view never raises (#1106).
 	var lens_up := view_camera.is_valid() and view_camera.call() != null
 	_raise_peer = _cast_raise_target() if alive and not lens_up else 0
-	match _own_life():
+	match _own_body_life():
 		ClientModel.Life.DOWNED:
 			var angles := SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO)
 			_last_look = angles
@@ -406,7 +408,7 @@ func _place_ears() -> void:
 	# The target's drawn head, lower while it is drawn crouched (the crouch ADR, KE7).
 	var target_eye_m := target_body.head().position.y if target_body != null else NAN
 	var at := Ears.point(
-		_own_life(),
+		_own_body_life(),
 		own_feet,
 		eye,
 		watched,
@@ -460,13 +462,13 @@ func _spectate() -> void:
 		_view = View.SPECTATE_ABOVE
 
 
-## Where the own body is: while knocked down, the own avatar's interpolated point (KE5, the own
-## ragdoll's held point, AvatarViews.point_of()), since the controller holds still where the
-## knockdown found it; else, and before the first snapshot that carries the own avatar, the
+## Where the own body is: while knocked down or limp, the own avatar's interpolated point (KE5,
+## the own ragdoll's held point, AvatarViews.point_of()), since the controller holds still where
+## the knockdown found it; else, and before the first snapshot that carries the own avatar, the
 ## controller's feet. The map screen's own place reads it too.
 func own_point() -> Vector3:
 	var feet := player.global_position
-	if avatars == null or _own_life() != ClientModel.Life.DOWNED:
+	if avatars == null or _own_body_life() != ClientModel.Life.DOWNED:
 		return feet
 	return avatars.point_of(model.own_peer, feet)
 
@@ -577,6 +579,12 @@ func _watch(body: RemotePlayerBody) -> void:
 
 func _own_life() -> ClientModel.Life:
 	return model.life_of(model.own_peer)
+
+
+## The life the own body plays (ClientModel.body_life_of, §7.1.21): DOWNED while limp, so the
+## camera, the ears and own_point() follow the own rag-doll; the HUD and give-up keep _own_life().
+func _own_body_life() -> ClientModel.Life:
+	return model.body_life_of(model.own_peer)
 
 
 func _is_dead() -> bool:

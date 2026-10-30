@@ -6,7 +6,7 @@ extends RefCounted
 ##   bytes behind one, the wrong direction or lane, a payload over its kind's cap, truncated,
 ##   trailing bytes) and the codec's (a bool that is not 0 or 1, an item 0xFFFF, a peer 0, a NaN or
 ##   infinite float, unknown flag bits, an id with a capital letter, bytes after the last field, an
-##   empty Opus frame), and the debug kinds (ForceRole, kind 24; ForceClock, kind 25, one second)
+##   empty Opus frame), and the debug kinds (ForceRole, kind 28; ForceClock, kind 29, one second)
 ##   from a peer other than 1, which the host counts as bad payloads (E17); and NextStage's (kind
 ##   15, #599): 0 to 3 bytes where its seq goes (the codec's bad payload), and its seq with 1 to 4
 ##   bytes after it (over the row's cap of 4, NetFrame's payload too large); and Interact's (kind
@@ -91,8 +91,10 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## (#808), 83 and 84 took theirs; 83 and 84 left it when PhotoPrinted and PhotoHung took them
 ## (#782), 85 and 86 took theirs; 85 and 86 left it when BurgerPlated and BurgerServed took them
 ## (#1101), 87 and 88 took theirs; 20 left it when Pose took it (#1296), 21 took its place; 21
-## left it when HandOver took it (#1389), 22 took its place.
-const UNASSIGNED: Array[int] = [0, 22, 23, 26, 31, 87, 88, 95, 97, 111, 113, 127, 128, 200, 255]
+## left it when HandOver took it (#1389), 22 took its place; 22, 23, 87 and 88 left it when
+## TakeOffer, CancelOffer, OfferMade and OfferEnded took them (#1434), 89 and 90 took theirs;
+## UseSecondary took 24 and the debug kinds moved to 28 and 29 (#1438): 26 and 31 stay free.
+const UNASSIGNED: Array[int] = [0, 26, 31, 89, 90, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782) and the cooking task's (#773, #1101), each

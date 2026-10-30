@@ -1,9 +1,9 @@
 class_name StepHandOver
 extends ScenarioStep
-## Sends HandOver of the player `target` names (a `bot(i)` target): the bot hands its hand item to
-## that player (#1389). Done when an ItemPickedUp arrives whose `peer` is the target's and whose
-## `item` is the one that left the bot's hand, so an item that lands with anyone else, or comes
-## back, never counts. (ARCHITECTURE §9.7)
+## Sends HandOver of the player `target` names (a `bot(i)` target): the bot offers its hand item to
+## that player (#1389, #1434). Done when the OfferMade of the bot to that player arrives; the item
+## leaves the hand only when the receiver takes it (StepTakeOffer), so a step that needs the empty
+## hand waits for that ItemPickedUp first. (ARCHITECTURE §9.7)
 
 @export var target: ScenarioTarget
 

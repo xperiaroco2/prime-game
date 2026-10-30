@@ -266,6 +266,15 @@ func test_an_own_avatar_of_a_living_bot_or_none_of_a_knocked_down_one_is_a_leak(
 	assert_str(found).contains(
 		"the snapshot of tick %d lacks the own avatar of knocked-down peer 2" % at_tick
 	)
+	# Bot 2 living but limp (#1393) after that tick: its own avatar is due too.
+	runner.game.state.players[2].life = PlayerState.Life.ALIVE
+	runner.game.state.players[2].limp = LimpState.new(at_tick + 100)
+	leaks.record_tick(at_tick)
+	found = _text(leaks.check_bot("bot 2", 2, own, false))
+	assert_str(found).contains(
+		"the snapshot of tick %d lacks the own avatar of knocked-down peer 2" % at_tick
+	)
+	assert_str(_text(leaks.check_bot("bot 2", 2, planted, false))).not_contains("own avatar")
 
 
 func test_an_event_that_reaches_the_dead_and_not_every_living_peer_is_a_leak() -> void:

@@ -30,7 +30,7 @@ func after_test() -> void:
 func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	var hud := await _hud()
 	# [path, class, variation] of every node the handoff lists in `wait` (VoiceHint: M5-6's, kept;
-	# Aim: the round HUD's chip, #1408).
+	# Aim: the round HUD's chip, #1408, with the hand-over's cue, #1411).
 	var nodes: Array[Array] = [
 		["Cross", "Panel", &"ToyCrosshair"],
 		["Aim", "PanelContainer", &"ToyChipPlate"],
@@ -298,9 +298,82 @@ func test_aim_shows_only_with_a_text_its_key_translated() -> void:
 	# The round HUD's Aim under the crosshair (#1408): the tap or a hall item E would use.
 	var hud := await _hud()
 	assert_bool(hud.aim.visible).is_false()
-	hud.show_aim("item.knife")
+	hud.show_aim(ContentNames.station(&"tap"))
 	assert_bool(hud.aim.visible).is_true()
-	assert_str(hud.aim_label.text).is_equal("item.knife")
+	assert_str(hud.aim_label.text).is_equal(ContentNames.station(&"tap"))
+	assert_int(hud.aim_label.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	hud.show_aim("")
+	assert_bool(hud.aim.visible).is_false()
+
+
+func test_the_bars_aim_names_read_the_deck_in_both_languages() -> void:
+	# #1430 (ui-2.5.2): the tap and the two mugs are the deck's `station.tap`, `item.mug`,
+	# `item.mug_empty`, never a raw id; Aim translates them, so a switch rewrites the chip.
+	var locale := TranslationServer.get_locale()
+	TranslationServer.set_locale(Languages.ENGLISH)
+	var hud := await _hud()
+	hud.show_aim(ContentNames.station(&"tap"))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Beer tap")
+	hud.show_aim(ContentNames.item(&"mug", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Mug of beer")
+	hud.show_aim(ContentNames.item(&"mug_empty", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Empty mug")
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Порожній кухоль")
+	hud.show_aim(ContentNames.item(&"mug", _mode))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Кухоль пива")
+	hud.show_aim(ContentNames.station(&"tap"))
+	assert_str(ContentNames.text(hud.aim_label.text)).is_equal("Пивний кран")
+	TranslationServer.set_locale(locale)
+
+
+func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_change() -> void:
+	# #1411: Aim under the crosshair holds the hand-over's cue while E would hand over.
+	var hud := await _hud()
+	assert_bool(hud.aim.visible).is_false()
+	hud.show_hand_over("E")
+	assert_bool(hud.aim.visible).is_true()
+	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E"))
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(hud.aim_label.text).is_equal("Натисни E, щоб передати")
+	TranslationServer.set_locale(Languages.ENGLISH)
+	hud.show_hand_over("")
+	assert_bool(hud.aim.visible).is_false()
+
+
+func test_the_take_and_the_cancel_cues_are_worded_by_their_deck_keys() -> void:
+	# #1434: the same chip, worded by HandOverUse.cue_key(); the rows are in the deck since
+	# ui-2.5.3 (#1446).
+	var hud := await _hud()
+	var texts: Dictionary[String, String] = {
+		HudText.TAKE_OFFER_CUE: "Press E to take it",
+		HudText.OFFERING_CUE: "Press E to take it back",
+	}
+	for cue_key: String in texts:
+		hud.show_hand_over("E", cue_key)
+		assert_bool(hud.aim.visible).is_true()
+		assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E", cue_key))
+		assert_str(hud.aim_label.text).is_equal(texts[cue_key])
+	hud.show_hand_over("E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
+	hud.show_hand_over("")
+	assert_bool(hud.aim.visible).is_false()
+
+
+func test_the_hand_over_cue_takes_aim_from_the_taps_text_and_gives_it_back() -> void:
+	# #1408 and #1411 share the chip: the cue wins while there is one, the text returns after it.
+	var hud := await _hud()
+	hud.show_aim(ContentNames.station(&"tap"))
+	hud.show_hand_over("E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
+	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	hud.show_hand_over("")
+	assert_bool(hud.aim.visible).is_true()
+	assert_str(hud.aim_label.text).is_equal(ContentNames.station(&"tap"))
 	assert_int(hud.aim_label.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	hud.show_aim("")
 	assert_bool(hud.aim.visible).is_false()

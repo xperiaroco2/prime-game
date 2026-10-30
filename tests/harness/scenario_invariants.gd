@@ -18,8 +18,8 @@ extends RefCounted
 ##   Cooking's BurgerPlated and BurgerServed, #1101).
 ## - No event and no snapshot holds the session seed or a match seed.
 ## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
-##   holds its own avatar exactly when its player is knocked down, read from the life state, never
-##   from Snapshots.for_peer (own_avatar_problem).
+##   holds its own avatar exactly when its player is knocked down or limp (#1393), read from the
+##   life state and PlayerState.limp, never from Snapshots.for_peer (own_avatar_problem).
 ## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
 ##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
 ##   living speakers; a dead peer's speakers are empty.
@@ -38,6 +38,8 @@ extends RefCounted
 ##   player is alive (pose_problem, #1296). The drunk value alike (#1390): no snapshot shows an
 ##   avatar's `drunk` other than its player's PlayerState.drunk, outside 0..PlayerRules.drunk_max,
 ##   or above 0 in a phase that lists no DrunkTicks (drunk_problem): the bar is the hall's alone.
+##   The limp alike (#1393): no snapshot shows an avatar's `limp` other than its player's
+##   is_limp(), a limp player not alive, or one in a phase that lists no LimpTicks (limp_problem).
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -86,6 +88,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"crouched",
 	"sneaking",
 	"posed",
+	"limp",
 	"drunk",
 	"held_item",
 	"belt_item",
@@ -238,8 +241,14 @@ func check_tick() -> PackedStringArray:
 			var drunk := drunk_problem(_game, other, avatar)
 			if drunk != "":
 				found.append("peer %d's snapshot %s" % [peer, drunk])
+			var limp := limp_problem(_game, other, avatar)
+			if limp != "":
+				found.append("peer %d's snapshot %s" % [peer, limp])
 		# A phase that sends no snapshot (End, Loading) has none to check.
-		var downed := _life_of(peer) == PlayerState.Life.DOWNED
+		var player := _game.state.player(peer)
+		var downed := (
+			_life_of(peer) == PlayerState.Life.DOWNED or (player != null and player.is_limp())
+		)
 		var own := own_avatar_problem(peer, avatars, downed) if not snapshot.is_empty() else ""
 		if own != "":
 			found.append("peer %d's snapshot %s" % [peer, own])
@@ -484,6 +493,29 @@ static func drunk_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 	)
 
 
+## Why the snapshot avatar `avatar` of `peer` breaks the limp's invariant (#1393), or "" when it
+## does not: its `limp` differs from the player's is_limp(), or the player lies limp while not
+## alive or in a phase whose tick systems hold no LimpTicks (nothing there would get it up; the
+## countdown's end runs EndLimps), written apart from GoLimp and Snapshots.
+static func limp_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	var shown: bool = avatar.get("limp", false) == true
+	var player := game.state.player(peer)
+	if player == null:
+		return ""
+	if shown != player.is_limp():
+		return "shows peer %d limp %s, its state %s" % [peer, shown, player.is_limp()]
+	if not shown:
+		return ""
+	if player.life != PlayerState.Life.ALIVE:
+		return "shows peer %d limp, not alive" % peer
+	var phase := game.mode.find_phase(game.phase_id())
+	if phase != null:
+		for system: TickSystem in phase.tick_systems:
+			if system is LimpTicks:
+				return ""
+	return "shows peer %d limp in phase %s, which gets nobody up" % [peer, game.phase_id()]
+
+
 ## The hearing radius of `game`'s current phase: VoiceRule.radius_of the voice rule the mode's data
 ## names for it (0 with none), the number the client fades to silence at (E41).
 static func phase_radius(game: Match) -> float:
@@ -507,8 +539,9 @@ static func distance_problem(ear: Vector3, mouth: Vector3, radius_m: float) -> S
 
 ## Why the avatars of `peer`'s snapshot break the own-avatar invariant (the knockdown rework's KE5,
 ## §9, #847), or "" when they do not: they hold the viewer's own avatar exactly when the host's
-## state has the viewer knocked down (`downed`, read from the life state, never from
-## Snapshots.for_peer), so an inverted or a widened exception fails here though view_of agrees.
+## state has the viewer knocked down or limp (`downed`, read from the life state and
+## PlayerState.limp, #1393, never from Snapshots.for_peer), so an inverted or a widened exception
+## fails here though view_of agrees.
 static func own_avatar_problem(peer: int, avatars: Dictionary, downed: bool) -> String:
 	if avatars.has(peer) and not downed:
 		return "shows peer %d its own avatar, not knocked down" % peer

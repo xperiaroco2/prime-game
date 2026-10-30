@@ -2,9 +2,10 @@ extends GdUnitTestSuite
 ## The lobby's tap on the network (#1408; ARCHITECTURE §4.7.54, §7.1.20, §9.5.26): a joined Game's
 ## player in FixtureBar's lobby walks to the tap that StationTicks placed (no task type holds it),
 ## aims at its use spot and is offered it (StationUse.usable): the lobby HUD's Aim names it. E
-## sends Interact and the host pours a mug into the hand; the left button sends Use and the host
-## drinks it: ItemChanged turns it into mug_empty and the own drunk value (SelfStatus) rises. No
-## Rejected on the way.
+## sends Interact and the host pours a mug into the hand; the left button's Use answers
+## nothing_to_do (FixtureBar has no Use rule; the base mode's is the hit, #1437), the right
+## button sends UseSecondary (#1438) and the host drinks it: ItemChanged turns it into mug_empty
+## and the own drunk value (SelfStatus) rises. No other Rejected on the way.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The most physics frames an answer of the host takes to arrive.
@@ -25,7 +26,7 @@ func after_test() -> void:
 	_pair.free()
 
 
-func test_e_at_the_tap_pours_a_mug_and_use_drinks_it() -> void:
+func test_e_at_the_tap_pours_a_mug_and_the_right_button_drinks_it() -> void:
 	assert_bool(await _pair.start()).is_true()
 	var session := _pair.client.client()
 	session.event_received.connect(_on_event)
@@ -61,7 +62,18 @@ func test_e_at_the_tap_pours_a_mug_and_use_drinks_it() -> void:
 	assert_int(mug).is_greater_equal(0)
 	assert_str(String(model.items[mug].kind)).is_equal("mug")
 	assert_int(model.drunk).is_equal(0)
+	# The left button's Use is not the drink: FixtureBar has no Use rule (the base mode hits, #1437),
+	# so the host answers nothing_to_do and the mug stays full.
 	assert_int(keys.use()).is_greater(0)
+	for i: int in ANSWER_FRAMES:
+		if not _rejected.is_empty():
+			break
+		await _pair.frames(1)
+	assert_array(_rejected).contains_exactly([RejectReasons.NOTHING_TO_DO])
+	assert_str(String(model.items[mug].kind)).is_equal("mug")
+	_rejected.clear()
+	# The right button's UseSecondary drinks it (#1438).
+	assert_int(keys.use_secondary()).is_greater(0)
 	for i: int in ANSWER_FRAMES:
 		if (model.items[mug].kind == &"mug_empty" and model.drunk > 0) or not _rejected.is_empty():
 			break

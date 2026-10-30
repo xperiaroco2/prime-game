@@ -7,23 +7,22 @@
 [ext_resource type="Script" uid="uid://bu5q2qrhgjnkf" path="res://core/drunk/drink.gd" id="5_drink"]
 [ext_resource type="Resource" uid="uid://cmugempty2bar" path="res://content/items/mug_empty.tres" id="6_mug_empty"]
 
-[sub_resource type="Resource" id="Use_drink"]
+[sub_resource type="Resource" id="Drink_rmb"]
 script = ExtResource("5_drink")
 empty_kind = ExtResource("6_mug_empty")
 amount = 40
 
-[sub_resource type="Resource" id="Rule_use"]
+[sub_resource type="Resource" id="Rule_use_secondary"]
 script = ExtResource("2_rule")
-trigger = &"Use"
+trigger = &"UseSecondary"
 conditions = Array[ExtResource("3_condition")]([])
-effects = Array[ExtResource("4_effect")]([SubResource("Use_drink")])
+effects = Array[ExtResource("4_effect")]([SubResource("Drink_rmb")])
 
 [resource]
 script = ExtResource("1_kind")
 id = &"mug"
 display_name = "Mug of beer"
 hands = 1
-handable = true
 vanish_seconds = 120
-max_items = 12
-actions = Array[ExtResource("2_rule")]([SubResource("Rule_use")])
+max_items = 21
+actions = Array[ExtResource("2_rule")]([SubResource("Rule_use_secondary")])

@@ -10,7 +10,16 @@ extends RefCounted
 ## costs 1000 thousandths per tick, regeneration gives 750; a downed player moves nothing (its
 ## claims carry its facing only, KE4).
 ##
-## posing(mode): `mode` with a Pose rule (TakePose) and Round accepting it from the living (#1296).
+## posing(mode): `mode` with a Pose rule (AtMarker on SEAT_TAG, TakePose) and Round accepting it
+## from the living (#1296, #1383); seat(game, peer) puts a seat beside `peer`.
+
+## The spawn tag of the fixture's seats (posing, seat).
+const SEAT_TAG := &"seat"
+## The seat's cylinder: the base mode's placeholders (not a decision).
+const SEAT_RADIUS_M := 1.0
+const SEAT_HEIGHT_M := 2.0
+## Where seat() puts a seat from the player: inside the radius, off the player's own spot.
+const SEAT_OFFSET := Vector3(0.5, 0, 0)
 
 
 ## A match of the fixture mode on `world` (FixtureTerrainWorld when null) whose `peers` joined,
@@ -105,15 +114,46 @@ static func statuses(game: Match, peer: int) -> Array[SelfStatusEvent]:
 	return found
 
 
-## `mode` with a Pose rule (TakePose, no condition) appended to its actions and Round accepting
-## Pose from the living only (#1296): the fixture's rule, as no shipped mode has one yet (the
-## camera wall's chair gives it its location condition).
+## `mode` with a Pose rule appended to its actions, gated by the seat (AtMarker on SEAT_TAG,
+## SEAT_RADIUS_M wide, SEAT_HEIGHT_M tall; TakePose requires it), and Round accepting Pose from
+## the living only (#1296, #1383). The fixture layouts hold no seat: a test puts one with seat().
 static func posing(mode: GameMode) -> GameMode:
-	mode.actions.append(FixtureModes.rule(Intents.POSE, [], [TakePose.new()]))
+	var rule := FixtureModes.rule(Intents.POSE, [seat_condition()], [TakePose.new()])
+	mode.actions.append(rule)
 	mode.find_phase(&"round").accepts.append(AcceptSpec.of(Intents.POSE, AcceptSpec.From.LIVING))
 	return mode
+
+
+## The fixture's seat condition: AtMarker on SEAT_TAG.
+static func seat_condition() -> AtMarker:
+	var at := AtMarker.new()
+	at.tag = SEAT_TAG
+	at.radius_m = SEAT_RADIUS_M
+	at.height_m = SEAT_HEIGHT_M
+	return at
+
+
+## Puts a seat (a SEAT_TAG marker) SEAT_OFFSET from `peer`'s position into the layout of the map
+## `game` plays, so `peer` stands at it. The layout is the object the match was handed (Match keeps
+## the layouts it got), changed after the match checked it; a marker beside the player, never on
+## a spot of another tag, as LayoutCheck wants of a level (one tag per position).
+static func seat(game: Match, peer: int) -> Vector3:
+	var spot := game.state.player(peer).position + SEAT_OFFSET
+	game.layout(game.state.map).add_marker(SEAT_TAG, spot)
+	return spot
 
 
 ## `peer` sends the Pose intent, applied on the next host tick.
 static func pose(game: Match, peer: int, seq: int = 0) -> void:
 	FixtureModes.send(game, Intents.POSE, peer, {}, seq)
+
+
+## A context of `game` on its next tick, for calling a rule helper (LifeRules.kill) between ticks,
+## as kill_test.gd does: whatever it touches is flushed at the end of that tick.
+static func context(game: Match) -> MatchContext:
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	return ctx

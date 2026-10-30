@@ -78,8 +78,18 @@ func test_respawned_reaches_everyone_then_the_correction_and_selfstatus_reach_th
 	for peer: int in [P1, P3]:
 		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
 	var statuses := FixtureMoves.statuses(game, P2)
-	assert_dict(statuses[statuses.size() - 1].to_dict()).is_equal(
-		{"health": FULL, "stamina": FULL, "sprint_available": true, "claim_tick": -1, "drunk": 0}
+	(
+		assert_dict(statuses[statuses.size() - 1].to_dict())
+		. is_equal(
+			{
+				"health": FULL,
+				"stamina": FULL,
+				"sprint_available": true,
+				"claim_tick": -1,
+				"drunk": 0,
+				"posed": false,
+			}
+		)
 	)
 
 

@@ -154,6 +154,36 @@ func test_the_own_knocked_down_avatar_is_drawn_as_its_ragdoll_only() -> void:
 	assert_object(_views.body_of(OWN)).is_null()
 
 
+## §7.1.21 (#1393): a limp player lies as its ragdoll though it is living, with the host body's
+## velocity, its living body hidden; once a snapshot shows it standing the ragdoll goes. The own
+## limp avatar is drawn as its ragdoll only.
+func test_a_limp_player_is_drawn_as_its_ragdoll_until_it_stands() -> void:
+	_model.own_peer = OWN
+	var limp := {
+		"position": Vector3.ZERO,
+		"velocity": Vector3(1, 0, 0),
+		"facing": Vector3.FORWARD,
+		"limp": true,
+	}
+	_now += TICK_USEC
+	var fields := {"tick": 1, "avatars": {PEER: limp, OWN: limp.duplicate()}}
+	_model.fold_snapshot(fields)
+	_views.buffer.add(1, fields["avatars"] as Dictionary, _now)
+	await _drawn()
+	assert_int(_model.life_of(PEER)).is_equal(ClientModel.Life.ALIVE)
+	var ragdoll := _views.ragdoll_of(PEER)
+	assert_object(ragdoll).is_not_null()
+	assert_vector(ragdoll.held_velocity()).is_equal(Vector3(1, 0, 0))
+	assert_bool(_views.body_of(PEER).is_downed()).is_true()
+	assert_object(_views.ragdoll_of(OWN)).is_not_null()
+	assert_object(_views.body_of(OWN)).is_null()
+	_snapshot(2, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	assert_object(_views.ragdoll_of(PEER)).is_null()
+	assert_object(_views.ragdoll_of(OWN)).is_null()
+	assert_bool(_views.body_of(PEER).is_downed()).is_false()
+
+
 ## KE14, the client ADR's host trust: a ragdoll takes its velocity only from a snapshot that shows
 ## its player knocked down, the host body's. When the reliable KnockedDown overtakes that snapshot,
 ## the newest one still carries the living player's claimed velocity: the ragdoll starts with none.

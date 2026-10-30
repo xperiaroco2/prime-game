@@ -22,6 +22,10 @@ enum Level { NONE, LOBBY, MAP }
 @export var voice_rule: VoiceRule
 @export var level := Level.NONE
 @export var snapshots := false
+## What a hit to 0 health does here (#1439; ARCHITECTURE §7.1.10, §7.1.21). Null: the victim is
+## knocked down (LifeRules.knock_down). A GoLimp: the victim goes limp for its limp_s instead and
+## gets up at full health (the base mode's Lobby and Countdown); the phase needs a LimpTicks.
+@export var hit_limp: GoLimp
 
 
 ## A fresh phase object, or null when `phase_class` is missing or not a Phase.
@@ -68,4 +72,11 @@ func check(_mode: GameMode) -> PackedStringArray:
 			var text := "phase %s accepts %s from bits %d, which name no sender%s"
 			var hint := " (8 was the ghosts', retired)" if stray & 8 != 0 else ""
 			found.append(text % [id, entry.intent, stray, hint])
+	if (
+		hit_limp != null
+		and not tick_systems.any(func(s: TickSystem) -> bool: return s is LimpTicks)
+	):
+		# GoLimp's own check (LimpTicks.problems) looks mode-wide: a phase of its own without one
+		# would leave a hit's limp lying for good.
+		found.append("phase %s: hit_limp needs a LimpTicks in its tick_systems" % id)
 	return found

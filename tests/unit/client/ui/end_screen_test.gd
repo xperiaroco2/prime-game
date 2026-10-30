@@ -155,7 +155,7 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	screen.show_reason(&"every_task_done", 65)
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 1:05.")
 	screen.show_reason(&"time_up", -1)
-	assert_str(screen.reason_label.text).is_equal("Time's up and the tasks aren't done.")
+	assert_str(screen.reason_label.text).is_equal("The tasks aren't done.")
 	for unknown: StringName in [&"no_crew_present", &""]:
 		screen.show_reason(unknown, 461)
 		assert_bool(screen.reason_label.visible).is_false()
@@ -175,7 +175,7 @@ func test_the_reason_follows_the_models_match_ended() -> void:
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
 	model.fold(&"MatchEnded", {"side": &"dissidents", "reason": &"time_up", "numbers": {}})
 	screen.refresh(model, _mode, 100)
-	assert_str(screen.reason_label.text).is_equal("Time's up and the tasks aren't done.")
+	assert_str(screen.reason_label.text).is_equal("The tasks aren't done.")
 	# No deck key for no_crew_present (ui-0.4.0): the line hides.
 	model.fold(&"MatchEnded", {"side": &"dissidents", "reason": &"no_crew_present", "numbers": {}})
 	screen.refresh(model, _mode, 100)

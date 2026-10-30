@@ -150,10 +150,12 @@ func test_the_accepts_as_the_design_s_table() -> void:
 		assert_dict(got).override_failure_message(id).is_equal(want[id])
 
 
-func test_no_phase_accepts_use_or_give_up() -> void:
+func test_no_phase_accepts_either_use_or_give_up() -> void:
 	# §2.3: the knife swings at nobody; D28 (a): the host's player dies at once, so no GiveUp.
 	for spec: PhaseSpec in _mode().phases:
 		assert_int(spec.senders_of(Intents.USE)).override_failure_message(spec.id).is_equal(0)
+		var secondary := spec.senders_of(Intents.USE_SECONDARY)
+		assert_int(secondary).override_failure_message(spec.id).is_equal(0)
 		assert_int(spec.senders_of(Intents.GIVE_UP)).override_failure_message(spec.id).is_equal(0)
 
 

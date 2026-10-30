@@ -1,12 +1,12 @@
 class_name HostBodies
 extends RefCounted
-## The host's knocked-down bodies (the knockdown rework's KE13, KD11, KD13 (a); ARCHITECTURE
-## §4.5.9): one rigid body per body in motion, in the current level's world, through
-## PhysicsServer3D. core/ asks for one with LaunchBody and frees it with StopBody (HostSession
-## carries both out); a level change (HostWorldQuery.use_level to another level) and the host's
-## end free every body. server/ reads no core/ state: each body keeps the epoch its LaunchBody
-## named, and reports() turns the bodies into the BodyMoved commands of the next step-4 batch
-## (KE14).
+## The host's knocked-down and limp bodies (the knockdown rework's KE13, KD11, KD13 (a); #1393;
+## ARCHITECTURE §4.5.9, §7.1.21): one rigid body per body in motion, in the current level's
+## world, through PhysicsServer3D. core/ asks for one with LaunchBody and frees it with StopBody
+## (HostSession carries both out); a level change (HostWorldQuery.use_level to another level)
+## and the host's end free every body. server/ reads no core/ state: each body keeps the epoch
+## its LaunchBody named, and reports() turns the bodies into the BodyMoved commands of the next
+## step-4 batch (KE14).
 ##
 ## Each body is the crouching player's collider, a capsule of PlayerRules.capsule_radius_m and
 ## crouch_height_m whatever the player's pose (KD11), in BODY_MODE_RIGID_LINEAR: it flies, slides

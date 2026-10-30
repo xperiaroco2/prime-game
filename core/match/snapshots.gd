@@ -3,10 +3,12 @@ extends RefCounted
 ## One peer's snapshot of one tick, built from visibility rules per entity (ARCHITECTURE §5): the
 ## avatar of every living or downed player reaches every player, the dead included (a spectator's
 ## camera is built from these); a dead player has no avatar, so no snapshot holds one; bodies and
-## items reach everyone; nobody gets their own avatar, except a knocked-down player (the knockdown
-## rework's KE5 (a)): its own place, where the host's physics may carry it, and nothing hidden. The
+## items reach everyone; nobody gets their own avatar, except a knocked-down or limp player (the
+## knockdown rework's KE5 (a); #1393): its own place, where the host's physics may carry it, and
+## nothing hidden. The
 ## avatar's flag `downed` marks a downed player, `posed` one in the seated pose (#1296: public body
-## state; the own client is not told, as it gets no own avatar), and `invulnerable` one whom strikes
+## state; the own client is not told, as it gets no own avatar), `limp` one lying limp (#1393:
+## public body state; the own client gets its own avatar then), and `invulnerable` one whom strikes
 ## skip at that tick (after a respawn or a revive, vision revision 1: public, so nobody swings at it
 ## in vain unawares). `drunk` is how drunk the player is (#1390: public body state, 0..PlayerRules
 ## drunk_max; the own client reads its own in SelfStatus). The hand and belt items are
@@ -35,7 +37,7 @@ static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Diction
 	var avatars := {}
 	for peer: int in state.present_peers():
 		var player := state.players[peer]
-		if peer == viewer and player.life != PlayerState.Life.DOWNED:
+		if peer == viewer and not player.holds_still():
 			continue
 		if player.life == PlayerState.Life.DEAD:
 			continue
@@ -48,6 +50,7 @@ static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Diction
 			"crouched": player.crouched,
 			"sneaking": player.sneaking,
 			"posed": player.posed,
+			"limp": player.is_limp(),
 			"drunk": player.drunk,
 			"held_item": player.held_item,
 			"belt_item": player.belt_item,

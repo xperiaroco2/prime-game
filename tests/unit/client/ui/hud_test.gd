@@ -136,6 +136,30 @@ func test_the_raise_cue_takes_aims_place_for_the_living_only() -> void:
 	assert_str(HudText.of(model, _mode, NOW, local).raise_key).is_empty()
 
 
+func test_the_hand_over_cue_takes_aims_place_after_the_raise_cue() -> void:
+	# #1411: the interact key's label while E would hand the hand item over; the raise's cue wins
+	# (HandOverUse yields to it anyway), the own raise replaces both, the downed see neither.
+	var model := _round_model()
+	var local := HudText.Local.new()
+	local.hand_over_key = "E"
+	local.hand_over_cue_key = HudText.TAKE_OFFER_CUE
+	var cue := HudText.of(model, _mode, NOW, local)
+	assert_str(cue.hand_over_key).is_equal("E")
+	# #1434: the deck key that words it (a take here) goes along.
+	assert_str(cue.hand_over_cue_key).is_equal(HudText.TAKE_OFFER_CUE)
+	assert_str(cue.aim).is_empty()
+	local.raise_key = "E"
+	var raise := HudText.of(model, _mode, NOW, local)
+	assert_str(raise.raise_key).is_equal("E")
+	assert_str(raise.hand_over_key).is_empty()
+	local.raise_key = ""
+	local.raising = 0.3
+	assert_str(HudText.of(model, _mode, NOW, local).hand_over_key).is_empty()
+	local.raising = -1.0
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	assert_str(HudText.of(model, _mode, NOW, local).hand_over_key).is_empty()
+
+
 func test_a_dissident_sees_the_raise_cue_as_an_engineer_does_and_it_names_nobody() -> void:
 	# The base mode's raise has no team condition: anyone raises any downed player, so the cue is
 	# the role's business no more than E is (LifeView.raise_cue()). It carries the key alone.

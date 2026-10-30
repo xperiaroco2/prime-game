@@ -62,7 +62,7 @@ var sneaking := false
 ## and eye for it (only `crouched` lowers them).
 var posed := false
 ## How drunk the player is (#1390; GDD §3 Base mode, "The bar"): 0 is sober, up to the mode's
-## PlayerRules.drunk_max. Raised by Drink (a mug's Use), lowered one point per
+## PlayerRules.drunk_max. Raised by Drink (a mug's UseSecondary), lowered one point per
 ## PlayerRules.drunk_point_s by DrunkTicks, and back to 0 (sober()) at every placement, knockdown,
 ## respawn and reset, so nobody is drunk in a round. Public body state: the snapshot relays it on
 ## the avatar to every other peer, and the player's own SelfStatus carries it to its own client
@@ -115,6 +115,13 @@ var moving := false
 ## The knocked-down body's motion while the host's physics moves it (the knockdown rework's KE3),
 ## or null: at rest, and for every player not knocked down on a map PlayerRules.motion_maps lists.
 var motion: BodyMotion = null
+## The limp (#1393; GDD §3 Base mode, "The bar"; ARCHITECTURE §7.1.21), or null: a drinker past
+## too much lies as a rag-doll while its life stays ALIVE (not downed). LifeRules.go_limp starts it
+## (GoLimp, a reaction on the fact drunk_too_much), LimpTicks pushes it and gets the player up
+## (LifeRules.get_up), and every placement, reset, knockdown, death and leave ends it
+## (LifeRules.clear_limp). Public body state: the snapshot relays it to every peer, the player's
+## own client included (its own avatar).
+var limp: LimpState = null
 
 
 func _init(peer_id: int, player_name: String) -> void:
@@ -135,6 +142,17 @@ func is_invulnerable(tick: int) -> bool:
 
 func is_present() -> bool:
 	return life != Life.LEFT
+
+
+## Whether the player lies limp (#1393): living, its body moved by the host, not by its claims.
+func is_limp() -> bool:
+	return limp != null
+
+
+## Whether the host holds the player's body still against its claims: downed or limp. Its claims
+## give only a facing (MovementRule), and the host's physics moves its body.
+func holds_still() -> bool:
+	return life == Life.DOWNED or limp != null
 
 
 ## The two places not selected, the lower first: the belt.

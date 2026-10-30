@@ -11,6 +11,10 @@ const MOVE_CLAIM := &"MoveClaim"
 const PICK_UP := &"PickUp"
 const PUT_DOWN := &"PutDown"
 const USE := &"Use"
+## A living player's held item's own action, on the right mouse button (#1438): routed as Use is
+## (the held item's kind, then the role, then the mode), but only a rule whose trigger names it
+## runs; the mug's Drink is one. Use never runs such a rule, nor this one a Use rule.
+const USE_SECONDARY := &"UseSecondary"
 const RETURN_TO_LOBBY := &"ReturnToLobby"
 ## A living player starts raising a downed one, `target` (M4-4, E28): sent on pressing E over it.
 const RAISE := &"Raise"
@@ -50,11 +54,18 @@ const DRAW := &"Draw"
 ## rule decides where it may (a TakePose rule and its conditions); any own move ends it
 ## (MovementRule). No argument.
 const POSE := &"Pose"
-## A living player hands its hand item to another living player, `target` (#1389; GDD §6 "The hand
-## and the belt"): the item arrives in the target's hand or on its belt by the rules of a take. The
-## host checks the item (HoldsItem, HandNotTwoHanded, HandHandable), the target (TargetLiving) and
-## the reach and the sight from the last accepted positions (TargetInReach, TargetInSight).
+## A living player offers its hand item to another living player, `target` (#1389, #1434; GDD §6
+## "Handing over"): the item stays in the giver's hand, held out, until the target takes it
+## (TAKE_OFFER) or the offer ends. The host checks the item (HoldsItem), one offer per giver (a
+## negated Offering), the target (TargetLiving) and the reach and the sight from the last accepted
+## positions (TargetInReach, TargetInSight).
 const HAND_OVER := &"HandOver"
+## A living player takes the item `target` (the giver) offers it (#1434): it arrives as a pick-up
+## from the floor would. The host checks the offer (OfferedTo), the giver (TargetLiving), the reach
+## and the sight; a limp sender is not accepted (Match._accepts).
+const TAKE_OFFER := &"TakeOffer"
+## A living player's open offer ends, the item staying in its hand (#1434; Offering). No argument.
+const CANCEL_OFFER := &"CancelOffer"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -78,6 +89,9 @@ const ALL: Array[StringName] = [
 	DRAW,
 	POSE,
 	HAND_OVER,
+	TAKE_OFFER,
+	CANCEL_OFFER,
+	USE_SECONDARY,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -95,7 +109,10 @@ const PLAYER_ACTIONS: Array[StringName] = [
 	INTERACT,
 	DRAW,
 	POSE,
-	HAND_OVER
+	HAND_OVER,
+	TAKE_OFFER,
+	CANCEL_OFFER,
+	USE_SECONDARY,
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -163,6 +180,9 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	DRAW: {"place": TYPE_INT},
 	POSE: {},
 	HAND_OVER: {"target": TYPE_INT},
+	TAKE_OFFER: {"target": TYPE_INT},
+	CANCEL_OFFER: {},
+	USE_SECONDARY: {"facing": TYPE_VECTOR3},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},

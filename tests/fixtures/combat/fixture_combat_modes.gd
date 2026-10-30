@@ -9,12 +9,19 @@ extends RefCounted
 ## 50). Round accepts Use from the living (FixtureModes.basic()). The win conditions are
 ## FixtureModes.basic()'s counters, which these tests never bump. Its maps: MAP, where a knockdown
 ## is today's, and MOTION_MAP, where it moves the body (FixtureModes.with_motion_map, KE12).
+## fisting(): basic() plus the mode's fallback hit on Use (fist_rule(), #1437).
 
 const ANGLE_DEG := 30.0
 const REACH_M := 1.5
 const DAMAGE := 50
 const COOLDOWN_S := 0.5
 const STAMINA_COST := 25
+## The fallback hit of fisting(): the front and back damage of a hand without its own Use rule,
+## and the two-handed pair.
+const FIST := 5
+const FIST_BACK := 10
+const TWO_HANDED := 20
+const TWO_HANDED_BACK := 40
 ## Host ticks of the knife's interval: 0.5 s at 20 Hz.
 const COOLDOWN_TICKS := 10
 ## The raise of raising(): 3 s, the pick-up's 2 m, 50 health (the base mode's, §9.5).
@@ -59,12 +66,45 @@ static func stamina_cost(amount: int) -> StaminaCost:
 	return cost
 
 
-static func strike(angle_deg: float, reach_m: float, damage: int) -> Strike:
+static func strike(
+	angle_deg: float,
+	reach_m: float,
+	damage: int,
+	back_damage: int = 0,
+	two_handed_damage: int = 0,
+	two_handed_back_damage: int = 0
+) -> Strike:
 	var effect := Strike.new()
 	effect.angle_deg = angle_deg
 	effect.reach_m = reach_m
 	effect.damage = damage
+	effect.back_damage = back_damage
+	effect.two_handed_damage = two_handed_damage
+	effect.two_handed_back_damage = two_handed_back_damage
 	return effect
+
+
+## basic() with the base mode's fallback hit (§9.5, #1437) written out as one mode rule on Use:
+## Cooldown (`hit`, 0.5 s), StaminaCost (25), Strike (30°, 1.5 m, FIST front and back, the
+## two-handed pair TWO_HANDED front and back). The knife's own rule (50, no back) stays its kind's.
+static func fisting() -> GameMode:
+	var mode := basic()
+	mode.actions.append(fist_rule())
+	return mode
+
+
+## The mode's fallback Use rule with the given numbers (the knife's zone, cooldown and stamina).
+static func fist_rule(
+	front: int = FIST,
+	back: int = FIST_BACK,
+	two_handed: int = TWO_HANDED,
+	two_handed_back: int = TWO_HANDED_BACK
+) -> Rule:
+	return FixtureModes.rule(
+		Intents.USE,
+		[cooldown(&"hit", COOLDOWN_S), stamina_cost(STAMINA_COST)],
+		[strike(ANGLE_DEG, REACH_M, front, back, two_handed, two_handed_back)]
+	)
 
 
 ## basic() whose Round's LifeTicks respawns the dead: a Respawn on FixtureModes.RESPAWN_TAG

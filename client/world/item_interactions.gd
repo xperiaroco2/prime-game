@@ -10,8 +10,11 @@ extends Node3D
 ## - in the viewfinder: E or the keys no longer listening close it, the left mouse button sends
 ##   the shot, Interact(camera, item -1), while its film has frames left; no other item key acts;
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
-## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
-##   that captures the mouse is not a use;
+## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item (a photo
+##   too: it hits by the mode's fallback, #1444); the click that captures the mouse is not a use;
+## - the right mouse button (`use_secondary`) sends UseSecondary(facing), the item's own action
+##   (the mug's drink, #1438), the same way; with a photo in the hand it holds the photo up close or
+##   back and sends nothing (#787, #1444); the dead's right button cycles the spectate target;
 ## - X (`swap`) sends Swap() while the own hand or belt holds an item;
 ## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
 ##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
@@ -77,6 +80,12 @@ var station_near_hit := Callable()
 var aim_of := Callable()
 ## The photo camera's viewfinder (ItemWorld's, #786); null: a tap on a loaded camera opens nothing.
 var viewfinder: PhotoViewfinder
+## The level's marker positions of a spawn group (ItemWorld's: the loaded scene's Marker3Ds in it,
+## #1383): group -> PackedVector3Array; unset: no chair anywhere, so E never sends Pose.
+var chair_spots := Callable()
+## Whether another E consumer has a target now (Game sets it: a raise or a hand-over target,
+## #1403): `() -> bool`; true makes pose() give way. Unset: nothing else claims the key.
+var pose_yields := Callable()
 
 var _target := -1
 var _station := -1
@@ -143,9 +152,10 @@ func station_target() -> int:
 
 ## E: Interact(station, item -1) for the station target (#801; the host decides what it does:
 ## a switch toggles, the generator's button starts the charge, an empty photo camera takes the
-## carried fresh film, #786), else PickUp for the item target; the sequence number sent, or -1
-## when nothing was sent. On a station whose Interact starts a hold (the lift panel, the car's
-## fit; StationUse.holds) the hold is remembered for release_hold().
+## carried fresh film, #786), else PickUp for the item target, else Pose at a chair (pose(),
+## #1383); the sequence number sent, or -1 when nothing was sent. On a station whose Interact
+## starts a hold (the lift panel, the car's fit; StationUse.holds) the hold is remembered for
+## release_hold().
 func interact() -> int:
 	if _station >= 0 and _acts():
 		# A loaded photo camera shoots only from the viewfinder (#786; its tap opens that).
@@ -155,6 +165,8 @@ func interact() -> int:
 		if station != null and StationUse.holds(mode, station.kind):
 			_hold_station = _station
 		return session.send_intent(Intents.INTERACT, {"station": _station, "item": -1})
+	if _target < 0:
+		return pose()
 	return pick_up()
 
 
@@ -289,6 +301,26 @@ func pick_up() -> int:
 	return session.send_intent(Intents.PICK_UP, {"item": _target})
 
 
+## E with no station and no item aimed at (#1383): Pose() once (one press, no hold: the
+## engineer's answer 2a on PR #1382) while the own player lives, sits not posed already (only its
+## own move ends the pose, answer 3a), the phase takes Pose from the living and its feet stand at
+## a chair of the mode's Pose row (PoseUse); the sequence number sent, or -1 when nothing was
+## sent. The claim twin goes first (ClientSession.send_intent), so the host tests the feet this
+## key tested. It gives way (-1) when pose_yields says the raise or the hand-over has the key.
+func pose() -> int:
+	if not _acts() or model.posed or not chair_spots.is_valid():
+		return -1
+	if pose_yields.is_valid() and pose_yields.call() as bool:
+		return -1
+	var chair := PoseUse.chair_of(mode)
+	if chair == null or not _phase_takes(Intents.POSE):
+		return -1
+	var spots: PackedVector3Array = chair_spots.call(PoseUse.group_of(chair))
+	if not PoseUse.at_chair(chair, spots, player.global_position):
+		return -1
+	return session.send_intent(Intents.POSE)
+
+
 ## Q: PutDown(facing) while the own hand holds an item.
 func put_down() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
@@ -296,17 +328,33 @@ func put_down() -> int:
 	return session.send_intent(Intents.PUT_DOWN, {"facing": player.look_vector()})
 
 
-## The left mouse button: Use(facing) while the own hand holds an item.
-## The primary button with a photo in the hand (#787) holds it up close or back and sends nothing
-## (a photo has no Use rule).
+## The left mouse button: Use(facing), with an item in the own hand or none: the host answers by
+## the hand item's own Use rule, else the mode's fallback hit (#1437). An empty hand sends only in
+## a phase that takes Use from the living. A photo in the hand hits too, by the fallback (#1444);
+## its close-up is on the right button (use_secondary).
 func use() -> int:
+	if not _acts():
+		return -1
+	var hand_id := model.hand_item(model.own_peer)
+	if hand_id < 0:
+		if not _phase_takes(Intents.USE):
+			return -1
+	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
+
+
+## The right mouse button: UseSecondary(facing), the held item's own action (the mug's drink,
+## #1438), while the own hand holds an item; the host answers nothing_to_do where the item has
+## none. A photo in the hand holds it up close or back instead and sends nothing (a photo has no
+## UseSecondary rule, #787, #1444). Only the living send it (`_acts`): the dead's right button
+## cycles the spectate target.
+func use_secondary() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
 		return -1
 	var hand_id := model.hand_item(model.own_peer)
 	if PhotoUse.is_photo(mode, model.items[hand_id].kind):
 		_set_close(hand_id if _close_item != hand_id else -1)
 		return -1
-	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
+	return session.send_intent(Intents.USE_SECONDARY, {"facing": player.look_vector()})
 
 
 ## X: Swap() while the own player carries an item: back to the place it held last (GDD §6).
@@ -360,9 +408,7 @@ func throw() -> int:
 	var item: ClientModel.Item = model.items.get(model.hand_item(model.own_peer))
 	if item == null or ItemArc.rule_of(mode, item.kind, model.role) == null:
 		return -1
-	var phase := mode.find_phase(model.phase)
-	var living := AcceptSpec.From.LIVING | AcceptSpec.From.PLAYER
-	if phase == null or (phase.senders_of(Intents.THROW) & living) == 0:
+	if not _phase_takes(Intents.THROW):
 		return -1
 	if predicting.is_valid() and predicting.call() as bool:
 		return -1
@@ -453,8 +499,8 @@ func _process(delta: float) -> void:
 	var captured := mouse_captured.call() as bool
 	var was_captured := _was_captured
 	_was_captured = captured
-	# Knocked down, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
-	if model.life_of(model.own_peer) != ClientModel.Life.ALIVE:
+	# Knocked down, limp, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
+	if model.body_life_of(model.own_peer) != ClientModel.Life.ALIVE:
 		_hold_station = -1
 	if not listening:
 		_held = -1
@@ -484,6 +530,8 @@ func _process(delta: float) -> void:
 		throw()
 	if captured and was_captured and Input.is_action_just_pressed(&"use"):
 		use()
+	if captured and was_captured and Input.is_action_just_pressed(&"use_secondary"):
+		use_secondary()
 
 
 ## The mouse wheel draws the next place down, the one before up (GDD §6). It is no InputMap action:
@@ -505,13 +553,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		step_place(-1)
 
 
-## Whether the item keys act: a session, a local player, the own player living.
+## Whether the phase now takes `intent` from the living (the own mode copy's accepts).
+func _phase_takes(intent: StringName) -> bool:
+	var phase := mode.find_phase(model.phase) if mode != null else null
+	var living := AcceptSpec.From.LIVING | AcceptSpec.From.PLAYER
+	return phase != null and (phase.senders_of(intent) & living) != 0
+
+
+## Whether the item keys act: a session, a local player, the own player living and not limp.
 func _acts() -> bool:
 	return (
 		session != null
 		and model != null
 		and player != null
-		and model.life_of(model.own_peer) == ClientModel.Life.ALIVE
+		and model.body_life_of(model.own_peer) == ClientModel.Life.ALIVE
 	)
 
 
