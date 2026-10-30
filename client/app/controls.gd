@@ -78,11 +78,12 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"spectate_previous": &"control.spectate_previous",
 }
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
-## Ready (Game._unhandled_input), the crouch and the sneak too (#991, #990); the round reads the
-## item keys and the raise while living (ItemInteractions, LifeView), the look alone while downed
-## (it holds still: PlayerController), the give-up while downed and the spectate buttons while
-## dead (LifeView), and the map on any life (Game, #253). Talk sends while the own life is living,
-## in the lobby too, whose VoiceRule hears (VoiceSender.may_speak).
+## Ready (Game._unhandled_input), the crouch and the sneak too (#991, #990), and the hand keys
+## (ItemInteractions, #1408: the tap and the mugs; the Throw is the round's, the Lobby takes none);
+## the round reads the item keys and the raise while living (ItemInteractions, LifeView), the look
+## alone while downed (it holds still: PlayerController), the give-up while downed and the
+## spectate buttons while dead (LifeView), and the map on any life (Game, #253). Talk sends while
+## the own life is living, in the lobby too, whose VoiceRule hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
 	&"move_back": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
@@ -92,10 +93,10 @@ const PHASES: Dictionary[StringName, int] = {
 	&"jump": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"crouch": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"sneak": ControlContext.LOBBY | ControlContext.ALIVE,
-	&"interact": ControlContext.ALIVE,
-	&"use": ControlContext.ALIVE,
-	&"put_down": ControlContext.ALIVE,
-	&"swap": ControlContext.ALIVE,
+	&"interact": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"use": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"put_down": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"swap": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"throw": ControlContext.ALIVE,
 	&"map": ControlContext.ALIVE | ControlContext.DOWNED | ControlContext.DEAD,
 	&"give_up": ControlContext.DOWNED,
