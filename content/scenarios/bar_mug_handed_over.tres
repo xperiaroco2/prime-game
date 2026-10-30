@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="11_wait_for"]
 [ext_resource type="Script" uid="uid://tlar2xvbestc" path="res://core/content/scenario/step_hand_over.gd" id="12_hand_over"]
 [ext_resource type="Script" uid="uid://dvl107dygojwj" path="res://core/content/scenario/step_put_down.gd" id="13_put_down"]
+[ext_resource type="Script" uid="uid://cqgn1cyi6kchr" path="res://core/content/scenario/step_take_offer.gd" id="14_take"]
 
 [sub_resource type="Resource" id="Resource_h01"]
 script = ExtResource("5_target")
@@ -61,6 +62,13 @@ bot = 2
 script = ExtResource("12_hand_over")
 target = SubResource("Resource_h09")
 
+[sub_resource type="Resource" id="Resource_h18"]
+script = ExtResource("11_wait_for")
+event = &"ItemPickedUp"
+fields = {
+"peer": 2
+}
+
 [sub_resource type="Resource" id="Resource_h16"]
 script = ExtResource("5_target")
 point = Vector3(-15, 0, -20)
@@ -92,7 +100,7 @@ fields = {
 
 [sub_resource type="Resource" id="Resource_h15"]
 script = ExtResource("3_script")
-steps = Array[ExtResource("4_step")]([SubResource("Resource_h02"), SubResource("Resource_h04"), SubResource("Resource_h06"), SubResource("Resource_h08"), SubResource("Resource_h10"), SubResource("Resource_h17"), SubResource("Resource_h11"), SubResource("Resource_h12"), SubResource("Resource_h13"), SubResource("Resource_h14")])
+steps = Array[ExtResource("4_step")]([SubResource("Resource_h02"), SubResource("Resource_h04"), SubResource("Resource_h06"), SubResource("Resource_h08"), SubResource("Resource_h10"), SubResource("Resource_h18"), SubResource("Resource_h17"), SubResource("Resource_h11"), SubResource("Resource_h12"), SubResource("Resource_h13"), SubResource("Resource_h14")])
 
 [sub_resource type="Resource" id="Resource_h21"]
 script = ExtResource("6_walk")
@@ -106,12 +114,14 @@ point = Vector3(-14, 0, -8.5)
 script = ExtResource("6_walk")
 target = SubResource("Resource_h22")
 
+[sub_resource type="Resource" id="Resource_h32"]
+script = ExtResource("5_target")
+kind = 3
+bot = 1
+
 [sub_resource type="Resource" id="Resource_h24"]
-script = ExtResource("11_wait_for")
-event = &"ItemPickedUp"
-fields = {
-"peer": 2
-}
+script = ExtResource("14_take")
+target = SubResource("Resource_h32")
 
 [sub_resource type="Resource" id="Resource_h25"]
 script = ExtResource("5_target")

@@ -214,6 +214,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _stop_raise(bot, step as StepStopRaise)
 	elif step is StepHandOver:
 		result = _hand_over(bot, step as StepHandOver)
+	elif step is StepTakeOffer:
+		result = _take_offer(bot, step as StepTakeOffer)
 	elif step is StepGiveUp:
 		result = _give_up(bot, step as StepGiveUp)
 	elif step is StepSwap:
@@ -646,8 +648,8 @@ func _raise(bot: ScenarioBot, step: StepRaise, elapsed: int) -> Result:
 	return Result.WAITING
 
 
-## Sends HandOver of the bot's hand item to the target bot's player: done once that player's
-## ItemPickedUp of that very item arrived (#1389).
+## Sends HandOver of the bot's hand item to the target bot's player: done once the OfferMade of the
+## bot to that player arrived (#1389, #1434; the receiver takes it with StepTakeOffer).
 func _hand_over(bot: ScenarioBot, step: StepHandOver) -> Result:
 	if bot.sent_seq < 0:
 		var other := peers.peer_of(step.target.bot)
@@ -657,18 +659,52 @@ func _hand_over(bot: ScenarioBot, step: StepHandOver) -> Result:
 		bot.sent_item = bot.held
 		_send(bot, Intents.HAND_OVER, {"target": other})
 		return Result.WAITING
+	var giver := bot.peer
 	var receiver := bot.sent_peer
-	var item := bot.sent_item
-	var taken := bot.find_since(
+	var offered := bot.find_since(
 		bot.step_cursor,
 		func(event: WireMessage) -> bool:
 			return (
-				event.name == &"ItemPickedUp"
-				and event.fields["peer"] == receiver
-				and event.fields["item"] == item
+				event.name == &"OfferMade"
+				and event.fields["giver"] == giver
+				and event.fields["target"] == receiver
 			)
 	)
-	return _intent_result(bot, step, item >= 0 and taken != null)
+	return _intent_result(bot, step, bot.sent_item >= 0 and offered != null)
+
+
+## Waits for the target bot's player's open offer to this bot, then sends TakeOffer of it: done
+## once the bot's own ItemPickedUp arrived (#1434).
+func _take_offer(bot: ScenarioBot, step: StepTakeOffer) -> Result:
+	var giver := peers.peer_of(step.target.bot)
+	if giver == 0:
+		return _fail_step(bot, "the bot cannot know which player its target is")
+	if bot.sent_seq < 0:
+		if _open_offer(bot, giver) != bot.peer:
+			return Result.WAITING
+		bot.sent_peer = giver
+		_send(bot, Intents.TAKE_OFFER, {"target": giver})
+		return Result.WAITING
+	var own := bot.peer
+	var taken := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			return event.name == &"ItemPickedUp" and event.fields["peer"] == own
+	)
+	return _intent_result(bot, step, taken != null)
+
+
+## Whom `giver` offers its hand item to as far as `bot`'s events tell (the newest OfferMade or
+## OfferEnded of `giver`), or 0.
+static func _open_offer(bot: ScenarioBot, giver: int) -> int:
+	for i: int in range(bot.events.size() - 1, -1, -1):
+		var event := bot.events[i]
+		if event.name != &"OfferMade" and event.name != &"OfferEnded":
+			continue
+		if event.fields["giver"] != giver:
+			continue
+		return event.fields["target"] as int if event.name == &"OfferMade" else 0
+	return 0
 
 
 func _stop_raise(bot: ScenarioBot, step: StepStopRaise) -> Result:
