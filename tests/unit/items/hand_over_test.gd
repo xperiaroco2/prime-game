@@ -144,6 +144,9 @@ func test_a_waist_high_counter_does_not_block_it_when_the_sight_aims_at_the_eye(
 
 func test_a_phase_without_the_accept_row_and_a_dead_sender_are_not_accepted() -> void:
 	var mode := FixtureHandOverModes.basic()
+	# As in the base mode, another phase (the lobby) keeps the row, so the mode check passes.
+	var lobby := mode.find_phase(&"lobby")
+	lobby.accepts.append(AcceptSpec.of(Intents.HAND_OVER, AcceptSpec.From.LIVING))
 	var round_spec := mode.find_phase(&"round")
 	for accept: AcceptSpec in round_spec.accepts.duplicate():
 		if accept.intent == Intents.HAND_OVER:
