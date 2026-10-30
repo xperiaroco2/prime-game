@@ -303,7 +303,8 @@ func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
 		assert_array(Array(throw.problems())).is_empty()
 
 
-## #1390: ExpectDrunk names itself (0) or another bot of the scenario, and a range within 0 to 255.
+## #1390: ExpectDrunk names itself (0, never its own number) or another bot of the scenario, and
+## a range within 0 to 255.
 func test_an_expect_drunk_names_a_bot_of_the_scenario_and_a_range() -> void:
 	var drunk := StepExpectDrunk.new()
 	assert_bool(drunk.sends_intent()).is_false()
@@ -315,6 +316,11 @@ func test_an_expect_drunk_names_a_bot_of_the_scenario_and_a_range() -> void:
 	assert_array(Array(drunk.problems())).is_empty()
 	var scenario := _scenario()
 	scenario.scripts[0].steps.append(drunk)
+	# Bot 1 naming itself by number: its own avatar is never in its snapshot (name it 0).
+	assert_array(Array(scenario.problems())).contains_exactly(
+		["bot 1, ExpectDrunk: bot 1 is this bot itself, which reads its own value as bot 0"]
+	)
+	drunk.bot = 0
 	assert_array(Array(scenario.problems())).is_empty()
 	drunk.bot = 2
 	assert_array(Array(scenario.problems())).is_empty()

@@ -158,9 +158,8 @@ func problems(events: Dictionary[StringName, PackedStringArray] = {}) -> PackedS
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
 			for problem: String in _step_event_problems(step, events):
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
-			if step is StepExpectDrunk and (step as StepExpectDrunk).bot > bots:
-				var of := (step as StepExpectDrunk).bot
-				found.append("bot %d, ExpectDrunk: bot %d is outside 0 to %d" % [bot, of, bots])
+			if step is StepExpectDrunk:
+				found.append_array(_expect_drunk_problems(bot, step as StepExpectDrunk))
 	for i in never.size():
 		if never[i] == null:
 			found.append("never %d is empty" % i)
@@ -169,6 +168,22 @@ func problems(events: Dictionary[StringName, PackedStringArray] = {}) -> PackedS
 		elif not events.is_empty():
 			for problem: String in event_problems(never[i].event, never[i].fields, events):
 				found.append("never %d: %s" % [i, problem])
+	return found
+
+
+## An ExpectDrunk in bot `bot`'s script names 0 (itself, its SelfStatus) or another bot of the
+## scenario: its own number would read an avatar its snapshot never holds, and fail as unseen.
+func _expect_drunk_problems(bot: int, step: StepExpectDrunk) -> PackedStringArray:
+	var found := PackedStringArray()
+	if step.bot > bots:
+		found.append("bot %d, ExpectDrunk: bot %d is outside 0 to %d" % [bot, step.bot, bots])
+	elif step.bot == bot:
+		found.append(
+			(
+				"bot %d, ExpectDrunk: bot %d is this bot itself, which reads its own value as bot 0"
+				% [bot, bot]
+			)
+		)
 	return found
 
 
