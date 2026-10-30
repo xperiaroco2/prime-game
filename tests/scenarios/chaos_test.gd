@@ -68,7 +68,7 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		# The hall takes the hand, the belt and Interact from the living as Round does (#1388).
 		[&"PutDown", facing, &"lobby", living, &"empty_hand"],
 		[&"PutDown", facing, &"countdown", living, &"empty_hand"],
-		# Any hand hits (#1437): a living sender's Use has no answer the oracle knows.
+		# Any hand hits (#1437): the chaos peers never send a living Use where a phase takes it.
 		[&"Use", facing, &"lobby", living, &"?"],
 		[&"UseSecondary", facing, &"lobby", living, &"nothing_to_do"],
 		[&"Swap", {}, &"countdown", living, &"nothing_to_swap"],
