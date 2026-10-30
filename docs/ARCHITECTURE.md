@@ -8151,7 +8151,7 @@ after 30 s, no Use). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_
 `drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)` and `DrunkTicks`;
 `countdown_done` runs `ClearItems` then `ClearStations`. The pour is instant, a mug is one drink, drinks stack.
 Every number is provisional (the engineer tunes them on the hall greybox, #1354). Not built here: the sway and walk
-drift (#1391), the voice (#1392), the limp (#1393), the hand-over (#1389), the client's E hint for the tap.
+drift (#1391), the voice (#1392), the limp (#1393), the hand-over (#1389), the client's E hint for the tap and its Use of a mug (#1408).
 - **Tests:** `tests/unit/content/base_mode_lobby_test.gd` (the shipped tap, mug and drink, cleared at countdown_done)
   and the parts' suites of §7.1.20; the scenarios `bar_pour_drink_and_sober_up` and `bar_overdrinks` (§9.7,
   `ExpectDrunk`) and chaos bot 3's mug in the lobby (§4.6.5).
