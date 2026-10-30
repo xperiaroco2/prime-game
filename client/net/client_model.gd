@@ -337,24 +337,30 @@ func item_in_place(peer: int, place: int) -> int:
 
 
 ## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
-## it after a respawn or a revive. The own player's arrives only while it is knocked down (KE5).
+## it after a respawn or a revive. The own player's arrives only while it is knocked down or limp.
 func is_invulnerable(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("invulnerable", false)
 
 
 ## Whether the newest snapshot shows `peer` crouched (the avatar's flag, the crouch ADR, KE1): only
-## a living player where the crouch plays. The own player's arrives only while knocked down (KE5).
+## a living player where the crouch plays. The own player's arrives while knocked down or limp.
 func is_crouched(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("crouched", false)
 
 
 ## Whether the newest snapshot shows `peer` sneaking (the avatar's flag, #990): only a living player
-## that is not crouched. The own player's arrives only while knocked down, and never sneaking.
+## that is not crouched. The own player's arrives while downed or limp, never sneaking.
 func is_sneaking(peer: int) -> bool:
 	var avatar: Dictionary = avatars.get(peer, {})
 	return avatar.get("sneaking", false)
+
+
+## life_of(), but DOWNED while the newest snapshot shows `peer` limp (avatar flag, §7.1.21, KE5).
+func body_life_of(peer: int) -> Life:
+	var limp: bool = (avatars.get(peer, {}) as Dictionary).get("limp", false)
+	return Life.DOWNED if limp and life_of(peer) == Life.ALIVE else life_of(peer)
 
 
 ## The client's own copy of the current phase, or null.

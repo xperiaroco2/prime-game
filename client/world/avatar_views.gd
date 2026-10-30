@@ -212,7 +212,8 @@ func _physics_process(delta: float) -> void:
 		var pose := buffer.pose_of(peer, _drawn_at)
 		if pose == null:
 			continue
-		var downed := model.life_of(peer) == ClientModel.Life.DOWNED
+		# A limp player (§7.1.21) lies as a rag-doll too, though it is living.
+		var downed := model.body_life_of(peer) == ClientModel.Life.DOWNED
 		if downed:
 			_hold_ragdoll(peer, pose)
 		if peer == model.own_peer:
@@ -319,12 +320,14 @@ func _two_handed(item: int) -> bool:
 
 
 ## Starts `peer`'s ragdoll at `pose` the first time, then holds it to the pose's point. Only a
-## snapshot that shows the player knocked down gives it a velocity, the host body's (KE14): the
-## reliable KnockedDown can overtake the knockdown tick's snapshot, and the newest one before it
-## carries the living player's claimed velocity, which never moves a body on another screen.
+## snapshot that shows the player knocked down (or limp) gives it a velocity, the host body's
+## (KE14): the reliable KnockedDown can overtake the knockdown tick's snapshot, and the newest one
+## before it carries the living player's claimed velocity, which never moves a body on another
+## screen.
 func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 	var colour := BodyColours.of(model.colour_of(peer))
-	var shown_downed: bool = (model.avatars[peer] as Dictionary).get("downed", false)
+	var shown: Dictionary = model.avatars[peer]
+	var shown_downed: bool = shown.get("downed", false) or shown.get("limp", false)
 	var velocity := pose.velocity if shown_downed else Vector3.ZERO
 	var ragdoll: RagdollView = _ragdolls.get(peer)
 	if ragdoll == null:
@@ -345,13 +348,13 @@ func _hold_ragdoll(peer: int, pose: SnapshotBuffer.Pose) -> void:
 
 
 ## Drops the ragdolls nobody took since the last step, and those of players no longer knocked
-## down, but parks the ragdoll of a player who died with a body for BodyViews.
+## down (or limp), but parks the ragdoll of a player who died with a body for BodyViews.
 func _put_away_ragdolls() -> void:
 	for ragdoll: RagdollView in _parked.values():
 		_drop(ragdoll)
 	_parked.clear()
 	for peer: int in _ragdolls.keys():
-		if model.avatars.has(peer) and model.life_of(peer) == ClientModel.Life.DOWNED:
+		if model.avatars.has(peer) and model.body_life_of(peer) == ClientModel.Life.DOWNED:
 			continue
 		var ragdoll: RagdollView = _ragdolls[peer]
 		_ragdolls.erase(peer)

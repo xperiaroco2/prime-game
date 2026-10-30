@@ -6753,8 +6753,12 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   and `Strike` skip it: nobody hits a limp player. `Ready` is not a player's action, so a limp player readies.
 - **Seen.** Public body state: the avatar's `limp` flag (32, §4.3.5; protocol 39) on every peer, and the viewer's
   own avatar while it is limp (as a knocked-down one's, KE5, §5), which tells the own client it lies limp: it draws
-  the rag-doll, holds its movement input still and sends only its facing until the get-up's `Correction`. It can
-  speak: the voice rule is unchanged (provisional; invariant 6, §6.3).
+  the rag-doll, holds its movement input still and sends only its facing until the get-up's `Correction`.
+  `ClientModel.body_life_of` reads DOWNED for a living avatar shown limp: `AvatarViews` draws its ragdoll (the
+  host body's velocity, the living body hidden), `GamePlayer.sync_life` (on every event and snapshot) holds the own
+  controller as a downed one, and `LifeView` puts the downed camera and the ears over the own ragdoll and offers no
+  raise; the HUD and the give-up keep `life_of` (ALIVE). It can speak: the voice rule is unchanged (provisional;
+  invariant 6, §6.3).
 - **Where.** The Lobby only: the base mode lists `LimpTicks` on its Lobby and Countdown, with `LifeTicks`. A limp
   body moves on the lobby level, which `motion_maps` does not govern (it governs knockdowns, KE12): the issue's
   "pushable" needs the host's body there. `GoLimp.check` (`LimpTicks.problems`) wants a phase listing `LimpTicks`,
@@ -6764,7 +6768,10 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key order), the
   wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
   the scenarios and the chaos run see (the flag matches the state, a limp player is living, in a phase listing
-  `LimpTicks`), and the own-avatar check (`LeakCheck`, `ScenarioInvariants`) takes downed or limp.
+  `LimpTicks`), and the own-avatar check (`LeakCheck`, `ScenarioInvariants`) takes downed or limp. The client:
+  `client_model_test.gd` (`body_life_of`), `avatar_views_test.gd` (the ragdoll until it stands) and
+  `tests/integration/client/life/life_limp_network_test.gd` (a joiner laid limp holds still under the downed
+  camera, drawn as its ragdoll on both screens, and walks in first person once it gets up).
 
 ## 8. Debug tooling
 
