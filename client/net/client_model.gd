@@ -220,6 +220,9 @@ var lives: Dictionary[int, Life] = {}
 ## RaiseStopped, Revived, the leave of either and a new match remove it. The client times the
 ## raise's progress itself, from RaiseStarted and the mode's raise time.
 var raises: Dictionary[int, int] = {}
+## Giver -> the peer its hand item is offered to, while the offer is open (#1434, public):
+## OfferMade adds one; OfferEnded, the leave of either and a new match remove it.
+var offers: Dictionary[int, int] = {}
 ## Task id -> its public state (TaskState, E30), for the task screen.
 var tasks: Dictionary[int, Task] = {}
 ## Cooking's herbs as HerbsDealt told them (#776): the herb kind id per icon index (the herb
@@ -304,6 +307,11 @@ func raised_by(raiser: int) -> int:
 		if raises[target] == raiser:
 			return target
 	return 0
+
+
+## The peer `giver` offers its hand item to as far as this client knows, or 0 (#1434).
+func offer_of(giver: int) -> int:
+	return offers.get(giver, 0)
 
 
 ## The item `peer` holds in its hand as the events tell it (ItemPickedUp, Swapped, ItemPlaced), or
@@ -480,6 +488,7 @@ func clear_match() -> void:
 	bodies.clear()
 	lives.clear()
 	raises.clear()
+	offers.clear()
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
@@ -607,6 +616,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			posed = fields.get("posed", false)
 		&"KnockedDown", &"Died", &"Respawned":
 			_fold_life(event_name, fields)
+		&"OfferMade", &"OfferEnded":
+			_fold_offer(event_name, fields)
 		&"RaiseStarted", &"RaiseStopped", &"Revived":
 			_fold_raise(event_name, fields)
 		&"Correction":
@@ -911,6 +922,15 @@ func _fold_raise(event_name: StringName, fields: Dictionary) -> void:
 		lives.erase(peer)
 
 
+## An offer made records its target; one ended forgets it (#1434).
+func _fold_offer(event_name: StringName, fields: Dictionary) -> void:
+	var giver: int = fields["giver"]
+	if event_name == &"OfferMade":
+		offers[giver] = fields["target"] as int
+	elif offers.get(giver, 0) == fields["target"] as int:
+		offers.erase(giver)
+
+
 ## A player who left mid-match leaves no body (E26, the engineer's answer 1 on PR #133).
 func _fold_leave(peer: int) -> void:
 	bodies.erase(peer)
@@ -920,6 +940,11 @@ func _fold_leave(peer: int) -> void:
 	var raised := raised_by(peer)
 	if raised != 0:
 		raises.erase(raised)
+	# The host ends an offer of or to a leaver first (OfferEnded); a lost order changes nothing.
+	offers.erase(peer)
+	for giver: int in offers.keys():
+		if offers[giver] == peer:
+			offers.erase(giver)
 
 
 ## Enters `next`: a match's facts are cleared when it plays in the lobby and the phase before did
