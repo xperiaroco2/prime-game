@@ -46,7 +46,7 @@ const ACTION_KEYS: Dictionary[Action, String] = {
 	Action.DIRECT: "connect.fail.direct",
 }
 ## The deck's tips (`tip.*`), one drawn per loading; a test holds it to the deck.
-const TIPS: Array[String] = ["tip.two_hands"]
+const TIPS: Array[String] = ["tip.two_hands", "tip.neighbours"]
 ## The spinner's turns per second; half under reduced motion (UiPrefs).
 const TURNS_PER_SECOND := 1.0
 ## The widths and the places of the handoff (px at the 1920x1080 base, #287).

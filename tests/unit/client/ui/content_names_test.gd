@@ -36,12 +36,9 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"box_patty_light": "Box of light patties",
 	&"box_patty_red": "Box of red patties",
 	&"box_patty_deep_red": "Box of deep red patties",
-	&"burger": "Burger",
 	&"car_part_green": "Green part",
 	&"car_part_blue": "Blue part",
 	&"car_part_yellow": "Yellow part",
-	&"mug": "Mug of beer",
-	&"mug_empty": "Empty mug",
 }
 ## Shipped task types the deck has no key for yet and ContentNames.TASK_EXCEPTIONS does not map,
 ## each with the display name it shows meanwhile: car repair (#810), which runs beside client work
