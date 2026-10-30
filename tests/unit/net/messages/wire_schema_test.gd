@@ -180,8 +180,8 @@ func test_debug_commands_exist_only_in_a_debug_builds_table() -> void:
 	for kind: int in range(WireSchema.FIRST_DEBUG, WireSchema.FIRST_EVENT):
 		assert_object(release.row(kind)).is_null()
 		assert_bool(release.kind_table().has(kind)).is_false()
-	assert_str(str(debug.row(24).name)).is_equal("ForceRole")
-	assert_str(str(debug.row(25).name)).is_equal("ForceClock")
+	assert_str(str(debug.row(28).name)).is_equal("ForceRole")
+	assert_str(str(debug.row(29).name)).is_equal("ForceClock")
 	assert_int(debug.rows().size()).is_equal(release.rows().size() + 2)
 	for each: WireRow in release.rows():
 		var twin := debug.row(each.kind)
