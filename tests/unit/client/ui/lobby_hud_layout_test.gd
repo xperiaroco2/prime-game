@@ -352,6 +352,9 @@ func test_the_take_and_the_cancel_cues_are_worded_by_their_deck_keys() -> void:
 		hud.show_hand_over("E", cue_key)
 		assert_bool(hud.aim.visible).is_true()
 		assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E", cue_key))
+		if String(TranslationServer.translate(cue_key)) == cue_key:
+			# The deck lacks the row yet: the key shows with the key label.
+			assert_str(hud.aim_label.text).is_equal(cue_key + " [E]")
 	hud.show_hand_over("E")
 	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
 	hud.show_hand_over("")

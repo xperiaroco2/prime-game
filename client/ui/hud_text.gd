@@ -187,10 +187,16 @@ static func raise_cue(key: String) -> String:
 
 
 ## The hand-over's cue in Aim, translated, with the interact key's label `key`: the deck key
-## `cue_key` (HAND_OVER_CUE when empty; TAKE_OFFER_CUE, OFFERING_CUE, #1434).
+## `cue_key` (HAND_OVER_CUE when empty; TAKE_OFFER_CUE, OFFERING_CUE, #1434). A key the deck
+## lacks shows as itself followed by the key label in brackets.
 static func hand_over_cue(key: String, cue_key: String = "") -> String:
 	var deck_key := HAND_OVER_CUE if cue_key.is_empty() else cue_key
-	return String(TranslationServer.translate(deck_key)).format({"key": key})
+	var text := String(TranslationServer.translate(deck_key))
+	if text == deck_key:
+		# A row the deck lacks yet (TAKE_OFFER_CUE, OFFERING_CUE): the raw key, but the player still
+		# reads which key to press.
+		return "%s [%s]" % [deck_key, key]
+	return text.format({"key": key})
 
 
 ## Whether the own player spectates: dead (or gone), with no body of its own to show.
