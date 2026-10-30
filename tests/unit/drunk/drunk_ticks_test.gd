@@ -59,6 +59,8 @@ func test_a_knockdown_sobers_up() -> void:
 	for peer: int in [P1, P2]:
 		LifeRules.knock_down(_ctx(game), peer)
 	_assert_sober(game)
+	FixtureModes.run_ticks(game, 1)
+	_assert_told_sober(game)
 
 
 func test_a_respawn_sobers_up() -> void:
@@ -87,16 +89,33 @@ func test_the_placement_of_the_deal_sobers_up() -> void:
 	FixtureBaseMode.through_pregame(game)
 	assert_str(game.phase_id()).is_equal("round")
 	_assert_sober(game)
+	# The drinker's own client is told too (SelfStatus), so its sway (#1391) stops in the round.
+	_assert_told_sober(game)
 
 
-## P1 and P2 at the bar, each a mug down.
+## P1 and P2 at the bar, each a mug down and told so in its own SelfStatus.
 func _drunk_pair() -> Match:
 	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
 	for peer: int in [P1, P2]:
 		FixtureBar.pour(game, peer, 10 * peer + 1)
 		FixtureBar.drink(game, peer, 10 * peer + 2)
 		assert_int(game.state.player(peer).drunk).is_equal(FixtureBar.AMOUNT)
+	FixtureModes.run_ticks(game, 1)
+	for peer: int in [P1, P2]:
+		assert_int(_last_told(game, peer)).is_equal(FixtureBar.AMOUNT)
 	return game
+
+
+## Each drinker's last SelfStatus says drunk 0.
+func _assert_told_sober(game: Match) -> void:
+	for peer: int in [P1, P2]:
+		assert_int(_last_told(game, peer)).is_equal(0)
+
+
+## The drunk value of `peer`'s last SelfStatus, or -1 without one.
+func _last_told(game: Match, peer: int) -> int:
+	var told := FixtureMoves.statuses(game, peer)
+	return told[told.size() - 1].drunk if not told.is_empty() else -1
 
 
 func _assert_sober(game: Match) -> void:
