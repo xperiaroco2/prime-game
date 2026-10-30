@@ -543,7 +543,8 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 	assert_dict(kinds).is_equal({&"package": 6, &"knife": 2})
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(6)
+		# The lobby's tap (StationTicks, #1390), then Delivery's 6 circles.
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(7)
 		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 6}
@@ -557,7 +558,8 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_bool(Array(map.positions(&"round_player")).has(at)).is_true()
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
-	# The row's order: roles, Delivery's deal, the knives, then placement.
+	# The lobby's tap first (#1390), then the row's order: roles, Delivery's deal, the knives,
+	# then placement.
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]
@@ -575,6 +577,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_array(order)
 		. is_equal(
 			[
+				"StationPlaced",
 				"RoleAssigned",
 				"StationPlaced",
 				"ItemSpawned(package)",
@@ -642,6 +645,10 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 	# The move's direction caps (#1334, art #196; the fixture keeps 0, no cap, for the suites).
 	expected.side_speed_mps = 3.0
 	expected.back_speed_mps = 2.0
+	# The bar's drunk scale (#1390, GDD §3 "The bar"; provisional, the engineer tunes it).
+	expected.drunk_max = 100
+	expected.drunk_too_much_at = 90
+	expected.drunk_point_s = 1.0
 	for property: Dictionary in expected.get_property_list():
 		var number: String = property["name"]
 		var usage: int = property["usage"]

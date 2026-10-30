@@ -161,6 +161,36 @@ func test_the_window_and_the_sealed_door_are_looks_on_the_walls() -> void:
 		assert_bool(on_x or on_z).override_failure_message(look.name).is_true()
 
 
+## #1390: the bar's tap is one marker (no box of the greybox moved), inside the walls, clear of
+## every collider by a capsule, with the Bar's edge within the tap's reach.
+func test_the_tap_marker_stands_beside_the_bar_clear_of_every_box() -> void:
+	var taps := _root.find_children("*", "Marker3D", true, false).filter(
+		func(node: Node) -> bool: return node.is_in_group(&"spawn_tap")
+	)
+	assert_int(taps.size()).is_equal(1)
+	var tap := taps[0] as Node3D
+	var at := Vector2(tap.position.x, tap.position.z)
+	assert_bool(_inner_rect().has_point(at)).is_true()
+	var mode := load(BASE_MODE) as GameMode
+	var clearance := mode.player_rules.capsule_radius_m + MARGIN_M
+	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
+		if shape.get_parent() == _root.get_node("Floor"):
+			continue
+		var bounds := _bounds(shape as CollisionShape3D)
+		var block := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
+		(
+			assert_bool(block.grow(clearance).has_point(at))
+			. override_failure_message(str(shape.get_parent().name))
+			. is_false()
+		)
+	var bar := _bounds(_shape_of(_root.get_node("Bar")))
+	var nearest := Vector2(
+		clampf(at.x, bar.position.x, bar.end.x), clampf(at.y, bar.position.z, bar.end.z)
+	)
+	var kind := load("res://content/stations/tap.tres") as StationKind
+	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
+
+
 func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	assert_str(mode.lobby_level).is_equal(LOBBY)
