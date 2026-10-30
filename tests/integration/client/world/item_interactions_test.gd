@@ -340,6 +340,32 @@ func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	assert_int(_keys.step_place(1)).is_equal(-1)
 
 
+## §7.1.21 (#1393): a limp own player is living, but the host takes none of its item actions; the
+## own avatar's limp flag in the snapshot keeps every item key from sending one.
+func test_the_limp_get_no_target_and_send_no_item_key() -> void:
+	var at := Vector3(0, 0, -1.5)
+	_spawn(6, at)
+	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 6})
+	_spawn(7, at)
+	var own := {
+		"position": Vector3.ZERO,
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"downed": false,
+		"limp": true,
+		"held_item": 6,
+	}
+	_model.fold_snapshot({"tick": 1, "avatars": {_model.own_peer: own}})
+	await _look_at(at)
+	assert_int(_model.life_of(_model.own_peer)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_keys.target()).is_equal(-1)
+	assert_int(_keys.pick_up()).is_equal(-1)
+	assert_int(_keys.put_down()).is_equal(-1)
+	assert_int(_keys.swap()).is_equal(-1)
+	assert_int(_keys.draw(1)).is_equal(-1)
+	assert_int(_keys.step_place(1)).is_equal(-1)
+
+
 func _eye() -> Vector3:
 	return _player.get_camera().global_position
 

@@ -453,8 +453,8 @@ func _process(delta: float) -> void:
 	var captured := mouse_captured.call() as bool
 	var was_captured := _was_captured
 	_was_captured = captured
-	# Knocked down, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
-	if model.life_of(model.own_peer) != ClientModel.Life.ALIVE:
+	# Knocked down, limp, dead or gone: the host already stopped the hold (the car repair ADR's §2.3).
+	if model.body_life_of(model.own_peer) != ClientModel.Life.ALIVE:
 		_hold_station = -1
 	if not listening:
 		_held = -1
@@ -505,13 +505,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		step_place(-1)
 
 
-## Whether the item keys act: a session, a local player, the own player living.
+## Whether the item keys act: a session, a local player, the own player living and not limp.
 func _acts() -> bool:
 	return (
 		session != null
 		and model != null
 		and player != null
-		and model.life_of(model.own_peer) == ClientModel.Life.ALIVE
+		and model.body_life_of(model.own_peer) == ClientModel.Life.ALIVE
 	)
 
 
