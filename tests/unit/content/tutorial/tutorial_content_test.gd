@@ -38,6 +38,10 @@ func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
 			"pick_up | put_down.title | press | put_down"
 			+ " | trigger EventSeen ItemPlaced cause=put_down item=held"
 		),
+		(
+			"hand_belt | hand_belt_draw.title | hand_belt_draw.how | place_1 place_2 place_3"
+			+ " | trigger EventSeen Swapped peer=own"
+		),
 		"hand_belt | hand_belt.title | press | swap | trigger EventSeen Swapped peer=own",
 		"throw | throw.title | throw.how | throw | trigger EventSeen ItemThrown peer=own",
 		"map | map.title | press | map | trigger ClientSeen map_opened",

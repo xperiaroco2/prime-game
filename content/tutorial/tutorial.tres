@@ -75,6 +75,13 @@ fields = {
 "peer": &"own"
 }
 
+[sub_resource type="Resource" id="Step_hand_belt_draw"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.hand_belt_draw.title"
+how_key = &"tutorial.step.hand_belt_draw.how"
+keys = Array[StringName]([&"place_1", &"place_2", &"place_3"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_swapped")])
+
 [sub_resource type="Resource" id="Step_hand_belt"]
 script = ExtResource("3_step")
 title_key = &"tutorial.step.hand_belt.title"
@@ -85,7 +92,7 @@ triggers = Array[ExtResource("4_trigger")]([SubResource("Event_swapped")])
 [sub_resource type="Resource" id="Lesson_hand_belt"]
 script = ExtResource("2_lesson")
 list_key = &"tutorial.list.hand_belt"
-steps = Array[ExtResource("3_step")]([SubResource("Step_hand_belt")])
+steps = Array[ExtResource("3_step")]([SubResource("Step_hand_belt_draw"),SubResource("Step_hand_belt")])
 
 [sub_resource type="Resource" id="Event_thrown"]
 script = ExtResource("7_event_seen")
