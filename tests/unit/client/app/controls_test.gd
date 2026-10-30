@@ -131,6 +131,26 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 	assert_str(KeyLabel.of_action(&"throw")).is_equal(OS.get_keycode_string(KEY_G))
 
 
+func test_the_hand_keys_act_in_the_lobby_so_a_lobby_key_on_them_clashes() -> void:
+	# #1408: the tap's E, the mug's Use, the put-down and the swap act in the lobby as in the round
+	# (the Lobby takes the hand intents, #1388); the Throw stays the round's (the Lobby takes none).
+	var both := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
+	for action: StringName in [&"interact", &"use", &"put_down", &"swap"]:
+		assert_int(Controls.PHASES[action]).override_failure_message(action).is_equal(both)
+	assert_int(Controls.PHASES[&"throw"]).is_equal(Controls.ControlContext.ALIVE)
+	# Ready is the lobby's: on E it now warns (both act in the lobby), on the Throw's G it does not.
+	var controls := Controls.new()
+	assert_bool(controls.bind(&"ready", _press(KEY_E))).is_true()
+	assert_array(controls.clashes_of(&"ready")).contains_exactly([&"interact"])
+	assert_array(controls.clashes_of(&"interact")).contains_exactly([&"ready"])
+	assert_bool(controls.bind(&"ready", _press(KEY_G))).is_true()
+	assert_array(controls.clashes_of(&"ready")).is_empty()
+	# The places' 1, 2 and 3 draw in the lobby too: a lobby-only action may not take them.
+	assert_bool(controls.bind(&"ready", _press(KEY_1))).is_false()
+	assert_bool(controls.bind(&"voice_talk", _press(KEY_2))).is_false()
+	assert_array(Controls.unlisted_on(&"ready", _press(KEY_3))).contains_exactly([&"place_3"])
+
+
 func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_acts() -> void:
 	# #990: `sneak` on the physical left Alt, held, acting wherever the player walks (the lobby and
 	# the round). A Settings row since #1009 (deck key `control.sneak`), as every living action.
@@ -140,7 +160,10 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	# UNLISTED holds only the three places' 1, 2 and 3 (#1218) until the copy deck has their rows.
 	assert_array(Controls.UNLISTED.keys()).is_equal([&"place_1", &"place_2", &"place_3"])
 	for place: StringName in Controls.UNLISTED:
-		assert_int(Controls.UNLISTED[place]).is_equal(Controls.ControlContext.ALIVE)
+		# They draw in the lobby too (#1408: the Lobby takes Draw).
+		assert_int(Controls.UNLISTED[place]).is_equal(
+			Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
+		)
 	assert_str(Controls.name_of(&"sneak")).is_equal("Sneak")
 	TranslationServer.set_locale("uk")
 	assert_str(Controls.name_of(&"sneak")).is_equal("Крастися")

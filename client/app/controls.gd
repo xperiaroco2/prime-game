@@ -39,12 +39,12 @@ const ALL_DEVICES := -1
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
 ## those phases: the places' 1, 2 and 3 (#1218, GDD §6) until the copy deck has `control.place_1`
-## to `control.place_3`; `throw`, G, became a Settings row in #851, `crouch` in #951 and the
-## sneak (Alt) in #1009.
+## to `control.place_3` (they draw in the lobby too, #1408: the Lobby takes Draw); `throw`, G,
+## became a Settings row in #851, `crouch` in #951 and the sneak (Alt) in #1009.
 const UNLISTED: Dictionary[StringName, int] = {
-	&"place_1": ControlContext.ALIVE,
-	&"place_2": ControlContext.ALIVE,
-	&"place_3": ControlContext.ALIVE,
+	&"place_1": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"place_2": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"place_3": ControlContext.LOBBY | ControlContext.ALIVE,
 }
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
@@ -79,11 +79,12 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 }
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
 ## Ready (Game._unhandled_input), the crouch and the sneak too (#991, #990), and the hand keys
-## (ItemInteractions, #1408: the tap and the mugs; the Throw is the round's, the Lobby takes none);
-## the round reads the item keys and the raise while living (ItemInteractions, LifeView), the look
-## alone while downed (it holds still: PlayerController), the give-up while downed and the
-## spectate buttons while dead (LifeView), and the map on any life (Game, #253). Talk sends while
-## the own life is living, in the lobby too, whose VoiceRule hears (VoiceSender.may_speak).
+## (ItemInteractions, #1408: the tap, the mugs and the places' 1, 2, 3; the Throw is the round's,
+## the Lobby takes none); the round reads the item keys and the raise while living
+## (ItemInteractions, LifeView), the look alone while downed (it holds still: PlayerController),
+## the give-up while downed and the spectate buttons while dead (LifeView), and the map on any
+## life (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule
+## hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
 	&"move_back": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
