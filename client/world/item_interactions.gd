@@ -10,10 +10,11 @@ extends Node3D
 ## - in the viewfinder: E or the keys no longer listening close it, the left mouse button sends
 ##   the shot, Interact(camera, item -1), while its film has frames left; no other item key acts;
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
-## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
-##   that captures the mouse is not a use;
+## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item (a photo
+##   too: it hits by the mode's fallback, #1444); the click that captures the mouse is not a use;
 ## - the right mouse button (`use_secondary`) sends UseSecondary(facing), the item's own action
-##   (the mug's drink, #1438), the same way; the dead's right button cycles the spectate target;
+##   (the mug's drink, #1438), the same way; with a photo in the hand it holds the photo up close or
+##   back and sends nothing (#787, #1444); the dead's right button cycles the spectate target;
 ## - X (`swap`) sends Swap() while the own hand or belt holds an item;
 ## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
 ##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
@@ -329,8 +330,8 @@ func put_down() -> int:
 
 ## The left mouse button: Use(facing), with an item in the own hand or none: the host answers by
 ## the hand item's own Use rule, else the mode's fallback hit (#1437). An empty hand sends only in
-## a phase that takes Use from the living. The primary button with a photo in the hand (#787)
-## holds it up close or back and sends nothing (a photo has no Use rule).
+## a phase that takes Use from the living. A photo in the hand hits too, by the fallback (#1444);
+## its close-up is on the right button (use_secondary).
 func use() -> int:
 	if not _acts():
 		return -1
@@ -338,17 +339,20 @@ func use() -> int:
 	if hand_id < 0:
 		if not _phase_takes(Intents.USE):
 			return -1
-	elif PhotoUse.is_photo(mode, model.items[hand_id].kind):
-		_set_close(hand_id if _close_item != hand_id else -1)
-		return -1
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
 
 ## The right mouse button: UseSecondary(facing), the held item's own action (the mug's drink,
 ## #1438), while the own hand holds an item; the host answers nothing_to_do where the item has
-## none. Only the living send it (`_acts`): the dead's right button cycles the spectate target.
+## none. A photo in the hand holds it up close or back instead and sends nothing (a photo has no
+## UseSecondary rule, #787, #1444). Only the living send it (`_acts`): the dead's right button
+## cycles the spectate target.
 func use_secondary() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
+		return -1
+	var hand_id := model.hand_item(model.own_peer)
+	if PhotoUse.is_photo(mode, model.items[hand_id].kind):
+		_set_close(hand_id if _close_item != hand_id else -1)
 		return -1
 	return session.send_intent(Intents.USE_SECONDARY, {"facing": player.look_vector()})
 

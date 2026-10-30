@@ -2774,7 +2774,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the client's own mode) of the feet, less the walking margin of #319 (`TargetChoice.hint_reach_of`), and a second
   ray from the camera to the item's middle meets no world geometry (the host's `InSight`): an item just behind a
   thin wall or a door jamb is never named.
-  Q and X send `PutDown(facing)` and `Swap()` while the own places hold something, the left button `Use(facing)` with the hand empty too where the phase takes `Use` from the living (the mode's fallback hit, #1437; a photo in the hand only toggles its close-up, #787), and the right button (`use_secondary`, #1438) `UseSecondary(facing)`, the hand item's own action, while the hand holds an item, under the same captured-pointer guard and after the viewfinder's return (the dead's right button cycles the spectate target); 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three, counted on from the Draw still in flight and with at least 60 ms between two (#1218, GDD §6)
+  Q and X send `PutDown(facing)` and `Swap()` while the own places hold something, the left button `Use(facing)` with the hand empty too where the phase takes `Use` from the living (the mode's fallback hit, #1437; a photo hits too, #1444), and the right button (`use_secondary`, #1438) `UseSecondary(facing)`, the hand item's own action, while the hand holds an item (a photo in the hand only toggles its close-up, #787, #1444: nothing is sent), under the same captured-pointer guard and after the viewfinder's return (the dead's right button cycles the spectate target); 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three, counted on from the Draw still in flight and with at least 60 ms between two (#1218, GDD §6)
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the head's look vector (the camera's without its drunk sway,
   #1391). E with no station and no item aimed at sends `Pose()` at the chair (#1383,
@@ -5116,10 +5116,11 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   Headless (`enabled` false by `DisplayServer`) nothing renders and the flash ends at its 1 s fallback.
 - **Showing them.** `ItemViews` sets a photo view's picture while its look is shown within `PICTURE_RANGE_M` 12 m of
   the drawing camera, else none (so the material holds no texture and `PhotoPictures` frees it); the own hand and
-  the spectate hand (`LifeView`) show the held photo's, keyed on the item id. The primary button with a photo in the
-  own hand holds it up close (`FirstPersonHand.set_close`: in front of the eye, facing it, 2.2 times larger) or
-  back, sending nothing (a photo has no Use rule); a hand change, a knockdown or death, the viewfinder and the keys
-  no longer listening end it. Sizes, range and frames are placeholders, "not a decision".
+  the spectate hand (`LifeView`) show the held photo's, keyed on the item id. The secondary button (`use_secondary`,
+  RMB, #1444) with a photo in the own hand holds it up close (`FirstPersonHand.set_close`: in front of the eye,
+  facing it, 2.2 times larger) or back, sending nothing (a photo has no UseSecondary rule); the primary button sends
+  Use, the fallback hit (#1437); a hand change, a knockdown or death, the viewfinder and the keys no longer
+  listening end it. Sizes, range and frames are placeholders, "not a decision".
 - **Memory** (`tools\run.cmd shot client/dev/photo_memory_preview.tscn --frames 450`, the greybox puppets, two
   to a shot, measured 2026-10-15 on the engineer's PC, Vulkan Forward+, 1280x720): 20 pictures kept are 172 KB
   of JPEG; PE15's worst case of 224 (32 films x 5 frames plus 64 photos) 1.9 MB, about 8.6 KB each, well under

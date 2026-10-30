@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
-## The holder's photo (#787, photo P8; the photo ADR §3.3): the primary button with a photo in the
-## own hand holds it up close in front of the eye, or back, and sends nothing (a photo has no Use
-## rule); the close-up ends when the hand item changes, at a knockdown and when the keys stop
-## listening. The hand shows the photo's picture (ItemViews.picture_for, keyed on the item, so a
-## swap to another photo shows the other picture), and a photo lying beyond PICTURE_RANGE_M of
-## the drawing camera shows none, so PhotoPictures can free its texture. The real PlayerController,
-## ItemInteractions and ItemViews against a fixture photo mode; the pictures are a stub.
+## The holder's photo (#787, photo P8; the photo ADR §3.3): the secondary button (RMB, #1444) with a
+## photo in the own hand holds it up close in front of the eye, or back, and sends nothing (a photo
+## has no UseSecondary rule); the primary button sends Use, the fallback hit (#1437). The
+## close-up ends when the hand item changes, at a knockdown and when the keys stop listening. The
+## hand shows the photo's picture (ItemViews.picture_for, keyed on the item, so a swap to another
+## photo shows the other picture), and a photo lying beyond PICTURE_RANGE_M of the drawing camera
+## shows none, so PhotoPictures can free its texture. The real PlayerController, ItemInteractions
+## and ItemViews against a fixture photo mode; the pictures are a stub.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
@@ -67,19 +68,30 @@ func after_test() -> void:
 	_harness.close()
 
 
-func test_the_primary_button_holds_a_photo_up_close_and_back_sending_nothing() -> void:
+func test_the_secondary_button_holds_a_photo_up_close_and_back_sending_nothing() -> void:
 	_hold(PHOTO_A, 7)
 	await _frames(2)
-	assert_int(_keys.use()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_bool(_keys.close_up()).is_true()
 	assert_bool(_player.hand_view().is_close()).is_true()
 	await _frames(2)
 	assert_bool(_player.hand_view().is_close()).is_true()
-	assert_int(_keys.use()).is_equal(-1)
+	assert_int(_keys.use_secondary()).is_equal(-1)
 	assert_bool(_keys.close_up()).is_false()
 	assert_bool(_player.hand_view().is_close()).is_false()
 	_harness.pump()
 	assert_array(_harness.sent_named(Intents.USE)).is_empty()
+	assert_array(_harness.sent_named(Intents.USE_SECONDARY)).is_empty()
+
+
+func test_the_primary_button_hits_with_a_photo_and_no_close_up() -> void:
+	_hold(PHOTO_A, 7)
+	await _frames(2)
+	assert_int(_keys.use()).is_greater(0)
+	assert_bool(_keys.close_up()).is_false()
+	assert_bool(_player.hand_view().is_close()).is_false()
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
 
 
 func test_another_item_in_hand_still_sends_use() -> void:
@@ -95,7 +107,7 @@ func test_another_item_in_hand_still_sends_use() -> void:
 func test_the_close_up_shows_the_photo_s_picture() -> void:
 	_hold(PHOTO_A, 7)
 	await _frames(2)
-	_keys.use()
+	_keys.use_secondary()
 	await _frames(2)
 	assert_bool(_player.hand_view().is_close()).is_true()
 	assert_object(_player.hand_view().view().picture()).is_same(_red)
@@ -106,7 +118,7 @@ func test_a_swap_to_the_belt_photo_shows_its_picture_and_ends_the_close_up() -> 
 	_hold(PHOTO_A, 7, PHOTO_B)
 	await _frames(2)
 	assert_object(_player.hand_view().view().picture()).is_same(_red)
-	_keys.use()
+	_keys.use_secondary()
 	_model.fold(&"Swapped", SwappedEvent.new(_model.own_peer, 0).to_dict())
 	await _frames(2)
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(PHOTO_B)
@@ -118,7 +130,7 @@ func test_a_swap_to_the_belt_photo_shows_its_picture_and_ends_the_close_up() -> 
 func test_a_knockdown_ends_the_close_up() -> void:
 	_hold(PHOTO_A, 7)
 	await _frames(2)
-	_keys.use()
+	_keys.use_secondary()
 	var down := KnockedDownEvent.new(_model.own_peer, Vector3.ZERO)
 	_model.fold(down.event_name(), down.to_dict())
 	await _frames(2)
@@ -129,7 +141,7 @@ func test_a_knockdown_ends_the_close_up() -> void:
 func test_the_keys_no_longer_listening_end_the_close_up() -> void:
 	_hold(PHOTO_A, 7)
 	await _frames(2)
-	_keys.use()
+	_keys.use_secondary()
 	_keys.listening = false
 	await _frames(2)
 	assert_bool(_keys.close_up()).is_false()
