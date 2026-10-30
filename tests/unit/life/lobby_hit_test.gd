@@ -101,8 +101,8 @@ func test_it_gets_up_by_itself_with_full_health() -> void:
 	assert_int(victim.health).is_equal(HEALTH)
 	var status := FixtureCombatModes.received(game, P2, &"SelfStatus")
 	assert_int((status[-1] as SelfStatusEvent).health).is_equal(HEALTH)
-	var after := FixtureCombatModes.received(game, P2, &"Correction").size()
-	assert_int(after).is_equal(corrections + 1)
+	var now := FixtureCombatModes.received(game, P2, &"Correction").size()
+	assert_int(now).is_equal(corrections + 1)
 	# Long after: still standing, never downed, dead or respawned.
 	FixtureModes.run_ticks(game, Ticks.from_seconds(40.0))
 	assert_int(victim.life).is_equal(PlayerState.Life.ALIVE)
@@ -140,7 +140,7 @@ func test_a_placement_or_a_knockdown_ends_a_hits_limp() -> void:
 	FixtureLobbyHit.hit(game, 11)
 	var ctx := _ctx(game)
 	# A placement (PlacePlayers) ends the limp with no get-up: the player stands refilled.
-	LifeRules.clear_limp(ctx, game.state.player(P2))
+	LifeRules.clear_limp(ctx, game.state.player(P2), true)
 	assert_bool(game.state.player(P2).is_limp()).is_false()
 	assert_int(game.state.player(P2).health).is_equal(HEALTH)
 	# A knockdown (the tutorial's KnockDown) of a hit's limp keeps its 0: the downed are not healed.
@@ -152,6 +152,41 @@ func test_a_placement_or_a_knockdown_ends_a_hits_limp() -> void:
 	LifeRules.knock_down(_ctx(game), P3)
 	assert_int(game.state.player(P3).life).is_equal(PlayerState.Life.DOWNED)
 	assert_int(game.state.player(P3).health).is_equal(0)
+
+
+func test_the_real_placement_refills_a_hits_limp() -> void:
+	var game := FixtureLobbyHit.armed(FixtureLobbyHit.mode(), [P1, P2, P3])
+	FixtureLobbyHit.hit(game, 10)
+	FixtureLobbyHit.hit(game, 11)
+	var victim := game.state.player(P2)
+	assert_bool(victim.is_limp()).is_true()
+	assert_int(victim.health).is_equal(0)
+	var ctx := _ctx(game)
+	ctx.layout = game.layout(game.state.map)
+	FixtureModes.place(&"round_player").run(ctx)
+	assert_array(Array(game.diagnostics)).is_empty()
+	assert_bool(victim.is_limp()).is_false()
+	assert_int(victim.life).is_equal(PlayerState.Life.ALIVE)
+	assert_int(victim.health).is_equal(HEALTH)
+	FixtureModes.run_ticks(game, 1)
+	var status := FixtureCombatModes.received(game, P2, &"SelfStatus")
+	assert_int((status[-1] as SelfStatusEvent).health).is_equal(HEALTH)
+
+
+func test_restoring_health_refills_the_living_and_leaves_the_downed() -> void:
+	var game := FixtureLobbyHit.armed(FixtureLobbyHit.mode(), [P1, P2, P3])
+	FixtureLobbyHit.hit(game, 10)
+	var downed := game.state.player(P2)
+	LifeRules.knock_down(_ctx(game), P2)
+	assert_int(downed.life).is_equal(PlayerState.Life.DOWNED)
+	game.state.player(P3).health = HIT
+	var statuses := FixtureCombatModes.received(game, P2, &"SelfStatus").size()
+	var ending := EndLimps.new()
+	ending.restore_health = true
+	ending.run(_ctx(game))
+	assert_int(game.state.player(P3).health).is_equal(HEALTH)
+	assert_int(downed.health).is_equal(HEALTH - HIT)
+	assert_int(FixtureCombatModes.received(game, P2, &"SelfStatus").size()).is_equal(statuses)
 
 
 func test_a_phase_without_hit_limp_still_knocks_down() -> void:
