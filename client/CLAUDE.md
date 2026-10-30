@@ -58,7 +58,7 @@ Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 f
 - The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.52).
 - Collision layers come from `PhysicsLayers`. Visual layers: every live `Camera3D` culls with `PhotoLayers.LIVE_VIEW` and every live avatar part (remote bodies, a downed live ragdoll, the hands, carried item views) sits on `LIVE_AVATAR`, so a picture draws the record's puppets instead (#787, §4.7.58; `photo_isolation_test.gd`). Movement numbers (speeds, jump, capsule, eye and step height, stamina,
   the crouch's numbers; the crouch plays everywhere) come from the client's own copy of the mode's `PlayerRules`;
-  `PlayerTuning` keeps client feel only (the push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
+  `PlayerTuning` keeps client feel only (push factors, easings, drunk feel). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
 - Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity (their clips too: `AvatarClips` takes the drawn move), and every head or
   basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be
   zero or vertical in honest play. A body placed in `_physics_process` for the push search is a `StaticBody3D` and

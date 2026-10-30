@@ -382,6 +382,18 @@ func test_task_state_gives_each_tasks_row_for_the_task_screen() -> void:
 	assert_int(_model.tasks[2].total).is_equal(2)
 
 
+func test_its_own_drunk_value_follows_self_status_and_a_new_match_forgets_it() -> void:
+	# The bar's drunk value (#1390) for the sway and the drift (#1391): only the host's word.
+	assert_int(_model.drunk).is_equal(0)
+	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true, -1, 89))
+	assert_int(_model.drunk).is_equal(89)
+	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true, -1, 88))
+	assert_int(_model.drunk).is_equal(88)
+	var settings: Dictionary[StringName, int] = {&"knives": 1}
+	_fold(LoadMatchEvent.new(4, "res://levels/c.tscn", settings))
+	assert_int(_model.drunk).is_equal(0)
+
+
 func test_its_own_status_role_and_correction() -> void:
 	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true))
 	assert_int(_model.health).is_equal(100000)

@@ -249,6 +249,10 @@ var avatars: Dictionary = {}
 var health := -1
 var stamina := -1
 var sprint_available := false
+## How drunk the own player is (SelfStatus, #1390; 0 sober, up to the mode's PlayerRules.drunk_max):
+## the controller's sway and drift read it (#1391). 0 until a SelfStatus says more, and again on
+## clear_match (no host word follows a leave).
+var drunk := 0
 ## Goes up at every fold after which the own player may not have been heard for a while: the
 ## phase changed, or its own life left living. VoiceSender compares it between its steps, so a
 ## knockdown and a revive (or Round, End, Lobby) folded between two of them still mark what waits
@@ -470,6 +474,7 @@ func clear_match() -> void:
 	round_seconds = -1
 	snapshot_tick = -1
 	avatars = {}
+	drunk = 0
 
 
 func _welcome(fields: Dictionary) -> void:
@@ -584,6 +589,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			health = fields["health"]
 			stamina = fields["stamina"]
 			sprint_available = fields["sprint_available"]
+			drunk = fields.get("drunk", 0)
 		&"KnockedDown", &"Died", &"Respawned":
 			_fold_life(event_name, fields)
 		&"RaiseStarted", &"RaiseStopped", &"Revived":

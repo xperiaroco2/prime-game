@@ -112,6 +112,10 @@ var session: ClientSession
 ## looks) or dead (no body).
 var life := ClientModel.Life.ALIVE:
 	set = set_life
+## The own drunk value (#1391): with a session, its model's (SelfStatus) at every physics step;
+## offline (the dev room, the controller's own tests) whatever is set. The sway and the drift
+## follow it (_follow_drunk), only while living.
+var drunk := 0
 
 var _sprinting: bool = false
 ## The ground velocity the own steering drives (#1334): it eases toward the wish over
@@ -154,6 +158,12 @@ var _exit_to := Vector3.ZERO
 var _overlaps := PhysicsShapeQueryParameters3D.new()
 ## The own hand item in the first-person view (M4-8), under the camera.
 var _hand_view := FirstPersonHand.new()
+## The drunk feel (#1391, DrunkFeel): the strength 0..1, eased once per physics step toward the
+## drunk value's; the drift's clock (physics seconds since the onset, so the claims follow the
+## physics steps) and the sway's (render seconds, so the camera moves smoothly between them).
+var _drunk_strength := 0.0
+var _drift_clock := 0.0
+var _sway_clock := 0.0
 
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
@@ -167,12 +177,15 @@ func _ready() -> void:
 	_floor_y = global_position.y
 	_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_camera.add_child(_hand_view)
+	# The sway's _process runs only while drunk (_follow_drunk): a sober player costs nothing.
+	set_process(false)
 
 
 func _physics_process(delta: float) -> void:
 	# The dead have no body: nothing moves and nothing is claimed until a respawn.
 	if rules == null or not (is_living() or is_downed()):
 		return
+	_follow_drunk(delta)
 	if reads_device_input and not held:
 		_read_device_input()
 	_head.position.y = move_toward(
@@ -185,6 +198,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		_walk(delta)
 	_claim()
+
+
+## The drunk camera's sway (own view only, #1391): roll and pitch on the camera under the head, no
+## yaw, so the head, whose look is the claim's facing, never sways.
+func _process(delta: float) -> void:
+	_sway_clock += delta
+	var sway := DrunkFeel.sway(_drunk_strength, _sway_clock, _drunk_seed(), tuning)
+	_camera.rotation = Vector3(sway.y, 0.0, sway.x)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -245,9 +266,10 @@ func attach(client: ClientSession) -> void:
 	_follow_claims()
 
 
-## The camera's look as a unit vector: the claim's facing (E22).
+## The head's look as a unit vector: the claim's facing (E22), the camera's without its drunk sway
+## (#1391), so the host's sight and strike checks and the own aim never sway.
 func look_vector() -> Vector3:
-	return -_camera.global_basis.z.normalized()
+	return -_head.global_basis.z.normalized()
 
 
 ## The take-off speed that lifts the feet exactly `height` at the top of the jump, for a physics
@@ -275,6 +297,8 @@ func look(yaw: float, pitch: float) -> void:
 ## placement's Correction, before this body's next physics step.
 func look_level() -> void:
 	_head.rotation.x = 0.0
+	# Both come with the host's sober() (#1390): the sway and the drift end at once, not eased.
+	_stop_drunk()
 	if session != null:
 		session.set_facing(look_vector())
 
@@ -306,6 +330,7 @@ func set_life(value: ClientModel.Life) -> void:
 	jump_requested = false
 	_jump_stood = false
 	_end_exit()
+	_stop_drunk()
 	_placed = true
 	if is_node_ready():
 		_crouch_where_placed(global_transform)
@@ -431,6 +456,11 @@ func _walk(delta: float) -> void:
 		# A coast is a tick without own movement: the host allows it the walk's travel only
 		# (MovementRule._allowed_travel), Shift held or not.
 		limit = minf(limit, rules.walk_speed_mps)
+	elif _drunk_strength > 0.0:
+		# The drunk drift (#1391): the keys' direction turned, its length kept, so the walk is
+		# never faster than the host's MovementRule allows; never the exit out of `movers`.
+		var angle := DrunkFeel.drift_angle(_drunk_strength, _drift_clock, _drunk_seed(), tuning)
+		steering = DrunkFeel.drifted(steering, angle)
 	_drive = _driven(steering * speed, speed, limit, delta, exiting)
 	var wish := _push_apart(_drive, delta)
 	velocity.x = wish.x
@@ -539,6 +569,49 @@ func _follow_claims() -> void:
 	var predicted := stamina as PredictedStamina
 	if predicted != null and session != null:
 		predicted.follow_claims()
+
+
+## The drunk feel's strength now, 0..1 (#1391; for the tests and a debug readout).
+func drunk_strength() -> float:
+	return _drunk_strength
+
+
+## Eases the drunk strength toward the drunk value's, full at the mode's drunk_too_much_at
+## (drunk_max where that is 0), and runs the sway while it is above 0 (#1391). Sober it returns at
+## once; not living (downed: the host sobers it too, #1390) there is neither sway nor drift.
+func _follow_drunk(delta: float) -> void:
+	if session != null:
+		drunk = session.model.drunk
+	if drunk <= 0 and _drunk_strength <= 0.0:
+		return
+	if not is_living():
+		_stop_drunk()
+		return
+	var full_at := rules.drunk_too_much_at if rules.drunk_too_much_at > 0 else rules.drunk_max
+	var target := DrunkFeel.strength(drunk, full_at, tuning.drunk_curve)
+	_drunk_strength = DrunkFeel.eased(_drunk_strength, target, delta, tuning.drunk_ease_seconds)
+	if _drunk_strength <= 0.0:
+		_stop_drunk()
+		return
+	_drift_clock += delta
+	if not is_processing():
+		set_process(true)
+
+
+## Ends the sway and the drift at once: a life change, a respawn or a placement (#1391). The next
+## drunk value starts them again from their onset.
+func _stop_drunk() -> void:
+	_drunk_strength = 0.0
+	_drift_clock = 0.0
+	_sway_clock = 0.0
+	set_process(false)
+	if _camera != null:
+		_camera.rotation = Vector3.ZERO
+
+
+## The drunk waves' phase per player: the own peer id (0 offline).
+func _drunk_seed() -> int:
+	return session.model.own_peer if session != null else 0
 
 
 ## Metres per second on the ground this step: the living walk or sprint; crouched, the crouch walk,

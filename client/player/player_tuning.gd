@@ -4,8 +4,9 @@ extends Resource
 ## (speeds, jump height, capsule, eye and step height, stamina) are not here: they come from the
 ## client's own copy of the mode's PlayerRules, which the content hash makes the host's (M4-7,
 ## ARCHITECTURE §4.7). What stays is what only this client feels: how it pushes and is pushed
-## (§7.1 "Pushing apart"; the host tolerates any overlap) and how its view eases. The defaults are
-## 0 on purpose, so the numbers live only in the `.tres` (placeholders, "not a decision").
+## (§7.1 "Pushing apart"; the host tolerates any overlap), how its view and its move ease, and how
+## it feels drunk (the sway and the drift, #1391). The defaults are 0 on purpose, so the numbers
+## live only in the `.tres` (placeholders, "not a decision").
 
 @export_group("Pushing")
 ## Walking into another living player pushes them: the part of the pusher's motion into them
@@ -28,3 +29,29 @@ extends Resource
 ## rest alike (#1334, art #196: about 0.2 s). Feel only: it never moves faster than the mode's
 ## speeds, which the host checks; 0 is at once.
 @export var accel_seconds: float = 0.0
+
+@export_group("Drunk")
+## The drunk feel (#1391; GDD §3 Base mode, "The bar"; DrunkFeel): its strength runs 0..1 with the
+## own drunk value, full at the mode's PlayerRules.drunk_too_much_at. Every number of this group is
+## PROVISIONAL, "not a decision": the engineer's taste on the PR (#1391's "Needs the engineer").
+## The strength's curve: an exponent of the value's share of drunk_too_much_at (1 linear).
+@export var drunk_curve: float = 0.0
+## Seconds the strength takes to cross 0..1 as the value rises or decays (the ease-out).
+@export var drunk_ease_seconds: float = 0.0
+## The camera's largest roll at full strength, in degrees (own view only; no yaw ever).
+@export var sway_roll_max_deg: float = 0.0
+## The camera's largest pitch at full strength, in degrees: it moves the view's centre off the
+## claimed facing (the head's), so it stays small.
+@export var sway_pitch_max_deg: float = 0.0
+## The sway's first period in seconds (0: that sine off); two sines mixed make it irregular.
+@export var sway_period_s: float = 0.0
+## The sway's second period in seconds (0: that sine off).
+@export var sway_second_period_s: float = 0.0
+## The walk's wander at full strength: the keys' direction turned by up to this many degrees.
+@export var drift_wander_deg: float = 0.0
+## A steady lean to one side (the peer id's) at full strength, in degrees, on top of the wander.
+@export var drift_lean_deg: float = 0.0
+## The wander's first period in seconds (0: that sine off).
+@export var drift_period_s: float = 0.0
+## The wander's second period in seconds (0: that sine off).
+@export var drift_second_period_s: float = 0.0
