@@ -1618,7 +1618,7 @@ shown <field> on|off` (#275), what its own Ui and current camera draw (the field
 `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a hidden
 field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
 (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
-`ui_accept`'s key; none or several fail the step), `aim item <kind>` until `aim off` (#276: each frame the window
+`ui_accept`'s key; none or several fail the step), `aim item <kind>` (or `aim player <n>`, #1418: the avatar of the scenario's player n, whoever joined first) until `aim off` (#276: each frame the window
 turns its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`;
 paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,

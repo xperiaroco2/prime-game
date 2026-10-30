@@ -65,6 +65,8 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          middle of the nearest item of <kind> resting in its own ClientModel
                                          (no holder; item positions are public); with none, it turns nothing.
                                          The mouse is never captured, so this is the only way to face something
+    aim player <n>                       the same toward player n's avatar in its own ClientModel: the scenario's player
+                                         number, whoever joined first (a window or a bot, never the window itself)
     aim station <kind> [via <route>]     the same toward the nearest placed station of <kind> (its use spot's aim sphere,
                                          TargetChoice), after walking the route's waypoints in order: each frame it
                                          faces the next waypoint at eye height until the feet are within
@@ -407,9 +409,12 @@ class _Parser:
         return made
 
     def aim(self, args: list[str]) -> dict[str, object]:
-        """An aim's kind ('' for `aim off`); a station's also its target and its route's waypoints."""
+        """An aim's kind ('' for `aim off`); a station's also its target and its route's waypoints, a player's its
+        number (the scenario's, not the join order's)."""
         if args == ["off"]:
             return {"kind": ""}
+        if len(args) == 2 and args[0] == "player":
+            return {"kind": "player", "target": "player", "player": self.player(args[1])}
         via: list[list[float]] = []
         if len(args) == 4 and args[0] == "station" and args[2] == "via":
             if args[3] not in self.routes:
@@ -422,7 +427,7 @@ class _Parser:
             return {"kind": args[1], "target": "station", "via": via}
         raise self.fail(
             "an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`), `aim station <kind>"
-            " [via <route>]` (a station kind's id, such as `aim station camera`) or `aim off`"
+            " [via <route>]` (a station kind's id, such as `aim station camera`), `aim player <n>` or `aim off`"
         )
 
     def route(self, args: list[str]) -> None:
@@ -505,6 +510,8 @@ class _Parser:
                     late_bots = False
                 if step.do == "press" and step.args.get("action") == "ready":
                     after_ready = True
+                if step.do == "aim" and step.args.get("player") == number:
+                    raise self.fail(f"window {number} aims at player {number}, itself", step.line)
                 if step.do == "aim" and step.args["kind"]:
                     if aiming:
                         raise self.fail(f"window {number} aims again before `aim off` (line {aiming})", step.line)

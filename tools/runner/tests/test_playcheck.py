@@ -290,6 +290,24 @@ class ParserTest(unittest.TestCase):
         both = scenario(with_header("window 1\naim item knife\naim off\nwindow 2\naim item knife\naim off\nshot a"))
         self.assertEqual([step.args["kind"] for step in both.steps[2][:2]], ["knife", ""])
 
+    def test_aim_player_is_a_plan_entry_for_another_player_of_the_scenario(self) -> None:
+        first = scenario(with_header("window 1\naim player 2\naim off\nshot a")).steps[1]
+        self.assertEqual(
+            first[0].plan(), {"line": 4, "text": "aim player 2", "do": "aim", "kind": "player", "target": "player", "player": 2}
+        )
+        self.assertEqual(first[1].args["kind"], "")
+        for text, line, why in (
+            ("window 1\naim player\naim off\nshot a", 4, "an aim is `aim item <kind>`"),
+            ("window 1\naim player 0\naim off\nshot a", 4, "a player"),
+            ("window 1\naim player 3\naim off\nshot a", 4, "player 3: the scenario has 2"),
+            ("window 2\naim player 2\naim off\nshot a", 4, "window 2 aims at player 2, itself"),
+            ("window 1\naim player 2\nshot a", 4, "window 1 aims and never stops"),
+        ):
+            with self.subTest(text=text):
+                with self.assertRaises(playcheck.Failure) as raised:
+                    scenario(with_header(text))
+                self.assertIn(why, str(raised.exception))
+
     def test_every_field_has_a_text_and_a_shown_wait(self) -> None:
         for name in playcheck.FIELDS:
             for wait in (f"wait text {name} has x", f"wait text {name} lacks x y", f"wait shown {name} on"):

@@ -11,8 +11,9 @@ extends RefCounted
 ## Every step but a wait or `frames` is an action the window performs in the frame advance()
 ## returns it (press, hold, release, button, aim, shot, the host's setup). From `aim item <kind>`
 ## until `aim off` the window turns its own player each frame by aim_turn() toward the item
-## nearest_resting() picks from its own ClientModel (#276), or from `aim station <kind>` toward
-## the station nearest_station() picks, after its route's waypoints (#1105).
+## the station nearest_station() picks, after its route's waypoints (#1105), or from
+## `aim player <n>` toward the avatar of the scenario's player n (#1418).
+## toward the avatar of the scenario's player n (#1418).
 
 enum Status { RUNNING, DONE, FAILED }
 
