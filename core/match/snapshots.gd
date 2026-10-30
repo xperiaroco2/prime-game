@@ -8,7 +8,8 @@ extends RefCounted
 ## avatar's flag `downed` marks a downed player, `posed` one in the seated pose (#1296: public body
 ## state; the own client is not told, as it gets no own avatar), and `invulnerable` one whom strikes
 ## skip at that tick (after a respawn or a revive, vision revision 1: public, so nobody swings at it
-## in vain unawares). The hand and belt items are
+## in vain unawares). `drunk` is how drunk the player is (#1390: public body state, 0..PlayerRules
+## drunk_max; the own client reads its own in SelfStatus). The hand and belt items are
 ## public too (`held_item`, `belt_item`, `belt_item2`: vision revision 1, Two hands; GDD §6). An
 ## item in flight shows `where` FLYING at its launch's origin (§7.1.16; items are not on the wire,
 ## E3: clients draw the arc from the throw's event). Private numbers (health, stamina) are never
@@ -47,6 +48,7 @@ static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Diction
 			"crouched": player.crouched,
 			"sneaking": player.sneaking,
 			"posed": player.posed,
+			"drunk": player.drunk,
 			"held_item": player.held_item,
 			"belt_item": player.belt_item,
 			"belt_item2": player.belt_item2,

@@ -92,6 +92,7 @@ static func events() -> Dictionary[String, Array]:
 	found["SelfStatusEvent"] = [
 		SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false),
 		SelfStatusEvent.new(2, 0, 0, true, 0xFFFFFFFF),
+		SelfStatusEvent.new(2, 70, 400, true, 12, 255),
 	]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
@@ -265,7 +266,7 @@ static func state_and_voice() -> Array[WireMessage]:
 	var avatars := {
 		2: _avatar(Vector3(1, 0, 1), false, false, -1, -1),
 		5: _avatar(Vector3(-3, 1.5, 0), true, false, 0xFFFE, 0),
-		7: _avatar(Vector3(4, 0, -4), false, true, 3, 0xFFFE, 0xFFFD),
+		7: _avatar(Vector3(4, 0, -4), false, true, 3, 0xFFFE, 0xFFFD, 255),
 	}
 	var frame := PackedByteArray()
 	frame.resize(WireSchema.MAX_OPUS)
@@ -397,7 +398,13 @@ static func _claim() -> Dictionary:
 
 
 static func _avatar(
-	at: Vector3, downed: bool, invulnerable: bool, held: int, belt: int, belt2: int = -1
+	at: Vector3,
+	downed: bool,
+	invulnerable: bool,
+	held: int,
+	belt: int,
+	belt2: int = -1,
+	drunk := 40
 ) -> Dictionary:
 	return {
 		"position": at,
@@ -408,6 +415,7 @@ static func _avatar(
 		"crouched": not (downed or invulnerable),
 		"sneaking": invulnerable and not downed,
 		"posed": not (downed or invulnerable),
+		"drunk": drunk,
 		"held_item": held,
 		"belt_item": belt,
 		"belt_item2": belt2,

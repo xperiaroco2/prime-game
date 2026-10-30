@@ -71,6 +71,14 @@ extends ContentPart
 @export var rest_speed_mps := 0.0
 @export var rest_s := 0.0
 @export var longest_motion_s := 0.0
+## The bar's drunk scale (#1390; GDD §3 Base mode, "The bar"): PlayerState.drunk runs 0..drunk_max
+## (at most 255, the wire's U8); Drink raises the fact `drunk_too_much` when a drink lifts it from
+## below `drunk_too_much_at` to that or above; DrunkTicks lowers it one point per `drunk_point_s`.
+## `drunk_max` 0 is a mode with no bar (Drink then is a mode problem). The values are the mode's
+## data, provisional (the engineer tunes them on the hall greybox, #1354).
+@export var drunk_max := 0
+@export var drunk_too_much_at := 0
+@export var drunk_point_s := 0.0
 
 
 ## The capsule's height of a player standing, or crouched where `crouched`.
@@ -128,4 +136,13 @@ func check(mode: GameMode) -> PackedStringArray:
 	for map: String in motion_maps:
 		if mode == null or not mode.maps.has(map):
 			found.append("motion_maps lists %s, which is not one of the mode's maps" % map)
+	if drunk_max != 0 or drunk_too_much_at != 0 or drunk_point_s != 0.0:
+		append_found(
+			found,
+			[
+				out_of_bounds("drunk_max", drunk_max, 1, 255),
+				out_of_bounds("drunk_too_much_at", drunk_too_much_at, 1, drunk_max),
+				out_of_bounds("drunk_point_s", drunk_point_s, 0.05, 60),
+			]
+		)
 	return found

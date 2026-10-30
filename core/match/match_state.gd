@@ -206,6 +206,14 @@ func add_station(kind: StationKind, at: Vector3, colour: Color) -> StationState:
 	return station
 
 
+## Removes every station and numbers the next one 1 again (ClearStations, #1390): the lobby's tap
+## goes before the deal, so a match's dealt stations number from 1 whether a lobby station stood or
+## not. Only while no task is dealt: a task's state may name its stations' ids.
+func clear_stations() -> void:
+	stations.clear()
+	_next_station_id = 1
+
+
 ## The tick at which `peer` last paid cooldown `key`, or -1 if never.
 func cooldown_paid_at(peer: int, key: StringName) -> int:
 	var table: Dictionary = _cooldowns.get(peer, {})
@@ -290,6 +298,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.crouched = false
 	someone.sneaking = false
 	someone.posed = false
+	someone.sober()
 	someone.sprint_held = false
 	someone.moving = false
 	someone.motion = null

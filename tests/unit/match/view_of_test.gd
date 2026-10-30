@@ -128,6 +128,7 @@ func test_snapshots_hold_no_private_numbers() -> void:
 				"crouched",
 				"sneaking",
 				"posed",
+				"drunk",
 				"held_item",
 				"belt_item",
 				"belt_item2",

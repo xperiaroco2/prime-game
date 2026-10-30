@@ -63,7 +63,9 @@ extends RefCounted
 ## ShotTaken 78), appended after `belt_item`.
 ## 37 since #1296 (the seated watcher, GDD §12): the intent Pose (kind 20, no argument) and the
 ## avatar rows' fifth flag `posed` (Snapshot 96), after `sneaking`. ShotTaken's record is unchanged.
-const VERSION := 37
+## 38 since #1390 (the bar, GDD §3): the avatar rows' `drunk` (U8, Snapshot 96), after the flags,
+## and SelfStatus' `drunk` (U8, kind 54), after `claim_tick`. ShotTaken's record is unchanged.
+const VERSION := 38
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -475,12 +477,13 @@ static func _events() -> Array[WireRow]:
 		_down(
 			54,
 			&"SelfStatus",
-			17,
+			18,
 			[
 				_s32("health"),
 				_s32("stamina"),
 				_bool("sprint_available"),
 				_of("claim_tick", WireField.Type.S64),
+				_of("drunk", WireField.Type.U8),
 			]
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
@@ -635,6 +638,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				WireField.bits(
 					PackedStringArray(["downed", "invulnerable", "crouched", "sneaking", "posed"])
 				),
+				_of("drunk", WireField.Type.U8),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item2", WireField.Type.ITEM),

@@ -61,6 +61,17 @@ var sneaking := false
 ## Public body state: the snapshot relays it to every peer. The host keeps the standing capsule
 ## and eye for it (only `crouched` lowers them).
 var posed := false
+## How drunk the player is (#1390; GDD §3 Base mode, "The bar"): 0 is sober, up to the mode's
+## PlayerRules.drunk_max. Raised by Drink (a mug's Use), lowered one point per
+## PlayerRules.drunk_point_s by DrunkTicks, and back to 0 (sober()) at every placement, knockdown,
+## respawn and reset, so nobody is drunk in a round. Public body state: the snapshot relays it on
+## the avatar to every other peer, and the player's own SelfStatus carries it to its own client
+## (the sway and the drift, #1391, read it; the fact `drunk_too_much` marks Drink's upward
+## crossing of PlayerRules.drunk_too_much_at, #1393).
+var drunk := 0
+## The host tick at which the next drunk point falls (DrunkTicks), or -1 while sober. Host only,
+## never sent.
+var drunk_stamp := -1
 ## The client tick of the last accepted claim, or -1.
 var claim_tick := -1
 ## Raised by every placement; a claim of another epoch is dropped as stale (§7).
@@ -152,6 +163,15 @@ func carried_items() -> PackedInt32Array:
 		if places[place] >= 0:
 			carried.append(places[place])
 	return carried
+
+
+## Sobers the player up: drunk 0, no stamp. True when it was drunk, so a caller with a context
+## touches its SelfStatus (SelfStatusFeed).
+func sober() -> bool:
+	var was := drunk > 0
+	drunk = 0
+	drunk_stamp = -1
+	return was
 
 
 ## Empties every place; place 0 is in the hand again (MatchState.reset_player).

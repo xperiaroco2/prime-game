@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 37
+const PROTOCOL_VERSION := 38
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -81,6 +81,7 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	joined.epoch += 1
 	ctx.emit(_welcome(ctx, joined, spec.id))
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
+	_replay_stations(ctx)
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
 
@@ -251,3 +252,15 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 	welcome.phase = phase_id
 	welcome.lobby_name = ctx.state.lobby_name
 	return welcome
+
+
+## The stations standing before a join (#1390: the lobby's tap, StationTicks), again in id order
+## (StationPlaced, everyone): Welcome carries none yet (#1404), and a client overwrites a station
+## it knows by id, so the others' copies change nothing. Lobby and Countdown both join here.
+static func _replay_stations(ctx: MatchContext) -> void:
+	var ids: Array[int] = []
+	ids.assign(ctx.state.stations.keys())
+	ids.sort()
+	for id: int in ids:
+		var station := ctx.state.stations[id]
+		ctx.emit(StationPlacedEvent.new(id, station.kind.id, station.colour, station.position))

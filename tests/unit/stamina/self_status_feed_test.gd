@@ -14,8 +14,17 @@ func test_it_goes_only_to_that_player() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var statuses := FixtureMoves.statuses(game, P1)
 	assert_int(statuses.size()).is_equal(1)
-	assert_dict(statuses[0].to_dict()).is_equal(
-		{"health": 100000, "stamina": 100000, "sprint_available": true, "claim_tick": tick}
+	(
+		assert_dict(statuses[0].to_dict())
+		. is_equal(
+			{
+				"health": 100000,
+				"stamina": 100000,
+				"sprint_available": true,
+				"claim_tick": tick,
+				"drunk": 0,
+			}
+		)
 	)
 	assert_array(FixtureMoves.statuses(game, P2)).is_empty()
 
