@@ -293,13 +293,16 @@ func test_every_held_phase_offers_takes_and_cancels() -> void:
 	for phase_id: StringName in [&"lobby", &"countdown", &"round"]:
 		var phase := mode.find_phase(phase_id)
 		for intent: StringName in [Intents.HAND_OVER, Intents.TAKE_OFFER, Intents.CANCEL_OFFER]:
-			assert_int(phase.senders_of(intent)).override_failure_message(
-				"%s %s" % [phase_id, intent]
-			).is_equal(AcceptSpec.From.LIVING)
+			(
+				assert_int(phase.senders_of(intent))
+				. override_failure_message("%s %s" % [phase_id, intent])
+				. is_equal(AcceptSpec.From.LIVING)
+			)
 		var ticks := phase.tick_systems.filter(func(s: TickSystem) -> bool: return s is OfferTicks)
 		assert_int(ticks.size()).is_equal(1)
-		assert_array([(ticks[0] as OfferTicks).timeout_s, (ticks[0] as OfferTicks).reach_m]).is_equal(
-			[5.0, 2.0]
+		(
+			assert_array([(ticks[0] as OfferTicks).timeout_s, (ticks[0] as OfferTicks).reach_m])
+			. is_equal([5.0, 2.0])
 		)
 	assert_object(mode.find_phase(&"round").tick_systems.back()).is_instanceof(OfferTicks)
 	var classes: Array[Script] = []
@@ -307,7 +310,9 @@ func test_every_held_phase_offers_takes_and_cancels() -> void:
 	for condition: Condition in rule.conditions:
 		classes.append(condition.get_script() as Script)
 	# One offer per giver: a negated Offering before the receiver and the geometry.
-	assert_array(classes).is_equal([HoldsItem, Offering, TargetLiving, TargetInReach, TargetInSight])
+	assert_array(classes).is_equal(
+		[HoldsItem, Offering, TargetLiving, TargetInReach, TargetInSight]
+	)
 	assert_bool(rule.conditions[1].negate).is_true()
 	assert_float((rule.conditions[3] as TargetInReach).reach_m).is_equal(2.0)
 	assert_bool((rule.conditions[4] as TargetInSight).at_eye).is_true()

@@ -60,7 +60,9 @@ func test_a_negated_required_condition_does_not_count() -> void:
 
 func test_an_offer_effect_on_another_intent_in_a_reaction_or_in_a_row_is_refused() -> void:
 	var effects: Dictionary[StringName, Script] = {
-		Intents.HAND_OVER: HandOver, Intents.TAKE_OFFER: TakeOffer, Intents.CANCEL_OFFER: CancelOffer
+		Intents.HAND_OVER: HandOver,
+		Intents.TAKE_OFFER: TakeOffer,
+		Intents.CANCEL_OFFER: CancelOffer
 	}
 	for intent: StringName in effects:
 		var on_use := FixtureHandOverModes.basic()
@@ -85,7 +87,7 @@ func test_a_phase_that_offers_lists_offer_ticks_with_the_hand_over_s_reach() -> 
 	round_spec.tick_systems = round_spec.tick_systems.filter(
 		func(s: TickSystem) -> bool: return not s is OfferTicks
 	)
-	_expect(missing, "phase round accepts [&\"HandOver\", &\"TakeOffer\", &\"CancelOffer\"]")
+	_expect(missing, 'phase round accepts [&"HandOver", &"TakeOffer", &"CancelOffer"]')
 	_expect(missing, "lists no OfferTicks")
 	var short := FixtureHandOverModes.basic()
 	_ticks_of(short).reach_m = 1.5

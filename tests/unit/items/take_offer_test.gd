@@ -182,9 +182,7 @@ func test_either_side_going_limp_downed_or_dead_ends_it() -> void:
 		var limp := _offered(&"gift")
 		FixtureHandOverModes.make_limp(limp, peer)
 		_ends_on_tick(limp)
-		for life: PlayerState.Life in [
-			PlayerState.Life.DOWNED, PlayerState.Life.DEAD
-		]:
+		for life: PlayerState.Life in [PlayerState.Life.DOWNED, PlayerState.Life.DEAD]:
 			var game := _offered(&"gift")
 			game.state.player(peer).life = life
 			_ends_on_tick(game)

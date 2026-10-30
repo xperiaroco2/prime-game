@@ -53,7 +53,7 @@ func test_the_base_modes_hand_over_and_take_reach_two_metres() -> void:
 	assert_float(HandOverUse.reach_of(base, Intents.TAKE_OFFER)).is_equal(2.0)
 
 
-## #1434: any item can be offered, a two-handed one too (the pick-up's hand rules apply at the take).
+## #1434: any item can be offered, a two-handed one too (the pick-up's hand rules at the take).
 func test_any_hand_item_can_be_offered() -> void:
 	# An empty hand hands nothing.
 	assert_bool(HandOverUse.can_hand(_model, _mode)).is_false()
@@ -170,7 +170,7 @@ func test_nothing_aimed_at_sends_nothing_and_cues_nothing() -> void:
 	assert_int(use.hand_over()).is_equal(-1)
 
 
-## E sends by the prompt: HandOver(target), TakeOffer(target) or CancelOffer, each with its deck key.
+## E sends by the prompt: HandOver(target), TakeOffer(target) or CancelOffer, each its deck key.
 func test_e_sends_the_intent_of_the_prompt() -> void:
 	var use: HandOverUse = auto_free(HandOverUse.new())
 	use.setup(null, _mode)

@@ -66,10 +66,13 @@ static func problems(mode: GameMode) -> PackedStringArray:
 		var ticks := _of(phase)
 		var offering := _offering(mode, phase)
 		if not offering.is_empty() and ticks == null:
-			found.append(
-				(
-					"phase %s accepts %s, which offers, takes or cancels an offer, but lists no OfferTicks"
-					% [phase.id, offering]
+			(
+				found
+				. append(
+					(
+						"phase %s accepts %s, which offers, takes or cancels an offer, but lists no OfferTicks"
+						% [phase.id, offering]
+					)
 				)
 			)
 		if ticks != null and ticks.reach_m < reach:
