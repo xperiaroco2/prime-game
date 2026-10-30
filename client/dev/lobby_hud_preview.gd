@@ -22,6 +22,9 @@ const CODE := "K7Q2XR"
 ## Taras, in view to the right (the handoff's plate sits right of the centre).
 const TARAS := 2
 const TARAS_AT := Vector3(1.4, 0.0, -4.0)
+## Taras with `hand_over`: under the crosshair, within the base mode's 2 m reach of HandOver (less
+## the hint's margin), where the cue really shows.
+const TARAS_HANDED_AT := Vector3(0.0, 0.0, -1.4)
 
 @export_enum("wait", "count", "short", "code-waiting", "direct") var lobby_state := "wait"
 ## The host's own view (its own row reads `player.you`) instead of a code joiner's.
@@ -109,10 +112,12 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	return model
 
 
-## Taras at his spot, facing the camera, in the snapshot of `tick`.
+## Taras at his spot (TARAS_HANDED_AT with `hand_over`), facing the camera, in the snapshot of
+## `tick`.
 func _lobby_snapshot(tick: int) -> void:
+	var at := TARAS_HANDED_AT if hand_over else TARAS_AT
 	var avatars := {
-		TARAS: {"position": TARAS_AT, "velocity": Vector3.ZERO, "facing": Vector3.BACK},
+		TARAS: {"position": at, "velocity": Vector3.ZERO, "facing": Vector3.BACK},
 	}
 	_now += TICK_USEC
 	_model.fold_snapshot({"tick": tick, "avatars": avatars})
