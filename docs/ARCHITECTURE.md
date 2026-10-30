@@ -3372,7 +3372,9 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
-  living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
+  living, `interact`, `use`, `put_down` and `swap` in the lobby too (#1408: `GamePlayer.apply_flags` lets
+  `ItemInteractions` listen there, the Lobby accepting the hand intents, #1388; `throw` and the raise stay the
+  round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
   buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
   check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
@@ -4459,7 +4461,11 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
 - **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
-  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls, one line each by its deck key (`players_many` is `lobby.too_many`, `markers` is `lobby.need_markers`, `no_layout` and `no_task_types` their own, #718); `colours` (and `markers_exact`) have no key and stay #548's neutral line. The Esc Lobby page's Shortfalls label words them the same way.
+  ready chip (plain English, as before). The round HUD's `Aim` (#1408): a ToyChipPlate > `Text` ToyChipPlateText
+  38 px under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
+  (`HudText.aim_of`, the round's own: the item's deck key, else the station's `ContentNames.station`; the lobby's
+  tap reads its id `tap` until the deck has `station.tap`), fed by `GameUi.refresh_round` on the lobby screen
+  from `ItemWorld.hud_local`. Besides `players_few` the status shows the host's other shortfalls, one line each by its deck key (`players_many` is `lobby.too_many`, `markers` is `lobby.need_markers`, `no_layout` and `no_task_types` their own, #718); `colours` (and `markers_exact`) have no key and stay #548's neutral line. The Esc Lobby page's Shortfalls label words them the same way.
 - **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
   the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
 - Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
@@ -4468,7 +4474,8 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
   handoff's tree, anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
   inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
-  language change, seen failing without the notification; large text's keycap), `esc_menu_input_test.gd` (no
+  language change, seen failing without the notification; large text's keycap; `Aim` only with a text),
+  `item_interactions_tap_network_test.gd` (`Aim` names the tap, §4.7.54), `esc_menu_input_test.gd` (no
   prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
   the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at
   `--size 1920x1080`: `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`,
@@ -4857,7 +4864,9 @@ unchanged.
   (HandNotTwoHanded) holds, and whose task type's `TaskClient` owns the kind and offers it (§4.7.59): a Generator's
   generator and switch, neither once the charge is done (the host's StationUsable); a fixed switch is no station (GE14). Cooking's are
   `CookingUse`'s (§4.7.55), the photo task's `PhotoUse`'s (§4.7.56), car repair's `CarRepairUse`'s (§4.7.57); every
-  kind with an Interact rule is offered.
+  kind with an Interact rule is offered. A kind no task type holds (`Stations.owner_of` null) is one a phase places
+  itself (`StationTicks`, the lobby's tap, §9.5.26): no task tracks it, so its Interact rule and the hand rule alone
+  decide (#1408).
 - **The target.** `TargetChoice.choose_target` weighs the item against the offered stations: a station counts where
   the camera's ray hits its device (`StationViews.station_of_body` names the scene's `Collision`) or enters its use
   spot's sphere (`STATION_AIM_RADIUS_M` 0.4 m, its middle 0.4 m above the floor point; looks, "not a decision"),
@@ -4885,7 +4894,8 @@ unchanged.
   ZoneProgress's `needed`, `value` `ZoneViews.ticks_at` at the host tick while `GameFlow.in_round`, else the last
   event's ticks (the model's `end_tick` is the clock's, not the round's end); full, and struck, once the station or
   the task is done. It reads only its generator station's events.
-- **Tests.** `tests/unit/client/world/station_use_test.gd`, `target_choice_station_test.gd`,
+- **Tests.** `tests/unit/client/world/station_use_test.gd` (the tap offered by its rule, #1408),
+  `target_choice_station_test.gd`,
   `generator_sounds_test.gd`, `tests/integration/client/world/item_interactions_station_test.gd`,
   `circle_views_generator_test.gd`, `station_views_test.gd` (the real `levels/stations/` scenes),
   `station_scene_search_test.gd` (the four views' one search),
@@ -5125,7 +5135,8 @@ What the client does for each core task type class sits behind one table, client
   the table by class.
 - **What E offers.** `StationUse.usable` checks the kind's Interact rule, the loaded camera's take-out (a take,
   §4.7.56) and the hand rule, then asks the first of the mode's types whose client owns the station's kind; a kind
-  no client owns is never offered (a Delivery circle, a zone). Content today shares no station kind between two
+  of a type no client owns is never offered (a Delivery circle, a zone), a kind of no type (a phase's
+  `StationTicks`, the lobby's tap, #1408) always is. Content today shares no station kind between two
   types of one mode, so the mode's order gives the same answer as the per-type order before.
 - **A missing row.** `ItemWorld.setup` calls `TaskClients.report_missing(mode)`: a `push_error` per mode type with
   no client, once per class for the process, so a type is never skipped silently. The hums, the sound choice, the
@@ -8178,10 +8189,15 @@ after 30 s, no Use). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_
 `drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)` and `DrunkTicks`;
 `countdown_done` runs `ClearItems` then `ClearStations`. The pour is instant, a mug is one drink, drinks stack.
 Every number is provisional (the engineer tunes them on the hall greybox, #1354). Not built here: the sway and walk
-drift (#1391), the voice (#1392), the limp (#1393), the hand-over (#1389), the client's E hint for the tap and its Use of a mug (#1408).
+drift (#1391), the voice (#1392), the limp (#1393), the hand-over (#1389).
+- **The client** (#1408): `StationUse` offers the tap (a kind of no task type, §4.7.54), the lobby HUD's `Aim`
+  names it (`tap` until the deck has `station.tap`, §4.7.47), E sends `Interact(tap, -1)` and the left button
+  `Use(facing)` with the mug in the hand: the item keys listen in the lobby (§4.7.28's `Controls.PHASES`).
 - **Tests:** `tests/unit/content/base_mode_lobby_test.gd` (the shipped tap, mug and drink, cleared at countdown_done)
   and the parts' suites of §7.1.20; the scenarios `bar_pour_drink_and_sober_up` and `bar_overdrinks` (§9.7,
-  `ExpectDrunk`) and chaos bot 3's mug in the lobby (§4.6.5).
+  `ExpectDrunk`) and chaos bot 3's mug in the lobby (§4.6.5); the client's
+  `tests/integration/client/world/item_interactions_tap_network_test.gd` (a joiner at the tap: `Aim`, E pours, Use
+  drinks: `mug_empty`, the own drunk value up) and `tests/unit/client/world/station_use_test.gd`.
 
 #### 9.5.25 Delivery by meaning (task type)
 What it does (the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md) §2, the engineer's DD2, DD5,
