@@ -425,6 +425,12 @@ func test_its_own_status_role_and_correction() -> void:
 	assert_array(_model.teammates[&"dissident"]).contains_exactly([OWN, 3])
 	_fold(CorrectionEvent.new(OWN, 9, Vector3.ONE, Vector3.ZERO))
 	assert_int(_model.epoch).is_equal(9)
+	# Its own pose comes from its SelfStatus (#1383): the snapshot skips the own avatar.
+	assert_bool(_model.posed).is_false()
+	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true, -1, 0, true))
+	assert_bool(_model.posed).is_true()
+	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true))
+	assert_bool(_model.posed).is_false()
 
 
 func test_a_newer_snapshot_replaces_the_avatars_and_an_older_one_does_not() -> void:
@@ -712,6 +718,7 @@ func _to_round() -> void:
 	_fold(RoundStartedEvent.new(40))
 	_fold(PhaseChangedEvent.new(&"round", 12040))
 	_fold(DiedEvent.new(1, Vector3(3, 0, 3)))
+	_fold(SelfStatusEvent.new(OWN, 100000, 80000, true, -1, 0, true))
 	_model.fold_snapshot({"tick": 41, "avatars": {1: {"position": Vector3.ONE}}})
 	assert_int(_model.items.size()).is_equal(1)
 	assert_int(_model.stations.size()).is_equal(1)
@@ -731,6 +738,7 @@ func _assert_no_match_facts() -> void:
 	assert_str(String(_model.winner)).is_empty()
 	assert_str(String(_model.ended_by)).is_empty()
 	assert_int(_model.round_seconds).is_equal(-1)
+	assert_bool(_model.posed).is_false()
 	assert_int(_model.snapshot_tick).is_equal(-1)
 	assert_bool(_model.avatars.is_empty()).is_true()
 

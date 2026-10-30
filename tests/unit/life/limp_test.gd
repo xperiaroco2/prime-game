@@ -254,6 +254,35 @@ func test_a_seated_crouched_drinker_goes_limp_with_every_pose_ended() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## Pose meets the limp (#1383, #1393): a posed drinker going limp stands up and its poser hears
+## `posed` false; a limp player's Pose is refused like any player action and sits nobody down.
+func test_a_posed_drinker_going_limp_hears_posed_false_and_a_limp_one_cannot_pose() -> void:
+	var mode := FixtureMoves.posing(FixtureLimp.mode())
+	mode.find_phase(&"lobby").accepts.append(AcceptSpec.of(Intents.POSE, AcceptSpec.From.LIVING))
+	var game := FixtureBar.at_bar(mode, [P1, P2])
+	# The lobby plays on the lobby level's layout, not on state.map (which seat() reads).
+	game.layout(FixtureBaseMode.LOBBY).add_marker(
+		FixtureMoves.SEAT_TAG, game.state.player(P1).position + FixtureMoves.SEAT_OFFSET
+	)
+	FixtureMoves.pose(game, P1, 50)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_true()
+	assert_bool(FixtureMoves.statuses(game, P1).back().posed).is_true()
+	FixtureLimp.drink_to_limp(game, P1)
+	assert_bool(game.state.player(P1).is_limp()).is_true()
+	assert_bool(game.state.player(P1).posed).is_false()
+	FixtureModes.run_ticks(game, 2)
+	assert_bool(FixtureMoves.statuses(game, P1).back().posed).is_false()
+	var refused := FixtureModes.rejections(game, P1).size()
+	FixtureMoves.pose(game, P1, 300)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_false()
+	assert_array(FixtureModes.rejections(game, P1).slice(refused)).is_equal(
+		[RejectReasons.NOT_ACCEPTED]
+	)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## The scenarios' and the chaos run's oracle (ScenarioInvariants.limp_problem): an honest snapshot
 ## passes; a limp flag that does not match the state, or a limp player not living, is reported.
 func test_the_invariant_catches_a_wrong_limp_flag() -> void:

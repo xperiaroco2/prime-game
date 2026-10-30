@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 ## any own move ends it (a claim's moving input, a moved tick it covers or a new jump, also a
 ## refused claim; an accepted claim's travel with no one near to push it), a push without input
 ## does not; a placement, a knockdown and a reset end it; the lobby and the downed are not
-## accepted. The rule is FixtureMoves.posing()'s: no shipped mode has one yet.
+## accepted; away from every seat (AtMarker) the pose is refused `out_of_reach`. The rule is
+## FixtureMoves.posing()'s (the base mode's own is pinned in tests/unit/content/), the seats
+## FixtureMoves.seat()'s.
 
 const P1 := 1
 const P2 := 2
@@ -132,6 +134,7 @@ func test_a_displacement_without_input_keeps_the_pose() -> void:
 	# watcher's own.
 	var game := _posing_round([P1, P2])
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
+	FixtureMoves.seat(game, P1)
 	FixtureItemModes.stand(game, P2, EAST)
 	FixtureMoves.pose(game, P1)
 	FixtureModes.run_ticks(game, 1)
@@ -147,9 +150,11 @@ func test_travel_without_input_and_without_a_pusher_ends_the_pose() -> void:
 	# travels, with nobody near to push it, is a walk all the same (the coasting allowance).
 	var game := _posing_round([P1, P2])
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
+	FixtureMoves.seat(game, P1)
 	FixtureItemModes.stand(game, P2, Vector3(10, 0, 10))
 	FixtureMoves.pose(game, P1)
 	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_true()
 	var corrections := game.view_of(P1).events_named(&"Correction").size()
 	FixtureMoves.step(game, P1, NORTH * 0.1, {"moved_ticks": 0})
 	assert_array(game.view_of(P1).events_named(&"Correction")).has_size(corrections)
@@ -164,6 +169,7 @@ func test_the_downed_cannot_pose_and_the_knockdown_ends_it() -> void:
 	)
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, NORTH)
+	FixtureMoves.seat(game, P2)
 	FixtureItemModes.stand(game, P3, Vector3(5, 0, 5))
 	FixtureMoves.pose(game, P2)
 	FixtureModes.run_ticks(game, 1)
@@ -208,6 +214,7 @@ func test_a_pose_stops_the_posers_raise() -> void:
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, NORTH)
 	FixtureItemModes.stand(game, P3, Vector3(1.5, 0, 1))
+	FixtureMoves.seat(game, P3)
 	FixtureCombatModes.use(game, P1, NORTH)
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P1, NORTH)
@@ -223,14 +230,51 @@ func test_a_pose_stops_the_posers_raise() -> void:
 
 
 func test_take_pose_emits_nothing() -> void:
-	# The flag travels in the snapshot only: no event names the poser to anyone.
+	# The flag travels in the snapshot and in the poser's own SelfStatus (the feed's, to the poser
+	# alone): no event of the effect names the poser to anyone.
 	assert_array(TakePose.new().emits()).is_empty()
+	assert_array(TakePose.new().required_conditions()).is_equal([AtMarker])
 
 
+func test_a_pose_away_from_every_seat_is_out_of_reach() -> void:
+	var game := _posing_round([P1, P2])
+	# The seats stand beside the placement spots; 3 m north of P1's own is outside every one.
+	FixtureItemModes.stand(game, P1, game.state.player(P1).position + Vector3(0, 0, 3))
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_false()
+	assert_bool(_shown(game, P2, P1)).is_false()
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([AtMarker.OUT_OF_REACH])
+
+
+func test_a_map_without_a_seat_refuses_every_pose() -> void:
+	var game := FixtureItemModes.in_round(
+		FixtureMoves.posing(FixtureModes.basic()), [P1, P2], FixtureTerrainWorld.new()
+	)
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_false()
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([AtMarker.OUT_OF_REACH])
+
+
+func test_a_kill_from_the_chair_stands_the_body_up() -> void:
+	var game := _posing_round([P1, P2])
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(game.state.player(P1).posed).is_true()
+	LifeRules.kill(FixtureMoves.context(game), P1)
+	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DEAD)
+	assert_bool(game.state.player(P1).posed).is_false()
+
+
+## A round of the posing fixture with a seat beside every player's placement spot.
 func _posing_round(peers: Array[int]) -> Match:
-	return FixtureItemModes.in_round(
+	var game := FixtureItemModes.in_round(
 		FixtureMoves.posing(FixtureModes.basic()), peers, FixtureTerrainWorld.new()
 	)
+	for peer: int in peers:
+		FixtureMoves.seat(game, peer)
+	return game
 
 
 ## Whether `viewer`'s newest snapshot shows `peer` posed.

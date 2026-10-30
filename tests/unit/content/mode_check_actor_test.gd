@@ -157,6 +157,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 	var none: Array[StringName] = []
 	var expected: Dictionary[StringName, Array] = {
 		&"AllSubtasksDone": [false, false, none],
+		&"AtMarker": [true, false, none],
 		&"AtStation": [true, true, none],
 		&"CarriesItem": [true, false, none],
 		&"ChannelFree": [true, false, none],

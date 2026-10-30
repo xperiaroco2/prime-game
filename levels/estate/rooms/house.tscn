@@ -1794,6 +1794,9 @@ billboard = 1
 text = "Chair"
 outline_size = 8
 
+[node name="ChairSeat01" type="Marker3D" parent="StationMarkers" unique_id=1138301383 groups=["spawn_chair"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2, -3.25, -1.5)
+
 [node name="BigPartsPrinter01" type="StaticBody3D" parent="StationMarkers" unique_id=2028997409]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, -2.3, 6.5)
 

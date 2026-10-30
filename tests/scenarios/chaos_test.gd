@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## scoped to the two chaos peers, and the comparison of two runs' Rejected streams sees a
 ## difference. The runs themselves: tools\run.cmd bots --chaos (a verify step).
 
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const NOW := 5_000_000
 ## The chaos match's four bots as peers of a match without a network, bot 4 the hostile's.
 const BOT_PEERS: Array[int] = [1, 2, 3, 4]
@@ -144,6 +145,26 @@ func test_every_intent_has_an_oracle_answer_and_next_stage_is_refused_even_from_
 		)
 		for intent: StringName in ChaosOracle.NEVER_ACCEPTED:
 			assert_bool((ChaosOracle.ACCEPTS[phase] as Dictionary).has(intent)).is_false()
+
+
+func test_the_oracle_refuses_pose_out_of_reach_since_no_chaos_level_holds_a_chair() -> void:
+	# The base mode's Pose (#1383) is gated by its AtMarker; the oracle answers out_of_reach
+	# because no level the scenario runners play has a marker of its tag. A chair on one of them
+	# (or Pose's row losing its gate) must change the oracle, so this fails first.
+	var living := PlayerState.new(4, "Player4")
+	assert_str(str(ChaosOracle.answer(Intents.POSE, {}, 4, &"round", living, 0))).is_equal(
+		str(AtMarker.OUT_OF_REACH)
+	)
+	var mode := load("res://content/modes/base_mode.tres") as GameMode
+	var chair := PoseUse.chair_of(mode)
+	assert_object(chair).is_not_null()
+	var levels := MarkerReader.read_levels(
+		mode, FlatWorldQuery.new(), ScenarioLevels.unsnapped(mode)
+	)
+	for path: String in ScenarioLevels.of(mode):
+		var layout: LevelLayout = levels.layouts.get(path)
+		assert_object(layout).override_failure_message(path).is_not_null()
+		assert_array(Array(layout.positions(chair.tag))).override_failure_message(path).is_empty()
 
 
 func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach() -> void:

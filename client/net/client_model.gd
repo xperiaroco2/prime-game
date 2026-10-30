@@ -257,6 +257,9 @@ var sprint_available := false
 ## the controller's sway and drift read it (#1391). 0 until a SelfStatus says more, and again on
 ## clear_match (no host word follows a leave).
 var drunk := 0
+## Whether the own player sits posed (its SelfStatus, #1383): the snapshot hides the own avatar,
+## so this is the only place the posing client learns it; false until a SelfStatus says so.
+var posed := false
 ## Goes up at every fold after which the own player may not have been heard for a while: the
 ## phase changed, or its own life left living. VoiceSender compares it between its steps, so a
 ## knockdown and a revive (or Round, End, Lobby) folded between two of them still mark what waits
@@ -485,6 +488,7 @@ func clear_match() -> void:
 	snapshot_tick = -1
 	avatars = {}
 	drunk = 0
+	posed = false
 
 
 func _welcome(fields: Dictionary) -> void:
@@ -600,6 +604,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			stamina = fields["stamina"]
 			sprint_available = fields["sprint_available"]
 			drunk = fields.get("drunk", 0)
+			posed = fields.get("posed", false)
 		&"KnockedDown", &"Died", &"Respawned":
 			_fold_life(event_name, fields)
 		&"RaiseStarted", &"RaiseStopped", &"Revived":

@@ -102,6 +102,7 @@ func _init() -> void:
 	interactions.aim_of = aim_point
 	interactions.viewfinder = viewfinder
 	hand_over.interactions = interactions
+	interactions.chair_spots = chair_spots
 	items.station_point = drawn_point
 	hums.ears = sounds.ears
 	items.sound_due.connect(sounds.on_event)
@@ -242,6 +243,19 @@ func set_level(level: Node) -> void:
 	for view: Node3D in task_views.values():
 		if &"level" in view:
 			view.set(&"level", level)
+
+
+## The positions of the loaded scene's Marker3Ds in `group` (ItemInteractions.chair_spots, #1383):
+## the chairs a Pose row's AtMarker names, read from the level every client loads (§9.6).
+func chair_spots(group: StringName) -> PackedVector3Array:
+	var spots := PackedVector3Array()
+	if not is_inside_tree():
+		return spots
+	for node: Node in get_tree().get_nodes_in_group(group):
+		var marker := node as Marker3D
+		if marker != null and marker.is_inside_tree():
+			spots.append(marker.global_position)
+	return spots
 
 
 ## The station a ray hit names (ItemInteractions.station_of_hit): StationViews' by the body, then

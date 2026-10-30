@@ -23,6 +23,7 @@ func test_it_goes_only_to_that_player() -> void:
 				"sprint_available": true,
 				"claim_tick": tick,
 				"drunk": 0,
+				"posed": false,
 			}
 		)
 	)

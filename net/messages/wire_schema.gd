@@ -68,7 +68,8 @@ extends RefCounted
 ## 39 since #1389 (GDD §6, the hand-over): the intent HandOver (kind 21, its target).
 ## 40 since #1393 (the limp, GDD §3): the avatar rows' sixth flag `limp` (Snapshot 96), after
 ## `posed`. ShotTaken's record is unchanged.
-const VERSION := 40
+## 41 since #1383 (the poser's own state): SelfStatus's `posed` (kind 54), after `drunk`.
+const VERSION := 41
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -482,13 +483,14 @@ static func _events() -> Array[WireRow]:
 		_down(
 			54,
 			&"SelfStatus",
-			18,
+			19,
 			[
 				_s32("health"),
 				_s32("stamina"),
 				_bool("sprint_available"),
 				_of("claim_tick", WireField.Type.S64),
 				_of("drunk", WireField.Type.U8),
+				_bool("posed"),
 			]
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),

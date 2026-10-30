@@ -18,8 +18,9 @@ extends RefCounted
 ## a phase that accepts an intent whose rule throws an item (a ThrowItem) that lists no
 ## FlightTicks, so the item would never fly (#643); a ThrowItem outside an action, or in a rule
 ## that lacks HoldsItem or OverFloor, so a belt item could be thrown or a throw over no floor
-## leave its item in the air (the throwing ADR, TD11); a required condition only counts when it is
-## not negated; a reaction or a win condition holding a condition that reads the actor
+## leave its item in the air (the throwing ADR, TD11); a TakePose outside an action, or in a rule
+## that lacks AtMarker, so a player could sit anywhere (#1383); a required condition only counts
+## when it is not negated; a reaction or a win condition holding a condition that reads the actor
 ## (Condition.reads_actor_state: HoldsItem, InReach, Cooldown, ...), which tests no player there
 ## (actor 0): a cost of that kind always refuses, so the reaction would never run (#283) or the
 ## win condition never hold, and any other passes always or never (#299); a reaction or a win
@@ -237,6 +238,7 @@ func _check_owner(
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
 		_check_hand_over_rule(owner, rule, on_intent)
+		_check_pose_rule(owner, rule, on_intent)
 		errors.append_array(StationRuleCheck.rule_problems(owner, rule))
 		errors.append_array(ItemTargetCheck.give_rule(owner, rule, at_item))
 		if gated and _has_channel and on_intent:
@@ -341,6 +343,33 @@ func _check_hand_over_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 					. append(
 						(
 							"%s: rule %s hands over an item, which requires the condition %s, which it lacks"
+							% [owner, rule.trigger, required.get_global_name()]
+						)
+					)
+				)
+
+
+## A TakePose of `rule`: only in an action (a rule on an intent: a pose is a player's), and with
+## every condition class it requires (TakePose.required_conditions: AtMarker), so no mode lets a
+## player sit anywhere (the engineer's answer 1a on PR #1382, #1383).
+func _check_pose_rule(owner: String, rule: Rule, on_intent: bool) -> void:
+	for effect: RuleEffect in rule.effects:
+		if not effect is TakePose:
+			continue
+		if not on_intent:
+			errors.append(
+				(
+					"%s: rule %s seats a player, which only a player's intent can"
+					% [owner, rule.trigger]
+				)
+			)
+		for required: Script in (effect as TakePose).required_conditions():
+			if not _has_condition(rule, required):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s seats the actor, which requires the condition %s, which it lacks"
 							% [owner, rule.trigger, required.get_global_name()]
 						)
 					)

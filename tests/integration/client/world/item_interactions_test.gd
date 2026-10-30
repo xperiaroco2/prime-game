@@ -221,6 +221,91 @@ func test_the_throw_key_sends_nothing_without_a_rule_a_phase_or_a_hand_item() ->
 	assert_array(_harness.sent_named(Intents.THROW)).is_empty()
 
 
+## E with nothing aimed at, at a chair (#1383): Pose() once, right after the claim's reliable twin,
+## from the seat AtMarker of the own mode copy's Pose row and the level's markers of its tag.
+func test_e_at_a_chair_with_nothing_aimed_sends_pose_right_after_the_claims_twin() -> void:
+	_keys.setup(_harness.session, FixtureMoves.posing(FixtureItemModes.basic()))
+	var groups: Array[StringName] = []
+	_keys.chair_spots = func(group: StringName) -> PackedVector3Array:
+		groups.append(group)
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	_harness.session.set_motion(Vector3(0, 0, 0), Vector3.ZERO, Vector3.FORWARD, true, true, true)
+	_harness.pump(50000)
+	await _look_at(Vector3(0, 1.0, -3))
+	assert_int(_keys.target()).is_equal(-1)
+	var seq := _keys.press_interact()
+	assert_int(seq).is_greater(0)
+	assert_array(groups).contains_exactly([&"spawn_seat"])
+	_harness.deliver()
+	var last := _harness.sent.slice(-3)
+	var names: Array[StringName] = []
+	for message: WireMessage in last:
+		names.append(message.name)
+	assert_array(names).contains_exactly(
+		[Intents.MOVE_CLAIM, WireSchema.RELIABLE_CLAIM, Intents.POSE]
+	)
+	assert_int(last[2].seq).is_equal(seq)
+	# Seated (the own SelfStatus says so), E sends nothing more: only the own move stands up.
+	_model.fold(
+		&"SelfStatus",
+		{"health": 1, "stamina": 1, "sprint_available": true, "claim_tick": -1, "posed": true}
+	)
+	assert_int(_keys.press_interact()).is_equal(-1)
+	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
+
+
+## The chair gives way to the other E consumers (#1403): with a downed player to raise or a
+## teammate to hand over to aimed at, E at a chair sends no Pose (Game's pose_yields).
+func test_e_at_a_chair_sends_no_pose_while_a_raise_or_hand_over_target_has_the_key() -> void:
+	_keys.setup(_harness.session, FixtureMoves.posing(FixtureItemModes.basic()))
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	await _look_at(Vector3(0, 1.0, -3))
+	var taken := [0]
+	_keys.pose_yields = func() -> bool: return taken[0] != 0
+	taken[0] = 7
+	assert_int(_keys.interact()).is_equal(-1)
+	taken[0] = 0
+	assert_int(_keys.interact()).is_greater(0)
+	_harness.deliver()
+	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
+
+
+func test_e_sends_no_pose_away_from_a_chair_or_without_a_row_a_phase_or_a_life() -> void:
+	var posing := FixtureMoves.posing(FixtureItemModes.basic())
+	_keys.setup(_harness.session, posing)
+	await _look_at(Vector3(0, 1.0, -3))
+	# No chair lookup: no chair anywhere.
+	assert_int(_keys.interact()).is_equal(-1)
+	# A chair beyond the seat's radius.
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([Vector3(FixtureMoves.SEAT_RADIUS_M + 0.2, 0, 0)])
+	assert_int(_keys.interact()).is_equal(-1)
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	# A mode copy with no Pose row.
+	_keys.setup(_harness.session, FixtureItemModes.basic())
+	assert_int(_keys.interact()).is_equal(-1)
+	_keys.setup(_harness.session, posing)
+	# A phase that takes no Pose from the living.
+	_model.phase = &"lobby"
+	assert_int(_keys.interact()).is_equal(-1)
+	_model.phase = &"round"
+	# An item aimed at is picked up instead.
+	var at := Vector3(0, 0, -1.5)
+	_spawn(8, at)
+	await _look_at(at)
+	assert_int(_keys.interact()).is_greater(0)
+	_model.items.clear()
+	await _look_at(Vector3(0, 1.0, -3))
+	# The downed sit nowhere.
+	_model.fold(&"KnockedDown", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_keys.interact()).is_equal(-1)
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.POSE)).is_empty()
+	assert_int(_harness.sent_named(Intents.PICK_UP).size()).is_equal(1)
+
+
 ## 1, 2, 3 and the wheel (GDD §6, #1218): Draw(place) of a place 0..2 other than the one in the
 ## hand (an empty place is allowed: an empty hand); the wheel steps round the three. Nothing is
 ## predicted: the selection moves only with the host's Swapped.

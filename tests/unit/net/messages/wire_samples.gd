@@ -93,6 +93,7 @@ static func events() -> Dictionary[String, Array]:
 		SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false),
 		SelfStatusEvent.new(2, 0, 0, true, 0xFFFFFFFF),
 		SelfStatusEvent.new(2, 70, 400, true, 12, 255),
+		SelfStatusEvent.new(2, 500, 250, false, 12, 3, true),
 	]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]

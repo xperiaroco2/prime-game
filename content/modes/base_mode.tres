@@ -116,6 +116,8 @@
 [ext_resource type="Script" uid="uid://b5i2vhndmmump" path="res://core/life/go_limp.gd" id="177_go_limp"]
 [ext_resource type="Script" uid="uid://bqgyrd41njehi" path="res://core/life/limp_ticks.gd" id="178_limp_ticks"]
 [ext_resource type="Script" uid="uid://bvd87qs12dipr" path="res://core/life/end_limps.gd" id="179_end_limps"]
+[ext_resource type="Script" uid="uid://c0wyb20gim2mk" path="res://core/movement/at_marker.gd" id="156_at_marker"]
+[ext_resource type="Script" uid="uid://dx5a3sfyxq5ox" path="res://core/movement/take_pose.gd" id="157_take_pose"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -528,6 +530,26 @@ script = ExtResource("6_accept")
 intent = &"Draw"
 from = 4
 
+[sub_resource type="Resource" id="Pose_at_chair"]
+script = ExtResource("156_at_marker")
+tag = &"chair"
+radius_m = 1.0
+height_m = 2.0
+
+[sub_resource type="Resource" id="Take_pose"]
+script = ExtResource("157_take_pose")
+
+[sub_resource type="Resource" id="Rule_pose"]
+script = ExtResource("1_o02jd")
+trigger = &"Pose"
+conditions = Array[ExtResource("21_condition")]([SubResource("Pose_at_chair")])
+effects = Array[ExtResource("14_effect")]([SubResource("Take_pose")])
+
+[sub_resource type="Resource" id="Accept_round_pose"]
+script = ExtResource("6_accept")
+intent = &"Pose"
+from = 4
+
 [sub_resource type="Resource" id="Accept_round_throw"]
 script = ExtResource("6_accept")
 intent = &"Throw"
@@ -567,7 +589,7 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
@@ -818,7 +840,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_pose")])
 reactions = Array[ExtResource("1_o02jd")]([SubResource("Limp_rule")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
