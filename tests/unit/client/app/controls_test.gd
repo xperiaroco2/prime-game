@@ -136,7 +136,7 @@ func test_the_throw_is_a_row_on_g_that_rebinds_and_clashes_with_living_actions()
 
 
 func test_the_hand_keys_act_in_the_lobby_so_a_lobby_key_on_them_clashes() -> void:
-	# #1408: the tap's E, the mug's Use, the put-down and the swap act in the lobby as in the round
+	# #1408: the tap's E, the Use, the put-down and the swap act in the lobby as in the round
 	# (the Lobby takes the hand intents, #1388); the Throw stays the round's (the Lobby takes none).
 	var both := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	for action: StringName in [&"interact", &"use", &"put_down", &"swap"]:
