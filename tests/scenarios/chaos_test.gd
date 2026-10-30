@@ -80,10 +80,13 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"Throw", facing, &"countdown", living, &"not_accepted"],
 		[&"Raise", {"target": 4}, &"lobby", living, &"not_accepted"],
 		[&"Pose", {"pose": 1}, &"lobby", living, &"not_accepted"],
-		# The hall alone takes HandOver (#1389); HoldsItem comes first.
+		# Every phase that holds items takes HandOver (#1389, #1434); HoldsItem comes first.
 		[&"HandOver", {"target": 3}, &"lobby", living, &"empty_hand"],
 		[&"HandOver", {"target": 4}, &"countdown", living, &"empty_hand"],
-		[&"HandOver", {"target": 3}, &"round", living, &"not_accepted"],
+		[&"HandOver", {"target": 3}, &"round", living, &"empty_hand"],
+		[&"TakeOffer", {"target": 3}, &"lobby", living, &"no_offer"],
+		[&"CancelOffer", {}, &"round", living, &"no_offer"],
+		[&"TakeOffer", {"target": 3}, &"loading", living, &"not_accepted"],
 		[&"HandOver", {"target": 3}, &"lobby", downed, &"not_accepted"],
 		[&"PutDown", facing, &"round", living, &"empty_hand"],
 		[&"PutDown", facing, &"round", downed, &"not_accepted"],
@@ -282,31 +285,77 @@ func test_the_oracle_answers_a_hand_over_by_the_held_item_then_the_target() -> v
 	var downed := state.add_player(2, "Player2")
 	downed.life = PlayerState.Life.DOWNED
 	downed.position = Vector3(0.5, 0.0, 0.0)
+	var limp := state.add_player(5, "Player5")
+	limp.limp = LimpState.new(1 << 30)
+	limp.position = Vector3(0.5, 0.0, 0.0)
 	var empty := ChaosOracle.answer(&"HandOver", {"target": 3}, 4, &"lobby", me, 0, state)
 	assert_str(str(empty)).is_equal("empty_hand")
-	var handable := ItemKind.new()
-	handable.handable = true
 	var crate := ItemKind.new()
 	crate.hands = 2
-	crate.handable = true
+	# Every kind may be offered (#1434), a two-handed one too.
 	var cases: Array[Array] = [
-		[crate, 3, &"two_handed"],
-		[ItemKind.new(), 3, &"not_handable"],
-		[handable, 4, &"bad_args"],
-		[handable, 2, &"not_living"],
-		[handable, ChaosOracle.NO_ITEM, &"not_living"],
-		[handable, 1, &"out_of_reach"],
+		[crate, 3, &"?"],
+		[ItemKind.new(), 4, &"bad_args"],
+		[ItemKind.new(), 2, &"not_living"],
+		[ItemKind.new(), 5, &"not_living"],
+		[ItemKind.new(), ChaosOracle.NO_ITEM, &"not_living"],
+		[ItemKind.new(), 1, &"out_of_reach"],
 		# Within reach the answer is TargetInSight's, which needs the level: no answer.
-		[handable, 3, &"?"],
+		[ItemKind.new(), 3, &"?"],
 	]
 	for case: Array in cases:
-		state.items[0] = ItemState.new(0, case[0] as ItemKind, Vector3.ZERO)
-		state.items[0].where = ItemState.Where.HAND
-		state.items[0].holder = 4
-		me.held_item = 0
+		_hold(state, me, case[0] as ItemKind)
 		var args := {"target": case[1]}
-		var answer := ChaosOracle.answer(&"HandOver", args, 4, &"lobby", me, 0, state)
+		var answer := ChaosOracle.answer(&"HandOver", args, 4, &"round", me, 0, state)
 		assert_str(str(answer)).override_failure_message("%s" % [case]).is_equal(str(case[2]))
+	# With its own offer open the sender's HandOver is the negated Offering's `not_allowed`.
+	_offers(state).by_giver[4] = Offers.Offer.new(4, 3, 0, 0)
+	var again := ChaosOracle.answer(&"HandOver", {"target": 1}, 4, &"lobby", me, 0, state)
+	assert_str(str(again)).is_equal("not_allowed")
+
+
+## TakeOffer (#1434): OfferedTo first (`bad_args` naming the sender, `no_offer` without an offer of
+## the named giver to the sender), then TargetLiving and TargetInReach; CancelOffer is `no_offer`
+## without the sender's own offer.
+func test_the_oracle_answers_a_take_and_a_cancel_by_the_open_offers() -> void:
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	var giver := state.add_player(3, "Player3")
+	giver.position = Vector3(1.5, 0.0, 0.0)
+	var other := state.add_player(1, "Player1")
+	other.position = Vector3(6.0, 0.0, 0.0)
+	for target: int in [3, 1, ChaosOracle.NO_ITEM]:
+		var none := ChaosOracle.answer(&"TakeOffer", {"target": target}, 4, &"round", me, 0, state)
+		assert_str(str(none)).override_failure_message("target %d" % target).is_equal("no_offer")
+	var own := ChaosOracle.answer(&"TakeOffer", {"target": 4}, 4, &"lobby", me, 0, state)
+	assert_str(str(own)).is_equal("bad_args")
+	assert_str(str(ChaosOracle.answer(&"CancelOffer", {}, 4, &"round", me, 0, state))).is_equal(
+		"no_offer"
+	)
+	# Player3 offers its hand item to Player4: the take within reach needs the level's sight.
+	_hold(state, giver, ItemKind.new())
+	_offers(state).by_giver[3] = Offers.Offer.new(3, 4, 0, 0)
+	var take := ChaosOracle.answer(&"TakeOffer", {"target": 3}, 4, &"countdown", me, 0, state)
+	assert_str(str(take)).is_equal("?")
+	giver.position = Vector3(3.0, 0.0, 0.0)
+	var far := ChaosOracle.answer(&"TakeOffer", {"target": 3}, 4, &"round", me, 0, state)
+	assert_str(str(far)).is_equal("out_of_reach")
+	# The offer is Player3's, not Player4's: Player4 has nothing to cancel.
+	assert_str(str(ChaosOracle.answer(&"CancelOffer", {}, 4, &"round", me, 0, state))).is_equal(
+		"no_offer"
+	)
+
+
+## Puts a new item 0 of `kind` in `player`'s hand.
+func _hold(state: MatchState, player: PlayerState, kind: ItemKind) -> void:
+	state.items[0] = ItemState.new(0, kind, Vector3.ZERO)
+	state.items[0].where = ItemState.Where.HAND
+	state.items[0].holder = player.peer
+	player.held_item = 0
+
+
+func _offers(state: MatchState) -> Offers.Table:
+	return state.part_state(Offers.PART_KEY, func() -> RefCounted: return Offers.Table.new())
 
 
 func test_the_host_counts_are_exempt_for_the_two_chaos_peers_only() -> void:
