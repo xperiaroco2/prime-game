@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## front, 10 back, a two-handed hand 20 and 40; the knife's launch, 4 m/s away and 2 m/s up, "not a
 ## decision"); the knife keeps its own, 50 front and 75 back. A hit from behind: the attacker in the
 ## target's rear half (the engineer's answer on #1437). Played in the hall, which takes Use from the
-## living (#1388). Loads `content/` and the levels on purpose (§9.6).
+## living (#1388). A full mug in hand hits by the fallback (its drink is UseSecondary, #1438).
+## Loads `content/` and the levels on purpose (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
@@ -17,6 +18,9 @@ const SOUTH := Vector3(0, 0, -1)
 ## Far from the hall's markers; P2 stands 1 m north of P1.
 const SPOT := Vector3(0, 0, 100)
 const HEALTH := 100000
+
+## The kind of the item P1 holds after the last _taken (empty when none).
+var _held_kind: StringName = &""
 
 
 func test_the_mode_has_one_use_rule_the_fallback_hit() -> void:
@@ -69,10 +73,8 @@ func test_no_two_handed_kind_has_a_use_rule_of_its_own() -> void:
 			continue
 		two_handed += 1
 		for rule: Rule in kind.actions:
-			(
-				assert_str(String(rule.trigger))
-				. override_failure_message(String(kind.id))
-				. is_not_equal(String(Intents.USE))
+			assert_str(String(rule.trigger)).override_failure_message(String(kind.id)).is_not_equal(
+				String(Intents.USE)
 			)
 	assert_int(two_handed).is_greater(0)
 
@@ -82,6 +84,16 @@ func test_the_empty_hand_and_a_package_hit_by_the_fallback() -> void:
 	assert_int(_taken(NORTH)).is_equal(10)
 	assert_int(_taken(SOUTH, &"package")).is_equal(20)
 	assert_int(_taken(NORTH, &"package")).is_equal(40)
+
+
+func test_a_full_mug_hits_by_the_fallback_on_use_and_stays_full() -> void:
+	# The mug's own action, the drink, is on UseSecondary (#1438): its Use is the mode's hit.
+	var mode := load(BASE_MODE) as GameMode
+	for rule: Rule in mode.find_item_kind(&"mug").actions:
+		assert_str(String(rule.trigger)).is_not_equal(String(Intents.USE))
+	assert_int(_taken(SOUTH, &"mug")).is_equal(5)
+	assert_int(_taken(NORTH, &"mug")).is_equal(10)
+	assert_str(String(_held_kind)).is_equal("mug")
 
 
 ## The whole points P2 loses to one Use of P1 in the hall: P1 at SPOT facing north, holding an
@@ -107,6 +119,8 @@ func _taken(facing: Vector3, kind: StringName = &"") -> int:
 	FixtureCombatModes.use(game, P1, NORTH)
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 	assert_array(FixtureModes.rejections(game, P2)).is_empty()
+	var held := game.state.player(P1).held_item
+	_held_kind = game.state.items[held].kind.id if held >= 0 else &""
 	return roundi((HEALTH - game.state.player(P2).health) / 1000.0)
 
 
