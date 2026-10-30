@@ -7,9 +7,10 @@ extends GdUnitTestSuite
 ## The bar (#1390, provisional numbers): both also run StationTicks (the tap, on the hall's `tap`
 ## marker) and DrunkTicks; `countdown_done` runs ClearStations after ClearItems, and the drunk are
 ## sober again once placed on the map.
-## The hand-over (#1389, provisional): both take HandOver from the living, the Round does not; its
-## rule holds HandOver's six conditions, reach 2 m and the sight at the eye; only the full mug is
-## handable.
+## The hand-over (#1389, provisional; an offer since #1434): the Lobby, the Countdown and the Round
+## take HandOver, TakeOffer and CancelOffer from the living and run OfferTicks (5 s, 2 m); the
+## HandOver rule holds a negated Offering, reach 2 m and the sight at the eye; every row out of
+## those phases runs EndOffers.
 ## Loads `content/` and the levels on purpose (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -26,6 +27,8 @@ const TAKEN: Array[StringName] = [
 	Intents.DRAW,
 	Intents.USE,
 	Intents.HAND_OVER,
+	Intents.TAKE_OFFER,
+	Intents.CANCEL_OFFER,
 ]
 const REFUSED: Array[StringName] = [
 	Intents.THROW, Intents.RAISE, Intents.STOP_RAISE, Intents.GIVE_UP, Intents.POSE
@@ -54,7 +57,7 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
-		assert_int(systems.size()).is_equal(6)
+		assert_int(systems.size()).is_equal(7)
 		assert_object(systems[0]).is_instanceof(LifeTicks)
 		assert_object(systems[1]).is_instanceof(ChannelTicks)
 		assert_object(systems[2]).is_instanceof(VanishTicks)
@@ -92,10 +95,11 @@ func test_countdown_done_clears_the_items_and_a_cancel_does_not() -> void:
 		if row.outcome == CountdownPhase.COUNTDOWN_DONE:
 			# The hall's items, then its tap (#1390), then everyone limp up (#1393), before the map
 			# loads.
-			assert_int(row.actions.size()).is_equal(3)
+			assert_int(row.actions.size()).is_equal(4)
 			assert_object(row.actions[0]).is_instanceof(ClearItems)
 			assert_object(row.actions[1]).is_instanceof(ClearStations)
 			assert_object(row.actions[2]).is_instanceof(EndLimps)
+			assert_object(row.actions[3]).is_instanceof(EndOffers)
 		else:
 			assert_array(row.actions).is_empty()
 
@@ -283,22 +287,58 @@ func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
 	return levels.layouts
 
 
-func test_the_hall_hands_a_mug_over_and_the_round_takes_no_hand_over() -> void:
+func test_every_held_phase_offers_takes_and_cancels() -> void:
+	# The offer (#1434, provisional): a base rule wherever items are held, the Round included.
 	var mode := load(BASE_MODE) as GameMode
-	assert_int(mode.find_phase(&"round").senders_of(Intents.HAND_OVER)).is_equal(0)
-	var rules := mode.actions.filter(
-		func(rule: Rule) -> bool: return rule.trigger == Intents.HAND_OVER
-	)
-	assert_int(rules.size()).is_equal(1)
-	var rule: Rule = rules[0]
+	for phase_id: StringName in [&"lobby", &"countdown", &"round"]:
+		var phase := mode.find_phase(phase_id)
+		for intent: StringName in [Intents.HAND_OVER, Intents.TAKE_OFFER, Intents.CANCEL_OFFER]:
+			assert_int(phase.senders_of(intent)).override_failure_message(
+				"%s %s" % [phase_id, intent]
+			).is_equal(AcceptSpec.From.LIVING)
+		var ticks := phase.tick_systems.filter(func(s: TickSystem) -> bool: return s is OfferTicks)
+		assert_int(ticks.size()).is_equal(1)
+		assert_array([(ticks[0] as OfferTicks).timeout_s, (ticks[0] as OfferTicks).reach_m]).is_equal(
+			[5.0, 2.0]
+		)
+	assert_object(mode.find_phase(&"round").tick_systems.back()).is_instanceof(OfferTicks)
 	var classes: Array[Script] = []
+	var rule := _rule_of(mode, Intents.HAND_OVER)
 	for condition: Condition in rule.conditions:
 		classes.append(condition.get_script() as Script)
-	assert_array(classes).is_equal(HandOver.required_conditions())
-	assert_float((rule.conditions[4] as TargetInReach).reach_m).is_equal(2.0)
-	assert_bool((rule.conditions[5] as TargetInSight).at_eye).is_true()
+	# One offer per giver: a negated Offering before the receiver and the geometry.
+	assert_array(classes).is_equal([HoldsItem, Offering, TargetLiving, TargetInReach, TargetInSight])
+	assert_bool(rule.conditions[1].negate).is_true()
+	assert_float((rule.conditions[3] as TargetInReach).reach_m).is_equal(2.0)
+	assert_bool((rule.conditions[4] as TargetInSight).at_eye).is_true()
 	assert_object(rule.effects[0]).is_instanceof(HandOver)
-	for kind: ItemKind in mode.item_kinds:
-		assert_bool(kind.handable).override_failure_message(String(kind.id)).is_equal(
-			kind.id == &"mug"
+	rule = _rule_of(mode, Intents.TAKE_OFFER)
+	classes.clear()
+	for condition: Condition in rule.conditions:
+		classes.append(condition.get_script() as Script)
+	assert_array(classes).is_equal(TakeOffer.required_conditions())
+	assert_float((rule.conditions[2] as TargetInReach).reach_m).is_equal(2.0)
+	assert_bool((rule.conditions[3] as TargetInSight).at_eye).is_true()
+	assert_object(rule.effects[0]).is_instanceof(TakeOffer)
+	rule = _rule_of(mode, Intents.CANCEL_OFFER)
+	assert_object(rule.conditions[0]).is_instanceof(Offering)
+	assert_bool(rule.conditions[0].negate).is_false()
+	assert_object(rule.effects[0]).is_instanceof(CancelOffer)
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+func test_the_rows_out_of_the_offering_phases_end_the_offers() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	for row: Transition in mode.transitions:
+		var ends := row.actions.any(func(a: RuleEffect) -> bool: return a is EndOffers)
+		var leaves := (
+			[&"lobby", &"countdown", &"round"].has(row.from)
+			and not [&"lobby", &"countdown"].has(row.to)
 		)
+		assert_bool(ends).override_failure_message(String(row.outcome)).is_equal(leaves)
+
+
+func _rule_of(mode: GameMode, intent: StringName) -> Rule:
+	var rules := mode.actions.filter(func(rule: Rule) -> bool: return rule.trigger == intent)
+	assert_int(rules.size()).is_equal(1)
+	return rules[0]
