@@ -93,10 +93,13 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   mouth straight on from the nose edge; its hinge is at the tunnel's open front, (0, -8.1), its foot at (0, -12.6):
   4.66 m long at 14.9°. It leads into **the throat** (the engineer, 2026-10-22): no straight pass, its walls open as
   a funnel from 3.3 m at the mouth to the hall, 4.05 m deep, so the whole hall is seen from the mouth. Its front is an open notch in the nose, like a mouth with no upper lip; from
-  where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). On its
-  two slanted walls, under the roof, hang **the two vents** (overheat), each about 0.6 m deep, its gill blades
-  sticking out past the frame as on the concept (the engineer, 2026-10-23, #1095 comment 6363588387); with both
-  worked about 3.6 m of pass stays between them.
+  where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). Its two
+  side walls (the clean throat, the engineer, 2026-10-29, #1095 comments 6497225134 and 6497869348) are vertical to
+  2.10 m, then a 25 cm cove to the flat 2.30 m ceiling (the hull leaves no room for more), one clean panel each over a
+  plinth with its cyan line, a frame at the roof line, and no pillar at the hall end: each wall runs on to the hall's
+  corner and ends in a warm-metal end frame (prime-game-art#357). Each wall carries **the gills** (overheat, GDD §8;
+  #1095 comment 6522811252): a gill set of five slits cut into the panel, a light bar over each and
+  one round button at the set's hall end, all flush, so the whole pass stays open.
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
   console** 1 m aft of its centre (the engineer, 2026-10-23, #1095 comment 6360765037): a low ring pedestal (Ø 1.2 m,
   0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
@@ -117,7 +120,10 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   edges about 0.4 m, the lens rims about 3.26 m; at least 0.17 m of skin round every room.
 - Positions inside, as built (prime-game-art#263 comment 6346859072, `layouts/ship/ship.toml`), from the ship's centre
   (x east, y south, so +y is aft): the hall's centre (0, -0.4); the console (0, 0.6); the mouth (±1.65, -7.1) at the
-  nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the vents (±2.409, -4.791);
+  nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the gill sets' slit middles (±2.298, -5.130), (±2.411, -4.784), (±2.525, -4.439), (±2.638, -4.094) and
+  (±2.751, -3.750), along each wall from the mouth corner at s 2.07, 2.44, 2.80, 3.16 and 3.53 m, their chords 1.08,
+  0.99, 0.90, 0.82 and 0.74 m, 15 cm deep, between h 0.82 and 1.90 m, each light bar 12 x 1.4 cm, 6 cm over its slit's top tip, the buttons (±2.856, -3.433) at
+  h 1.15 m;
   the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
   band.
@@ -219,7 +225,7 @@ centre (§3): x east, z south; placeholders. The gazebo and the well stay open, 
 | Cellar | basement | decor |
 | Fireworks launch point | roof terrace | mischief |
 | Camera and pose spot | gazebo | photo |
-| Start console (start button, stage strips, the hologram), two vents, four cartridge sockets, two breaker boards, two chargers (§5a) | ship | the ship's engine |
+| Start console (start button, stage strips, the hologram), two gill sets, four cartridge sockets, two breaker boards, two chargers (§5a) | ship | the ship's engine |
 | The dead's room | a separate scene | death (m8 §3) |
 
 ## 7. Routes and travel times
