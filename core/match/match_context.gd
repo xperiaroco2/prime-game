@@ -44,6 +44,13 @@ func content_hash() -> int:
 	return _match.content_hash
 
 
+## The spec of the match's current phase, or null (before the start). In a transition action it is
+## the phase being left. Read from the match, so a context built by hand sees it too.
+func phase_spec() -> PhaseSpec:
+	var phase := _match.current_phase() if _match != null else null
+	return phase.spec if phase != null else null
+
+
 ## A copy for another part of the same step, with the same actor, intent, fact, rule, channel and
 ## outcome.
 func copy() -> MatchContext:
