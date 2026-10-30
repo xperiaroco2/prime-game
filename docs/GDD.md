@@ -85,10 +85,18 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
 [MVP rules](decisions/2026-09-29-mvp-rules.md), with their numbers as starting values to tune after the first playtest.
 - **Lobby:** players join, walk and talk by proximity; the host changes the match settings; each player presses
   Ready.
-  - **The place** (the engineer, 2026-10-28, #1095, research rounds 12 and 13 in prime-game-design): one small hall
-    of a space station, the one room for now; more rooms open later when there is something to put in them (a sealed
-    door shows where). The skat stands closed in the middle: nobody walks into it, and ready stays the press above.
+  - **The place** (the engineer, 2026-10-28, #1095, research rounds 12 and 13 in prime-game-design): one hall of a
+    big space station, the one room for now; more rooms open later when there is something to put in them (sealed
+    doors show where). The skat stands closed in the middle: nobody walks into it, and ready stays the press above.
     Earth fills a big window.
+  - **The hall** (2026-10-30, the concept [#1095 c6521122958](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6521122958),
+    the drawing [c6521599255](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6521599255), in
+    prime-game-design `ideas/lobby-station/hall/`): it should feel like a big station of which only this room is
+    open. One floor, no gallery: 40 × 40 m between the straight walls, walls 12 m high under a ribbed vault up to
+    15 m. The whole south wall is the panoramic window, bowed out 6 m in an arc, with the night Earth behind it. The
+    closed skat stands in the middle, its nose to the entrance: an arch 6 × 6 m in the north wall with a short lit
+    corridor closed at its end. Four sealed doors (3 × 4.5 m, hazard stripes, a red lamp) lead to rooms for later:
+    one on each side wall near the window, two beside the arch. The art track builds it from the drawing.
   - **In the hall:** a bar with beer (a drink makes you drunk for a while; too many and you fall off your feet); a
     photo booth to take photos; one light game, a pinball machine (a metal ball, two flippers); a mirror where you
     change your alien's look: walk up, press interact, a customisation menu opens, and the others watch your alien
@@ -114,7 +122,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     one player works both flippers while the others stand by and watch. After interact the camera moves in close to
     the table. The machine's display shows this lobby's best score and whose it is. The machine cannot be nudged.
   - **The layout** is set on the hall scene in the game, with the bar, the booth, the pinball and the mirror as
-    separate objects placed there. The numbers (how many mugs, how long, how many balls) are tuned on the hall
+    separate objects placed there once the hall is built. The numbers (how many mugs, how long, how many balls) are tuned on the hall
     greybox (#1354).
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
