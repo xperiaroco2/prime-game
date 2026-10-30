@@ -8,8 +8,8 @@ extends RefCounted
 ## TOO_MUCH, POINT_S. Lobby and Countdown also accept UseSecondary from the living (the mug's Drink
 ## takes it; FixtureLobbyHands, with no rule for it, leaves it out), and both run StationTicks
 ## (the tap), DrunkTicks and VanishTicks; `countdown_done` runs ClearItems and ClearStations.
-## The mode has no Use or UseSecondary rule of its own (the base mode has none), so a mug's Use and
-## an empty mug's either find none.
+## The mode has no Use or UseSecondary rule of its own (unlike the base mode, whose Use is the
+## fallback hit since #1437), so a mug's Use and an empty mug's either find none.
 ## A reaction on `drunk_too_much` notes "too much <peer>" (the fact's player). The lobby layout
 ## holds one `tap` marker at TAP. guarded() adds the base mode's pour Cooldown.
 
@@ -31,7 +31,8 @@ const POUR_S := 0.25
 
 static func mode() -> GameMode:
 	var made := FixtureLobbyHands.clearing(FixtureLobbyHands.mode())
-	# As in the base mode, no rule of the mode takes a Use: a mug's Use finds none (#1438).
+	# No rule of the mode takes a Use (the base mode's fallback hit, #1437, is not this part's): a
+	# mug's Use finds none (#1438).
 	var kept: Array[Rule] = []
 	for rule: Rule in made.actions:
 		if rule.trigger != Intents.USE:
