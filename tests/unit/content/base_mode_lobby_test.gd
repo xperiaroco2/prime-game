@@ -7,6 +7,9 @@ extends GdUnitTestSuite
 ## The bar (#1390, provisional numbers): both also run StationTicks (the tap, on the hall's `tap`
 ## marker) and DrunkTicks; `countdown_done` runs ClearStations after ClearItems, and the drunk are
 ## sober again once placed on the map.
+## The hand-over (#1389, provisional): both take HandOver from the living, the Round does not; its
+## rule holds HandOver's six conditions, reach 2 m and the sight at the eye; only the full mug is
+## handable.
 ## Loads `content/` and the levels on purpose (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -16,7 +19,13 @@ const P1 := 1
 const P2 := 2
 const HALL: Array[StringName] = [&"lobby", &"countdown"]
 const TAKEN: Array[StringName] = [
-	Intents.INTERACT, Intents.PICK_UP, Intents.PUT_DOWN, Intents.SWAP, Intents.DRAW, Intents.USE
+	Intents.INTERACT,
+	Intents.PICK_UP,
+	Intents.PUT_DOWN,
+	Intents.SWAP,
+	Intents.DRAW,
+	Intents.USE,
+	Intents.HAND_OVER,
 ]
 const REFUSED: Array[StringName] = [
 	Intents.THROW, Intents.RAISE, Intents.STOP_RAISE, Intents.GIVE_UP, Intents.POSE
@@ -215,3 +224,24 @@ func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
 	)
 	assert_array(Array(levels.errors)).is_empty()
 	return levels.layouts
+
+
+func test_the_hall_hands_a_mug_over_and_the_round_takes_no_hand_over() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	assert_int(mode.find_phase(&"round").senders_of(Intents.HAND_OVER)).is_equal(0)
+	var rules := mode.actions.filter(
+		func(rule: Rule) -> bool: return rule.trigger == Intents.HAND_OVER
+	)
+	assert_int(rules.size()).is_equal(1)
+	var rule: Rule = rules[0]
+	var classes: Array[Script] = []
+	for condition: Condition in rule.conditions:
+		classes.append(condition.get_script() as Script)
+	assert_array(classes).is_equal(HandOver.required_conditions())
+	assert_float((rule.conditions[4] as TargetInReach).reach_m).is_equal(2.0)
+	assert_bool((rule.conditions[5] as TargetInSight).at_eye).is_true()
+	assert_object(rule.effects[0]).is_instanceof(HandOver)
+	for kind: ItemKind in mode.item_kinds:
+		assert_bool(kind.handable).override_failure_message(String(kind.id)).is_equal(
+			kind.id == &"mug"
+		)

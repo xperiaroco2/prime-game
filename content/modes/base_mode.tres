@@ -110,6 +110,9 @@
 [ext_resource type="Resource" uid="uid://btap3barlobby" path="res://content/stations/tap.tres" id="174_tap"]
 [ext_resource type="Resource" uid="uid://dmugfull1barq" path="res://content/items/mug.tres" id="175_mug"]
 [ext_resource type="Resource" uid="uid://cmugempty2bar" path="res://content/items/mug_empty.tres" id="176_mug_empty"]
+[ext_resource type="Script" uid="uid://scfvthpw1w5l" path="res://core/items/hand_handable.gd" id="hand_over_handable"]
+[ext_resource type="Script" uid="uid://b617n28d0jmfi" path="res://core/life/target_living.gd" id="hand_over_living"]
+[ext_resource type="Script" uid="uid://brkm5inrllm6p" path="res://core/items/hand_over.gd" id="hand_over_effect"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -272,6 +275,11 @@ script = ExtResource("6_accept")
 intent = &"Draw"
 from = 4
 
+[sub_resource type="Resource" id="HandOver_accept_lobby"]
+script = ExtResource("6_accept")
+intent = &"HandOver"
+from = 4
+
 [sub_resource type="Resource" id="Respawn_lobby"]
 script = ExtResource("66_respawn")
 tag = &"lobby_player"
@@ -302,7 +310,7 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
@@ -353,6 +361,11 @@ script = ExtResource("6_accept")
 intent = &"Draw"
 from = 4
 
+[sub_resource type="Resource" id="HandOver_accept_countdown"]
+script = ExtResource("6_accept")
+intent = &"HandOver"
+from = 4
+
 [sub_resource type="Resource" id="Voice_countdown"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -364,7 +377,7 @@ phase_class = ExtResource("10_countdown")
 settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby")])
 voice_rule = SubResource("Voice_countdown")
 level = 1
@@ -456,6 +469,35 @@ script = ExtResource("1_o02jd")
 trigger = &"Draw"
 conditions = Array[ExtResource("21_condition")]([SubResource("Draw_in_range"), SubResource("Draw_changes")])
 effects = Array[ExtResource("14_effect")]([SubResource("Draw_place")])
+
+[sub_resource type="Resource" id="HandOver_holds"]
+script = ExtResource("26_holds")
+
+[sub_resource type="Resource" id="HandOver_one_handed"]
+script = ExtResource("76_one_handed")
+
+[sub_resource type="Resource" id="HandOver_handable"]
+script = ExtResource("hand_over_handable")
+
+[sub_resource type="Resource" id="HandOver_living"]
+script = ExtResource("hand_over_living")
+
+[sub_resource type="Resource" id="HandOver_in_reach"]
+script = ExtResource("71_target_in_reach")
+reach_m = 2.0
+
+[sub_resource type="Resource" id="HandOver_in_sight"]
+script = ExtResource("72_target_in_sight")
+at_eye = true
+
+[sub_resource type="Resource" id="HandOver_give"]
+script = ExtResource("hand_over_effect")
+
+[sub_resource type="Resource" id="HandOver_rule"]
+script = ExtResource("1_o02jd")
+trigger = &"HandOver"
+conditions = Array[ExtResource("21_condition")]([SubResource("HandOver_holds"), SubResource("HandOver_one_handed"), SubResource("HandOver_handable"), SubResource("HandOver_living"), SubResource("HandOver_in_reach"), SubResource("HandOver_in_sight")])
+effects = Array[ExtResource("14_effect")]([SubResource("HandOver_give")])
 
 [sub_resource type="Resource" id="Accept_round_draw"]
 script = ExtResource("6_accept")
@@ -752,7 +794,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
