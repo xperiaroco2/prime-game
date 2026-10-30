@@ -1,10 +1,15 @@
 extends GdUnitTestSuite
 ## ScenarioBot's "an honest bot is never corrected" around the limp (#1393; ARCHITECTURE §7.1.21,
 ## KE4): the go-limp's Correction has no event of its own, so the next snapshot must show the bot
-## limp; a second unexplained one before it fails at once, and a limp bot gets at most the
-## go-limp's and the get-up's.
+## limp; a sober bot, which cannot go limp, fails at once, as does a second unexplained one before
+## the snapshot, and a limp bot gets at most the go-limp's and the get-up's.
 
 const PEER := 5
+
+
+func test_a_sober_bots_unexplained_correction_fails_at_once() -> void:
+	var bot := _bot(0)
+	assert_str(_correct(bot, 2)).contains("Correction outside a placement")
 
 
 func test_one_unexplained_correction_passes_when_the_next_snapshot_shows_limp() -> void:
@@ -51,13 +56,14 @@ func test_the_snapshot_first_still_allows_the_go_limps_and_the_get_ups() -> void
 	assert_str(_correct(bot, 5)).is_empty()
 
 
-func _bot() -> ScenarioBot:
+func _bot(drunk := 80) -> ScenarioBot:
 	var steps: Array[ScenarioStep] = []
 	var bot := ScenarioBot.new(1, PEER, steps)
 	var welcome := {
 		"peer": PEER, "epoch": 1, "spot": Vector3.ZERO, "phase": &"lobby", "positions": {}
 	}
 	assert_str(bot.receive(&"Welcome", welcome)).is_empty()
+	bot.drunk = drunk
 	return bot
 
 

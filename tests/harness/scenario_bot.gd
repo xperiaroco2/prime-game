@@ -295,8 +295,10 @@ func see(avatars: Dictionary) -> String:
 	return problem
 
 
-## Takes a Correction no placement explained. Not limp: maybe the limp's start (GoLimp), which
-## see() checks with the next snapshot; a second before it fails. Limp: the go-limp's or the
+## Takes a Correction no placement explained. Sober (its SelfStatus drunk 0): it fails at once, as
+## no limp can start (one mug from sober stays under too much: the base mode's 40 under 90; a
+## mug that crossed it would fail here loudly). Drunk, not limp: maybe the limp's start (GoLimp),
+## which see() checks with the next snapshot; a second before it fails. Limp: the go-limp's or the
 ## get-up's (LimpTicks, EndLimps); a third fails. Returns a failure, or "".
 func _unexplained_correction(fields: Dictionary) -> String:
 	var at := "epoch %d, at %s" % [fields["epoch"], fields["position"]]
@@ -307,6 +309,8 @@ func _unexplained_correction(fields: Dictionary) -> String:
 				"a third Correction while limp (%s): a limp bot's claims are never corrected" % at
 			)
 		return ""
+	if drunk <= 0:
+		return "a Correction outside a placement (%s): an honest bot is never corrected" % at
 	if not _unexplained.is_empty():
 		return "a second Correction outside a placement (%s): an honest bot is never corrected" % at
 	_unexplained = "a Correction outside a placement (%s): an honest bot is never corrected" % at
