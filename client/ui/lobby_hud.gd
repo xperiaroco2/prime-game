@@ -139,6 +139,8 @@ func shows_mic_on() -> bool:
 ## Aim's text under the crosshair (HudText.aim_of: a deck key, else a name); "" hides it. The
 ## hand-over's cue, while there is one, takes its place (show_hand_over()).
 func show_aim(text: String) -> void:
+	if text == _aim_text:
+		return
 	_aim_text = text
 	_show_aim()
 
@@ -146,6 +148,8 @@ func show_aim(text: String) -> void:
 ## The hand-over's cue in Aim with the interact key's label `key` (HandOverUse.cue(), #1411);
 ## "" gives Aim back to show_aim()'s text.
 func show_hand_over(key: String) -> void:
+	if key == _hand_over_key:
+		return
 	_hand_over_key = key
 	_show_aim()
 

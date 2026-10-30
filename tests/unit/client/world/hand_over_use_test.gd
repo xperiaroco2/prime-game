@@ -113,3 +113,41 @@ func _hold(item: int, kind: StringName) -> void:
 	if before >= 0:
 		_model.fold(&"ItemPlaced", {"item": before, "position": FEET, "cause": &"put_down"})
 	_model.fold(&"ItemPickedUp", {"peer": OWN, "item": item})
+
+
+## E has another thing to do (an item or station ItemInteractions offers, the open viewfinder): the
+## hand-over gives way, and takes E again when that is gone. Before #1408's tap it was the item
+## alone; in the lobby the mug holder at the tap with a friend beside it must pour, not hand over.
+func test_the_hand_over_yields_to_an_item_a_station_or_the_viewfinder() -> void:
+	var use: HandOverUse = auto_free(HandOverUse.new())
+	use.setup(null, _mode)
+	var stub: StubInteractions = auto_free(StubInteractions.new())
+	use.interactions = stub
+	assert_bool(use._yields()).is_false()
+	stub.item = 5
+	assert_bool(use._yields()).is_true()
+	stub.item = -1
+	stub.station = 2
+	assert_bool(use._yields()).is_true()
+	stub.station = -1
+	stub.open = true
+	assert_bool(use._yields()).is_true()
+	stub.open = false
+	assert_bool(use._yields()).is_false()
+
+
+## What ItemInteractions offers, set by the test.
+class StubInteractions:
+	extends ItemInteractions
+	var item := -1
+	var station := -1
+	var open := false
+
+	func target() -> int:
+		return item
+
+	func station_target() -> int:
+		return station
+
+	func viewing() -> bool:
+		return open

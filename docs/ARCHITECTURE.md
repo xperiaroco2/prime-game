@@ -2807,7 +2807,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `tests/integration/client/world/hand_over_network_test.gd` (#1411: a joiner holding a handable gift walks at the
   host in the lobby and presses E on the device the moment `HandOverUse` names it; the host accepts, the gift is in
   the host's hand on both Games; no prompt with an empty hand, aimed past the player, out of reach, with a raise
-  target (E's other targets win) or with a level bar across the line from eye to eye). The `shot`s:
+  target or the lobby's tap under the crosshair with the host beside it (E's other targets win: the tap pours, the cue gives Aim back to its name) or with a level bar across the line from eye to eye). The `shot`s:
   `client/dev/hud_preview.tscn`, `map_preview.tscn`, `items_preview.tscn`
   and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
@@ -4453,7 +4453,7 @@ The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-g
 `check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
 at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
 - **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
-  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate > `Text` ToyChipPlateText (beyond the handoff, #1411: the round HUD's Aim chip, as far below the centre, with the hand-over's cue while `HandOverUse` names a player, else hidden); `Status` ToyPlate (top centre, 40 px
+  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate > `Text` ToyChipPlateText (beyond the handoff, #1408, #1411: the round HUD's Aim chip, as far below the centre: the name of the item or station E uses, `HudText.aim_of`, or the hand-over's cue while `HandOverUse` names a player, the cue first; hidden when neither); `Status` ToyPlate (top centre, 40 px
   down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
   ToyColumnSixteen > `Info` ToyColumnEight (`LobbyName` ToyTextMutedOnDark; `CodeRow` ToyRowEight > `Label`
   `common.code`, `Code` ToyKeyOnDark > `Text` ToyKeyText) and `List` ToyColumnEight (`Head` ToyTextOnDark, `Rows`
@@ -4479,7 +4479,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
 - **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `GameJoin.refresh`): the code to the host and every
   code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
   explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
-- **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
+- **No other key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button; the hand-over's cue (#1411) is the `Aim` chip below.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   ready chip (plain English, as before). The round HUD's `Aim` (#1408): a ToyChipPlate > `Text` ToyChipPlateText
   38 px under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
@@ -4492,9 +4492,9 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
   key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
   lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
-  handoff's tree and #1411's `Aim` (hidden without a cue, the cue's text when shown), anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
+  handoff's tree and `Aim` (#1408, #1411: hidden with neither a text nor a cue, the text translated, the cue in code and again on a language change, the cue over the text and the text back after it), anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
   inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
-  language change, seen failing without the notification; large text's keycap; `Aim` only with a text),
+  language change, seen failing without the notification; large text's keycap),
   `item_interactions_tap_network_test.gd` (`Aim` names the tap, §4.7.54), `esc_menu_input_test.gd` (no
   prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
   the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at

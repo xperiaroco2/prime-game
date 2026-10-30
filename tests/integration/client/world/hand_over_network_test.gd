@@ -19,6 +19,8 @@ var _rejected: Array[StringName] = []
 
 func before_test() -> void:
 	_pair = NetPair.new()
+	# FixtureBar's lobby: the tap (#1408) is the station E has other business with.
+	_pair.with_tap()
 	var mode := _pair.mode
 	mode.item_kinds.append(_gift())
 	mode.actions.append(FixtureHandOverModes.hand_over_rule(FixtureHandOverModes.conditions()))
@@ -123,6 +125,54 @@ func test_another_target_of_e_wins_over_the_hand_over() -> void:
 	keys.raise_target = raise
 	await _pair.frames(3)
 	assert_int(keys.target()).is_equal(host)
+	await _pair.stop()
+
+
+func test_the_tap_wins_over_a_player_under_the_crosshair() -> void:
+	assert_bool(await _pair.start()).is_true()
+	var model := _pair.client.client().model
+	var host := _pair.peer_of(_pair.host)
+	var player := _pair.client.player()
+	var keys := _pair.client.items().hand_over
+	var taps := _pair.client.items().interactions
+	await _give_gift(_pair.peer_of(_pair.client))
+	var tap := -1
+	for id: int in model.stations:
+		if model.stations[id].kind == &"tap":
+			tap = id
+	assert_int(tap).is_greater_equal(0)
+	var spot := TargetChoice.aim_point(model.stations[tap])
+	# The host stands between the joiner and the tap, on the line of the crosshair: both the tap
+	# (ItemInteractions) and the host (the camera's ray) are in reach under it.
+	var at := NetPair.BAR_TAP
+	assert_bool(await _pair.walk_to(_pair.host.player(), at + Vector3(-0.5, 0, 0))).is_true()
+	assert_bool(await _pair.walk_to(player, at + Vector3(-1.0, 0, 0))).is_true()
+	# Closer, aiming at the tap's use spot every frame, until the tap is offered.
+	for i: int in WALK_FRAMES:
+		_pair.aim(player, spot)
+		player.move_input = Vector2(0.0, 1.0)
+		await _pair.frames(1)
+		if taps.station_target() == tap:
+			break
+	player.move_input = Vector2.ZERO
+	await _pair.frames(3)
+	assert_int(taps.station_target()).is_equal(tap)
+	assert_int(keys.target()).is_equal(0)
+	assert_str(keys.cue()).is_empty()
+	assert_int(keys.hand_over()).is_equal(-1)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var hud := _pair.client.ui.lobby_hud
+	assert_bool(hud.aim.visible).is_true()
+	assert_str(hud.aim_label.text).is_equal(ContentNames.station(&"tap"))
+	# Off the tap, the host under the crosshair is the hand-over's again, and its cue takes Aim.
+	_pair.aim(player, _eye_of(_pair.host.player()))
+	await _pair.frames(3)
+	assert_int(taps.station_target()).is_equal(-1)
+	assert_int(keys.target()).is_equal(host)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue(keys.cue()))
 	await _pair.stop()
 
 

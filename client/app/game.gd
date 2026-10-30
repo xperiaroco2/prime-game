@@ -521,7 +521,6 @@ func _process(delta: float) -> void:
 	if _client != null:
 		_join.refresh(self)
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
-		ui.lobby_hud.show_hand_over(_items.hand_over.cue())
 		if now == GameFlow.Screen.LOADING:
 			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:

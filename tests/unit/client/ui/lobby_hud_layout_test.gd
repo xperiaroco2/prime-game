@@ -298,9 +298,9 @@ func test_aim_shows_only_with_a_text_its_key_translated() -> void:
 	# The round HUD's Aim under the crosshair (#1408): the tap or a hall item E would use.
 	var hud := await _hud()
 	assert_bool(hud.aim.visible).is_false()
-	hud.show_aim("item.knife")
+	hud.show_aim(ContentNames.station(&"tap"))
 	assert_bool(hud.aim.visible).is_true()
-	assert_str(hud.aim_label.text).is_equal("item.knife")
+	assert_str(hud.aim_label.text).is_equal(ContentNames.station(&"tap"))
 	assert_int(hud.aim_label.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	hud.show_aim("")
 	assert_bool(hud.aim.visible).is_false()
@@ -326,13 +326,13 @@ func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_cha
 func test_the_hand_over_cue_takes_aim_from_the_taps_text_and_gives_it_back() -> void:
 	# #1408 and #1411 share the chip: the cue wins while there is one, the text returns after it.
 	var hud := await _hud()
-	hud.show_aim("item.knife")
+	hud.show_aim(ContentNames.station(&"tap"))
 	hud.show_hand_over("E")
 	assert_str(hud.aim_label.text).is_equal("Press E")
 	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	hud.show_hand_over("")
 	assert_bool(hud.aim.visible).is_true()
-	assert_str(hud.aim_label.text).is_equal("item.knife")
+	assert_str(hud.aim_label.text).is_equal(ContentNames.station(&"tap"))
 	assert_int(hud.aim_label.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	hud.show_aim("")
 	assert_bool(hud.aim.visible).is_false()
