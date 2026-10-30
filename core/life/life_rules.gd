@@ -12,7 +12,9 @@ extends RefCounted
 ##   SelfStatus is touched (sent at the end of the tick). The hit stops the victim's own channel
 ##   when its effect stops on a hit (a raise it runs: RaiseStopped; Channels.interrupt_hit,
 ##   ChannelEffect.stops_on_hit); a hold with HoldStation.hit_stops false goes on (the car repair
-##   ADR's RD10 (c), #805). At 0 health the player is knocked down, which stops every channel.
+##   ADR's RD10 (c), #805). At 0 health the player is knocked down, which stops every channel;
+##   in a phase with a PhaseSpec.hit_limp (the base mode's Lobby and Countdown, #1439) it goes
+##   limp instead for that GoLimp's limp_s, with the blow's launch, and gets up at full health.
 ## - knock_down(): every channel the player runs stops first (Channels.interrupt_involving: a
 ##   raiser downed stops its raise). The player is downed where it stands: on the floor below its
 ##   last accepted position (WorldQuery, from just above the feet: Items.lifted), with a new
@@ -81,7 +83,9 @@ extends RefCounted
 ##   living player's rag-doll body with the knockdown's machinery (BodyMotion, LaunchBody,
 ##   BodyMoved,
 ##   rest, StopBody) and none of its life consequences. A limp player takes no damage (damage()
-##   returns as for the invulnerable); a knockdown, a death and a leave end the limp.
+##   returns as for the invulnerable); a knockdown, a death and a leave end the limp. A hit's limp
+##   (LimpState.refill) ends at full health when the player stays living: its get-up or a
+##   placement (#1439); restore_health() fills a living player up (EndLimps.restore_health).
 ##
 ## No event names an attacker or a cause (§4.2). The name is LifeRules, not Life, so that no global
 ## class shadows the enum PlayerState.Life.
@@ -117,7 +121,12 @@ static func damage(ctx: MatchContext, peer: int, amount: int, launch := Vector3.
 	if victim.health == 0:
 		# Only the blow that knocks the player down launches it (KD1 (a)): a hit that does not
 		# pushes nothing, since the living move client-side (invariant 7).
-		knock_down(ctx, peer, launch)
+		var spec := ctx.phase_spec()
+		if spec != null and spec.hit_limp != null:
+			# The hall's hit (#1439): the victim goes limp, never down, and gets up refilled.
+			go_limp(ctx, peer, spec.hit_limp.limp_s, true, launch)
+		else:
+			knock_down(ctx, peer, launch)
 
 
 ## `peer`, living, is downed where it stands: KnockedDown, then its Correction; on a map
@@ -132,8 +141,9 @@ static func knock_down(ctx: MatchContext, peer: int, launch := Vector3.ZERO) -> 
 		ctx.error("knock_down: the mode has no PlayerRules")
 		return
 	Channels.interrupt_involving(ctx, peer)
-	# A limp player knocked down (the tutorial's KnockDown) lies downed instead: its limp body ends.
-	clear_limp(ctx, downed)
+	# A limp player knocked down (the tutorial's KnockDown) lies downed instead: its limp body ends,
+	# and a downed player keeps its health.
+	clear_limp(ctx, downed, false)
 	var lies_at := _floor_at(ctx, downed, "knock_down")
 	StaminaLedger.settle_ahead(downed, rules, ctx.tick)
 	var moves := rules.motion_plays_on(ctx.state.map)
@@ -451,9 +461,13 @@ static func _to_dead(ctx: MatchContext, dead: PlayerState, what: String) -> void
 ## health change). Every channel it runs or is the target of stops first, its stamina is settled
 ## as the living player it was, and its sprint, crouch, sneak and seat end; it keeps its drunk
 ## value, its hand and its belt. A new epoch, then a BodyMotion with the floor below as its fallback
-## rest, its Correction (the player only) and LaunchBody (server) at its point with no velocity.
+## rest, its Correction (the player only) and LaunchBody (server) at its point with `launch` as its
+## velocity (none for the drink; the knock-out blow's for a hit, as a knockdown's, #1439). `refill`:
+## the player gets up at full health (LimpState.refill: a hit's limp at 0 health).
 ## A player limp already stays as it is; one not alive is a rule error, logged.
-static func go_limp(ctx: MatchContext, peer: int, limp_s: float) -> void:
+static func go_limp(
+	ctx: MatchContext, peer: int, limp_s: float, refill := false, launch := Vector3.ZERO
+) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or not player.is_alive():
 		ctx.error("go_limp: player %d is not alive" % peer)
@@ -474,8 +488,9 @@ static func go_limp(ctx: MatchContext, peer: int, limp_s: float) -> void:
 	player.sprint_held = false
 	player.moving = false
 	player.limp = LimpState.new(ctx.tick + maxi(1, Ticks.from_seconds(limp_s)))
+	player.limp.refill = refill
 	player.epoch += 1
-	player.velocity = Vector3.ZERO
+	player.velocity = launch if launch.is_finite() else Vector3.ZERO
 	player.motion = BodyMotion.new(player.epoch, lies_at)
 	ctx.emit(CorrectionEvent.new(peer, player.epoch, player.position, player.velocity))
 	ctx.emit(LaunchBodyEvent.new(peer, player.epoch, player.position, player.velocity))
@@ -485,15 +500,18 @@ static func go_limp(ctx: MatchContext, peer: int, limp_s: float) -> void:
 ## `peer`, limp, stands up by itself where its body lies (LimpTicks at LimpState.until, EndLimps):
 ## a moving body rests first (rest(): the standing floor under it, StopBody); then the limp ends,
 ## a new epoch and its Correction (the player only), as a placement for the movement rule. No event
-## for the others: the snapshot's limp flag drops. Its drunk value stays. A player not limp is
-## left as it is.
+## for the others: the snapshot's limp flag drops. Its drunk value stays; a hit's limp
+## (LimpState.refill) gets up at full health (#1439). A player not limp is left as it is.
 static func get_up(ctx: MatchContext, peer: int) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or not player.is_limp():
 		return
 	if player.motion != null:
 		rest(ctx, player)
+	var refill := player.limp.refill
 	player.limp = null
+	if refill:
+		restore_health(ctx, peer)
 	var rules := ctx.state.player_rules
 	if rules != null:
 		StaminaLedger.settle_ahead(player, rules, ctx.tick)
@@ -523,12 +541,32 @@ static func push_limp(ctx: MatchContext, peer: int, velocity: Vector3) -> void:
 
 
 ## Ends `player`'s limp, if it has one, with no get-up: its body's motion ends (StopBody) and the
-## caller places it (a placement, a knockdown). Nothing when it is not limp.
-static func clear_limp(ctx: MatchContext, player: PlayerState) -> void:
+## caller places it (a placement, a knockdown). A hit's limp (LimpState.refill) ends at full health
+## when `refill` (a placement, a leave; a knockdown passes false: the downed keep their health,
+## #1439). Nothing when it is not limp.
+static func clear_limp(ctx: MatchContext, player: PlayerState, refill := true) -> void:
 	if player == null or not player.is_limp():
 		return
+	var refilled := refill and player.limp.refill
 	player.limp = null
 	stop_motion(ctx, player)
+	if refilled:
+		restore_health(ctx, player.peer)
+
+
+## `peer`, living, back at full health (PlayerRules.health): its SelfStatus touched. A hit's limp at
+## its end (get_up, clear_limp) and EndLimps.restore_health (#1439). A player not alive, or at full
+## health already, is left as it is.
+static func restore_health(ctx: MatchContext, peer: int) -> void:
+	var player := ctx.state.player(peer)
+	var rules := ctx.state.player_rules
+	if player == null or not player.is_alive() or rules == null:
+		return
+	var full := Ticks.thousandths(rules.health)
+	if player.health >= full:
+		return
+	player.health = full
+	SelfStatusFeed.touch(ctx.state, peer)
 
 
 static func _rest_at(ctx: MatchContext, player: PlayerState, at: Vector3) -> void:
