@@ -114,8 +114,13 @@ var _client_tick := 0
 ## two still expects it, and any other Correction fails. A death sends none.
 var _correction_due := false
 ## A Correction no placement explained, while the bot was not limp: the limp's start (#1393) has
-## no event of its own, so the next snapshot must show the bot limp (see), else it fails.
+## no event of its own, so the next snapshot must show the bot limp (see), else it fails. A second
+## one before that snapshot fails at once: one limp starts with one Correction.
 var _unexplained := ""
+## The Corrections no placement explained since the bot was last seen not limp. A limp gets the
+## go-limp's (when the snapshot showing it limp came first over the network) and the get-up's,
+## never one for a claim (KE4, §7.1.21): a third fails.
+var _limp_corrections := 0
 
 
 func _init(
@@ -232,13 +237,10 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if spots.has(peer):
 				_correction_due = true
 		&"Correction":
-			if not _correction_due and not limp:
-				# Maybe the limp's start (GoLimp): see() checks the next snapshot.
-				_unexplained = (
-					"a Correction outside a placement (epoch %d, at %s): an honest bot is never corrected"
-					% [fields["epoch"], fields["position"]]
-				)
-			# While limp, the one Correction is the get-up's (LimpTicks, EndLimps).
+			if not _correction_due:
+				var problem := _unexplained_correction(fields)
+				if not problem.is_empty():
+					return problem
 			_correction_due = false
 			epoch = fields["epoch"] as int
 			jumps = 0
@@ -279,6 +281,10 @@ func see(avatars: Dictionary) -> String:
 	var own: Dictionary = avatars.get(peer, {})
 	limp = own.get("limp", false) == true
 	var problem := _unexplained if not limp else ""
+	if not limp:
+		_limp_corrections = 0
+	elif not _unexplained.is_empty():
+		_limp_corrections = 1
 	_unexplained = ""
 	for other: int in avatars:
 		if other == peer:
@@ -287,6 +293,24 @@ func see(avatars: Dictionary) -> String:
 		seen[other] = avatar["position"]
 		drunk_seen[other] = avatar.get("drunk", 0) as int
 	return problem
+
+
+## Takes a Correction no placement explained. Not limp: maybe the limp's start (GoLimp), which
+## see() checks with the next snapshot; a second before it fails. Limp: the go-limp's or the
+## get-up's (LimpTicks, EndLimps); a third fails. Returns a failure, or "".
+func _unexplained_correction(fields: Dictionary) -> String:
+	var at := "epoch %d, at %s" % [fields["epoch"], fields["position"]]
+	if limp:
+		_limp_corrections += 1
+		if _limp_corrections > 2:
+			return (
+				"a third Correction while limp (%s): a limp bot's claims are never corrected" % at
+			)
+		return ""
+	if not _unexplained.is_empty():
+		return "a second Correction outside a placement (%s): an honest bot is never corrected" % at
+	_unexplained = "a Correction outside a placement (%s): an honest bot is never corrected" % at
+	return ""
 
 
 ## The reason of the Rejected answering `seq` since the current step started, or "".
@@ -552,4 +576,5 @@ func _new_connection(new_peer: int) -> void:
 	_client_tick = 0
 	_correction_due = false
 	_unexplained = ""
+	_limp_corrections = 0
 	limp = false
