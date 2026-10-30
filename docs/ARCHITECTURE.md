@@ -115,7 +115,7 @@ hello deadline.
 
 | Phase | On enter | Accepts (§4.1) | Voice (§6) | Clock |
 |---|---|---|---|---|
-| Lobby | joins allowed; `LifeTicks` (its `Respawn` on the hall's `lobby_player` markers), `ChannelTicks` and `VanishTicks`, which the mode check demands of the hand and `Interact` (#1388) | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host), `SetProfile` (#551); living: `Interact`, `PickUp`, `PutDown`, `Swap`, `Draw`, `Use` (#1388: the hall's things; no phase class handles them, so they go to the rules as in Round, with Round's refusals; not `Throw`, not `Pose` yet), `HandOver`, `TakeOffer`, `CancelOffer` (#1389, #1434: an offer of any hand item to another living player, taken with E; the Round too; `OfferTicks` ends it, §9.4); leave (it drops what the leaver carries, §3.5) | proximity | stopped |
+| Lobby | joins allowed; `LifeTicks` (its `Respawn` on the hall's `lobby_player` markers), `ChannelTicks` and `VanishTicks`, which the mode check demands of the hand and `Interact` (#1388) | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host), `SetProfile` (#551); living: `Interact`, `PickUp`, `PutDown`, `Swap`, `Draw`, `Use` (#1388: the hall's things; no phase class handles them, so they go to the rules as in Round, with Round's refusals; not `Throw`, not `Pose` yet; a hit there damages as in the Round, but at 0 health lays the victim limp, not down: `PhaseSpec.hit_limp`, #1439, §7.1.21), `HandOver`, `TakeOffer`, `CancelOffer` (#1389, #1434: an offer of any hand item to another living player, taken with E; the Round too; `OfferTicks` ends it, §9.4); leave (it drops what the leaver carries, §3.5) | proximity | stopped |
 | Countdown | its end tick: now + 5 s; the Lobby's tick systems | `Hello`, `MoveClaim`, `SetReady(false)`; living: the Lobby's `Interact`, `PickUp`, `PutDown`, `Swap`, `Draw`, `Use` (#1388; none cancels it) and `HandOver`, `TakeOffer`, `CancelOffer` (#1389, #1434); leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
@@ -127,7 +127,7 @@ hello deadline.
 | (start) | the host creates the session | Lobby | |
 | Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, circles, knives and players within the map's spawn points, the demands per spawn tag of §9.4, for any draw of the task types; circles within the palette's colours; 1 to 10 players) | Countdown | |
 | Countdown | `cancelled`: a `SetReady(false)`, a join or a leave | Lobby | none: ready flags and positions stay, so after a leave `all_ready` fires on entry and restarts the 5 s |
-| Countdown | `countdown_done`: the end tick is reached | Loading | `ClearItems` (#1388): every item of the hall vanishes (`ItemVanished` to everyone, ascending id), held, belted or lying, so none reaches Pregame or Round; then `ClearStations` (#1390): the hall's tap goes, and the next station placed is number 1 again |
+| Countdown | `countdown_done`: the end tick is reached | Loading | `ClearItems` (#1388): every item of the hall vanishes (`ItemVanished` to everyone, ascending id), held, belted or lying, so none reaches Pregame or Round; then `ClearStations` (#1390): the hall's tap goes, and the next station placed is number 1 again; then `EndLimps` (#1393, §7.1.21): everyone limp gets up, and with its `restore_health` every living player is back at full health (#1439: the hall's hits end with the countdown) |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Pregame | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers` |
 | Pregame | `pregame_done`: the end tick is reached (#213) | Round | `StartClock`: the clock and `RoundStarted` begin with the round |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
@@ -814,7 +814,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, how drunk the player is (#1390: the number the others see on its avatar, §7.1.20), whether the player is posed (#1383: the snapshot skips the own avatar, §7.1.19), and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers or the pose, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
-| `KnockedDown` | peer, where it lies (the floor below its last accepted position; on a map `PlayerRules.motion_maps` lists, the last accepted position itself, where its body starts to move, §7.1.18) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. From then on its own snapshot holds its own avatar until it stands or dies (KE5, §5). It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
+| `KnockedDown` | peer, where it lies (the floor below its last accepted position; on a map `PlayerRules.motion_maps` lists, the last accepted position itself, where its body starts to move, §7.1.18) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2), except in a phase with a `PhaseSpec.hit_limp`, where that hit lays the victim limp instead and sends none (#1439, §7.1.21); no attacker or cause. From then on its own snapshot holds its own avatar until it stands or dies (KE5, §5). It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
 | `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2) or it gives up (`GiveUp`, M4-4), or a living or downed player is killed at once (`LifeRules.kill`, #806: no `KnockedDown` before it); no event names a killer or a cause. The body stays until its player respawns or leaves |
 | `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses (it holds still as every knocked-down player does, §7.1.7) |
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
@@ -6239,6 +6239,10 @@ runs from the attacker's eye (`Items.eye_of`, the floor below plus the eye heigh
 of the target's capsule, crouched or not. A facing with no
 horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
 cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
+A hit to 0 health knocks the victim down (§3.5), except in a phase whose `PhaseSpec.hit_limp` names a `GoLimp` (the
+base mode's Lobby and Countdown, #1439): there it lays the victim limp for that `limp_s` instead, launched as the
+knockdown would be, and the victim gets up at full health (§7.1.21, Hit). A hit there damages as in the round
+(`Damaged`, `SelfStatus`, `Swung` as above); nobody is knocked down, dies or respawns in the hall.
 
 #### 7.1.11 Pick up and swap
 The client names the item; the host checks reach and line of sight from its own positions.
@@ -6768,7 +6772,7 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
 
 - **Not downed.** The limp is its own body state, `PlayerState.limp` (a `LimpState`: `until`, the tick it gets up,
   and `push_tick`, its last push, -1 for none), or null; the life stays `ALIVE`. So no `KnockedDown`, no deadline,
-  no raise, no give-up, no health change, and the death paths never see it (Answered:
+  no raise, no give-up, no health change (a hit's limp: below), and the death paths never see it (Answered:
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155, the recommendation: not downed).
   `PlayerState.is_limp()`; `holds_still()` is downed or limp, the test every "the host moves this body" site reads.
 - **Down.** The base mode's reaction on `drunk_too_much` runs `GoLimp` (§9.4.2; `limp_s` 6.0): `LifeRules.go_limp`
@@ -6778,6 +6782,12 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   second rag-doll. It keeps its drunk value (`DrunkTicks` lowers it on; a later crossing limps again), its hand and
   its belt (provisional). Reports (`BodyMoved`) move a limp body as a downed one's (`LifeRules.body_moved` takes
   `holds_still()`), and `LifeTicks`' longest motion bounds it.
+- **Hit** (#1439). In a phase whose `PhaseSpec.hit_limp` names a `GoLimp` (the base mode's Lobby and Countdown,
+  the drink's own `GoLimp`, so one 6 s), `LifeRules.damage` lays a victim at 0 health limp for its `limp_s` instead
+  of knocking it down: `go_limp` as above, with the blow's launch (`Strike.launch_of`, as a knockdown's; none for
+  the drink) as the body's velocity in its `Correction` and `LaunchBody`, and `LimpState.refill` set. Its health
+  stays 0 while it lies; it gets up at full health (Up). No `KnockedDown`, no deadline, so `LifeTicks` never kills
+  it and nobody dies or respawns in the hall. A null `hit_limp` (every other phase) knocks down as before. Like `KnockedDown` (§4.2), the limp flag in the public snapshot tells every peer, the attacker included, that the hit took the victim to 0 health: an exception to "no hit confirmation" of the same kind, provisional until the engineer accepts it in the PR (#1439).
 - **The push** (`LimpTicks`, §9.4.5; provisional: by contact, no key). Each tick of a phase that lists it, for each
   limp player in peer order whose `cooldown_s` (0.25) has passed since its last push: every pusher (present, living,
   not limp, in peer order) whose last accepted point lies within `reach_m` (1.0) horizontally and `height_m` (1.8)
@@ -6795,6 +6805,10 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   for the movement rule. A row from a phase listing `LimpTicks` into one without runs `EndLimps` (§9.4.3; the base
   mode's Countdown -> Loading), so no limp, and no host body, outlasts the lobby level. A placement, a knockdown, a
   death, a leave (`JoinRules.leave`) and a reset end it with no get-up (`LifeRules.clear_limp`, `StopBody`).
+  A hit's limp (`LimpState.refill`) gets up, or is placed, at full health (`LifeRules.restore_health`:
+  `PlayerRules.health`, its `SelfStatus` touched); a knockdown ending it keeps the 0 (the downed are not healed).
+  The base mode's `EndLimps` sets `restore_health`: after the get-ups every living player below full health is
+  back at full, so the hall's hits end with the countdown (#1439). The drink's limp keeps its health.
 - **Refused while limp.** `Match._accepts` refuses a limp player's `PLAYER_ACTIONS` but its `MoveClaim`
   (`not_accepted`): `MovementRule` takes only its facing, as a downed player's, and never its point. `LifeRules.damage`
   and `Strike` skip it: nobody hits a limp player. `Ready` is not a player's action, so a limp player readies.
@@ -6811,8 +6825,12 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
 - **Where.** The Lobby only: the base mode lists `LimpTicks` on its Lobby and Countdown, with `LifeTicks`. A limp
   body moves on the lobby level, which `motion_maps` does not govern (it governs knockdowns, KE12): the issue's
   "pushable" needs the host's body there. `GoLimp.check` (`LimpTicks.problems`) wants a phase listing `LimpTicks`,
-  a `LifeTicks` beside each, and an `EndLimps` on every row out of such a phase into one without.
-- **Tests:** `tests/unit/life/limp_test.gd` (on `tests/fixtures/life/fixture_limp.gd`: the start, the flag on every
+  a `LifeTicks` beside each, and an `EndLimps` on every row out of such a phase into one without; `PhaseSpec.check`
+  wants a `LimpTicks` in each phase with a `hit_limp`.
+- **Tests:** `tests/unit/life/lobby_hit_test.gd` (on `tests/fixtures/life/fixture_lobby_hit.gd`, the knife's
+  `Strike`: a hit as in the round, 0 health limp not down, the launch, no further hit, the get-up at full health,
+  the countdown's end with and without `restore_health`, a placement and a knockdown, a phase without `hit_limp`,
+  the drink's limp keeps its health, the check, determinism), `tests/unit/life/limp_test.gd` (on `tests/fixtures/life/fixture_limp.gd`: the start, the flag on every
   peer, the refusals, its claims (no move, no Correction), no hit, the push and its bounds, reports, the get-up, the countdown's end, a seated drinker,
   a leave, determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key
   order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
@@ -7048,8 +7066,9 @@ phase classes come in the task each row names.
 **What the later stage-2 tasks build on (2a, #49).** Each adds its own files and never edits `Match`:
 - A part runs with a `MatchContext`: the `MatchState`, the mode, the `WorldQuery`, the tick; the actor and its
   intent (an action), the `Fact` (a reaction or a task type's check), or the outcome and its argument (a transition
-  action, whose `layout` is the level being entered); and `emit`, `reject`, `raise_fact`, `report_outcome`,
-  `rng(purpose)`, `setting(id)` and `error`. Names: `Intents` (with `Intents.FIELDS`, each intent's fields, 3e),
+  action, whose `layout` is the level being entered); `phase_spec()`, the current phase's `PhaseSpec` (in a
+  transition action the phase being left; read from the match, so a context built by hand sees it too; #1439);
+  and `emit`, `reject`, `raise_fact`, `report_outcome`, `rng(purpose)`, `setting(id)` and `error`. Names: `Intents` (with `Intents.FIELDS`, each intent's fields, 3e),
   `Facts`, `RejectReasons`.
 - Events are `MatchEvent` subclasses in `core/events/`, each with its `audience()` (`Audience`: everyone, only,
   role, life, server, and sender for `Rejected`, 2b) and a `const AUDIENCE_KIND`, from which `ModeCheck` warns
@@ -7196,7 +7215,9 @@ phase classes come in the task each row names.
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
-  whether the match clock runs; its voice rule; its level (the lobby or the map); whether snapshots are sent.
+  whether the match clock runs; its voice rule; its level (the lobby or the map); whether snapshots are sent;
+  `hit_limp` (#1439, §7.1.21): null, a hit to 0 health knocks down; a `GoLimp`, the victim goes limp for its
+  `limp_s` instead and gets up at full health. Its check wants a `LimpTicks` in the phase's tick systems.
 - **`Transition`**: from phase, outcome, to phase, and its actions (effects) in order, which see the outcome and its
   argument (`EndMatch` reads the side of `won`).
 - **`GameMode`**: players (minimum, maximum); its match settings; `PlayerRules` (health, stamina, speeds, capsule);
@@ -7289,7 +7310,7 @@ names the facts that do.
 | `UseStation` | hands the named station to the task type owning its kind (`TaskType.use_station`), which alone writes its task state (§9.1) | none | what the type's `use_emits()` lists (none by default; the Generator's `SwitchChanged`, `ButtonPressed` and its progress, G4); the mode check requires `AtStation`, `StationInSight` and `StationUsable` in its rule, allows it only on an intent that names a station, and counts `use_emits()` for the role-reveal warning (§9.2) | `core/tasks/use_station.gd` |
 | `HoldStation` (a `ChannelEffect`) | a channel of the actor on the station the intent names (`Channel.station`, §9.3; the car repair ADR's RE1 to RE5): the actor holds E there for `seconds` (a fit at the car) or with no end (`endless`: the lift's hold, which only its stops end). Its rule's conditions run again every tick with the channel's station, so walking out of the cylinder or out of sight, or a `use_problem` the type now returns, stops it; `StopRaise` and every other stop of `Channels` stop it too. It hands its start, stop (`Channel.phase_ended` at the phase's end) and completion to the task type owning the station's kind (`TaskType.hold_started`, `hold_stopped`, `hold_completed`), which alone writes its task state | `seconds` (0.05 to 600 when timed; 0 when endless, else a check error), `endless` (false), `hit_stops` (true: a hit of the actor stops it; the lift's hold sets false, RD10 (c); a knockdown stops it either way) | what the type's `hold_emits()` lists (none by default); none itself. The mode check requires `AtStation` and `ChannelFree` in its rule (one holder per station, RE9), `StationInSight` too, and `ChannelFree` only after `AtStation` and `StationInSight` (as `StationUsable`: its `busy` must not tell a player anywhere that another holds a station), allows it only on an intent that names a station, counts `hold_emits()` for the role-reveal warning (§9.2), and refuses a phase that accepts its intent without `ChannelTicks` | `core/tasks/hold_station.gd` |
 | `GiveItem` | a new item of `kind` comes to the actor from the rule's target (the cooking ADR's CE2, CE3: a box's take): spawned at the position of the item the intent names, else of the station it names, then given (`Items.give`, which makes room: the hand item to the belt, or a full belt's item down at the feet; beside a two-handed hand item onto the belt, CE21). The cap: with `kind.max_items` items of the kind in the match, the loose one (on the ground) the cap ranks first vanishes first: the lowest `TaskType.cap_tier` (the highest any task of the match gives it; 0 by default; the photo task's PE10 tiers, #782), then the one that has lain longest (the earliest rest tick, then the lowest id) (`Items.vanish`), so a take is never refused for spam; with none loose (every one held, locked or flying) it refuses `unavailable` through `RuleEffect.refusal`, before anything is paid (§9.2). The given item never rests (no `item_rested`). Its body is the static `give_new(ctx, kind, position)`, which a task type calls for a source that is a station (Cooking's herb bed, C4); its cap step is the static `make_room(ctx, kind)`, which a task type calls before a spawn of its own (the photo task's print, #782) | `kind` (one-handed, capped and listed in the mode's `item_kinds`: its check refuses a two-handed kind, one without `max_items` or an unlisted one; a kind a station no task type owns gives (the lobby's tap) needs `max_items` of at least `2 x max_players + 1`, the dispensers' rule: `DispenserCapCheck` in ModeCheck, #1416) | `ItemVanished` (the cap), `ItemSpawned` (no station), then what `Items.give` emits (`ItemPlaced` and `item_rested` for an item put down at the feet, `ItemPickedUp`), all to everyone; the mode check allows it only in an action on an intent that names a target (`Interact`), never in a reaction or a row, which have no actor, and only after the conditions that make the host check the actor's reach and sight (`GiveItem.required_conditions`, in the refusal order of §2: in an item kind's `target_actions` `ItemOnGround`, `InReach`, `InSight`; in any other rule `AtStation`, `StationInSight`), else it is an error naming the missing class (`ItemTargetCheck`) | `core/items/give_item.gd` (`tests/unit/items/give_item_test.gd` on `FixtureGiveModes`) |
-| `GoLimp` | the player goes limp for `limp_s` (#1393, §7.1.21; `LifeRules.go_limp`): the fact's player (`drunk_too_much` names the drinker), else the actor; its channels stop, its sprint, crouch, sneak and seat end, its life stays `ALIVE` (not downed), its drunk value, hand and belt stay, a new epoch and a `BodyMotion` start. The base mode's reaction on `drunk_too_much`. Its check: `limp_s` in bounds and `LimpTicks.problems` | `limp_s` (0.5 to 60; the base mode 6.0, provisional, "not a decision") | `RaiseStopped` (everyone) for a stopped channel, `Correction` (the player), `LaunchBody` (server) | `core/life/go_limp.gd` (`tests/unit/life/limp_test.gd`) |
+| `GoLimp` | the player goes limp for `limp_s` (#1393, §7.1.21; `LifeRules.go_limp`): the fact's player (`drunk_too_much` names the drinker), else the actor; its channels stop, its sprint, crouch, sneak and seat end, its life stays `ALIVE` (not downed), its drunk value, hand and belt stay, a new epoch and a `BodyMotion` start. The base mode's reaction on `drunk_too_much`. A `PhaseSpec.hit_limp` names one too (#1439): there `LifeRules.damage` lays a victim at 0 health limp for its `limp_s`, launched and refilled on the get-up (§7.1.21, Hit); the base mode's Lobby and Countdown share the reaction's. Its check: `limp_s` in bounds and `LimpTicks.problems` | `limp_s` (0.5 to 60; the base mode 6.0, provisional, "not a decision") | `RaiseStopped` (everyone) for a stopped channel, `Correction` (the player), `LaunchBody` (server) | `core/life/go_limp.gd` (`tests/unit/life/limp_test.gd`) |
 
 #### 9.4.3 Transition actions
 (effects that a transition row runs; the base mode's rows are in §9.5):
@@ -7307,7 +7328,7 @@ names the facts that do.
 | `Drink` | the actor drinks the mug in its hand (#1390, §7.1.20): `drunk` rises by `amount` (clamped at `PlayerRules.drunk_max`), the item becomes `empty_kind` (`Items.change_kind`: `ItemChanged`, everyone) after `GiveItem.make_room` for that capped kind, and an upward crossing of `drunk_too_much_at` raises the fact `drunk_too_much`. Its check: `empty_kind` one-handed and capped, `amount` above 0, the mode's `drunk_max` set; `DrunkCheck` refuses a phase that accepts the trigger of a rule with a Drink in the mode (`UseSecondary` for the mug since #1438) and lists no `DrunkTicks` | `empty_kind`, `amount` | `ItemChanged` (everyone), `ItemVanished` from make_room; raises `drunk_too_much` | `core/drunk/drink.gd` (`tests/unit/drunk/drink_test.gd`) |
 | `ClearStations` | removes every station of the match and numbers the next one 1 again (`MatchState.clear_stations`, #1390): the base mode's `Countdown, countdown_done → Loading` row after `ClearItems`, so the hall's tap never reaches the map. Refused (a rule error) once a task is dealt. Clients forget their stations at `LoadMatch` | none | nothing | `core/placement/clear_stations.gd` (`tests/unit/placement/station_ticks_test.gd`) |
 | `ClearItems` | removes every item of the match, in ascending item id, as `VanishTicks` does (`Items.vanish`: out of any hand or belt, a two-handed item too, out of `MatchState`, its id queued for reuse); the base mode's `Countdown, countdown_done → Loading` row (#1388), so nothing held, stashed or put down in the lobby's hall reaches Pregame or Round. Items only: a station that holds an item keeps its own reference, so a lobby thing that locks an item on a station clears its own state at the same row | none | `ItemVanished` (everyone), per item | `core/items/clear_items.gd` |
-| `EndLimps` | everyone limp gets up where its body lies, in ascending peer order (`LifeRules.get_up`, #1393, §7.1.21): the base mode's `Countdown, countdown_done → Loading` row, so no limp and no host body outlasts the lobby level | none | `StopBody` (server), `Correction` (the player) | `core/life/end_limps.gd` (`tests/unit/life/limp_test.gd`) |
+| `EndLimps` | everyone limp gets up where its body lies, in ascending peer order (`LifeRules.get_up`, #1393, §7.1.21): the base mode's `Countdown, countdown_done → Loading` row, so no limp and no host body outlasts the lobby level (a hit's limp gets up at full health). With `restore_health`, then every living player below full health is back at full (`LifeRules.restore_health`, its `SelfStatus` touched; #1439) | `restore_health` (default false; the base mode true) | `StopBody` (server), `Correction` (the player) | `core/life/end_limps.gd` (`tests/unit/life/limp_test.gd`, `lobby_hit_test.gd`) |
 | `EndOffers` | every open offer ends (`Offers.end_all`, #1434): the base mode's `Countdown, countdown_done → Loading` and the Round's rows out, so no offer outlasts its phase | none | `OfferEnded` (everyone) | `core/items/end_offers.gd` |
 
 #### 9.4.4 Demands
@@ -8335,8 +8356,10 @@ sight, paying `Cooldown(tap_pour, 0.25 s)` last as the flood guard the cooking b
 5 ticks per player, `too_soon` for the rest), runs `GiveItem(mug)`), `content/items/mug.tres` (one-handed, at most 21 = 2 x 10 players + 1, so a few hoarders never leave a pour `unavailable`, vanishing 120 s after it is put
 down; its UseSecondary (#1438, the right button; its Use answers `nothing_to_do` until #1437's hit) runs `Drink(mug_empty, 40)`), `content/items/mug_empty.tres` (one-handed, at most 12, vanishing
 after 30 s, no Use or UseSecondary). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_much_at` 90 (the third mug),
-`drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby, Countdown and Round take UseSecondary from the living (#1438). The Lobby and Countdown list `StationTicks(tap)`, `DrunkTicks` and `LimpTicks` (the limp, §7.1.21: `reach_m` 1.0, `height_m` 1.8, `min_speed_mps` 0.5, `gain` 1.0, `max_speed_mps` 3.0, `cooldown_s` 0.25); the reaction on `drunk_too_much` runs `GoLimp(6.0 s)`;
-`countdown_done` runs `ClearItems`, `ClearStations`, then `EndLimps`. The pour is instant, a mug is one drink, drinks stack.
+`drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby, Countdown and Round take UseSecondary from the living (#1438). The Lobby and Countdown list `StationTicks(tap)`, `DrunkTicks` and `LimpTicks` (the limp, §7.1.21: `reach_m` 1.0, `height_m` 1.8, `min_speed_mps` 0.5, `gain` 1.0, `max_speed_mps` 3.0, `cooldown_s` 0.25); the reaction on `drunk_too_much` runs `GoLimp(6.0 s)`,
+which is also the Lobby's and the Countdown's `hit_limp` (#1439: a hit to 0 health there lays the victim limp for the same
+6 s and it gets up at full health, §7.1.21);
+`countdown_done` runs `ClearItems`, `ClearStations`, then `EndLimps` (`restore_health`: everyone back at full health). The pour is instant, a mug is one drink, drinks stack.
 Every number is provisional (the engineer tunes them on the hall greybox, #1354). Not built here: the sway and walk
 drift (#1391), the voice (#1392). The hand-over (#1389 built the rule: the full mug is
 since #1434 an offer of any item the receiver takes with E, in the Lobby, the Countdown and the Round, §4.1, the base mode's `HandOver_*`, `TakeOffer_*` and `CancelOffer_*` rows)

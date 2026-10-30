@@ -5,6 +5,8 @@ extends RuleEffect
 ## drinker). LifeRules.go_limp lays the player down as a rag-doll for `limp_s` while its life stays
 ## ALIVE; LimpTicks pushes the body and gets the player up, EndLimps ends the limp where a phase
 ## without LimpTicks follows. On an intent (no fact) the actor goes limp.
+## A phase's PhaseSpec.hit_limp names one too (#1439): there a hit to 0 health lays the victim limp
+## for its `limp_s` (LifeRules.damage, not run()), and the victim gets up at full health.
 ##
 ## A player who is not alive is a rule error, logged (LifeRules.go_limp); one limp already stays
 ## as it is. The mode check (LimpTicks.problems) wants a LimpTicks, with a LifeTicks, in a phase,

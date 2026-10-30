@@ -129,7 +129,7 @@ static func leave(ctx: MatchContext, peer: int) -> bool:
 	Channels.interrupt_involving(ctx, peer)
 	var leaver := ctx.state.player(peer)
 	# A limp body leaves with its player: StopBody frees the host's body (#1393).
-	LifeRules.clear_limp(ctx, leaver)
+	LifeRules.clear_limp(ctx, leaver, true)
 	leaver.life = PlayerState.Life.LEFT
 	ctx.emit(PlayerLeftEvent.new(peer))
 	Items.drop_carried(ctx, peer, Items.LEAVE)
