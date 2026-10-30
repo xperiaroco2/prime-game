@@ -1,7 +1,8 @@
 class_name FixtureNote
 extends RuleEffect
 ## Emits a FixtureNoteEvent with `text`, to everyone unless told otherwise; with `with_argument`
-## the text ends with the outcome's argument (a transition action's view of `won`).
+## the text ends with the outcome's argument (a transition action's view of `won`); with
+## `with_fact_player`, in a reaction, with the raised fact's player (Fact.player).
 
 @export var text := ""
 @export var to_role: StringName
@@ -9,6 +10,7 @@ extends RuleEffect
 @export var to_actor := false
 @export var to_server := false
 @export var with_argument := false
+@export var with_fact_player := false
 
 
 static func of(note: String) -> FixtureNote:
@@ -30,6 +32,8 @@ func run(ctx: MatchContext) -> void:
 	var note := text
 	if with_argument:
 		note += " %s" % str(ctx.outcome_argument)
+	if with_fact_player:
+		note += " %d" % (ctx.fact.player if ctx.fact != null else -1)
 	ctx.emit(FixtureNoteEvent.new(note, audience))
 
 

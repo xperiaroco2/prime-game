@@ -118,10 +118,11 @@ func test_drinks_stack_up_to_the_max_and_too_much_comes_once_on_the_crossing() -
 	_drink_one(game, P1, 1)
 	_drink_one(game, P1, 3)
 	assert_int(game.state.player(P1).drunk).is_equal(2 * FixtureBar.AMOUNT)
-	assert_array(FixtureModes.notes(game)).not_contains(["too much"])
+	assert_array(FixtureModes.notes(game).filter(_is_too_much)).is_empty()
 	_drink_one(game, P1, 5)
 	assert_int(game.state.player(P1).drunk).is_equal(FixtureBar.MAX)
-	assert_array(FixtureModes.notes(game).filter(_is_too_much)).has_size(1)
+	# The fact names the drinker (Fact.player), which the limp (#1393) reads.
+	assert_array(FixtureModes.notes(game).filter(_is_too_much)).is_equal(["too much %d" % P1])
 	_drink_one(game, P1, 7)
 	assert_int(game.state.player(P1).drunk).is_equal(FixtureBar.MAX)
 	assert_array(FixtureModes.notes(game).filter(_is_too_much)).has_size(1)
@@ -177,7 +178,7 @@ func _count(game: Match, kind_id: StringName) -> int:
 
 
 func _is_too_much(note: String) -> bool:
-	return note == "too much"
+	return note.begins_with("too much")
 
 
 func _status_of(peer: int) -> Callable:

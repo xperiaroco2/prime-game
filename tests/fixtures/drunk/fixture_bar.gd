@@ -7,8 +7,8 @@ extends RefCounted
 ## tap and in sight gives a mug (GiveItem); PlayerRules' drunk scale MAX, TOO_MUCH, POINT_S. Lobby
 ## and Countdown run StationTicks (the tap), DrunkTicks and VanishTicks; `countdown_done` runs
 ## ClearItems and ClearStations. The mode has no Use rule of its own (the base mode has none).
-## A reaction on `drunk_too_much` notes "too much <peer>". The lobby layout holds one `tap`
-## marker at TAP.
+## A reaction on `drunk_too_much` notes "too much <peer>" (the fact's player). The lobby layout
+## holds one `tap` marker at TAP. guarded() adds the base mode's pour Cooldown.
 
 const P1 := FixtureLobbyHands.P1
 const P2 := FixtureLobbyHands.P2
@@ -52,10 +52,10 @@ static func mode() -> GameMode:
 	made.player_rules.drunk_max = MAX
 	made.player_rules.drunk_too_much_at = TOO_MUCH
 	made.player_rules.drunk_point_s = POINT_S
+	var too_much := FixtureNote.of("too much")
+	too_much.with_fact_player = true
 	made.reactions.append(
-		FixtureModes.rule(
-			Facts.DRUNK_TOO_MUCH, [], [FixtureNote.of("too much")] as Array[RuleEffect]
-		)
+		FixtureModes.rule(Facts.DRUNK_TOO_MUCH, [], [too_much] as Array[RuleEffect])
 	)
 	for phase_id: StringName in [&"lobby", &"countdown"]:
 		var spec := made.find_phase(phase_id)
