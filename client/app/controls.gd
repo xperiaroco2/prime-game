@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 19 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 22 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -14,9 +14,9 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: the three
-##   places' keys 1, 2 and 3 until the copy deck has their rows, #1218;
-##   `throw`, `crouch` and `sneak` left it for a row, #851, #951, #1009) keeps its key for the
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+##   `throw`, `crouch`, `sneak` and the three places left it for a row, #851, #951, #1009,
+##   #1218) keeps its key for the
 ##   phases it acts in: a binding that would put an action of such a phase on it is refused, as a
 ##   fixed key is, so one press never does both.
 ## - An action left on its default keeps project.godot's event as it is, a located key too (the
@@ -38,14 +38,10 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: the places' 1, 2 and 3 (#1218, GDD §6) until the copy deck has `control.place_1`
-## to `control.place_3` (they draw in the lobby too, #1408: the Lobby takes Draw); `throw`, G,
-## became a Settings row in #851, `crouch` in #951 and the sneak (Alt) in #1009.
-const UNLISTED: Dictionary[StringName, int] = {
-	&"place_1": ControlContext.LOBBY | ControlContext.ALIVE,
-	&"place_2": ControlContext.LOBBY | ControlContext.ALIVE,
-	&"place_3": ControlContext.LOBBY | ControlContext.ALIVE,
-}
+## those phases: none now. `throw`, G, became a Settings row in #851, `crouch` in #951, the sneak
+## (Alt) in #1009 and the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby too, #1408: the
+## Lobby takes Draw) in #1421 with the copy deck's `control.place_*`.
+const UNLISTED: Dictionary[StringName, int] = {}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -68,6 +64,9 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"interact": &"control.interact",
 	&"use": &"control.use",
 	&"put_down": &"control.put_down",
+	&"place_1": &"control.place_1",
+	&"place_2": &"control.place_2",
+	&"place_3": &"control.place_3",
 	&"swap": &"control.swap",
 	&"throw": &"control.throw",
 	&"map": &"control.map",
@@ -97,6 +96,9 @@ const PHASES: Dictionary[StringName, int] = {
 	&"interact": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"use": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"put_down": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"place_1": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"place_2": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"place_3": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"swap": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"throw": ControlContext.ALIVE,
 	&"map": ControlContext.ALIVE | ControlContext.DOWNED | ControlContext.DEAD,

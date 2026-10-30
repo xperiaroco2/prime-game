@@ -3370,11 +3370,11 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
 #### 4.7.28 Give-up on F and the controls the player rebinds (#211)
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
-- `client/app/Controls`: the 19 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, and `throw` after `swap`, #851) in order with their `control.*` deck
+- `client/app/Controls`: the 22 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, `throw` after `swap`, #851, and `place_1` to `place_3` after `put_down`, #1218) in order with their `control.*` deck
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
-  living, `interact`, `use`, `put_down`, `swap` and the places' 1, 2, 3 (`UNLISTED`) in the lobby too (#1408:
+  living, `interact`, `use`, `put_down`, `swap` and the places' 1, 2, 3 in the lobby too (#1408:
   `GamePlayer.apply_flags` lets `ItemInteractions` listen there, the Lobby accepting the hand intents and the Draw,
   #1388; `throw` and the raise stay the
   round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
@@ -3384,7 +3384,7 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
   act on their `project.godot` key but have no Settings row yet, with their phases: none now (`throw`, G, #645, alive, left it
-  for a row in #851; `crouch`, Ctrl, #791, in #951; `sneak`, the left Alt, #990, in #1009). `bind()` refuses a binding that would put an action of such a phase on
+  for a row in #851; `crouch`, Ctrl, #791, in #951; `sneak`, the left Alt, #990, in #1009; the places, 1 to 3, #1218, in #1421). `bind()` refuses a binding that would put an action of such a phase on
   that key (`unlisted_on()`; one press must never do both), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default

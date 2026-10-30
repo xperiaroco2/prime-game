@@ -6,12 +6,9 @@ extends GdUnitTestSuite
 ## 2026-10-29 amendment), so MapData draws each lot over the doc's footprint.
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
-## The proposed keys the copy deck has no text for yet: the estate's own names (the engineer's,
-## not a decision) go into prime-game-ui's deck, then leave this list. The House's keys
-## (pantry, greenhouse, garage) are reused as they stand.
-const AWAITING_DECK: Array[String] = [
-	"room.house", "room.summer_kitchen", "room.ship", "room.fallen_trunk"
-]
+## The proposed keys the copy deck has no text for yet: none since ui-2.5.0 (the estate's own names
+## are in prime-game-ui's deck). A new room key without text goes here until it lands.
+const AWAITING_DECK: Array[String] = []
 
 
 func test_every_lot_with_a_footprint_is_a_room_with_its_record() -> void:
