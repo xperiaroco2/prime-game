@@ -80,14 +80,15 @@ static func hint_reach_of(game_mode: GameMode) -> float:
 	return TargetChoice.hint_reach(reach_of(game_mode), game_mode)
 
 
-## Whether the own player could hand its hand item over now, whoever it aims at: living, in a
+## Whether the own player could hand its hand item over now, whoever it aims at: living (not limp,
+## #1393: the host refuses a limp player every action), in a
 ## phase whose own copy accepts HandOver from the living, holding in its hand an item whose kind is
 ## handable and not two-handed.
 static func can_hand(client_model: ClientModel, game_mode: GameMode) -> bool:
 	if client_model == null or game_mode == null:
 		return false
 	var own := client_model.own_peer
-	if client_model.life_of(own) != ClientModel.Life.ALIVE:
+	if client_model.body_life_of(own) != ClientModel.Life.ALIVE:
 		return false
 	var spec := client_model.phase_spec()
 	if spec == null or (spec.senders_of(Intents.HAND_OVER) & AcceptSpec.From.LIVING) == 0:

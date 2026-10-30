@@ -6759,7 +6759,7 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   host body's velocity, the living body hidden), `GamePlayer.sync_life` (on every event and snapshot) holds the own
   controller as a downed one, and `LifeView` puts the downed camera and the ears over the own ragdoll and offers no
   raise; `ItemViews` lays the held items at the body (not at the hidden capsule's hand, and none in the own
-  first-person hand) and `ItemInteractions` sends no item key; the HUD and the give-up keep `life_of` (ALIVE).
+  first-person hand) and `ItemInteractions` sends no item key and `HandOverUse` offers no hand-over (both read `body_life_of`); the HUD and the give-up keep `life_of` (ALIVE).
   `MovementRule` grants no push allowance beside a limp body (no client collides with it). It can speak: the voice
   rule is unchanged (provisional; invariant 6, §6.3).
 - **Where.** The Lobby only: the base mode lists `LimpTicks` on its Lobby and Countdown, with `LifeTicks`. A limp
