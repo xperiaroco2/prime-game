@@ -921,7 +921,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 17 | `Throw` | RELIABLE | `seq: u32`, `facing: vec3` (#643; kind 15 on `release/m7`, 17 since it reached `main`, #837) | 16; 16 |
 | 18 | `Interact` | RELIABLE | `seq: u32`, `station: station` (optional), `item: item` (optional) (#796, the Generator ADR's GE1: a placed station's id from its `StationPlaced`; #770, the cooking ADR's CE1: an item's id from its `ItemSpawned`; 0xFFFF is none, and core refuses both or neither `bad_args`). A player action: the client sends its reliable claim twin first (§4.5.6) | 8; 8 |
 | 19 | `Draw` | RELIABLE | `seq: u32`, `place: u8` (#1218, GDD §6: the place 0 to 2 to draw into the hand; core refuses one past 2 `no_such_place` and the place in the hand `same_place`). A player action: the client sends its reliable claim twin first (§4.5.6) | 5; 5 |
-| 20 | `Pose` | RELIABLE | `seq: u32` (#1296: take the seated pose, §7.1.19). A player action: the client sends its reliable claim twin first (§4.5.6), so a moving claim still in flight cannot arrive after the `Pose` and stand the player up at once. The key (#1383, `ItemInteractions.pose`): E with no station or item aimed at, alive, not posed already, in a phase that takes `Pose` from the living, with the feet inside a marker of the mode's `Pose` rule's `AtMarker` (`PoseUse`); one press | 4; 4 |
+| 20 | `Pose` | RELIABLE | `seq: u32` (#1296: take the seated pose, §7.1.19). A player action: the client sends its reliable claim twin first (§4.5.6), so a moving claim still in flight cannot arrive after the `Pose` and stand the player up at once. The key (#1383, `ItemInteractions.pose`): E with no station or item aimed at and no downed player to raise or teammate to hand over to (#1403: the chair gives way), alive, not posed already, in a phase that takes `Pose` from the living, with the feet inside a marker of the mode's `Pose` rule's `AtMarker` (`PoseUse`); one press | 4; 4 |
 | 21 | `HandOver` | RELIABLE | `seq: u32`, `target: peer` (#1389: hand the hand item to that player, §4.1). A player action: the client sends its reliable claim twin first (§4.5.6) | 8; 8 |
 
 #### 4.3.3 Debug commands (C→H, E17)
@@ -6656,7 +6656,7 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
 `Chair01`, set 0.05 m below the floor top, as no reader snaps it). Elsewhere, and on a map with no chair, it answers
 `out_of_reach`.
 - **The flag.** `PlayerState.posed`, false at first. The snapshot shows it on every visible avatar as `posed`, right
-  after `sneaking` (the wire record's order: the avatar flags' bit 16, §4.3.5; protocol 37, 38 with the own client's below). It is visible body
+  after `sneaking` (the wire record's order: the avatar flags' bit 16, §4.3.5; protocol 37, 41 with the own client's below). It is visible body
   state, never hidden information (invariant 2): every peer that sees the avatar sees it. A downed or dead player is
   never posed (`ScenarioInvariants.pose_problem` checks every snapshot the scenarios see: posed only for a living
   player; not `moving`, which an honest sit out of a walk still shows on its `Pose`'s tick, as the claim twin
@@ -6682,6 +6682,7 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   still. A push by another player leaves the watcher seated: "any move" reads as the watcher's own (an engineer's
   question in #1296's PR). A placement, a knockdown, the limp (`LifeRules.go_limp`, §7.1.21), a death (`LifeRules._to_dead`, also a kill of a living
   player from the chair), a respawn and a reset (`MatchState.reset_player`) end it as they end the crouch.
+  Picking up, using or swapping does not. At a raised-at downed player or an aimed teammate the key does the raise or the hand-over (#1403): the chair gives way (`ItemInteractions.pose_yields`, set by `Game`).
 - **With the limp and the drink** (#1383, rebased on #1393; Answered:
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155, the recommendation, option a). A limp
   player cannot pose: `Pose` is a player action, which `Match._accepts` refuses a limp player (`not_accepted`), and
@@ -6689,7 +6690,6 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   pose: `go_limp` clears `posed` and touches its `SelfStatusFeed` (`limp_test`). Drunk and pose do not exclude each other:
   a drunk watcher may sit (no rule says otherwise), the sway and drift are the walking client's feel (§7.1.20) and a
   seated body makes no move, and `SelfStatus` carries both numbers (`drunk` before `posed`).
-  Picking up, using or swapping does not.
 - **The look.** A posed remote avatar plays `AvatarClips.SEATED`, still at any drawn speed (`SnapshotBuffer.Pose.posed`,
   the snapshot's at or before the drawn tick, never blended; §4.7.53's table). The art set has no seated clip yet,
   so `SEATED` is `Idle` (`Crouch_Idle` if also crouched): blocked on art. The host keeps the standing capsule and eye
@@ -6697,7 +6697,7 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   capsule and eye are the engineer's to decide, and a photo that draws the pose then needs the bit (a protocol bump).
 - **The own client** (#1383, protocol 41). The snapshot skips the viewer's own living avatar, so the poser learns
   its pose from `SelfStatus`'s `posed` (kind 54, last; only to that player, as every `SelfStatus`): `TakePose` and
-  every end of a pose (the movement rule, a placement, a knockdown, a death, a respawn) touch its `SelfStatusFeed`,
+  every end of a pose (the movement rule, a placement, a knockdown, the limp, a death, a respawn) touch its `SelfStatusFeed`,
   whose record compares `posed` with the numbers, so a change sends one at the end of the tick (a reset clears the
   record and the client's `ClientModel.posed` with the match). The camera wall's full-screen view will read it. A push
   keeps the watcher seated (answer 3a on PR #1382, above), so `posed` can stay true while the body stands

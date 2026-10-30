@@ -3,13 +3,12 @@ extends RefCounted
 ## SelfStatus to each player on change, at most once per tick (ARCHITECTURE §4.2, §7.1). A rule
 ## that changes a player's health, stamina, sprint availability, drunk value or pose touches that
 ## player (the movement rule, StaminaCost, damage, the knife's Strike, Drink, DrunkTicks, a
-## sobering placement or knockdown, TakePose and every end of a pose: a placement, a knockdown, a
-## respawn); at the end of every tick Match flushes: each touched player whose status differs
-## from the last one it was sent gets one SelfStatus,
-## with the tick's final numbers and the client tick of its last settled claim (#155), which alone
+## sobering placement or knockdown, TakePose and every end of a pose: a placement, a knockdown,
+## the limp, a death, a respawn); at the end of every tick Match flushes: each touched player whose
+## status differs from the last one it was sent gets one SelfStatus, with the tick's final numbers
+## and the client tick of its last settled claim (#155), which alone
 ## sends none: a client's prediction of an unchanged number needs no word. The first touch after
 ## a join or ResetMatch always sends one, because the record of what was sent lives in the
-## per-part state, which ResetMatch clears.
 ## per-part state, which ResetMatch clears.
 
 ## Its key in MatchState's per-part state (§9.1).
