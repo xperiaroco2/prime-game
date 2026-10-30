@@ -14,10 +14,10 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
-##   `throw`, `crouch`, `sneak` and the three places left it for a row, #851, #951, #1009,
-##   #1218) keeps its key for the
-##   phases it acts in: a binding that would put an action of such a phase on it is refused, as a
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: the item's
+##   own action `use_secondary` on the right button, #1438; `throw`, `crouch`, `sneak` and the
+##   three places left it for a row, #851, #951, #1009, #1218) keeps its key for the phases it
+##   acts in: a binding that would put an action of such a phase on it is refused, as a
 ##   fixed key is, so one press never does both.
 ## - An action left on its default keeps project.godot's event as it is, a located key too (the
 ##   sneak's left Alt only, #990, the engineer's answer 2A on PR #1007): apply() puts that event
@@ -38,10 +38,13 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: none now. `throw`, G, became a Settings row in #851, `crouch` in #951, the sneak
-## (Alt) in #1009 and the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby too, #1408: the
-## Lobby takes Draw) in #1421 with the copy deck's `control.place_*`.
-const UNLISTED: Dictionary[StringName, int] = {}
+## those phases: the item's own action `use_secondary` (the right button, the mug's drink, #1438)
+## while the deck has no row for it. `throw`, G, became a Settings row in #851, `crouch` in #951,
+## the sneak (Alt) in #1009 and the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby
+## too, #1408: the Lobby takes Draw) in #1421 with the copy deck's `control.place_*`.
+const UNLISTED: Dictionary[StringName, int] = {
+	&"use_secondary": ControlContext.LOBBY | ControlContext.ALIVE,
+}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
