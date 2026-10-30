@@ -345,6 +345,19 @@ func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_cha
 	assert_bool(hud.aim.visible).is_false()
 
 
+func test_the_take_and_the_cancel_cues_are_worded_by_their_deck_keys() -> void:
+	# #1434: the same chip, worded by HandOverUse.cue_key(); the proposed rows are the UI track's.
+	var hud := await _hud()
+	for cue_key: String in [HudText.TAKE_OFFER_CUE, HudText.OFFERING_CUE]:
+		hud.show_hand_over("E", cue_key)
+		assert_bool(hud.aim.visible).is_true()
+		assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E", cue_key))
+	hud.show_hand_over("E")
+	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
+	hud.show_hand_over("")
+	assert_bool(hud.aim.visible).is_false()
+
+
 func test_the_hand_over_cue_takes_aim_from_the_taps_text_and_gives_it_back() -> void:
 	# #1408 and #1411 share the chip: the cue wins while there is one, the text returns after it.
 	var hud := await _hud()

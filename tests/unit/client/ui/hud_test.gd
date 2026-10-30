@@ -142,8 +142,11 @@ func test_the_hand_over_cue_takes_aims_place_after_the_raise_cue() -> void:
 	var model := _round_model()
 	var local := HudText.Local.new()
 	local.hand_over_key = "E"
+	local.hand_over_cue_key = HudText.TAKE_OFFER_CUE
 	var cue := HudText.of(model, _mode, NOW, local)
 	assert_str(cue.hand_over_key).is_equal("E")
+	# #1434: the deck key that words it (a take here) goes along.
+	assert_str(cue.hand_over_cue_key).is_equal(HudText.TAKE_OFFER_CUE)
 	assert_str(cue.aim).is_empty()
 	local.raise_key = "E"
 	var raise := HudText.of(model, _mode, NOW, local)

@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
-## E aimed at a living player hands the hand item over (#1411; ARCHITECTURE §4.1 `HandOver`,
-## §4.7.10): in the lobby a joined Game's player holds a handable `gift`, walks at the host's
-## player aiming at its eye, and the moment its HandOverUse names the host it stops and presses E,
-## as a player would. The host accepts the HandOver (no Rejected) and the gift is in the host
-## player's hand on both Games. The prompt shows only with a handable item in the hand and a living
-## player in reach under the crosshair, with nothing else E would do there (a raise wins) and the
-## line from eye to eye clear of the level.
+## E aimed at a living player offers the hand item; the receiver takes it with E (#1411, #1434;
+## ARCHITECTURE §4.1 `HandOver`, `TakeOffer`, §4.7.10): in the lobby a joined Game's player holds a
+## `gift`, walks at the host's player aiming at its eye, and the moment its HandOverUse names the
+## host it stops and presses E, as a player would. The host accepts the HandOver (no Rejected): an
+## offer, the gift still in the joiner's hand, whose E now cancels. The host's player aims back and
+## its E takes: the gift is in the host player's hand on both Games. The prompt shows only with an
+## item in the hand and a living player in reach under the crosshair, with nothing else E would do
+## there (a raise wins) and the line from eye to eye clear of the level.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The most physics frames a walk takes.
@@ -24,9 +25,15 @@ func before_test() -> void:
 	var mode := _pair.mode
 	mode.item_kinds.append(_gift())
 	mode.actions.append(FixtureHandOverModes.hand_over_rule(FixtureHandOverModes.conditions()))
-	mode.find_phase(&"lobby").accepts.append(
-		AcceptSpec.of(Intents.HAND_OVER, AcceptSpec.From.LIVING)
-	)
+	mode.actions.append(FixtureHandOverModes.take_offer_rule())
+	mode.actions.append(FixtureHandOverModes.cancel_offer_rule())
+	var lobby := mode.find_phase(&"lobby")
+	for intent: StringName in [Intents.HAND_OVER, Intents.TAKE_OFFER, Intents.CANCEL_OFFER]:
+		lobby.accepts.append(AcceptSpec.of(intent, AcceptSpec.From.LIVING))
+	lobby.tick_systems.append(FixtureHandOverModes.offer_ticks())
+	for row: Transition in mode.transitions:
+		if row.from == &"lobby" and row.to != &"lobby":
+			row.actions.append(EndOffers.new())
 	add_child(_pair)
 	_rejected.clear()
 
@@ -36,7 +43,7 @@ func after_test() -> void:
 	_pair.free()
 
 
-func test_e_aimed_at_a_living_player_in_the_lobby_hands_the_gift_over() -> void:
+func test_e_aimed_at_a_living_player_in_the_lobby_offers_the_gift_and_e_takes_it() -> void:
 	assert_bool(await _pair.start()).is_true()
 	var session := _pair.client.client()
 	session.event_received.connect(_on_event)
@@ -58,6 +65,26 @@ func test_e_aimed_at_a_living_player_in_the_lobby_hands_the_gift_over() -> void:
 	Input.action_release(&"interact")
 	_pair.client.device_input = false
 	for i: int in ANSWER_FRAMES:
+		if _offered_on_both(joiner, host) or not _rejected.is_empty():
+			break
+		await _pair.frames(1)
+	assert_array(_rejected).is_empty()
+	# An offer: the gift stays in the joiner's hand until the host takes it; the joiner's E cancels.
+	assert_bool(_offered_on_both(joiner, host)).is_true()
+	assert_int(session.model.hand_item(joiner)).is_equal(gift)
+	await _pair.frames(2)
+	assert_int(keys.prompt()).is_equal(HandOverUse.Prompt.CANCEL)
+	# The host's player aims at the joiner's eye: its E takes the offer.
+	var takes := _pair.host.items().hand_over
+	for i: int in WALK_FRAMES:
+		_pair.aim(_pair.host.player(), _eye_of(player))
+		await _pair.frames(1)
+		if takes.prompt() == HandOverUse.Prompt.TAKE:
+			break
+	assert_int(takes.prompt()).is_equal(HandOverUse.Prompt.TAKE)
+	assert_int(takes.target()).is_equal(joiner)
+	assert_int(takes.hand_over()).is_greater(0)
+	for i: int in ANSWER_FRAMES:
 		if _held_on_both(host, gift) or not _rejected.is_empty():
 			break
 		await _pair.frames(1)
@@ -65,6 +92,7 @@ func test_e_aimed_at_a_living_player_in_the_lobby_hands_the_gift_over() -> void:
 	for game: Game in [_pair.host, _pair.client]:
 		assert_int(game.client().model.hand_item(host)).is_equal(gift)
 		assert_int(game.client().model.hand_item(joiner)).is_equal(-1)
+		assert_int(game.client().model.offer_of(joiner)).is_equal(0)
 	# The hand is empty: nothing more to hand over, no prompt.
 	await _pair.frames(2)
 	assert_int(keys.target()).is_equal(0)
@@ -72,7 +100,7 @@ func test_e_aimed_at_a_living_player_in_the_lobby_hands_the_gift_over() -> void:
 	await _pair.stop()
 
 
-func test_the_prompt_shows_only_for_a_handable_hand_item_and_a_player_in_reach() -> void:
+func test_the_prompt_shows_only_for_a_hand_item_and_a_player_in_reach() -> void:
 	assert_bool(await _pair.start()).is_true()
 	var joiner := _pair.peer_of(_pair.client)
 	var host := _pair.peer_of(_pair.host)
@@ -219,11 +247,9 @@ func _bar(center: Vector3) -> StaticBody3D:
 	return body
 
 
-## A one-handed, handable kind, as the full mug is.
+## A one-handed kind, as the full mug is.
 func _gift() -> ItemKind:
-	var kind := FixtureItemModes.item_kind(&"gift", [])
-	kind.handable = true
-	return kind
+	return FixtureItemModes.item_kind(&"gift", [])
 
 
 ## Puts a new gift in `peer`'s hand on the host (reaching into its Match as NetPair.knock_down
@@ -267,6 +293,13 @@ func _walk_in(player: PlayerController, keys: HandOverUse, peer: int) -> bool:
 
 func _eye_of(body: PlayerController) -> Vector3:
 	return body.global_position + Vector3.UP * _pair.mode.player_rules.eye_height_of(false)
+
+
+func _offered_on_both(giver: int, target: int) -> bool:
+	for game: Game in [_pair.host, _pair.client]:
+		if game.client().model.offer_of(giver) != target:
+			return false
+	return true
 
 
 func _held_on_both(peer: int, item: int) -> bool:
