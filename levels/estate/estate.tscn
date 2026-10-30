@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://levels/estate/rooms/ship.tscn" id="13_6dnp2"]
 [ext_resource type="PackedScene" path="res://levels/estate/rooms/fallen_trunk.tscn" id="14_mv35b"]
 [ext_resource type="PackedScene" path="res://levels/estate/rooms/gate.tscn" id="15_bqbxw"]
+[ext_resource type="PackedScene" path="res://levels/estate/rooms/markers.tscn" id="16_mrkrs"]
 
 [node name="Estate" type="Node3D" unique_id=743513984]
 
@@ -58,3 +59,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 0, 79.5)
 
 [node name="Gate" parent="." unique_id=27917435 instance=ExtResource("15_bqbxw")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.5, 0, 90)
+
+[node name="Markers" parent="." unique_id=1374000001 instance=ExtResource("16_mrkrs")]

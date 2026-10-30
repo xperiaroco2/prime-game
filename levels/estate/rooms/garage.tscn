@@ -85,6 +85,9 @@ size = Vector3(0.1, 0.1, 0.1)
 
 [node name="Garage" type="Node3D" unique_id=1639586588]
 metadata/size_m = Vector2i(10, 8)
+metadata/room_id = &"garage"
+metadata/name_key = "room.garage"
+metadata/centred = true
 
 [node name="Floor01" type="MeshInstance3D" parent="." unique_id=696398976]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)

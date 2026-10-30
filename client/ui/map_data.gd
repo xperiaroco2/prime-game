@@ -5,8 +5,9 @@ extends RefCounted
 ## loads, from level data every client has, never from the model: no player, item or circle.
 ##
 ## A room is a Node3D of the level with `metadata/size_m` (Vector2i or Vector2, whole metres), the
-## level piece conventions (PR #611): its origin is its north-west floor corner, its plan rect runs
-## `size_m` from there along +X and +Z, unrotated; plan x is X and plan y is Z.
+## level piece conventions (PR #611): its origin is its north-west floor corner (its centre with
+## `metadata/centred`, an estate lot), its plan rect runs `size_m` along +X and +Z, unrotated;
+## plan x is X and plan y is Z.
 ##
 ## The room record (#306) is that node: its id `metadata/room_id` and its name `metadata/name_key`,
 ## a copy deck key with English and Ukrainian text, beside the outline's `size_m`. A room without
@@ -23,6 +24,9 @@ const SIZE_KEY := &"size_m"
 const ID_KEY := &"room_id"
 ## A room's name: a copy deck key (its record's; without it `room.<id>`).
 const NAME_KEY := &"name_key"
+## A room placed by its centre (the level-piece ADR's 2026-10-29 amendment, the estate's lots): true
+## on its root, its origin is the middle of its plan rect, not its north-west corner.
+const CENTRED_KEY := &"centred"
 ## The spawn points' group prefix (MarkerReader's, which client/ may not name).
 const SPAWN_GROUP_PREFIX := "spawn_"
 ## The empty border around the rooms on the board, a share of the board's shorter side (layout).
@@ -102,6 +106,8 @@ static func rooms_of(level: Node) -> Array[Room]:
 			continue
 		taken.append(id)
 		var corner := plan_of(_placed(room, level).origin)
+		if room.get_meta(CENTRED_KEY, false) == true:
+			corner -= size / 2.0
 		found.append(Room.new(id, Rect2(corner, size), str(room.get_meta(NAME_KEY, ""))))
 	return found
 

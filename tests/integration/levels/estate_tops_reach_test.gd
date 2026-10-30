@@ -1,0 +1,181 @@
+extends GdUnitTestSuite
+## No flat top on the estate outside the swept roofs holds a thrown item out of every player's
+## reach (#1374; the throwing ADR, TD5 (a); estate_roof_throw_test.gd sweeps the roofs). Each flat
+## box top of the level's host collision (the fences, the gate's posts, the creek's banks, the
+## camera posts, every piece a later change adds) is one of:
+## - a floor: no standable floor beside it;
+## - a step: at most the mode's jump (PlayerRules.jump_height_m) over the floor beside it, so a
+##   player gets onto it;
+## - in reach: its middle, half its side and a player's capsule radius out from the feet on the
+##   floor beside it, is within the PickUp rule's InReach;
+## - over every throw: higher than the arc's top (the eye over the highest floor within
+##   PERCH_SPAN_M of its long sides, plus the Throw rule's speed squared over twice its gravity);
+## - or left to another guard: in a footprint of EstateThrows.TOPS grown by its eave, at any
+##   height (the roof sweep), or in the House's lot piece, as the roof sweep leaves it out.
+## Anything else is a top a throw can reach and no player can: red, by body and piece.
+## Not read: a shape that is not a box (the estate has only boxes); a ceiling over a top (a throw
+## under it is taken as unbounded, so the check errs red).
+
+const EstateThrows := preload("res://tests/integration/levels/estate_throws.gd")
+const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
+const BASE_MODE := "res://content/modes/base_mode.tres"
+## How far out from a top's narrow side a perch counts, and the step between samples.
+const PERCH_SPAN_M := 2.0
+const PERCH_STEP_M := 0.5
+## A floor whose height under a player's footprint varies more than this is no place to stand.
+const STAND_STEP_M := 0.3
+
+var _world: HostWorldQuery
+var _rules: PlayerRules
+var _throw: ThrowItem
+var _reach_m := 0.0
+var _tops: Array[Dictionary] = []
+
+
+func before() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	_rules = mode.player_rules
+	for rule: Rule in mode.actions:
+		if rule.trigger == Intents.THROW:
+			for effect: RuleEffect in rule.effects:
+				if effect is ThrowItem:
+					_throw = effect as ThrowItem
+		var picks := false
+		var reach := 0.0
+		for condition: Condition in rule.conditions:
+			if condition is ItemOnGround:
+				picks = true
+			if condition is InReach:
+				reach = (condition as InReach).reach_m
+		if picks and reach > 0.0:
+			_reach_m = reach
+	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
+	_tops = EstateThrows.box_tops(root)
+	_world = HostWorldQuery.new(_rules.capsule_radius_m)
+	_world.add_level(LevelWorld.from_scene(root, EstateDoc.MAP))
+	_world.use_level(EstateDoc.MAP)
+	root.free()
+
+
+func after() -> void:
+	_world = null
+	_rules = null
+	_throw = null
+	_tops.clear()
+
+
+func test_the_numbers_and_the_tops_are_read() -> void:
+	assert_object(_throw).is_not_null()
+	assert_float(_reach_m).is_greater(0.0)
+	var pieces: Array[String] = []
+	for top: Dictionary in _tops:
+		if not pieces.has(top["piece"]):
+			pieces.append(top["piece"])
+	assert_array(pieces).contains(["Plot", "Creek", "Gate", "Bonfire", "Well"])
+
+
+func test_every_top_outside_the_swept_roofs_is_a_floor_a_step_in_reach_or_over_every_throw(
+) -> void:
+	var swept := EstateThrows.tops(_world)
+	var red: Array[String] = []
+	for top: Dictionary in _tops:
+		var centre: Vector3 = top["centre"]
+		var plan := Vector2(centre.x, centre.z)
+		if top["piece"] == "House" or _in_a_swept_footprint(swept, plan):
+			continue
+		var why := _why_out_of_reach(top)
+		if why != "":
+			red.append("%s (%s): %s" % [top["body"], top["piece"], why])
+	assert_array(red).override_failure_message("\n".join(red)).is_empty()
+
+
+func test_a_fence_a_throw_reaches_and_no_player_does_is_red() -> void:
+	# A 0.2 m wall 2.2 m high on the open ground east of the bonfire: in reach of no feet (2.3 m
+	# to its middle), under a
+	# throw's arc, so the check is not blind.
+	var top := {
+		"piece": "Probe",
+		"body": "Probe",
+		"centre": Vector3(75.0, 2.2, 45.0),
+		"narrow": 0.2,
+		"long": 4.0,
+		"across": Vector3.RIGHT,
+		"along": Vector3.BACK,
+	}
+	assert_str(_why_out_of_reach(top)).is_not_empty()
+
+
+## "" when the top is a floor, a step, in reach or over every throw; else what it is. The feet
+## stand on a floor out from each of its four sides (half the side across it and the capsule
+## radius from its centre); the perches on every floor within PERCH_SPAN_M out from either long
+## side. A floor counts only where a player stands: one height under the whole capsule
+## footprint (_stand), so a fence's or a post's own top beside it is no floor.
+func _why_out_of_reach(top: Dictionary) -> String:
+	var centre: Vector3 = top["centre"]
+	var across: Vector3 = top["across"]
+	var along: Vector3 = top["along"]
+	var half: float = (top["narrow"] as float) / 2.0
+	var half_long: float = (top["long"] as float) / 2.0
+	var cap := _rules.capsule_radius_m
+	var nearest := INF
+	var lowest_rise := INF
+	for side: Array in [
+		[across, half + cap],
+		[-across, half + cap],
+		[along, half_long + cap],
+		[-along, half_long + cap]
+	]:
+		var feet := _stand(centre + (side[0] as Vector3) * (side[1] as float), centre.y)
+		if feet == -INF:
+			continue
+		var rise := centre.y - feet
+		lowest_rise = minf(lowest_rise, rise)
+		nearest = minf(
+			nearest, Vector2(side[1] as float, rise + Items.SURFACE_CLEARANCE_M).length()
+		)
+	if lowest_rise == INF or lowest_rise <= _rules.jump_height_m or nearest <= _reach_m:
+		return ""
+	var perch := -INF
+	var out := half + cap
+	while out <= half + PERCH_SPAN_M + 0.001:
+		for side_sign: float in [1.0, -1.0]:
+			perch = maxf(perch, _stand(centre + across * side_sign * out, centre.y))
+		out += PERCH_STEP_M
+	var arc_top := (
+		perch
+		+ _rules.eye_height_m
+		+ _throw.speed_mps * _throw.speed_mps / (2.0 * _throw.gravity_mps2)
+		+ Items.SURFACE_CLEARANCE_M
+	)
+	if centre.y > arc_top:
+		return ""
+	var why := "top %.2f m, %.2f m over the floor beside it, " % [centre.y, lowest_rise]
+	why += "%.2f m from the nearest feet (reach %.1f), " % [nearest, _reach_m]
+	return why + "under a throw's top %.2f m" % arc_top
+
+
+## The floor a player stands on at `at` (x, z) under `under_y`: the height of the floor straight
+## down, when the floor under each edge of the capsule footprint is within STAND_STEP_M of it; else
+## -INF.
+func _stand(at: Vector3, under_y: float) -> float:
+	var found := _world.floor_below(Vector3(at.x, under_y - 0.05, at.z))
+	if found == WorldQuery.NO_FLOOR:
+		return -INF
+	var r := _rules.capsule_radius_m
+	for offset: Vector3 in [
+		Vector3(r, 0, 0), Vector3(-r, 0, 0), Vector3(0, 0, r), Vector3(0, 0, -r)
+	]:
+		var edge := _world.floor_below(Vector3(at.x, under_y - 0.05, at.z) + offset)
+		if edge == WorldQuery.NO_FLOOR or absf(edge.y - found.y) > STAND_STEP_M:
+			return -INF
+	return found.y
+
+
+## Whether `plan` (x, z) lies in a swept roof's footprint grown by its eave, at any height: the
+## roof sweep throws from under and around it (estate_throws.gd).
+func _in_a_swept_footprint(swept: Dictionary[String, Dictionary], plan: Vector2) -> bool:
+	for top_name: String in swept:
+		var rect: Rect2 = swept[top_name]["rect"]
+		if rect.grow(EstateThrows.EAVE_M).has_point(plan):
+			return true
+	return false

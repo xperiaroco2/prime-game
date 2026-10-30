@@ -55,11 +55,11 @@ material = ExtResource("1_01f5j")
 size = Vector3(3.3, 1.2, 1.1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_3j42e"]
-size = Vector3(1.1000004, 2.3, 0.2)
+size = Vector3(1.1000004, 3.2, 0.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_eya5f"]
 material = ExtResource("2_f4rxe")
-size = Vector3(1.1000004, 2.3, 0.2)
+size = Vector3(1.1000004, 3.2, 0.2)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_865mp"]
 size = Vector3(3.924338, 3.2, 0.2)
@@ -118,6 +118,9 @@ size = Vector3(0.6, 1, 0.6)
 
 [node name="Ship" type="Node3D" unique_id=777999643]
 metadata/size_m = Vector2i(26, 14)
+metadata/room_id = &"ship"
+metadata/name_key = "room.ship"
+metadata/centred = true
 
 [node name="Deck01" type="StaticBody3D" parent="." unique_id=1125715369]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
@@ -206,7 +209,7 @@ shape = SubResource("BoxShape3D_7wk1n")
 mesh = SubResource("BoxMesh_2tmk0")
 
 [node name="TunnelWall01" type="StaticBody3D" parent="." unique_id=759047488]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -1.75, 2.35, -7.55)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -1.75, 2.8, -7.55)
 
 [node name="Shape" type="CollisionShape3D" parent="TunnelWall01" unique_id=392798829]
 shape = SubResource("BoxShape3D_3j42e")
@@ -215,7 +218,7 @@ shape = SubResource("BoxShape3D_3j42e")
 mesh = SubResource("BoxMesh_eya5f")
 
 [node name="TunnelWall02" type="StaticBody3D" parent="." unique_id=1725222457]
-transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 1.75, 2.35, -7.55)
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 1.75, 2.8, -7.55)
 
 [node name="Shape" type="CollisionShape3D" parent="TunnelWall02" unique_id=1982216162]
 shape = SubResource("BoxShape3D_3j42e")

@@ -2814,7 +2814,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
 - #767 (the engineer's option (a)): players always play the House. `GameMode.bench_maps` marks the maps of
   `maps` that are test benches only (the base mode's: the flat greybox, for the bot scenarios and the leak test,
-  §9.7); `player_maps()` is the rest and `default_map()` its first, where every match starts (`Match`), so the
+  §9.7, and the forest estate, #1374); `player_maps()` is the rest and `default_map()` its first, where every match starts (`Match`), so the
   picker lists the House alone. The host still accepts a bench in `ChangeSettings` (the bots ask for it, and the
   host cannot tell a bot from a person); the mode check refuses a bench not in `maps` and a mode whose every map
   is a bench. Tests: `game_mode_maps_test.gd`, `screens_test.gd` (the shipped lobby offers the House alone),
@@ -3631,13 +3631,17 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   `map.zone_hint`; under the first lit room since #490, §4.7.40). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
-  of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
-  and plan y = Z: the level piece conventions proposed in PR #611. **The room record** (#306) is that node: its id
+  of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner (with `metadata/centred =
+  true`, an estate lot placed by its centre per the level-piece ADR's 2026-10-29 amendment, the middle of its rect),
+  unrotated, plan x = X and plan y = Z: the level piece conventions proposed in PR #611. **The room record** (#306) is that node: its id
   `metadata/room_id` (a StringName) and its name `metadata/name_key` (a copy deck key with English and Ukrainian
   text, never the words) beside the outline's `size_m`; no sign and no door-plate position (the engineer, on #306:
   no wall signs). A room without them still draws, its id its node name in snake_case and its key `room.<id>`; a
   room repeating an id is left out. Every House room carries its record on its own scene's root (`levels/house/rooms/`,
-  the id its file name, the key the deck's `room.<id>`, ui-0.6.0); the tutorial room's is #715's. Only
+  the id its file name, the key the deck's `room.<id>`, ui-0.6.0); the tutorial room's is #715's; each estate lot with a footprint carries one on
+  its piece's root, centred (#1374: house, summer_kitchen, pantry, greenhouse, garage, ship, fallen_trunk; the keys
+  `room.house`, `room.summer_kitchen`, `room.ship`, `room.fallen_trunk` await the deck, so the screen names those lots by their ids
+  until a UI release adds them, `tests/unit/levels/estate_room_records_test.gd`). Only
   `MapData.rooms_of()` reads that shape (`MapData.Room`: `id`, `rect`, `name_key`), and the screen names a room by
   its `name_key`, else its id. A marker is placed as the host's `MarkerReader` places it
   (`LevelWorld.transform_in_scene`: the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
@@ -7285,11 +7289,11 @@ so the copy deck's `task.delivery` and the how-to card follow the Delivery playe
 moved unchanged but for its id and `maps` to `content/tasks/colour_delivery.tres` (id `colour_delivery`, display
 name "Delivery"; `ContentNames` names it by the deck's `task.delivery`, its `TASK_EXCEPTIONS`; a copy of the how-to
 card in `content/howto/tasks/colour_delivery.tres`). It stays the flat greybox's, a test bench only (#767), for the bot
-scenarios and the leak test (the ADR's DD9 (c)); the class `Delivery` keeps its name and code.
+scenarios and the leak test (the ADR's DD9 (c)), and plays the estate test bench too until it has its own (#1374); the class `Delivery` keeps its name and code.
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
 when its package rests inside its own circle, however it got there (§7.1.14). Nobody owns the task: any living player
 delivers any package.
-Maps (`TaskType.maps`, #803, every task type's): the greybox alone (#828; before it none listed, so every map).
+Maps (`TaskType.maps`, #803, every task type's): the greybox (#828; before it none listed, so every map) and the estate test bench (#1374).
 Settings: `package`: the Package item kind; `circle`: a station kind (spawn tag `circle`, radius 1 m (0.2 to 10;
 game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeholder, "not a decision"), a colour
 palette: 10 distinct colours, provisional, one per package at the most `packages` allows); `subtasks_setting`:
@@ -8173,7 +8177,7 @@ content/
   items/bun_*.tres, patty_*.tres, basil.tres ... box_*.tres   Cooking's 21 items (#775, §9.5.20)
   items/car_part_green.tres, car_part_blue.tres, car_part_yellow.tres   car repair's parts (#810, §9.5.21)
   tasks/delivery.tres              the House's Delivery by meaning, its routes and drop-offs inside it (#828)
-  tasks/colour_delivery.tres       the greybox's Delivery by colours, with its circle station inside it
+  tasks/colour_delivery.tres       the greybox's (and the estate's) Delivery by colours, with its circle station inside it
   tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   tasks/generator.tres             the Generator, with its generator and switch station kinds inside it (#800)
   tasks/photo.tres                 the photo task, with its five station kinds inside it (#784)
@@ -8191,10 +8195,11 @@ levels/
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with its players' and items' markers
-  estate/estate.tscn               the forest estate's box greybox (#1158): a test map, not in base_mode's maps; it
-                                   only places its pieces
+  estate/estate.tscn               the forest estate's box greybox (#1158): a test bench of base_mode's maps
+                                   (#1374); it only places its pieces
   estate/rooms/*.tscn              one box piece per lot (house, bonfire, summer_kitchen, pantry, greenhouse, garage,
-                                   gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees
+                                   gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees and
+                                   markers (the base mode's spawn markers, #1374)
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
@@ -8228,8 +8233,17 @@ levels/
   §2.3). Boxes only: layer-1 `StaticBody3D` boxes with `levels/kit/`'s role materials on the 1 m grid, stairs as
   ramps; the house's links of §5 with the bookcase stair and the chimney (down only); §6's stations, §5c's six
   cameras and each lot's door openings as markers (`StationMarkers`, `CameraMarkers`, `Doors`), no station scene.
-  No spawn marker, so the base mode cannot play it and it is not in `base_mode.tres`'s `maps`; §5b's tunnel, sewer
-  and ducts are not built yet. Each lot's piece sits at its module's centre with `metadata/size_m` its footprint
+  The base mode plays it as a test bench (#1374, beside the greybox in `bench_maps`, so the picker still lists the
+  House alone, #767): its map-wide `Markers` piece holds the round spawns (an arc by the bonfire, the party's heart,
+  estate-map.md §1), respawns, knives and the greybox Delivery by colours' packages and circles (`colour_delivery`
+  lists the estate, its stand-in task until the estate's own); every place a placeholder, "not a decision". Each lot
+  with a footprint carries its room record, centred (§4.7.33). No throw at the base mode's numbers rests on a top no
+  player stands on (the outbuildings', the gazebo's, the ship's, the fallen trunk's, raised to 3.2 m for it): the
+  throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd). Every other flat box top outside the House's
+  lot is a floor, a step, in reach or over every throw (estate_tops_reach_test.gd), so the fence stands 1.8 m, the
+  creek's banks 3.5 m, the gate's posts 3.2 m, the ship's tunnel walls 4.4 m (its throat's) and the bonfire's camera
+  post collides up to 3.3 m, over its camera. §5b's tunnel, sewer and ducts are not built yet. Each lot's piece sits
+  at its module's centre with `metadata/size_m` its footprint
   where §3 gives W × D: the ADR's "the map places a room at the doc's numbers" with a doc that gives centres; the
   plot, creek, paths and trees are map-wide pieces at the origin. The creek blocks but at its doc's crossings, the
   east road included. Its sizes beyond the doc (fences, crossings, trees, markers, the ship's hull) are
@@ -8237,7 +8251,11 @@ levels/
   scene against the doc's §3 rows, read by `tests/fixtures/estate_doc.gd`: each module's centre, footprint and name,
   the pieces each once, the crossings, no tree in a clearing, the six cameras) and
   `tests/integration/levels/estate_walk_test.gd` (the map in the host's world: the walks between the lots and the
-  house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere).
+  house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere),
+  `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, the layout the
+  base mode accepts), `tests/unit/levels/estate_room_records_test.gd` and
+  `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`); the
+  playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e

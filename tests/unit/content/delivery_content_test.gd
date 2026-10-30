@@ -10,6 +10,8 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const TUTORIAL_MODE := "res://content/modes/tutorial_mode.tres"
 const HOUSE := "res://levels/house/house.tscn"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
+## The estate (#1374), where Delivery by colours also plays (placeholder markers, "not a decision").
+const ESTATE := "res://levels/estate/estate.tscn"
 
 
 func test_the_task_settings_and_their_numbers() -> void:
@@ -81,7 +83,7 @@ func test_each_delivery_plays_on_one_map_of_the_base_mode_the_two_apart() -> voi
 	assert_bool(by_meaning is DeliveryByMeaning).is_true()
 	assert_bool(by_colours is Delivery).is_true()
 	assert_array(Array(by_meaning.maps)).is_equal([HOUSE])
-	assert_array(Array(by_colours.maps)).is_equal([GREYBOX])
+	assert_array(Array(by_colours.maps)).is_equal([GREYBOX, ESTATE])
 	for type: TaskType in [by_meaning, by_colours]:
 		assert_bool(mode.maps.has(type.maps[0])).is_true()
 		for map: String in tutorial.maps:

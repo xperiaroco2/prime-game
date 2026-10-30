@@ -1,0 +1,30 @@
+# The forest estate in the game's real window (#1374): its greybox (#1158) registered in the base
+# mode as a test bench (`map` below, as the greybox's #767), its markers and room records. Window 1
+# hosts alone (the base mode plays with one) and readies: the round starts on the estate, the
+# player at a spawn by the bonfire (shot); M opens the map and tasks screen, whose board draws the
+# estate's lots from their room records, each over its footprint (shot); M closes it again.
+players 1
+windows 1
+map res://levels/estate/estate.tscn
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+press ready
+wait screen round timeout=60
+frames 30
+shot estate_round
+press map
+wait pointer free
+frames 10
+shot estate_map_open
+press map
+wait pointer captured
+frames 10
+shot estate_map_closed
