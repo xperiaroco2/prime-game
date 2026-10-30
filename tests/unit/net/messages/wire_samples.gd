@@ -235,6 +235,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"Draw", {"place": 2}, 17),
 		WireMessage.new(&"Draw", {"place": 255}, 0xFFFFFFFF),
 		WireMessage.new(&"Pose", {}, 17),
+		WireMessage.new(&"HandOver", {"target": 2}, 17),
+		WireMessage.new(&"HandOver", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),

@@ -5,9 +5,13 @@ extends Condition
 ## downed player lies) is clear of walls (WorldQuery.line_of_sight; ARCHITECTURE §7.1, §9.4; M4-4),
 ## as InSight is for an item. Checked at the start and every tick: losing sight stops a raise like
 ## moving out of reach (the engineer's answer 4 on PR #133). Rejects with `blocked`: the sender sees
-## the wall too.
+## the wall too. With `at_eye` (the hand-over, #1389) the line ends at the target's eye instead
+## (Items.eye_of), so a waist-high counter between two standing players does not block it.
 
 const BLOCKED := &"blocked"
+
+## Aim at the target's eye, not its feet: false, the default, for a downed target (the raise).
+@export var at_eye := false
 
 
 ## It needs a target player (Channels.target_of), and also reads the actor (the default).
@@ -20,7 +24,8 @@ func _test(ctx: MatchContext) -> bool:
 	var target := ctx.state.player(Channels.target_of(ctx))
 	if actor == null or target == null or ctx.state.player_rules == null:
 		return false
-	return ctx.world.line_of_sight(Items.eye_of(ctx, actor), Items.lifted(target.position))
+	var aim := Items.eye_of(ctx, target) if at_eye else Items.lifted(target.position)
+	return ctx.world.line_of_sight(Items.eye_of(ctx, actor), aim)
 
 
 func _reason() -> StringName:

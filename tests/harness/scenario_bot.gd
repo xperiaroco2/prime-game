@@ -431,6 +431,9 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				places[fields.get("place", 0) as int] = item
 				if to_belt != item:
 					selected = fields.get("place", 0) as int
+			else:
+				# Another player took it: from this bot's hand, when it was handed over (#1389).
+				_let_go(item)
 		&"Swapped":
 			if fields["peer"] as int == peer:
 				selected = fields["place"] as int

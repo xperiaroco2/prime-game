@@ -99,6 +99,7 @@ func _check_mode(mode: GameMode) -> void:
 	errors.append_array(StationRuleCheck.kind_problems(mode))
 	_check_ticking(mode)
 	_check_vanishing(mode)
+	_check_handing(mode)
 	_check_rules(mode)
 	_check_rows(mode)
 	_check_phases(mode)
@@ -234,6 +235,7 @@ func _check_owner(
 			gated = gated or condition.gates_on_role()
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
+		_check_hand_over_rule(owner, rule, on_intent)
 		errors.append_array(StationRuleCheck.rule_problems(owner, rule))
 		errors.append_array(ItemTargetCheck.give_rule(owner, rule, at_item))
 		if gated and _has_channel and on_intent:
@@ -316,6 +318,34 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 				)
 
 
+## A HandOver of `rule` (#1389): only in an action on the HandOver intent (the only one with a
+## receiver, its `target`), and with every condition class it requires
+## (HandOver.required_conditions), so no mode hands over a belt item, a two-handed or unmarked
+## kind, or an item to a player out of reach or sight.
+func _check_hand_over_rule(owner: String, rule: Rule, on_intent: bool) -> void:
+	for effect: RuleEffect in rule.effects:
+		if not effect is HandOver:
+			continue
+		if not on_intent or rule.trigger != Intents.HAND_OVER:
+			errors.append(
+				(
+					"%s: rule %s hands over an item, which only the intent HandOver can"
+					% [owner, rule.trigger]
+				)
+			)
+		for required: Script in HandOver.required_conditions():
+			if not _has_condition(rule, required):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s hands over an item, which requires the condition %s, which it lacks"
+							% [owner, rule.trigger, required.get_global_name()]
+						)
+					)
+				)
+
+
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.
 static func station_intents() -> Array[StringName]:
 	var found: Array[StringName] = []
@@ -381,12 +411,32 @@ func _check_vanishing(mode: GameMode) -> void:
 			errors.append(found + ", but no phase lists VanishTicks: it never would")
 
 
+## A handable item kind (ItemKind.handable, #1389) where no phase accepts HandOver: nobody could
+## hand it over, so the flag says what the mode does not do.
+func _check_handing(mode: GameMode) -> void:
+	for spec: PhaseSpec in mode.phases:
+		if spec != null and spec.senders_of(Intents.HAND_OVER) != 0:
+			return
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null and kind.is_handable():
+			errors.append(
+				"item kind %s is handable, but no phase accepts HandOver: nobody could" % kind.id
+			)
+
+
 ## A row's actions run with no actor, so a ChannelEffect or a ThrowItem among them is an error.
 func _check_rows(mode: GameMode) -> void:
 	for row: Transition in mode.transitions:
 		if row == null:
 			continue
 		for action: RuleEffect in row.actions:
+			if action is HandOver:
+				errors.append(
+					(
+						"row %s, %s hands over an item, which only a player's intent can"
+						% [row.from, row.outcome]
+					)
+				)
 			if action is ThrowItem:
 				errors.append(
 					(

@@ -12,7 +12,9 @@ extends RefCounted
 ##
 ## Where each one plays:
 ## - Swung: at the swinger: the local player for the own swing, else its interpolated pose;
-## - ItemPickedUp: where the item lay (the model's fold keeps the item's last resting place);
+## - ItemPickedUp: where the item lay (the model's fold keeps the item's last resting place); a
+##   hand-over's (#1389: the item was carried, `handed_from`) at the receiver, where the take
+##   happened, not at a resting place the item left long before;
 ## - ItemPlaced: at the event's position;
 ## - ItemThrown: at the launch's origin, the thrower's eye (37e: ItemViews hands it over when the
 ##   drawn item launches, and a thrown item's ItemPlaced when it lands at its rest). ItemThrown
@@ -157,7 +159,12 @@ static func source(
 			return Sound.new(SWING, at as Vector3, SWING_AIM_M) if at is Vector3 else null
 		&"ItemPickedUp":
 			var item: ClientModel.Item = model.items.get(fields["item"] as int)
-			return Sound.new(PICK_UP, item.position, ITEM_AIM_M) if item != null else null
+			if item == null:
+				return null
+			if item.handed_from == ClientModel.NO_HOLDER:
+				return Sound.new(PICK_UP, item.position, ITEM_AIM_M)
+			var at: Variant = position_of.call(fields["peer"] as int)
+			return Sound.new(PICK_UP, at as Vector3, ITEM_AIM_M) if at is Vector3 else null
 		&"ItemPlaced":
 			return Sound.new(PUT_DOWN, fields["position"] as Vector3, ITEM_AIM_M)
 		&"ItemThrown":

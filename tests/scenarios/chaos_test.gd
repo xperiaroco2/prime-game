@@ -79,6 +79,11 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"Throw", facing, &"countdown", living, &"not_accepted"],
 		[&"Raise", {"target": 4}, &"lobby", living, &"not_accepted"],
 		[&"Pose", {"pose": 1}, &"lobby", living, &"not_accepted"],
+		# The hall alone takes HandOver (#1389); HoldsItem comes first.
+		[&"HandOver", {"target": 3}, &"lobby", living, &"empty_hand"],
+		[&"HandOver", {"target": 4}, &"countdown", living, &"empty_hand"],
+		[&"HandOver", {"target": 3}, &"round", living, &"not_accepted"],
+		[&"HandOver", {"target": 3}, &"lobby", downed, &"not_accepted"],
 		[&"PutDown", facing, &"round", living, &"empty_hand"],
 		[&"PutDown", facing, &"round", downed, &"not_accepted"],
 		[&"Use", facing, &"round", living, &"nothing_to_do"],
@@ -244,6 +249,43 @@ func test_the_oracle_answers_a_raise_by_the_targets_life_alone() -> void:
 		)
 	var at_downed := ChaosOracle.answer(&"Raise", {"target": 2}, 4, &"round", me, 0, state)
 	assert_str(str(at_downed)).is_equal("?")
+
+
+func test_the_oracle_answers_a_hand_over_by_the_held_item_then_the_target() -> void:
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	var near := state.add_player(3, "Player3")
+	near.position = Vector3(1.5, 0.0, 0.0)
+	var far := state.add_player(1, "Player1")
+	far.position = Vector3(6.0, 0.0, 0.0)
+	var downed := state.add_player(2, "Player2")
+	downed.life = PlayerState.Life.DOWNED
+	downed.position = Vector3(0.5, 0.0, 0.0)
+	var empty := ChaosOracle.answer(&"HandOver", {"target": 3}, 4, &"lobby", me, 0, state)
+	assert_str(str(empty)).is_equal("empty_hand")
+	var handable := ItemKind.new()
+	handable.handable = true
+	var crate := ItemKind.new()
+	crate.hands = 2
+	crate.handable = true
+	var cases: Array[Array] = [
+		[crate, 3, &"two_handed"],
+		[ItemKind.new(), 3, &"not_handable"],
+		[handable, 4, &"bad_args"],
+		[handable, 2, &"not_living"],
+		[handable, ChaosOracle.NO_ITEM, &"not_living"],
+		[handable, 1, &"out_of_reach"],
+		# Within reach the answer is TargetInSight's, which needs the level: no answer.
+		[handable, 3, &"?"],
+	]
+	for case: Array in cases:
+		state.items[0] = ItemState.new(0, case[0] as ItemKind, Vector3.ZERO)
+		state.items[0].where = ItemState.Where.HAND
+		state.items[0].holder = 4
+		me.held_item = 0
+		var args := {"target": case[1]}
+		var answer := ChaosOracle.answer(&"HandOver", args, 4, &"lobby", me, 0, state)
+		assert_str(str(answer)).override_failure_message("%s" % [case]).is_equal(str(case[2]))
 
 
 func test_the_host_counts_are_exempt_for_the_two_chaos_peers_only() -> void:

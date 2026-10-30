@@ -26,6 +26,12 @@ const NO_SUCH_PLACE := PlaceInRange.NO_SUCH_PLACE
 const SAME_PLACE := PlaceChanges.SAME_PLACE
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
+## The base mode's HandOver (#1389): HandNotTwoHanded, HandHandable, TargetLiving, then
+## TargetInReach (2 m between the two players' last accepted feet) after HoldsItem.
+const TWO_HANDED := HandNotTwoHanded.TWO_HANDED
+const NOT_HANDABLE := HandHandable.NOT_HANDABLE
+const NOT_LIVING := TargetLiving.NOT_LIVING
+const HAND_OVER_REACH_M := 2.0
 ## TargetDowned of a downed target whose body still moves (the knockdown rework's KE15).
 const MOVING := &"moving"
 const OUT_OF_REACH := &"out_of_reach"
@@ -38,6 +44,8 @@ const PICK_UP_REACH_M := 2.0
 ## bot never holds an item, so a hostile Throw is never thrown.
 ## Lobby and Countdown take the hand, the belt and Interact from the living as Round does (#1388),
 ## with the same refusals (no item or station is in the hall yet); not Throw, Raise or Pose.
+## They also take HandOver from the living (#1389), which the Round does not: its first condition
+## is HoldsItem (`empty_hand`), and the hostile's own bot never holds an item.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -52,6 +60,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Use": From.LIVING,
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
+		&"HandOver": From.LIVING,
 	},
 	&"countdown":
 	{
@@ -64,6 +73,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Use": From.LIVING,
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
+		&"HandOver": From.LIVING,
 	},
 	&"loading": {&"LoadAck": From.PLAYER},
 	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
@@ -217,6 +227,8 @@ static func _rule(
 				answer_now = &"?"
 		Intents.INTERACT:
 			answer_now = _interact(args, player, state, mode)
+		Intents.HAND_OVER:
+			answer_now = _hand_over(args.get("target", 0) as int, peer, player, state)
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 
@@ -272,6 +284,34 @@ static func _draw(place: Variant, player: PlayerState) -> StringName:
 	if not place is int or place < 0 or place >= PlayerState.PLACES:
 		return NO_SUCH_PLACE
 	return SAME_PLACE if place == player.selected_place else &"?"
+
+
+## HandOver's conditions in their order (§9.4, #1389): HoldsItem (`empty_hand`), HandNotTwoHanded
+## (`two_handed`), HandHandable (`not_handable`), TargetLiving (`bad_args` for the sender itself,
+## `not_living` for a peer that is no player, downed, dead or gone), then TargetInReach
+## (`out_of_reach`, more than 2 m between the last accepted feet). A target within reach is "?":
+## TargetInSight needs the level, and the hostile's own bot never holds an item, so its HandOver
+## stops at HoldsItem.
+static func _hand_over(
+	target_peer: int, peer: int, player: PlayerState, state: MatchState
+) -> StringName:
+	if player.held_item < 0:
+		return EMPTY_HAND
+	var held: ItemState = state.items.get(player.held_item) if state != null else null
+	if held == null:
+		return &"?"
+	if held.kind.is_two_handed():
+		return TWO_HANDED
+	if not held.kind.is_handable():
+		return NOT_HANDABLE
+	if target_peer == peer:
+		return RejectReasons.BAD_ARGS
+	var target := state.player(target_peer)
+	if target == null or target.life != PlayerState.Life.ALIVE:
+		return NOT_LIVING
+	if player.position.distance_to(target.position) > HAND_OVER_REACH_M:
+		return OUT_OF_REACH
+	return &"?"
 
 
 ## PickUp's conditions in their order (§9.4): ItemOnGround (`unavailable`), then InReach from the

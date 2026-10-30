@@ -188,7 +188,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepThrow.new(),
 		StepInteract.new(),
 		StepDraw.new(),
-		StepExpectDrunk.new()
+		StepExpectDrunk.new(),
+		StepHandOver.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -217,7 +218,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Throw",
 			&"Interact",
 			&"Draw",
-			&"ExpectDrunk"
+			&"ExpectDrunk",
+			&"HandOver"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -233,7 +235,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepNextStage.new(),
 		StepThrow.new(),
 		StepInteract.new(),
-		StepDraw.new()
+		StepDraw.new(),
+		StepHandOver.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
 
@@ -249,6 +252,16 @@ func test_a_raise_step_targets_a_bot() -> void:
 	assert_array(Array(raise.problems())).is_equal(["hold_s -1.0 is outside 0 to 600"])
 	raise.hold_s = 2.0
 	assert_array(Array(raise.problems())).is_empty()
+
+
+func test_a_hand_over_step_targets_a_bot() -> void:
+	var hand_over := StepHandOver.new()
+	assert_array(Array(hand_over.problems())).is_equal(["no target"])
+	hand_over.target = ScenarioTarget.new()
+	assert_array(Array(hand_over.problems())).is_equal(["a HandOver targets a player: bot(i)"])
+	hand_over.target.kind = ScenarioTarget.Kind.BOT
+	hand_over.target.bot = 2
+	assert_array(Array(hand_over.problems())).is_empty()
 
 
 func test_an_interact_step_names_a_station_and_the_event_its_use_emits() -> void:

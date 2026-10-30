@@ -65,7 +65,8 @@ extends RefCounted
 ## avatar rows' fifth flag `posed` (Snapshot 96), after `sneaking`. ShotTaken's record is unchanged.
 ## 38 since #1390 (the bar, GDD §3): the avatar rows' `drunk` (U8, Snapshot 96), after the flags,
 ## and SelfStatus' `drunk` (U8, kind 54), after `claim_tick`. ShotTaken's record is unchanged.
-const VERSION := 38
+## 39 since #1389 (GDD §6, the hand-over): the intent HandOver (kind 21, its target).
+const VERSION := 39
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -323,6 +324,8 @@ static func _intents() -> Array[WireRow]:
 		_up(19, &"Draw", 5, [_seq(), _of("place", WireField.Type.U8)]),
 		# seq 4 (#1296: the client sends its claim twin first, as before every player action).
 		_up(20, &"Pose", 4, [_seq()]),
+		# seq 4, target 4 (#1389: as Raise's, a peer id; TargetLiving refuses one nobody has).
+		_up(21, &"HandOver", 8, [_seq(), _peer("target")]),
 	]
 
 
