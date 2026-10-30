@@ -37,11 +37,11 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_twenty_two_actions_of_settings_controls_each_with_its_phases() -> void:
+func test_there_are_the_twenty_three_actions_of_settings_controls_each_with_its_phases() -> void:
 	# #488's rule 5: 16 rows, the crouch's (#951), the throw's (#851), the sneak's (#1009) and the
-	# three places' (#1218), 22;
+	# three places' (#1218) and the item's own action (#1446), 23;
 	# rule 6: the implementer defines the phase of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(22)
+	assert_int(Controls.ACTIONS.size()).is_equal(23)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -52,7 +52,7 @@ func test_there_are_the_twenty_two_actions_of_settings_controls_each_with_its_ph
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_twenty_two_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_twenty_three_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -65,6 +65,7 @@ func test_the_twenty_two_actions_have_the_issues_deck_keys_and_defaults() -> voi
 		[&"sneak", &"control.sneak", KEY_ALT],
 		[&"interact", &"control.interact", KEY_E],
 		[&"use", &"control.use", MOUSE_BUTTON_LEFT],
+		[&"use_secondary", &"control.use_secondary", MOUSE_BUTTON_RIGHT],
 		[&"put_down", &"control.put_down", KEY_Q],
 		[&"place_1", &"control.place_1", KEY_1],
 		[&"place_2", &"control.place_2", KEY_2],
@@ -162,11 +163,9 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	assert_str(String(Controls.ACTIONS[&"sneak"])).is_equal("control.sneak")
 	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
-	# The three places (#1218) are Settings rows since ui-2.5.1 (#1421); UNLISTED holds only the
-	# item's own action on the right button (#1438), until the deck has its row.
-	assert_dict(Controls.UNLISTED).is_equal(
-		{&"use_secondary": Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE}
-	)
+	# The three places (#1218) are Settings rows since ui-2.5.1 (#1421) and the item's own action on
+	# the right button (#1438) since ui-2.5.3 (#1446): UNLISTED is empty.
+	assert_dict(Controls.UNLISTED).is_empty()
 	for place: StringName in [&"place_1", &"place_2", &"place_3"]:
 		assert_bool(Controls.ACTIONS.has(place)).override_failure_message(place).is_true()
 		# They draw in the lobby too (#1408: the Lobby takes Draw).
@@ -280,7 +279,7 @@ func test_one_key_in_one_phase_is_a_clash_and_in_two_phases_is_none() -> void:
 	assert_array(controls.clashes_of(&"sprint")).contains_exactly([&"ready"])
 	assert_array(controls.clashes_of(&"give_up")).is_empty()
 	# Give up (downed) on the right mouse button: Previous player is the dead's alone, and the
-	# item's own action (#1438, UNLISTED) the living's.
+	# item's own action (#1438) the living's.
 	var right := InputEventMouseButton.new()
 	right.button_index = MOUSE_BUTTON_RIGHT
 	assert_bool(controls.bind(&"give_up", right)).is_true()
@@ -288,23 +287,32 @@ func test_one_key_in_one_phase_is_a_clash_and_in_two_phases_is_none() -> void:
 	assert_array(controls.clashes_of(&"spectate_previous")).is_empty()
 
 
-func test_use_on_the_right_button_is_refused_while_the_items_own_action_holds_it() -> void:
-	# #1438: `use_secondary` acts on the right button in the lobby and while living but is no
-	# Settings row yet (UNLISTED): Use there would send both on one press.
+func test_use_on_the_right_button_clashes_with_the_items_own_action_which_is_a_row() -> void:
+	# #1438, #1446: `use_secondary` acts on the right button in the lobby and while living and is
+	# a Settings row (`control.use_secondary`): Use there would send both on one press, so it
+	# warns as any clash does.
 	var controls := Controls.new()
 	var right := InputEventMouseButton.new()
 	right.button_index = MOUSE_BUTTON_RIGHT
-	assert_array(Controls.unlisted_on(&"use", right)).contains_exactly([&"use_secondary"])
-	assert_bool(controls.bind(&"use", right)).is_false()
-	assert_bool(controls.is_default(&"use")).is_true()
-	# A controls.cfg saved before #1438 with Use on the right button reads Use as its default.
+	assert_array(Controls.unlisted_on(&"use", right)).is_empty()
+	assert_bool(controls.bind(&"use", right)).is_true()
+	assert_array(controls.clashes_of(&"use")).contains_exactly([&"use_secondary"])
+	assert_array(controls.clashes_of(&"use_secondary")).contains_exactly([&"use"])
+	# The row rebinds: the item's own action onto another key, the clash gone.
+	assert_bool(controls.bind(&"use_secondary", _press(KEY_T))).is_true()
+	assert_array(controls.clashes_of(&"use")).is_empty()
+	assert_str(Controls.name_of(&"use_secondary")).is_equal("Use item")
+	TranslationServer.set_locale("uk")
+	assert_str(Controls.name_of(&"use_secondary")).is_equal("Використати предмет")
+	TranslationServer.set_locale("en")
+	# A controls.cfg with Use on the right button reads as saved.
 	var path := "user://controls_use_secondary_test.cfg"
 	var file := ConfigFile.new()
 	file.set_value(Controls.SECTION, "use", Controls.encode(right))
 	assert_int(file.save(path)).is_equal(OK)
 	var saved := Controls.new(path)
 	assert_int(saved.read()).is_equal(OK)
-	assert_bool(saved.is_default(&"use")).is_true()
+	assert_bool(saved.is_default(&"use")).is_false()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
@@ -318,7 +326,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 22 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 23 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()

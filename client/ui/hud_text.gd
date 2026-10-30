@@ -27,10 +27,9 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 const RAISE_CUE := "tutorial.step.downed.how"
 ## The hand-over's cue (#1411): the deck's `hud.hand_over` "Press {key} to hand it over" (ui-2.5.2).
 const HAND_OVER_CUE := "hud.hand_over"
-## The offer's other cues (#1434), keys the deck lacks yet (proposed to the UI track; until a
-## release brings them, Aim shows the key): `hud.take_offer` "Press {key} to take it" while a
-## player offers the own player its hand item, `hud.offering` "Press {key} to take it back" while
-## the own offer is open.
+## The offer's other cues (#1434), in the deck since ui-2.5.3 (#1446): `hud.take_offer` "Press
+## {key} to take it" while a player offers the own player its hand item, `hud.offering` "Press
+## {key} to take it back" while the own offer is open.
 const TAKE_OFFER_CUE := "hud.take_offer"
 const OFFERING_CUE := "hud.offering"
 
@@ -187,16 +186,10 @@ static func raise_cue(key: String) -> String:
 
 
 ## The hand-over's cue in Aim, translated, with the interact key's label `key`: the deck key
-## `cue_key` (HAND_OVER_CUE when empty; TAKE_OFFER_CUE, OFFERING_CUE, #1434). A key the deck
-## lacks shows as itself followed by the key label in brackets.
+## `cue_key` (HAND_OVER_CUE when empty; TAKE_OFFER_CUE, OFFERING_CUE, #1434).
 static func hand_over_cue(key: String, cue_key: String = "") -> String:
 	var deck_key := HAND_OVER_CUE if cue_key.is_empty() else cue_key
-	var text := String(TranslationServer.translate(deck_key))
-	if text == deck_key:
-		# A row the deck lacks yet (TAKE_OFFER_CUE, OFFERING_CUE): the raw key, but the player still
-		# reads which key to press.
-		return "%s [%s]" % [deck_key, key]
-	return text.format({"key": key})
+	return String(TranslationServer.translate(deck_key)).format({"key": key})
 
 
 ## Whether the own player spectates: dead (or gone), with no body of its own to show.
