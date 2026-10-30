@@ -293,10 +293,17 @@ Open questions, for the engineer (built as today until he answers):
     visible action.
   - The draw is instant and seen by everyone: the item changes in the hand and leaves the belt. On screen, three
     numbered icons, the one in the hand lit.
+- **Handing over** (#1389; in the lobby only, provisional, for the engineer): a player holding a one-handed
+  item that may be given (the full mug, "carried and given to a friend":
+  [#1095 c6473429898](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473429898)) gives it to
+  another living player in reach and sight. It arrives as a take does: into the hand, or onto the belt beside a
+  hand item, a full belt's hand item dropping at the receiver's feet. The receiver cannot refuse, the round has no
+  hand-over, and the key is still to be chosen.
 - Consumables (a medkit, an energy drink) and rare two-handed gadgets come after the MVP (#1040).
 
 ### Open
-- How are items found or given, and can they be traded or stolen?
+- How are items found, and can they be traded or stolen? (Given: in the lobby, by handing over, above; in the
+  round still open.)
 - Which items affect voice (for example radios, which the brief mentions)?
 - Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
   does a thrown package count when it lands in its circle; may an item land where nobody can reach it; does a throw
