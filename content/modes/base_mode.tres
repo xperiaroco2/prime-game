@@ -123,6 +123,9 @@
 [ext_resource type="Script" path="res://core/items/cancel_offer.gd" id="183_cancel_offer"]
 [ext_resource type="Script" path="res://core/items/offer_ticks.gd" id="184_offer_ticks"]
 [ext_resource type="Script" path="res://core/items/end_offers.gd" id="185_end_offers"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="186_cooldown"]
+[ext_resource type="Script" uid="uid://lpqbanc0jkhl" path="res://core/stamina/stamina_cost.gd" id="187_stamina_cost"]
+[ext_resource type="Script" uid="uid://cvs2jqedfed7h" path="res://core/combat/strike.gd" id="188_strike"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -609,6 +612,32 @@ trigger = &"Pose"
 conditions = Array[ExtResource("21_condition")]([SubResource("Pose_at_chair")])
 effects = Array[ExtResource("14_effect")]([SubResource("Take_pose")])
 
+[sub_resource type="Resource" id="Hit_cooldown"]
+script = ExtResource("186_cooldown")
+key = &"hit"
+seconds = 0.5
+
+[sub_resource type="Resource" id="Hit_stamina"]
+script = ExtResource("187_stamina_cost")
+amount = 25
+
+[sub_resource type="Resource" id="Hit_strike"]
+script = ExtResource("188_strike")
+angle_deg = 30.0
+reach_m = 1.5
+damage = 5
+back_damage = 10
+two_handed_damage = 20
+two_handed_back_damage = 40
+launch_mps = 4.0
+launch_up_mps = 2.0
+
+[sub_resource type="Resource" id="Rule_use"]
+script = ExtResource("1_o02jd")
+trigger = &"Use"
+conditions = Array[ExtResource("21_condition")]([SubResource("Hit_cooldown"), SubResource("Hit_stamina")])
+effects = Array[ExtResource("14_effect")]([SubResource("Hit_strike")])
+
 [sub_resource type="Resource" id="Accept_round_pose"]
 script = ExtResource("6_accept")
 intent = &"Pose"
@@ -904,7 +933,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_take_offer"), SubResource("Rule_cancel_offer"), SubResource("Rule_pose")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_take_offer"), SubResource("Rule_cancel_offer"), SubResource("Rule_pose"), SubResource("Rule_use")])
 reactions = Array[ExtResource("1_o02jd")]([SubResource("Limp_rule")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
