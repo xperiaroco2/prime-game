@@ -446,10 +446,10 @@ static func _allowed_travel(
 ## Whether a living player other than `player` may be pushing it: that player's last accepted
 ## position is within push_reach() of the claim's path (from `player`'s last accepted position to
 ## `to`), measured horizontally, with the feet at most the capsule's height from the path's. The
-## downed and the dead push nobody (§7.1: they move nothing). The reach grows by a tick of
-## sprinting for each host tick since that player's last accepted claim beyond the one between two
-## claims, up to PUSH_TICKS (`now`: the host tick): its lost claims leave its position behind where
-## it pushes.
+## downed, the limp and the dead push nobody (§7.1: they move nothing; §7.1.21: a limp body has no
+## capsule on the clients). The reach grows by a tick of sprinting for each host tick since that
+## player's last accepted claim beyond the one between two claims, up to PUSH_TICKS (`now`: the
+## host tick): its lost claims leave its position behind where it pushes.
 static func _near_living_player(
 	state: MatchState, player: PlayerState, to: Vector3, now: int
 ) -> bool:
@@ -463,7 +463,7 @@ static func _near_living_player(
 	var lowest := minf(player.position.y, to.y) - rules.capsule_height_m
 	var highest := maxf(player.position.y, to.y) + rules.capsule_height_m
 	for other: PlayerState in state.players.values():
-		if other == player or not other.is_alive():
+		if other == player or not other.is_alive() or other.is_limp():
 			continue
 		if other.position.y < lowest or other.position.y > highest:
 			continue
