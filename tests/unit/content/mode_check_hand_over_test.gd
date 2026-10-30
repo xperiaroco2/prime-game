@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## ModeCheck on a HandOver (#1389; ARCHITECTURE §9.4): only an action on the HandOver intent may
 ## hold it, with every condition HandOver.required_conditions lists, never a reaction or a row's
-## action. Items.hand_over's own guard (a rule error, nothing moves) is the last test.
+## action; only a one-handed ItemKind may be handable. Items.hand_over's own guard (a rule error,
+## nothing moves) is the last test.
 
 const P1 := 1
 const P2 := 2
@@ -9,6 +10,23 @@ const P2 := 2
 
 func test_the_fixture_mode_passes() -> void:
 	assert_array(Array(ModeCheck.run(FixtureHandOverModes.basic()).errors)).is_empty()
+
+
+func test_only_a_one_handed_item_kind_may_be_handable() -> void:
+	# #1389: a two-handed item is never handed over; the default is not handable.
+	assert_bool(ItemKind.new().handable).is_false()
+	assert_bool(ItemKind.new().is_handable()).is_false()
+	var two := FixtureItemModes.basic()
+	two.find_item_kind(&"package").handable = true
+	_expect(two, "item kind package is handable but takes 2 hands, not 1")
+	var none := FixtureItemModes.basic()
+	none.find_item_kind(&"tool").hands = 0
+	none.find_item_kind(&"tool").handable = true
+	_expect(none, "item kind tool is handable but takes 0 hands, not 1")
+	var one := FixtureItemModes.basic()
+	one.find_item_kind(&"tool").handable = true
+	_expect_none(one)
+	assert_bool(one.find_item_kind(&"tool").is_handable()).is_true()
 
 
 func test_a_hand_over_rule_lacking_any_required_condition_is_refused() -> void:
@@ -75,3 +93,7 @@ func _expect(mode: GameMode, fragment: String) -> void:
 		. override_failure_message("no error contains '%s' in %s" % [fragment, errors])
 		. is_true()
 	)
+
+
+func _expect_none(mode: GameMode) -> void:
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
