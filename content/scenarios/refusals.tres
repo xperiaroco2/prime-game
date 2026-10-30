@@ -28,8 +28,7 @@ fields = {
 
 [sub_resource type="Resource" id="Draw_in_the_lobby"]
 script = ExtResource("16_draw")
-place = 1
-expect_rejected = &"not_accepted"
+expect_rejected = &"same_place"
 
 [sub_resource type="Resource" id="Draw_no_such_place"]
 script = ExtResource("16_draw")

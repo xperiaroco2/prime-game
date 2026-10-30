@@ -5,7 +5,8 @@ extends GameMode
 ## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
 ## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator, the photo
 ## task (#784), Cooking (#775) and car repair (#810), their settings, Cooking's item kinds and
-## Round's Interact (#800) left out (the film, photo and car part item kinds stay, unused). The
+## the Interact accepts of Round (#800), the Lobby and the Countdown (#1388) left out (the film,
+## photo and car part item kinds stay, unused). The
 ## engineer took the zone task out of the shipped base mode on #842 (comment 6110558513: "only
 ## from the mode, now"), keeping its code, its tests and the House's zones; this fixture is where
 ## they run. Loaded through `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as
@@ -80,9 +81,9 @@ static func mode() -> GameMode:
 	return load(PATH) as GameMode
 
 
-## Round's own copy without Interact, which only the task types' station rules left out above
-## handle (the mode check refuses an accepted intent no rule handles); the shipped mode's phases
-## stay as they are.
+## The own copies (Round, the Lobby and the Countdown) without Interact, which only the task types'
+## station rules left out above handle (the mode check refuses an accepted intent no rule
+## handles); the shipped mode's phases stay as they are.
 func _without_interact() -> void:
 	var own: Array[PhaseSpec] = []
 	for spec: PhaseSpec in phases:

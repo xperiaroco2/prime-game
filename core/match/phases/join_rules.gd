@@ -113,16 +113,22 @@ static func drop_newcomers(ctx: MatchContext) -> void:
 		_drop(ctx, peer)
 
 
-## A PeerLeft outside Round (§3.5): true when a player left the roster (PlayerLeft to everyone
-## else). A newcomer is forgotten silently; a peer that is gone already (disconnected by a
-## directive, whose PeerLeft comes later) changes nothing.
+## A PeerLeft outside Round (Lobby, Countdown, Loading; §3.5): true when a player left the roster.
+## In Round's order (LifeRules.leave): every channel it runs or is the target of stops, it is
+## marked left, PlayerLeft goes to everyone else, then what it carries drops to the floor below it
+## (Items.drop_carried: ItemPlaced, cause `leave`, to everyone else; the lobby's hand and belt,
+## #1388), and only then it leaves the roster. A newcomer is forgotten silently; a peer that is
+## gone already (disconnected by a directive, whose PeerLeft comes later) changes nothing.
 static func leave(ctx: MatchContext, peer: int) -> bool:
 	if forget_newcomer(ctx, peer):
 		return false
 	if not ctx.state.is_present(peer):
 		return false
-	ctx.state.remove_player(peer)
+	Channels.interrupt_involving(ctx, peer)
+	ctx.state.player(peer).life = PlayerState.Life.LEFT
 	ctx.emit(PlayerLeftEvent.new(peer))
+	Items.drop_carried(ctx, peer, Items.LEAVE)
+	ctx.state.remove_player(peer)
 	return true
 
 

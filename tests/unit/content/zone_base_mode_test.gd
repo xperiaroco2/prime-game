@@ -224,8 +224,8 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 
 func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	# The fixture reads the shipped base mode when it loads: only the task types, the `tasks`,
-	# `zones`, the Generator's `switches` and the photo task's `photos` settings and Round's Interact
-	# (#800, #784) differ.
+	# `zones`, the Generator's `switches` and the photo task's `photos` settings and the Interact
+	# accepts of Round (#800, #784), the Lobby and the Countdown (#1388) differ.
 	var base := _base_mode()
 	var mode := FixtureBaseModeWithZones.mode()
 	assert_array(ModeCheck.run(mode).errors).is_empty()
@@ -233,7 +233,7 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	for i in base.phases.size():
 		var own := mode.phases[i]
 		var shipped := base.phases[i]
-		if shipped.id != &"round":
+		if shipped.senders_of(Intents.INTERACT) == 0:
 			assert_object(own).override_failure_message(str(shipped.id)).is_same(shipped)
 			continue
 		var accepts: Array[AcceptSpec] = []
