@@ -158,6 +158,9 @@ func problems(events: Dictionary[StringName, PackedStringArray] = {}) -> PackedS
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
 			for problem: String in _step_event_problems(step, events):
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
+			if step is StepExpectDrunk and (step as StepExpectDrunk).bot > bots:
+				var of := (step as StepExpectDrunk).bot
+				found.append("bot %d, ExpectDrunk: bot %d is outside 0 to %d" % [bot, of, bots])
 	for i in never.size():
 		if never[i] == null:
 			found.append("never %d is empty" % i)
