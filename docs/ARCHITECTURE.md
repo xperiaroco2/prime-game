@@ -2482,12 +2482,25 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   switch with it, and the head, with the mouth, hand, belt and carry points hung on it, eases down by the eye
   heights' difference at `PlayerTuning.view_catch_up_seconds`' rate (a body drawn for the first time: at once). A
   downed body lies at standing size. The spectate camera stands at the target body's head, crouched or not.
+- **Drunk** (#1391; GDD §3 Base mode, "The bar"; §7.1.20): the own `ClientModel.drunk` (from `SelfStatus`, 0 at
+  `clear_match`) eases `PlayerController`'s strength 0..1 (`DrunkFeel.strength`: the value's share of the mode's
+  `drunk_too_much_at`, 0 in a mode with no bar) once per physics step over `PlayerTuning.drunk_ease_seconds`, only
+  while living. The **sway** (own view only): `_process`, switched on only while the strength is above 0 (sober: no
+  cost), rolls and pitches the camera under the head (`DrunkFeel.sway`, two sines on a render clock, the own peer id
+  the phase), never its yaw; the head, whose look is the claim's facing (`look_vector()`), never sways, so the host's
+  sight and strike checks and the own aim do not move. The ears follow the swayed camera (`LifeView._place_ears`),
+  on purpose. The **drift**: `_walk` turns the keys' steering about UP by `DrunkFeel.drift_angle` (a wander plus
+  an optional lean, on the physics clock) before the ease and the speed limit, never the walk out of `movers`; the
+  turn keeps the length, so the walk is never faster and the host's travel check accepts it with no allowance
+  (§7.1.20). Remote players are drawn from their positions, so every peer sees the drift with no wire field. A life
+  change, the own respawn and placement (`look_level()`) end both at once; the value's decay eases them out. Every
+  number is in `PlayerTuning`'s Drunk group, provisional (the engineer's taste, #1391).
 
 #### 4.7.7 Movement on the network: the code (M4-7, #143)
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
-  `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
+  `ClientSession`, ends every physics step with `set_motion` (the head's look vector as the facing: the camera's without its drunk sway) and
   `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
-  §7.1.5 Speed); `PlayerTuning` holds the push factors and the view's easing only. `RemotePlayerBody` takes its
+  §7.1.5 Speed); `PlayerTuning` holds client feel only: the push factors, the view's and the move's easing, the drunk sway and drift. `RemotePlayerBody` takes its
   capsule and eye height from the rules, turns the body by the yaw and the head (a visor) by the pitch, and is a
   `StaticBody3D` (above).
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
@@ -2519,6 +2532,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   placement is one placement and no correction, and the placed joiner snaps on the host's screen; the overlay shows
   each side its numbers) and
   `player_network_push_test.gd` (the two-client pushes at the interpolation delay, the same-frame pose asserted).
+  The drunk feel (#1391): `client/player/drunk_feel.gd` (pure) and `tests/unit/client/player/drunk_feel_test.gd`,
+  `tests/integration/client/player/player_controller_drunk_test.gd` (sober nothing differs and no `_process` runs;
+  the sway's caps and the unswayed facing; the drift never faster than the walk; the ease-out, a knockdown and a
+  placement; the walk out of `movers` unchanged) and `player_network_drunk_test.gd` (`NetPair.with_bar()` and
+  `make_drunk()`: at drunk 89 the walk and sprint drift with 0 corrections and the host draws the joiner where it
+  walked); `client/dev/drunk_low_preview.tscn` and `drunk_high_preview.tscn` for `shot`.
 - Not headless: how the others look moving, the overlay's key and the feel; the one-PC playtest (the M4 ADR's §6)
   checks them, and the two-machine one records its movement notes on #76.
 
@@ -2744,7 +2763,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   thin wall or a door jamb is never named.
   Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own places hold something; 1, 2 and 3 (`place_1` to `place_3`) send `Draw(place)` of a place other than the one in the hand, and the mouse wheel (an `InputEventMouseButton` in `_unhandled_input`, no action: the wheel is no binding) the next place down or the one before up, round the three, counted on from the Draw still in flight and with at least 60 ms between two (#1218, GDD §6)
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
-  menu. The facing is the camera's look vector.
+  menu. The facing is the head's look vector (the camera's without its drunk sway, #1391).
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears, and nothing beyond; every `AudioStreamPlayer3D` sets `max_distance` to it and plays muffled behind the
@@ -4617,7 +4636,7 @@ TE5 (a)). The wire is unchanged.
   6085904317), "not a decision"; Q stays an exact put-down. G was also `give_up` (F since #211, §4.7.28),
   which acts only while downed and
   counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
-  (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
+  (the head's look vector) only while the own player is living, its hand (never the belt) holds an item, the
   client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
   the role's, then the mode's, the first rule triggered by `Throw`, its first `ThrowItem`, as core finds it), the
   phase takes `Throw` from the living, and no earlier throw waits for its answer. With no such rule G sends
@@ -5809,7 +5828,7 @@ The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its movement numbers (speeds, jump height,
   capsule, eye and step height, stamina) are the client's own copy of the mode's `PlayerRules` (§9.5), the same
   numbers `core/` checks with (M4-7); `client/player/player_tuning.tres` (`PlayerTuning`) keeps the client's feel
-  only (the push factors, the view's easing, the move's ramp), with script defaults of 0 so no number is repeated
+  only (the push factors, the view's easing, the move's ramp, the drunk sway and drift), with script defaults of 0 so no number is repeated
   in code.
 - The move's direction (#1334, art #196): against the aim (the move input's heading, the family switch of
   `Locomotion.family_of` with its dead zone), a move's sideways part is at most `side_speed_mps` and a move in the
@@ -6643,6 +6662,10 @@ then no shipped mode accepts the intent.
 - **Cleared** (`PlayerState.sober()`: 0, stamp -1, a SelfStatus touch): at a placement (`PlacePlayers`), a
   knockdown (`LifeRules.knock_down`, so a knocked-down player lies sober: #1393 decides what its limp does), a
   respawn and a reset (`MatchState.reset_player`, the lobby's return). So the Round never sees a drunk player.
+- **The walk drift needs no allowance** (#1391, §4.7.6 "Drunk"): the client turns its walk's direction and keeps
+  its speed, and `MovementRule` checks travel per tick, not direction (§7.1.5), so it never reads `drunk`: a drunk
+  claim gets the same limits as a sober one, and a cheater gains nothing by being drunk. The camera's sway never
+  reaches the host (the claimed facing is the head's). Guard: `tests/unit/movement/movement_rule_drunk_test.gd`.
 - **Tests:** `tests/unit/drunk/drink_test.gd`, `drunk_ticks_test.gd`, `tests/unit/placement/station_ticks_test.gd`,
   `tests/unit/content/drunk_check_test.gd`, `base_mode_lobby_test.gd` (the shipped bar), `view_of_test.gd` (the key
   order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.drunk_problem` checks every
