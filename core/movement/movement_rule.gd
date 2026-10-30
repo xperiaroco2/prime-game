@@ -236,7 +236,7 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_refuse(ctx, player, motion)
 		return
-	if player.life == PlayerState.Life.DOWNED:
+	if player.holds_still():
 		_take_look(ctx, player, motion, claim, covered)
 	else:
 		_check_and_accept(ctx, player, motion, claim, covered, fresh)
@@ -267,10 +267,10 @@ static func _check_and_accept(
 	_accept(ctx, player, motion, claim, checked)
 
 
-## A claim that fails a tick check: a living player gets a Correction; a knocked-down one's is
+## A claim that fails a tick check: a living player gets a Correction; a downed or limp one's is
 ## dropped (KE4): the host takes no place from it, so it has none to correct.
 static func _refuse(ctx: MatchContext, player: PlayerState, motion: Motion) -> void:
-	if player.life != PlayerState.Life.DOWNED:
+	if not player.holds_still():
 		_correct(ctx, player, motion)
 
 
