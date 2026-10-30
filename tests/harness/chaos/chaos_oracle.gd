@@ -228,9 +228,11 @@ static func _rule(
 ## the mode's; an item only its kind's target_actions). In the base mode only the Generator's,
 ## Cooking's and car repair's station kinds and Cooking's boxes have one (§9.5.19, §9.5.20,
 ## §9.5.21), and all three play on the House alone (GD7, CD15, #810), so on the greybox every
-## accepted Interact gets this. A target with the
-## rule is "?" (its conditions are the mode's, and the chaos run never meets one). `mode` null:
-## only the target kind's rules.
+## accepted Interact gets this. The lobby's tap (#1390, StationTicks) has one whose first condition
+## is AtStation: a sender outside its cylinder gets `out_of_reach` (the chaos peers stand on the
+## hall's player markers, metres from the Bar). Any other target with the rule is "?" (its
+## conditions are the mode's, and the chaos run never meets one). `mode` null: only the target
+## kind's rules.
 static func _interact(
 	args: Dictionary, player: PlayerState, state: MatchState, mode: GameMode
 ) -> StringName:
@@ -239,11 +241,12 @@ static func _interact(
 	if (station >= 0) == (item >= 0):
 		return RejectReasons.BAD_ARGS
 	var rules: Array[Rule] = []
+	var target: StationState = null
 	if state != null and item >= 0:
 		if state.items.has(item):
 			rules = (state.items[item] as ItemState).kind.target_actions
 	elif state != null and state.stations.has(station):
-		var target: StationState = state.stations[station]
+		target = state.stations[station]
 		if not target.kind.display:
 			rules = target.kind.actions.duplicate()
 			var role: GameRole = null
@@ -254,8 +257,12 @@ static func _interact(
 			if mode != null:
 				rules.append_array(mode.actions)
 	for rule: Rule in rules:
-		if rule.trigger == Intents.INTERACT:
-			return &"?"
+		if rule.trigger != Intents.INTERACT:
+			continue
+		var reach := not rule.conditions.is_empty() and rule.conditions[0] is AtStation
+		if reach and target != null and player != null and not target.contains(player.position):
+			return AtStation.OUT_OF_REACH
+		return &"?"
 	return RejectReasons.NOTHING_TO_DO
 
 

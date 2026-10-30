@@ -35,7 +35,9 @@ extends RefCounted
 ##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
 ##   plays in every phase and on every map. The sneak alike (#990): no snapshot shows an avatar
 ##   sneaking unless its player is alive and not crouched (sneak_problem); none posed unless its
-##   player is alive (pose_problem, #1296).
+##   player is alive (pose_problem, #1296). The drunk value alike (#1390): no snapshot shows an
+##   avatar's `drunk` other than its player's PlayerState.drunk, outside 0..PlayerRules.drunk_max,
+##   or above 0 in a phase that lists no DrunkTicks (drunk_problem): the bar is the hall's alone.
 ## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
 ##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
@@ -84,6 +86,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"crouched",
 	"sneaking",
 	"posed",
+	"drunk",
 	"held_item",
 	"belt_item",
 	"belt_item2",
@@ -232,6 +235,9 @@ func check_tick() -> PackedStringArray:
 			var pose := pose_problem(_game, other, avatar)
 			if pose != "":
 				found.append("peer %d's snapshot %s" % [peer, pose])
+			var drunk := drunk_problem(_game, other, avatar)
+			if drunk != "":
+				found.append("peer %d's snapshot %s" % [peer, drunk])
 		# A phase that sends no snapshot (End, Loading) has none to check.
 		var downed := _life_of(peer) == PlayerState.Life.DOWNED
 		var own := own_avatar_problem(peer, avatars, downed) if not snapshot.is_empty() else ""
@@ -452,6 +458,30 @@ static func pose_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 	if player == null or player.life != PlayerState.Life.ALIVE:
 		return "shows peer %d posed, not alive" % peer
 	return ""
+
+
+## Why the snapshot avatar `avatar` of `peer` breaks the bar's invariant (#1390), or "" when it
+## does not: its `drunk` differs from the player's state, leaves 0..PlayerRules.drunk_max, or is
+## above 0 in a phase whose tick systems hold no DrunkTicks (the base mode's Lobby and Countdown
+## hold it; placement, knockdown, respawn and reset sober a player up), written apart from Drink.
+static func drunk_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	var drunk: int = avatar.get("drunk", 0)
+	var player := game.state.player(peer)
+	if player != null and drunk != player.drunk:
+		return "shows peer %d drunk %d, its state %d" % [peer, drunk, player.drunk]
+	var most := game.mode.player_rules.drunk_max if game.mode.player_rules != null else 0
+	if drunk < 0 or drunk > most:
+		return "shows peer %d drunk %d, outside 0..%d" % [peer, drunk, most]
+	if drunk == 0:
+		return ""
+	var phase := game.mode.find_phase(game.phase_id())
+	if phase != null:
+		for system: TickSystem in phase.tick_systems:
+			if system is DrunkTicks:
+				return ""
+	return (
+		"shows peer %d drunk %d in phase %s, which sobers nobody" % [peer, drunk, game.phase_id()]
+	)
 
 
 ## The hearing radius of `game`'s current phase: VoiceRule.radius_of the voice rule the mode's data
