@@ -5,10 +5,11 @@ extends RefCounted
 ## MUG_S, its UseSecondary a Drink of AMOUNT into `mug_empty`, #1438) and `mug_empty` (one-handed,
 ## at most EMPTIES, vanishing after EMPTY_S, no rule); the station kind `tap` (spawn tag `tap`),
 ## whose Interact at the tap and in sight gives a mug (GiveItem); PlayerRules' drunk scale MAX,
-## TOO_MUCH, POINT_S. Lobby and Countdown accept UseSecondary from the living (FixtureLobbyHands),
-## and both run StationTicks (the tap), DrunkTicks and VanishTicks; `countdown_done` runs
-## ClearItems and ClearStations. The mode has no Use or UseSecondary rule of its own (the base mode
-## has none), so a mug's Use and an empty mug's either find none.
+## TOO_MUCH, POINT_S. Lobby and Countdown also accept UseSecondary from the living (the mug's Drink
+## takes it; FixtureLobbyHands, with no rule for it, leaves it out), and both run StationTicks
+## (the tap), DrunkTicks and VanishTicks; `countdown_done` runs ClearItems and ClearStations.
+## The mode has no Use or UseSecondary rule of its own (the base mode has none), so a mug's Use and
+## an empty mug's either find none.
 ## A reaction on `drunk_too_much` notes "too much <peer>" (the fact's player). The lobby layout
 ## holds one `tap` marker at TAP. guarded() adds the base mode's pour Cooldown.
 
@@ -63,6 +64,7 @@ static func mode() -> GameMode:
 	)
 	for phase_id: StringName in [&"lobby", &"countdown"]:
 		var spec := made.find_phase(phase_id)
+		spec.accepts.append(AcceptSpec.of(Intents.USE_SECONDARY, AcceptSpec.From.LIVING))
 		spec.tick_systems.append(placing)
 		spec.tick_systems.append(DrunkTicks.new())
 		spec.tick_systems.append(VanishTicks.new())

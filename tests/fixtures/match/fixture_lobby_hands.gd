@@ -5,8 +5,9 @@ extends RefCounted
 ## kinds (`package` two-handed, `tool` one-handed with a Use that notes "tool used") and its
 ## PickUp, PutDown, Swap and Draw; the mode's Use with an empty hand starts a FixtureChannel of
 ## 1 s; an Interact on a placed station notes "interacted". Lobby and Countdown accept Interact,
-## PickUp, PutDown, Swap, Draw, Use and UseSecondary (#1438: FixtureBar's mug drinks on it) from the
-## living and run ChannelTicks. No Throw, no Pose.
+## PickUp, PutDown, Swap, Draw and Use from the living and run ChannelTicks. No UseSecondary (no
+## rule here takes it, so ModeCheck would refuse the mode; FixtureBar adds it with its mug, #1438),
+## no Throw, no Pose.
 ## The `countdown_done` row runs no action (clearing(): ClearItems).
 
 const P1 := 1
@@ -21,7 +22,6 @@ const HAND_INTENTS: Array[StringName] = [
 	Intents.SWAP,
 	Intents.DRAW,
 	Intents.USE,
-	Intents.USE_SECONDARY,
 ]
 
 
