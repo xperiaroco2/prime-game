@@ -304,6 +304,23 @@ func test_an_item_kind_takes_one_or_two_hands_which_the_data_sets() -> void:
 	assert_int(ItemKind.new().hands).is_equal(0)
 
 
+func test_only_a_one_handed_item_kind_may_be_handable() -> void:
+	# #1389: a two-handed item is never handed over; the default is not handable.
+	assert_bool(ItemKind.new().handable).is_false()
+	assert_bool(ItemKind.new().is_handable()).is_false()
+	var two := FixtureItemModes.basic()
+	two.find_item_kind(&"package").handable = true
+	_expect(two, "item kind package is handable but takes 2 hands, not 1")
+	var none := FixtureItemModes.basic()
+	none.find_item_kind(&"tool").hands = 0
+	none.find_item_kind(&"tool").handable = true
+	_expect(none, "item kind tool is handable but takes 0 hands, not 1")
+	var one := FixtureItemModes.basic()
+	one.find_item_kind(&"tool").handable = true
+	_expect_none(one)
+	assert_bool(one.find_item_kind(&"tool").is_handable()).is_true()
+
+
 func test_a_vanishing_item_kind_is_bounded_and_needs_a_phase_listing_vanish_ticks() -> void:
 	# The cooking ADR, CD6 (c), C10: 0 never vanishes (the default); else 1 to 3600 s.
 	assert_int(ItemKind.new().vanish_seconds).is_equal(0)
