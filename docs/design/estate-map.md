@@ -96,8 +96,9 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   where the nose is high enough it has a roof, 2.3 m clear, to the hall (option A, the nose kept as picked). Its two
   side walls (the clean throat, the engineer, 2026-10-29, #1095 comments 6497225134 and 6497869348) are vertical to
   2.10 m, then a 25 cm cove to the flat 2.30 m ceiling (the hull leaves no room for more), one clean panel each over a
-  plinth with its cyan line, a frame at the ramp and a jamb at each hall corner. Each wall carries **the gills**
-  (overheat, GDD §8; #1095 comment 6522811252): a gill set of five slits cut into the panel, a light bar over each and
+  plinth with its cyan line, a frame at the roof line, and no pillar at the hall end: each wall runs on to the hall's
+  corner and ends in a warm-metal end frame (prime-game-art#357). Each wall carries **the gills** (overheat, GDD §8;
+  #1095 comment 6522811252): a gill set of five slits cut into the panel, a light bar over each and
   one round button at the set's hall end, all flush, so the whole pass stays open.
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
   console** 1 m aft of its centre (the engineer, 2026-10-23, #1095 comment 6360765037): a low ring pedestal (Ø 1.2 m,
@@ -121,7 +122,7 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   (x east, y south, so +y is aft): the hall's centre (0, -0.4); the console (0, 0.6); the mouth (±1.65, -7.1) at the
   nose edge, its tunnel to y -8.1, the throat's walls to the hall's corners at y -3.25, its roof from y -5.561; the gill sets' slit middles (±2.298, -5.130), (±2.411, -4.784), (±2.525, -4.439), (±2.638, -4.094) and
   (±2.751, -3.750), along each wall from the mouth corner at s 2.07, 2.44, 2.80, 3.16 and 3.53 m, their chords 1.08,
-  0.99, 0.90, 0.82 and 0.74 m between h 0.82 and 1.90 m, each bar 6 cm over its slit, the buttons (±2.856, -3.433) at
+  0.99, 0.90, 0.82 and 0.74 m, 15 cm deep, between h 0.82 and 1.90 m, each light bar 12 x 1.4 cm, 6 cm over its slit's top tip, the buttons (±2.856, -3.433) at
   h 1.15 m;
   the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
