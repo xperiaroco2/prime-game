@@ -227,6 +227,26 @@ func knock_down(game: Game, launch := Vector3.ZERO) -> void:
 	LifeRules.knock_down(ctx, peer, launch)
 
 
+## Makes `game`'s player `value` drunk on the host, as a mug's Drink would (#1390): its SelfStatus
+## goes out with the host's next tick and its snapshot rows carry it. The mode needs the bar's
+## drunk rows (with_bar()). It reaches into the host's Match as knock_down() does; the fixture lobby
+## runs no DrunkTicks, so the value holds.
+func make_drunk(game: Game, value: int) -> void:
+	var node := host.get_node("HostNode") as HostNode
+	var session := node.get("_session") as HostSession
+	var peer := peer_of(game)
+	session.game.state.player(peer).drunk = value
+	SelfStatusFeed.touch(session.game.state, peer)
+
+
+## Gives the mode the base mode's drunk scale (#1390: 0..100, too much at 90, a point a second),
+## before start().
+func with_bar() -> void:
+	mode.player_rules.drunk_max = 100
+	mode.player_rules.drunk_too_much_at = 90
+	mode.player_rules.drunk_point_s = 1.0
+
+
 ## The crew wins at the host's next tick: FixtureBaseMode's win condition, peer 0's counter
 ## `crew_win` at 1, as FixtureBaseMode.in_end has it (#240). The round goes to End; the host's
 ## ReturnToLobby (End -> Lobby's ResetMatch) clears the counter. It reaches into the host's Match
