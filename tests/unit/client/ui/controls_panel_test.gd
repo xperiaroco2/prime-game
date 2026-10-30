@@ -78,7 +78,7 @@ func test_a_capture_binds_the_next_key_press_applies_and_saves_it() -> void:
 
 func test_a_capture_binds_a_mouse_button_press_but_not_a_release() -> void:
 	# Give up (the downed's): the right button is free there; for the lobby and the living it is
-	# the item's own action's (#1438, the next test).
+	# the item's own action's, a row of its own (#1438, #1446, the next test).
 	_panel.start_capture(&"give_up")
 	var release := InputEventMouseButton.new()
 	release.button_index = MOUSE_BUTTON_LEFT
@@ -91,20 +91,21 @@ func test_a_capture_binds_a_mouse_button_press_but_not_a_release() -> void:
 	assert_str(_panel.key_buttons[&"give_up"].text).is_equal("RMB")
 
 
-func test_the_right_button_is_reserved_for_the_living_s_item_action() -> void:
-	# #1438: UseSecondary (unlisted, the lobby and the living) holds the right button, so Interact
-	# cannot take it: the capture ends, nothing binds, and the row says why.
-	var before_text := _panel.key_buttons[&"interact"].text
+func test_the_right_button_taken_from_the_living_s_item_action_is_marked_on_both_rows() -> void:
+	# #1438, #1446: `use_secondary` is a row now ("Use item", the lobby and the living), so Interact
+	# on the right button binds and both rows read "Same key", as any shared key does.
 	_panel.start_capture(&"interact")
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_RIGHT
 	press.pressed = true
 	assert_bool(_panel.capture(press)).is_true()
 	assert_bool(_panel.is_capturing()).is_false()
-	assert_str(_panel.key_buttons[&"interact"].text).is_equal(before_text)
-	assert_bool(_panel.clash_chips[&"interact"].visible).is_true()
-	assert_str(_panel.clash_labels[&"interact"].text).is_equal("Reserved key")
-	assert_int(_changes).is_equal(0)
+	assert_str(_panel.key_buttons[&"interact"].text).is_equal("RMB")
+	assert_str(_panel.key_buttons[&"use_secondary"].text).is_equal("RMB")
+	for action: StringName in [&"interact", &"use_secondary"]:
+		assert_bool(_panel.clash_chips[action].visible).override_failure_message(action).is_true()
+		assert_str(_panel.clash_labels[action].text).is_equal("Same key")
+	assert_int(_changes).is_equal(1)
 
 
 func test_esc_cancels_a_capture_and_binds_nothing() -> void:

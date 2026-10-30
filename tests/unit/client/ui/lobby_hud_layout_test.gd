@@ -346,15 +346,18 @@ func test_the_hand_over_cue_shows_only_with_a_key_and_keeps_it_on_a_language_cha
 
 
 func test_the_take_and_the_cancel_cues_are_worded_by_their_deck_keys() -> void:
-	# #1434: the same chip, worded by HandOverUse.cue_key(); the proposed rows are the UI track's.
+	# #1434: the same chip, worded by HandOverUse.cue_key(); the rows are in the deck since
+	# ui-2.5.3 (#1446).
 	var hud := await _hud()
-	for cue_key: String in [HudText.TAKE_OFFER_CUE, HudText.OFFERING_CUE]:
+	var texts: Dictionary[String, String] = {
+		HudText.TAKE_OFFER_CUE: "Press E to take it",
+		HudText.OFFERING_CUE: "Press E to take it back",
+	}
+	for cue_key: String in texts:
 		hud.show_hand_over("E", cue_key)
 		assert_bool(hud.aim.visible).is_true()
 		assert_str(hud.aim_label.text).is_equal(HudText.hand_over_cue("E", cue_key))
-		if String(TranslationServer.translate(cue_key)) == cue_key:
-			# The deck lacks the row yet: the key shows with the key label.
-			assert_str(hud.aim_label.text).is_equal(cue_key + " [E]")
+		assert_str(hud.aim_label.text).is_equal(texts[cue_key])
 	hud.show_hand_over("E")
 	assert_str(hud.aim_label.text).is_equal("Press E to hand it over")
 	hud.show_hand_over("")

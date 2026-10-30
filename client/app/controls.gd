@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 22 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 23 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -14,11 +14,11 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: the item's
-##   own action `use_secondary` on the right button, #1438; `throw`, `crouch`, `sneak` and the
-##   three places left it for a row, #851, #951, #1009, #1218) keeps its key for the phases it
-##   acts in: a binding that would put an action of such a phase on it is refused, as a
-##   fixed key is, so one press never does both.
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+##   `throw`, `crouch`, `sneak`, the three places and the item's own action `use_secondary` left it
+##   for a row, #851, #951, #1009, #1218, #1446) keeps its key for the phases it acts in: a
+##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
+##   press never does both.
 ## - An action left on its default keeps project.godot's event as it is, a located key too (the
 ##   sneak's left Alt only, #990, the engineer's answer 2A on PR #1007): apply() puts that event
 ##   in the InputMap, not the bare physical key. A rebind is the bare physical key, either side.
@@ -38,13 +38,11 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: the item's own action `use_secondary` (the right button, the mug's drink, #1438)
-## while the deck has no row for it. `throw`, G, became a Settings row in #851, `crouch` in #951,
-## the sneak (Alt) in #1009 and the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby
-## too, #1408: the Lobby takes Draw) in #1421 with the copy deck's `control.place_*`.
-const UNLISTED: Dictionary[StringName, int] = {
-	&"use_secondary": ControlContext.LOBBY | ControlContext.ALIVE,
-}
+## those phases: none now. `throw`, G, became a Settings row in #851, `crouch` in #951, the sneak
+## (Alt) in #1009, the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby too, #1408: the
+## Lobby takes Draw) in #1421 with the copy deck's `control.place_*`, and the item's own action
+## `use_secondary` (the right button, the mug's drink, #1438) in #1446 with `control.use_secondary`.
+const UNLISTED: Dictionary[StringName, int] = {}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -66,6 +64,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"sneak": &"control.sneak",
 	&"interact": &"control.interact",
 	&"use": &"control.use",
+	&"use_secondary": &"control.use_secondary",
 	&"put_down": &"control.put_down",
 	&"place_1": &"control.place_1",
 	&"place_2": &"control.place_2",
@@ -98,6 +97,7 @@ const PHASES: Dictionary[StringName, int] = {
 	&"sneak": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"interact": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"use": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"use_secondary": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"put_down": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"place_1": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"place_2": ControlContext.LOBBY | ControlContext.ALIVE,
