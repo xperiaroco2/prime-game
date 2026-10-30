@@ -38,6 +38,28 @@ func test_a_lobby_use_without_drunk_ticks_is_refused() -> void:
 	assert_array(errors.filter(_mentions("lists no DrunkTicks"))).has_size(1)
 
 
+func test_a_dispensed_kind_capped_below_two_per_player_and_one_is_refused() -> void:
+	var made := FixtureBar.mode()
+	var least := 2 * made.max_players + 1
+	assert_array(Array(DispenserCapCheck.problems(made))).is_empty()
+	made.find_item_kind(&"mug").max_items = least - 1
+	var errors := Array(ModeCheck.run(made).errors)
+	assert_array(errors.filter(_mentions("station kind tap gives mug"))).has_size(1)
+	made.find_item_kind(&"mug").max_items = least
+	assert_array(Array(ModeCheck.run(made).errors)).is_empty()
+
+
+func test_a_dispensed_kind_of_the_old_cap_12_is_refused_with_ten_players() -> void:
+	var made := FixtureBar.mode()
+	made.max_players = 10
+	made.find_item_kind(&"mug").max_items = 12
+	var errors := Array(DispenserCapCheck.problems(made))
+	assert_array(errors).has_size(1)
+	assert_str(errors[0]).contains("below 21 (2 x 10 players + 1)")
+	made.find_item_kind(&"mug").max_items = 21
+	assert_array(Array(DispenserCapCheck.problems(made))).is_empty()
+
+
 func test_drink_bounds_its_data() -> void:
 	var made := FixtureBar.mode()
 	var drink := _drink_of(made)
