@@ -170,6 +170,8 @@ func _ready() -> void:
 	# The left button's use and shot need the mouse captured, as the game's pointer has it (#1114).
 	_items.interactions.mouse_captured = func() -> bool: return pointer.captured()
 	_life.mouse_captured = func() -> bool: return pointer.captured()
+	# E raises a downed player under the crosshair rather than hand over (#1411).
+	_items.hand_over.raise_target = _life.raise_target
 	GameSettings.ready_settings(self)
 	ui.menu.bind_name(settings)
 	_voice_control = GameSettings.start_voice(self, _world)
@@ -519,6 +521,7 @@ func _process(delta: float) -> void:
 	if _client != null:
 		_join.refresh(self)
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+		ui.lobby_hud.show_hand_over(_items.hand_over.cue())
 		if now == GameFlow.Screen.LOADING:
 			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
