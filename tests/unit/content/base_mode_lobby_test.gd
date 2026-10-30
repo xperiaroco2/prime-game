@@ -54,7 +54,7 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
-		assert_int(systems.size()).is_equal(5)
+		assert_int(systems.size()).is_equal(6)
 		assert_object(systems[0]).is_instanceof(LifeTicks)
 		assert_object(systems[1]).is_instanceof(ChannelTicks)
 		assert_object(systems[2]).is_instanceof(VanishTicks)
@@ -62,6 +62,13 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 		assert_object(systems[3]).is_instanceof(StationTicks)
 		assert_str(String((systems[3] as StationTicks).kind.id)).is_equal("tap")
 		assert_object(systems[4]).is_instanceof(DrunkTicks)
+		# The limp (#1393): its push and get-up, the base mode's provisional numbers.
+		assert_object(systems[5]).is_instanceof(LimpTicks)
+		var limp := systems[5] as LimpTicks
+		assert_array([limp.reach_m, limp.height_m, limp.min_speed_mps, limp.gain]).is_equal(
+			[1.0, 1.8, 0.5, 1.0]
+		)
+		assert_array([limp.max_speed_mps, limp.cooldown_s]).is_equal([3.0, 0.25])
 		var respawn := (systems[0] as LifeTicks).respawn
 		assert_object(respawn).is_not_null()
 		assert_str(String(respawn.tag)).is_equal("lobby_player")
@@ -83,12 +90,28 @@ func test_countdown_done_clears_the_items_and_a_cancel_does_not() -> void:
 		if row.from != &"countdown":
 			continue
 		if row.outcome == CountdownPhase.COUNTDOWN_DONE:
-			# The hall's items, then its tap (#1390), before the map loads.
-			assert_int(row.actions.size()).is_equal(2)
+			# The hall's items, then its tap (#1390), then everyone limp up (#1393), before the map
+			# loads.
+			assert_int(row.actions.size()).is_equal(3)
 			assert_object(row.actions[0]).is_instanceof(ClearItems)
 			assert_object(row.actions[1]).is_instanceof(ClearStations)
+			assert_object(row.actions[2]).is_instanceof(EndLimps)
 		else:
 			assert_array(row.actions).is_empty()
+
+
+func test_too_much_runs_the_limp_reaction() -> void:
+	# The base mode's one reaction (#1393): drunk_too_much lays the drinker limp for 6 s
+	# (provisional).
+	var mode := load(BASE_MODE) as GameMode
+	var found: Array[GoLimp] = []
+	for rule: Rule in mode.reactions:
+		if rule.trigger == Facts.DRUNK_TOO_MUCH:
+			for effect: RuleEffect in rule.effects:
+				if effect is GoLimp:
+					found.append(effect as GoLimp)
+	assert_int(found.size()).is_equal(1)
+	assert_float(found[0].limp_s).is_equal(6.0)
 
 
 func test_a_package_held_in_the_hall_never_reaches_the_round() -> void:
