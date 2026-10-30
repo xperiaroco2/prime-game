@@ -99,6 +99,7 @@ func _check_mode(mode: GameMode) -> void:
 	errors.append_array(StationRuleCheck.kind_problems(mode))
 	_check_ticking(mode)
 	_check_vanishing(mode)
+	_check_handing(mode)
 	_check_rules(mode)
 	_check_rows(mode)
 	_check_phases(mode)
@@ -408,6 +409,19 @@ func _check_vanishing(mode: GameMode) -> void:
 		if kind != null and kind.vanishes():
 			var found := "item kind %s vanishes after %d s" % [kind.id, kind.vanish_seconds]
 			errors.append(found + ", but no phase lists VanishTicks: it never would")
+
+
+## A handable item kind (ItemKind.handable, #1389) where no phase accepts HandOver: nobody could
+## hand it over, so the flag says what the mode does not do.
+func _check_handing(mode: GameMode) -> void:
+	for spec: PhaseSpec in mode.phases:
+		if spec != null and spec.senders_of(Intents.HAND_OVER) != 0:
+			return
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null and kind.is_handable():
+			errors.append(
+				"item kind %s is handable, but no phase accepts HandOver: nobody could" % kind.id
+			)
 
 
 ## A row's actions run with no actor, so a ChannelEffect or a ThrowItem among them is an error.

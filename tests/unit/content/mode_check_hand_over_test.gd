@@ -23,10 +23,26 @@ func test_only_a_one_handed_item_kind_may_be_handable() -> void:
 	none.find_item_kind(&"tool").hands = 0
 	none.find_item_kind(&"tool").handable = true
 	_expect(none, "item kind tool is handable but takes 0 hands, not 1")
-	var one := FixtureItemModes.basic()
+	var one := FixtureHandOverModes.basic()
 	one.find_item_kind(&"tool").handable = true
 	_expect_none(one)
 	assert_bool(one.find_item_kind(&"tool").is_handable()).is_true()
+
+
+func test_a_handable_kind_where_no_phase_accepts_hand_over_is_refused() -> void:
+	# #1389: the flag would mean nothing where nobody may send HandOver; one phase is enough.
+	var mode := FixtureHandOverModes.basic()
+	var round_spec := mode.find_phase(&"round")
+	var accepts: Array[AcceptSpec] = []
+	for accept: AcceptSpec in round_spec.accepts:
+		if accept.intent != Intents.HAND_OVER:
+			accepts.append(accept)
+	round_spec.accepts = accepts
+	_expect(mode, "item kind gift is handable, but no phase accepts HandOver")
+	mode.find_phase(&"lobby").accepts.append(
+		AcceptSpec.of(Intents.HAND_OVER, AcceptSpec.From.LIVING)
+	)
+	_expect_none(mode)
 
 
 func test_a_hand_over_rule_lacking_any_required_condition_is_refused() -> void:
