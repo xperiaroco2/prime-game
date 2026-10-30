@@ -927,7 +927,7 @@ func _fold_offer(event_name: StringName, fields: Dictionary) -> void:
 	var giver: int = fields["giver"]
 	if event_name == &"OfferMade":
 		offers[giver] = fields["target"] as int
-	elif offers.get(giver, 0) == fields["target"] as int:
+	elif offers.get(giver, 0) == (fields["target"] as int):
 		offers.erase(giver)
 
 
