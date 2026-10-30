@@ -6752,7 +6752,7 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
 - **Refused while limp.** `Match._accepts` refuses a limp player's `PLAYER_ACTIONS` but its `MoveClaim`
   (`not_accepted`): `MovementRule` takes only its facing, as a downed player's, and never its point. `LifeRules.damage`
   and `Strike` skip it: nobody hits a limp player. `Ready` is not a player's action, so a limp player readies.
-- **Seen.** Public body state: the avatar's `limp` flag (32, §4.3.5; protocol 39) on every peer, and the viewer's
+- **Seen.** Public body state: the avatar's `limp` flag (32, §4.3.5; protocol 40) on every peer, and the viewer's
   own avatar while it is limp (as a knocked-down one's, KE5, §5), which tells the own client it lies limp: it draws
   the rag-doll, holds its movement input still and sends only its facing until the get-up's `Correction`.
   `ClientModel.body_life_of` reads DOWNED for a living avatar shown limp: `AvatarViews` draws its ragdoll (the
