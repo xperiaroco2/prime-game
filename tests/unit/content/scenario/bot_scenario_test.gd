@@ -227,6 +227,10 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepUse.new().sends_intent()).is_true()
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
+	# The item's own action on the right button (the mug's drink, #1438) names its own intent.
+	var drink := StepUse.new()
+	drink.secondary = true
+	assert_str(drink.step_name()).is_equal("UseSecondary")
 	for raising: ScenarioStep in [
 		StepRaise.new(),
 		StepStopRaise.new(),

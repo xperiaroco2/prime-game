@@ -59,6 +59,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"PickUp": From.LIVING,
 		&"PutDown": From.LIVING,
 		&"Use": From.LIVING,
+		&"UseSecondary": From.LIVING,
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
 		&"HandOver": From.LIVING,
@@ -74,6 +75,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"PickUp": From.LIVING,
 		&"PutDown": From.LIVING,
 		&"Use": From.LIVING,
+		&"UseSecondary": From.LIVING,
 		&"Swap": From.LIVING,
 		&"Draw": From.LIVING,
 		&"HandOver": From.LIVING,
@@ -89,6 +91,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"PickUp": From.LIVING,
 		&"PutDown": From.LIVING,
 		&"Use": From.LIVING,
+		&"UseSecondary": From.LIVING,
 		&"Raise": From.LIVING,
 		&"StopRaise": From.LIVING,
 		&"Swap": From.LIVING,
@@ -213,7 +216,7 @@ static func _rule(
 			answer_now = _pick_up(args.get("item", -1) as int, player, state)
 		Intents.PUT_DOWN, Intents.THROW:
 			answer_now = EMPTY_HAND if player.held_item < 0 else &"?"
-		Intents.USE:
+		Intents.USE, Intents.USE_SECONDARY:
 			answer_now = RejectReasons.NOTHING_TO_DO if player.held_item < 0 else &"?"
 		Intents.SWAP:
 			var empty := player.carried_items().is_empty()

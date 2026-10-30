@@ -571,7 +571,8 @@ func _use(bot: ScenarioBot, step: StepUse) -> Result:
 		var facing := _facing(bot, step.towards)
 		if facing == Vector3.INF:
 			return _fail_step(bot, "the bot cannot know where to face")
-		_send(bot, Intents.USE, {"facing": facing})
+		var intent := Intents.USE_SECONDARY if step.secondary else Intents.USE
+		_send(bot, intent, {"facing": facing})
 		return Result.WAITING
 	var until := step.until
 	var done := bot.find_since(
