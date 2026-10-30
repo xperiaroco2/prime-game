@@ -212,6 +212,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _raise(bot, step as StepRaise, elapsed)
 	elif step is StepStopRaise:
 		result = _stop_raise(bot, step as StepStopRaise)
+	elif step is StepHandOver:
+		result = _hand_over(bot, step as StepHandOver)
 	elif step is StepGiveUp:
 		result = _give_up(bot, step as StepGiveUp)
 	elif step is StepSwap:
@@ -639,6 +641,31 @@ func _raise(bot: ScenarioBot, step: StepRaise, elapsed: int) -> Result:
 	if ended != null or elapsed >= Ticks.from_seconds(step.hold_s):
 		return Result.DONE
 	return Result.WAITING
+
+
+## Sends HandOver of the bot's hand item to the target bot's player: done once that player's
+## ItemPickedUp of that very item arrived (#1389).
+func _hand_over(bot: ScenarioBot, step: StepHandOver) -> Result:
+	if bot.sent_seq < 0:
+		var other := peers.peer_of(step.target.bot)
+		if other == 0:
+			return _fail_step(bot, "the bot cannot know which player its target is")
+		bot.sent_peer = other
+		bot.sent_item = bot.held
+		_send(bot, Intents.HAND_OVER, {"target": other})
+		return Result.WAITING
+	var receiver := bot.sent_peer
+	var item := bot.sent_item
+	var taken := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			return (
+				event.name == &"ItemPickedUp"
+				and event.fields["peer"] == receiver
+				and event.fields["item"] == item
+			)
+	)
+	return _intent_result(bot, step, item >= 0 and taken != null)
 
 
 func _stop_raise(bot: ScenarioBot, step: StepStopRaise) -> Result:
