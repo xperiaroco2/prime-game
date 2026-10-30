@@ -817,14 +817,15 @@ wire schemas of the events and the snapshot are §4.3.
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
 | `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); a `Correction` follows (a placement where it lay, with a new epoch: its client claimed no place while knocked down, #728 KE6) |
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
-| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3); a revive: where it lay, with a new epoch, after `Revived` (#728 KE6). None at a death (the dead send no claims), and none to a knocked-down player for any claim (its claims carry only its look, KE4) |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3); a revive: where it lay, with a new epoch, after `Revived` (#728 KE6). None at a death (the dead send no claims), and none to a knocked-down or limp player for any claim (its claims carry only its look, KE4). The limp (§7.1.21): one at the go-limp (where it lies, with a new epoch, no event before it) and one at the get-up (`LimpTicks` or `EndLimps`: where the body rested, with a new epoch); none per push |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents) and, when a win condition reported the `won`, its id as the reason with `numbers` {`time`: the round's play time in whole seconds, when the clock ran} (#548); no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `LaunchBody(peer, epoch, origin, velocity)` and `StopBody(peer)` (the host's body of a knocked-down player on a map
-`PlayerRules.motion_maps` lists starts and is freed, §7.1.18; a replay ignores both; #847),
+`PlayerRules.motion_maps` lists starts and is freed, §7.1.18, and of a limp player in the lobby, §7.1.21, where a push
+relaunches it with the same epoch; a replay ignores both; #847),
 `DisconnectPeer(peer)`. `DisconnectPeer` follows the `Rejected` it explains, and `server/` sends what came before
 it (§4, `disconnect_peer`); Loading's waiting newcomers get it too. `StartClock` emits `RoundStarted` on the
 row into the round. `LeakCheck.FOR_ONE` lists `Disconnecting` by hand (§4.6.4).
@@ -5480,7 +5481,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
-  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; a snapshot holds its viewer's own avatar exactly when the host's state has the viewer knocked down, read from the life state, never from `Snapshots.for_peer` (KE5, #847: `ScenarioInvariants` per tick, `LeakCheck` per decoded snapshot); the voice invariant (§6.3): no
+  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; a snapshot holds its viewer's own avatar exactly when the host's state has the viewer knocked down or limp (§7.1.21), read from the life state and `PlayerState.limp`, never from `Snapshots.for_peer` (KE5, #847: `ScenarioInvariants` per tick, `LeakCheck` per decoded snapshot); the voice invariant (§6.3): no
   peer gets a downed or dead speaker's voice frame, a downed peer gets only the living's and a dead peer none;
   the distance invariant (M5-1, #215, E45): no peer gets a frame of a speaker farther away than the phase's hearing
   radius (`VoiceRule.radius_of`, the client's cutoff, E41) at the frame's tick, between the last accepted positions,
@@ -6757,19 +6758,23 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   `ClientModel.body_life_of` reads DOWNED for a living avatar shown limp: `AvatarViews` draws its ragdoll (the
   host body's velocity, the living body hidden), `GamePlayer.sync_life` (on every event and snapshot) holds the own
   controller as a downed one, and `LifeView` puts the downed camera and the ears over the own ragdoll and offers no
-  raise; the HUD and the give-up keep `life_of` (ALIVE). It can speak: the voice rule is unchanged (provisional;
-  invariant 6, §6.3).
+  raise; `ItemViews` lays the held items at the body (not at the hidden capsule's hand, and none in the own
+  first-person hand) and `ItemInteractions` sends no item key; the HUD and the give-up keep `life_of` (ALIVE).
+  `MovementRule` grants no push allowance beside a limp body (no client collides with it). It can speak: the voice
+  rule is unchanged (provisional; invariant 6, §6.3).
 - **Where.** The Lobby only: the base mode lists `LimpTicks` on its Lobby and Countdown, with `LifeTicks`. A limp
   body moves on the lobby level, which `motion_maps` does not govern (it governs knockdowns, KE12): the issue's
   "pushable" needs the host's body there. `GoLimp.check` (`LimpTicks.problems`) wants a phase listing `LimpTicks`,
   a `LifeTicks` beside each, and an `EndLimps` on every row out of such a phase into one without.
 - **Tests:** `tests/unit/life/limp_test.gd` (on `tests/fixtures/life/fixture_limp.gd`: the start, the flag on every
-  peer, the refusals, no hit, the push and its bounds, reports, the get-up, the countdown's end, a seated drinker,
+  peer, the refusals, its claims (no move, no Correction), no hit, the push and its bounds, reports, the get-up, the countdown's end, a seated drinker,
   a leave, determinism, the check), `base_mode_lobby_test.gd` (the shipped rows), `view_of_test.gd` (the key
   order), the wire's `wire_samples.gd` and `snapshot_encoder_test.gd`; `ScenarioInvariants.limp_problem` checks every snapshot
   the scenarios and the chaos run see (the flag matches the state, a limp player is living, in a phase listing
   `LimpTicks`), and the own-avatar check (`LeakCheck`, `ScenarioInvariants`) takes downed or limp. The client:
-  `client_model_test.gd` (`body_life_of`), `avatar_views_test.gd` (the ragdoll until it stands) and
+  `client_model_test.gd` (`body_life_of`), `avatar_views_test.gd` (the ragdoll until it stands), `item_views_test.gd`
+  and `item_interactions_test.gd` (the items at the body, no item key), `movement_rule_test.gd` (no push allowance),
+  `scenario_bot_correction_test.gd` (a limp bot gets at most two Corrections) and
   `tests/integration/client/life/life_limp_network_test.gd` (a joiner laid limp holds still under the downed
   camera, drawn as its ragdoll on both screens, and walks in first person once it gets up).
 
