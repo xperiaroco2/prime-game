@@ -130,6 +130,47 @@ func test_a_limp_or_downed_player_pushes_nothing() -> void:
 	assert_int(_emitted(game, &"LaunchBody").size()).is_equal(pushes)
 
 
+## KE4 for the limp: only the host's physics moves the body. A limp client's walking claims in the
+## current epoch move nothing and get no Correction; their facing is taken, as a downed one's.
+func test_a_limp_players_walking_claims_move_nothing_and_get_no_correction() -> void:
+	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
+	var limp := game.state.player(P1)
+	var lies := limp.position
+	var epoch := limp.epoch
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var walk := {"moving": true, "velocity": Vector3(3, 0, 0), "facing": Vector3(1, 0, 0)}
+	for i in range(1, 6):
+		FixtureMoves.claim(game, P1, lies + Vector3(0.1 * i, 0, 0), walk)
+		FixtureModes.run_ticks(game, 1)
+	FixtureMoves.claim(game, P1, lies + Vector3(0.5, 0, 0), walk)
+	FixtureModes.run_ticks(game, 1)
+	assert_bool(limp.is_limp()).is_true()
+	assert_vector(limp.position).is_equal(lies)
+	assert_vector(limp.facing).is_equal_approx(Vector3(1, 0, 0), Vector3.ONE * 1e-6)
+	assert_int(limp.epoch).is_equal(epoch)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## A limp player's claim that fails a tick check (claims past its tick credit) is dropped with no
+## Correction and no new epoch (KE4, MovementRule._refuse).
+func test_a_limp_players_claims_past_their_credit_are_dropped_with_no_correction() -> void:
+	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
+	var limp := game.state.player(P1)
+	var lies := limp.position
+	var epoch := limp.epoch
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var tick := game.ticked_through()
+	for i in 12:
+		tick += 1
+		FixtureMoves.claim(game, P1, lies + Vector3(0.2 * i, 0, 0), {"client_tick": tick})
+	FixtureModes.run_ticks(game, 1)
+	assert_vector(limp.position).is_equal(lies)
+	assert_int(limp.epoch).is_equal(epoch)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_reports_move_the_limp_body_with_no_error() -> void:
 	var game := FixtureLimp.limp(FixtureLimp.mode(), [P1, P2], P1)
 	var limp := game.state.player(P1)
