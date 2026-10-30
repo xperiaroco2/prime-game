@@ -400,7 +400,7 @@ for the MVP [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#
 [c6288973914](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288973914)): a demanding task where
 the expert knows every fix by heart.
 - **The start:** the start button on the console in the hall (no battery since 2026-10-23, above). Everything
-  happens inside the ship, a wide manta with two mirrored halves: two vents in the throat behind the mouth, the hall with the console and four cartridge sockets, a
+  happens inside the ship, a wide manta with two mirrored halves: a gill set on each wall of the throat behind the mouth, the hall with the console and four cartridge sockets, a
   breaker board in each corridor, a charger in each lens room ([estate-map](design/estate-map.md) §5a).
 - **Solo or together** (the engineer, 2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073)):
   one player can start the ship alone, slowly, running back and forth (a running mutation helps); two take a half
@@ -417,7 +417,7 @@ the expert knows every fix by heart.
     as one charging bar, each a stage (placeholder: about 30 s each, 90 s with no problems); the same bar runs as a
     ring round the hologram's central disc, seen from the throat and both corridors.
   - **The wiring:** on the hologram each station is a point in its place (the four sockets, the two boards with their
-    eight lamps, the two vents), with a line of light to the turbines. A station with a problem blinks red, its line
+    eight lamps, the two gill sets), with a line of light to the turbines. A station with a problem blinks red, its line
     goes dark and the turbines slow; fixed, the line flashes back. The point shows where, not what: no icon per kind,
     the players go and find out.
   - **The countdown:** over the hologram, a big countdown to the nearest problem's own timer; with several open, the
@@ -427,17 +427,17 @@ the expert knows every fix by heart.
   charging bar until it is fixed; a stage passes when its third of the bar is full.
 - **A problem** is seen and heard (a red lamp, a rising wail, its point on the hologram) and has its own timer
   (placeholders: an overheat 10 s, the breakers 30 s, a cartridge 30 s).
-- **Overheat** (reaction; the vent as agreed 2026-10-23,
-  [#1095 c6361136868](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6361136868); the ray's
-  gills, four ribs that rock ±4° and never open, so light, colour and mist carry the states: the engineer, 2026-10-27,
-  [#1095 c6453612034](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6453612034); where the two
-  vents stand is under review, prime-game-art#263 comment 6453550931): calm, the ribs
-  rock slowly like breathing and the slots pulse soft cyan; a problem makes them shudder fast, the slots go red, steam
-  rises and the lamp lights. Hold a palm on its scanner (a four-fingered hand): the ribs go still, the red in the slots
-  turns cyan in six clicked steps and a marker climbs a light bar; let go inside the green band and all four ribs swing
-  out together, the slots at their brightest cyan, mist from every slot: the exhale, fixed. Too early: a sound, try
-  again. Past the green, a release coughs steam (a miss); held to the very top, a hard red shudder, the vent coughs and
-  throws the player back a few metres, up again by themselves in about 2 s (no raising).
+- **Overheat** (reaction; the ray's gills in the throat, as built and approved in the game: the engineer, 2026-10-30,
+  [#1095 c6522811252](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6522811252); the look and the rule, 2026-10-29, [c6500883134](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6500883134) and
+  [c6503032654](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6503032654); the place, [c6470177717](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6470177717)): on each throat side wall, a gill set of five
+  crescent slits cut 15 cm into the ship's own wall metal, the first (mouth side) the tallest and each next a little
+  shorter and leaning a little more, framed on its mouth side by one curved cyan-lit groove like the edge of a fish's
+  gill cover; a short light bar over each slit; one round button at the set's hall end. Nothing moves: each slit is a
+  niche that glows red when shut and calm cyan when open, and its bar shows the same colour. A problem turns all five
+  red. Then one white bar runs back and forth over the five, 1-2-3-4-5-4-3-2 (placeholder 0.6 s a step), over open
+  slits too. A press flips the slit under the white bar: a shut one turns cyan with a puff of steam, an open one shuts
+  again (too fast on the last one: shut again, and round once more). All five open: a cloud of mist, fixed. Each wall
+  has its own set and button. No hold, no release timing, no moving parts, no separate lamp or progress bar.
 - **A spent cartridge** (multitasking): the cartridge is an energy crystal (the engineer, 2026-10-23,
   [#1033 c6361383461](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6361383461)); spent, it goes
   plain grey. Pull it out of one of the hall's four sockets (two a side, the engineer, 2026-10-22: more places to burn;
