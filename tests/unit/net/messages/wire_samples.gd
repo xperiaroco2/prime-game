@@ -101,6 +101,8 @@ static func events() -> Dictionary[String, Array]:
 	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
 	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
 	found["RevivedEvent"] = [RevivedEvent.new(2)]
+	found["OfferMadeEvent"] = [OfferMadeEvent.new(3, 0x7FFFFFFF)]
+	found["OfferEndedEvent"] = [OfferEndedEvent.new(0x7FFFFFFF, 1)]
 	found["SwappedEvent"] = [SwappedEvent.new(0x7FFFFFFF), SwappedEvent.new(2, 2)]
 	found["TaskStateEvent"] = [
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
@@ -238,6 +240,9 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"Pose", {}, 17),
 		WireMessage.new(&"HandOver", {"target": 2}, 17),
 		WireMessage.new(&"HandOver", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
+		WireMessage.new(&"TakeOffer", {"target": 2}, 17),
+		WireMessage.new(&"TakeOffer", {"target": 0x7FFFFFFF}, 0xFFFFFFFF),
+		WireMessage.new(&"CancelOffer", {}, 17),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),

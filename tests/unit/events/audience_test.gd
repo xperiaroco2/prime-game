@@ -92,6 +92,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		PartFittedEvent.new(1, 3),
 		PhotoPrintedEvent.new(4, 0),
 		PhotoHungEvent.new(4, 5, true),
+		OfferMadeEvent.new(P1, 2),
+		OfferEndedEvent.new(P1, 2),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),
