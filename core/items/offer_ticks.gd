@@ -116,9 +116,7 @@ static func _offering(mode: GameMode, phase: PhaseSpec) -> Array[StringName]:
 	for entry: AcceptSpec in phase.accepts:
 		if entry == null or found.has(entry.intent):
 			continue
-		for rule: Rule in mode.actions:
-			if rule == null or rule.trigger != entry.intent:
-				continue
+		for rule: Rule in _rules_on(mode, entry.intent):
 			for effect: RuleEffect in rule.effects:
 				if effect is HandOver or effect is TakeOffer or effect is CancelOffer:
 					found.append(entry.intent)
@@ -126,12 +124,10 @@ static func _offering(mode: GameMode, phase: PhaseSpec) -> Array[StringName]:
 	return found
 
 
-## The largest reach of a TargetInReach in a mode action that holds a HandOver, or 0.
+## The largest reach of a TargetInReach in a rule on HandOver that holds a HandOver, or 0.
 static func _hand_over_reach(mode: GameMode) -> float:
 	var reach := 0.0
-	for rule: Rule in mode.actions:
-		if rule == null:
-			continue
+	for rule: Rule in _rules_on(mode, Intents.HAND_OVER):
 		var offers := false
 		for effect: RuleEffect in rule.effects:
 			offers = offers or effect is HandOver
@@ -141,3 +137,21 @@ static func _hand_over_reach(mode: GameMode) -> float:
 			if condition is TargetInReach and not condition.negate:
 				reach = maxf(reach, (condition as TargetInReach).reach_m)
 	return reach
+
+
+## Every rule on `intent` among the mode's, the roles' and the item kinds' actions: an offer rule
+## may sit in any of them (ModeCheck allows it), so the check reads all.
+static func _rules_on(mode: GameMode, intent: StringName) -> Array[Rule]:
+	var found: Array[Rule] = []
+	var lists: Array[Array] = [mode.actions]
+	for role: GameRole in mode.roles:
+		if role != null:
+			lists.append(role.actions)
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null:
+			lists.append(kind.actions)
+	for rules: Array in lists:
+		for rule: Variant in rules:
+			if rule is Rule and (rule as Rule).trigger == intent:
+				found.append(rule as Rule)
+	return found

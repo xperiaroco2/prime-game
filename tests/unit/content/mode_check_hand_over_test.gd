@@ -97,6 +97,28 @@ func test_a_phase_that_offers_lists_offer_ticks_with_the_hand_over_s_reach() -> 
 	_expect(timeless, "timeout_s")
 
 
+func test_an_offer_rule_in_a_role_or_a_kind_also_demands_offer_ticks() -> void:
+	# The rule sits in a role, not in mode.actions: the phase still needs its OfferTicks.
+	for holder: StringName in [&"role", &"kind"]:
+		var mode := FixtureHandOverModes.basic()
+		var moved: Array[Rule] = mode.actions.duplicate()
+		mode.actions.clear()
+		if holder == &"role":
+			var role := GameRole.new()
+			role.id = &"giver"
+			role.actions = moved
+			mode.roles.append(role)
+		else:
+			var kind := ItemKind.new()
+			kind.id = &"giver_kind"
+			kind.actions = moved
+			mode.item_kinds.append(kind)
+		mode.find_phase(&"round").tick_systems = mode.find_phase(&"round").tick_systems.filter(
+			func(s: TickSystem) -> bool: return not s is OfferTicks
+		)
+		_expect(mode, "lists no OfferTicks")
+
+
 func test_a_row_out_of_an_offering_phase_without_end_offers_is_refused() -> void:
 	# The limp's pattern (#1393): an offer lives in part state, which only ResetMatch clears.
 	var mode := FixtureHandOverModes.basic()
