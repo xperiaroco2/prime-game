@@ -3372,8 +3372,9 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
-  living, `interact`, `use`, `put_down` and `swap` in the lobby too (#1408: `GamePlayer.apply_flags` lets
-  `ItemInteractions` listen there, the Lobby accepting the hand intents, #1388; `throw` and the raise stay the
+  living, `interact`, `use`, `put_down`, `swap` and the places' 1, 2, 3 (`UNLISTED`) in the lobby too (#1408:
+  `GamePlayer.apply_flags` lets `ItemInteractions` listen there, the Lobby accepting the hand intents and the Draw,
+  #1388; `throw` and the raise stay the
   round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
   buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
   check per phase (#488's rule 6), under which `give_up` and `ready`
