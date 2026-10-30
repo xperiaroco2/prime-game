@@ -260,6 +260,23 @@ func with_bar() -> void:
 	mode.player_rules.drunk_point_s = 1.0
 
 
+## `game`'s player goes limp on the host for `limp_s` (LifeRules.go_limp, §7.1.21), or gets up
+## (`up`, LifeRules.get_up), as the base mode's drunk_too_much reaction and LimpTicks would: the
+## fixture mode has neither, so this reaches into the host's Match as knock_down() does.
+func limp(game: Game, up := false, limp_s := 60.0) -> void:
+	var node := host.get_node("HostNode") as HostNode
+	var played := (node.get("_session") as HostSession).game
+	var ctx := MatchContext.new(played)
+	ctx.state = played.state
+	ctx.mode = played.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = played.ticked_through()
+	if up:
+		LifeRules.get_up(ctx, peer_of(game))
+	else:
+		LifeRules.go_limp(ctx, peer_of(game), limp_s)
+
+
 ## The crew wins at the host's next tick: FixtureBaseMode's win condition, peer 0's counter
 ## `crew_win` at 1, as FixtureBaseMode.in_end has it (#240). The round goes to End; the host's
 ## ReturnToLobby (End -> Lobby's ResetMatch) clears the counter. It reaches into the host's Match
