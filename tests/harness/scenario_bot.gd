@@ -65,6 +65,9 @@ var position := Vector3.ZERO
 ## Respawned or the next match.
 var downed := false
 var dead := false
+## Limp (#1393), from its own avatar's `limp` flag in its last snapshot (a limp player's snapshot
+## holds its own avatar, KE5): it sends only its look until it gets up.
+var limp := false
 var role: StringName
 ## Its three places (GDD §6), item ids or -1, and the selected one, whose item is in the hand
 ## (ItemPickedUp with `place` and `belted`, Swapped with `place`, ItemPlaced).
@@ -110,6 +113,9 @@ var _client_tick := 0
 ## awaits its Correction: core/ emits exactly one after each, so a network poll that splits the
 ## two still expects it, and any other Correction fails. A death sends none.
 var _correction_due := false
+## A Correction no placement explained, while the bot was not limp: the limp's start (#1393) has
+## no event of its own, so the next snapshot must show the bot limp (see), else it fails.
+var _unexplained := ""
 
 
 func _init(
@@ -226,11 +232,13 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if spots.has(peer):
 				_correction_due = true
 		&"Correction":
-			if not _correction_due:
-				return (
+			if not _correction_due and not limp:
+				# Maybe the limp's start (GoLimp): see() checks the next snapshot.
+				_unexplained = (
 					"a Correction outside a placement (epoch %d, at %s): an honest bot is never corrected"
 					% [fields["epoch"], fields["position"]]
 				)
+			# While limp, the one Correction is the get-up's (LimpTicks, EndLimps).
 			_correction_due = false
 			epoch = fields["epoch"] as int
 			jumps = 0
@@ -264,15 +272,21 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 
 
 ## Takes the avatars of a snapshot: where it sees the other players and their drunk values. The
-## own avatar, which a knocked-down player's snapshot carries (KE5), is skipped: the bot knows
-## where it is.
-func see(avatars: Dictionary) -> void:
+## own avatar, which a knocked-down or limp player's snapshot carries (KE5, #1393), gives only
+## whether the bot lies limp: the bot knows where it is. Returns a failure, or "": a Correction no
+## placement explained and this snapshot does not show limp.
+func see(avatars: Dictionary) -> String:
+	var own: Dictionary = avatars.get(peer, {})
+	limp = own.get("limp", false) == true
+	var problem := _unexplained if not limp else ""
+	_unexplained = ""
 	for other: int in avatars:
 		if other == peer:
 			continue
 		var avatar: Dictionary = avatars[other]
 		seen[other] = avatar["position"]
 		drunk_seen[other] = avatar.get("drunk", 0) as int
+	return problem
 
 
 ## The reason of the Rejected answering `seq` since the current step started, or "".
@@ -537,3 +551,5 @@ func _new_connection(new_peer: int) -> void:
 	_next_seq = 1
 	_client_tick = 0
 	_correction_due = false
+	_unexplained = ""
+	limp = false

@@ -19,9 +19,9 @@ extends RefCounted
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
 ##   of the bot's own role; no decoded snapshot holds a dead player's avatar; a decoded snapshot
-##   holds the bot's own avatar exactly when record_tick saw its player knocked down at that tick
-##   (ScenarioInvariants.own_avatar_problem: from the life state, never from Snapshots.for_peer,
-##   KE5, #847); the voice invariant
+##   holds the bot's own avatar exactly when record_tick saw its player knocked down or limp (#1393)
+##   at that tick (ScenarioInvariants.own_avatar_problem: from the life state, never from
+##   Snapshots.for_peer, KE5, #847); the voice invariant
 ##   (§6): no bot decodes a downed or dead speaker's frame, a downed bot decodes only living
 ##   speakers' frames and a dead bot none; every event a bot decodes while dead is either for it
 ##   alone (the subject check) or also reached every living peer present then (view_of's
@@ -122,6 +122,8 @@ var _keys := PackedStringArray()
 var _alive_at: Dictionary[int, PackedInt32Array] = {}
 var _downed_at: Dictionary[int, PackedInt32Array] = {}
 var _dead_at: Dictionary[int, PackedInt32Array] = {}
+## Tick -> the present players lying limp after that tick (#1393), alive too: the own avatar.
+var _limp_at: Dictionary[int, PackedInt32Array] = {}
 ## Tick -> each present player's last accepted position after that tick (peer -> Vector3), and the
 ## hearing radius of the phase then.
 var _positions_at: Dictionary[int, Dictionary] = {}
@@ -162,6 +164,7 @@ static func frame_problem(speaker: int, frame: PackedByteArray) -> String:
 func record_tick(at_tick: int) -> void:
 	var alive := PackedInt32Array()
 	var downed := PackedInt32Array()
+	var limp := PackedInt32Array()
 	var dead := PackedInt32Array()
 	var positions: Dictionary[int, Vector3] = {}
 	var state := _game.state
@@ -170,12 +173,15 @@ func record_tick(at_tick: int) -> void:
 		match state.players[peer].life:
 			PlayerState.Life.ALIVE:
 				alive.append(peer)
+				if state.players[peer].is_limp():
+					limp.append(peer)
 			PlayerState.Life.DOWNED:
 				downed.append(peer)
 			PlayerState.Life.DEAD:
 				dead.append(peer)
 	_alive_at[at_tick] = alive
 	_downed_at[at_tick] = downed
+	_limp_at[at_tick] = limp
 	_dead_at[at_tick] = dead
 	_positions_at[at_tick] = positions
 	_radius_at[at_tick] = ScenarioInvariants.phase_radius(_game)
@@ -575,7 +581,9 @@ func _check_snapshots(
 		if not WireSamples.same(avatars, view.snapshots[at_tick]["avatars"]):
 			found.append("the snapshot of tick %d differs from view_of's" % at_tick)
 		var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
-		var own := ScenarioInvariants.own_avatar_problem(peer, avatars, downed.has(peer))
+		var limp: PackedInt32Array = _limp_at.get(at_tick, PackedInt32Array())
+		var held := downed.has(peer) or limp.has(peer)
+		var own := ScenarioInvariants.own_avatar_problem(peer, avatars, held)
 		if own != "":
 			found.append("the snapshot of tick %d %s" % [at_tick, own])
 		var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())

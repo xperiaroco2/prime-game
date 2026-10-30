@@ -108,7 +108,9 @@ func _run_tick(at_tick: int) -> void:
 		failures.append("tick %d: %s" % [at_tick, problem])
 	for bot: ScenarioBot in bots:
 		if not bot.gone and bot.joined:
-			bot.see(game.snapshot_for(bot.peer).get("avatars", {}) as Dictionary)
+			var problem := bot.see(game.snapshot_for(bot.peer).get("avatars", {}) as Dictionary)
+			if not problem.is_empty():
+				_fail_step(bot, problem)
 
 
 ## Every bot without a Join step connects and says Hello; then the host's bot sends the setup's
