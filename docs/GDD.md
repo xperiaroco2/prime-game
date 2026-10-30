@@ -335,17 +335,22 @@ Open questions, for the engineer (built as today until he answers):
     visible action.
   - The draw is instant and seen by everyone: the item changes in the hand and leaves the belt. On screen, three
     numbered icons, the one in the hand lit.
-- **Handing over** (#1389; in the lobby only, provisional, for the engineer): a player holding a one-handed
-  item that may be given (the full mug, "carried and given to a friend":
-  [#1095 c6473429898](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473429898)) gives it to
-  another living player in reach and sight. It arrives as a take does: into the hand, or onto the belt beside a
-  hand item, a full belt's hand item dropping at the receiver's feet. The receiver cannot refuse, the round has no
-  hand-over, and the key is still to be chosen.
+- **Handing over** (#1389, #1434; a base rule, approved by the engineer:
+  [#1412 c6524456466](https://github.com/xperiaroco2/prime-game/pull/1412#issuecomment-6524456466),
+  [#1434 c6524576011](https://github.com/xperiaroco2/prime-game/issues/1434#issuecomment-6524576011)): with any item
+  in the hand, E aimed at another living player in reach (2 m) and sight offers it, in every phase where items are
+  held (the lobby, the countdown and the round). The other player sees the offer and takes it with E, aimed at the
+  giver: the item lands in the hand exactly as a pick-up from the floor would (onto the belt beside a hand item; a
+  two-handed item can be offered and at the take follows the pick-up's hand rules). The giver's E again takes the
+  offer back. An offer ends when it is taken or cancelled, after 5 s (provisional), when the item leaves the giver's
+  hand, when either player moves out of reach, is limp, downed, dead or gone, and when the match moves on. A limp
+  player can neither be offered to nor take (no prompt). Everyone sees the offer made and ended; the held-out hand
+  and the prompt's words are still to be chosen.
 - Consumables (a medkit, an energy drink) and rare two-handed gadgets come after the MVP (#1040).
 
 ### Open
-- How are items found, and can they be traded or stolen? (Given: in the lobby, by handing over, above; in the
-  round still open.)
+- How are items found, and can they be traded or stolen? (Given: by handing over, above, the round included;
+  stealing still open.)
 - Which items affect voice (for example radios, which the brief mentions)?
 - Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
   does a thrown package count when it lands in its circle; may an item land where nobody can reach it; does a throw
