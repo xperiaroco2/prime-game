@@ -165,6 +165,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"Cooldown": [true, false, none],
 		&"Cost": [true, false, none],
 		&"HandNotTwoHanded": [true, false, none],
+		&"HandHandable": [true, false, none],
 		&"HoldsItem": [true, false, none],
 		&"InReach": [true, true, item],
 		&"InSight": [true, true, item],
@@ -179,6 +180,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"TargetDowned": [false, true, none],
 		&"TargetInReach": [true, true, none],
 		&"TargetInSight": [true, true, none],
+		&"TargetLiving": [true, true, none],
 	}
 	var found: Dictionary[StringName, Array] = {}
 	for entry: Dictionary in ProjectSettings.get_global_class_list():
