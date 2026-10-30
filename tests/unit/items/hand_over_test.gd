@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
-## The hand-over (#1389; ARCHITECTURE §7.1, §9.4; GDD §6 "The hand and the belt"), driven by
-## HandOver commands through a seeded Match: the item leaves the giver's hand and arrives as a give
-## does, ItemPickedUp (its `peer` the receiver) to everyone; every refusal goes to the sender alone
-## with its reason, and nothing moves.
+## The hand-over offer (#1389, #1434; ARCHITECTURE §7.1, §9.4; GDD §6 "Handing over"), driven by
+## HandOver commands through a seeded Match: the item stays in the giver's hand and everyone gets
+## OfferMade; every refusal goes to the sender alone with its reason, and nothing moves. The take
+## and the offer's ends: take_offer_test.gd.
 
 const P1 := 1
 const P2 := 2
@@ -12,75 +12,34 @@ const NEAR := Vector3(0, 0, 1.5)
 const FAR := Vector3(0, 0, 30)
 
 
-func test_the_hand_item_goes_into_an_empty_hand_and_everyone_sees_it() -> void:
+func test_a_hand_over_only_opens_an_offer_and_everyone_sees_it() -> void:
 	var game := _game()
 	var gift := FixtureHandOverModes.hold(game, P1, &"gift")
+	var before := FixtureHandOverModes.signature(game)
 	var seen := _counts(game)
-	var moves := gift.moves
 	FixtureHandOverModes.hand_over(game, P1, P2)
 	for peer: int in [P1, P2, P3]:
 		var names := FixtureItemModes.names_after(game, peer, seen[peer])
-		assert_array(names).override_failure_message(str(peer)).is_equal([&"ItemPickedUp"])
-		var picked := _last_picked(game, peer)
-		assert_int(picked.peer).is_equal(P2)
-		assert_int(picked.item).is_equal(gift.id)
-		assert_int(picked.belted).is_equal(-1)
-		assert_int(picked.place).is_equal(game.state.player(P2).selected_place)
-	var giver := game.state.player(P1)
-	assert_int(giver.held_item).is_equal(-1)
-	assert_array(Array(giver.places)).is_equal([-1, -1, -1])
-	assert_int(gift.holder).is_equal(P2)
-	assert_int(gift.where).is_equal(ItemState.Where.HAND)
-	assert_int(gift.moves).is_equal(moves + 1)
-	assert_int(game.state.player(P2).held_item).is_equal(gift.id)
+		assert_array(names).override_failure_message(str(peer)).is_equal([&"OfferMade"])
+		var made: OfferMadeEvent = game.view_of(peer).events_named(&"OfferMade").back()
+		assert_int(made.giver).is_equal(P1)
+		assert_int(made.target).is_equal(P2)
+	assert_str(FixtureHandOverModes.signature(game)).is_equal(before)
+	assert_int(gift.holder).is_equal(P1)
+	assert_int(game.state.player(P1).held_item).is_equal(gift.id)
+	var offer := Offers.live(game.state, P1)
+	assert_object(offer).is_not_null()
+	assert_int(offer.target).is_equal(P2)
+	assert_int(offer.item).is_equal(gift.id)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_the_receivers_one_handed_hand_item_moves_to_its_belt() -> void:
-	var game := _game()
-	var tool := FixtureHandOverModes.hold(game, P2, &"tool")
-	var gift := FixtureHandOverModes.hold(game, P1, &"gift")
-	FixtureHandOverModes.hand_over(game, P1, P2)
-	var picked := _last_picked(game, P3)
-	assert_int(picked.belted).is_equal(tool.id)
-	var receiver := game.state.player(P2)
-	assert_int(receiver.held_item).is_equal(gift.id)
-	assert_int(tool.where).is_equal(ItemState.Where.BELT)
-	assert_int(receiver.place_of(tool.id)).is_not_equal(receiver.selected_place)
-
-
-func test_a_full_receiver_puts_its_hand_item_down_at_its_feet_first() -> void:
-	var game := _game()
-	var held: Array[ItemState] = []
-	for i in 3:
-		held.append(FixtureHandOverModes.hold(game, P2, &"tool"))
-	var hand: ItemState = game.state.items[game.state.player(P2).held_item]
-	var gift := FixtureHandOverModes.hold(game, P1, &"gift")
-	var seen := _counts(game)
-	FixtureHandOverModes.hand_over(game, P1, P2)
-	var names := FixtureItemModes.names_after(game, P3, seen[P3])
-	names = names.filter(func(name: StringName) -> bool: return name != &"FixtureNote")
-	assert_array(names).is_equal([&"ItemPlaced", &"ItemPickedUp"])
-	var placed: ItemPlacedEvent = game.view_of(P3).events_named(&"ItemPlaced").back()
-	assert_int(placed.item).is_equal(hand.id)
-	assert_str(String(placed.cause)).is_equal(String(Items.PUT_DOWN))
-	assert_int(hand.where).is_equal(ItemState.Where.GROUND)
-	assert_int(game.state.player(P2).held_item).is_equal(gift.id)
-	var rested := FixtureModes.notes(game).filter(
-		func(note: String) -> bool: return note.begins_with("rested %d put_down" % hand.id)
-	)
-	assert_int(rested.size()).is_equal(1)
-
-
-func test_beside_a_two_handed_hand_item_the_gift_goes_onto_the_belt() -> void:
-	var game := _game()
-	var package := FixtureHandOverModes.hold(game, P2, &"package")
-	var gift := FixtureHandOverModes.hold(game, P1, &"gift")
-	FixtureHandOverModes.hand_over(game, P1, P2)
-	var picked := _last_picked(game, P1)
-	assert_int(picked.belted).is_equal(gift.id)
-	assert_int(gift.where).is_equal(ItemState.Where.BELT)
-	assert_int(game.state.player(P2).held_item).is_equal(package.id)
+func test_any_item_kind_may_be_offered() -> void:
+	for kind_id: StringName in [&"tool", &"package", &"cup"]:
+		var game := _game()
+		FixtureHandOverModes.hold(game, P1, kind_id)
+		FixtureHandOverModes.hand_over(game, P1, P2)
+		assert_object(Offers.live(game.state, P1)).override_failure_message(kind_id).is_not_null()
 
 
 func test_an_empty_hand_is_refused_even_with_a_belt_item() -> void:
@@ -92,16 +51,16 @@ func test_an_empty_hand_is_refused_even_with_a_belt_item() -> void:
 	_refused(game, P2, HoldsItem.EMPTY_HAND)
 
 
-func test_a_two_handed_or_unmarked_item_is_refused() -> void:
+func test_a_second_offer_while_one_is_open_is_not_allowed() -> void:
 	var game := _game()
-	FixtureHandOverModes.hold(game, P1, &"package")
-	_refused(game, P2, HandNotTwoHanded.TWO_HANDED)
-	var other := _game()
-	FixtureHandOverModes.hold(other, P1, &"tool")
-	_refused(other, P2, HandHandable.NOT_HANDABLE)
+	FixtureHandOverModes.hold(game, P1, &"gift")
+	FixtureItemModes.stand(game, P3, Vector3(1.5, 0, 0))
+	FixtureHandOverModes.hand_over(game, P1, P2)
+	_refused(game, P3, RejectReasons.NOT_ALLOWED)
+	assert_int(Offers.live(game.state, P1).target).is_equal(P2)
 
 
-func test_the_receiver_must_be_another_living_present_player() -> void:
+func test_the_receiver_must_be_another_living_standing_present_player() -> void:
 	var game := _game()
 	FixtureHandOverModes.hold(game, P1, &"gift")
 	_refused(game, P1, RejectReasons.BAD_ARGS)
@@ -113,8 +72,8 @@ func test_the_receiver_must_be_another_living_present_player() -> void:
 		game.state.player(P2).life = life
 		_refused(game, P2, TargetLiving.NOT_LIVING)
 	game.state.player(P2).life = PlayerState.Life.ALIVE
-	FixtureHandOverModes.hand_over(game, P1, P2)
-	assert_int(game.state.player(P2).held_item).is_not_equal(-1)
+	FixtureHandOverModes.make_limp(game, P2)
+	_refused(game, P2, TargetLiving.NOT_LIVING)
 
 
 func test_the_receiver_must_be_in_reach_and_in_sight() -> void:
@@ -131,22 +90,21 @@ func test_the_receiver_must_be_in_reach_and_in_sight() -> void:
 func test_a_waist_high_counter_does_not_block_it_when_the_sight_aims_at_the_eye() -> void:
 	var counter := AABB(Vector3(-2, 0, 0.7), Vector3(4, 1, 0.1))
 	var game := _game(FlatWorldQuery.new().add_wall(counter))
-	var gift := FixtureHandOverModes.hold(game, P1, &"gift")
+	FixtureHandOverModes.hold(game, P1, &"gift")
 	FixtureHandOverModes.hand_over(game, P1, P2)
-	assert_int(gift.holder).is_equal(P2)
+	assert_object(Offers.live(game.state, P1)).is_not_null()
 	# The raise's sight (at the feet) is blocked by the same counter.
 	var low := FixtureHandOverModes.basic()
-	(low.actions.back() as Rule).conditions[5].set(&"at_eye", false)
+	for rule: Rule in low.actions:
+		if rule.trigger == Intents.HAND_OVER:
+			rule.conditions[4].set(&"at_eye", false)
 	var feet := _game(FlatWorldQuery.new().add_wall(counter), low)
 	FixtureHandOverModes.hold(feet, P1, &"gift")
 	_refused(feet, P2, TargetInSight.BLOCKED)
 
 
-func test_a_phase_without_the_accept_row_and_a_dead_sender_are_not_accepted() -> void:
+func test_a_phase_without_the_accept_row_and_a_dead_or_limp_sender_are_not_accepted() -> void:
 	var mode := FixtureHandOverModes.basic()
-	# As in the base mode, another phase (the lobby) keeps the row, so the mode check passes.
-	var lobby := mode.find_phase(&"lobby")
-	lobby.accepts.append(AcceptSpec.of(Intents.HAND_OVER, AcceptSpec.From.LIVING))
 	var round_spec := mode.find_phase(&"round")
 	for accept: AcceptSpec in round_spec.accepts.duplicate():
 		if accept.intent == Intents.HAND_OVER:
@@ -158,37 +116,40 @@ func test_a_phase_without_the_accept_row_and_a_dead_sender_are_not_accepted() ->
 	FixtureHandOverModes.hold(dead, P1, &"gift")
 	dead.state.player(P1).life = PlayerState.Life.DEAD
 	_refused(dead, P2, RejectReasons.NOT_ACCEPTED)
+	var limp := _game()
+	FixtureHandOverModes.hold(limp, P1, &"gift")
+	FixtureHandOverModes.make_limp(limp, P1)
+	_refused(limp, P2, RejectReasons.NOT_ACCEPTED)
 
 
 func test_an_applied_hand_over_stops_the_senders_raise() -> void:
-	# Any applied action of a raiser stops its raise (RuleRunner, M4-4): RaiseStopped, then the take.
-	var game := _raising(&"gift")
-	var gift: ItemState = game.state.items[game.state.player(P3).held_item]
+	# Any applied action of a raiser stops its raise (RuleRunner, M4-4): RaiseStopped, then the offer.
+	var game := _raising()
 	var seen := game.view_of(P1).events.size()
 	FixtureHandOverModes.hand_over(game, P3, P1)
 	assert_object(Channels.of_actor(game.state, P3)).is_null()
 	assert_array(FixtureItemModes.names_after(game, P1, seen)).is_equal(
-		[&"RaiseStopped", &"ItemPickedUp"]
+		[&"RaiseStopped", &"OfferMade"]
 	)
-	assert_int(gift.holder).is_equal(P1)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func test_a_refused_hand_over_does_not_stop_the_raise() -> void:
-	var game := _raising(&"knife")
-	FixtureHandOverModes.hand_over(game, P3, P1)
-	assert_array(FixtureModes.rejections(game, P3)).is_equal([HandHandable.NOT_HANDABLE])
+	var game := _raising()
+	FixtureHandOverModes.hand_over(game, P3, P3)
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([RejectReasons.BAD_ARGS])
 	assert_object(Channels.of_actor(game.state, P3)).is_not_null()
 	assert_array(game.view_of(P1).events_named(&"RaiseStopped")).is_empty()
 
 
-func test_the_hand_over_is_deterministic_for_a_seed() -> void:
+func test_the_offer_is_deterministic_for_a_seed() -> void:
 	var logs: Array[String] = []
 	for i in 2:
 		var game := _game()
 		FixtureHandOverModes.hold(game, P2, &"tool")
 		FixtureHandOverModes.hold(game, P1, &"gift")
 		FixtureHandOverModes.hand_over(game, P1, P2)
+		FixtureHandOverModes.take_offer(game, P2, P1)
 		logs.append(str(game.view_of(P3).event_names()) + FixtureHandOverModes.signature(game))
 	assert_str(logs[0]).is_equal(logs[1])
 
@@ -203,9 +164,9 @@ func _game(world: WorldQuery = null, mode: GameMode = null) -> Match:
 	return game
 
 
-## P1 armed at the origin downs P2 (1 m north), and P3 (1.8 m from P1), holding an item of
-## `kind_id` (taken before the raise, as a take would stop it), starts raising P2.
-func _raising(kind_id: StringName) -> Match:
+## P1 armed at the origin downs P2 (1 m north), and P3 (1.8 m from P1), holding a gift (taken
+## before the raise, as a take would stop it), starts raising P2.
+func _raising() -> Match:
 	var mode := FixtureHandOverModes.handing(
 		FixtureItemModes.swapping(FixtureCombatModes.raising())
 	)
@@ -213,7 +174,7 @@ func _raising(kind_id: StringName) -> Match:
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
 	FixtureItemModes.stand(game, P3, Vector3(1.5, 0, 1))
-	FixtureHandOverModes.hold(game, P3, kind_id)
+	FixtureHandOverModes.hold(game, P3, &"gift")
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
@@ -248,7 +209,3 @@ func _counts(game: Match) -> Dictionary[int, int]:
 	for peer: int in [P1, P2, P3]:
 		counts[peer] = game.view_of(peer).event_names().size()
 	return counts
-
-
-func _last_picked(game: Match, peer: int) -> ItemPickedUpEvent:
-	return game.view_of(peer).events_named(&"ItemPickedUp").back() as ItemPickedUpEvent

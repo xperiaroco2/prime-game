@@ -1,10 +1,11 @@
 class_name TargetLiving
 extends Condition
 ## Passes when the rule's target player (Channels.target_of: the intent's `target`) is another
-## player, present and alive: not the actor itself, not downed, dead or gone (ARCHITECTURE §9.4;
-## #1389): the hand-over's receiver. Rejects with `not_living` (a player's life state is public:
-## KnockedDown, Died, the snapshot; so is who is present), and with `bad_args` when the target is
-## the actor itself (the sender knows its own id).
+## player, present, alive and standing: not the actor itself, not limp, downed, dead or gone
+## (ARCHITECTURE §9.4; #1389, #1434): the hand-over offer's receiver, the take's giver. Rejects with
+## `not_living` (a player's life state is public: KnockedDown, Died, the snapshot's `limp`; so is
+## who is present), and with `bad_args` when the target is the actor itself (the sender knows its
+## own id).
 
 const NOT_LIVING := &"not_living"
 
@@ -26,7 +27,7 @@ func _test(ctx: MatchContext) -> bool:
 	if peer == ctx.actor:
 		return false
 	var target := ctx.state.player(peer)
-	return target != null and target.life == PlayerState.Life.ALIVE
+	return target != null and target.life == PlayerState.Life.ALIVE and not target.is_limp()
 
 
 func _reason() -> StringName:
