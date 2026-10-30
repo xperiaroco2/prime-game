@@ -40,7 +40,14 @@ func test_a_cancelled_countdown_keeps_the_tap_and_countdown_done_clears_it() -> 
 
 
 func test_an_interact_on_the_cleared_tap_is_nothing_to_do() -> void:
-	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
+	var made := FixtureBar.mode()
+	# The round takes Interact here, so the intent reaches the rules (not `not_accepted`).
+	made.find_phase(&"round").accepts.append(
+		AcceptSpec.of(Intents.INTERACT, AcceptSpec.From.LIVING)
+	)
+	var game := FixtureBar.at_bar(made, [P1, P2])
+	var tap := FixtureBar.tap_id(game)
+	assert_int(tap).is_equal(1)
 	for peer: int in [P1, P2]:
 		FixtureBaseMode.ready(game, peer)
 	FixtureLobbyHands.through_countdown(game)
@@ -48,9 +55,9 @@ func test_an_interact_on_the_cleared_tap_is_nothing_to_do() -> void:
 		FixtureBaseMode.load_ack(game, peer)
 	FixtureBaseMode.through_pregame(game)
 	assert_str(game.phase_id()).is_equal("round")
-	FixtureModes.send(game, Intents.INTERACT, P1, {"station": 1}, 1)
-	var refused := FixtureModes.rejections(game, P1)
-	assert_bool(refused.has(&"nothing_to_do") or refused.has(&"not_accepted")).is_true()
+	FixtureModes.send(game, Intents.INTERACT, P1, {"station": tap}, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do"])
+	assert_object(Items.held_by(game.state, P1)).is_null()
 	assert_bool(game.state.stations.has(1) and game.state.stations[1].kind.id == &"tap").is_false()
 
 
