@@ -100,7 +100,7 @@ target = SubResource("Resource_h01")
 
 [sub_resource type="Resource" id="Resource_h22"]
 script = ExtResource("5_target")
-point = Vector3(-13.5, 0, -8.5)
+point = Vector3(-14, 0, -8.5)
 
 [sub_resource type="Resource" id="Resource_h23"]
 script = ExtResource("6_walk")
