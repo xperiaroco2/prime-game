@@ -72,6 +72,35 @@ func test_the_cap_vanishes_the_longest_lying_mug_and_never_refuses_spam() -> voi
 	assert_int((vanished[0] as ItemVanishedEvent).item).is_equal(first.id)
 
 
+## The flood guard (the base mode's tap has it): one peer pouring on every tick gets one pour per
+## Cooldown step and `too_soon` for the rest, so the events a pour emits to everyone stay bounded.
+func test_a_burst_of_pours_gets_one_per_cooldown_and_too_soon_for_the_rest() -> void:
+	var game := FixtureBar.at_bar(FixtureBar.guarded(), [P1, P2])
+	var step := Ticks.from_seconds(FixtureBar.POUR_S)
+	assert_int(step).is_greater(1)
+	var sends := 2 * step + 1
+	for seq in sends:
+		FixtureBar.pour(game, P1, seq + 1)
+		FixtureModes.run_ticks(game, 1)
+	var refused := FixtureModes.rejections(game, P1)
+	assert_array(refused).has_size(sends - 3)
+	for reason: StringName in refused:
+		assert_str(String(reason)).is_equal("too_soon")
+	assert_int(game.state.player(P1).carried_items().size()).is_equal(3)
+	assert_array(game.view_of(P2).events_named(&"ItemSpawned")).has_size(3)
+	assert_array(FixtureModes.rejections(game, P2)).is_empty()
+
+
+func test_the_pour_cooldown_is_per_player() -> void:
+	var game := FixtureBar.at_bar(FixtureBar.guarded(), [P1, P2])
+	FixtureBar.pour(game, P1, 1)
+	FixtureBar.pour(game, P2, 1)
+	FixtureBar.pour(game, P1, 2)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"too_soon"])
+	assert_array(FixtureModes.rejections(game, P2)).is_empty()
+	assert_object(Items.held_by(game.state, P2)).is_not_null()
+
+
 func test_with_every_mug_held_a_pour_is_unavailable() -> void:
 	var game := FixtureBar.at_bar(FixtureBar.mode(), [P1, P2])
 	for seq in FixtureBar.MUGS:

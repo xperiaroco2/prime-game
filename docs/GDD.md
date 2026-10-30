@@ -99,7 +99,8 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     voice chat for a while. Too much: you fall limp like a rag doll, the others can push you around, and you get up by
     yourself after a moment. Provisional numbers (#1390, the engineer tunes them): at most 12 mugs at once, a full
     mug put down vanishes after 120 s and an empty one after 30 s; a mug adds 40 on a scale of 100, too much at 90
-    (the third mug); one point goes per second, so one mug lasts 40 s; the pour is instant and a mug is one drink.
+    (the third mug); one point goes per second, so one mug lasts 40 s; the pour is instant and a mug is one drink;
+    one player pours at most once per 0.25 s.
   - **The mirror** (same day, [#1095 c6473619521](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473619521)):
     you change your alien's colour, clothes and body shape (accessories such as hats and glasses were not picked). You
     see yourself in the mirror, your reflection, in first person. One wide mirror has several places; each player

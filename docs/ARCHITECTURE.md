@@ -2100,7 +2100,7 @@ does, and since #1388 Lobby and Countdown too, with `PickUp`, `PutDown`, `Swap`,
 names nothing, or a station or item with no `Interact` rule where the host looks for one (a station: its kind's actions, the sender's role's and the mode's; an item: its kind's `target_actions`; every one on the greybox, which deals no
 Generator), is `nothing_to_do` (`ChaosOracle._interact`), and only a target with the rule answers `?`; the lobby's
 tap (the bar, #1390), whose `Interact` rule's first condition is `AtStation`, is `out_of_reach` from a sender outside
-its cylinder, and `?` inside it (the hostile's spots keep it far; chaos bot 3 pours and drinks there, and
+its cylinder, and `?` inside it, where its pour's `Cooldown` can also answer `too_soon` (the hostile's spots keep it far; chaos bot 3 pours and drinks there, and
 `ScenarioInvariants.drunk_problem` checks every peer's drunk value each tick). Since
 #770 its `station` and `item` are both optional (0xFFFF, none), so the hostile sends four shapes
 (`ChaosHostile._interact_args`): a station id from 0 to 9, an item it knows or none, both, and neither; and no field
@@ -8144,7 +8144,8 @@ Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
 #### 9.5.26 The bar (lobby, #1390; provisional numbers)
 
 GDD §3 Base mode, "The bar". `content/stations/tap.tres` (radius 1.5 m, height 2 m; its Interact at the tap and in
-sight runs `GiveItem(mug)`), `content/items/mug.tres` (one-handed, at most 12, vanishing 120 s after it is put
+sight, paying `Cooldown(tap_pour, 0.25 s)` last as the flood guard the cooking boxes have (CE17: one pour per
+5 ticks per player, `too_soon` for the rest), runs `GiveItem(mug)`), `content/items/mug.tres` (one-handed, at most 12, vanishing 120 s after it is put
 down; its Use runs `Drink(mug_empty, 40)`), `content/items/mug_empty.tres` (one-handed, at most 12, vanishing
 after 30 s, no Use). The base mode's `PlayerRules`: `drunk_max` 100, `drunk_too_much_at` 90 (the third mug),
 `drunk_point_s` 1.0 (one mug lasts 40 s). The Lobby and Countdown list `StationTicks(tap)` and `DrunkTicks`;
@@ -8558,7 +8559,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   `bar_pour_drink_and_sober_up` (#1390, provisional: bot 1 walks to the lobby's tap, pours a mug, drinks it, its own
   drunk value is 36 to 40 and back to 0 within 45 s at the base mode's provisional numbers, and bot 2 sees the same
   value on bot 1's avatar; both get ready and the round starts), `bar_overdrinks` (#1390, provisional: bot 1 drinks
-  three mugs, past the `drunk_too_much` threshold of 90, which bot 2 sees too; the round's placement sobers bot 1),
+  three mugs, waiting 0.5 s after a drink before the next pour (the tap's `Cooldown`), past the `drunk_too_much`
+  threshold of 90, which bot 2 sees too; the round's placement sobers bot 1),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; #1377: a `Draw` in the lobby of the place already in the hand is `same_place` (since #1388; `not_accepted` before the lobby took the hand), one of place 3 in the round `no_such_place`, one of the place already in the hand `same_place`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).

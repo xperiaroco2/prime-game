@@ -123,6 +123,38 @@ func test_a_package_held_in_the_hall_never_reaches_the_round() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## The tap's flood guard (like the cooking boxes' CE17): its pour pays a Cooldown last, so a client
+## spamming Interact at the tap gets `too_soon`, not a pour (and its events to everyone) per tick.
+func test_the_tap_s_pour_has_a_cooldown_as_its_flood_guard() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var taps := Stations.kinds_in(mode).filter(
+		func(kind: StationKind) -> bool: return kind.id == &"tap"
+	)
+	assert_array(taps).has_size(1)
+	var pours := (taps[0] as StationKind).actions.filter(
+		func(rule: Rule) -> bool: return rule.trigger == Intents.INTERACT
+	)
+	assert_array(pours).has_size(1)
+	var conditions := (pours[0] as Rule).conditions
+	assert_object(conditions[0]).is_instanceof(AtStation)
+	var guard := conditions[conditions.size() - 1] as Cooldown
+	assert_object(guard).is_not_null()
+	assert_str(String(guard.key)).is_equal("tap_pour")
+	assert_bool(Ticks.from_seconds(guard.seconds) >= 2).is_true()
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.state.map = GREYBOX
+	game.keep_history = true
+	assert_bool(game.start(0)).is_true()
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.join(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	var marker := _layouts_for(mode)[mode.lobby_level].positions(&"tap")[0]
+	FixtureItemModes.stand(game, P1, marker + Vector3(0.5, 0, 0.5))
+	FixtureBar.pour(game, P1, 1)
+	FixtureBar.pour(game, P1, 2)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"too_soon"])
+
+
 func test_the_hall_s_tap_pours_a_beer_that_lasts_into_the_countdown_only() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var layouts := _layouts_for(mode)

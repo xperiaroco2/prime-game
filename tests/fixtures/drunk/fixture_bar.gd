@@ -22,6 +22,8 @@ const AMOUNT := 40
 const MAX := 100
 const TOO_MUCH := 90
 const POINT_S := 1.0
+const POUR_KEY := &"tap_pour"
+const POUR_S := 0.25
 
 
 static func mode() -> GameMode:
@@ -65,6 +67,19 @@ static func mode() -> GameMode:
 	for row: Transition in made.transitions:
 		if row.from == &"countdown" and row.outcome == CountdownPhase.COUNTDOWN_DONE:
 			row.actions.append(ClearStations.new())
+	return made
+
+
+## mode() with the base mode's flood guard on the pour: a Cooldown of POUR_S on the key POUR_KEY
+## after the tap's conditions (the other tests pour on one tick, so mode() leaves it out).
+static func guarded() -> GameMode:
+	var made := mode()
+	var cooldown := Cooldown.new()
+	cooldown.key = POUR_KEY
+	cooldown.seconds = POUR_S
+	for kind: StationKind in Stations.kinds_in(made):
+		if kind.id == &"tap":
+			kind.actions[0].conditions.append(cooldown)
 	return made
 
 

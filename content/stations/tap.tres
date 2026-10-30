@@ -8,12 +8,18 @@
 [ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="6_in_sight"]
 [ext_resource type="Script" uid="uid://b10tnmbnqauwo" path="res://core/items/give_item.gd" id="7_give"]
 [ext_resource type="Resource" uid="uid://dmugfull1barq" path="res://content/items/mug.tres" id="8_mug"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="9_cooldown"]
 
 [sub_resource type="Resource" id="Pour_at"]
 script = ExtResource("5_at_station")
 
 [sub_resource type="Resource" id="Pour_sight"]
 script = ExtResource("6_in_sight")
+
+[sub_resource type="Resource" id="Pour_cooldown"]
+script = ExtResource("9_cooldown")
+key = &"tap_pour"
+seconds = 0.25
 
 [sub_resource type="Resource" id="Pour_give"]
 script = ExtResource("7_give")
@@ -22,7 +28,7 @@ kind = ExtResource("8_mug")
 [sub_resource type="Resource" id="Rule_pour"]
 script = ExtResource("2_rule")
 trigger = &"Interact"
-conditions = Array[ExtResource("3_condition")]([SubResource("Pour_at"), SubResource("Pour_sight")])
+conditions = Array[ExtResource("3_condition")]([SubResource("Pour_at"), SubResource("Pour_sight"), SubResource("Pour_cooldown")])
 effects = Array[ExtResource("4_effect")]([SubResource("Pour_give")])
 
 [resource]
@@ -31,4 +37,5 @@ id = &"tap"
 spawn_tag = &"tap"
 radius_m = 1.5
 height_m = 2.0
+palette = null
 actions = Array[ExtResource("2_rule")]([SubResource("Rule_pour")])
