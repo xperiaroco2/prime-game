@@ -5116,10 +5116,11 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   Headless (`enabled` false by `DisplayServer`) nothing renders and the flash ends at its 1 s fallback.
 - **Showing them.** `ItemViews` sets a photo view's picture while its look is shown within `PICTURE_RANGE_M` 12 m of
   the drawing camera, else none (so the material holds no texture and `PhotoPictures` frees it); the own hand and
-  the spectate hand (`LifeView`) show the held photo's, keyed on the item id. The primary button with a photo in the
-  own hand holds it up close (`FirstPersonHand.set_close`: in front of the eye, facing it, 2.2 times larger) or
-  back, sending nothing (a photo has no Use rule); a hand change, a knockdown or death, the viewfinder and the keys
-  no longer listening end it. Sizes, range and frames are placeholders, "not a decision".
+  the spectate hand (`LifeView`) show the held photo's, keyed on the item id. The secondary button (`use_secondary`,
+  RMB, #1444) with a photo in the own hand holds it up close (`FirstPersonHand.set_close`: in front of the eye,
+  facing it, 2.2 times larger) or back, sending nothing (a photo has no UseSecondary rule); the primary button sends
+  Use, the fallback hit (#1437); a hand change, a knockdown or death, the viewfinder and the keys no longer
+  listening end it. Sizes, range and frames are placeholders, "not a decision".
 - **Memory** (`tools\run.cmd shot client/dev/photo_memory_preview.tscn --frames 450`, the greybox puppets, two
   to a shot, measured 2026-10-15 on the engineer's PC, Vulkan Forward+, 1280x720): 20 pictures kept are 172 KB
   of JPEG; PE15's worst case of 224 (32 films x 5 frames plus 64 photos) 1.9 MB, about 8.6 KB each, well under
