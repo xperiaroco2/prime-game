@@ -6680,15 +6680,22 @@ height 2.0 m, placeholders, not a decision; the estate house's `ChairSeat01`, a 
   than `MOVE_EPSILON` with no other living player near enough to push it (the push allowance's test) ends it, input
   bits or not, as the coasting allowance grants walk speed whatever `moving` says; a posing client holds its body
   still. A push by another player leaves the watcher seated: "any move" reads as the watcher's own (an engineer's
-  question in #1296's PR). A placement, a knockdown, a death (`LifeRules._to_dead`, also a kill of a living
+  question in #1296's PR). A placement, a knockdown, the limp (`LifeRules.go_limp`, §7.1.21), a death (`LifeRules._to_dead`, also a kill of a living
   player from the chair), a respawn and a reset (`MatchState.reset_player`) end it as they end the crouch.
+- **With the limp and the drink** (#1383, rebased on #1393; Answered:
+  https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155, the recommendation, option a). A limp
+  player cannot pose: `Pose` is a player action, which `Match._accepts` refuses a limp player (`not_accepted`), and
+  `ItemInteractions._acts` reads `body_life_of`, so the key sends nothing. A posed player that goes limp leaves the
+  pose: `go_limp` clears `posed` and touches its `SelfStatusFeed` (`limp_test`). Drunk and pose do not exclude each other:
+  a drunk watcher may sit (no rule says otherwise), the sway and drift are the walking client's feel (§7.1.20) and a
+  seated body makes no move, and `SelfStatus` carries both numbers (`drunk` before `posed`).
   Picking up, using or swapping does not.
 - **The look.** A posed remote avatar plays `AvatarClips.SEATED`, still at any drawn speed (`SnapshotBuffer.Pose.posed`,
   the snapshot's at or before the drawn tick, never blended; §4.7.53's table). The art set has no seated clip yet,
   so `SEATED` is `Idle` (`Crouch_Idle` if also crouched): blocked on art. The host keeps the standing capsule and eye
   for a posed player (strikes, sight, the photo eye), and `ShotTaken`'s record carries no posed bit; a seated clip,
   capsule and eye are the engineer's to decide, and a photo that draws the pose then needs the bit (a protocol bump).
-- **The own client** (#1383, protocol 38). The snapshot skips the viewer's own living avatar, so the poser learns
+- **The own client** (#1383, protocol 41). The snapshot skips the viewer's own living avatar, so the poser learns
   its pose from `SelfStatus`'s `posed` (kind 54, last; only to that player, as every `SelfStatus`): `TakePose` and
   every end of a pose (the movement rule, a placement, a knockdown, a death, a respawn) touch its `SelfStatusFeed`,
   whose record compares `posed` with the numbers, so a change sends one at the end of the tick (a reset clears the
