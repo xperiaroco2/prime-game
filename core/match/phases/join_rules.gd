@@ -45,10 +45,11 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## this build can read (§4.3). Accepted: the joiner gets its number from its `key`
 ## (MatchState.give_number: a returner its old one, anyone else the next), is named (joiner_name),
 ## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
-## with a new epoch; Welcome (the joiner), PlayerJoined and
-## SettingsChanged (everyone). A name or a key is never a reason to refuse: a bad name falls back,
-## an unusable key is none (P7 (a)). `spec` is the phase's own (its id goes into Welcome, its
-## level decides the spot).
+## with a new epoch; Welcome (the joiner), PlayerJoined (everyone), a StationPlaced (everyone)
+## for each standing station in id order (_replay_stations: the lobby's tap, #1390, a stopgap
+## until Welcome carries the stations, #1404) and SettingsChanged (everyone). A name or a key
+## is never a reason to refuse: a bad name falls back, an unusable key is none (P7 (a)). `spec`
+## is the phase's own (its id goes into Welcome, its level decides the spot).
 static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
