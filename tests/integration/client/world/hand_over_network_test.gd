@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## player aiming at its eye, and the moment its HandOverUse names the host it stops and presses E,
 ## as a player would. The host accepts the HandOver (no Rejected) and the gift is in the host
 ## player's hand on both Games. The prompt shows only with a handable item in the hand and a living
-## player in reach under the crosshair.
+## player in reach under the crosshair, with nothing else E would do there (a raise wins) and the
+## line from eye to eye clear of the level.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The most physics frames a walk takes.
@@ -29,6 +30,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Input.action_release(&"interact")
 	_pair.free()
 
 
@@ -43,7 +45,16 @@ func test_e_aimed_at_a_living_player_in_the_lobby_hands_the_gift_over() -> void:
 	var keys := _pair.client.items().hand_over
 	assert_bool(await _walk_in(player, keys, host)).is_true()
 	assert_str(keys.cue()).is_not_empty()
-	assert_int(keys.hand_over()).is_greater(0)
+	# E from the device, as in the game: the joiner's Game reads the devices for the press (NetPair's
+	# read none; Game._process hands the flag on to its keys each frame).
+	_pair.client.device_input = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Input.action_press(&"interact")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Input.action_release(&"interact")
+	_pair.client.device_input = false
 	for i: int in ANSWER_FRAMES:
 		if _held_on_both(host, gift) or not _rejected.is_empty():
 			break
@@ -89,6 +100,73 @@ func test_the_prompt_shows_only_for_a_handable_hand_item_and_a_player_in_reach()
 	assert_int(keys.target()).is_equal(0)
 	assert_str(keys.cue()).is_empty()
 	await _pair.stop()
+
+
+func test_another_target_of_e_wins_over_the_hand_over() -> void:
+	assert_bool(await _pair.start()).is_true()
+	var host := _pair.peer_of(_pair.host)
+	var player := _pair.client.player()
+	var keys := _pair.client.items().hand_over
+	await _give_gift(_pair.peer_of(_pair.client))
+	assert_bool(await _pair.walk_to(player, Vector3(0, 0, -1.2))).is_true()
+	_pair.aim(player, _eye_of(_pair.host.player()))
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(host)
+	# A downed player E would raise (LifeView.raise_target, stood in for here): E raises, so no
+	# hand-over target, no prompt and nothing sent.
+	var raise := keys.raise_target
+	keys.raise_target = func() -> int: return host
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(0)
+	assert_str(keys.cue()).is_empty()
+	assert_int(keys.hand_over()).is_equal(-1)
+	keys.raise_target = raise
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(host)
+	await _pair.stop()
+
+
+func test_a_wall_between_the_eyes_hides_the_prompt() -> void:
+	assert_bool(await _pair.start()).is_true()
+	var host := _pair.peer_of(_pair.host)
+	var player := _pair.client.player()
+	var keys := _pair.client.items().hand_over
+	await _give_gift(_pair.peer_of(_pair.client))
+	assert_bool(await _pair.walk_to(player, Vector3(0, 0, -1.2))).is_true()
+	# The crosshair on the host's chest: the camera's ray hits the body below the eyes' line.
+	var chest := _eye_of(_pair.host.player()) + Vector3.DOWN * 0.7
+	_pair.aim(player, chest)
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(host)
+	# A thin bar of the level across the line from eye to eye, above the camera's ray to the chest
+	# (the host's TargetInSight `at_eye` refuses): no target, no prompt.
+	var eye := player.get_camera().global_position
+	var bar := _bar((eye + _eye_of(_pair.host.player())) * 0.5)
+	_pair.client.get_parent().add_child(bar)
+	_pair.aim(player, chest)
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(0)
+	assert_str(keys.cue()).is_empty()
+	bar.get_parent().remove_child(bar)
+	bar.free()
+	_pair.aim(player, chest)
+	await _pair.frames(3)
+	assert_int(keys.target()).is_equal(host)
+	await _pair.stop()
+
+
+## A 1 m wide bar of the level, 0.2 m high and 0.05 m deep, centred at `center`.
+func _bar(center: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = PhysicsLayers.WORLD
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.0, 0.2, 0.05)
+	shape.shape = box
+	body.add_child(shape)
+	body.position = center
+	return body
 
 
 ## A one-handed, handable kind, as the full mug is.
