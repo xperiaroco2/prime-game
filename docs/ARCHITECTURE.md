@@ -6247,16 +6247,16 @@ height above them (each `capsule_height_m`, or `crouch_height_m` while crouched,
 runs from the attacker's eye (`Items.eye_of`, the floor below plus the eye height, crouched or not) to the middle
 of the target's capsule, crouched or not. A facing with no
 horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
+cooldown is a `Cooldown` cost with the key `hit` in the knife's rule and the fallback's, recorded per player in
 `MatchState`. #1437's `Strike.damage_to` picks the pair first (`two_handed_damage` and `two_handed_back_damage`
 while the hand item is two-handed and `two_handed_damage` is set, else `damage` and `back_damage`), then its back
 value from behind when set, else its front; `Strike.is_behind` is the rear-half test. Tests:
 `tests/unit/combat/strike_back_test.gd`, `tests/unit/content/base_mode_melee_test.gd`.
->>>>>>> c8ba1d09a (docs(architecture): every hand hits, the back damage and the rear half (#1437))
 A hit to 0 health knocks the victim down (§3.5), except in a phase whose `PhaseSpec.hit_limp` names a `GoLimp` (the
 base mode's Lobby and Countdown, #1439): there it lays the victim limp for that `limp_s` instead, launched as the
 knockdown would be, and the victim gets up at full health (§7.1.21, Hit). A hit there damages as in the round
 (`Damaged`, `SelfStatus`, `Swung` as above); nobody is knocked down, dies or respawns in the hall.
-=======
+
 #### 7.1.11 Pick up and swap
 The client names the item; the host checks reach and line of sight from its own positions.
 The picked item goes to the hand, except a one-handed pick beside a two-handed hand item, which goes onto the belt (below, CE21) (vision revision 1, Two hands; M4-5, #141). The hand and the two belt slots are three places (GDD §6, #1218; §9.5.14): the picked item goes into the place in the hand when it is empty; beside a one-handed hand item into the lowest free place, which comes into the hand, the hand item staying in its place on the belt; with all three places full the hand item drops at the taker's feet first (`ItemPlaced` `put_down`); a two-handed hand item, the package, with a two-handed picked item rests where the picked-up one lay, a spot already known to
@@ -7699,9 +7699,9 @@ Settings: the fallback's costs and effect are the knife's kinds with the enginee
 a two-handed hand item 20 front, 40 back; the knife's launch, 4 m/s away and 2 m/s up, "not a decision"). No
 condition on the hand or the role: the public `Swung` reveals no role.
 Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Round, Lobby and Countdown
-accept it from the living only). Until #1439 makes a hall hit limp, a hit to 0 health in the Lobby or the Countdown
-knocks down as in the round (`LifeTicks`: the knockdown's 10 s, then a death and a respawn at a `lobby_player`
-marker after 30 s). The damage carries over too: health, a knockdown and a death are reset only by `ResetMatch` (End to Lobby), not at the countdown's end, so a player hit in the hall can start the round hurt, downed or dead, until #1439 (its countdown end gets everyone up with full health). A mode without a `Use` rule still answers an empty hand `nothing_to_do`.
+accept it from the living only). A hit to 0 health in the Lobby or the Countdown lays the victim limp, not down
+(the phase's `hit_limp`, #1439, §7.1.10); nobody dies or respawns in the hall. A mode without a `Use` rule still
+answers an empty hand `nothing_to_do`.
 Code: the knife's (above); the fallback is `Rule_use` in the actions of `content/modes/base_mode.tres`
 (provisional under the MVP content ADR, approved by the engineer on #1095 and #1437); `Use` is in Round's, Lobby's
 and Countdown's allowlists there.
