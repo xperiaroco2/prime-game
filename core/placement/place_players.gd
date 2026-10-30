@@ -48,7 +48,7 @@ func run(ctx: MatchContext) -> void:
 		var was_posed := player.posed
 		player.posed = false
 		# A limp body never outlasts a placement (#1393): StopBody frees the host's body.
-		LifeRules.clear_limp(ctx, player)
+		LifeRules.clear_limp(ctx, player, true)
 		if player.sober() or was_posed:
 			SelfStatusFeed.touch(ctx.state, player.peer)
 		player.velocity = Vector3.ZERO

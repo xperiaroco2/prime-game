@@ -101,7 +101,8 @@ class KillQueue:
 
 
 ## `peer` takes `amount` thousandths of damage. Damaged (the victim), its SelfStatus touched, and
-## at 0 health knock_down(). A player who is not alive takes none: that is a rule error, logged.
+## at 0 health knock_down(), or go_limp() in a phase with a PhaseSpec.hit_limp (#1439). A player who
+## is not alive takes none: that is a rule error, logged.
 ## An invulnerable player takes none and gets no Damaged, with no error: invulnerability blocks
 ## every damage source, not only the strikes that Strike.targets already skips.
 static func damage(ctx: MatchContext, peer: int, amount: int, launch := Vector3.ZERO) -> void:
@@ -542,9 +543,9 @@ static func push_limp(ctx: MatchContext, peer: int, velocity: Vector3) -> void:
 
 ## Ends `player`'s limp, if it has one, with no get-up: its body's motion ends (StopBody) and the
 ## caller places it (a placement, a knockdown). A hit's limp (LimpState.refill) ends at full health
-## when `refill` (a placement, a leave; a knockdown passes false: the downed keep their health,
+## when `refill` (a placement, a leave pass true; a knockdown passes false: the downed keep health,
 ## #1439). Nothing when it is not limp.
-static func clear_limp(ctx: MatchContext, player: PlayerState, refill := true) -> void:
+static func clear_limp(ctx: MatchContext, player: PlayerState, refill: bool) -> void:
 	if player == null or not player.is_limp():
 		return
 	var refilled := refill and player.limp.refill
