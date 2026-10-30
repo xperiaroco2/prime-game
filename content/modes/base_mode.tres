@@ -347,6 +347,7 @@ cooldown_s = 0.25
 
 [sub_resource type="Resource" id="Limp_end"]
 script = ExtResource("179_end_limps")
+restore_health = true
 
 [sub_resource type="Resource" id="Offer_ticks"]
 script = ExtResource("184_offer_ticks")
@@ -369,6 +370,7 @@ tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), Su
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
+hit_limp = SubResource("Limp_go")
 
 [sub_resource type="Resource" id="Accept_countdown_hello"]
 script = ExtResource("6_accept")
@@ -436,6 +438,7 @@ tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), Su
 voice_rule = SubResource("Voice_countdown")
 level = 1
 snapshots = true
+hit_limp = SubResource("Limp_go")
 
 [sub_resource type="Resource" id="Accept_loading_ack"]
 script = ExtResource("6_accept")

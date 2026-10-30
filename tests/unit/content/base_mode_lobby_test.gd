@@ -101,6 +101,8 @@ func test_countdown_done_clears_the_items_and_a_cancel_does_not() -> void:
 			assert_object(row.actions[0]).is_instanceof(ClearItems)
 			assert_object(row.actions[1]).is_instanceof(ClearStations)
 			assert_object(row.actions[2]).is_instanceof(EndLimps)
+			# The hall's hits end with the countdown: everyone back at full health (#1439).
+			assert_bool((row.actions[2] as EndLimps).restore_health).is_true()
 			assert_object(row.actions[3]).is_instanceof(EndOffers)
 		else:
 			assert_array(row.actions).is_empty()
@@ -118,6 +120,22 @@ func test_too_much_runs_the_limp_reaction() -> void:
 					found.append(effect as GoLimp)
 	assert_int(found.size()).is_equal(1)
 	assert_float(found[0].limp_s).is_equal(6.0)
+
+
+func test_a_hit_to_zero_in_the_hall_lays_limp_for_the_drinks_time() -> void:
+	# #1439: Lobby and Countdown share the drink's GoLimp (one 6 s, provisional) as their hit_limp;
+	# every other phase knocks down.
+	var mode := load(BASE_MODE) as GameMode
+	var drunk: GoLimp = null
+	for rule: Rule in mode.reactions:
+		if rule.trigger == Facts.DRUNK_TOO_MUCH:
+			drunk = rule.effects[0] as GoLimp
+	assert_object(drunk).is_not_null()
+	for spec: PhaseSpec in mode.phases:
+		if spec.id in [&"lobby", &"countdown"]:
+			assert_object(spec.hit_limp).is_same(drunk)
+		else:
+			assert_object(spec.hit_limp).is_null()
 
 
 func test_a_package_held_in_the_hall_never_reaches_the_round() -> void:
