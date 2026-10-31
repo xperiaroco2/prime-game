@@ -1,6 +1,6 @@
 class_name StationState
 extends RefCounted
-## One placed task station in MatchState (ARCHITECTURE §9.1): a delivery circle or a zone (#36),
+## One placed station in MatchState (ARCHITECTURE §9.1): a delivery circle or a zone (#36),
 ## an invisible cylinder standing on the floor at its marker. Public: StationPlaced shows it to
 ## everyone.
 
@@ -15,6 +15,12 @@ var position := Vector3.ZERO
 var colour := Color.WHITE
 ## Shown as done (a delivered package's circle, a zone that reached its time).
 var done := false
+## A world toggle's state (#1295, ToggleStation): on (the bookcase open, the cover lifted). Public,
+## told by SwitchChanged; shared by every station of its toggle. False for every other station.
+var on := false
+## A world toggle's index (PlaceToggles): the ordinal of its marker among its kind's, which is its
+## ordinal among the stations of its kind in id order. 0 for every other station.
+var index := 0
 
 
 func _init(station_id: int, station_kind: StationKind, at: Vector3, station_colour: Color) -> void:

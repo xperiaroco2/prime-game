@@ -338,3 +338,6 @@ static func _replay_stations(ctx: MatchContext) -> void:
 	for id: int in ids:
 		var station := ctx.state.stations[id]
 		ctx.emit(StationPlacedEvent.new(id, station.kind.id, station.colour, station.position))
+		# An open world toggle (#1295): its StationPlaced just made every copy off.
+		if station.on:
+			ctx.emit(SwitchChangedEvent.new(id, true))

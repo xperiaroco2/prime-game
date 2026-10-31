@@ -98,6 +98,7 @@ func _check_mode(mode: GameMode) -> void:
 	warnings.append_array(WinCondition.mode_warnings(mode))
 	_walk(mode, "mode", mode, {})
 	errors.append_array(StationRuleCheck.kind_problems(mode))
+	errors.append_array(StationRuleCheck.toggle_owner_problems(mode))
 	_check_ticking(mode)
 	_check_vanishing(mode)
 	_check_rules(mode)
