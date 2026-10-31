@@ -1039,7 +1039,7 @@ directive has no row, because it reaches no peer.
 |---|---|---|---|---|---|
 | 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; 16 `posed`, #1296: only a living player, §7.1.19; 32 `limp`, #1393: only a living player lying limp, §7.1.21; other bits 0), `drunk: u8` (#1390, §7.1.20: how drunk the player is, 0..`PlayerRules.drunk_max`, the same for every peer), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down or limp (§5) | 410 (9 avatars); 1024 (16 avatars: 773; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
-| 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
+| 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 101 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `strength: u8` (how strongly the speaker's voice is changed for this listener, 0 for not at all, from the phase's voice rule, #1392, §6.6) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for and its strength. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 59 (one 45 B frame), 9 frames: 491; 1024 |
 
 The rules of the table:
 - **Kinds.** 0 is the transport's (`ADMIT`, and ENet's refusal, §4 "Joining"); 1 to 27 are intents (26 and 27
@@ -1073,7 +1073,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21), 40 since #1393 added the avatar's `limp` flag (32), no `ShotTaken` change, 41 since #1383 added `SelfStatus`' `posed` (54), no `ShotTaken` change, 42 since #1434 added `TakeOffer` (22), `CancelOffer` (23), `OfferMade` (87) and `OfferEnded` (88), 43 since #1438 added `UseSecondary` (24) and moved the debug kinds `ForceRole` and `ForceClock` from 24 and 25 to 28 and 29, 44 since #1404 added `Welcome`'s `items` (33) and raised its cap to 8192, 45 since #1295 let `SwitchChanged` (70) name a world toggle's station, whose level parts an older client would not move (no row changed). 46 since #1453 added `EngineProblemOpened` (89), `EngineProblemFixed` (90) and `EngineBlast` (91), 47 since #1461 added `GillFlipped` (92), `BreakerChain` (93) and `CrystalChanged` (95), 48 since #1398 added `Flippers` (25) and `PinballState` (94). M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21), 40 since #1393 added the avatar's `limp` flag (32), no `ShotTaken` change, 41 since #1383 added `SelfStatus`' `posed` (54), no `ShotTaken` change, 42 since #1434 added `TakeOffer` (22), `CancelOffer` (23), `OfferMade` (87) and `OfferEnded` (88), 43 since #1438 added `UseSecondary` (24) and moved the debug kinds `ForceRole` and `ForceClock` from 24 and 25 to 28 and 29, 44 since #1404 added `Welcome`'s `items` (33) and raised its cap to 8192, 45 since #1295 let `SwitchChanged` (70) name a world toggle's station, whose level parts an older client would not move (no row changed). 46 since #1453 added `EngineProblemOpened` (89), `EngineProblemFixed` (90) and `EngineBlast` (91), 47 since #1461 added `GillFlipped` (92), `BreakerChain` (93) and `CrystalChanged` (95), 48 since #1398 added `Flippers` (25) and `PinballState` (94). 49 since #1392 added the `VoiceBatch` frame's `strength` (114). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1273,7 +1273,10 @@ limit in §6.5.1). After a freeze of the host or of the speaker, at most the new
 placeholder) per speaker in one poll are relayed and the older ones dropped and counted: 5 s of backlog played late is
 worse than a gap (M5 tunes it). Unreliable messages go only to players, and a player has sent its `Hello`, so none
 overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
-playback are M5.
+playback are M5. Each frame carries its speaker's strength (#1392, §6.6): `Match.voice_strengths()` (speaker →
+1 to 255, from the phase's voice rule and the speaker's `drunk`), built in the same lazy build as the table
+(`refresh_lazily`'s third argument), so a frame's strength comes from the state of its routing and reaches only the
+listeners that hear the speaker; a speaker it does not list is sober (0).
 
 The send path encodes each frame once (#245) and batches per listener (M5-4b, #374): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
@@ -1770,7 +1773,11 @@ Compares what each bot b decoded with `view_of(b)`:
   from the voice rule, the distance invariant (M5-1, #215, below and §5). Since protocol 8 every frame arrives in a
   `VoiceBatch` and is checked as the `VoiceDown` it stands for; a batch with no frame fails too (M5-4b, #374: proven
   with a planted relay that batched a frame to listeners whose routing lacked its speaker, seen failing in
-  `voice_beyond_the_radius` with "voice of 2 under tick 124, which view_of does not allow", then reverted);
+  `voice_beyond_the_radius` with "voice of 2 under tick 124, which view_of does not allow", then reverted). Since
+  protocol 49 each frame's `strength` must be `view_of(b).effects[tick]` for its speaker (0 when it lists none), and
+  a speaker that `record_tick` saw sober after that tick has none (#1392; `host_session_voice_test` runs a drunk
+  lobby clean, then plants a changed strength and one of a sober speaker and sees both found, and fails without the
+  check);
 - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
   client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
   (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
@@ -3014,7 +3021,7 @@ follows the M5 ADR's checklist (its §3; §6 below).
 
 #### 4.7.15 Hearing voice (M5-5, #219)
 - `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
-  `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
+  `ClientSession.voice_received(speaker, seq, tick, opus, strength)` frames through one `VoiceSpeaker` per speaker on its
   `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6.5.4 Playback and the ears.
   `WorldSounds` plays on the Effects bus and measures its range from the viewport's current `AudioListener3D`.
 - `client/life/`: `Ears` (an `AudioListener3D`; `Ears.point()` and `lying_head()` are pure), placed by `LifeView`
@@ -3022,6 +3029,20 @@ follows the M5 ADR's checklist (its §3; §6 below).
   plays on the Music bus.
 - `client/audio/`: `AudioBuses` (Voice, Effects, Music), made by `Game._ready`. `Game` gives `VoiceViews` a
   `TwoVoipCodec` unless a test sets `voice_codec`; without the addon nothing is played and the game runs.
+- The drunk voice (#1392, §6.6): `voice_received` carries each frame's `strength` (0 to 255, the host's, §4.5.5).
+  `VoiceViews` keeps the last strength per speaker; while it is above 0 and the phase's voice rule (from the
+  client's own mode, as for the radius) has a `drunk_effect` the engine can make (`VoiceEffectBus.usable`: a class
+  under `AudioEffect` with that parameter; else one warning, the voice unchanged), the speaker plays on its own bus
+  `VoiceDrunk_<VoiceViews id>_<peer>` (`client/audio/VoiceEffectBus`), always found by name (buses are one set per
+  process and `remove_bus` shifts indices). The bus holds that one bus effect with the effect's `settings` and sends
+  where the muffle would have put the speaker (Voice, or VoiceMuffled behind the level), so the muffle and the slider
+  still apply; each physics frame sets the parameter to `VoiceEffect.value_at(strength, clock)`. A sober frame, the
+  speaker's leave or body, a reset and `_exit_tree` remove it. The own voice is never played, so the speaker never
+  hears its own change. Tests: `tests/integration/client/world/voice_views_drunk_test.gd` (on the real
+  AudioServer: the bus and its effect for a drunk speaker, the swing scaled by the strength, the send following the
+  muffle behind a wall, back on Voice and the bus gone at a sober frame, at the leave, with the body and at a reset;
+  no bus for a sober speaker, the own peer, a dropped frame or a phase with no effect). Not headless: how the wobble
+  sounds (its numbers are placeholders): the host/join listening check of §6.6.
 - `client/ui/`: the debug overlay's voice lines, one per speaker by index of first arrival (`DebugOverlay.voice_text`).
 - Tests: `tests/integration/client/world/voice_views_test.gd` (the rules over a hand-folded model, each seen failing on
   a plant: the dead check, the flush at the own `Died` and at a `KnockedDown`, the late frame stamped before a
@@ -5927,6 +5948,36 @@ radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bo
 Radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
 indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
+### 6.6 The drunk voice (#1392; GDD §3 "The bar")
+A drunk player's voice sounds changed to whoever hears it, for as long as it is drunk; who hears whom does not
+change. The host decides how strongly, from the public `drunk` value (§7.1.20), and tells each listener on the
+frames it relays; the listener's client does the audio (invariant 6).
+- **Data.** A voice rule's `drunk_effect` (`VoiceEffect`, `core/content/voice_effect.gd`, a content part): `id`,
+  `bus_effect` (the engine bus effect's class, named only in the mode's data: `core/` names no audio class),
+  `parameter` (the property it moves), `rest`, `swing`, `wobble_hz` and `settings` (the bus effect's other
+  properties). The value at strength s and time t is `rest + swing · s/255 · sin(2π · wobble_hz · t)` (no wobble at
+  0 Hz: `rest + swing · s/255`). No effect, or `swing` 0, leaves every voice unchanged; `check()` bounds the numbers
+  and needs a `bus_effect`, a `parameter` and `settings` keyed by property names.
+- **Strength.** `VoiceRule.effect_strength(state, speaker)`: 0 with no `drunk_effect` or a sober speaker, else
+  `drunk / drunk_max` of 255 rounded up (at least 1 while drunk, 255 at `drunk_max`), so the change fades with the
+  drunk value and is gone at 0. `Match.voice_strengths()` gives it per speaker for the phase's rule and
+  `voice_effects_for(l)` per speaker l hears (`speakers_for(l)` only), which `view_of` records as `effects` by tick;
+  the relay stamps it on each frame (§4.5.5, the `VoiceBatch` frame's `strength`, §4.3.5), so a pair that does not
+  hear carries nothing and the leak test proves it (§4.6.4). The effect's id is not on the wire: the listener reads
+  the effect from its own copy of the mode (the content hash matches it to the host's).
+- **Listener.** §4.7.15: a drunk speaker plays on its own bus with the effect, which sends to Voice or VoiceMuffled,
+  so the wall muffle applies on top; a sober speaker plays on Voice as before, with no bus. The speaker never hears
+  its own change (its own voice is never played; provisional, the engineer's word on #1392).
+- **The base mode** (provisional, the engineer approves it in the PR; numbers are placeholders, not a decision):
+  Lobby and Countdown, where the bar is, carry a slow pitch wobble (`AudioEffectPitchShift.pitch_scale`, rest 1.0,
+  swing 0.12, 0.6 Hz, `fft_size` 2, `FFT_SIZE_1024`); the Round's rule has none. Another kind of change is a data edit.
+- Tests: `tests/unit/content/voice_effect_test.gd`, `tests/unit/voice/voice_rule_effects_test.gd`,
+  `tests/unit/content/base_mode_lobby_test.gd` (the effect on Lobby and Countdown, none in Round), the wire tests of
+  §4.3.5 and §4.5.5, `host_session_voice_test.gd` and `voice_views_drunk_test.gd` (§4.7.15).
+- **Not verified from the command line:** how it sounds. A human listens on two machines (`tools\run.cmd host` /
+  `join`): drink at the bar, talk, and the other player hears the wobble grow with the drinks and fade as it wears
+  off, still muffled behind a wall; the drinker hears nothing of it.
+
 ## 7. Movement
 
 Client-side movement for the local player; the host checks speed and teleports; remote players are interpolated.
@@ -7556,6 +7607,7 @@ sizes `SettingsChanged`'s shortfalls by each type's `most_layout_problems()`.
 | `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | `core/voice/silent_voice.gd` (`SilentVoice`), with its radius (§9.4.6) |
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6.3, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | `core/voice/proximity_voice.gd` (`ProximityVoice`), with its radius (§9.4.6) |
 | `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | `core/voice/round_voice.gd`, with its radius (§9.4.6) |
+| `VoiceEffect` | a voice rule's `drunk_effect` (every voice rule has one; none by default) | how a drunk speaker's voice sounds to whoever hears it (#1392, §6.6): the engine bus effect `bus_effect`, its property `parameter` set to `rest + swing · strength/255 · sin(2π · wobble_hz · t)`; the strength is `VoiceRule.effect_strength` (0 sober, `drunk / drunk_max` of 255 rounded up); who hears whom is unchanged | `id`, `bus_effect`, `parameter`, `rest` and `swing` (−20000 to 20000), `wobble_hz` (0 to 5), `settings` (the bus effect's other properties); a `bus_effect` and a `parameter` are required | the routing per tick: each relayed frame carries its speaker's strength (§4.5.5); the listener plays it (§4.7.15) | `core/content/voice_effect.gd`; strengths in `core/content/voice_rule.gd` (`effect_strength`, `effects_of`) |
 
 #### 9.4.6 A voice rule's hearing radius (M5-1, #215; E41)
 Every voice rule answers `hearing_radius_m()`, the farthest it
@@ -7566,6 +7618,9 @@ players stand beyond it. `VoiceRule.speakers_of` reads each player's last accept
 `hears_at(state, listener, speaker, listener_at, speaker_at)`, which defaults to `hears` (#1282): a rule that measures
 distance (`ProximityVoice`, `RoundVoice`) overrides `hears_at` and compares the positions handed in with
 `VoiceRule.within_at`, the comparison `within` makes, its `hears` reading the positions and calling `hears_at`.
+A voice rule's `drunk_effect` changes how a voice sounds, never whom it reaches: `VoiceRule.effects_of(state,
+listener)` gives a strength only for a speaker in `speakers_of` (#1392, §6.6), and a rule's `check` refuses a
+`drunk_effect` in a mode with no `drunk_max` (`ProximityVoice` and `RoundVoice` call the base's).
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems
 (§3.3), and raises `clock_ended`.
