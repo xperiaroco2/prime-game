@@ -1,8 +1,8 @@
 {
   "repo": "xperiaroco2/prime-game-ui",
-  "tag": "ui-2.5.3",
-  "commit": "bac92fa16bc5847c1153177513caf2c4437b8d3c",
+  "tag": "ui-2.5.4",
+  "commit": "64438ffb0a3734a73879497ca90cf53e111889e4",
   "files": {
-    "strings.csv": "3788ae215c0d8f129af6581dce3d67ef0d44a4e3542f6b48dd889621201aa7ac"
+    "strings.csv": "75bd601ea1d6847b494b66a199741a9af93e5221ef8574b2bf75ec61d0e4bd5e"
   }
 }
