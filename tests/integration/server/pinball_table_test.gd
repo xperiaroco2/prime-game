@@ -83,6 +83,23 @@ func test_a_held_flipper_turns_up_in_two_frames_and_throws_the_ball() -> void:
 	assert_float(_table.flipper_angle(0)).is_equal(0.0)
 
 
+# The right flipper's rest mirrors the left one's: it turns the other way to throw the ball up.
+func test_a_held_right_flipper_throws_the_ball_up_the_table() -> void:
+	await _frames(1)
+	var swing := deg_to_rad(_table.spec().flipper_swing_deg)
+	# On the right flipper, halfway along it, resting.
+	_table.place_ball(Vector3(0.075, 0.03, 0.43), Vector3.ZERO)
+	_played.right = true
+	await _frames(2)
+	assert_float(_table.flipper_angle(1)).is_equal_approx(swing, 0.001)
+	assert_float(_table.flipper_angle(0)).is_equal(0.0)
+	var fastest := 0.0
+	for _i in 10:
+		await _frames(1)
+		fastest = minf(fastest, _table.ball_velocity().z)
+	assert_float(fastest).is_less(-0.5)
+
+
 func test_a_ball_with_no_flipper_held_falls_off_the_flipper() -> void:
 	await _frames(1)
 	_table.place_ball(Vector3(-0.075, 0.03, 0.43), Vector3.ZERO)
