@@ -20,11 +20,14 @@ class ScriptedTable:
 	var lose := false
 	var at := Vector3(0.25, 0.0, -0.5)
 	var steps := 0
+	## The left flipper as the last step() was handed it.
+	var seen_left := false
 	var _ball_game := 0
 	var _scripted: Array[MatchCommand] = []
 
 	func step(played: Pinball.Machine, _delta: float) -> void:
 		steps += 1
+		seen_left = played != null and played.left
 		if played == null or played.player < 0:
 			_ball_game = 0
 			return
@@ -126,6 +129,25 @@ func test_the_ball_reaches_every_client_from_the_tick_it_is_launched() -> void:
 		assert_int(last_tick).is_greater(lost_at)
 		assert_bool(client.view.snapshots[last_tick].has("ball")).is_false()
 	_check_every_client()
+
+
+func test_a_flipper_reaches_the_table_in_the_step_its_intent_is_applied() -> void:
+	var table := _started_with_table(1)
+	var game := _h.session.game
+	_h.own.send_intent(Intents.INTERACT, {"station": FixturePinball.machine_id(game), "item": -1})
+	_h.pump_seconds(0.5)
+	assert_int(Pinball.game(game.state).player).is_equal(OWN)
+	assert_bool(table.seen_left).is_false()
+	_h.own.send_intent(Intents.FLIPPERS, {"left": true, "right": false})
+	var applied := false
+	for _i in 30:
+		_h.pump()
+		if Pinball.game(game.state).left:
+			applied = true
+			break
+	assert_bool(applied).is_true()
+	# The table stepped after the tick that applied it: no frame waits for the next step.
+	assert_bool(table.seen_left).is_true()
 
 
 func test_a_host_with_physics_builds_its_table_and_reads_it_at_the_first_game() -> void:

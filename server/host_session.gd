@@ -12,12 +12,12 @@ extends RefCounted
 ## command; (2) refill every peer's budgets; (3) poll: arrivals and departures become PeerConnected
 ## and PeerLeft, intents are queued by arrival, voice is relayed right after the poll; (4) when
 ## the due tick has not run: one BodyMoved per body the host simulates (HostBodies.reports, in
-## peer-id order, KE14) at the head of the batch, then the pinball table's reports (`table`, which
-## steps every step after the poll against the game as of the last tick run: BallLaunched,
-## TargetHit, BallLost oldest first, then BallMoved), then every queued command, each stamped with
-## it, then Match.tick (step 1's catch-up gets no report: the physics did not run through it); (5)
-## every Match call's outbox slice is delivered as soon as it is taken; (6) snapshots for the
-## step's own tick; (7) the hello deadlines, in a step that ran (4) only.
+## peer-id order, KE14) at the head of the batch, then the pinball table's reports (`table`:
+## BallLaunched, TargetHit, BallLost oldest first, then BallMoved), then every queued command, each
+## stamped with it, then Match.tick (step 1's catch-up gets no report: the physics did not run
+## through it); (5) every Match call's outbox slice is delivered as soon as it is taken; (6)
+## snapshots for the step's own tick; (7) the hello deadlines, in a step that ran (4) only; last,
+## the table steps one physics frame against the game as of the last tick run, in every step.
 ##
 ## Delivery: an event is encoded once and sent to each of core/'s recipients in peer-id order,
 ## skipping peers this session disconnected and, from peer_left(p) until the call that applies
@@ -298,9 +298,6 @@ func step(now_usec: int) -> void:
 		_end(_end_after_poll)
 		return
 	_metered_voice()
-	# The table follows the game as of the last tick run, one physics frame each step.
-	if table != null:
-		table.step(Pinball.game(game.state), 1.0 / Engine.physics_ticks_per_second)
 	# 4. Apply, when the due tick has not run yet; else the queue waits for the next one.
 	if game.ticked_through() < due:
 		# The bodies' reports head the batch (KE14), then the table's: applied before every
@@ -320,6 +317,11 @@ func step(now_usec: int) -> void:
 		# 7. Deadlines, only after an apply: a queued Hello (one that waited out a host freeze, or
 		# read in a step with no tick due) is applied first.
 		_check_deadlines()
+	# The table follows the game as of the last tick run, one physics frame each step: after step 4,
+	# so a Flippers intent applied in this step turns its flipper in this physics frame (the
+	# physics server steps after _physics_process).
+	if table != null and is_running():
+		table.step(Pinball.game(game.state), 1.0 / Engine.physics_ticks_per_second)
 
 
 ## Ends the session: the owner's choice (the host quits, or its own client's load failed).
