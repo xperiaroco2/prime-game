@@ -217,6 +217,8 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 				found.append("peer %d received %s, which the scenario says never" % [peer, name])
 	if event is ShotTakenEvent:
 		found.append_array(_check_record(event as ShotTakenEvent))
+	if event is BoothStepEvent and (event as BoothStepEvent).step == BoothStepEvent.FLASH:
+		found.append_array(_check_flash(event as BoothStepEvent))
 	return found
 
 
@@ -375,6 +377,50 @@ func _positions_now() -> Dictionary[int, Vector3]:
 	for peer: int in _game.state.present_peers():
 		positions[peer] = _game.state.player(peer).position
 	return positions
+
+
+## The record invariant of a booth FLASH's `rows` (#1396), written apart from BoothSessions: each
+## row's peer is in `living` (present and ALIVE, a limp one too, never a downed one), named once,
+## at the position it has in `positions` (peer -> Vector3: the flash runs in the same Match call, so
+## it is exact up to the wire's 32-bit floats) and inside `station`'s cylinder.
+static func flash_problems(
+	rows: Array, station: StationState, living: PackedInt32Array, positions: Dictionary
+) -> PackedStringArray:
+	const SLACK_M := 0.001
+	var found := PackedStringArray()
+	var named := PackedInt32Array()
+	for row: Variant in rows:
+		var fields: Dictionary = row if row is Dictionary else {}
+		var peer: int = fields.get("peer", 0) if fields.get("peer") is int else 0
+		if not living.has(peer):
+			found.append("a booth FLASH row names peer %d, not present and alive" % peer)
+			continue
+		if named.has(peer):
+			found.append("a booth FLASH names peer %d twice" % peer)
+		named.append(peer)
+		var at: Vector3 = fields.get("position") if fields.get("position") is Vector3 else Vector3()
+		var was: Vector3 = positions.get(peer, Vector3.INF)
+		if at.distance_to(was) > SLACK_M:
+			found.append("a booth FLASH row puts peer %d at %s, not at %s" % [peer, at, was])
+		if not station.contains(was):
+			found.append("a booth FLASH row names peer %d outside the booth at %s" % [peer, was])
+	return found
+
+
+## The record invariant over a booth FLASH just emitted: the living now, their positions now, and
+## the booth station's cylinder.
+func _check_flash(flash: BoothStepEvent) -> PackedStringArray:
+	var state := _game.state
+	var station: StationState = state.stations.get(flash.station)
+	if station == null:
+		return PackedStringArray(
+			["a booth FLASH names station %d, which is not there" % flash.station]
+		)
+	var living := PackedInt32Array()
+	for peer: int in state.present_peers():
+		if _life_of(peer) == PlayerState.Life.ALIVE:
+			living.append(peer)
+	return flash_problems(flash.record, station, living, _positions_now())
 
 
 ## The recipients of `emitted` who are dead now and got it although some living peer present did
