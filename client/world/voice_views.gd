@@ -73,7 +73,7 @@ var _strengths: Dictionary[int, int] = {}
 var _drunk: Dictionary[int, VoiceEffectBus] = {}
 ## The effect of the current phase's voice rule, or null.
 var _effect: VoiceEffect
-## An effect VoiceEffectBus cannot make, warned once.
+## An effect VoiceEffectBus cannot make: warned once, and not tried again while it is the phase's.
 var _warned: VoiceEffect
 var _newest_tick := -1
 var _cutoff_m := 0.0
@@ -310,12 +310,13 @@ func _bus_of(peer: int, clear: StringName) -> StringName:
 	if strength <= 0 or _effect == null:
 		return clear
 	if drunk == null:
+		if _warned == _effect:
+			return clear
 		var bus_name := StringName("%s%d_%d" % [VoiceEffectBus.PREFIX, get_instance_id(), peer])
 		drunk = VoiceEffectBus.make(_effect, bus_name, clear)
 		if drunk == null:
-			if _warned != _effect:
-				_warned = _effect
-				push_warning("voice: the drunk effect %s names no usable bus effect" % _effect.id)
+			_warned = _effect
+			push_warning("voice: the drunk effect %s names no usable bus effect" % _effect.id)
 			return clear
 		_drunk[peer] = drunk
 	if not drunk.apply(strength, clear, now_usec() / 1000000.0):
@@ -324,8 +325,14 @@ func _bus_of(peer: int, clear: StringName) -> StringName:
 	return drunk.name
 
 
-## `peer`'s speaker casts no ray this frame: its next one sets the muffle without easing.
+## `peer`'s speaker casts no ray this frame: its next one sets the muffle without easing, and an
+## idle drunk speaker's bus is removed (the next frame played makes it again).
 func _rest(peer: int) -> void:
+	if _drunk.has(peer):
+		_release(peer)
+		var idle := speaker_of(peer)
+		if idle != null:
+			idle.bus = AudioBuses.VOICE
 	var muffle: Muffle = _muffles.get(peer)
 	if muffle != null:
 		muffle.rest()

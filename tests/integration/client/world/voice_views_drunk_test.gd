@@ -95,6 +95,40 @@ func test_a_sober_frame_puts_the_speaker_back_on_voice_and_removes_the_bus() -> 
 	assert_int(AudioServer.bus_count).is_equal(_buses)
 
 
+func test_an_idle_drunk_speaker_keeps_no_bus() -> void:
+	var speaker := await _talking(255)
+	assert_int(AudioServer.bus_count).is_equal(_buses + 1)
+	# It stops talking: nothing playing or waiting any more.
+	speaker.flush_now()
+	await _physics(2)
+	assert_bool(speaker.is_active()).is_false()
+	assert_object(_voices.drunk_bus_of(TALKER)).is_null()
+	assert_str(String(speaker.bus)).is_equal(String(AudioBuses.VOICE))
+	assert_int(AudioServer.bus_count).is_equal(_buses)
+	# Its next words make the bus again.
+	_world.speak(TALKER, 5, 200, 0.5, 255)
+	await _physics(2)
+	assert_object(_voices.drunk_bus_of(TALKER)).is_not_null()
+	assert_int(AudioServer.bus_count).is_equal(_buses + 1)
+
+
+func test_an_unusable_effect_plays_the_voice_unchanged() -> void:
+	# A mode whose drunk effect names no engine class: one warning, no bus, the voice on Voice.
+	var bad := _world.mode.duplicate(true) as GameMode
+	for phase: StringName in [&"lobby", &"countdown"]:
+		var effect := bad.find_phase(phase).voice_rule.drunk_effect
+		effect.bus_effect = &"NoSuchAudioEffect"
+	_voices.mode = bad
+	_world.event(&"PhaseChanged", {"phase": &"countdown", "end_tick": -1})
+	await _physics(2)
+	var speaker := await _talking(255)
+	await _physics(3)
+	assert_object(_voices.drunk_bus_of(TALKER)).is_null()
+	assert_str(String(speaker.bus)).is_equal(String(AudioBuses.VOICE))
+	assert_int(AudioServer.bus_count).is_equal(_buses)
+	assert_int(_voices.dropped).is_equal(0)
+
+
 func test_a_sober_speaker_never_gets_a_bus() -> void:
 	var speaker := await _talking(0)
 	assert_object(_voices.drunk_bus_of(TALKER)).is_null()
