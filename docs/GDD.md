@@ -378,6 +378,23 @@ prototype used 40% of the normal distance). The bonfire burns on and the ship ke
 the breaker either way; fixing it means getting back to it. It is the humans' tool against the aliens' talk and sight
 (m8-match §9). Numbers are placeholders for the greybox.
 
+**Gadgets** (the engineer, 2026-10-31, [#1034](https://github.com/xperiaroco2/prime-game/issues/1034)): the humans'
+sabotages and the party's toys are alien gadgets, and **anyone may use one**: they are open knowledge, on the map for
+everyone, so a human spoils with a gadget and can say "I was just trying it" (roles stay identical, m8-match §2).
+Small gadgets are items in the hand (printed, belted, printed again after use); big ones stand on the map like the
+light breaker. A gadget hits the people (voice, sight, movement), the tasks' devices or the neighbours' anger
+(m8-match §5). Picked to design next, one at a time: the anti-gravity grenade, the hologram double, the disco ball and
+the karaoke for the whole street (prime-game-design `ideas/2026-10-31-gadgets.md`).
+
+**The funny gas** (the first gadget; [#1477](https://github.com/xperiaroco2/prime-game/issues/1477), decided
+[#1034 c6549060121](https://github.com/xperiaroco2/prime-game/issues/1034#issuecomment-6549060121) and the comments
+before it). The pantry's party-stock shelves always hold one helium cylinder, a two-handed item. Carry it to the duct's
+grate in the pantry's east wall ([estate-map](design/estate-map.md) §5d) and hold E to insert it (2 s); the cylinder is
+used up. A pink haze pours out into **the laboratory only** for 30 s, and every player inside speaks in a squeaky,
+helium voice, heard so by every listener; walking out ends it for that player. A new cylinder is on the shelf 60 s
+after the last was taken; the grate takes none while the haze is on. Anyone may do it; it does not touch the
+neighbours' anger. The hiss and the haze are seen and heard by everyone near. Numbers are placeholders for a playtest.
+
 ## 8. Tasks
 
 - What kinds of tasks exist (short, long, shared, fake-able)?
