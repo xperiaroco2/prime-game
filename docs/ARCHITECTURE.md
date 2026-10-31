@@ -8913,7 +8913,7 @@ records (§4.7.62: the lamp, the beeps, the flash, the print and the strip in th
 (the engineer tunes them on the hall greybox, #1354).
 Not built here: the pose wheel's own pose in a frame (#1227, #1476; `posed` is the seated pose, false in the hall), a
 joiner's replay of the strips made before it joined (#1474, through `BoothBook.bind_strip`; until then a joiner sees
-such a strip blank), the hand-over of a strip (#1389).
+such a strip blank).
 - **Tests:** `tests/unit/booth/start_booth_test.gd` (the session's clock, the refusals, the presser leaving, ready),
   `tests/unit/booth/booth_frames_test.gd` (membership, the body at flash k, the same `FLASH` to every peer),
   `tests/unit/booth/booth_print_test.gd` (a strip each, a leaver, a rejoiner who reuses a leaver's peer id gets a strip only for its own frames, a downed player none, the cap),
