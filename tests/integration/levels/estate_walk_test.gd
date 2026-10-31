@@ -5,8 +5,8 @@ extends GdUnitTestSuite
 ## the ship's ramp into its hall and wings (§5a), and the creek crossed only at its crossings (the
 ## east road included). Each walk: from point to point every rise is a step the player can take
 ## (rules.step_height_m, 0.3 m) and the player's capsule fits, in the host's collision world of
-## the level (LevelWorld), as house_stairs_test walks the House; and from each round spawn to the
-## bonfire (#1374).
+## the level (LevelWorld), as house_stairs_test walks the House; and from each round spawn and
+## respawn to the skat's ramp (#1374, #1492).
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -16,6 +16,8 @@ const STEP := 0.3
 const JUMP := 1.0
 const SPACING := 0.1
 const BONFIRE := Vector2(65.3, 41)
+## A line before the skat's ramp (its foot at z 59.4, §5a) on the walk "ship, ramp to hall".
+const RAMP_FRONT_Z := 58.8
 ## §2: the east road's far edge (the road runs x 135..141).
 const ROAD_EAST_EDGE := 141.0
 ## The roof terrace's floor, the chimney shaft's centre and a point on its lip (§5c: the house at
@@ -414,16 +416,19 @@ func _pick_up_reach() -> float:
 	return 0.0
 
 
-func test_each_round_spawn_walks_to_the_bonfire_where_every_walk_starts() -> void:
-	# The base mode's round spawns (#1374, the Markers piece): a player spawned at any of them
-	# reaches the ring round the bonfire, so every lot by the walks above.
+func test_each_round_and_respawn_marker_walks_to_the_ramp_s_foot() -> void:
+	# The base mode's round spawns and respawns (#1374, the Markers piece; on the skat's clearing
+	# since #1492): a player spawned at any of them reaches the line before the ramp that the
+	# walk "ship, ramp to hall" runs along (into the ship) and that "gazebo by the plank
+	# footbridge to the ship" ends on (to the estate), first straight off the ramp's slope.
 	var map: Node3D = auto_free((load(EstateDoc.MAP) as PackedScene).instantiate())
 	var spawns := 0
 	for node in map.find_children("*", "Marker3D", true, false):
-		if not node.is_in_group(&"spawn_round_player"):
+		if not (node.is_in_group(&"spawn_round_player") or node.is_in_group(&"spawn_respawn")):
 			continue
 		var at := LevelWorld.transform_in_scene(node as Node3D, map).origin
-		_walk("from %s" % node.name, [at, _from_bonfire(at)], 0.0)
+		var corners := [at, Vector3(at.x, 0, RAMP_FRONT_Z), Vector3(116, 0, RAMP_FRONT_Z)]
+		_walk("from %s" % node.name, corners, 0.0)
 		spawns += 1
 	assert_int(spawns).is_greater(0)
 
