@@ -17,8 +17,10 @@
   the party out of envy (#1031, plan #1039).
 - **The lobby is a space station where the aliens' ship, the skat, stands docked** (2026-10-28, #1095; GDD §3 Base
   mode); each match the crew flies down to Earth to party, which later allows several party maps with different tasks
-  (an idea, #1031). Open: whether the aliens live in the House or visit it; how the trip maps onto Lobby, Countdown,
-  Loading and Pregame.
+  (#1031). **The aliens visit** (the engineer, 2026-10-31, [#1031 c6549509266](https://github.com/xperiaroco2/prime-game/issues/1031#issuecomment-6549509266)): every match the crew flies down on
+  the skat from the station to party at the alien lord's estate; they do not live there. **The round starts with the
+  crew together at the foot of the skat's ramp** (the skat has landed; they walk out in a crowd and spread out; the
+  same comment; engine part #1492). Open: how the flight itself is shown between Countdown and Pregame (Loading).
 - **Tone:** teens and adults, adult and funny, comic violence, no guts or dismemberment (GDD §1).
 - **References:** parody, never another work's names, logos, characters or assets (GDD §1). Research round 2
   proposed a frame (the aliens learned Earth from bad broadcasts, so every Earth reference comes out recognisable but
@@ -32,8 +34,8 @@
   (#1031).
 - **Being outed is a disadvantage, never a loss:** an outed human drops the act, plays the villain openly and keeps
   real levers; nobody has to lie to faces. Hiding pays, it is never forced (#1031).
-- **The host sets the exact number of humans** (e.g. 3 of 10) (#1032). Open: the defaults per player count
-  (research round 2 suggests 4→1, 5→1, 6→2, 7→2, 8→2, 9→3, 10→3).
+- **The host sets the exact number of humans** (e.g. 3 of 10) (#1032). **The defaults:** 1 at 4–5 players, 2 at 6–8,
+  3 at 9–10 (the engineer, 2026-10-31, [#1031 c6549509266](https://github.com/xperiaroco2/prime-game/issues/1031#issuecomment-6549509266), from research round 2; engine part #1492).
 
 ## 3. Death and respawn
 
@@ -193,10 +195,10 @@ From #1040, not yet rules:
 - How the aliens learn what raises the anger: no hint, or the type of problem without its place (§5).
 - Filling 10 minutes: the work scales with the lobby (§6a2); at 10 players another task, or a stream of guests'
   requests (§6a).
-- The defaults for the number of humans (§2); the anger threshold, rises, jumps and the cops' minute (§5): the balance
+- The anger threshold, rises, jumps and the cops' minute (§5): the balance
   model #1089.
 - A finale beyond the cops' minute (§6).
 - Weapons: which, prices, ammunition, the host presets (§7).
-- Whether the aliens live in the House or visit it (§1); the title (§1).
+- How the flight is shown (§1); the title (§1).
 - The reference frame (§1).
 - Mutations, meta-progression and faces: M8.3 (#1040, #1041, #1038).
