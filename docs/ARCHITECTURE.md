@@ -8623,12 +8623,15 @@ plays it on the estate (#1462, "The estate and the content" below).
   `ClientModel.engine`) folds the engine's public events as listed above (open problems, the last `BreakerChain`,
   the gills' slits, each socket's `CrystalChanged`, the blasts) and forgets them with the match. `ShipEngineViews`
   (`client/world/`, `ShipEngineClient.make_view`, last of `ItemWorld`'s children) draws from it and the console's
-  `ZoneProgress`: at the level's hologram point (else over the console's use spot) three stage strips (each filling with its third of the bar) and the
+  `ZoneProgress`: at the level's hologram point (else over the console's use spot) a stage strip per stage (the
+  engine's `TaskState` total, before it comes `stage_problems`' count), each filling with its share of the bar, and the
   mimic board (a lamp per breaker at its place in the ship scaled down, red tripped, green on, the open chain's order
-  played on it one lamp at a time: the only place the order shows); a red lamp over each station an open problem
+  played on it one lamp at a time, then a dark pause so its start shows: the only place the order shows); a red lamp
+  over each station an open problem
   holds; a lamp over each breaker (red, then yellow and green for the last one on, never the order) and charger
   (yellow charging, green a crystal waiting); each gill set's slits open or shut and the white bar from the opening
-  tick (`GillsProblem.bar_slit`); and the blast, an orange sphere from the console. `ShipEngineClient` never offers E
+  tick (the view's own copy of `GillsProblem.bar_slit`'s steps, held equal to it tick by tick by
+  `ship_engine_views_test.gd`); and the blast (once per `EngineBlast`; a view built again plays none), an orange sphere from the console. `ShipEngineClient` never offers E
   on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
 
