@@ -39,9 +39,6 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"car_part_green": "Green part",
 	&"car_part_blue": "Blue part",
 	&"car_part_yellow": "Yellow part",
-	# The ship's engine's crystals (#1461, in the base mode since #1462): the UI track's keys.
-	&"crystal_spent": "Spent crystal",
-	&"crystal_charged": "Charged crystal",
 }
 ## Shipped task types the deck has no key for yet and ContentNames.TASK_EXCEPTIONS does not map,
 ## each with the display name it shows meanwhile: car repair (#810), which runs beside client work
@@ -214,3 +211,27 @@ func test_a_station_kind_shows_its_deck_key_else_its_id() -> void:
 	var named := ContentNames.station(&"probe_kind")
 	TranslationServer.remove_translation(deck)
 	assert_str(named).is_equal("station.probe_kind")
+
+
+func test_a_station_the_deck_names_shows_its_key() -> void:
+	assert_str(ContentNames.station(&"bookcase")).is_equal("station.bookcase")
+	assert_str(ContentNames.station(&"engine_console")).is_equal("station.engine_console")
+	assert_str(ContentNames.item(&"crystal_spent", null)).is_equal("item.crystal_spent")
+
+
+## A task type's description: the deck's `task.<id>.description` where it has one, else the mode's
+## TaskType.description, else an empty string (#1468).
+func test_a_task_description_is_the_decks_key_else_the_modes_text_else_empty() -> void:
+	var mode := GameMode.new()
+	var type := TaskType.new()
+	type.id = &"wiring"
+	type.description = "Join the wires."
+	mode.task_types.append(type)
+	assert_str(ContentNames.task_description(&"engine", mode)).is_equal("task.engine.description")
+	assert_str(ContentNames.task_description(&"engine", null)).is_equal("task.engine.description")
+	assert_str(ContentNames.task_description(&"wiring", mode)).is_equal("Join the wires.")
+	assert_str(ContentNames.task_description(&"wiring", null)).is_empty()
+	assert_str(ContentNames.task_description(&"unknown", mode)).is_empty()
+	TranslationServer.set_locale("en")
+	var shown := ContentNames.text(ContentNames.task_description(&"engine", mode))
+	assert_str(shown).starts_with("Press start on the console")
