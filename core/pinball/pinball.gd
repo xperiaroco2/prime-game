@@ -244,9 +244,19 @@ static func rules_holding(mode: GameMode, part: ContentPart) -> Array[Rule]:
 			var rule := entry as Rule
 			if rule == null or found.has(rule):
 				continue
-			if rule.effects.has(part) or rule.conditions.has(part):
+			if _rule_holds(rule, part):
 				found.append(rule)
 	return found
+
+
+## Whether `rule` holds `part` among its effects or its conditions. Each typed array's `has` is
+## given only its own element type: a RuleEffect asked of Array[Condition] prints an engine error.
+static func _rule_holds(rule: Rule, part: ContentPart) -> bool:
+	if part is RuleEffect:
+		return rule.effects.has(part as RuleEffect)
+	if part is Condition:
+		return rule.conditions.has(part as Condition)
+	return false
 
 
 ## Whether `rule` holds a condition of class `type` that is not negated.

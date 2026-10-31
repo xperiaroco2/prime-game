@@ -4,11 +4,31 @@ extends GdUnitTestSuite
 ## PinballSeated, PinballTicks.problems (a phase that places the machine or accepts Flippers lists
 ## PinballTicks, a row out of it runs EndPinball); and LayoutCheck's exact one `pinball` marker.
 
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
+const BASE_MODE := "res://content/modes/base_mode.tres"
+
 
 func test_the_fixture_mode_and_layouts_pass() -> void:
 	assert_array(Array(ModeCheck.run(FixturePinball.mode()).errors)).is_empty()
 	var found := LayoutCheck.run(FixturePinball.mode(), FixturePinball.layouts())
 	assert_array(Array(found)).is_empty()
+
+
+## The check walks every rule of a mode for the pinball's parts (Pinball.rules_holding). It must
+## print no engine error doing so: `bots` and the host fail on any (#1398's review).
+func test_the_mode_check_prints_no_engine_error() -> void:
+	var errors := EngineErrors.new()
+	errors.start()
+	var fixture := ModeCheck.run(FixturePinball.mode())
+	var base := ModeCheck.run(load(BASE_MODE) as GameMode)
+	errors.stop()
+	assert_array(Array(fixture.errors)).is_empty()
+	assert_array(Array(base.errors)).is_empty()
+	(
+		assert_int(errors.count())
+		. override_failure_message("\n".join(errors.snapshot().slice(0, 4)))
+		. is_equal(0)
+	)
 
 
 func test_an_interact_rule_without_pinball_usable_is_refused() -> void:
