@@ -14,7 +14,7 @@ extends Node3D
 
 ## The look's sizes in metres, by kind id; Cooking's kinds take CookingLooks' (#776); any other
 ## kind gets UNKNOWN_SIZE and its name as a label. The photo task's film and photo take
-## PhotoLooks' (#787).
+## PhotoLooks' (#787), the booth's strip StripLooks' (#1397).
 const SIZES: Dictionary[StringName, Vector3] = {
 	&"knife": Vector3(0.05, 0.04, 0.32),
 	&"package": Vector3(0.45, 0.45, 0.45),
@@ -57,6 +57,8 @@ static func make(
 
 ## The look's size in metres for `item_kind`.
 static func size_of(item_kind: StringName) -> Vector3:
+	if StripLooks.has(item_kind):
+		return StripLooks.size_of(item_kind)
 	if PhotoLooks.has(item_kind):
 		return PhotoLooks.size_of(item_kind)
 	if CookingLooks.has(item_kind):
@@ -93,6 +95,9 @@ func _build(colour: Color, label_text: String) -> void:
 	_look = Node3D.new()
 	_look.name = "Look"
 	add_child(_look)
+	if StripLooks.has(kind):
+		_look.add_child(StripLooks.build(kind))
+		return
 	if PhotoLooks.has(kind):
 		_look.add_child(PhotoLooks.build(kind))
 		return
