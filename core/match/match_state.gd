@@ -83,6 +83,7 @@ var _cooldowns: Dictionary[int, Dictionary] = {}
 ## Peer -> {key: value}.
 var _counters: Dictionary[int, Dictionary] = {}
 var _part_state: Dictionary[StringName, RefCounted] = {}
+var _session_part_state: Dictionary[StringName, RefCounted] = {}
 
 
 func _init(session_seed: int) -> void:
@@ -253,12 +254,23 @@ func part_state(key: StringName, create: Callable) -> RefCounted:
 	return _part_state[key]
 
 
+## The session state object of the part class that declares `key`, made by `create` on first use:
+## as part_state(), but session state (§3.5) like lobby_name: reset_match() keeps it, so it stays
+## from match to match while the lobby stays (the pinball's best score, #1398); nothing writes it
+## to disk.
+func session_part_state(key: StringName, create: Callable) -> RefCounted:
+	if not _session_part_state.has(key):
+		var made: RefCounted = create.call()
+		_session_part_state[key] = made
+	return _session_part_state[key]
+
+
 ## Clears everything a match changed and keeps the roster (ResetMatch, 2b): items, stations,
 ## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
 ## the players who left during the match (§3.5) leave the roster; each other player's role,
 ## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
-## to the next match of the session (§3.3); the join count and the return keys' numbers stay
-## (§3.5).
+## to the next match of the session (§3.3); the join count, the return keys' numbers and the
+## session part state (session_part_state()) stay (§3.5).
 func reset_match() -> void:
 	for peer: int in peers():
 		if not players[peer].is_present():

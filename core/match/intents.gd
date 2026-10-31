@@ -66,6 +66,13 @@ const HAND_OVER := &"HandOver"
 const TAKE_OFFER := &"TakeOffer"
 ## A living player's open offer ends, the item staying in its hand (#1434; Offering). No argument.
 const CANCEL_OFFER := &"CancelOffer"
+## The seated player's flippers at the lobby's pinball, held or not, `left` and `right` (#1398;
+## GDD §3 "The pinball"): sent on every change of either, the whole held state, so a lost one sticks
+## nothing. Only the seated, standing player's counts (PinballSeated, `not_seated` to anyone else).
+## Not a player's action (PLAYER_ACTIONS): a flipper does not depend on where the player stands, so
+## no MoveClaimReliable twin precedes it, and a fast player's flips stay inside the reliable
+## bucket (§4.5.6). There is no nudge intent: the machine does not move.
+const FLIPPERS := &"Flippers"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -92,6 +99,7 @@ const ALL: Array[StringName] = [
 	TAKE_OFFER,
 	CANCEL_OFFER,
 	USE_SECONDARY,
+	FLIPPERS,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -125,6 +133,15 @@ const PEER_LEFT := &"PeerLeft"
 ## stamped with the tick it runs; taken in every phase (LifeRules.body_moved), and kept in the
 ## command log, so a replay rests every body where the match did with no physics.
 const BODY_MOVED := &"BodyMoved"
+## The pinball table's reports (#1398, #1399; ARCHITECTURE §7.1.22): the host's table physics
+## (server/) reports a ball put on the table, a target hit (`target`, a PinballTarget's id) and a
+## ball lost, each naming the game it belongs to (`game`, PinballState's serial). Queued like
+## BodyMoved, taken in every phase (Pinball.report) and kept in the command log, so a replay counts
+## the same score with no physics. No message type carries one: no peer sends one.
+const BALL_LAUNCHED := &"BallLaunched"
+const TARGET_HIT := &"TargetHit"
+const BALL_LOST := &"BallLost"
+const TABLE_REPORTS: Array[StringName] = [BALL_LAUNCHED, TARGET_HIT, BALL_LOST]
 ## Forces a role on `peer` for the deals that follow, {"role": id}; an empty id clears it. server/
 ## originates it in debug builds only (§8, §9.4 DealRoles): from peer 1's debug-kind message only
 ## (the host's own client: a dev console command, the bots runner's bot 1; §4.3, E17), never from
@@ -186,4 +203,8 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},
+	FLIPPERS: {"left": TYPE_BOOL, "right": TYPE_BOOL},
+	BALL_LAUNCHED: {"game": TYPE_INT},
+	TARGET_HIT: {"game": TYPE_INT, "target": TYPE_STRING},
+	BALL_LOST: {"game": TYPE_INT},
 }
