@@ -87,6 +87,20 @@ func test_every_station_lies_inside_the_aboard_box_and_the_ground_beside_it_does
 	assert_bool(ShipEngine.in_box(ship + Vector3(10.0, 0.0, -6.0), low, high)).is_false()
 	assert_bool(ShipEngine.in_box(ship + Vector3(0.0, 0.0, -12.6), low, high)).is_false()
 	assert_bool(ShipEngine.in_box(ship + Vector3(0.0, DECK_M, -0.4), low, high)).is_true()
+	# At the deck's height too: past the hull's sides (the wings), the tunnel's mouth (the ramp),
+	# the vault hatch, and over the roof (the box's x +-12.6, z -8.1 to 3.6, y 1.0 to 4.6).
+	for out: Vector3 in [
+		Vector3(13.1, DECK_M, -0.4),
+		Vector3(-13.1, DECK_M, -0.4),
+		Vector3(0.0, DECK_M, -8.6),
+		Vector3(0.0, DECK_M, 4.1),
+		Vector3(0.0, 5.1, -0.4),
+	]:
+		(
+			assert_bool(ShipEngine.in_box(ship + out, low, high))
+			. override_failure_message("%s from the ship's centre is aboard" % out)
+			. is_false()
+		)
 
 
 func test_each_station_marker_stands_in_front_of_its_device_in_the_estate_map() -> void:
