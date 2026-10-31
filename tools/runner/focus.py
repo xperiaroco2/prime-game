@@ -9,7 +9,8 @@ layers, each a no-op off Windows:
 
 - startup(): the process starts with STARTUPINFO.wShowWindow = SW_SHOWNOACTIVATE (never minimized: a minimized
   window draws nothing). Windows uses it for a process's first ShowWindow; the console exe (GODOT_BIN) starts
-  godot.exe without passing it on (console_wrapper_windows.cpp), so it counts only for an exe started directly.
+  godot.exe without passing it on (console_wrapper_windows.cpp), so it counts only for an exe started directly: the
+  off-screen windows of shot, playcheck and run --offscreen come from GODOT_GUI_BIN (launch.gui_exe()).
 - tools/offscreen/offscreen.gd place() sets DisplayServer.WINDOW_FLAG_NO_FOCUS once the window is off-screen, so the
   window never activates again (Windows: WS_EX_NOACTIVATE, SWP_NOACTIVATE).
 - Keeper: records the foreground window before the run and, while it runs, hands the foreground back at once

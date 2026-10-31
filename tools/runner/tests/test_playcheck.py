@@ -567,7 +567,7 @@ class RunTest(unittest.TestCase):
         s = scenario()
         seen: list[hostjoin.Part] = []
 
-        def fake_commands(parts: list[hostjoin.Part], _exe: str) -> None:
+        def fake_commands(parts: list[hostjoin.Part], *_exes: str) -> None:
             for part in parts:
                 part.cmd = [sys.executable, "-c", FAKE, behaviours.get(part.label, "ok"), *part.user_args]
             seen.extend(parts)

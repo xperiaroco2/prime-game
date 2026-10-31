@@ -697,9 +697,11 @@ def godot(
     env: dict[str, str] | None = None,
     on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
     background: bool = False,
+    exe: str | None = None,
 ) -> Result:
-    """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors. `background`: as run's."""
-    exe = require_godot()
+    """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors. `background`: as run's.
+    `exe`: another exe of the pinned version (launch.gui_exe() for a window), else the console exe."""
+    exe = exe or require_godot()
     cmd = [exe, "--no-header", "--path", str(ROOT), *args]
     return run(cmd, timeout=timeout, log=log, echo=echo, env=env, on_start=on_start, background=background)
 

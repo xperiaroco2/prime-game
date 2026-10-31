@@ -179,6 +179,14 @@ class WhichRunsStartInTheBackgroundTest(unittest.TestCase):
         playcheck.set_commands(parts, "godot.exe")
         self.assertEqual([p.background for p in parts], [True, True, False])
 
+    def test_playcheck_windows_come_from_the_window_exe_and_its_bots_from_the_console_exe(self) -> None:
+        # The console exe starts godot.exe without passing SW_SHOWNOACTIVATE on: the windows need the window exe.
+        parts = [hostjoin.Part("window 1", []), hostjoin.Part("window 2", []), hostjoin.Part("bots", [])]
+        playcheck.set_commands(parts, "console.exe", "window.exe")
+        self.assertEqual([p.cmd[0] for p in parts], ["window.exe", "window.exe", "console.exe"])
+        playcheck.set_commands(parts, "console.exe")
+        self.assertEqual([p.cmd[0] for p in parts], ["console.exe"] * 3)
+
     def test_run_offscreen_instances_start_in_the_background_and_are_watched(self) -> None:
         for offscreen in (True, False):
             seen: list[dict[str, object]] = []
@@ -203,10 +211,12 @@ class WhichRunsStartInTheBackgroundTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(shot, "has_display", return_value=True), \
                 mock.patch.object(shot, "godot", fake_godot), mock.patch.object(shot, "ensure_import"), \
-                mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
+                mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"), \
+                mock.patch.object(launch, "gui_exe", return_value="window.exe"):  # fmt: skip
             shot.main("tools/shot/probe.tscn", out=str(Path(tmp) / "p.png"))
         self.assertIs(seen["background"], True)
         self.assertTrue(callable(seen["on_start"]))
+        self.assertEqual(seen["exe"], "window.exe")  # the console exe would not pass SW_SHOWNOACTIVATE on
 
 
 @unittest.skipUnless(IS_WINDOWS, "Windows focus behaviour (#1505); CI is headless")

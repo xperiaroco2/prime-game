@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import normalize, offscreen, shot
+from runner import launch, normalize, offscreen, shot
 from runner.verify import starts_godot
 from runner.common import ROOT, Failure, Result, godot_bin, run
 
@@ -166,7 +166,8 @@ class ShotTest(unittest.TestCase):
                 return Result(0, f"{PLACED}SHOT saved {png} 1280x720\n", False, 0.0)
 
             with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
-                    mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
+                    mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"), \
+                    mock.patch.object(launch, "gui_exe", return_value="window.exe"):  # fmt: skip
                 self.assertEqual(shot.main(PROBE, out=str(png)), 0)
             self.ensure_import.assert_called_once_with()
             self.assertEqual(envs, [{"PRIME_WINDOW": "1280x720"}])

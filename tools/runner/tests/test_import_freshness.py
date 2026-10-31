@@ -308,6 +308,7 @@ class EveryLaunchImportsFirstTest(unittest.TestCase):
             mock.patch.object(playcheck, "IS_CI", False),
             mock.patch.object(shot, "has_display", return_value=True),
             mock.patch.object(playcheck, "require_godot", self.step("godot", "godot")),
+            mock.patch.object(playcheck.launch, "gui_exe", return_value="window.exe"),
             mock.patch.object(playcheck.launch, "ensure_import", self.step("import")),
             mock.patch.object(playcheck, "run_one", self.step("start", 0)),
         ):
@@ -319,6 +320,7 @@ class EveryLaunchImportsFirstTest(unittest.TestCase):
         with (
             mock.patch.object(shot, "has_display", return_value=True),
             mock.patch.object(shot, "ensure_import", self.step("import")),
+            mock.patch.object(playcheck.launch, "gui_exe", return_value="window.exe"),
             mock.patch.object(shot, "godot", self.step("start", Result(1, "SHOT error x\n", False, 0.1))),
         ):
             with self.assertRaises(Failure):

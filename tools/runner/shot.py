@@ -59,6 +59,10 @@ def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int
     png.parent.mkdir(parents=True, exist_ok=True)
     if png.exists():
         png.unlink()
+    from . import launch  # launch imports this module
+
+    # The window exe, as `run --offscreen`: the console exe would start godot.exe without SW_SHOWNOACTIVATE (focus).
+    exe = launch.gui_exe()
     with focus.keep() as keeper:
         res = godot(
             command(res_path, png, size, frames),
@@ -67,6 +71,7 @@ def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int
             env=offscreen.env(size),
             on_start=keeper.watch,
             background=True,
+            exe=exe,
         )
     if res.timed_out:
         raise Failure(f"shot timed out after {TIMEOUT}s: the window never drew (log: tools/out/logs/shot.log)")

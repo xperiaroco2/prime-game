@@ -1244,7 +1244,9 @@ gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.
 `playcheck` and `run --offscreen` took the foreground from his game. Godot 4.7.2 shows its main window before any
 script runs, with `ShowWindow(SW_SHOW)` and `SetForegroundWindow`, so `tools/runner/focus.py` adds three layers (no-ops
 off Windows): the process starts with `STARTUPINFO.wShowWindow = SW_SHOWNOACTIVATE` (it counts only for an exe the
-runner starts directly: the console exe, `GODOT_BIN`, does not pass it on to `godot.exe`); `place()` sets
+runner starts directly: the console exe, `GODOT_BIN`, does not pass it on to `godot.exe`, so the off-screen windows of
+all three come from `GODOT_GUI_BIN`, which relays the lines the runner reads too; without it, `GODOT_BIN` with a
+warning, and only the keeper below is left); `place()` sets
 `DisplayServer.WINDOW_FLAG_NO_FOCUS` once the window is off-screen, so it never activates again; and a keeper records
 the foreground window before the run and gives the foreground back (through `ctypes`: `AttachThreadInput`, then
 `SetForegroundWindow`) whenever a window of the run's process tree takes it, printing `focus: a window of the run
