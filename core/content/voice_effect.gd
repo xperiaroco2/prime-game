@@ -20,7 +20,7 @@ const MAX_WOBBLE_HZ := 5.0
 ## The strength at which the full swing applies (the wire's U8, VoiceRule.MAX_STRENGTH).
 const FULL_STRENGTH := 255
 
-## The effect's name in the mode (a wire id, checked by ModeCheck).
+## The effect's name in the mode (an id like every content id, checked by ModeCheck; never sent).
 @export var id: StringName = &""
 ## The engine class of the bus effect the listener makes, by name.
 @export var bus_effect: StringName = &""
