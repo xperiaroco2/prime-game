@@ -24,6 +24,8 @@ const NOTHING_TO_SWAP := &"nothing_to_swap"
 ## The base mode's Draw (GDD §6): PlaceInRange, then PlaceChanges (§9.4).
 const NO_SUCH_PLACE := PlaceInRange.NO_SUCH_PLACE
 const SAME_PLACE := PlaceChanges.SAME_PLACE
+## The base mode's WheelPose (#1485): WheelPoseInRange first (§9.4).
+const NO_SUCH_POSE := WheelPoseInRange.NO_SUCH_POSE
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
 ## The base mode's HandOver (#1389, #1434): a negated Offering, TargetLiving, then
@@ -49,6 +51,8 @@ const PICK_UP_REACH_M := 2.0
 ## does: HandOver's first condition is HoldsItem (`empty_hand`), and the hostile's own bot never
 ## holds an item. And they take Flippers from the living (#1398): PinballSeated answers `not_seated`
 ## unless the sender sits at the pinball, which a chaos peer never does (it stands metres away).
+## Lobby, Countdown and Round take WheelPose from the living (#1485): the hostile sends only half
+## or out-of-range picks, which WheelPoseInRange, the first condition, answers `no_such_pose`.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -68,6 +72,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"TakeOffer": From.LIVING,
 		&"CancelOffer": From.LIVING,
 		&"Flippers": From.LIVING,
+		&"WheelPose": From.LIVING,
 	},
 	&"countdown":
 	{
@@ -85,6 +90,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"TakeOffer": From.LIVING,
 		&"CancelOffer": From.LIVING,
 		&"Flippers": From.LIVING,
+		&"WheelPose": From.LIVING,
 	},
 	&"loading": {&"LoadAck": From.PLAYER},
 	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
@@ -106,6 +112,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"HandOver": From.LIVING,
 		&"TakeOffer": From.LIVING,
 		&"CancelOffer": From.LIVING,
+		&"WheelPose": From.LIVING,
 		&"GiveUp": From.DOWNED,
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
@@ -263,6 +270,8 @@ static func _rule(
 		Intents.FLIPPERS:
 			var seated := state != null and Pinball.seated(state) == peer
 			answer_now = Pinball.NOT_SEATED if not seated else &"?"
+		Intents.WHEEL_POSE:
+			answer_now = _wheel_pose(args, mode)
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 
@@ -318,6 +327,20 @@ static func _draw(place: Variant, player: PlayerState) -> StringName:
 	if not place is int or place < 0 or place >= PlayerState.PLACES:
 		return NO_SUCH_PLACE
 	return SAME_PLACE if place == player.selected_place else &"?"
+
+
+## WheelPose's first condition (§9.4, #1485): WheelPoseInRange (`no_such_pose`, a half pick or an
+## index outside the mode's WheelPoses). A whole pick is "?": the chaos peers never send one (it
+## would change the world, and its answer hangs on the sender's stance and hand).
+static func _wheel_pose(args: Dictionary, mode: GameMode) -> StringName:
+	var poses := mode.wheel_poses if mode != null else null
+	var legs: Variant = args.get("legs", -1)
+	var arms: Variant = args.get("arms", -1)
+	if poses == null or not (legs is int and arms is int):
+		return NO_SUCH_POSE
+	if not poses.has_pick(legs as int, arms as int):
+		return NO_SUCH_POSE
+	return &"?"
 
 
 ## HandOver's conditions in their order (§9.4, #1389, #1434): HoldsItem (`empty_hand`), a negated

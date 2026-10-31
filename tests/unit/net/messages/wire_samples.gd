@@ -95,6 +95,8 @@ static func events() -> Dictionary[String, Array]:
 		SelfStatusEvent.new(2, 0, 0, true, 0xFFFFFFFF),
 		SelfStatusEvent.new(2, 70, 400, true, 12, 255),
 		SelfStatusEvent.new(2, 500, 250, false, 12, 3, true),
+		SelfStatusEvent.new(2, 500, 250, false, 12, 3, false, WheelPoseCode.encode(5, 7)),
+		SelfStatusEvent.new(2, 500, 250, false, 12, 0, false, 0xFF),
 	]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
@@ -317,6 +319,10 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"UseSecondary", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
 		WireMessage.new(&"Flippers", {"left": true, "right": false}, 17),
 		WireMessage.new(&"Flippers", {"left": false, "right": true}, 0xFFFFFFFF),
+		WireMessage.new(&"WheelPose", {"legs": 5, "arms": 7}, 17),
+		WireMessage.new(&"WheelPose", {"legs": 0, "arms": 0}, 0),
+		# WheelPoseInRange refuses it; the wire carries any byte.
+		WireMessage.new(&"WheelPose", {"legs": 255, "arms": 255}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
@@ -529,6 +535,7 @@ static func _avatar(
 		"posed": not (downed or invulnerable),
 		"limp": not (downed or invulnerable),
 		"drunk": drunk,
+		"wheel_pose": WheelPoseCode.encode(14, 14) if invulnerable and not downed else 0,
 		"held_item": held,
 		"belt_item": belt,
 		"belt_item2": belt2,

@@ -168,6 +168,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.TAKE_OFFER,
 		Intents.CANCEL_OFFER,
 		Intents.FLIPPERS,
+		Intents.WHEEL_POSE,
 	]
 	if phase == &"loading":
 		# Every hand hits (#1437): a living Use in the lobby, the countdown or the round would
@@ -237,6 +238,12 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.DRAW:
 			# A place past the three (0..2) that the wire's byte still carries: no_such_place.
 			args = {"place": rng.randi_range(PlayerState.PLACES, 255)}
+		Intents.WHEEL_POSE:
+			# A half pick: one index past every mode's lists (WheelPoseCode.MAX_COUNT..255), the other
+			# any byte, so WheelPoseInRange answers no_such_pose and no pose is ever taken (#1485).
+			var far := rng.randi_range(WheelPoseCode.MAX_COUNT, 255)
+			var any := rng.randi_range(0, 255)
+			args = {"legs": far, "arms": any} if rng.randf() < 0.5 else {"legs": any, "arms": far}
 	return args
 
 

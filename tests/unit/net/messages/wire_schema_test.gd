@@ -81,11 +81,11 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 		if each.kind == WireSchema.HELLO:
 			assert_int(each.cap).is_equal(NetKindTable.MAX_PAYLOAD)
 		elif each.name == &"Snapshot":
-			# The unreliable cap; 16 avatars take 773 bytes (48 each with two belt items, M4-5,
-			# #1218, and the drunk byte, #1390): a knocked-down viewer's snapshot holds its own
-			# avatar (the knockdown rework's KE5).
+			# The unreliable cap; 16 avatars take 789 bytes (49 each with two belt items, M4-5,
+			# #1218, the drunk byte, #1390, and the wheel pose byte, #1485): a knocked-down viewer's
+			# snapshot holds its own avatar (the knockdown rework's KE5).
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
-			assert_int(each.max_size()).is_equal(773)
+			assert_int(each.max_size()).is_equal(789)
 		elif each.name == &"VoiceBatch":
 			# The unreliable cap bounds it first (M5-4b): 101 frames of one byte fit, of more do not.
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)

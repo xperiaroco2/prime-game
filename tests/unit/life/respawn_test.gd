@@ -88,6 +88,7 @@ func test_respawned_reaches_everyone_then_the_correction_and_selfstatus_reach_th
 				"claim_tick": -1,
 				"drunk": 0,
 				"posed": false,
+				"wheel_pose": 0,
 			}
 		)
 	)

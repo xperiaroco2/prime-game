@@ -37,8 +37,10 @@ extends RefCounted
 ##   snapshot shows an avatar crouched unless its player is alive (crouch_problem); the crouch
 ##   plays in every phase and on every map. The sneak alike (#990): no snapshot shows an avatar
 ##   sneaking unless its player is alive and not crouched (sneak_problem); none posed unless its
-##   player is alive (pose_problem, #1296). The drunk value alike (#1390): no snapshot shows an
-##   avatar's `drunk` other than its player's PlayerState.drunk, outside 0..PlayerRules.drunk_max,
+##   player is alive (pose_problem, #1296), and no wheel pose (#1485) but its player's own, whole,
+##   on a living body that is not limp, seated, crouched or sneaking. The drunk value alike (#1390):
+##   no snapshot shows an avatar's `drunk` other than its player's PlayerState.drunk, outside
+##   0..PlayerRules.drunk_max,
 ##   or above 0 in a phase that lists no DrunkTicks (drunk_problem): the bar is the hall's alone.
 ##   The limp alike (#1393): no snapshot shows an avatar's `limp` other than its player's
 ##   is_limp(), a limp player not alive, or one in a phase that lists no LimpTicks (limp_problem).
@@ -99,6 +101,7 @@ const AVATAR_FIELDS: Array[String] = [
 	"posed",
 	"limp",
 	"drunk",
+	"wheel_pose",
 	"held_item",
 	"belt_item",
 	"belt_item2",
@@ -514,11 +517,27 @@ static func sneak_problem(game: Match, peer: int, avatar: Dictionary) -> String:
 ## written apart from MovementRule, like crouch_problem. `player.moving` is no sign of a bug: an
 ## honest client that sits down out of a walk sends its claim twin first, which repeats its last
 ## (moving) claim, so the tick of its Pose shows it posed with `moving` still set (the move-ends
-## rules are take_pose_test's).
+## rules are take_pose_test's). The wheel pose alike (#1485): a `wheel_pose` other than 0 is a whole
+## pose (WheelPoseCode.is_pose), its player's own, on a living body that is not limp, not seated
+## and neither crouched nor sneaking (the move-ends rules are take_wheel_pose_test's).
 static func pose_problem(game: Match, peer: int, avatar: Dictionary) -> String:
+	var player := game.state.player(peer)
+	var wheel: int = avatar.get("wheel_pose", 0)
+	if wheel != WheelPoseCode.NONE:
+		if not WheelPoseCode.is_pose(wheel):
+			return "shows peer %d in the half wheel pose %d" % [peer, wheel]
+		if player == null or wheel != player.wheel_pose_code():
+			return "shows peer %d in a wheel pose it does not hold" % peer
+		if (
+			player.life != PlayerState.Life.ALIVE
+			or player.is_limp()
+			or player.posed
+			or player.crouched
+			or player.sneaking
+		):
+			return "shows peer %d in a wheel pose, not alive and standing free" % peer
 	if avatar.get("posed") != true:
 		return ""
-	var player := game.state.player(peer)
 	if player == null or player.life != PlayerState.Life.ALIVE:
 		return "shows peer %d posed, not alive" % peer
 	return ""

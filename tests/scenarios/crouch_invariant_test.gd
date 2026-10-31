@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The crouch invariant (ScenarioInvariants.crouch_problem, the crouch ADR, KE1, #790; KE10 as #991
 ## amended it) over snapshots of a fixture match whose state is set by hand: a crouched living
 ## player passes in the round and in the lobby (the crouch plays everywhere, the engineer's change
-## on #989); a crouched downed player is caught. The sneak and the seated pose (#1296) alike.
+## on #989); a crouched downed player is caught. The sneak, the seated pose (#1296) and the wheel
+## pose (#1485) alike.
 
 const P1 := 1
 const P2 := 2
@@ -66,3 +67,30 @@ func test_a_posed_living_player_passes_and_a_downed_one_is_caught() -> void:
 	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).is_empty()
 	game.state.player(P2).life = PlayerState.Life.DOWNED
 	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains("not alive")
+
+
+func test_a_wheel_pose_on_a_free_living_player_passes_and_any_other_is_caught() -> void:
+	# The pose wheel (#1485): ScenarioInvariants.pose_problem, beside the seated pose's.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var player := game.state.player(P2)
+	player.wheel_legs = 1
+	player.wheel_arms = 2
+	var shown := _avatar(game, P2)
+	assert_int(shown["wheel_pose"] as int).is_equal(WheelPoseCode.encode(1, 2))
+	assert_str(ScenarioInvariants.pose_problem(game, P2, shown)).is_empty()
+	var half := shown.duplicate()
+	half["wheel_pose"] = 0x02
+	assert_str(ScenarioInvariants.pose_problem(game, P2, half)).contains("half wheel pose")
+	var other := shown.duplicate()
+	other["wheel_pose"] = WheelPoseCode.encode(0, 0)
+	assert_str(ScenarioInvariants.pose_problem(game, P2, other)).contains("does not hold")
+	for field: String in ["posed", "crouched", "sneaking"]:
+		player.set(field, true)
+		assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains(
+			"standing free"
+		)
+		player.set(field, false)
+	player.life = PlayerState.Life.DOWNED
+	assert_str(ScenarioInvariants.pose_problem(game, P2, _avatar(game, P2))).contains(
+		"standing free"
+	)
