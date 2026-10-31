@@ -49,6 +49,32 @@ class ScriptedTable:
 		return MatchCommand.new(kind, 0, 0, args)
 
 
+## A host with physics (HostSession builds its table) whose levels are flat: the harness's levels
+## are paths with no scene (host_session_harness.gd), so a FlatWorldQuery answers for them.
+class FlatHostWorld:
+	extends HostWorldQuery
+
+	var _flat := FlatWorldQuery.new()
+
+	func use_level(_path: String) -> void:
+		bodies.use_world(null)
+
+	func line_of_sight(from: Vector3, to: Vector3) -> bool:
+		return _flat.line_of_sight(from, to)
+
+	func floor_below(point: Vector3) -> Vector3:
+		return _flat.floor_below(point)
+
+	func stand_floor_below(point: Vector3) -> Vector3:
+		return _flat.stand_floor_below(point)
+
+	func rest_position(from: Vector3, towards: Vector3) -> Vector3:
+		return _flat.rest_position(from, towards)
+
+	func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+		return _flat.sweep(from, to, radius)
+
+
 var _h: Harness
 var _leaks: LeakCheck
 
@@ -100,6 +126,31 @@ func test_the_ball_reaches_every_client_from_the_tick_it_is_launched() -> void:
 		assert_int(last_tick).is_greater(lost_at)
 		assert_bool(client.view.snapshots[last_tick].has("ball")).is_false()
 	_check_every_client()
+
+
+func test_a_host_with_physics_builds_its_table_and_reads_it_at_the_first_game() -> void:
+	_h = Harness.new(_mode(), true, null, _layouts(), false, FlatHostWorld.new())
+	assert_array(_h.session.errors).is_empty()
+	assert_bool(_h.started).is_true()
+	var table := _h.session.table
+	assert_object(table).is_not_null()
+	_h.pump_seconds(0.5)
+	# Nobody sits: the table is idle and has not read its scene.
+	assert_bool(table.is_active()).is_false()
+	assert_array(Array(table.target_ids())).is_empty()
+	var game := _h.session.game
+	_h.own.send_intent(Intents.INTERACT, {"station": FixturePinball.machine_id(game), "item": -1})
+	_h.pump_seconds(0.25)
+	assert_int(Pinball.game(game.state).player).is_equal(OWN)
+	assert_bool(table.is_active()).is_true()
+	assert_array(table.errors).is_empty()
+	assert_array(Array(table.target_ids())).is_not_empty()
+	# The real table launches on its own after the spec's delay, and core takes the ball.
+	_h.pump_seconds(table.spec().launch_delay_s + 0.5)
+	assert_int(_tick_of(Intents.BALL_LAUNCHED)).is_greater(0)
+	assert_bool(Pinball.game(game.state).in_play).is_true()
+	assert_bool(Pinball.game(game.state).ball_placed).is_true()
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func test_a_host_with_no_physics_has_no_table() -> void:
