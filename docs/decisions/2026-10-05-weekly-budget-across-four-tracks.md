@@ -19,6 +19,8 @@
   itself (Q5).
   Amended 2026-10-29 (#1364): the secretary becomes the director, one main session over every track's sessions in
   two shifts a day, which merges on his word through the gate (Q5).
+  Amended 2026-10-31 (#1452): every week aims to spend up to the 93% stop by the reset; the director checks the
+  weekly counter against a pace line and proposes more work when it is behind (Q5).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -258,6 +260,15 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   its exceptions still his). It still never launches a workflow, closes, decides or answers a permission card; its
   cost, the notes included, stays in his 5% until he says otherwise. Approved by the engineer:
   [#1364 comment 6482230995](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482230995).
+  **Amended 2026-10-31** (#1452; his standing rule, item 2 of
+  [#507 comment 6536862547](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6536862547), "Так,
+  записати"; his words, translated: "I want the work set up so that every week we squeeze out the maximum"): every
+  week aims to spend up to the 93% stop by the reset. In each digest, night report and night plan the director
+  compares the weekly counter (`get_usage`) with the pace line, 93% x the elapsed share of the week (from the reset,
+  Tuesday 10:00 UTC, or a reset by hand). Counter behind the line: the director proposes more work to the engineer,
+  so that no night stands idle while ready, taste-free work exists. The budget shares per track still hold; a track
+  with work left and budget left keeps running. The Decision text stays as decided. Approved by the engineer:
+  [#507 comment 6536862547](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6536862547).
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

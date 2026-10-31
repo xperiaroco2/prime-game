@@ -38,6 +38,8 @@ it relays.
    merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at. A decision
    item is a taste question only; a technical one is relayed back with his standing word ("take your recommended
    option", SKILL.md's Limits) and goes into the shift report's "taken for you", not the inbox.
+   Compare the weekly counter with the pace line and propose more work when it is behind (SKILL.md's Limits,
+   "The weekly pace").
 6. **Rewrite the inbox body** in the format below (a file in your scratchpad, then `gh issue edit <n> --body-file`),
    only when something changed; the header's time either way is not worth an edit.
 7. **The chat line:** one or two short lines in his language: what came and went since the last digest, with the
