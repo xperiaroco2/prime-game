@@ -32,6 +32,7 @@ static func events() -> Dictionary[String, Array]:
 	welcome.phase = &"lobby"
 	welcome.positions = {1: Vector3(0.1, 0.2, 0.3)}
 	welcome.lobby_name = "Лобі Діми " + String.chr(0x1F600)
+	welcome.items.assign(welcome_items())
 	found["WelcomeEvent"] = [welcome]
 	found["PlayerJoinedEvent"] = [
 		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE, 9),
@@ -313,6 +314,31 @@ static func all_messages() -> Array[WireMessage]:
 	found.append_array(debug_commands())
 	found.append_array(state_and_voice())
 	return found
+
+
+## Welcome's item rows (#1404), one of each rest state: on the floor, in a hand at the highest
+## place, locked at a station, on a belt; the highest item id and a 32-character kind among them.
+static func welcome_items() -> Array[Dictionary]:
+	var rows: Array[Dictionary] = [
+		_welcome_item(5, &"tool", ItemState.Where.HAND, 0x7FFFFFFF, 2, Vector3(0.5, 1.0, -0.5)),
+		_welcome_item(MatchState.MAX_ITEM_ID, &"mug", ItemState.Where.BELT, 1, 0, Vector3.ONE),
+		_welcome_item(1, StringName(ID_32), ItemState.Where.GROUND, 0, 0, Vector3(-3, 0, 4.25)),
+		_welcome_item(7, &"package", ItemState.Where.LOCKED, 0, 0, Vector3(2, 0.5, -2)),
+	]
+	return rows
+
+
+static func _welcome_item(
+	id: int, kind: StringName, where: ItemState.Where, holder: int, place: int, at: Vector3
+) -> Dictionary:
+	return {
+		"item": id,
+		"kind": kind,
+		"where": where as int,
+		"holder": holder,
+		"place": place,
+		"position": at,
+	}
 
 
 ## Equal, with the same Variant types all the way down, typed containers typed alike.

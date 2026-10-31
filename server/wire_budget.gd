@@ -134,8 +134,32 @@ static func _welcome(content: _Content) -> WireMessage:
 		"phase": content.phase,
 		"positions": others,
 		"lobby_name": "L".repeat(NAME_BYTES),
+		"items": _welcome_items(content),
 	}
 	return WireMessage.new(&"Welcome", fields)
+
+
+## The hall's items (#1404): WelcomeEvent.MAX_ITEMS rows of the mode's longest item kind id; none
+## when the mode has no item kind.
+static func _welcome_items(content: _Content) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	if content.item.is_empty():
+		return rows
+	for i: int in WelcomeEvent.MAX_ITEMS:
+		(
+			rows
+			. append(
+				{
+					"item": MatchState.MAX_ITEM_ID - i,
+					"kind": content.item,
+					"where": ItemState.Where.BELT as int,
+					"holder": LARGEST_U32,
+					"place": 2,
+					"position": Vector3.ZERO,
+				}
+			)
+		)
+	return rows
 
 
 static func _settings_changed(content: _Content) -> WireMessage:
