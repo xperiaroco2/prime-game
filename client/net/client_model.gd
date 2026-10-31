@@ -517,6 +517,7 @@ func _welcome(fields: Dictionary) -> void:
 	var positions: Dictionary[int, Vector3] = fields["positions"]
 	spots = positions.duplicate()
 	spots[own_peer] = fields["spot"]
+	WelcomeItems.fold(self, fields.get("items", []) as Array)
 
 
 func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:

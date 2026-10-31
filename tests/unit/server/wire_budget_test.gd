@@ -48,10 +48,16 @@ func test_a_mode_at_the_wires_maxima_is_refused_with_the_kinds_named() -> void:
 	var problems := "\n".join(WireBudget.check(mode))
 	assert_str(problems).contains("SettingsChanged (kind 37): ")
 	assert_str(problems).contains("ChangeSettings (kind 3): ")
-	assert_str(problems).contains("Welcome (kind 33): ")
 	assert_str(problems).contains("over its cap of 8192")
 	assert_str(problems).not_contains("LoadMatch")
 	assert_str(problems).not_contains("PlayersPlaced")
+	# Welcome's cap is 8192 since #1404 (the hall's items): the 16-setting mode above now fits under
+	# it, so the assertion that Welcome goes over it runs on a mode with the most whole-number
+	# settings, 32 (its rows of a 32-character kind beside 16 players' longest names).
+	var most_numbers := _mode(WireSchema.MAX_PLAYERS, WireSchema.MAX_ENTRIES, 0, 1)
+	var welcome_problems := "\n".join(WireBudget.check(most_numbers))
+	assert_str(welcome_problems).contains("Welcome (kind 33): ")
+	assert_str(welcome_problems).contains("bytes, over its cap of 8192")
 
 
 func test_more_players_than_the_wire_carries_is_refused() -> void:
@@ -364,3 +370,23 @@ func test_station_kinds_with_no_demanded_palette_add_no_shortfall() -> void:
 			changed = message
 	assert_int((changed.fields["shortfalls"] as Array).size()).is_equal(2)
 	assert_array(Array(WireBudget.check(mode))).is_empty()
+
+
+## A joiner's Welcome carries the hall's items (#1404): the base mode's worst case holds the most
+## rows of its longest item kind, and they fit the row's cap.
+func test_the_base_mode_s_welcome_holds_the_most_items_under_its_cap() -> void:
+	var mode := load(MODES_FOLDER + "base_mode.tres") as GameMode
+	var welcome: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"Welcome":
+			welcome = message
+	assert_object(welcome).is_not_null()
+	if welcome == null:
+		return
+	var items: Array = welcome.fields["items"]
+	assert_int(items.size()).is_equal(WelcomeEvent.MAX_ITEMS)
+	var schema := WireSchema.game(false)
+	var encoded := schema.write(welcome)
+	assert_str(encoded.problem).is_empty()
+	assert_int(encoded.payload.size()).is_greater(2048)
+	assert_int(encoded.payload.size()).is_less_equal(schema.row_named(&"Welcome").cap)

@@ -59,6 +59,8 @@ func test_welcome_holds_the_joiner_spot_epoch_and_the_public_lobby() -> void:
 	assert_str(welcome.map).is_equal(FixtureBaseMode.MAP)
 	assert_str(welcome.phase).is_equal("countdown")
 	assert_dict(welcome.positions).is_equal({P1: game.state.player(P1).position})
+	# No item lies or is carried in this hall (#1404: join_rules_welcome_items_test has them).
+	assert_array(welcome.items).is_empty()
 	# Public facts only: no role, health, stamina or seed in it.
 	var text := str(welcome.to_dict())
 	for hidden: String in ["role", "health", "stamina", "seed"]:

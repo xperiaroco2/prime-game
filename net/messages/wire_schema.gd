@@ -75,7 +75,9 @@ extends RefCounted
 ## 43 since #1438 (an item's own action on the right mouse button): the intent UseSecondary
 ## (kind 24, its facing, as Use's); the debug kinds moved to 28 (ForceRole) and 29 (ForceClock),
 ## the intents' range now 1 to 27.
-const VERSION := 43
+## 44 since #1404 (a joiner learns the hall's items): Welcome's `items` (kind 33), after
+## `lobby_name`, a list of item, kind, where, holder, place and position; its cap 2048 -> 8192.
+const VERSION := 44
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -111,6 +113,8 @@ const MAX_TASK_TYPES := 16
 ## Cooking's herbs (HerbsDealt's lists, #772): a list's count is a u8, as an order's icon is.
 const MAX_HERBS := 255
 const MAX_SHORTFALLS := 64
+## Welcome's item rows (#1404): core's WelcomeEvent.MAX_ITEMS (a test pins the two).
+const MAX_WELCOME_ITEMS := 96
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
 const MAX_TEXT_NUMBERS := 4
@@ -374,10 +378,26 @@ static func _events() -> Array[WireRow]:
 		"", [_peer("peer"), _name("name"), _bool("ready"), _of("colour", WireField.Type.U8)]
 	)
 	var numbers := _numbers("settings")
+	# Welcome's item rows (#1404): `where` is the rest state (0 on the floor, 1 hand, 2 locked at a
+	# station, 3 belt), `holder` 0 for none (so u32, not peer), `place` 0..2.
+	var item_entry := (
+		WireField
+		. record(
+			"",
+			[
+				_item("item"),
+				_id("kind"),
+				_of("where", WireField.Type.U8),
+				_u32("holder"),
+				_of("place", WireField.Type.U8),
+				_vec3("position"),
+			]
+		)
+	)
 	var welcome := _down(
 		33,
 		&"Welcome",
-		2048,
+		8192,
 		[
 			_peer("peer"),
 			_vec3("spot"),
@@ -388,6 +408,7 @@ static func _events() -> Array[WireRow]:
 			_id("phase"),
 			WireField.map("positions", _peer(""), _vec3(""), MAX_PLAYERS),
 			_name("lobby_name"),
+			WireField.list("items", item_entry, MAX_WELCOME_ITEMS),
 		]
 	)
 	var id_sets := WireField.map(
