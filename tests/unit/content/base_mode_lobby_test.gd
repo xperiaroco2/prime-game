@@ -12,6 +12,9 @@ extends GdUnitTestSuite
 ## take HandOver, TakeOffer and CancelOffer from the living and run OfferTicks (5 s, 2 m); the
 ## HandOver rule holds a negated Offering, reach 2 m and the sight at the eye; every row out of
 ## those phases runs EndOffers.
+## The pinball (#1398, provisional numbers): both also run StationTicks (the machine, on the hall's
+## `pinball` marker) and PinballTicks, take Flippers from the living, and `countdown_done` runs
+## EndPinball before ClearStations.
 ## Loads `content/` and the levels on purpose (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -31,6 +34,7 @@ const TAKEN: Array[StringName] = [
 	Intents.HAND_OVER,
 	Intents.TAKE_OFFER,
 	Intents.CANCEL_OFFER,
+	Intents.FLIPPERS,
 ]
 const REFUSED: Array[StringName] = [
 	Intents.THROW, Intents.RAISE, Intents.STOP_RAISE, Intents.GIVE_UP, Intents.POSE
@@ -59,17 +63,21 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
-		assert_int(systems.size()).is_equal(7)
+		assert_int(systems.size()).is_equal(9)
 		assert_object(systems[0]).is_instanceof(LifeTicks)
 		assert_object(systems[1]).is_instanceof(ChannelTicks)
 		assert_object(systems[2]).is_instanceof(VanishTicks)
 		# The bar (#1390): the tap stands in the hall, and the drunk sober up there.
 		assert_object(systems[3]).is_instanceof(StationTicks)
 		assert_str(String((systems[3] as StationTicks).kind.id)).is_equal("tap")
-		assert_object(systems[4]).is_instanceof(DrunkTicks)
+		# The pinball (#1398): the machine stands in the hall, PinballTicks closes its games.
+		assert_object(systems[4]).is_instanceof(StationTicks)
+		assert_str(String((systems[4] as StationTicks).kind.id)).is_equal("pinball")
+		assert_object(systems[5]).is_instanceof(PinballTicks)
+		assert_object(systems[6]).is_instanceof(DrunkTicks)
 		# The limp (#1393): its push and get-up, the base mode's provisional numbers.
-		assert_object(systems[5]).is_instanceof(LimpTicks)
-		var limp := systems[5] as LimpTicks
+		assert_object(systems[7]).is_instanceof(LimpTicks)
+		var limp := systems[7] as LimpTicks
 		assert_array([limp.reach_m, limp.height_m, limp.min_speed_mps, limp.gain]).is_equal(
 			[1.0, 1.8, 0.5, 1.0]
 		)
@@ -95,15 +103,16 @@ func test_countdown_done_clears_the_items_and_a_cancel_does_not() -> void:
 		if row.from != &"countdown":
 			continue
 		if row.outcome == CountdownPhase.COUNTDOWN_DONE:
-			# The hall's items, then its tap (#1390), then everyone limp up (#1393), before the map
-			# loads.
-			assert_int(row.actions.size()).is_equal(4)
+			# The hall's items, then the pinball's game (#1398), then its tap and machine (#1390),
+			# then everyone limp up (#1393), before the map loads.
+			assert_int(row.actions.size()).is_equal(5)
 			assert_object(row.actions[0]).is_instanceof(ClearItems)
-			assert_object(row.actions[1]).is_instanceof(ClearStations)
-			assert_object(row.actions[2]).is_instanceof(EndLimps)
+			assert_object(row.actions[1]).is_instanceof(EndPinball)
+			assert_object(row.actions[2]).is_instanceof(ClearStations)
+			assert_object(row.actions[3]).is_instanceof(EndLimps)
 			# The hall's hits end with the countdown: everyone back at full health (#1439).
-			assert_bool((row.actions[2] as EndLimps).restore_health).is_true()
-			assert_object(row.actions[3]).is_instanceof(EndOffers)
+			assert_bool((row.actions[3] as EndLimps).restore_health).is_true()
+			assert_object(row.actions[4]).is_instanceof(EndOffers)
 		else:
 			assert_array(row.actions).is_empty()
 
@@ -303,6 +312,97 @@ func test_four_hoarders_with_three_mugs_each_leave_a_fifth_pour_available() -> v
 	FixtureBar.pour(game, peers[4], 1)
 	assert_array(FixtureModes.rejections(game, peers[4])).is_empty()
 	assert_object(Items.held_by(game.state, peers[4])).is_not_null()
+
+
+## The shipped pinball (#1398, provisional numbers: 3 balls; bumper 100, kicker 50, target 500):
+## E at the machine seats one player, a second gets `unavailable`, the seated player's flippers
+## count, the table's reports score, and the game ends after the third ball with the best.
+func test_the_hall_s_pinball_seats_one_player_and_keeps_the_best() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var machines := Stations.kinds_in(mode).filter(
+		func(kind: StationKind) -> bool: return kind.id == &"pinball"
+	)
+	assert_array(machines).has_size(1)
+	var seats := (machines[0] as StationKind).actions
+	assert_array(seats).has_size(1)
+	var seat := seats[0] as Rule
+	assert_str(String(seat.trigger)).is_equal("Interact")
+	assert_object(seat.conditions[0]).is_instanceof(AtStation)
+	# The flood guard: sitting down and getting up pay a Cooldown last.
+	var guard := seat.conditions[seat.conditions.size() - 1] as Cooldown
+	assert_object(guard).is_not_null()
+	assert_str(String(guard.key)).is_equal("pinball_seat")
+	var use := seat.effects[0] as UsePinball
+	assert_int(use.balls).is_equal(3)
+	var points: Dictionary = {}
+	for target: PinballTarget in use.targets:
+		points[target.id] = target.points
+	assert_dict(points).is_equal({&"bumper": 100, &"kicker": 50, &"target": 500})
+	var flippers := _rule_of(mode, Intents.FLIPPERS)
+	assert_object(flippers.conditions[0]).is_instanceof(PinballSeated)
+	assert_object(flippers.effects[0]).is_instanceof(SetFlippers)
+	var layouts := _layouts_for(mode)
+	var marker := layouts[mode.lobby_level].positions(&"pinball")
+	assert_int(marker.size()).is_equal(1)
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
+	game.state.map = GREYBOX
+	game.keep_history = true
+	assert_bool(game.start(0)).is_true()
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.join(game, peer)
+	FixtureModes.run_ticks(game, 1)
+	var machine := FixturePinball.machine_id(game)
+	assert_vector(game.state.stations[machine].position).is_equal(marker[0])
+	FixtureItemModes.stand(game, P1, marker[0] + Vector3(0.3, 0, -0.5))
+	FixtureItemModes.stand(game, P2, marker[0] + Vector3(-0.3, 0, -0.5))
+	FixturePinball.interact(game, P1, 1)
+	FixturePinball.interact(game, P2, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable"])
+	FixturePinball.flippers(game, P1, true, false, 2)
+	FixturePinball.flippers(game, P2, true, true, 2)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable", &"not_seated"])
+	StubTable.play(game, StubTable.ball([&"bumper", &"target"]))
+	StubTable.play(game, StubTable.ball([&"kicker"]))
+	StubTable.play(game, StubTable.ball([]))
+	var shown := FixturePinball.last(game, P2)
+	assert_dict(shown).is_equal(FixturePinball.last(game, P1))
+	assert_int(shown["player"] as int).is_equal(-1)
+	assert_int(shown["best"] as int).is_equal(650)
+	assert_int(shown["balls_left"] as int).is_equal(0)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## The shipped mode keeps the guard of tests/unit/pinball/pinball_guard_test.gd: only an Interact
+## and a Flippers rule hold a pinball part (no nudge, no TILT).
+func test_only_the_seat_and_the_flippers_hold_a_pinball_part() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var rules: Array[Rule] = []
+	rules.append_array(mode.actions)
+	rules.append_array(mode.reactions)
+	for kind: StationKind in Stations.kinds_in(mode):
+		rules.append_array(kind.actions)
+	for kind: ItemKind in mode.item_kinds:
+		rules.append_array(kind.actions)
+		rules.append_array(kind.target_actions)
+	for role: GameRole in mode.roles:
+		rules.append_array(role.actions)
+	var triggers: Dictionary[StringName, bool] = {}
+	for rule: Rule in rules:
+		var parts: Array = []
+		parts.append_array(rule.conditions)
+		parts.append_array(rule.effects)
+		for part: Variant in parts:
+			if (
+				part is PinballUsable
+				or part is PinballSeated
+				or part is UsePinball
+				or part is SetFlippers
+			):
+				triggers[rule.trigger] = true
+	assert_array(triggers.keys()).contains_exactly_in_any_order(
+		[Intents.INTERACT, Intents.FLIPPERS]
+	)
 
 
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:

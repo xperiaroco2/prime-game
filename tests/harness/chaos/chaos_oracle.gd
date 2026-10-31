@@ -274,11 +274,11 @@ static func _rule(
 ## the mode's; an item only its kind's target_actions). In the base mode only the Generator's,
 ## Cooking's and car repair's station kinds and Cooking's boxes have one (§9.5.19, §9.5.20,
 ## §9.5.21), and all three play on the House alone (GD7, CD15, #810), so on the greybox every
-## accepted Interact gets this. The lobby's tap (#1390, StationTicks) has one whose first condition
-## is AtStation: a sender outside its cylinder gets `out_of_reach` (the chaos peers stand on the
-## hall's player markers, metres from the Bar). Any other target with the rule is "?" (its
-## conditions are the mode's, and the chaos run never meets one). `mode` null: only the target
-## kind's rules.
+## accepted Interact gets this. The lobby's tap (#1390) and pinball machine (#1398), both placed by
+## StationTicks, have one whose first condition is AtStation: a sender outside its cylinder gets
+## `out_of_reach` (the chaos peers stand on the hall's player markers, metres from the Bar and the
+## Pinball). Any other target with the rule is "?" (its conditions are the mode's, and the chaos
+## run never meets one). `mode` null: only the target kind's rules.
 static func _interact(
 	args: Dictionary, player: PlayerState, state: MatchState, mode: GameMode
 ) -> StringName:

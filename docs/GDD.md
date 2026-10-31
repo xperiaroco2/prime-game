@@ -123,6 +123,10 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   - **The pinball** (2026-10-29, [#1095 c6482062788](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6482062788)):
     one player works both flippers while the others stand by and watch. After interact the camera moves in close to
     the table. The machine's display shows this lobby's best score and whose it is. The machine cannot be nudged.
+    Interact again gets up. A game is a few balls (provisional: 3) and ends after the last one; walking off (or
+    being knocked down, laid limp, leaving) ends it too, and its score still counts for the best. The best score and
+    its owner's name stay from match to match while the lobby stays, even after the owner left, and are gone when
+    the host closes the lobby (provisional, [#1398](https://github.com/xperiaroco2/prime-game/issues/1398#issuecomment-6547795365)).
   - **The layout** is set on the hall scene in the game, with the bar, the booth, the pinball and the mirror as
     separate objects placed there once the hall is built. The numbers (how many mugs, how long, how many balls) are tuned on the hall
     greybox (#1354).
