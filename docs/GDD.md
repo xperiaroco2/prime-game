@@ -140,7 +140,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
 - **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
   match clock starts (the engineer, #213).
 - **Round:** everyone works on the shared tasks (the House's task types: §8); the dissidents spoil them deniably and
-  run out the clock (in the MVP nothing that matters can be hidden: §8, the rule of 2026-10-20). A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
+  run out the clock (in the MVP nothing that matters can be hidden: §8, the rule of 2026-10-20). A player at 0 health is knocked down, can be raised, and otherwise dies, waits in the dead's room (m8-match §3) and respawns
   ([vision revision 1](decisions/2026-10-01-vision-revision-1.md)). The first win condition met ends it: every task
   done (the Engineers, id `crew`), every engineer has left the match (dissidents), time up with a task left
   (dissidents).
@@ -152,7 +152,7 @@ The base mode has no meetings and no votes.
 ### The knockdown (#728)
 Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
 [vision revision 1](decisions/2026-10-01-vision-revision-1.md) stays (0 health knocks a player down; another player
-raises it by holding E; otherwise it dies when its time runs out or when it gives up, then spectates and respawns),
+raises it by holding E; otherwise it dies when its time runs out or when it gives up, then waits in the dead's room and respawns, m8-match §3),
 with three changes:
 - **Still:** a knocked-down player cannot move; there is no crawl and no separate "wounded" state.
 - **Mute:** it hears, but cannot speak: nobody hears it, under any rule (as before).
@@ -383,8 +383,8 @@ sabotages and the party's toys are alien gadgets, and **anyone may use one**: th
 everyone, so a human spoils with a gadget and can say "I was just trying it" (roles stay identical, m8-match §2).
 Small gadgets are items in the hand (printed, belted, printed again after use); big ones stand on the map like the
 light breaker. A gadget hits the people (voice, sight, movement), the tasks' devices or the neighbours' anger
-(m8-match §5). Picked, designed one at a time: the funny gas, the anti-gravity grenade and the disco ball (below), the hologram double
-next; the karaoke was dropped (prime-game-design `ideas/2026-10-31-gadgets.md`).
+(m8-match §5). Picked and designed one at a time: the funny gas, the anti-gravity grenade and the disco ball (below);
+the karaoke and the hologram double were dropped (prime-game-design `ideas/2026-10-31-gadgets.md`).
 
 **The funny gas** (the first gadget; [#1477](https://github.com/xperiaroco2/prime-game/issues/1477), decided
 [#1034 c6549060121](https://github.com/xperiaroco2/prime-game/issues/1034#issuecomment-6549060121) and the comments

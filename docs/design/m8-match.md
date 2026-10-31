@@ -37,18 +37,26 @@
 
 ## 3. Death and respawn
 
-- **Death costs time, not the match** (#1032): about 5 or 6 capsules across the map; to farm an outed human the aliens
-  would have to split up and guard every capsule, time they do not spend on tasks.
-- **A random capsule** by default; **a perk (mutation) to choose one**; **a few seconds of invulnerability** after the
-  respawn (today 3 s) to run, so a respawn among everyone becomes a chase, not a loss (#1032).
+- **Death costs time, not the match** (#1032): about 5 or 6 respawn points across the map; to farm an outed human the
+  aliens would have to split up and guard every point, time they do not spend on tasks.
+- **No capsule props** (the engineer, 2026-10-15: they add visual noise): the respawn points are today's random free
+  respawn markers, marked in the design only.
+- **A random point** by default; **a perk (mutation) to choose one** (later); **a few seconds of invulnerability**
+  after the respawn (today 3 s) to run, so a respawn among everyone becomes a chase, not a loss (#1032).
 - **The wait is 30 s** (decided, tuned by playtest); **no wait that grows per death** (rejected as boring) (#1032).
-  Today's rules already respawn at a random free marker after 30 s with 3 s of invulnerability (vision revision 1),
-  so the capsules start as those markers.
 - **The dead's room** (the MVP, the engineer, 2026-10-20,
   [#1032 c6289051758](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6289051758)): the dead do not
-  spectate the living; they go to a separate room together and hang out there until the respawn. Kept for later:
-  the soul pinball, choosing the spot and the misprint debuff
+  spectate the living; they go together to a place they walk and play in until the respawn, and hear and talk only
+  with each other. **That place is the lobby station's hall** (GDD §3), without the skat: while the crew parties on
+  Earth, the dead wait up on the station with the bar, the pinball and the Earth in the windows (2026-10-31, taken
+  for the engineer: [#1032 c6549455501](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6549455501)).
+  Kept for later: choosing the spot and the misprint debuff
   ([#1032 c6223852584](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6223852584)).
+- **The body stays** where the player died until the return: evidence for whoever finds it (kills are still not
+  revealed, §4). It disappears when the player is printed back (2026-10-31, the same comment).
+- **The return:** a small drone hovers over the respawn point and "3D-prints" the player back in about 2 s, from the
+  feet up, seen by everyone near (the engineer, 2026-10-15; the length 2026-10-31, the same comment); the player
+  cannot move or be hit while printed; then the invulnerability. Engine part: #1489. Numbers are placeholders.
 
 ## 4. Points
 
