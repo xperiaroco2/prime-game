@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## ToggleStation (#1295; ARCHITECTURE §9.4.2): an Interact at a world toggle's station and in sight
 ## flips the toggle; every station of the toggle (the kinds sharing its key and index) takes the
 ## new state, SwitchChanged tells each to everyone, and the host's world follows once
-## (WorldQuery.set_toggle, through the recording wrapper Match asks while it records). Driven by
-## FixtureToggles on a FixtureToggleWorld.
+## (WorldQuery.set_toggle, through the recording wrapper Match asks while it records). Also: a
+## ToggleStation at a station of no toggle kind flips nothing (a rule error), and a joiner is
+## told an open toggle (JoinRules: StationPlaced, then SwitchChanged). Driven by FixtureToggles
+## on a FixtureToggleWorld.
 
 const P1 := FixtureToggles.P1
 const P2 := FixtureToggles.P2
@@ -110,6 +112,55 @@ func test_out_of_reach_flips_nothing() -> void:
 	assert_int(world.calls.size()).is_equal(calls)
 
 
+func test_a_toggle_rule_at_a_station_of_no_toggle_kind_flips_nothing() -> void:
+	# ModeCheck refuses such a rule at load; ToggleStation still guards at run time. The kind is
+	# no PlaceToggles kind of the mode, so its rule reaches the effect unchecked.
+	var world := FixtureToggleWorld.new()
+	var game := FixtureToggles.in_round(FixtureToggles.mode(), world, [P1, P2])
+	var stray := FixtureToggles.kind(&"stray", &"cover")
+	var at := Vector3(70, 0, 0)
+	var station := game.state.add_station(stray, at, Color.WHITE)
+	var since := game.view_of(P2).events_named(&"SwitchChanged").size()
+	var calls := world.calls.size()
+	FixtureToggles.flip(game, P1, station.id, at)
+	assert_bool(station.on).is_false()
+	assert_int(game.view_of(P2).events_named(&"SwitchChanged").size()).is_equal(since)
+	assert_int(world.calls.size()).is_equal(calls)
+	assert_str("\n".join(game.diagnostics)).contains("names no toggle station")
+
+
+func test_a_joiner_is_told_an_open_toggle_after_its_station() -> void:
+	# No base flow reaches this (toggles are placed at Loading, where joins are closed), but a mode
+	# may place toggles in a Lobby row (§9.4.3): stand two in the lobby, one of them open.
+	var game := Match.new(
+		FixtureToggles.mode(), 7, FixtureToggleWorld.new(), FixtureToggles.layouts()
+	)
+	game.keep_history = true
+	game.start(0)
+	FixtureBaseMode.join(game, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	var kind := FixtureToggles.kind(&"cover", &"cover")
+	var shut := game.state.add_station(kind, FixtureToggles.COVERS[0], Color.WHITE)
+	var open := game.state.add_station(kind, FixtureToggles.COVERS[1], Color.WHITE)
+	open.index = 1
+	open.on = true
+	FixtureBaseMode.join(game, P2)
+	var told: Array = game.view_of(P2).events.filter(
+		func(e: MatchEvent) -> bool: return e is StationPlacedEvent or e is SwitchChangedEvent
+	)
+	var names := told.map(func(e: MatchEvent) -> String: return "%s %d" % [e.event_name(), _id(e)])
+	assert_array(names).is_equal(
+		["StationPlaced %d" % shut.id, "StationPlaced %d" % open.id, "SwitchChanged %d" % open.id]
+	)
+	assert_bool((told[2] as SwitchChangedEvent).on).is_true()
+
+
 func test_a_switch_changed_names_no_player() -> void:
 	var event := SwitchChangedEvent.new(4, true)
 	assert_array(event.to_dict().keys()).contains_exactly_in_any_order(["station", "on"])
+
+
+static func _id(event: MatchEvent) -> int:
+	if event is StationPlacedEvent:
+		return (event as StationPlacedEvent).station
+	return (event as SwitchChangedEvent).station
