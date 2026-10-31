@@ -29,7 +29,8 @@ const KICK := &"kick"
 ## The table's own layers: its walls, targets and flippers; the ball.
 const TABLE_LAYER := 1
 const BALL_LAYER := 1 << 1
-## The most reports one batch keeps (a hostile flipper rhythm cannot grow the queue).
+## The most TargetHits one batch keeps (a hostile flipper rhythm cannot grow the queue); a launch
+## or a loss is always kept (one per ball, so they cannot grow it either).
 const MOST_PENDING := 64
 
 ## The scene's problems (read at the first game); a table with any is inert.
@@ -356,8 +357,10 @@ func _lose() -> void:
 	_report(Intents.BALL_LOST, {"game": _game})
 
 
+# Past MOST_PENDING only a TargetHit is dropped: a lost launch or loss would leave core/ and the
+# table disagreeing on the ball for the rest of the game.
 func _report(kind: StringName, args: Dictionary) -> void:
-	if _pending.size() < MOST_PENDING:
+	if _pending.size() < MOST_PENDING or kind != Intents.TARGET_HIT:
 		_pending.append(MatchCommand.new(kind, 0, 0, args))
 
 

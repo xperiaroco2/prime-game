@@ -134,6 +134,19 @@ func test_a_ball_outside_the_walls_or_still_is_lost() -> void:
 	assert_int(_kinds().count(Intents.BALL_LOST)).is_equal(1)
 
 
+func test_a_full_batch_drops_hits_but_never_a_loss() -> void:
+	await _frames(6)
+	assert_bool(_played.in_play).is_true()
+	for _i in PinballTable.MOST_PENDING + 1:
+		_table._report(Intents.TARGET_HIT, {"game": _played.serial, "target": "bumper"})
+	_table.place_ball(Vector3(1.0, 0.03, 0.0), Vector3.ZERO)
+	_reports.clear()
+	await _frames(1)
+	assert_int(_hits().size()).is_equal(PinballTable.MOST_PENDING)
+	assert_int(_kinds().count(Intents.BALL_LOST)).is_equal(1)
+	assert_bool(_played.in_play).is_false()
+
+
 func test_a_new_game_or_no_game_frees_the_ball() -> void:
 	await _frames(6)
 	assert_bool(_table.has_ball()).is_true()
