@@ -7,7 +7,8 @@ extends Node3D
 ## flash (PhotoFlashes, #785) and the Generator's station scenes in the level (StationViews, #801)
 ## and its hum while it charges (StationHums, #801) and the photo camera's viewfinder
 ## (PhotoViewfinder, #786) and its scenes and items (PhotoViews, #787) and the shots' pictures
-## (PhotoPictures, #787) and the hand-over key and its target (HandOverUse, #1411),
+## (PhotoPictures, #787) and the hand-over key and its target (HandOverUse, #1411) and the world
+## toggles' parts (ToggleViews, #1295),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -30,6 +31,7 @@ const _ORDER: Array[StringName] = [
 	&"PhotoFlashes",
 	&"StationViews",
 	&"StationHums",
+	&"ToggleViews",
 	&"CookingViews",
 	&"PhotoViewfinder",
 	&"CarRepairViews",
@@ -48,6 +50,8 @@ var flashes := PhotoFlashes.new()
 ## The Generator's station scenes (its TaskClient's view): station_of_hit asks it first.
 var stations := task_views.get(Generator) as StationViews
 var hums := StationHums.new()
+## The world toggles' parts in the level (#1295): no task type's view, so a fixed child.
+var toggles := ToggleViews.new()
 ## Cooking's scenes (its TaskClient's view): station_of_hit, drawn_point and aim_point ask it.
 var cooking := task_views.get(Cooking) as CookingViews
 var viewfinder := PhotoViewfinder.new()
@@ -71,6 +75,7 @@ func _init() -> void:
 	sounds.name = "WorldSounds"
 	flashes.name = "PhotoFlashes"
 	hums.name = "StationHums"
+	toggles.name = "ToggleViews"
 	pictures.name = "PhotoPictures"
 	for each: Node3D in [
 		items,
@@ -79,6 +84,7 @@ func _init() -> void:
 		sounds,
 		flashes,
 		hums,
+		toggles,
 		viewfinder,
 		pictures,
 	]:
@@ -128,6 +134,8 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 			view.set(&"host_tick", views.host_tick)
 	_host_tick = views.host_tick
 	pictures.model = _model
+	toggles.mode = game_mode
+	toggles.model = _model
 	pictures.mode = game_mode
 	pictures.avatars = views
 	pictures.flashes = flashes
@@ -174,6 +182,7 @@ func reset() -> void:
 	pictures.model = null
 	hums.clear()
 	hums.model = null
+	toggles.model = null
 	sounds.model = null
 	sounds.mode = null
 	flashes.clear()
@@ -238,8 +247,9 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 
 
 ## The level now (Game's), or null: StationViews finds the Generator's station scenes in it,
-## CookingViews Cooking's.
+## CookingViews Cooking's, ToggleViews the world toggles' parts (#1295).
 func set_level(level: Node) -> void:
+	toggles.level = level
 	for view: Node3D in task_views.values():
 		if &"level" in view:
 			view.set(&"level", level)

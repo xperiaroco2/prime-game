@@ -74,10 +74,15 @@ static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
 ## task type whose TaskClient draws it as a circle (Delivery's and Delivery by meaning's, #1260),
 ## or one no task type of the mode holds (the fallback cylinder). A zone is ZoneViews'; a
 ## Generator's generator and switch are the level's station scenes (StationViews); every other
-## task type's stations are its own view's.
+## task type's stations are its own view's. A world toggle's kind (#1295) is never drawn: its
+## look is the level's own (the bookcase, a cover, the breaker), and a cylinder would mark a
+## secret passage.
 static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 	if game_mode == null:
 		return true
+	for kind: StationKind in Stations.toggle_kinds(game_mode):
+		if kind.id == kind_id:
+			return false
 	var held := false
 	for type: TaskType in game_mode.task_types:
 		if type == null:
