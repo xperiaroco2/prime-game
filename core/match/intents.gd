@@ -151,7 +151,12 @@ const BODY_MOVED := &"BodyMoved"
 const BALL_LAUNCHED := &"BallLaunched"
 const TARGET_HIT := &"TargetHit"
 const BALL_LOST := &"BallLost"
-const TABLE_REPORTS: Array[StringName] = [BALL_LAUNCHED, TARGET_HIT, BALL_LOST]
+## The ball's place while it is on the table (#1399), {"game", "position"}: table-local metres, the
+## origin at the table scene's root (the view puts the table on the machine). One per step-4 batch
+## while a ball lives, after the table's other reports; it changes no PinballState: Pinball keeps it
+## for the snapshot's ball (§5), public.
+const BALL_MOVED := &"BallMoved"
+const TABLE_REPORTS: Array[StringName] = [BALL_LAUNCHED, TARGET_HIT, BALL_LOST, BALL_MOVED]
 ## Forces a role on `peer` for the deals that follow, {"role": id}; an empty id clears it. server/
 ## originates it in debug builds only (§8, §9.4 DealRoles): from peer 1's debug-kind message only
 ## (the host's own client: a dev console command, the bots runner's bot 1; §4.3, E17), never from
@@ -218,4 +223,5 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	BALL_LAUNCHED: {"game": TYPE_INT},
 	TARGET_HIT: {"game": TYPE_INT, "target": TYPE_STRING},
 	BALL_LOST: {"game": TYPE_INT},
+	BALL_MOVED: {"game": TYPE_INT, "position": TYPE_VECTOR3},
 }

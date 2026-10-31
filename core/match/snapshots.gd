@@ -21,8 +21,9 @@ extends RefCounted
 
 
 ## What `viewer` is entitled to see at host tick `at_tick` (the tick whose state it shows): the
-## avatars, the items and the bodies. Match records it for view_of() (keep_history); the snapshot
-## the host sends each tick is avatars_for() alone (#1198).
+## avatars, the items, the bodies, and the pinball's ball while one is on the table (`ball`, absent
+## otherwise: Pinball.shown_ball, #1399). Match records it for view_of() (keep_history); the
+## snapshot the host sends each tick is sent() alone (#1198).
 static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
 	var item_data := {}
 	for id: int in state.items:
@@ -31,7 +32,18 @@ static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary
 	var body_data := {}
 	for peer: int in state.bodies:
 		body_data[peer] = state.bodies[peer]
-	return {"avatars": avatars_for(state, viewer, at_tick), "items": item_data, "bodies": body_data}
+	var seen := sent(state, viewer, at_tick)
+	seen["items"] = item_data
+	seen["bodies"] = body_data
+	return seen
+
+
+## What the host sends `viewer` for host tick `at_tick` (Match.snapshot_for): the avatars it is
+## entitled to, and the pinball's ball (`ball`, the same for everyone) while one is on the table.
+static func sent(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
+	var shown := {"avatars": avatars_for(state, viewer, at_tick)}
+	shown.merge(Pinball.shown_ball(state))
+	return shown
 
 
 ## The avatars `viewer` is entitled to see at host tick `at_tick`, by peer.

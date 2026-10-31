@@ -21,6 +21,11 @@ static func lost(game: Match, serial: int) -> void:
 	_send(game, Intents.BALL_LOST, {"game": serial})
 
 
+## BallMoved of game `serial`: the ball at `position` (table-local, #1399).
+static func moved(game: Match, serial: int, position: Vector3) -> void:
+	_send(game, Intents.BALL_MOVED, {"game": serial, "position": position})
+
+
 ## Each step of `steps` against the game live when it is sent, then a tick.
 static func play(game: Match, steps: Array) -> void:
 	for step: Variant in steps:
