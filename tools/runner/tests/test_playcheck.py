@@ -491,6 +491,7 @@ class CommandTest(unittest.TestCase):
             mock.patch.object(playcheck, "IS_CI", False),
             mock.patch.object(shot, "has_display", return_value=True),
             mock.patch.object(playcheck, "require_godot", return_value="godot"),
+            mock.patch.object(playcheck.launch, "gui_exe", return_value="window.exe"),
             mock.patch.object(playcheck, "ensure_out"),
             mock.patch.object(playcheck.launch, "ensure_import"),
             mock.patch.object(playcheck, "run_one", return_value=0) as run_one,
@@ -567,7 +568,7 @@ class RunTest(unittest.TestCase):
         s = scenario()
         seen: list[hostjoin.Part] = []
 
-        def fake_commands(parts: list[hostjoin.Part], _exe: str) -> None:
+        def fake_commands(parts: list[hostjoin.Part], *_exes: str) -> None:
             for part in parts:
                 part.cmd = [sys.executable, "-c", FAKE, behaviours.get(part.label, "ok"), *part.user_args]
             seen.extend(parts)

@@ -2,7 +2,9 @@
 
 Never headless and never minimized: in both cases Godot does not draw, RenderingServer.frame_post_draw never fires
 and the script would hang (Phase A tests on vulkan, d3d12 and opengl3). The window stays off every screen
-(tools/runner/offscreen.py, #1141), so it never covers the human's screen. Needs a desktop session, so CI never runs it.
+(tools/runner/offscreen.py, #1141), so it never covers the human's screen, and it never keeps the foreground
+(tools/runner/focus.py, #1505). Gaming mode refuses it (tools/runner/gaming.py). Needs a desktop session, so CI never
+runs it.
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import os
 import re
 from pathlib import Path
 
-from . import offscreen
+from . import focus, gaming, offscreen
 from .check import ensure_import
 from .common import IS_CI, IS_WINDOWS, OUT, ROOT, Failure, ensure_out, godot, ok, say
 
@@ -43,6 +45,7 @@ def has_display() -> bool:
 
 def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int = 10) -> int:
     say("shot")
+    gaming.refuse_windows("shot")
     if not has_display():
         raise Failure("shot needs a desktop session with a GPU; CI and headless machines skip it")
     if not SIZE_RE.match(size):
@@ -56,7 +59,20 @@ def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int
     png.parent.mkdir(parents=True, exist_ok=True)
     if png.exists():
         png.unlink()
-    res = godot(command(res_path, png, size, frames), timeout=TIMEOUT, log="shot", env=offscreen.env(size))
+    from . import launch  # launch imports this module
+
+    # The window exe, as `run --offscreen`: the console exe would start godot.exe without SW_SHOWNOACTIVATE (focus).
+    exe = launch.gui_exe()
+    with focus.keep() as keeper:
+        res = godot(
+            command(res_path, png, size, frames),
+            timeout=TIMEOUT,
+            log="shot",
+            env=offscreen.env(size),
+            on_start=keeper.watch,
+            background=True,
+            exe=exe,
+        )
     if res.timed_out:
         raise Failure(f"shot timed out after {TIMEOUT}s: the window never drew (log: tools/out/logs/shot.log)")
     errors = [line.removeprefix("SHOT error ") for line in res.lines if line.startswith("SHOT error ")]

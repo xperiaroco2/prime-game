@@ -9,6 +9,8 @@ from pathlib import Path
 
 from . import common, pins
 from .common import Failure, bad
+from .gaming import EXIT as GAMING_EXIT
+from .gaming import GamingMode
 
 
 class _Formatter(argparse.HelpFormatter):
@@ -335,6 +337,23 @@ def build_parser() -> argparse.ArgumentParser:
     what.add_argument("--off", action="store_true", help="clear this session's sign")
     what.add_argument("--status", action="store_true", help="list the signs and whether they are in force")
     p.add_argument("--all", action="store_true", help="with --off: clear every session's sign")
+
+    p = sub.add_parser(
+        "gaming",
+        help="gaming mode: while the engineer plays on this PC, every window run refuses with exit 3 (--on | --off | "
+        "--status)",
+        description="Gaming mode (#1505): the engineer's switch for when he plays on this PC. --on writes a "
+        "machine-local file outside every checkout (%LOCALAPPDATA%\\prime-game\\gaming-mode.json; every worktree "
+        "reads it); while it is there, shot, playcheck, run without --headless, and host and join with windows refuse "
+        "with exit code 3 and the line 'gaming mode: window runs wait; `gaming --off` when the PC is free', before they "
+        "start anything. Headless commands (verify, check, test, lint, bots, perf, run --headless) run as before. "
+        "--off removes the file; --status says whether it is on. Even with it off, an off-screen window run never "
+        "keeps the foreground (docs/AGENT_WORKFLOW.md §11.4).",
+    )
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument("--on", action="store_true", help="hold every window run on this PC (exit 3) until --off")
+    what.add_argument("--off", action="store_true", help="let window runs go ahead again")
+    what.add_argument("--status", action="store_true", help="say whether gaming mode is on, and its file")
 
     p = sub.add_parser(
         "slots",
@@ -955,6 +974,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import load
 
             return load.main(args.loops, args.seconds)
+        if args.command == "gaming":
+            from . import gaming
+
+            return gaming.main(on=args.on, off=args.off, status=args.status)
         if args.command == "unattended":
             from . import unattended
 
@@ -1148,6 +1171,9 @@ def main(argv: list[str] | None = None) -> int:
             from . import hooks
 
             return hooks.main(args.name)
+    except GamingMode as exc:
+        bad(str(exc))
+        return GAMING_EXIT
     except Failure as exc:
         bad(str(exc))
         return 1

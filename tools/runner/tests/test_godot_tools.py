@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import normalize, offscreen, shot
+from runner import launch, normalize, offscreen, shot
 from runner.verify import starts_godot
 from runner.common import ROOT, Failure, Result, godot_bin, run
 
@@ -131,6 +131,10 @@ class ShotTest(unittest.TestCase):
         patcher = mock.patch.object(shot, "ensure_import")
         self.ensure_import = patcher.start()
         self.addCleanup(patcher.stop)
+        # The window exe (#1505) is checked by its own tests (test_launch.py); here no machine needs Godot.
+        window_exe = mock.patch.object(launch, "gui_exe", return_value="window.exe")
+        window_exe.start()
+        self.addCleanup(window_exe.stop)
 
     def test_command_is_windowed_and_off_screen(self) -> None:
         # #1141: Godot clamps --position onto the screen, so the window starts as one pixel at the clamp's top-right

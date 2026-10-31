@@ -9,13 +9,15 @@ DisplayServer.window_set_position moves a window without that clamp.
 So the window starts as one pixel asked far right and up (START): a third of one pixel is 0, so its client area opens
 at (screen width, 0), just past the top-right corner, and its title bar above the screen. What stays on the screen is
 the 1 px left border of its frame, 2 px tall at the corner, until place() runs (a window watcher, #1141: 0.5 to 0.8 s
-for `shot` and `run --offscreen`, 3.7 and 4.9 s for the two windows of a `playcheck` started together). The game's
-project keeps its title bar and focus: no command-line flag makes a window borderless or unfocused, and the project
-settings that do (display/window/size/borderless, no_focus) would change the game's own windows. Asked far right and
-down instead, the title bar stood above the taskbar: 1x31 px on the screen.
+for `shot` and `run --offscreen`, 3.7 and 4.9 s for the two windows of a `playcheck` started together). The window
+keeps its title bar: no command-line flag makes a window borderless or unfocused, and the project settings that do
+(display/window/size/borderless, no_focus) would change the game's own windows. Asked far right and down instead, the
+title bar stood above the taskbar: 1x31 px on the screen.
 
 The window script calls tools/offscreen/offscreen.gd place() first: it moves the window to -30000,-30000, grows it to
-the size in ENV and prints the OFFSCREEN line, which problems() checks before the runner accepts the run.
+the size in ENV, makes it unfocusable at runtime (DisplayServer.WINDOW_FLAG_NO_FOCUS) and prints the OFFSCREEN line,
+which problems() checks before the runner accepts the run. The window never keeps the foreground: tools/runner/focus.py
+(#1505).
 """
 
 from __future__ import annotations

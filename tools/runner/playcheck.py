@@ -98,7 +98,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import hostjoin, launch, offscreen, shot
+from . import gaming, hostjoin, launch, offscreen, shot
 from .common import IS_CI, LOGS, OUT, ROOT, Failure, bad, ensure_out, ok, rel, require_godot, say
 
 SCENARIOS = ROOT / "tools" / "playcheck" / "scenarios"
@@ -654,14 +654,15 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
     return parts
 
 
-def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
+def set_commands(parts: list[hostjoin.Part], exe: str, window_exe: str = "") -> None:
     """Windows: the window script in a real window off-screen (offscreen.START, its SIZE in the environment) with the
-    dummy audio driver. The console exe opens them too, and relays the lines the runner reads. The bots: their script
-    headless."""
+    dummy audio driver, each a background part (started without activating it, never keeping the foreground: focus,
+    #1505) from `window_exe` (launch.gui_exe(): the console exe would start godot.exe without SW_SHOWNOACTIVATE),
+    else `exe`; it relays the lines the runner reads as the console exe does. The bots: their script headless, `exe`."""
     for part in parts:
         bots = part.label == "bots"
         part.cmd = launch.command(
-            exe,
+            exe if bots else window_exe or exe,
             ROOT,
             BOTS_SCRIPT if bots else WINDOW_SCRIPT,
             headless=bots,
@@ -670,6 +671,7 @@ def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
             user_args=part.user_args,
         )
         part.env = {} if bots else offscreen.env(SIZE)
+        part.background = not bots
 
 
 def failed_line(part: hostjoin.Part) -> str:
@@ -757,7 +759,7 @@ def clear(folder: Path) -> None:
         raise Failure(f"cannot clear {shown(folder)}: close any program holding its files (a PNG viewer), then rerun")
 
 
-def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
+def run_one(scenario: Scenario, exe: str, seconds: int, port: int, window_exe: str = "") -> int:
     bots = scenario.players - scenario.windows
     kind = " (the solo tutorial)" if scenario.tutorial else ""
     say(f"playcheck {scenario.name}: {scenario.windows} window(s) and {bots} bot(s){kind}")
@@ -771,7 +773,7 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
     plan_path.write_text(json.dumps(plan(scenario, out), indent=2) + "\n", encoding="utf-8")
     stop = hostjoin.stop_file()
     parts = make_parts(scenario, plan_path, port, stop)
-    set_commands(parts, exe)
+    set_commands(parts, exe, window_exe)
     say(f"        {' '.join(parts[0].cmd[1:])}")
     hostjoin.supervise(parts, seconds=seconds, stop=stop, until=finished)
     hostjoin.write_logs(parts, LOG_DIR / scenario.name)
@@ -780,6 +782,7 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
 
 def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     say("playcheck")
+    gaming.refuse_windows("playcheck")
     seconds = DEFAULT_SECONDS if seconds is None else seconds
     if IS_CI or not shot.has_display():
         raise Failure("playcheck needs a desktop session with a GPU (real windows, like shot); CI never runs it")
@@ -789,11 +792,12 @@ def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     if not scenarios:
         raise Failure(f"no scenarios in {rel(SCENARIOS)}")
     exe = require_godot()
+    window_exe = launch.gui_exe()
     ensure_out()
     launch.ensure_import()
     from .verify import free_udp_port
 
-    failed = sum(run_one(scenario, exe, seconds, free_udp_port()) for scenario in scenarios)
+    failed = sum(run_one(scenario, exe, seconds, free_udp_port(), window_exe) for scenario in scenarios)
     say(f"playcheck: FAILED ({failed} of {len(scenarios)})" if failed else "playcheck: passed")
     if not failed:
         say("playcheck: done. Read the PNGs to check them; a PR lists their paths for the human to drag in.")

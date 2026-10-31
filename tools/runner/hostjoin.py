@@ -31,6 +31,7 @@ over ENet on 127.0.0.1, both welcomed into the lobby, then both stopped through 
 from __future__ import annotations
 
 import math
+import contextlib
 import os
 import re
 import socket
@@ -42,7 +43,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import launch, shot
+from . import focus, gaming, launch, shot
 from .common import (
     AGENT_ENV,
     IS_WINDOWS,
@@ -128,6 +129,9 @@ class Part:
     unmet: str = ""
     # Added to its environment (playcheck's off-screen window size, #1141).
     env: dict[str, str] = field(default_factory=dict)
+    # A window nobody looks at (playcheck's off-screen ones): started without activating it, and it never keeps the
+    # foreground while supervise runs (focus, #1505).
+    background: bool = False
 
     @property
     def running(self) -> bool:
@@ -261,6 +265,8 @@ def windowed(*, headless: bool, windows: bool, env: Mapping[str, str] | None = N
 def choose_windows(*, headless: bool, windows: bool) -> bool:
     """windowed(), saying why an agent's shell runs headless; a window needs a desktop session."""
     shown = windowed(headless=headless, windows=windows)
+    if shown:
+        gaming.refuse_windows("host and join with windows")
     if not shown and not headless:
         say(f"        {AGENT_ENV} is set (an agent's shell): the headless session; a human's terminal opens windows")
     if shown and not shot.has_display():
@@ -329,8 +335,15 @@ def lan_hint(hosting_line: str) -> None:
 _echo_lock = threading.Lock()
 
 
-def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
-    """Start the process in its own process group (Ctrl+C reaches only the runner) and echo its lines live.
+def start(
+    part: Part,
+    *,
+    cwd: Path = ROOT,
+    instance: int = 1,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+) -> None:
+    """Start the process in its own process group (Ctrl+C reaches only the runner) and echo its lines live; a
+    background part without activating its window (focus.startup). `on_start` gets the process once it runs.
 
     `instance` is its PRIME_INSTANCE (1 the host, 2 and on the clients in tile order), so each window keeps its own
     settings file (the M5 ADR's E47 as amended, §1.7)."""
@@ -339,6 +352,8 @@ def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         kwargs["start_new_session"] = True
+    if part.background:
+        kwargs.update(focus.startup())
     try:
         part.proc = subprocess.Popen(
             part.cmd,
@@ -351,6 +366,8 @@ def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {part.cmd[0]}: {exc}") from exc
+    if on_start is not None:
+        on_start(part.proc)
 
     def pump() -> None:
         assert part.proc is not None and part.proc.stdout is not None
@@ -389,15 +406,20 @@ def supervise(
     beat = threading.Thread(target=_keep_alive, args=(alive, done), daemon=True)
     beat.start()
     started = time.monotonic()
+    # Background windows (playcheck's) never keep the foreground: the keeper gives it back (#1505).
+    keeper = focus.keep() if any(part.background for part in parts) else None
+    watch = keeper.watch if keeper is not None else None
+    held = keeper if keeper is not None else contextlib.nullcontext()
+    held.__enter__()
     try:
-        start(parts[0], cwd=cwd)
+        start(parts[0], cwd=cwd, on_start=watch)
         if len(parts) > 1 or on_hosting is not None:
             hosting = _wait_for_host(parts[0], started)
             if hosting and on_hosting is not None:
                 on_hosting(hosting)
             if parts[0].running and not _cannot_host(parts[0]):
                 for number, part in enumerate(parts[1:], start=2):
-                    start(part, cwd=cwd, instance=number)
+                    start(part, cwd=cwd, instance=number, on_start=watch)
         while any(part.running for part in parts):
             if seconds is not None and time.monotonic() - started >= seconds:
                 say(f"session: {seconds}s passed, stopping")
@@ -410,6 +432,7 @@ def supervise(
         say(f"session: Ctrl+C, stopping (each process gets up to {grace:g}s; Ctrl+C again kills them)")
     finally:
         _stop(parts, stop)
+        held.__exit__(None, None, None)
         done.set()
         beat.join(timeout=5)
         alive.unlink(missing_ok=True)
