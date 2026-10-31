@@ -37,6 +37,7 @@ const _ORDER: Array[StringName] = [
 	&"CarRepairViews",
 	&"PhotoViews",
 	&"PhotoPictures",
+	&"ShipEngineViews",
 ]
 
 var items := ItemViews.new()

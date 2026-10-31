@@ -225,6 +225,8 @@ var raises: Dictionary[int, int] = {}
 var offers: Dictionary[int, int] = {}
 ## Task id -> its public state (TaskState, E30), for the task screen.
 var tasks: Dictionary[int, Task] = {}
+## The ship's engine's problems, blasts, gills and crystals (#1462), folded from every event.
+var engine := ClientEngineBook.new()
 ## Cooking's herbs as HerbsDealt told them (#776): the herb kind id per icon index (the herb
 ## board) and per bed, in bed station order. Empty before the deal.
 var herb_code := PackedStringArray()
@@ -397,6 +399,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 	var phase_before := phase
 	var living_before := life_of(own_peer) == Life.ALIVE
 	_fold_event(event_name, fields)
+	engine.fold(event_name, fields)
 	if phase != phase_before or (living_before and life_of(own_peer) != Life.ALIVE):
 		silencings += 1
 
@@ -480,6 +483,7 @@ func clear_match() -> void:
 	selected_places.clear()
 	tasks.clear()
 	stations.clear()
+	engine = ClientEngineBook.new()
 	herb_code = PackedStringArray()
 	herb_beds = PackedStringArray()
 	film_shots.clear()
