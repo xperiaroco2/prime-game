@@ -12,12 +12,13 @@ extends RefCounted
 ## the lobby stays, and is gone when the host closes it. The owner's name is copied when the game
 ## starts, so it stays when the owner leaves.
 ##
-## The table (the ball's physics, server/, #1399) reports into core through three commands that
+## The table (the ball's physics, server/, #1399) reports into core through four commands that
 ## server/ originates (Intents.TABLE_REPORTS), each naming the game it belongs to (`game`, the
 ## serial PinballState carries): BallLaunched, TargetHit (`target`, a PinballTarget's id) and
-## BallLost (report()), and BallMoved, the ball's place for the snapshots (shown_ball()). A report of a game that is not the live one (none seated, or another game
-## since) is ignored: a report in flight at a release is a normal race. Every change goes out as one
-## public PinballState, the whole state (announce()).
+## BallLost (report()), and BallMoved, the ball's place for the snapshots (shown_ball()). A report
+## of a game that is not the live one (none seated, or another game since) is ignored: a report in
+## flight at a release is a normal race. Every change but BallMoved goes out as one public
+## PinballState, the whole state (announce()).
 ##
 ## A game ends (end(): the best updated, the seat freed) after its last ball, on the seated
 ## player's Interact again (UsePinball), through PinballTicks when the seated player is no longer

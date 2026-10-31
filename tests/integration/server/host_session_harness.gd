@@ -288,8 +288,8 @@ func peer_of(client: ClientSession) -> int:
 
 
 ## The difference between what `client` decoded and view_of its peer (§4.6): the events in order
-## (name and fields, by type), each decoded snapshot's avatars, and each frame's speaker and
-## strength (#1392) for its tick. Empty when they agree.
+## (name and fields, by type), each decoded snapshot's avatars and ball, and each frame's speaker
+## and strength (#1392) for its tick. Empty when they agree.
 func mismatches(client: ClientSession) -> PackedStringArray:
 	var found := PackedStringArray()
 	var view := session.game.view_of(peer_of(client))
@@ -312,6 +312,10 @@ func mismatches(client: ClientSession) -> PackedStringArray:
 			found.append("a snapshot of tick %d that view_of lacks" % at_tick)
 		elif client.view.snapshots[at_tick]["avatars"] != view.snapshots[at_tick]["avatars"]:
 			found.append("the snapshot of tick %d differs" % at_tick)
+		elif not WireSamples.same(
+			client.view.snapshots[at_tick].get("ball"), view.snapshots[at_tick].get("ball")
+		):
+			found.append("the snapshot of tick %d has another ball" % at_tick)
 	var heard := client.view.speakers()
 	for at_tick: int in heard:
 		var allowed: PackedInt32Array = view.speakers.get(at_tick, PackedInt32Array())

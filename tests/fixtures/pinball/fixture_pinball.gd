@@ -19,7 +19,12 @@ const TARGET := 500
 
 
 static func mode() -> GameMode:
-	var made := FixtureLobbyHands.clearing(FixtureLobbyHands.mode())
+	return with_machine(FixtureLobbyHands.clearing(FixtureLobbyHands.mode()))
+
+
+## `made` (FixtureLobbyHands' clearing mode, or one built the same way from another base) with the
+## machine as mode() has it.
+static func with_machine(made: GameMode) -> GameMode:
 	made.actions.append(
 		FixtureModes.rule(
 			Intents.FLIPPERS,
