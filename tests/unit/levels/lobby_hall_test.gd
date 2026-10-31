@@ -223,6 +223,40 @@ func test_the_pinball_marker_stands_before_the_machine_clear_of_every_box() -> v
 	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
 
 
+## The photo booth's volume (#1396) is the booth station's own cylinder on the Booth marker: the
+## whole cylinder stands clear of every box (the PhotoBooth box stays solid until the engineer
+## opens it), and right in front of the PhotoBooth box, less than a capsule's width away.
+func test_the_booth_marker_stands_before_the_photo_booth_its_volume_clear_of_every_box() -> void:
+	var booths := _root.find_children("*", "Marker3D", true, false).filter(
+		func(node: Node) -> bool: return node.is_in_group(&"spawn_booth")
+	)
+	assert_int(booths.size()).is_equal(1)
+	var booth := booths[0] as Node3D
+	var at := Vector2(booth.position.x, booth.position.z)
+	var kind := load("res://content/stations/booth.tres") as StationKind
+	var mode := load(BASE_MODE) as GameMode
+	assert_bool(_inner_rect().grow(-kind.radius_m).has_point(at)).is_true()
+	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
+		if shape.get_parent() == _root.get_node("Floor"):
+			continue
+		(
+			assert_float(_distance_to_box(at, shape as CollisionShape3D))
+			. override_failure_message(str(shape.get_parent().name))
+			. is_greater(kind.radius_m)
+		)
+	var gap := _distance_to_box(at, _shape_of(_root.get_node("PhotoBooth"))) - kind.radius_m
+	assert_float(gap).is_less(2.0 * mode.player_rules.capsule_radius_m)
+
+
+## The distance on the floor plan from `at` to the box of `shape`.
+func _distance_to_box(at: Vector2, shape: CollisionShape3D) -> float:
+	var box := _bounds(shape)
+	var nearest := Vector2(
+		clampf(at.x, box.position.x, box.end.x), clampf(at.y, box.position.z, box.end.z)
+	)
+	return at.distance_to(nearest)
+
+
 func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	assert_str(mode.lobby_level).is_equal(LOBBY)
