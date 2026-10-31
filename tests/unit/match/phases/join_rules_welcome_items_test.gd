@@ -115,14 +115,25 @@ func test_a_flying_item_is_sent_lying_where_it_was_with_an_error() -> void:
 
 func test_an_item_in_a_place_of_a_player_who_is_not_its_holder_is_left_out_with_an_error() -> void:
 	var game := FixtureLobbyHands.in_lobby(FixtureLobbyHands.mode(), [P1, P2])
-	var held := FixtureLobbyHands.give(game, P1, &"tool")
-	# A second place list naming the same item: the host state disagrees with itself.
-	game.state.player(P2).places[0] = held.id
+	var held := FixtureLobbyHands.give(game, P2, &"tool")
+	# The earlier player's place list also names it: the host state disagrees with itself.
+	game.state.player(P1).places[0] = held.id
 	FixtureBaseMode.join(game, P3)
 	var welcome := _welcome(game, P3)
-	assert_array(welcome.items).is_equal([_row(held, ItemState.Where.HAND, P1, 0)])
+	assert_array(welcome.items).is_equal([_row(held, ItemState.Where.HAND, P2, 0)])
 	assert_str("\n".join(game.diagnostics)).contains(
-		"Welcome: item %d is in place 0 of %d" % [held.id, P2]
+		"Welcome: item %d is in place 0 of %d" % [held.id, P1]
+	)
+
+
+func test_an_item_named_by_two_places_of_its_holder_gets_one_row_and_an_error() -> void:
+	var game := FixtureLobbyHands.in_lobby(FixtureLobbyHands.mode(), [P1])
+	var held := FixtureLobbyHands.give(game, P1, &"tool")
+	game.state.player(P1).places[1] = held.id
+	FixtureBaseMode.join(game, P2)
+	assert_array(_welcome(game, P2).items).is_equal([_row(held, ItemState.Where.HAND, P1, 0)])
+	assert_str("\n".join(game.diagnostics)).contains(
+		"Welcome: item %d is in place 1 of %d" % [held.id, P1]
 	)
 
 
