@@ -463,7 +463,8 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 			_fold_match_event(event_name, fields)
 
 
-## Folds one decoded snapshot: its avatars replace the older ones. The model keeps a copy: the
+## Folds one decoded snapshot: its avatars replace the older ones, its pinball ball (or none) the
+## older one (ClientPinball.fold_snapshot). The model keeps a copy: the
 ## DecodedView records the same Dictionary, and a PlayerLeft must not change what was decoded. One
 ## at or below _snapshot_floor is of a match the model forgot and is not folded.
 func fold_snapshot(fields: Dictionary) -> void:
@@ -471,6 +472,7 @@ func fold_snapshot(fields: Dictionary) -> void:
 	if tick > snapshot_tick and tick > _snapshot_floor:
 		snapshot_tick = tick
 		avatars = (fields["avatars"] as Dictionary).duplicate(true)
+		pinball.fold_snapshot(fields)
 
 
 ## Forgets a match's facts: on LoadMatch and on entering the lobby. Raises _snapshot_floor.

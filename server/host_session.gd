@@ -451,7 +451,7 @@ func _send_snapshots(at_tick: int) -> void:
 		var snapshot := game.snapshot_for(peer)
 		if snapshot.is_empty():
 			continue
-		var payload := _snapshots.payload(snapshot["avatars"] as Dictionary)
+		var payload := _snapshots.payload(snapshot)
 		if (
 			not payload.is_empty()
 			and _send(peer, _snapshots.kind, payload) == OK

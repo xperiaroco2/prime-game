@@ -52,7 +52,7 @@ func test_every_viewers_payload_is_the_codecs_for_its_snapshot_tick_after_tick()
 		encoder.start(tick)
 		for viewer: int in peers:
 			var avatars: Dictionary = game.snapshot_for(viewer)["avatars"]
-			var payload := encoder.payload(avatars)
+			var payload := encoder.payload({"avatars": avatars})
 			assert_bool(payload.is_empty()).is_false()
 			assert_bool(payload == _encoded(tick, avatars)).is_true()
 			var decoded := _decoded(payload)
@@ -74,7 +74,7 @@ func test_the_wires_worst_case_of_every_avatar_is_the_codecs() -> void:
 	assert_int(padded.size()).is_equal(WireSchema.MAX_AVATARS)
 	var encoder := SnapshotEncoder.new(_schema)
 	encoder.start(0xFFFFFFFE)
-	var payload := encoder.payload(padded)
+	var payload := encoder.payload({"avatars": padded})
 	assert_bool(payload.is_empty()).is_false()
 	assert_bool(payload == _encoded(0xFFFFFFFE, padded)).is_true()
 	assert_int(_errors.count()).is_equal(0)
@@ -90,7 +90,7 @@ func test_an_entry_is_reused_only_for_an_equal_record_of_the_same_types() -> voi
 	var first := {2: _avatar(), 5: holding}
 	var other := {2: moved, 5: holding}
 	for avatars: Dictionary in [first, other, first]:
-		var each := encoder.payload(avatars)
+		var each := encoder.payload({"avatars": avatars})
 		assert_bool(each == _encoded(41, avatars)).is_true()
 		assert_bool(Samples.same(_decoded(each), avatars)).is_true()
 	assert_int(_errors.count()).is_equal(0)
@@ -99,15 +99,15 @@ func test_an_entry_is_reused_only_for_an_equal_record_of_the_same_types() -> voi
 	signed["velocity"] = Vector3(-0.0, 0, 0)
 	assert_bool(signed == _avatar()).is_true()
 	var with_signed := {2: signed, 5: holding}
-	var payload := encoder.payload(with_signed)
+	var payload := encoder.payload({"avatars": with_signed})
 	assert_bool(payload == _encoded(41, with_signed)).is_true()
 	assert_bool(payload == _encoded(41, first)).is_false()
-	assert_bool(encoder.payload(first) == _encoded(41, first)).is_true()
+	assert_bool(encoder.payload({"avatars": first}) == _encoded(41, first)).is_true()
 	# The wire's item is an int: a 3.0 is refused as the codec refuses it, never sent as 3.
 	var float_item := holding.duplicate()
 	float_item["held_item"] = 3.0
 	var refused := {2: _avatar(), 5: float_item}
-	assert_bool(encoder.payload(refused).is_empty()).is_true()
+	assert_bool(encoder.payload({"avatars": refused}).is_empty()).is_true()
 	assert_int(_errors.count()).is_equal(1)
 	assert_bool(_schema.encode(_message(41, refused)).is_empty()).is_true()
 
@@ -126,18 +126,21 @@ func test_what_the_codec_refuses_is_refused_and_logged() -> void:
 		{2: broken}, {2: undeclared}, {0: _avatar()}, {"2": _avatar()}, {2: 1}, too_many
 	]:
 		_errors.clear()
-		assert_bool(encoder.payload(avatars).is_empty()).is_true()
+		assert_bool(encoder.payload({"avatars": avatars}).is_empty()).is_true()
 		assert_int(_errors.count()).is_equal(1)
 	# A tick the wire cannot carry refuses every payload of that tick.
 	encoder.start(0x100000000)
 	_errors.clear()
-	assert_bool(encoder.payload({2: _avatar()}).is_empty()).is_true()
-	assert_bool(encoder.payload({}).is_empty()).is_true()
+	assert_bool(encoder.payload({"avatars": {2: _avatar()}}).is_empty()).is_true()
+	assert_bool(encoder.payload({"avatars": {}}).is_empty()).is_true()
 	assert_int(_errors.count()).is_equal(1)
 	# The next tick encodes again.
 	encoder.start(8)
-	assert_bool(encoder.payload({2: _avatar()}) == _encoded(8, {2: _avatar()})).is_true()
-	assert_bool(encoder.payload({}) == _encoded(8, {})).is_true()
+	(
+		assert_bool(encoder.payload({"avatars": {2: _avatar()}}) == _encoded(8, {2: _avatar()}))
+		. is_true()
+	)
+	assert_bool(encoder.payload({"avatars": {}}) == _encoded(8, {})).is_true()
 
 
 ## A round of PlayerColours.COUNT players, the most a mode holds.
@@ -204,3 +207,57 @@ func test_a_second_belt_item_round_trips_beside_the_first() -> void:
 	assert_int((decoded[2] as Dictionary)["belt_item2"] as int).is_equal(6)
 	assert_bool(Samples.same(decoded, avatars)).is_true()
 	assert_int(_errors.count()).is_equal(0)
+
+
+## The pinball's ball (#1399) sits in the header: two viewers with the ball, a tick whose ball
+## moved between viewers, and no ball after one, each the codec's bytes; the ball decodes back.
+func test_the_balls_payloads_are_the_codecs() -> void:
+	var encoder := SnapshotEncoder.new(_schema)
+	var moved := _avatar()
+	moved["position"] = Vector3(4, 0, 4)
+	var place := Vector3(0.25, 0, -0.5)
+	var other := Vector3(0.5, 0, -0.75)
+	encoder.start(41)
+	for snapshot: Dictionary in [
+		{"avatars": {2: _avatar(), 5: moved}, "ball": place},
+		{"avatars": {2: _avatar()}, "ball": place},
+		{"avatars": {2: _avatar(), 5: moved}, "ball": other},
+		{"avatars": {5: moved}},
+		{"avatars": {}, "ball": place},
+		{"avatars": {2: _avatar(), 5: moved}},
+	]:
+		var payload := encoder.payload(snapshot)
+		var built := WireMessage.new(&"Snapshot", _fields(41, snapshot))
+		assert_bool(payload == _schema.encode(built)).is_true()
+		assert_bool(payload.is_empty()).is_false()
+		var decoded := _schema.decode(_schema.kind_of(&"Snapshot"), payload)
+		assert_bool(decoded.fields.has("ball")).is_equal(snapshot.has("ball"))
+		assert_that(decoded.fields.get("ball")).is_equal(snapshot.get("ball"))
+		assert_bool(Samples.same(decoded.fields["avatars"], snapshot["avatars"])).is_true()
+	assert_int(_errors.count()).is_equal(0)
+
+
+## The wire's worst case (every avatar at the wire's most) with the ball fits the row's cap, and the
+## fallback past the most avatars keeps the ball.
+func test_the_worst_case_with_the_ball_fits_the_cap() -> void:
+	var avatars := {}
+	for peer in range(1, WireSchema.MAX_AVATARS + 1):
+		avatars[peer] = _avatar()
+	var encoder := SnapshotEncoder.new(_schema)
+	encoder.start(0xFFFFFFFE)
+	var snapshot := {"avatars": avatars, "ball": Vector3(1, 2, 3)}
+	var payload := encoder.payload(snapshot)
+	assert_bool(payload.is_empty()).is_false()
+	assert_int(payload.size()).is_less_equal(encoder.cap)
+	var built := WireMessage.new(&"Snapshot", _fields(0xFFFFFFFE, snapshot))
+	assert_bool(payload == _schema.encode(built)).is_true()
+	var too_many := avatars.duplicate()
+	too_many[WireSchema.MAX_AVATARS + 1] = _avatar()
+	assert_bool(encoder.payload({"avatars": too_many, "ball": Vector3.ONE}).is_empty()).is_true()
+	assert_int(_errors.count()).is_equal(1)
+
+
+func _fields(tick: int, snapshot: Dictionary) -> Dictionary:
+	var fields := snapshot.duplicate()
+	fields["tick"] = tick
+	return fields
