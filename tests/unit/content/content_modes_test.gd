@@ -276,12 +276,12 @@ func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 	assert_str((row.actions[1] as PlacePlayers).tag).is_equal("lobby_player")
 
 
-func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
+func test_the_deal_runs_roles_tasks_toggles_knives_then_placement() -> void:
 	var mode := _base_mode()
 	var row := mode.find_transition(&"loading", &"all_loaded")
 	# The deal runs before the pregame, so its screen has the role (#213); the clock waits for it.
 	assert_str(row.to).is_equal("pregame")
-	assert_int(row.actions.size()).is_equal(4)
+	assert_int(row.actions.size()).is_equal(5)
 	var roles := row.actions[0] as DealRoles
 	assert_object(roles).is_not_null()
 	assert_int(roles.quotas.size()).is_equal(1)
@@ -295,12 +295,34 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	assert_str(tasks.tasks_setting).is_equal("tasks")
 	assert_str(tasks.banned_setting).is_equal("banned_task_types")
 	assert_str(tasks.rng_purpose).is_equal("task_types")
-	var knives := row.actions[2] as SpawnItems
+	var toggles := row.actions[2] as PlaceToggles
+	assert_object(toggles).is_not_null()
+	# The world toggles after DealTasks (#1459): the estate's secret stair, manholes, cameras and
+	# light breaker.
+	var toggle_ids: Array[StringName] = []
+	for kind: StationKind in toggles.kinds:
+		toggle_ids.append(kind.id)
+	(
+		assert_array(toggle_ids)
+		. contains_exactly(
+			[
+				&"bookcase",
+				&"wine_rack",
+				&"bookcase_inside",
+				&"wine_rack_inside",
+				&"manhole",
+				&"manhole_inside",
+				&"fixed_camera",
+				&"light_breaker",
+			]
+		)
+	)
+	var knives := row.actions[3] as SpawnItems
 	assert_object(knives).is_not_null()
 	assert_str(knives.kind.id).is_equal("knife")
 	assert_str(knives.count_setting).is_equal("knives")
 	assert_str(knives.rng_purpose).is_equal("knives")
-	var place := row.actions[3] as PlacePlayers
+	var place := row.actions[4] as PlacePlayers
 	assert_object(place).is_not_null()
 	assert_str(place.tag).is_equal("round_player")
 

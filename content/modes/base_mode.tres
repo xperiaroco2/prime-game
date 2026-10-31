@@ -129,6 +129,16 @@
 [ext_resource type="Resource" path="res://content/tasks/ship_engine.tres" id="189_ship_engine"]
 [ext_resource type="Resource" path="res://content/items/crystal_spent.tres" id="190_crystal_spent"]
 [ext_resource type="Resource" path="res://content/items/crystal_charged.tres" id="191_crystal_charged"]
+[ext_resource type="Script" path="res://core/placement/place_toggles.gd" id="189_place_toggles"]
+[ext_resource type="Script" path="res://core/content/station_kind.gd" id="190_station_kind"]
+[ext_resource type="Resource" path="res://content/stations/bookcase.tres" id="191_bookcase"]
+[ext_resource type="Resource" path="res://content/stations/wine_rack.tres" id="192_wine_rack"]
+[ext_resource type="Resource" path="res://content/stations/bookcase_inside.tres" id="193_bookcase_inside"]
+[ext_resource type="Resource" path="res://content/stations/wine_rack_inside.tres" id="194_wine_rack_inside"]
+[ext_resource type="Resource" path="res://content/stations/manhole.tres" id="195_manhole"]
+[ext_resource type="Resource" path="res://content/stations/manhole_inside.tres" id="196_manhole_inside"]
+[ext_resource type="Resource" path="res://content/stations/fixed_camera.tres" id="197_fixed_camera"]
+[ext_resource type="Resource" path="res://content/stations/light_breaker.tres" id="198_light_breaker"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -880,6 +890,10 @@ tasks_setting = &"tasks"
 banned_setting = &"banned_task_types"
 rng_purpose = &"task_types"
 
+[sub_resource type="Resource" id="Place_toggles"]
+script = ExtResource("189_place_toggles")
+kinds = Array[ExtResource("190_station_kind")]([ExtResource("191_bookcase"), ExtResource("192_wine_rack"), ExtResource("193_bookcase_inside"), ExtResource("194_wine_rack_inside"), ExtResource("195_manhole"), ExtResource("196_manhole_inside"), ExtResource("197_fixed_camera"), ExtResource("198_light_breaker")])
+
 [sub_resource type="Resource" id="Spawn_knives"]
 script = ExtResource("59_spawn_items")
 kind = ExtResource("59_knife")
@@ -895,7 +909,7 @@ script = ExtResource("7_row")
 from = &"loading"
 outcome = &"all_loaded"
 to = &"pregame"
-actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
+actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Place_toggles"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
 
 [sub_resource type="Resource" id="Start_clock"]
 script = ExtResource("64_start_clock")
