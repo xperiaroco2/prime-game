@@ -109,6 +109,7 @@ const TASK_EVENTS: Array[StringName] = [
 	&"GillFlipped",
 	&"BreakerChain",
 	&"CrystalChanged",
+	&"BoothStep",
 ]
 ## The task events no scenario reaches, each with why (check_coverage, #1197): none since the bots
 ## change storey over the House's stairs (#1209, ARCHITECTURE §9.7), which played the nine chains

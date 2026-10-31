@@ -119,7 +119,10 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
     a strip of frames: a button, a countdown, several flashes in a row, and between them you change your pose with the
     pose wheel (§8, Photo). The whole party squeezes in. No screen: you do not see yourself before the shot, only the
     finished photo, a surprise. A printed strip drops out into your hands; you carry it and can give it to a friend
-    (a file saved to the computer and a board on the hall wall were not picked).
+    (a file saved to the computer and a board on the hall wall were not picked). Provisional numbers (#1396, the
+    engineer tunes them): 4 frames, the first 3 s after the press and then one every 2 s; everyone inside the booth
+    at a flash is in that frame, and each player in any frame gets a strip of their own; at most 21 strips at once,
+    and a strip put down vanishes after 120 s.
   - **The pinball** (2026-10-29, [#1095 c6482062788](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6482062788)):
     one player works both flippers while the others stand by and watch. After interact the camera moves in close to
     the table. The machine's display shows this lobby's best score and whose it is. The machine cannot be nudged.

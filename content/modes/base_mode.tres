@@ -143,6 +143,10 @@
 [ext_resource type="Script" uid="uid://dppk72upxnkh1" path="res://core/pinball/end_pinball.gd" id="212_end_pinball"]
 [ext_resource type="Script" uid="uid://dak407qpyhuxo" path="res://core/pinball/pinball_seated.gd" id="213_pinball_seated"]
 [ext_resource type="Script" uid="uid://0j0fqsw0t0ps" path="res://core/pinball/set_flippers.gd" id="214_set_flippers"]
+[ext_resource type="Script" path="res://core/booth/booth_ticks.gd" id="198_booth_ticks"]
+[ext_resource type="Script" path="res://core/booth/stop_booth.gd" id="199_stop_booth"]
+[ext_resource type="Resource" path="res://content/stations/booth.tres" id="200_booth"]
+[ext_resource type="Resource" path="res://content/items/strip.tres" id="201_strip"]
 [ext_resource type="Resource" path="res://content/stations/light_breaker.tres" id="198_light_breaker"]
 [ext_resource type="Script" uid="uid://dksgpuwd17pse" path="res://core/content/voice_effect.gd" id="199_voice_effect"]
 
@@ -351,6 +355,16 @@ script = ExtResource("148_vanish_ticks")
 script = ExtResource("172_station_ticks")
 kind = ExtResource("174_tap")
 
+[sub_resource type="Resource" id="StationTicks_booth"]
+script = ExtResource("172_station_ticks")
+kind = ExtResource("200_booth")
+
+[sub_resource type="Resource" id="BoothTicks_lobby"]
+script = ExtResource("198_booth_ticks")
+
+[sub_resource type="Resource" id="Stop_booth"]
+script = ExtResource("199_stop_booth")
+
 [sub_resource type="Resource" id="DrunkTicks_lobby"]
 script = ExtResource("171_drunk_ticks")
 
@@ -416,7 +430,7 @@ script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_booth"), SubResource("BoothTicks_lobby")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -899,6 +913,7 @@ script = ExtResource("7_row")
 from = &"lobby"
 outcome = &"all_ready"
 to = &"countdown"
+actions = Array[ExtResource("14_effect")]([SubResource("Stop_booth")])
 
 [sub_resource type="Resource" id="Row_countdown_cancelled"]
 script = ExtResource("7_row")
@@ -1001,7 +1016,7 @@ settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("147_burger"), ExtResource("126_film"), ExtResource("127_photo"), ExtResource("149_car_part_green"), ExtResource("150_car_part_blue"), ExtResource("151_car_part_yellow"), ExtResource("175_mug"), ExtResource("176_mug_empty"), ExtResource("190_crystal_spent"), ExtResource("191_crystal_charged")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("147_burger"), ExtResource("126_film"), ExtResource("127_photo"), ExtResource("149_car_part_green"), ExtResource("150_car_part_blue"), ExtResource("151_car_part_yellow"), ExtResource("175_mug"), ExtResource("176_mug_empty"), ExtResource("190_crystal_spent"), ExtResource("191_crystal_charged"), ExtResource("201_strip")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")

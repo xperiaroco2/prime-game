@@ -125,6 +125,7 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"BreakerChain",
 	&"CrystalChanged",
 	&"PinballState",
+	&"BoothStep",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -148,6 +149,19 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 		"balls_left": 2,
 		"best": 1200,
 		"best_name": "Chaos",
+	},
+	&"BoothStep":
+	{
+		"station": 1,
+		"strip": 2,
+		"step": 1,
+		"presser": 0,
+		"frames": 0,
+		"countdown": 0,
+		"gap": 0,
+		"frame": 1,
+		"record": [],
+		"items": [],
 	},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
 	&"FilmLoaded": {"station": 1, "item": 1},

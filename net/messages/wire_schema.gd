@@ -91,7 +91,11 @@ extends RefCounted
 ## the ball in play, the score, the balls left, the best score and its owner's name).
 ## 49 since #1392 (the drunk voice): VoiceBatch's frame record (kind 114) gains `strength` (U8,
 ## after `seq`), and MAX_BATCH_FRAMES falls from 113 to 101.
-const VERSION := 49
+## 50 since #1396 (GDD §3, the photo booth): the event BoothStep (kind 96, the booth's steps: its
+## station, strip, step, presser, frames, countdown, gap, frame, record and items). Kind 94 was the
+## last free event kind (PinballState took it), so the event range widens in the same bump (#1475):
+## FIRST_STATE and Snapshot move from 96 to 104, and 96 to 103 are events.
+const VERSION := 50
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -106,7 +110,7 @@ const REJECTED := 32
 const FIRST_INTENT := 1
 const FIRST_DEBUG := 28
 const FIRST_EVENT := 32
-const FIRST_STATE := 96
+const FIRST_STATE := 104
 const FIRST_VOICE := 112
 const LAST_VOICE := 127
 
@@ -706,7 +710,45 @@ static func _events() -> Array[WireRow]:
 				WireField.maybe("tick", _tick()),
 			]
 		),
+		_booth_step(),
 	]
+
+
+## The photo booth's step (#1396): every field always, the ones a step does not use 0 or empty
+## (BoothStepEvent). A record row is the lobby avatar's public look and pose: its peer, colour,
+## position, facing and the crouched, sneaking, posed and limp flags; at most MAX_PLAYERS rows
+## and MAX_PLAYERS strips, so its size is the schema's, not the content's.
+static func _booth_step() -> WireRow:
+	var frame_row := (
+		WireField
+		. record(
+			"",
+			[
+				_peer("peer"),
+				_of("colour", WireField.Type.U8),
+				_vec3("position"),
+				_vec3("facing"),
+				WireField.bits(PackedStringArray(["crouched", "sneaking", "posed", "limp"])),
+			]
+		)
+	)
+	return _down(
+		96,
+		&"BoothStep",
+		529,
+		[
+			_station("station"),
+			_u16("strip"),
+			_of("step", WireField.Type.U8),
+			_of("presser", WireField.Type.U32),
+			_of("frames", WireField.Type.U8),
+			_u16("countdown"),
+			_u16("gap"),
+			_of("frame", WireField.Type.U8),
+			WireField.list("record", frame_row, MAX_PLAYERS),
+			WireField.list("items", _item(""), MAX_PLAYERS, TYPE_PACKED_INT32_ARRAY),
+		]
+	)
 
 
 ## The photo camera's shot (the photo ADR §3.3): the record is the snapshot's avatar row without
@@ -767,7 +809,7 @@ static func _state_and_voice() -> Array[WireRow]:
 	)
 	var avatars := WireField.map("avatars", _peer(""), avatar, MAX_AVATARS, false)
 	var snapshot := _row(
-		96,
+		104,
 		&"Snapshot",
 		NetKindTable.Direction.HOST_TO_CLIENT,
 		NetKindTable.Lane.LATEST,

@@ -1,0 +1,133 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://blnaa573iaadr"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_nn4ad"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="5_target"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="6_walk"]
+[ext_resource type="Script" uid="uid://cibnmeghu3q31" path="res://core/content/scenario/step_interact.gd" id="7_interact"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="8_expect"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="10_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="11_wait_for"]
+
+[sub_resource type="Resource" id="Resource_t01"]
+script = ExtResource("5_target")
+point = Vector3(16, 0, 0)
+
+[sub_resource type="Resource" id="Resource_w01"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_t01")
+
+[sub_resource type="Resource" id="Resource_t02"]
+script = ExtResource("5_target")
+point = Vector3(16, 0, -9.5)
+
+[sub_resource type="Resource" id="Resource_w02"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_t02")
+
+[sub_resource type="Resource" id="Resource_t03"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"booth"
+
+[sub_resource type="Resource" id="Resource_w03"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_t03")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_i01"]
+script = ExtResource("7_interact")
+station = SubResource("Resource_t03")
+until = &"BoothStep"
+
+[sub_resource type="Resource" id="Resource_p01"]
+script = ExtResource("11_wait_for")
+event = &"BoothStep"
+fields = {
+"step": 2
+}
+
+[sub_resource type="Resource" id="Resource_e01"]
+script = ExtResource("8_expect")
+event = &"ItemPickedUp"
+fields = {
+"peer": 1
+}
+
+[sub_resource type="Resource" id="Resource_r01"]
+script = ExtResource("10_ready")
+
+[sub_resource type="Resource" id="Resource_g01"]
+script = ExtResource("11_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_s01"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_w01"), SubResource("Resource_w02"), SubResource("Resource_w03"), SubResource("Resource_i01"), SubResource("Resource_p01"), SubResource("Resource_e01"), SubResource("Resource_r01"), SubResource("Resource_g01")])
+
+[sub_resource type="Resource" id="Resource_t04"]
+script = ExtResource("5_target")
+point = Vector3(18.9, 0, -9.7)
+
+[sub_resource type="Resource" id="Resource_w04"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_t04")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Resource_f01"]
+script = ExtResource("11_wait_for")
+event = &"BoothStep"
+fields = {
+"step": 1
+}
+
+[sub_resource type="Resource" id="Resource_t05"]
+script = ExtResource("5_target")
+point = Vector3(18.1, 0, -9.3)
+
+[sub_resource type="Resource" id="Resource_w05"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_t05")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Resource_p02"]
+script = ExtResource("11_wait_for")
+event = &"BoothStep"
+fields = {
+"step": 2
+}
+
+[sub_resource type="Resource" id="Resource_e02"]
+script = ExtResource("8_expect")
+event = &"ItemPickedUp"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_r02"]
+script = ExtResource("10_ready")
+
+[sub_resource type="Resource" id="Resource_g02"]
+script = ExtResource("11_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_s02"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_w01"), SubResource("Resource_w02"), SubResource("Resource_w04"), SubResource("Resource_f01"), SubResource("Resource_w05"), SubResource("Resource_p02"), SubResource("Resource_e02"), SubResource("Resource_r02"), SubResource("Resource_g02")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 139600000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("Resource_s01"), SubResource("Resource_s02")])
+expected_ends = Array[StringName]([&"none"])

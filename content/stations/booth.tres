@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="StationKind" format=3]
+
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="1_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="3_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="4_effect"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="5_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="6_in_sight"]
+[ext_resource type="Script" path="res://core/booth/start_booth.gd" id="7_start"]
+[ext_resource type="Resource" path="res://content/items/strip.tres" id="8_strip"]
+
+[sub_resource type="Resource" id="Press_at"]
+script = ExtResource("5_at_station")
+
+[sub_resource type="Resource" id="Press_sight"]
+script = ExtResource("6_in_sight")
+
+[sub_resource type="Resource" id="Press_start"]
+script = ExtResource("7_start")
+strip = ExtResource("8_strip")
+frames = 4
+countdown_s = 3.0
+gap_s = 2.0
+
+[sub_resource type="Resource" id="Rule_press"]
+script = ExtResource("2_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("3_condition")]([SubResource("Press_at"), SubResource("Press_sight")])
+effects = Array[ExtResource("4_effect")]([SubResource("Press_start")])
+
+[resource]
+script = ExtResource("1_station")
+id = &"booth"
+spawn_tag = &"booth"
+radius_m = 1.2
+height_m = 2.5
+palette = null
+actions = Array[ExtResource("2_rule")]([SubResource("Rule_press")])
