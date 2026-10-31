@@ -127,6 +127,11 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
   band.
+- **The start clearing** (the M8 slice, GDD §3, #1492; the spots a level choice, "not a decision"): the crew starts
+  together on the open ground before the ramp's foot, world (116, 59.4), between the creek's south bank and the
+  hull, and comes back there after a respawn. As built (`levels/estate/rooms/markers.tscn`), world x and z: the ten
+  round starts at x 109, 111, 113, 119, 121 and 123 on z 58.5 and at x 109.5, 111.5, 120.5 and 122.5 on z 61; the
+  four respawns at (106, 59.5), (126, 59.5), (107.5, 62.5) and (124.5, 62.5); none on the ramp's 3.3 m lane.
 
 ## 5. Links between levels
 
