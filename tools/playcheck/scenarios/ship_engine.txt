@@ -1,0 +1,57 @@
+# The ship's engine on the estate (#1462, part 3 of #1225) in the game's real window, its stations and
+# views as stand-ins. Window 1 hosts alone (the base mode plays with one) on the estate and walks from
+# the bonfire's spawns over the drainage pipe and up the ship's ramp into its hall (`to_ship`: the
+# estate_walk_test's walks, found by trial), until the HUD names the console under the crosshair: the
+# console's hologram over its pedestal, its three empty stage strips and the mimic board (shot). E
+# starts the engine; the first problem opens: a red lamp over its station (shot). Then it walks to the
+# nearest gill set (shot: its slits), looks back at the hologram (shot) and faces the nearest breaker
+# and cartridge socket in turn (shots): the lamps over them, never the breakers' order.
+# The waypoints are x,z in metres on the estate's ground: the ring round the bonfire inside its
+# spawns' arc, then the lower loop's walk over the pipe's banks and the ramp's (estate_walk_test).
+players 1
+windows 1
+map res://levels/estate/estate.tscn
+route to_ship 68.7,42.2 94.2,50.8 94.8,58.8 113,57.5 116,57.5 116,64 116,71.6
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+press ready
+wait screen round timeout=60
+aim station engine_console via to_ship
+hold move_forward
+wait text hud.aim has engine_console timeout=120
+release move_forward
+aim off
+frames 30
+shot console
+press interact
+wait event ButtonPressed
+wait event EngineProblemOpened timeout=60
+frames 30
+shot problem_open
+aim station gill_button
+hold move_forward
+wait text hud.aim has gill_button timeout=30
+release move_forward
+aim off
+frames 30
+shot gills
+aim station engine_console
+frames 40
+shot console_from_the_gills
+aim off
+aim station breaker
+frames 40
+shot breakers
+aim off
+aim station cartridge_socket
+frames 40
+shot sockets
+aim off
