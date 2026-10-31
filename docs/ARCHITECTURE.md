@@ -2823,7 +2823,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the head's look vector (the camera's without its drunk sway,
   #1391). E with no station and no item aimed at sends `Pose()` at the chair (#1383,
-  `ItemInteractions.pose`, `PoseUse`; §7.1.19's key).
+  `ItemInteractions.pose`, `PoseUse`; §7.1.19's key). Its HUD cue (#1420, `ItemInteractions.sit_cue`, the same
+  `can_pose` rule) is Aim's `hud.sit` ({key}: sit) when nothing else is aimed or claims E; the raw key shows until the deck has the row.
 - `HandOverUse` (`ItemWorld`'s child after `ItemInteractions`, physics priority 7; #1411, the engineer's to confirm
   the key): E (`interact`) aimed at a living player sends `HandOver(target)` (§4.1, after the claim twin) while the
   own player is living, in a phase whose own copy accepts it from the living (the base mode: the Lobby and the

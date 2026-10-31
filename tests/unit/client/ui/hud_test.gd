@@ -160,6 +160,32 @@ func test_the_hand_over_cue_takes_aims_place_after_the_raise_cue() -> void:
 	assert_str(HudText.of(model, _mode, NOW, local).hand_over_key).is_empty()
 
 
+func test_the_sit_cue_shows_only_with_nothing_else_aimed_or_in_the_way() -> void:
+	# #1420: the interact key's label while E would sit; an item or station aimed at, the raise's
+	# or the hand-over's cue, the own raise and the downed all take its place.
+	var model := _round_model()
+	var local := HudText.Local.new()
+	local.sit_key = "E"
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_equal("E")
+	local.aim = 4
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+	local.aim = -1
+	local.aim_station = 2
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+	local.aim_station = -1
+	local.hand_over_key = "E"
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+	local.hand_over_key = ""
+	local.raise_key = "E"
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+	local.raise_key = ""
+	local.raising = 0.3
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+	local.raising = -1.0
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	assert_str(HudText.of(model, _mode, NOW, local).sit_key).is_empty()
+
+
 func test_a_dissident_sees_the_raise_cue_as_an_engineer_does_and_it_names_nobody() -> void:
 	# The base mode's raise has no team condition: anyone raises any downed player, so the cue is
 	# the role's business no more than E is (LifeView.raise_cue()). It carries the key alone.

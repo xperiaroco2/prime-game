@@ -308,17 +308,32 @@ func pick_up() -> int:
 ## sent. The claim twin goes first (ClientSession.send_intent), so the host tests the feet this
 ## key tested. It gives way (-1) when pose_yields says the raise or the hand-over has the key.
 func pose() -> int:
-	if not _acts() or model.posed or not chair_spots.is_valid():
-		return -1
-	if pose_yields.is_valid() and pose_yields.call() as bool:
-		return -1
-	var chair := PoseUse.chair_of(mode)
-	if chair == null or not _phase_takes(Intents.POSE):
-		return -1
-	var spots: PackedVector3Array = chair_spots.call(PoseUse.group_of(chair))
-	if not PoseUse.at_chair(chair, spots, player.global_position):
+	if not can_pose():
 		return -1
 	return session.send_intent(Intents.POSE)
+
+
+## Whether pose() would send Pose now: the one rule of the key and of its cue (sit_cue), so the
+## cue never promises a sit the key would not send (#1420).
+func can_pose() -> bool:
+	if not _acts() or model.posed or not chair_spots.is_valid():
+		return false
+	if pose_yields.is_valid() and pose_yields.call() as bool:
+		return false
+	var chair := PoseUse.chair_of(mode)
+	if chair == null or not _phase_takes(Intents.POSE):
+		return false
+	var spots: PackedVector3Array = chair_spots.call(PoseUse.group_of(chair))
+	return PoseUse.at_chair(chair, spots, player.global_position)
+
+
+## The HUD cue of E's Pose (#1420): the interact key's label while E would send Pose, that is
+## nothing aimed (no item, no station, no viewfinder: interact() gives them the key) and
+## can_pose(); "" for none.
+func sit_cue() -> String:
+	if _target >= 0 or _station >= 0 or viewing() or not can_pose():
+		return ""
+	return KeyLabel.of_action(&"interact")
 
 
 ## Q: PutDown(facing) while the own hand holds an item.

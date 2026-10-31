@@ -131,9 +131,14 @@ func _show_middle() -> void:
 	aim.visible = aiming and not raising.visible and named
 
 
-## Whether Aim shows a cue with a key in it (the rescuer's or the hand-over's, #1411).
+## Whether Aim shows a cue with a key in it (the rescuer's, the hand-over's #1411 or the chair's
+## #1420).
 func _keyed() -> bool:
-	return not _shown.raise_key.is_empty() or not _shown.hand_over_key.is_empty()
+	return (
+		not _shown.raise_key.is_empty()
+		or not _shown.hand_over_key.is_empty()
+		or not _shown.sit_key.is_empty()
+	)
 
 
 ## Aim's text: the item's deck key, translated by the label, or the rescuer's cue with the raise
@@ -147,8 +152,10 @@ func _show_aim_text() -> void:
 	aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	if not _shown.raise_key.is_empty():
 		aim_label.text = HudText.raise_cue(_shown.raise_key)
-	else:
+	elif not _shown.hand_over_key.is_empty():
 		aim_label.text = HudText.hand_over_cue(_shown.hand_over_key, _shown.hand_over_cue_key)
+	else:
+		aim_label.text = HudText.sit_cue(_shown.sit_key)
 
 
 func _notification(what: int) -> void:

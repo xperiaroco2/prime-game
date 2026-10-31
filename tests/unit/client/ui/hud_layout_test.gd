@@ -330,6 +330,25 @@ func test_the_hand_over_cue_takes_aims_place_with_the_interact_key() -> void:
 	TranslationServer.set_locale(locale)
 
 
+func test_the_sit_cue_takes_aims_place_and_shows_its_raw_key_until_the_deck_has_the_row() -> void:
+	# #1420: HudText.SIT_CUE with the key's label, set in code. The deck row comes with the UI
+	# track; until then the translation of an unknown key is the key itself, and this pins it.
+	var locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+	var hud := await _hud()
+	var cue := _state(&"empty")
+	cue.aim = ""
+	cue.sit_key = "E"
+	hud.show_hud(cue)
+	assert_bool(hud.aim.visible).is_true()
+	assert_str(hud.aim_label.text).is_equal(HudText.SIT_CUE)
+	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	cue.sit_key = ""
+	hud.show_hud(cue)
+	assert_bool(hud.aim.visible).is_false()
+	TranslationServer.set_locale(locale)
+
+
 func test_the_mic_off_is_mic_off_tinted_icon_off() -> void:
 	var hud := await _hud()
 	var shown := _state(&"empty")
