@@ -107,6 +107,7 @@ def nothing_starts() -> contextlib.ExitStack:
         (launch, "gui_exe"),
         (launch, "ensure_import"),
         (playcheck, "require_godot"),
+        (hostjoin, "require_godot"),
         (hostjoin, "supervise"),
         (hostjoin, "start"),
     ):

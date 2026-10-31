@@ -491,6 +491,7 @@ class CommandTest(unittest.TestCase):
             mock.patch.object(playcheck, "IS_CI", False),
             mock.patch.object(shot, "has_display", return_value=True),
             mock.patch.object(playcheck, "require_godot", return_value="godot"),
+            mock.patch.object(playcheck.launch, "gui_exe", return_value="window.exe"),
             mock.patch.object(playcheck, "ensure_out"),
             mock.patch.object(playcheck.launch, "ensure_import"),
             mock.patch.object(playcheck, "run_one", return_value=0) as run_one,

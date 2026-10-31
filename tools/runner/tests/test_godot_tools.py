@@ -131,6 +131,10 @@ class ShotTest(unittest.TestCase):
         patcher = mock.patch.object(shot, "ensure_import")
         self.ensure_import = patcher.start()
         self.addCleanup(patcher.stop)
+        # The window exe (#1505) is checked by its own tests (test_launch.py); here no machine needs Godot.
+        window_exe = mock.patch.object(launch, "gui_exe", return_value="window.exe")
+        window_exe.start()
+        self.addCleanup(window_exe.stop)
 
     def test_command_is_windowed_and_off_screen(self) -> None:
         # #1141: Godot clamps --position onto the screen, so the window starts as one pixel at the clamp's top-right
@@ -166,8 +170,7 @@ class ShotTest(unittest.TestCase):
                 return Result(0, f"{PLACED}SHOT saved {png} 1280x720\n", False, 0.0)
 
             with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
-                    mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"), \
-                    mock.patch.object(launch, "gui_exe", return_value="window.exe"):  # fmt: skip
+                    mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
                 self.assertEqual(shot.main(PROBE, out=str(png)), 0)
             self.ensure_import.assert_called_once_with()
             self.assertEqual(envs, [{"PRIME_WINDOW": "1280x720"}])
