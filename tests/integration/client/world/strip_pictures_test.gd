@@ -115,6 +115,21 @@ func test_a_strip_whose_items_went_is_dropped() -> void:
 	assert_int(_pictures.count()).is_zero()
 
 
+func test_a_composed_strip_is_dropped_when_its_items_go() -> void:
+	var session := _session()
+	_step(BoothStepEvent.PRINTED, {"items": PackedInt32Array([30])})
+	_pictures.texture_of(session)
+	while _pictures.pending() > 0:
+		_pictures._process(0.0)
+		test_drawn.emit()
+	assert_int(_pictures.count()).is_equal(1)
+	assert_bool(_pictures.has_picture(session)).is_true()
+	_book.fold(&"ItemVanished", {"item": 30})
+	_pictures._process(0.0)
+	assert_int(_pictures.count()).is_zero()
+	assert_bool(_pictures.has_picture(session)).is_false()
+
+
 func test_a_headless_client_renders_nothing() -> void:
 	var headless: StripPictures = auto_free(StripPictures.new())
 	assert_bool(headless.enabled).is_false()
