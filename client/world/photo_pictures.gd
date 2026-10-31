@@ -24,7 +24,6 @@ const HEIGHT_PX := 384
 const JPEG_QUALITY := 0.8
 ## A texture nobody asked for this many frames is freed (the JPEG bytes stay). Placeholder.
 const TEXTURE_FRAMES := 30
-const BODY := preload("res://client/player/remote_player_body.tscn")
 
 var model: ClientModel
 var mode: GameMode
@@ -244,49 +243,17 @@ func _finish(render: Render) -> void:
 	_release(render.id)
 
 
-## A puppet of record row `row`: the live avatars' rules and character, the peer's colour,
-## standing (crouched as recorded) at its position, turned to its facing through SnapshotBuffer's
-## guard (a relayed facing can be zero or vertical), a downed one laid flat; with its items.
+## A puppet of record row `row` (PuppetBodies: the live avatars' rules and character, the peer's
+## colour on the roster now, crouched, turned, a downed one laid flat), with its items.
 func _puppet(row: Dictionary) -> RemotePlayerBody:
 	var rules: PlayerRules = avatars.rules if avatars != null else null
 	if rules == null and mode != null:
 		rules = mode.player_rules
 	var peer := row.get("peer", 0) as int
-	var body := BODY.instantiate() as RemotePlayerBody
-	body.name = "Puppet%d" % peer
-	body.rules = rules
-	body.peer = peer
-	add_child(body)
-	# Never in the live physics: no device ray, sight cast or push search finds it.
-	body.collision_layer = 0
-	body.collision_mask = 0
-	body.set_character(avatars.character if avatars != null else null)
-	body.set_colour(BodyColours.of(model.colour_of(peer)))
-	var crouched := row.get("crouched", false) as bool
-	body.set_crouched(crouched, INF)
-	var facing := row.get("facing", Vector3.FORWARD) as Vector3
-	var angles := SnapshotBuffer.look_angles(facing, Vector2.ZERO)
-	var pose := SnapshotBuffer.Pose.new()
-	pose.position = row.get("position", Vector3.ZERO) as Vector3
-	pose.facing = SnapshotBuffer.unit_or(facing, Vector3.FORWARD)
-	pose.yaw = angles.x
-	pose.pitch = angles.y
-	pose.crouched = crouched
-	body.set_pose(pose)
-	if body.character() != null:
-		var state := AvatarClips.State.new()
-		state.yaw = pose.yaw
-		state.crouched = crouched
-		var walk := rules.walk_speed_mps if rules != null else 0.0
-		var sprint := rules.sprint_speed_mps if rules != null else 0.0
-		body.apply_plan(AvatarClips.plan(state, walk, sprint))
-		# Drawn this frame, before any physics step would run the tree: posed now, or the art's
-		# arms-out rest (and the sockets' items with it) would be the picture.
-		body.character().pose_now()
-	if row.get("downed", false) as bool:
-		var radius := rules.capsule_radius_m if rules != null else 0.0
-		var flat := Basis(Vector3.UP, pose.yaw) * Basis(Vector3.RIGHT, -PI / 2.0)
-		body.global_transform = Transform3D(flat, pose.position + Vector3.UP * radius)
+	var character: CharacterSet = avatars.character if avatars != null else null
+	# The roster's colour now (PuppetBodies; the booth's strip passes the row's own instead).
+	var colour := BodyColours.of(model.colour_of(peer))
+	var body := PuppetBodies.make(row, self, rules, character, colour)
 	_hold(body, row.get("held_item", -1) as int, false)
 	# The row's belt places are not compacted (a belt item may sit in the higher one alone), the
 	# live view's are (ClientModel.belt_item2): the picture shows the belt as the live view does.

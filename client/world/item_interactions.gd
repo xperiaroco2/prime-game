@@ -359,14 +359,15 @@ func use() -> int:
 
 ## The right mouse button: UseSecondary(facing), the held item's own action (the mug's drink,
 ## #1438), while the own hand holds an item; the host answers nothing_to_do where the item has
-## none. A photo in the hand holds it up close or back instead and sends nothing (a photo has no
-## UseSecondary rule, #787, #1444). Only the living send it (`_acts`): the dead's right button
-## cycles the spectate target.
+## none. A photo or a booth's strip in the hand holds it up close or back instead and sends nothing
+## (neither has a UseSecondary rule, #787, #1444, #1397). Only the living send it (`_acts`): the
+## dead's right button cycles the spectate target.
 func use_secondary() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
 		return -1
 	var hand_id := model.hand_item(model.own_peer)
-	if PhotoUse.is_photo(mode, model.items[hand_id].kind):
+	var kind := model.items[hand_id].kind
+	if PhotoUse.is_photo(mode, kind) or BoothUse.is_strip(mode, kind):
 		_set_close(hand_id if _close_item != hand_id else -1)
 		return -1
 	return session.send_intent(Intents.USE_SECONDARY, {"facing": player.look_vector()})

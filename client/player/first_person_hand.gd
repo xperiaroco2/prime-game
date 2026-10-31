@@ -16,6 +16,9 @@ const CLOSE := Vector3(0.0, -0.02, -0.34)
 const CLOSE_SCALE := 2.2
 ## The card upright, its picture (the look's +Y face) towards the eye (+Z), its top up.
 const CLOSE_TURN := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+## A strip just printed (#1397) slides up into the hand from this far below it, over the seconds
+## begin_slide is given. A look, "not a decision".
+const SLIDE_FROM := Vector3(0.0, -0.35, 0.05)
 
 var _shown_kind: StringName = &""
 var _shown_colour: Color
@@ -25,10 +28,17 @@ var _picture: Texture2D
 var _view: ItemView
 var _two_handed := false
 var _close := false
+var _slide_left := 0.0
+var _slide_seconds := 0.0
 
 
 func _init() -> void:
 	name = "FirstPersonHand"
+
+
+func _ready() -> void:
+	# Not in _init: Godot turns processing on again for a script with a _process.
+	set_process(false)
 
 
 ## Shows an item of `kind` in `colour` (a package's circle colour), held with both hands when
@@ -52,6 +62,8 @@ func show_item(
 	_picture = null
 	_two_handed = two_handed
 	_close = false
+	_slide_left = 0.0
+	set_process(false)
 	if _view != null:
 		_view.queue_free()
 		_view = null
@@ -99,8 +111,38 @@ func is_close() -> bool:
 	return _close
 
 
+## The shown item slides into the hand over `seconds` from SLIDE_FROM below it (#1397: the
+## booth's strip, printed into the hand); nothing with no item shown. Showing another item ends it.
+func begin_slide(seconds: float) -> void:
+	if _view == null or seconds <= 0.0:
+		return
+	_slide_seconds = seconds
+	_slide_left = seconds
+	set_process(true)
+	_hold()
+
+
+## Whether a slide into the hand is running.
+func is_sliding() -> bool:
+	return _slide_left > 0.0
+
+
+func _process(delta: float) -> void:
+	_slide_left = maxf(_slide_left - delta, 0.0)
+	if _slide_left <= 0.0:
+		set_process(false)
+	if _view != null:
+		_hold()
+
+
 func _hold() -> void:
 	if _close:
-		_view.transform = Transform3D(CLOSE_TURN.scaled(Vector3.ONE * CLOSE_SCALE), CLOSE)
+		var factor := StripLooks.CLOSE_SCALE if StripLooks.has(_shown_kind) else CLOSE_SCALE
+		_view.transform = Transform3D(CLOSE_TURN.scaled(Vector3.ONE * factor), CLOSE)
 		return
-	_view.transform = Transform3D(Basis.IDENTITY, TWO_HANDED if _two_handed else ONE_HANDED)
+	var at := TWO_HANDED if _two_handed else ONE_HANDED
+	if _slide_left > 0.0:
+		# Eased out: fast from the slot, settling into the hand.
+		var left := _slide_left / _slide_seconds
+		at += SLIDE_FROM * left * left
+	_view.transform = Transform3D(Basis.IDENTITY, at)

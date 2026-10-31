@@ -5333,6 +5333,64 @@ from the own `ClientModel`'s `StationPlaced` and `SwitchChanged` only.
   either station, the breaker moving nothing, the restore on a dropped model and level, no cylinder, offered), and
   `item_world_children_test.gd`.
 
+#### 4.7.62 The photo booth's client (#1397)
+The client half of the photo booth (§9.5.29; GDD §3 "The photo booth"), from the host's public `BoothStep` events
+and the client's own copy of the mode; the wire is unchanged. Nothing renders the inside of the booth while a
+session runs: a strip's frames are drawn locally from the `FLASH` records after `PRINTED`, as the photo's pictures
+are (§4.7.58).
+- **The book.** `BoothBook` (`client/world/booth_book.gd`, a pure `RefCounted` with `ClientPinball`'s shape:
+  `fold(event_name, fields)`, `clear_match()`) keeps each session (station, presser, frames, countdown and gap in
+  ticks, the estimated host tick at `STARTED`, the `FLASH` records by frame index) and binds each strip item
+  `PRINTED` gives to its session, from `PRINTED` until that id's next `ItemSpawned` or `ItemVanished` (a freed id
+  reused is a new item, CE3; a hand-over keeps the id, so a friend's hand shows the same strip). A session lives
+  while it runs or a strip shows it; `LoadMatch` and `ItemWorld.reset` clear it. `frame_count()` is the larger of
+  the planned frames and the last recorded index + 1 (a client that joined mid-session draws the frames it missed
+  blank). It sits in `client/world/`, not in `ClientModel`, because the model is at gdlint's line limit and
+  `client/net/` is #1474's; it moves to the model when `ClientModel` is split. `bind_strip(item_id, frames,
+  records)` is the entry for #1474's `Welcome` (a joiner's strips made before it joined); until then a joiner
+  sees such a strip blank.
+- **The booth on screen.** `BoothViews` (in `ItemWorld`, after `PhotoPictures`), driven only by the book and the
+  estimated host tick (`tick_to`; no host tick, no beep: never a local timer): while a session runs a lamp (a small
+  glowing bulb and a shadowed short-range `OmniLight3D`, as `PhotoFlashes`', 2.2 m above the booth's marker); a
+  beep (`BoothBeep`, through `sound_due` to `WorldSounds`, cut and muffled as every world sound) each second before
+  the first flash and before each next one, the lamp blinking with it; at a `FLASH` the lamp flares, the shutter
+  sounds at the lamp, and only a player the record names (inside the frame) sees a short white fade over the view
+  (a `CanvasLayer` `ColorRect`, alpha 0.6 fading over 0.35 s, mouse ignored); at `PRINTED` the lamp goes, the
+  printer's sound plays at the slot and a decorative strip prop slides 0.2 m down out of the slot 0.9 m up over
+  1.2 s. The prop never moves or hides an `ItemView`: the strips are drawn where `GiveItem` put them (a hand, a
+  belt, the feet), whose `ItemPickedUp` sounds still play beside the one print sound. `BoothViews` holds no
+  `Camera3D`, `SubViewport` or `ViewportTexture` (a source test holds it).
+- **The pictures.** `StripPictures` (in `ItemWorld`) queues a session on the first `texture_of` after its
+  `PRINTED`, then renders one frame a process frame in a `SubViewport` with its own `World3D` (no level and no live
+  body can show; no live camera sees the puppets, so it needs no `PhotoLayers` split), lit by its own
+  `WorldEnvironment` backdrop and `DirectionalLight3D`, its `Camera3D` at `StripLayout.camera_transform()`. Each
+  record row is a puppet (`PuppetBodies`, shared with `PhotoPictures`: the row's own colour at the flash, not the
+  roster's now; seated when `posed`, flat when `downed` or `limp`, sneaking as recorded) placed by
+  `StripLayout.local_row`: the camera is canonical, the rows' centre at the origin turned so their mean facing
+  looks at it, no level coordinate. After `drawn` each frame is read back (`reader`); after the last `StripLayout
+  .compose` stacks the frames (frame 0 on top, a missed one blank) on the paper, kept as one texture per session
+  while the book holds the session. Headless (`enabled` false) nothing renders.
+- **In the hands.** `StripLooks` builds the strip's card with the photo's `Picture` slot, so `ItemView.set_picture`
+  and `FirstPersonHand.set_picture` show it unchanged; `ItemViews.picture_for` routes a strip to `StripPictures`
+  by the book's session of its id (the own hand, a friend's hand, the floor and `LifeView`'s spectate hand alike,
+  within `PICTURE_RANGE_M`). A strip printed straight into the own hand slides up into it (`FirstPersonHand
+  .begin_slide`, 0.6 s, once: `BoothBook.take_fresh`). The secondary button with a strip in the own hand holds it up
+  close as a photo (§4.7.58), `StripLooks.CLOSE_SCALE` 1.5 times larger, sending nothing; `BoothUse.is_strip`
+  reads the strip kinds from the mode's `StartBooth` effects. The strip's name is the content's "Photo strip" until
+  the copy deck has `item.strip` (#150).
+- **Placeholders.** The layout (160 x 120 px frames stacked, cream paper, 28 px footer), the lilac backdrop, the
+  camera (3.2 m in front, 1.6 m high, fov 50), the lamp, beep (a 0.12 s 880 Hz tone), flare, white fade, print
+  drop, slide and close-up are looks in the Toy style, "not a decision" (taste: the engineer's).
+- **Tests.** `tests/unit/client/world/booth_book_test.gd` (the fold, the bindings, id reuse, a hand-over, a joiner,
+  `bind_strip`, `LoadMatch`, the real host through `FixtureBooth`), `strip_layout_test.gd` (1 to 8 frames, a missed
+  one blank, the canonical camera and rows, the look, the base mode's strip id), `booth_views_test.gd` (the lamp,
+  the beeps on host ticks, the white only in the frame, the print prop, a stop, no view of the booth, the sounds'
+  places); `tests/integration/client/world/puppet_bodies_test.gd` (the given colour, limp flat, sneaking, the
+  parent's world), `strip_pictures_test.gd` (nothing while it runs or before the first ask, the private world then
+  the strip, a dropped session, headless), `strip_close_up_test.gd` (the hand and the slide, RMB, a friend's, the
+  range, a reused id), `item_world_booth_test.gd` (a session off the wire through a real `ItemWorld`),
+  `item_world_children_test.gd` and `tests/integration/client/player/first_person_hand_test.gd`.
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -8851,9 +8909,11 @@ seconds; each frame is everyone living and present inside the cylinder at that t
 then (so a pose changed between flashes shows in the next frame); right after the fourth, one strip for each player
 in any frame who is still there and alive (`PRINTED`; nobody: `STOPPED`). The presser leaving stops it. Every frame
 is public lobby body state, so every step goes to everyone; a client draws a strip from its session's `FLASH`
-records (#1397, the client half). Every number is provisional (the engineer tunes them on the hall greybox, #1354).
-Not built here: the pose wheel's own pose in a frame (#1227; `posed` is the seated pose, false in the hall), a joiner's
-replay of the strips made before it joined (a joiner sees a strip with no frames), the hand-over of a strip (#1389).
+records (§4.7.62: the lamp, the beeps, the flash, the print and the strip in the hands). Every number is provisional
+(the engineer tunes them on the hall greybox, #1354).
+Not built here: the pose wheel's own pose in a frame (#1227, #1476; `posed` is the seated pose, false in the hall), a
+joiner's replay of the strips made before it joined (#1474, through `BoothBook.bind_strip`; until then a joiner sees
+such a strip blank).
 - **Tests:** `tests/unit/booth/start_booth_test.gd` (the session's clock, the refusals, the presser leaving, ready),
   `tests/unit/booth/booth_frames_test.gd` (membership, the body at flash k, the same `FLASH` to every peer),
   `tests/unit/booth/booth_print_test.gd` (a strip each, a leaver, a rejoiner who reuses a leaver's peer id gets a strip only for its own frames, a downed player none, the cap),

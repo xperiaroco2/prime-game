@@ -29,6 +29,9 @@ extends RefCounted
 ##   already public (the stations, the tray; `counted` says no more than TaskProgress, PE5); the
 ##   same cut-off keeps a shot, a print or a hang beyond the hearing range silent, and the muffle
 ##   ray applies as to every sound.
+## - the photo booth (#1397): BoothViews' countdown beeps (BoothBeep) and each flash's shutter at
+##   the booth's lamp, the print at its slot; a strip's own ItemPickedUp still plays its pick-up
+##   where the strip spawned, beside the print (accepted: placeholders all);
 ## - the Generator (#801, G6): SwitchChanged's click at the switch's station, ButtonPressed's at the
 ##   generator's, each the place its StationPlaced already told everyone; the hum while it charges
 ##   is StationHums', not an event's;
@@ -80,6 +83,9 @@ const SHUTTER_AIM_M := 0.0
 ## A hang plays at the board's marker, on the floor below the board: the ray aims at about where a
 ## photo goes on it, as a swing aims at a chest. A placeholder, "not a decision".
 const HANG_AIM_M := SWING_AIM_M
+## The photo booth's (#1397): a countdown beep at its lamp (BoothViews' synthetic BoothBeep), each
+## flash's shutter at the lamp and the print at its slot (BoothStep FLASH and PRINTED).
+const BOOTH_BEEP := &"booth_beep"
 ## The Generator's clicks (#801, G6): a switch thrown, the generator's button pressed.
 const SWITCH_CLICK := &"switch_click"
 const BUTTON_CLICK := &"button_click"
@@ -177,6 +183,8 @@ static func source(
 		&"PhotoPrinted":
 			var photo: ClientModel.Item = model.items.get(fields["item"] as int)
 			return Sound.new(PRINT, photo.position, ITEM_AIM_M) if photo != null else null
+		&"BoothStep", BoothViews.BEEP_EVENT:
+			return _booth_sound(event_name, fields, model)
 		&"PhotoHung":
 			var board: ClientModel.Station = model.stations.get(fields["station"] as int)
 			if board == null:
@@ -230,6 +238,24 @@ static func source(
 			if fitted == null:
 				return null
 			return Sound.new(SfxSet.TASK_SUCCESS, fitted.position, CAR_AIM_M)
+	return null
+
+
+## A booth's sound (#1397): the beep and the flash's shutter at its lamp, the print at its slot;
+## null for another step or an unknown booth.
+static func _booth_sound(event_name: StringName, fields: Dictionary, model: ClientModel) -> Sound:
+	var booth: ClientModel.Station = model.stations.get(fields.get("station", -1) as int)
+	if booth == null:
+		return null
+	var lamp := booth.position + Vector3.UP * BoothViews.LAMP_LIFT_M
+	if event_name == BoothViews.BEEP_EVENT:
+		return Sound.new(BOOTH_BEEP, lamp, SHUTTER_AIM_M)
+	match fields.get("step", -1) as int:
+		BoothStepEvent.FLASH:
+			return Sound.new(SHUTTER, lamp, SHUTTER_AIM_M)
+		BoothStepEvent.PRINTED:
+			var slot := booth.position + Vector3.UP * BoothViews.SLOT_LIFT_M
+			return Sound.new(PRINT, slot, SHUTTER_AIM_M)
 	return null
 
 
