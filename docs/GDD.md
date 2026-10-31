@@ -149,6 +149,35 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
 
 The base mode has no meetings and no votes.
 
+### The M8 slice (2026-10-31)
+The engineer's word ([#507 comment 6549409184](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184),
+translated): "Finish the lobby first, and the ship completely. [...] you start the match, you appear near the ship and
+do the ship's tasks [...] Roles are dealt, there is a timer, say 5 or 10 minutes, and in that time you do the ship's
+quest. The humans can just mess around. There is nothing else: you can only take the crystal in your hands. Don't
+add anything for now." M8 plays this slice; everything else of M8 waits.
+
+- **The flow:** the base mode's phases above, Lobby to End and back. In the Round the ship's quest (§8, the ship's
+  engine) is the one task, and the crystal is the only thing a player can hold: Loading scatters nothing.
+- **The win** stays §10's: the aliens (`crew`) win when the engine's last stage passes before the timer; the humans
+  win when the timer ends first, or when every alien has left. Killing never wins.
+- **The roles** stay the base mode's: the host sets the number of humans, the humans know each other, Pregame shows
+  your own role, End names only the winning side.
+
+Taken by the design session on the engineer's standing word of 2026-10-31
+([#507 comment 6547715071](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6547715071)), for him to
+confirm or reverse ([#1035 comment 6549452793](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6549452793);
+the options in prime-game-design `ideas/2026-10-31-m8-slice.md`):
+1. **The timer: 5 minutes.** A clean team needs about 2.5 to 3.5 minutes for the engine, which cannot go faster with
+   more people, so the humans need about two failed problems to run the clock out. Not picked: 10 or 7 minutes.
+2. **The humans' levers: the engine's own deniable spoils only** (§8's list): no hitting, neither the fist of melee
+   with anything (#1436) nor the knife. Not picked: the fist; the knife.
+3. **The default number of humans:** 4 or 5 players 1, 6 to 8 players 2, 9 or 10 players 3 (research round 2,
+   m8-match §2); the host can change it. Not picked: always 1; no default.
+4. **Where everyone appears:** on the ship's clearing, in a loose crowd before the open jaw ramp; the respawn (30 s,
+   3 s of invulnerability) there too. Not picked: in the hall round the console; at random round the ship.
+
+The numbers are placeholders until the slice is played.
+
 ### The knockdown (#728)
 Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
 [vision revision 1](decisions/2026-10-01-vision-revision-1.md) stays (0 health knocks a player down; another player
