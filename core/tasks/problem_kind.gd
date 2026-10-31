@@ -39,9 +39,10 @@ const MAX_SECONDS := 600.0
 
 ## The station ids a new problem of this kind takes, from `free`: the ids of its sites without an
 ## open problem, ascending, never empty when the engine asks. At least 1 and at most
-## ShipEngine.MAX_PROBLEM_STATIONS of them, each from `free`; the engine reports any other answer
-## as a match error and opens nothing. `stage` is the engine's stage, 1 up (the breakers trip more
-## later). By default one site, drawn from `rng`.
+## ShipEngine.MAX_PROBLEM_STATIONS of them, each from `free`. Any other answer is a match error,
+## and the engine then opens the problem on the first free site anyway: a problem always opens, so
+## claim should keep no state of its own. `stage` is the engine's stage, 1 up (the breakers trip
+## more later). By default one site, drawn from `rng`.
 func claim(
 	_ctx: MatchContext,
 	_task: MatchTask,
@@ -125,9 +126,8 @@ func add_demands(into: Demands) -> void:
 			into.add_markers(fixture.spawn_tag, 1)
 
 
-## An id; `seconds` within bounds; a site kind; `site_count` at least 1 and at most the most
-## stations ShipEngine places per kind; no null fixture. ShipEngine checks the station kinds' rules
-## and spawn tags across every kind.
+## An id; `seconds` within bounds; a site kind; `site_count` at least 1; no null fixture.
+## ShipEngine checks the station kinds' rules and spawn tags across every kind.
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():
