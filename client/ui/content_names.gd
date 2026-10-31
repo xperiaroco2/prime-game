@@ -38,6 +38,7 @@ const TASK_EXCEPTIONS: Dictionary[StringName, String] = {
 const ROLE_PREFIX := "role."
 const ITEM_PREFIX := "item."
 const TASK_PREFIX := "task."
+const DESCRIPTION_SUFFIX := ".description"
 ## A room's key is this and its id, where the deck has one.
 const ROOM_PREFIX := "room."
 ## A station kind's key is this and its id, where the deck has one (#801: the deck has none for the
@@ -71,6 +72,21 @@ static func task(id: StringName, mode: GameMode) -> String:
 		return TASK_PREFIX + String(id)
 	var found := mode.find_task_type(id) if mode != null else null
 	return _named(found.display_name if found != null else "", id)
+
+
+## A task type's description: its deck key `task.<id>.description` (a TASK_EXCEPTIONS id: the mapped
+## key and `.description`) where the deck has one, else the mode's `TaskType.description`, else an
+## empty string. A lookup only: no view shows it yet (where it would show is a UI-look question,
+## #1468).
+static func task_description(id: StringName, mode: GameMode) -> String:
+	var base := TASK_PREFIX + String(id)
+	if TASK_EXCEPTIONS.has(id):
+		base = TASK_EXCEPTIONS[id]
+	var key := base + DESCRIPTION_SUFFIX
+	if has_key(key):
+		return key
+	var found := mode.find_task_type(id) if mode != null else null
+	return found.description if found != null else ""
 
 
 ## A room's deck key (`room.<id>`) where the deck has one, else its id.
