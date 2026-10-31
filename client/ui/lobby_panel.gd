@@ -287,7 +287,7 @@ func settings_editable() -> bool:
 func applied_preset() -> StringName:
 	if _model == null or _mode == null:
 		return &""
-	return LobbyPresets.applied(_model.settings, _model.id_sets, _mode, _own)
+	return LobbyPresets.applied(_model.settings, _model.id_sets, _mode, _own, _model.roster.size())
 
 
 func _notification(what: int) -> void:
@@ -312,7 +312,7 @@ func _apply_preset(preset: StringName) -> void:
 	if not _may_change or _model == null:
 		_show_presets()
 		return
-	var values := LobbyPresets.values_of(preset, _mode, _own)
+	var values := LobbyPresets.values_of(preset, _mode, _own, _model.roster.size())
 	var changes := LobbyPresets.changes_from(values, _model.settings, _model.id_sets)
 	if not changes.is_empty():
 		settings_changed.emit(changes)
