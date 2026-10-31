@@ -29,7 +29,7 @@ func hearing_radius_m() -> float:
 	return living_m
 
 
-func check(_mode: GameMode) -> PackedStringArray:
-	var found := PackedStringArray()
+func check(mode: GameMode) -> PackedStringArray:
+	var found := super(mode)
 	append_found(found, [radius_out_of_bounds("living_m", living_m)])
 	return found
