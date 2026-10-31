@@ -19,6 +19,11 @@ const HOST_PEER := 1
 var players: Dictionary[int, PlayerState] = {}
 ## The match settings' values (§9.1), from the mode's defaults.
 var settings: Dictionary[StringName, int] = {}
+## The whole-number settings the host named in an accepted ChangeSettings (#1492): such a setting
+## keeps the host's value for the session (across joins, leaves and matches; reset_match keeps
+## it, and nothing un-names it), while one it never named and whose SettingSpec has a player-count
+## table follows the players present (PlayerCountDefaults).
+var host_settings: Dictionary[StringName, bool] = {}
 ## The set settings' values (SettingSpec.Kind.TASK_TYPES: the host's bans of task types, #79):
 ## setting id -> ids in the mode's order. A setting the host never changed is absent: the empty
 ## set, its default.

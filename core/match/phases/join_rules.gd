@@ -45,7 +45,8 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## this build can read (§4.3). Accepted: the joiner gets its number from its `key`
 ## (MatchState.give_number: a returner its old one, anyone else the next), is named (joiner_name),
 ## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
-## with a new epoch; Welcome (the joiner, with the hall's items, #1404), PlayerJoined (everyone),
+## with a new epoch; the defaults that follow the player count count it (PlayerCountDefaults,
+## #1492); Welcome (the joiner, with the hall's items, #1404), PlayerJoined (everyone),
 ## a StationPlaced (everyone) for each standing station in id order (_replay_stations: the
 ## lobby's tap, #1390; the way a joiner learns the stations) and SettingsChanged (everyone). A
 ## name or a key is never a reason to refuse: a bad name falls back, an unusable key is none
@@ -80,6 +81,8 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
 	joined.epoch += 1
+	# Before Welcome, which copies the settings: the joiner counts (#1492).
+	PlayerCountDefaults.follow(ctx)
 	ctx.emit(_welcome(ctx, joined, spec.id))
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
 	_replay_stations(ctx)

@@ -56,6 +56,7 @@ func on_peer_connected(ctx: MatchContext, peer: int) -> void:
 
 func on_peer_left(ctx: MatchContext, peer: int) -> void:
 	if JoinRules.leave(ctx, peer):
+		PlayerCountDefaults.follow(ctx)
 		ctx.emit(FitCheck.settings_changed(ctx))
 		_cancel(ctx, CountdownCancelledEvent.LEAVE)
 
