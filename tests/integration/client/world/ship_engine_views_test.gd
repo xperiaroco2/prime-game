@@ -69,6 +69,22 @@ func test_the_order_plays_on_the_mimic_board_and_never_at_the_boards() -> void:
 			assert_object(colour).override_failure_message("step %d, %d" % [i, j]).is_equal(
 				expected
 			)
+	# Then a dark pause, so the loop's start can be told (7, 11, 5, 7 reads as no order), and again.
+	for i in range(order.size(), order.size() + ShipEngineViews.ORDER_PAUSE_STEPS):
+		for at: int in [i * step, (i + 1) * step - 1]:
+			_now = at
+			_view._process(0.0)
+			for breaker: int in order:
+				(
+					assert_object(ShipEngineViews.colour_of(_view.mimic_of(breaker)))
+					. override_failure_message("tick %d, %d" % [at, breaker])
+					. is_equal(ShipEngineViews.RED)
+				)
+	_now = (order.size() + ShipEngineViews.ORDER_PAUSE_STEPS) * step
+	_view._process(0.0)
+	assert_object(ShipEngineViews.colour_of(_view.mimic_of(order[0]))).is_equal(
+		ShipEngineViews.WHITE
+	)
 	for tick in range(0, step * 6):
 		_now = tick
 		_view._process(0.0)
@@ -94,6 +110,22 @@ func test_a_breaker_lamp_is_red_tripped_yellow_then_green_once_on() -> void:
 	_now = 100 + ramp
 	_view._process(0.0)
 	assert_object(ShipEngineViews.colour_of(_view.lamp_of(6))).is_equal(ShipEngineViews.GREEN)
+
+
+func test_a_mimic_lamp_is_red_tripped_and_green_once_on_never_yellow() -> void:
+	_place()
+	var order: Array[int] = [5, 6, 7]
+	# A tick in the order's dark pause, with breaker 6 the last one on and still in its ramp.
+	var step := maxi(1, Ticks.from_seconds(ShipEngineViews.ORDER_STEP_SECONDS))
+	var pause := order.size() * step
+	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
+	_model.fold(&"BreakerChain", _chain(1, order, 2, pause - 1))
+	_now = pause
+	_view._process(0.0)
+	assert_object(ShipEngineViews.colour_of(_view.lamp_of(6))).is_equal(ShipEngineViews.YELLOW)
+	assert_object(ShipEngineViews.colour_of(_view.mimic_of(5))).is_equal(ShipEngineViews.GREEN)
+	assert_object(ShipEngineViews.colour_of(_view.mimic_of(6))).is_equal(ShipEngineViews.GREEN)
+	assert_object(ShipEngineViews.colour_of(_view.mimic_of(7))).is_equal(ShipEngineViews.RED)
 
 
 func test_the_stage_strips_fill_with_their_third_of_the_bar() -> void:
@@ -164,6 +196,18 @@ func test_the_gills_show_their_slits_and_the_white_bar_from_the_opening_tick() -
 	# One step after the opening the bar stands on the second slit (GillsProblem.BAR).
 	for slit in range(1, 6):
 		assert_bool((gills.get_node("Light%d" % slit) as Node3D).visible).is_equal(slit == 2)
+	# Tick by tick the bar is the host's own (GillsProblem.bar_slit), so a press by it is taken.
+	var host := EngineProblem.new(1, kind, PackedInt32Array([GILLS]), opened, deadline, 1)
+	for tick in range(opened - 2, opened + kind.step_ticks() * (GillsProblem.BAR.size() + 1)):
+		_now = tick
+		_view._process(0.0)
+		var lit := kind.bar_slit(host, tick) + 1
+		for slit in range(1, 6):
+			(
+				assert_bool((gills.get_node("Light%d" % slit) as Node3D).visible)
+				. override_failure_message("tick %d, slit %d" % [tick, slit])
+				. is_equal(slit == lit)
+			)
 
 
 func test_a_charger_lamp_is_yellow_while_charging_and_green_with_a_crystal_waiting() -> void:
@@ -190,6 +234,25 @@ func test_a_blast_swells_once_and_fades() -> void:
 	assert_bool(blast.visible).is_false()
 	_view._process(0.1)
 	assert_bool(blast.visible).is_false()
+
+
+func test_a_view_built_again_after_a_blast_plays_no_old_blast() -> void:
+	_place()
+	_view._process(0.0)
+	_model.fold(&"EngineBlast", {"stage": 1})
+	_view._process(0.1)
+	_view._process(ShipEngineViews.BLAST_SECONDS)
+	# A new level clears the view, and it is built again from the same book.
+	_view.level = _level()
+	_view._process(0.1)
+	assert_object(_blast()).is_null()
+
+
+func test_a_view_first_built_after_a_blast_plays_none() -> void:
+	_model.fold(&"EngineBlast", {"stage": 1})
+	_place()
+	_view._process(0.1)
+	assert_object(_blast()).is_null()
 
 
 func test_the_client_offers_no_breaker_board_but_its_breakers() -> void:
@@ -249,6 +312,8 @@ func _level() -> Node3D:
 
 func _blast() -> MeshInstance3D:
 	for child: Node in _view.get_children():
+		if child.is_queued_for_deletion():
+			continue
 		if child is MeshInstance3D and (child as MeshInstance3D).mesh is SphereMesh:
 			return child as MeshInstance3D
 	return null
