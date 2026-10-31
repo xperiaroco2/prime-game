@@ -1250,7 +1250,9 @@ warning, and only the keeper below is left); `place()` sets
 `DisplayServer.WINDOW_FLAG_NO_FOCUS` once the window is off-screen, so it never activates again; and a keeper records
 the foreground window before the run and gives the foreground back (through `ctypes`: `AttachThreadInput`, then
 `SetForegroundWindow`) whenever a window of the run's process tree takes it, printing `focus: a window of the run
-took the foreground N time(s); handed back N`. A window of another process (the human switching apps) is left alone.
+took the foreground N time(s); handed back N` (one steal counts once). A window of another process (the human
+switching apps) is left alone and becomes the one the foreground goes back to; a process snapshot is taken once per
+new foreground window, not on every 20 ms look.
 `run` with an on-screen window and `host`/`join` windows are for a human to look at and take the focus as before.
 The hard guarantee is **gaming mode**: `tools\run.cmd gaming --on` (`--off`, `--status`) writes
 `%LOCALAPPDATA%\prime-game\gaming-mode.json`, outside every checkout, so the main checkout and every worktree read one

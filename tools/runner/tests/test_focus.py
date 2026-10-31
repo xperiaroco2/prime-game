@@ -32,6 +32,7 @@ class FakeDesktop:
         self.give_works = give_works
         self.owners = {1: 10, 2: 21, 3: 30}
         self.given: list[int] = []
+        self.snapshots = 0
 
     def foreground(self) -> int:
         return self.front
@@ -40,6 +41,7 @@ class FakeDesktop:
         return self.owners.get(window, 0)
 
     def descendants(self, roots: Iterable[int]) -> set[int]:
+        self.snapshots += 1
         return focus.tree(roots, [(20, 5), (21, 20), (30, 4)])
 
     def give(self, window: int) -> bool:
@@ -121,6 +123,57 @@ class KeeperTest(unittest.TestCase):
             desktop.front = 2
         self.assertEqual((keeper.taken, keeper.given), (1, 0))
         self.assertIn("1 refused by Windows", said[0])
+
+    def test_after_the_human_switched_apps_the_foreground_goes_back_to_his_new_app(self) -> None:
+        desktop = FakeDesktop()
+        keeper, _ = self.keeper(desktop)
+        keeper.poll = 3600  # only the checks this test makes
+        with keeper:
+            keeper.watch(proc(20))
+            desktop.front = 3  # he alt-tabbed from the game (1) to another app (3)
+            keeper.check()
+            desktop.front = 2  # then a window of the run took the foreground
+            keeper.check()
+            self.assertEqual((desktop.front, desktop.given), (3, [3]))
+
+    def test_another_app_in_front_costs_one_process_snapshot_not_one_per_look(self) -> None:
+        desktop = FakeDesktop()
+        keeper, _ = self.keeper(desktop)
+        keeper.poll = 3600
+        with keeper:
+            keeper.watch(proc(20))
+            desktop.front = 3
+            for _ in range(50):
+                keeper.check()
+            desktop.front = 2
+            for _ in range(50):
+                keeper.check()
+        self.assertEqual(desktop.snapshots, 2)  # window 3 once, window 2 once
+
+    def test_a_steal_that_windows_keeps_refusing_to_hand_back_counts_once(self) -> None:
+        desktop = FakeDesktop(give_works=False)
+        keeper, said = self.keeper(desktop)
+        keeper.poll = 3600
+        with keeper:
+            keeper.watch(proc(20))
+            desktop.front = 2
+            for _ in range(50):
+                keeper.check()
+        self.assertEqual((keeper.taken, keeper.given), (1, 0))
+        self.assertEqual(len(desktop.given), 51)  # it keeps trying: 50 looks and the last one at the end
+        self.assertIn("took the foreground 1 time(s); handed back 0, 1 refused by Windows", said[0])
+
+    def test_a_second_steal_after_a_hand_back_counts_again(self) -> None:
+        desktop = FakeDesktop()
+        keeper, said = self.keeper(desktop)
+        keeper.poll = 3600
+        with keeper:
+            keeper.watch(proc(20))
+            for _ in range(2):
+                desktop.front = 2
+                keeper.check()
+        self.assertEqual((keeper.taken, keeper.given, desktop.front), (2, 2, 1))
+        self.assertIn("took the foreground 2 time(s); handed back 2", said[0])
 
     def test_no_foreground_window_before_the_run_does_nothing(self) -> None:
         desktop = FakeDesktop(front=0)

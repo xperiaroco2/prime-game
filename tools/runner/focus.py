@@ -16,7 +16,7 @@ layers, each a no-op off Windows:
 - Keeper: records the foreground window before the run and, while it runs, hands the foreground back at once
   whenever a window of the run's process tree took it (AttachThreadInput to the thread that holds it, then
   SetForegroundWindow: a background process may not take the foreground on its own). A window of any other process
-  (the human switching apps himself) is left alone.
+  (the human switching apps himself) is left alone and becomes the one the foreground goes back to.
 
 The hard guarantee while the engineer plays is gaming mode (tools/runner/gaming.py): no window run starts at all.
 """
@@ -170,7 +170,8 @@ def tree(roots: Iterable[int], pairs: Iterable[tuple[int, int]]) -> set[int]:
 @dataclass
 class Keeper:
     """While a window run goes on: whenever a window of its processes holds the foreground, give it back to the
-    window that held it before the run. Use as a context manager; pass watch() as the run's on_start."""
+    window that held it before (at the start, or the one the human switched to since). Use as a context manager;
+    pass watch() as the run's on_start."""
 
     desktop: Desktop | None = None
     poll: float = POLL_SECONDS
@@ -182,6 +183,8 @@ class Keeper:
     _stop: threading.Event = field(default_factory=threading.Event)
     _thread: threading.Thread | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
+    _holder: int = 0  # the run's window whose steal is counted and not yet handed back
+    _verdicts: dict[tuple[int, int], bool] = field(default_factory=dict)  # (window, owner pid) -> of the run
 
     def __post_init__(self) -> None:
         if self.desktop is None and IS_WINDOWS:
@@ -196,20 +199,41 @@ class Keeper:
             self.pids.add(proc.pid)
 
     def check(self) -> None:
-        """One look: a window of the run holds the foreground -> give it back."""
+        """One look: a window of the run holds the foreground -> give it back. A window of another process (the
+        human switched apps himself) becomes the one to give it back to. One steal counts once, however many looks
+        it takes to hand it back."""
         desktop = self.desktop
         if desktop is None or not self.before:
             return
         now = desktop.foreground()
         if not now or now == self.before:
+            self._holder = 0
             return
-        with self._lock:
-            roots = set(self.pids)
-        if not roots or desktop.owner(now) not in desktop.descendants(roots):
+        if not self._ours(desktop, now):
+            self.before = now
+            self._holder = 0
             return
-        self.taken += 1
+        if now != self._holder:
+            self._holder = now
+            self.taken += 1
         if desktop.give(self.before):
             self.given += 1
+            self._holder = 0
+
+    def _ours(self, desktop: Desktop, window: int) -> bool:
+        """Whether `window` belongs to the run's process tree. A process snapshot only for a window and owner not
+        seen before: the human's own app in front for the whole run costs one, not one per look."""
+        key = (window, desktop.owner(window))
+        known = self._verdicts.get(key)
+        if known is not None:
+            return known
+        with self._lock:
+            roots = set(self.pids)
+        if not roots:
+            return False  # nothing of the run started yet: no verdict to keep
+        ours = key[1] in desktop.descendants(roots)
+        self._verdicts[key] = ours
+        return ours
 
     def _loop(self) -> None:
         while not self._stop.wait(self.poll):
