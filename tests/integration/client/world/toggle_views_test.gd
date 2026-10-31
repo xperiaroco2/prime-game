@@ -120,6 +120,20 @@ func test_parts_stand_as_their_scene_once_the_model_or_the_level_goes() -> void:
 	assert_int(_views.part_count()).is_equal(0)
 
 
+func test_only_a_static_body_is_a_part_as_on_the_host() -> void:
+	# LevelWorld reads StaticBody3Ds only: an Area3D in a toggle group would move here alone.
+	var area := Area3D.new()
+	area.collision_layer = PhysicsLayers.WORLD
+	area.add_to_group(StringName(StationKind.TOGGLE_GROUP_PREFIX + "cover"), true)
+	area.set_meta(StationKind.TOGGLE_INDEX_META, 0)
+	_level.add_child(area)
+	_views.model = _dealt()
+	_switch(COVER_0, true)
+	await _frames()
+	assert_int(_views.part_count()).is_equal(3)
+	assert_int(area.collision_layer).is_equal(PhysicsLayers.WORLD)
+
+
 func test_no_toggle_kind_is_drawn_as_a_cylinder() -> void:
 	var made := FixtureToggles.mode()
 	for id: StringName in [&"cover", &"book", &"bottle", &"breaker"]:

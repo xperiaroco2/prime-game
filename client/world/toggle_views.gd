@@ -2,7 +2,7 @@ class_name ToggleViews
 extends Node3D
 ## The world toggles' parts in the level, driven from the own ClientModel (#1295, ARCHITECTURE
 ## §4.7.61): the client's side of LevelWorld's toggles, read from the level by the same names
-## (StationKind's TOGGLE_ constants). A CollisionObject3D in group `toggle_<key>` with the int
+## (StationKind's TOGGLE_ constants). A StaticBody3D in group `toggle_<key>` with the int
 ## metadata `toggle_index` is a part of toggle (key, index); the toggle is on while its stations
 ## are (SwitchChanged). A station's index is its ordinal among the model's stations of its kind in
 ## id order, which is the marker order the host gave it (PlaceToggles, StationState.index).
@@ -35,7 +35,7 @@ var _parts: Array[Part] = []
 ## A toggle part of the level and how its scene put it.
 class Part:
 	extends RefCounted
-	var node: CollisionObject3D
+	var node: StaticBody3D
 	var key: StringName
 	var index: int
 	var layer: int
@@ -101,14 +101,14 @@ static func _name_of(key: StringName, index: int) -> String:
 
 
 func _search(node: Node) -> void:
-	var body := node as CollisionObject3D
+	var body := node as StaticBody3D
 	if body != null:
 		_add_part(body)
 	for child: Node in node.get_children():
 		_search(child)
 
 
-func _add_part(body: CollisionObject3D) -> void:
+func _add_part(body: StaticBody3D) -> void:
 	var key := &""
 	for group: StringName in body.get_groups():
 		if String(group).begins_with(StationKind.TOGGLE_GROUP_PREFIX):
