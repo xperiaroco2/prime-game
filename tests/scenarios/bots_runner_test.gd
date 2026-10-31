@@ -138,6 +138,33 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(_text(leaks.check_tasks(views))).contains("different task events in match 1")
 
 
+func test_a_welcome_row_with_a_private_field_or_not_the_halls_items_is_a_leak() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var leaks := runner.leaks
+	var welcome: WelcomeEvent = null
+	for event: MatchEvent in runner.game.view_of(2).events:
+		if event is WelcomeEvent:
+			welcome = event as WelcomeEvent
+	assert_object(welcome).is_not_null()
+	# A row of a public item that also tells how often it moved: the host's own WelcomeEvent, so
+	# the wire and view_of agree and only the Welcome invariant sees it.
+	var row: Dictionary = {
+		"item": 999, "kind": &"mug", "where": 0, "holder": 0, "place": 0, "position": Vector3.ONE
+	}
+	welcome.items.append(row)
+	var found := _text(leaks.check_bot("bot 2", 2, _decoded(runner.game.view_of(2)), false))
+	assert_str(found).contains("are not the hall's")
+	row["moves"] = 3
+	found = _text(leaks.check_bot("bot 2", 2, _decoded(runner.game.view_of(2)), false))
+	assert_str(found).contains("a Welcome row holds moves, no public fact")
+	welcome.items.pop_back()
+	var clean := leaks.check_bot("bot 2", 2, _decoded(runner.game.view_of(2)), false)
+	assert_array(Array(clean)).is_empty()
+
+
 func test_the_coverage_fails_a_task_event_no_bot_decoded_and_an_unreached_one_decoded() -> void:
 	# #1197: over a run of every scenario each task event but the UNREACHED ones reaches some bot.
 	var seen: Dictionary[StringName, bool] = {}

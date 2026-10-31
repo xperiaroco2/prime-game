@@ -28,6 +28,10 @@ extends RefCounted
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
 ##   task events (check_tasks).
+## - The Welcome invariant (#1404, #1456): each Welcome a bot decoded lists the hall's items as the
+##   host's state held them after the tick before the Welcome's or after its own (record_tick, in a
+##   phase that accepts Hello), each row holding only the public facts WELCOME_ROW_KEYS names
+##   (_check_welcome_items: read from the state here, never from join_rules).
 ## - Coverage (check_coverage, #1197): over a run of every scenario some bot decoded each task event
 ##   but the UNREACHED ones, so these checks see every task family's events over the wire.
 ## - The distance invariant (§5, E45), apart from the voice rule's hears and speakers_of: no bot
@@ -114,6 +118,9 @@ const FILL := 0xA5
 const MAX_LISTED := 5
 ## VoiceDown's seq is a u16 (§4.3).
 const SEQ_MODULO := 0x10000
+## The keys of a Welcome's item row (#1404, WelcomeEvent.items), each a public fact; any other key
+## in a row is a leak (_check_welcome_items).
+const WELCOME_ROW_KEYS: Array[String] = ["item", "kind", "where", "holder", "place", "position"]
 
 var _game: Match
 var _seeds: Array[int] = []
@@ -128,6 +135,9 @@ var _limp_at: Dictionary[int, PackedInt32Array] = {}
 ## hearing radius of the phase then.
 var _positions_at: Dictionary[int, Dictionary] = {}
 var _radius_at: Dictionary[int, float] = {}
+## Tick -> the hall's items after that tick, as a Welcome lists them (item id -> row, _hall_items),
+## recorded only in a phase that accepts Hello: a Welcome is sent in no other.
+var _items_at: Dictionary[int, Dictionary] = {}
 ## MatchEvent instance id -> every player's role when it was emitted (Teammates only).
 var _roles_at: Dictionary[int, Dictionary] = {}
 
@@ -185,6 +195,9 @@ func record_tick(at_tick: int) -> void:
 	_dead_at[at_tick] = dead
 	_positions_at[at_tick] = positions
 	_radius_at[at_tick] = ScenarioInvariants.phase_radius(_game)
+	var spec := _game.mode.find_phase(_game.phase_id())
+	if spec != null and spec.senders_of(Intents.HELLO) != 0:
+		_items_at[at_tick] = _hall_items(state)
 
 
 ## Each present player's last accepted position after `at_tick`, as record_tick saw it; empty for
@@ -262,6 +275,7 @@ func check_bot(
 	_check_dead_events(matched, peer, found)
 	_check_records(decoded, matched, peer, found)
 	_check_teammates(view, matched, peer, found)
+	_check_welcome_items(view, matched, peer, found)
 	_check_snapshots(view, decoded, peer, found)
 	_check_voice(view, decoded, peer, found)
 	_check_seeds(decoded, found)
@@ -568,6 +582,91 @@ func _check_teammates(view: PeerView, matched: int, peer: int, found: PackedStri
 		for other: int in teammates.peers:
 			if roles.get(other, &"") != own:
 				found.append("decoded Teammates naming peer %d, not %s" % [other, own])
+
+
+## The Welcome invariant (#1404, #1456) on view_of's WelcomeEvent objects among the first `matched`
+## events of `peer` (the ones it decoded, equal to these): each row holds only WELCOME_ROW_KEYS, and
+## the rows are the hall's items as _items_at saw them after the tick before the Welcome's or after
+## its own (a Hello is handled mid-tick; record_tick sees only tick ends). A harness that never
+## called record_tick has no state to compare with: only the keys are checked there.
+func _check_welcome_items(
+	view: PeerView, matched: int, peer: int, found: PackedStringArray
+) -> void:
+	var seen := 0
+	for emitted: EmittedEvent in _game.emitted():
+		if seen >= matched:
+			return
+		if not emitted.recipients.has(peer):
+			continue
+		var welcome := view.events[seen] as WelcomeEvent
+		seen += 1
+		if welcome == null:
+			continue
+		var by_id: Dictionary[int, Dictionary] = {}
+		for row: Dictionary in welcome.items:
+			for key: Variant in row:
+				if not WELCOME_ROW_KEYS.has(str(key)):
+					found.append(
+						"tick %d: a Welcome row holds %s, no public fact" % [emitted.tick, key]
+					)
+			by_id[row.get("item", -1) as int] = row
+		if _positions_at.is_empty():
+			continue
+		var matches := false
+		var recorded := false
+		for tick: int in [emitted.tick - 1, emitted.tick]:
+			if not _items_at.has(tick):
+				continue
+			recorded = true
+			matches = matches or _same_items(by_id, welcome.items.size(), _items_at[tick])
+		if not recorded:
+			found.append("tick %d: a Welcome in a phase that accepts no Hello" % emitted.tick)
+		elif not matches:
+			found.append(
+				(
+					"tick %d: a Welcome's item rows %s are not the hall's %s"
+					% [
+						emitted.tick,
+						welcome.items,
+						(_items_at.get(emitted.tick, {}) as Dictionary).values()
+					]
+				)
+			)
+
+
+## Whether a Welcome's rows (`by_id`, `count` of them) are the items `hall` lists: every one when
+## they fit in WelcomeEvent.MAX_ITEMS, else that many of them; each row equal to the hall's.
+static func _same_items(by_id: Dictionary[int, Dictionary], count: int, hall: Dictionary) -> bool:
+	if by_id.size() != count or count != mini(hall.size(), WelcomeEvent.MAX_ITEMS):
+		return false
+	for id: int in by_id:
+		if not hall.has(id) or not WireSamples.same(by_id[id], hall[id]):
+			return false
+	return true
+
+
+## The hall's items in `state` as a Welcome's rows hold them, by item id: kind, rest state, carrier
+## and the carrier's place for a carried one (0 and 0 for one that is not), and position. Written
+## from the state, not from join_rules, so a change there that leaks is no change here.
+static func _hall_items(state: MatchState) -> Dictionary[int, Dictionary]:
+	var rows: Dictionary[int, Dictionary] = {}
+	for id: int in state.items:
+		var item := state.items[id]
+		var holder := 0
+		var place := 0
+		if item.is_carried():
+			holder = item.holder
+			var carrier: PlayerState = state.players.get(holder)
+			place = carrier.places.find(id) if carrier != null else -1
+		rows[id] = {
+			"item": id,
+			"kind": item.kind.id,
+			"where": item.where as int,
+			"holder": holder,
+			"place": place,
+			"position": item.position,
+		}
+	return rows
 
 
 func _check_snapshots(
