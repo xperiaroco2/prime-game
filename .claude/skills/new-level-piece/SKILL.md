@@ -30,6 +30,12 @@ the human's language.
 4. **Engine parts.** Interactables and task stations come from the engine (content-API section of
    `docs/ARCHITECTURE.md`). One that does not exist: an `engine-request` issue with the spec from `content/CLAUDE.md`
    (after the human's OK on its text), then continue with a greybox stand-in.
+   **A world toggle** (a secret passage, a cover, a camera, a breaker: `levels/CLAUDE.md` "World toggles",
+   ARCHITECTURE §4.5.9): no station scene; its parts are layer-1 `StaticBody3D`s in the group `toggle_<key>` with
+   the int metadata `toggle_index` (its `spawn_<tag>` marker's ordinal among its kind's markers), a mover with a
+   child `Marker3D` `OnPose` (its open pose, relative to the part), a collider without one (gone while open). Place
+   each marker on its floor (toggle markers are never snapped), in sight of both poses, and give a passage an
+   `_inside` kind with a marker on the far side. Shoot both poses of a mover.
 5. **Write the scene by hand:** one piece per `snake_case.tscn`, `PascalCase` nodes, other pieces instanced rather
    than copied, box-mesh greybox with `levels/kit/`'s role materials; a room gets a `Label3D` `Name` on its root
    with its design-doc name. A room also declares its record on the root (`metadata/room_id` = the file name as a

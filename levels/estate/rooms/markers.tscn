@@ -115,3 +115,62 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.5, 0, 86)
 
 [node name="Circle10" type="Marker3D" parent="." unique_id=1374000137 groups=["spawn_circle"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, 0, 86)
+
+[node name="Toggles" type="Node3D" parent="." unique_id=494072138]
+
+[node name="Bookcase01" type="Marker3D" parent="Toggles" unique_id=875447464 groups=["spawn_bookcase"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70, 3.2, 7.1)
+
+[node name="BookcaseInside01" type="Marker3D" parent="Toggles" unique_id=1371451243 groups=["spawn_bookcase_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.4, 3.2, 5.1)
+
+[node name="WineRack01" type="Marker3D" parent="Toggles" unique_id=457884386 groups=["spawn_wine_rack"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.3, -3.2, 6.8)
+
+[node name="WineRackInside01" type="Marker3D" parent="Toggles" unique_id=1722642368 groups=["spawn_wine_rack_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.1, -3.2, 5.1)
+
+[node name="Manhole01" type="Marker3D" parent="Toggles" unique_id=728526028 groups=["spawn_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64, -3.2, 10.4)
+
+[node name="Manhole02" type="Marker3D" parent="Toggles" unique_id=781020922 groups=["spawn_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.8, 0, 51)
+
+[node name="Manhole03" type="Marker3D" parent="Toggles" unique_id=1032178499 groups=["spawn_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.3, 0, 68)
+
+[node name="Manhole04" type="Marker3D" parent="Toggles" unique_id=1262488273 groups=["spawn_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 100.3, 0, 72)
+
+[node name="ManholeInside01" type="Marker3D" parent="Toggles" unique_id=510599152 groups=["spawn_manhole_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, -6.4, 12)
+
+[node name="ManholeInside02" type="Marker3D" parent="Toggles" unique_id=1590703161 groups=["spawn_manhole_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67, -3.2, 51)
+
+[node name="ManholeInside03" type="Marker3D" parent="Toggles" unique_id=1644182517 groups=["spawn_manhole_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, -3.2, 68)
+
+[node name="ManholeInside04" type="Marker3D" parent="Toggles" unique_id=72141913 groups=["spawn_manhole_inside"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, -3.2, 66.8)
+
+[node name="FixedCamera01" type="Marker3D" parent="Toggles" unique_id=1252618736 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 69.3, 0, 34.07)
+
+[node name="FixedCamera02" type="Marker3D" parent="Toggles" unique_id=302532455 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.2, 0, 29)
+
+[node name="FixedCamera03" type="Marker3D" parent="Toggles" unique_id=1253337920 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.2, 0, 26.5)
+
+[node name="FixedCamera04" type="Marker3D" parent="Toggles" unique_id=1815974220 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.7, 0, 11.5)
+
+[node name="FixedCamera05" type="Marker3D" parent="Toggles" unique_id=1176543607 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.02, 0, 8.12)
+
+[node name="FixedCamera06" type="Marker3D" parent="Toggles" unique_id=551263408 groups=["spawn_fixed_camera"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 73.13, 6.4, 14.87)
+
+[node name="LightBreaker01" type="Marker3D" parent="Toggles" unique_id=117499478 groups=["spawn_light_breaker"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.9, -3.2, 7.1)

@@ -34,7 +34,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `spawn_film_box`, `spawn_printer`, `spawn_photo_board`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
   `spawn_part_bin_<n>`, `spawn_part_picture`, `spawn_order_board`, `spawn_herb_board`, `spawn_grill`, `spawn_place`,
   `spawn_herb_bed`; `spawn_film`, `spawn_photo`; the cooking boxes' `spawn_box_bun_white`/`_sesame`/`_dark`,
-  `spawn_box_patty_light`/`_red`/`_deep_red`; the estate's ship engine: §9.5.27). A marker in two is a load error.
+  `spawn_box_patty_light`/`_red`/`_deep_red`; the estate's ship engine: §9.5.27; its toggles: §9.6). A marker in two is a load error.
   The host reads them in scene-tree order. Bot scenarios snap station markers only on the levels they play (the lobby,
   the first map, any a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), on a flat fake (floor
   y = 0): there no station marker (`circle` or `zone`, #681) below it and no two of different tags at one (x, z).
@@ -62,6 +62,9 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   device's floor point, front +Z; `Body` the art's kit wrapper (editable, its colliders on layer 0); own primitive
   `Collision` on layer 1; one `UseSpot` on the floor in front; driven nodes by `visible`; the room drops the art's copy.
   The car breaks the layer-1 rule: only its layer-4 `Lift` collides: the living hit it on `movers`, plates pass (RE8).
+- **World toggles** (ARCHITECTURE §4.5.9's level contract; the `new-level-piece` skill, step 4): a `spawn_<tag>`
+  marker per station, read as placed (on its floor, in sight of both poses), parts on layer 1 in `toggle_<key>` with
+  the int meta `toggle_index` (its marker's ordinal), a mover with a child `OnPose`, a passage an `_inside` kind.
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
@@ -81,11 +84,6 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
 - Interactables and task stations come from the engine. A level that needs a missing one opens an `engine-request`
   issue with a precise spec (`content/CLAUDE.md` says what it holds) and goes on with the rest of the level.
 - The designer's agent edits only the content area and the shared logs, as listed in `content/CLAUDE.md`.
-
-## Working next to the Godot editor
-The editor does not merge changes (the copy saved last wins): remind the human of `docs/AGENT_WORKFLOW.md` §11.2:
-**Save All Scenes** first, then **Reload from disk** («Джерело отримання», never «Ігнорувати зовнішні зміни»), and
-no hand edit of a scene while the agent works on it.
 
 ## Assets
 - Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`). They land

@@ -23,6 +23,8 @@ const ROAD_EAST_EDGE := 141.0
 const ROOF := 6.4
 const CHIMNEY := Vector2(63.3, 8)
 const CHIMNEY_LIP := Vector2(64.1, 8)
+## The walk through the bookcase, so the one walk made with the passages open.
+const BOOKCASE_STAIR_WALK := "house, the library's bookcase stair to the cellar"
 ## Walks in map metres (x, level height, z) through their corners; they end at the last corner's
 ## height. A bonfire end starts 3.6 m out from its centre, past the fire pit.
 const WALKS := {
@@ -122,7 +124,7 @@ const WALKS := {
 		Vector3(67.4, 0, 9.5),
 		Vector3(67.4, -3.2, 16),
 	],
-	"house, the library's bookcase stair to the cellar":
+	BOOKCASE_STAIR_WALK:
 	[
 		Vector3(69.4, 3.2, 7),
 		Vector3(69.4, 3.2, 5.3),
@@ -261,6 +263,14 @@ func after() -> void:
 	_level = null
 
 
+## The hidden passages open (#1459): the bookcase and the wine rack are one toggle, each manhole
+## cover has its own. A shut part closes its opening; an open bookcase stands in the library.
+func _open_passages() -> void:
+	_level.set_toggle(&"bookcase", 0, true)
+	for cover in 4:
+		_level.set_toggle(&"manhole", cover, true)
+
+
 func test_the_map_builds_into_the_host_s_world_without_errors() -> void:
 	assert_array(Array(_level.errors)).is_empty()
 	assert_int(_level.body_count()).is_greater(0)
@@ -268,6 +278,11 @@ func test_the_map_builds_into_the_host_s_world_without_errors() -> void:
 
 func test_each_walk_can_be_walked() -> void:
 	for walk: String in WALKS:
+		# The bookcase stair is a hidden passage: its walk goes with the bookcase open. The other
+		# walks go with every toggle as the scene stands.
+		_level.reset_toggles()
+		if walk == BOOKCASE_STAIR_WALK:
+			_open_passages()
 		var corners: Array = (WALKS[walk] as Array).duplicate()
 		if corners[0] == Vector3.ZERO:
 			corners[0] = _from_bonfire(corners[1] as Vector3)
@@ -277,6 +292,7 @@ func test_each_walk_can_be_walked() -> void:
 
 
 func test_each_hidden_passage_can_be_walked_both_ways() -> void:
+	_open_passages()
 	for walk: String in PASSAGES:
 		var corners: Array = (PASSAGES[walk] as Array)[0]
 		var height := _crouch_height() if (PASSAGES[walk] as Array)[1] else HEIGHT
@@ -305,6 +321,7 @@ func test_the_ducts_are_too_low_to_go_through_upright() -> void:
 ## ground (or, in the House's lot, in the basement's floor) lands on a floor in the PickUp rule's
 ## reach of a passage walk's feet, never in a void.
 func test_an_item_falling_into_a_hole_in_the_ground_lands_in_reach_of_a_passage_walk() -> void:
+	_open_passages()
 	var reach := _pick_up_reach()
 	assert_float(reach).is_greater(0.0)
 	var feet := _passage_feet()
