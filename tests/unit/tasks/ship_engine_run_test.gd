@@ -126,6 +126,25 @@ func test_an_open_problem_stops_the_bar_until_it_is_fixed() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_the_bar_restarts_when_the_last_problem_is_fixed_and_the_window_ends() -> void:
+	var mode := FixtureEngineModes.basic()
+	FixtureEngineModes.type_of(mode).stage_problems = PackedInt32Array([1, 1, 1])
+	var game := FixtureEngineModes.in_round(mode, PEERS)
+	var task_state := FixtureEngineModes.state_of(game)
+	FixtureEngineModes.start(game, 1)
+	while task_state.problems.is_empty():
+		FixtureModes.run_ticks(game, 1)
+	var stopped := FixtureEngineModes.dicts(game, 2, &"ZoneProgress").size()
+	FixtureEngineModes.fix_all(game, 1)
+	assert_bool(task_state.running).is_true()
+	FixtureModes.run_ticks(game, ZoneTask.WINDOW_TICKS + 1)
+	# The restart went out, held to its window's end: the clients' bar counts again.
+	var bar := FixtureEngineModes.dicts(game, 2, &"ZoneProgress")
+	assert_int(bar.size()).is_greater(stopped)
+	assert_bool(bar[stopped]["counting"]).is_true()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_a_site_holds_one_problem_and_a_stage_short_of_sites_waits() -> void:
 	var game := _round()
 	var task_state := FixtureEngineModes.state_of(game)
