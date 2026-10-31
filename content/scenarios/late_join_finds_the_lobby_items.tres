@@ -1,0 +1,90 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://bjoinhallitem6"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="5_target"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="6_walk"]
+[ext_resource type="Script" uid="uid://cibnmeghu3q31" path="res://core/content/scenario/step_interact.gd" id="7_interact"]
+[ext_resource type="Script" uid="uid://cx5gtr3ejdvpi" path="res://core/content/scenario/step_swap.gd" id="8_swap"]
+[ext_resource type="Script" uid="uid://dvl107dygojwj" path="res://core/content/scenario/step_put_down.gd" id="9_put_down"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="10_wait_for"]
+[ext_resource type="Script" uid="uid://bepcrummjhkfs" path="res://core/content/scenario/step_join.gd" id="11_join"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="12_wait"]
+
+[sub_resource type="Resource" id="Resource_j01"]
+script = ExtResource("5_target")
+point = Vector3(-15, 0, 0)
+
+[sub_resource type="Resource" id="Resource_j02"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_j01")
+
+[sub_resource type="Resource" id="Resource_j03"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"tap"
+
+[sub_resource type="Resource" id="Resource_j04"]
+script = ExtResource("6_walk")
+target = SubResource("Resource_j03")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_j05"]
+script = ExtResource("7_interact")
+station = SubResource("Resource_j03")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_j06"]
+script = ExtResource("8_swap")
+
+[sub_resource type="Resource" id="Resource_j07"]
+script = ExtResource("7_interact")
+station = SubResource("Resource_j03")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_j08"]
+script = ExtResource("5_target")
+point = Vector3(-15, 0, -20)
+
+[sub_resource type="Resource" id="Resource_j09"]
+script = ExtResource("9_put_down")
+towards = SubResource("Resource_j08")
+
+[sub_resource type="Resource" id="Resource_j10"]
+script = ExtResource("7_interact")
+station = SubResource("Resource_j03")
+until = &"ItemPickedUp"
+
+[sub_resource type="Resource" id="Resource_j13"]
+script = ExtResource("12_wait")
+seconds = 0.5
+
+[sub_resource type="Resource" id="Resource_j11"]
+script = ExtResource("10_wait_for")
+event = &"PlayerJoined"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_j12"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_j02"), SubResource("Resource_j04"), SubResource("Resource_j05"), SubResource("Resource_j06"), SubResource("Resource_j13"), SubResource("Resource_j07"), SubResource("Resource_j09"), SubResource("Resource_j13"), SubResource("Resource_j10"), SubResource("Resource_j11")])
+
+[sub_resource type="Resource" id="Resource_j21"]
+script = ExtResource("11_join")
+at_s = 20.0
+
+[sub_resource type="Resource" id="Resource_j22"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Resource_j21")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 145600000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("Resource_j12"), SubResource("Resource_j22")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0
