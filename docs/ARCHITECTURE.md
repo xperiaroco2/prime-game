@@ -8855,8 +8855,8 @@ Not built here: the pose wheel's own pose in a frame (#1227; `posed` is the seat
 replay of the strips made before it joined (a joiner sees a strip with no frames), the hand-over of a strip (#1389).
 - **Tests:** `tests/unit/booth/start_booth_test.gd` (the session's clock, the refusals, the presser leaving, ready),
   `tests/unit/booth/booth_frames_test.gd` (membership, the body at flash k, the same `FLASH` to every peer),
-  `tests/unit/booth/booth_print_test.gd` (a strip each, a leaver, a rejoiner and a downed player get none, the cap),
-  all on `FixtureBooth`; `tests/unit/content/booth_check_test.gd` (`BoothCheck`) and
+  `tests/unit/booth/booth_print_test.gd` (a strip each, a leaver, a rejoiner who reuses a leaver's peer id gets a strip only for its own frames, a downed player none, the cap),
+  all on `FixtureBooth`; `tests/unit/content/booth_check_test.gd` (`BoothCheck`), `tests/unit/harness/scenario_invariants_booth_test.gd` (the FLASH row invariant of `ScenarioInvariants`) and
   `tests/unit/content/base_mode_booth_test.gd` (the shipped numbers, a press on the hall's layout, ready and
   `countdown_done`); `tests/unit/levels/lobby_hall_test.gd` (the `Booth` marker's cylinder clear of every box, in
   front of the `PhotoBooth` box); the scenario `booth_strip_of_frames` (§9.7).
