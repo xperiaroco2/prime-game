@@ -51,6 +51,9 @@ var _kick_of: Dictionary[RID, float] = {}
 var _touching: Dictionary[RID, bool] = {}
 var _flippers: Array[_Flipper] = []
 var _ball_shape := RID()
+## The touch query (a sphere of the ball's radius plus touch_m), built once with the scene.
+var _reach := RID()
+var _query: PhysicsShapeQueryParameters3D = null
 var _ball := RID()
 var _start := Transform3D.IDENTITY
 var _drain_z := 0.0
@@ -215,6 +218,11 @@ func _build() -> bool:
 	_bounds = _bounds.grow(_spec.bounds_margin_m)
 	_ball_shape = PhysicsServer3D.sphere_shape_create()
 	PhysicsServer3D.shape_set_data(_ball_shape, _spec.ball_radius_m)
+	_reach = PhysicsServer3D.sphere_shape_create()
+	PhysicsServer3D.shape_set_data(_reach, _spec.ball_radius_m + _spec.touch_m)
+	_query = PhysicsShapeQueryParameters3D.new()
+	_query.shape_rid = _reach
+	_query.collision_mask = TABLE_LAYER
 	return true
 
 
@@ -321,14 +329,8 @@ func _watch_ball(delta: float) -> void:
 
 # Each target the ball touches now and did not at the last step scores once, and pushes it away.
 func _touch_targets(at: Vector3) -> void:
-	var query := PhysicsShapeQueryParameters3D.new()
-	var reach := PhysicsServer3D.sphere_shape_create()
-	PhysicsServer3D.shape_set_data(reach, _spec.ball_radius_m + _spec.touch_m)
-	query.shape_rid = reach
-	query.transform = Transform3D(Basis.IDENTITY, at)
-	query.collision_mask = TABLE_LAYER
-	var hits := PhysicsServer3D.space_get_direct_state(_space).intersect_shape(query, 16)
-	PhysicsServer3D.free_rid(reach)
+	_query.transform = Transform3D(Basis.IDENTITY, at)
+	var hits := PhysicsServer3D.space_get_direct_state(_space).intersect_shape(_query, 16)
 	var now: Dictionary[RID, bool] = {}
 	for hit: Dictionary in hits:
 		var body: RID = hit["rid"]
@@ -398,3 +400,5 @@ func _notification(what: int) -> void:
 	_statics.clear()
 	if _ball_shape.is_valid():
 		PhysicsServer3D.free_rid(_ball_shape)
+	if _reach.is_valid():
+		PhysicsServer3D.free_rid(_reach)
