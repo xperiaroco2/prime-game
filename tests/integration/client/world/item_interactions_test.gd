@@ -298,6 +298,49 @@ func test_e_at_a_chair_sends_no_pose_while_a_raise_or_hand_over_target_has_the_k
 	assert_int(_harness.sent_named(Intents.POSE).size()).is_equal(1)
 
 
+## The cue of E's Pose (#1420) reads the rule pose() sends by (can_pose): it shows at the chair
+## with nothing aimed, and not away from it, while posed, with an item aimed at, with the raise or
+## hand-over having the key, in a phase without Pose, or without a Pose row.
+func test_the_sit_cue_shows_exactly_where_e_would_send_pose() -> void:
+	var posing := FixtureMoves.posing(FixtureItemModes.basic())
+	_keys.setup(_harness.session, posing)
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([Vector3(FixtureMoves.SEAT_RADIUS_M + 0.2, 0, 0)])
+	await _look_at(Vector3(0, 1.0, -3))
+	# Beyond the seat's radius: no cue, and E sends nothing.
+	assert_str(_keys.sit_cue()).is_empty()
+	assert_bool(_keys.can_pose()).is_false()
+	_keys.chair_spots = func(_group: StringName) -> PackedVector3Array:
+		return PackedVector3Array([FixtureMoves.SEAT_OFFSET])
+	assert_str(_keys.sit_cue()).is_equal(KeyLabel.of_action(&"interact"))
+	assert_bool(_keys.can_pose()).is_true()
+	# Another consumer has the key.
+	_keys.pose_yields = func() -> bool: return true
+	assert_str(_keys.sit_cue()).is_empty()
+	_keys.pose_yields = Callable()
+	# No Pose row, and a phase that takes no Pose from the living.
+	_keys.setup(_harness.session, FixtureItemModes.basic())
+	assert_str(_keys.sit_cue()).is_empty()
+	_keys.setup(_harness.session, posing)
+	_model.phase = &"lobby"
+	assert_str(_keys.sit_cue()).is_empty()
+	_model.phase = &"round"
+	# An item aimed at has E first.
+	var at := Vector3(0, 0, -1.5)
+	_spawn(8, at)
+	await _look_at(at)
+	assert_str(_keys.sit_cue()).is_empty()
+	_model.items.clear()
+	await _look_at(Vector3(0, 1.0, -3))
+	assert_str(_keys.sit_cue()).is_equal(KeyLabel.of_action(&"interact"))
+	# Seated (the own SelfStatus says so): no cue.
+	_model.fold(
+		&"SelfStatus",
+		{"health": 1, "stamina": 1, "sprint_available": true, "claim_tick": -1, "posed": true}
+	)
+	assert_str(_keys.sit_cue()).is_empty()
+
+
 func test_e_sends_no_pose_away_from_a_chair_or_without_a_row_a_phase_or_a_life() -> void:
 	var posing := FixtureMoves.posing(FixtureItemModes.basic())
 	_keys.setup(_harness.session, posing)
