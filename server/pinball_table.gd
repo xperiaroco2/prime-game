@@ -70,16 +70,16 @@ class _Flipper:
 	extends RefCounted
 	var body := RID()
 	var rest := Transform3D.IDENTITY
-	var sign := 1.0
+	var turn_sign := 1.0
 	var angle := 0.0
 	var held := false
 
 
-## A table of the scene at `scene_path` with `spec` (the shipped ones by default; tests pass
+## A table of the scene at `scene_path` with `given_spec` (the shipped ones by default; tests pass
 ## theirs). Nothing is read until the first game.
-func _init(scene_path := SCENE, spec: PinballTableSpec = null) -> void:
+func _init(scene_path := SCENE, given_spec: PinballTableSpec = null) -> void:
 	_scene_path = scene_path
-	_spec = spec
+	_spec = given_spec
 
 
 ## One physics frame of `delta` seconds against `played`, the live game (Pinball.game; null or
@@ -212,7 +212,7 @@ func _build() -> bool:
 			push_error(problem)
 		return false
 	_flippers = [flippers["FlipperLeft"], flippers["FlipperRight"]]
-	_flippers[1].sign = -1.0
+	_flippers[1].turn_sign = -1.0
 	_start = markers["BallStart"]
 	_drain_z = markers["Drain"].origin.z
 	_bounds = _bounds.grow(_spec.bounds_margin_m)
@@ -308,7 +308,7 @@ func _turn(flipper: _Flipper, delta: float) -> void:
 	if is_equal_approx(flipper.angle, goal):
 		return
 	flipper.angle = move_toward(flipper.angle, goal, deg_to_rad(_spec.flipper_speed_deg_s) * delta)
-	var turned := flipper.rest * Transform3D(Basis(Vector3.UP, flipper.sign * flipper.angle))
+	var turned := flipper.rest * Transform3D(Basis(Vector3.UP, flipper.turn_sign * flipper.angle))
 	PhysicsServer3D.body_set_state(flipper.body, PhysicsServer3D.BODY_STATE_TRANSFORM, turned)
 
 

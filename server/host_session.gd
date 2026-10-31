@@ -546,10 +546,10 @@ func _strength_table() -> Dictionary[int, int]:
 
 ## speakers_for every present player.
 func _route_table() -> Dictionary[int, PackedInt32Array]:
-	var table: Dictionary[int, PackedInt32Array] = {}
+	var routes: Dictionary[int, PackedInt32Array] = {}
 	for peer: int in game.state.present_peers():
-		table[peer] = game.speakers_for(peer)
-	return table
+		routes[peer] = game.speakers_for(peer)
+	return routes
 
 
 func _check_deadlines() -> void:
