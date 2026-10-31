@@ -4294,7 +4294,9 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
   the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
-  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
+  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. A card takes a
+  default that follows the player count at the roster's size (`default_for`, §9.1), so it never names one it leaves
+  (#1492). The own preset is
   `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
   name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
 - Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
