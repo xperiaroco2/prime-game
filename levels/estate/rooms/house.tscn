@@ -10,6 +10,7 @@
 [ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="8_dgq8e"]
 [ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="9_glu0h"]
 [ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="10_dldq8"]
+[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="toggle_lens"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_cbasementfloor01"]
 size = Vector3(20, 0.19999981, 3)
@@ -566,13 +567,27 @@ size = Vector3(0.2, 1.3999999, 0.2)
 material = ExtResource("2_oanr1")
 size = Vector3(0.2, 1.3999999, 0.2)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_camera"]
+size = Vector3(0.3, 0.25, 0.4)
+
 [sub_resource type="BoxMesh" id="BoxMesh_h7ju0"]
 material = ExtResource("10_dldq8")
 size = Vector3(0.3, 0.25, 0.4)
 
+[sub_resource type="BoxMesh" id="BoxMesh_lens"]
+material = ExtResource("toggle_lens")
+size = Vector3(0.12, 0.12, 0.05)
+
 [sub_resource type="BoxMesh" id="BoxMesh_btfmt"]
 material = ExtResource("8_dgq8e")
 size = Vector3(0.1, 0.1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_secret_door"]
+size = Vector3(1.4, 3, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_secret_door"]
+material = ExtResource("3_86jat")
+size = Vector3(1.4, 3, 0.3)
 
 [node name="House" type="Node3D" unique_id=1851789380]
 metadata/size_m = Vector2i(12, 10)
@@ -1868,10 +1883,51 @@ shape = SubResource("BoxShape3D_ke2jq")
 [node name="Mesh" type="MeshInstance3D" parent="CameraMarkers/CameraPost01" unique_id=1115405915]
 mesh = SubResource("BoxMesh_iekod")
 
-[node name="Camera01" type="MeshInstance3D" parent="CameraMarkers" unique_id=1353820996]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 7.95, 4.5)
+[node name="Camera01" type="StaticBody3D" parent="CameraMarkers" unique_id=1353820996 groups=["toggle_fixed_camera"]]
+transform = Transform3D(0.6332, 0, 0.774, 0, 1, 0, -0.774, 0, 0.6332, 5.5, 7.95, 4.5)
+metadata/toggle_index = 5
+
+[node name="Shape" type="CollisionShape3D" parent="CameraMarkers/Camera01" unique_id=317546452]
+shape = SubResource("BoxShape3D_camera")
+
+[node name="Mesh" type="MeshInstance3D" parent="CameraMarkers/Camera01" unique_id=596611183]
 mesh = SubResource("BoxMesh_h7ju0")
+
+[node name="Lens" type="MeshInstance3D" parent="CameraMarkers/Camera01" unique_id=1782244506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.225)
+mesh = SubResource("BoxMesh_lens")
+
+[node name="OnPose" type="Marker3D" parent="CameraMarkers/Camera01" unique_id=1932944431]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="Lamp01" type="MeshInstance3D" parent="CameraMarkers" unique_id=528906770]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 8.13, 4.5)
 mesh = SubResource("BoxMesh_btfmt")
+
+[node name="Toggles" type="Node3D" parent="." unique_id=1973255630]
+
+[node name="Bookcase" type="StaticBody3D" parent="Toggles" unique_id=990242293 groups=["toggle_bookcase"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 4.7, -4.9)
+metadata/toggle_index = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Toggles/Bookcase" unique_id=1308355165]
+shape = SubResource("BoxShape3D_secret_door")
+
+[node name="Mesh" type="MeshInstance3D" parent="Toggles/Bookcase" unique_id=906573048]
+mesh = SubResource("BoxMesh_secret_door")
+
+[node name="OnPose" type="Marker3D" parent="Toggles/Bookcase" unique_id=793981639]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.7, 0, 0.7)
+
+[node name="WineRack" type="StaticBody3D" parent="Toggles" unique_id=1473081942 groups=["toggle_bookcase"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.1, -1.7, -4.9)
+metadata/toggle_index = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Toggles/WineRack" unique_id=1956480885]
+shape = SubResource("BoxShape3D_secret_door")
+
+[node name="Mesh" type="MeshInstance3D" parent="Toggles/WineRack" unique_id=2027706054]
+mesh = SubResource("BoxMesh_secret_door")
+
+[node name="OnPose" type="Marker3D" parent="Toggles/WineRack" unique_id=1431543426]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 0, 0.3)

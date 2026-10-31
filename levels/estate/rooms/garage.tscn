@@ -6,6 +6,7 @@
 [ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="4_6h6w2"]
 [ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="5_dtqqa"]
 [ext_resource type="Material" uid="uid://cat8u3147247" path="res://levels/kit/greybox_station_dark.tres" id="6_8fxqh"]
+[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="toggle_lens"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_hpove"]
 material = ExtResource("1_mrt7s")
@@ -75,9 +76,16 @@ size = Vector3(0.1, 1, 1.4)
 material = ExtResource("5_dtqqa")
 size = Vector3(4, 0.1, 0.1)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_camera"]
+size = Vector3(0.3, 0.25, 0.4)
+
 [sub_resource type="BoxMesh" id="BoxMesh_h7ju0"]
 material = ExtResource("6_8fxqh")
 size = Vector3(0.3, 0.25, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_lens"]
+material = ExtResource("toggle_lens")
+size = Vector3(0.12, 0.12, 0.05)
 
 [sub_resource type="BoxMesh" id="BoxMesh_btfmt"]
 material = ExtResource("4_6h6w2")
@@ -220,9 +228,22 @@ outline_size = 8
 
 [node name="CameraMarkers" type="Node3D" parent="." unique_id=1907883450]
 
-[node name="Camera01" type="MeshInstance3D" parent="CameraMarkers" unique_id=1873969821]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 2.3, -3.5)
+[node name="Camera01" type="StaticBody3D" parent="CameraMarkers" unique_id=1873969821 groups=["toggle_fixed_camera"]]
+transform = Transform3D(-0.6225, 0, 0.7826, 0, 1, 0, -0.7826, 0, -0.6225, 4.4, 2.3, -3.5)
+metadata/toggle_index = 4
+
+[node name="Shape" type="CollisionShape3D" parent="CameraMarkers/Camera01" unique_id=965633155]
+shape = SubResource("BoxShape3D_camera")
+
+[node name="Mesh" type="MeshInstance3D" parent="CameraMarkers/Camera01" unique_id=1408137182]
 mesh = SubResource("BoxMesh_h7ju0")
+
+[node name="Lens" type="MeshInstance3D" parent="CameraMarkers/Camera01" unique_id=25723085]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.225)
+mesh = SubResource("BoxMesh_lens")
+
+[node name="OnPose" type="Marker3D" parent="CameraMarkers/Camera01" unique_id=59892423]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="Lamp01" type="MeshInstance3D" parent="CameraMarkers" unique_id=489319413]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 2.48, -3.5)

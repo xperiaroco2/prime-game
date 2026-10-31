@@ -3,6 +3,7 @@
 [ext_resource type="Material" uid="uid://bhp0a0jdcwgo2" path="res://levels/kit/greybox_floor_base.tres" id="1_7iogq"]
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="2_6p06x"]
 [ext_resource type="Material" uid="uid://c7s70qxjru367" path="res://levels/kit/greybox_stairs.tres" id="3_vqjel"]
+[ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="4_door"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_hs827"]
 size = Vector3(18.6, 0.2, 2)
@@ -668,6 +669,27 @@ size = Vector3(1, 0.2, 3.5377429)
 [sub_resource type="BoxMesh" id="BoxMesh_gxmhx"]
 material = ExtResource("2_6p06x")
 size = Vector3(1, 0.2, 3.5377429)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cover_cellar"]
+size = Vector3(4, 0.1, 1.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cover_cellar"]
+material = ExtResource("4_door")
+size = Vector3(4, 0.1, 1.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cover_we"]
+size = Vector3(5, 0.1, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cover_we"]
+material = ExtResource("4_door")
+size = Vector3(5, 0.1, 2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_cover_ns"]
+size = Vector3(2, 0.1, 5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cover_ns"]
+material = ExtResource("4_door")
+size = Vector3(2, 0.1, 5)
 
 [node name="Passages" type="Node3D" unique_id=1087597996]
 
@@ -1525,3 +1547,45 @@ shape = SubResource("BoxShape3D_kwjfh")
 
 [node name="Mesh" type="MeshInstance3D" parent="SecurityDuctCeiling03" unique_id=305047534]
 mesh = SubResource("BoxMesh_gxmhx")
+
+[node name="Covers" type="Node3D" parent="." unique_id=230358072]
+
+[node name="CellarCover" type="StaticBody3D" parent="Covers" unique_id=1110829762 groups=["toggle_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64, -3.25, 11.95)
+metadata/toggle_index = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Covers/CellarCover" unique_id=531424793]
+shape = SubResource("BoxShape3D_cover_cellar")
+
+[node name="Mesh" type="MeshInstance3D" parent="Covers/CellarCover" unique_id=728302699]
+mesh = SubResource("BoxMesh_cover_cellar")
+
+[node name="BonfireCover" type="StaticBody3D" parent="Covers" unique_id=1880983615 groups=["toggle_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.5, -0.05, 51)
+metadata/toggle_index = 1
+
+[node name="Shape" type="CollisionShape3D" parent="Covers/BonfireCover" unique_id=1760525228]
+shape = SubResource("BoxShape3D_cover_we")
+
+[node name="Mesh" type="MeshInstance3D" parent="Covers/BonfireCover" unique_id=568459811]
+mesh = SubResource("BoxMesh_cover_we")
+
+[node name="WellCover" type="StaticBody3D" parent="Covers" unique_id=766844278 groups=["toggle_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.5, -0.05, 68)
+metadata/toggle_index = 2
+
+[node name="Shape" type="CollisionShape3D" parent="Covers/WellCover" unique_id=1365779310]
+shape = SubResource("BoxShape3D_cover_we")
+
+[node name="Mesh" type="MeshInstance3D" parent="Covers/WellCover" unique_id=788133237]
+mesh = SubResource("BoxMesh_cover_we")
+
+[node name="ShipCover" type="StaticBody3D" parent="Covers" unique_id=1798241460 groups=["toggle_manhole"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, -0.05, 70.5)
+metadata/toggle_index = 3
+
+[node name="Shape" type="CollisionShape3D" parent="Covers/ShipCover" unique_id=1817562751]
+shape = SubResource("BoxShape3D_cover_ns")
+
+[node name="Mesh" type="MeshInstance3D" parent="Covers/ShipCover" unique_id=861352122]
+mesh = SubResource("BoxMesh_cover_ns")
