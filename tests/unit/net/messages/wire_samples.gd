@@ -152,6 +152,13 @@ static func events() -> Dictionary[String, Array]:
 		CrystalChangedEvent.new(2, -1, CrystalProblem.EMPTY, 7, -1),
 		CrystalChangedEvent.new(0xFFFE, 0xFFFE, CrystalProblem.CHARGING, 0xFFFE, 0xFFFFFFFE),
 	]
+	found["PinballStateEvent"] = [
+		_pinball(0, -1, [false, false, false], [0, 0, 0], ""),
+		_pinball(3, 2, [true, false, true], [1200, 2, 500], "Діма"),
+		_pinball(
+			0xFFFFFFFF, 0x7FFFFFFF, [true, true, true], [999999999, 9, 999999999], "P".repeat(80)
+		),
+	]
 	found["LiftChangedEvent"] = [
 		LiftChangedEvent.new(2, true, 40), LiftChangedEvent.new(0xFFFE, false, 0xFFFFFFFE)
 	]
@@ -269,6 +276,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"CancelOffer", {}, 17),
 		WireMessage.new(&"UseSecondary", {"facing": Vector3(0, 0, -1)}, 17),
 		WireMessage.new(&"UseSecondary", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
+		WireMessage.new(&"Flippers", {"left": true, "right": false}, 17),
+		WireMessage.new(&"Flippers", {"left": false, "right": true}, 0xFFFFFFFF),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
@@ -480,3 +489,20 @@ static func _avatar(
 		"belt_item": belt,
 		"belt_item2": belt2,
 	}
+
+
+## A PinballState: its game, player, [left, right, in_play], [score, balls_left, best], best_name.
+static func _pinball(
+	game: int, player: int, flags: Array[bool], numbers: Array[int], best_name: String
+) -> PinballStateEvent:
+	var made := PinballStateEvent.new()
+	made.game = game
+	made.player = player
+	made.left = flags[0]
+	made.right = flags[1]
+	made.in_play = flags[2]
+	made.score = numbers[0]
+	made.balls_left = numbers[1]
+	made.best = numbers[2]
+	made.best_name = best_name
+	return made

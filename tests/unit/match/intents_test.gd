@@ -1,11 +1,13 @@
 extends GdUnitTestSuite
-## Intents.FIELDS (ARCHITECTURE §4.1, §4.4): every intent, ForceRole, ForceClock and BodyMoved
-## declare their fields, which the rules read through and the wire table is checked against (3d).
+## Intents.FIELDS (ARCHITECTURE §4.1, §4.4): every intent, ForceRole, ForceClock, BodyMoved and the
+## pinball table's reports declare their fields, which the rules read through and the wire table is
+## checked against (3d).
 
 
 func test_every_intent_and_debug_command_declare_their_fields_and_nothing_else_does() -> void:
 	var expected: Array[StringName] = Intents.ALL.duplicate()
 	expected.append_array([Intents.FORCE_ROLE, Intents.FORCE_CLOCK, Intents.BODY_MOVED])
+	expected.append_array(Intents.TABLE_REPORTS)
 	assert_array(Intents.FIELDS.keys()).contains_exactly_in_any_order(expected)
 
 

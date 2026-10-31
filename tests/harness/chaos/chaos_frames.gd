@@ -101,7 +101,7 @@ const UNASSIGNED: Array[int] = [0, 26, 31, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the
-## ship engine's (#1453), each with valid fields.
+## ship engine's (#1453) and the pinball's (#1398), each with valid fields.
 const WRONG_DIRECTION: Array[StringName] = [
 	&"Rejected",
 	&"SwitchChanged",
@@ -124,6 +124,7 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"GillFlipped",
 	&"BreakerChain",
 	&"CrystalChanged",
+	&"PinballState",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -136,6 +137,18 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"GillFlipped": {"station": 1, "slit": 2, "open": true},
 	&"BreakerChain": {"problem": 1, "breakers": [3, 5], "next": 1, "since": 40},
 	&"CrystalChanged": {"station": 2, "charger": 4, "phase": 2, "item": 1, "tick": 200},
+	&"PinballState":
+	{
+		"game": 1,
+		"player": 2,
+		"left": true,
+		"right": false,
+		"in_play": true,
+		"score": 500,
+		"balls_left": 2,
+		"best": 1200,
+		"best_name": "Chaos",
+	},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
 	&"FilmLoaded": {"station": 1, "item": 1},
 	&"GrillLoaded": {"station": 1, "item": 1, "fried": 2, "burnt": 3},

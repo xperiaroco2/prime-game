@@ -47,7 +47,8 @@ const PICK_UP_REACH_M := 2.0
 ## from the living is never sent where a phase takes it: any hand hits (#1437).
 ## They also take HandOver, TakeOffer and CancelOffer from the living (#1389, #1434), as the Round
 ## does: HandOver's first condition is HoldsItem (`empty_hand`), and the hostile's own bot never
-## holds an item.
+## holds an item. And they take Flippers from the living (#1398): PinballSeated answers `not_seated`
+## unless the sender sits at the pinball, which a chaos peer never does (it stands metres away).
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -66,6 +67,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"HandOver": From.LIVING,
 		&"TakeOffer": From.LIVING,
 		&"CancelOffer": From.LIVING,
+		&"Flippers": From.LIVING,
 	},
 	&"countdown":
 	{
@@ -82,6 +84,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"HandOver": From.LIVING,
 		&"TakeOffer": From.LIVING,
 		&"CancelOffer": From.LIVING,
+		&"Flippers": From.LIVING,
 	},
 	&"loading": {&"LoadAck": From.PLAYER},
 	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
@@ -257,6 +260,9 @@ static func _rule(
 			answer_now = _take_offer(args.get("target", 0) as int, peer, player, state)
 		Intents.CANCEL_OFFER:
 			answer_now = _cancel_offer(peer, state)
+		Intents.FLIPPERS:
+			var seated := state != null and Pinball.seated(state) == peer
+			answer_now = Pinball.NOT_SEATED if not seated else &"?"
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 
@@ -268,11 +274,11 @@ static func _rule(
 ## the mode's; an item only its kind's target_actions). In the base mode only the Generator's,
 ## Cooking's and car repair's station kinds and Cooking's boxes have one (§9.5.19, §9.5.20,
 ## §9.5.21), and all three play on the House alone (GD7, CD15, #810), so on the greybox every
-## accepted Interact gets this. The lobby's tap (#1390, StationTicks) has one whose first condition
-## is AtStation: a sender outside its cylinder gets `out_of_reach` (the chaos peers stand on the
-## hall's player markers, metres from the Bar). Any other target with the rule is "?" (its
-## conditions are the mode's, and the chaos run never meets one). `mode` null: only the target
-## kind's rules.
+## accepted Interact gets this. The lobby's tap (#1390) and pinball machine (#1398), both placed by
+## StationTicks, have one whose first condition is AtStation: a sender outside its cylinder gets
+## `out_of_reach` (the chaos peers stand on the hall's player markers, metres from the Bar and the
+## Pinball). Any other target with the rule is "?" (its conditions are the mode's, and the chaos
+## run never meets one). `mode` null: only the target kind's rules.
 static func _interact(
 	args: Dictionary, player: PlayerState, state: MatchState, mode: GameMode
 ) -> StringName:

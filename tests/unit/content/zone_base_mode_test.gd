@@ -76,8 +76,8 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 	assert_int(kinds.size()).is_equal(5)
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		# The lobby's tap (StationTicks, #1390), then the deal's 5 stations.
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(6)
+		# The lobby's tap (StationTicks, #1390) and pinball (#1398), then the deal's 5 stations.
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(7)
 		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 7}
@@ -91,8 +91,8 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 		assert_bool(Array(map.positions(&"round_player")).has(at)).is_true()
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
-	# The lobby's tap first (#1390), then the row's order: roles, Delivery's deal, the zone's,
-	# the knives, then placement.
+	# The lobby's tap and pinball first (#1390, #1398), then the row's order: roles, Delivery's
+	# deal, the zone's, the knives, then placement.
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]

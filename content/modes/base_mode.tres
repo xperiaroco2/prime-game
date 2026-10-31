@@ -138,6 +138,11 @@
 [ext_resource type="Resource" path="res://content/stations/manhole.tres" id="195_manhole"]
 [ext_resource type="Resource" path="res://content/stations/manhole_inside.tres" id="196_manhole_inside"]
 [ext_resource type="Resource" path="res://content/stations/fixed_camera.tres" id="197_fixed_camera"]
+[ext_resource type="Resource" path="res://content/stations/pinball.tres" id="210_pinball"]
+[ext_resource type="Script" uid="uid://dy3xi1hmsgbyy" path="res://core/pinball/pinball_ticks.gd" id="211_pinball_ticks"]
+[ext_resource type="Script" uid="uid://dppk72upxnkh1" path="res://core/pinball/end_pinball.gd" id="212_end_pinball"]
+[ext_resource type="Script" uid="uid://dak407qpyhuxo" path="res://core/pinball/pinball_seated.gd" id="213_pinball_seated"]
+[ext_resource type="Script" uid="uid://0j0fqsw0t0ps" path="res://core/pinball/set_flippers.gd" id="214_set_flippers"]
 [ext_resource type="Resource" path="res://content/stations/light_breaker.tres" id="198_light_breaker"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
@@ -321,6 +326,11 @@ script = ExtResource("6_accept")
 intent = &"CancelOffer"
 from = 4
 
+[sub_resource type="Resource" id="Flippers_accept_lobby"]
+script = ExtResource("6_accept")
+intent = &"Flippers"
+from = 4
+
 [sub_resource type="Resource" id="Respawn_lobby"]
 script = ExtResource("66_respawn")
 tag = &"lobby_player"
@@ -373,6 +383,16 @@ reach_m = 2.0
 [sub_resource type="Resource" id="Offers_end"]
 script = ExtResource("185_end_offers")
 
+[sub_resource type="Resource" id="StationTicks_pinball"]
+script = ExtResource("172_station_ticks")
+kind = ExtResource("210_pinball")
+
+[sub_resource type="Resource" id="Pinball_ticks"]
+script = ExtResource("211_pinball_ticks")
+
+[sub_resource type="Resource" id="Pinball_end"]
+script = ExtResource("212_end_pinball")
+
 [sub_resource type="Resource" id="Voice_lobby"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -381,8 +401,8 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -449,8 +469,8 @@ phase_class = ExtResource("10_countdown")
 settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
 voice_rule = SubResource("Voice_countdown")
 level = 1
 snapshots = true
@@ -604,6 +624,18 @@ script = ExtResource("1_o02jd")
 trigger = &"CancelOffer"
 conditions = Array[ExtResource("21_condition")]([SubResource("CancelOffer_offering")])
 effects = Array[ExtResource("14_effect")]([SubResource("CancelOffer_cancel")])
+
+[sub_resource type="Resource" id="Flippers_seated"]
+script = ExtResource("213_pinball_seated")
+
+[sub_resource type="Resource" id="Flippers_set"]
+script = ExtResource("214_set_flippers")
+
+[sub_resource type="Resource" id="Rule_flippers"]
+script = ExtResource("1_o02jd")
+trigger = &"Flippers"
+conditions = Array[ExtResource("21_condition")]([SubResource("Flippers_seated")])
+effects = Array[ExtResource("14_effect")]([SubResource("Flippers_set")])
 
 [sub_resource type="Resource" id="Accept_round_draw"]
 script = ExtResource("6_accept")
@@ -870,7 +902,7 @@ script = ExtResource("7_row")
 from = &"countdown"
 outcome = &"countdown_done"
 to = &"loading"
-actions = Array[ExtResource("14_effect")]([SubResource("Clear_items"), SubResource("Clear_stations"), SubResource("Limp_end"), SubResource("Offers_end")])
+actions = Array[ExtResource("14_effect")]([SubResource("Clear_items"), SubResource("Pinball_end"), SubResource("Clear_stations"), SubResource("Limp_end"), SubResource("Offers_end")])
 
 [sub_resource type="Resource" id="Quota_dissidents"]
 script = ExtResource("59_quota")
@@ -958,7 +990,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
 bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_take_offer"), SubResource("Rule_cancel_offer"), SubResource("Rule_pose"), SubResource("Rule_use")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_take_offer"), SubResource("Rule_cancel_offer"), SubResource("Rule_pose"), SubResource("Rule_use"), SubResource("Rule_flippers")])
 reactions = Array[ExtResource("1_o02jd")]([SubResource("Limp_rule")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair"), ExtResource("189_ship_engine")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])

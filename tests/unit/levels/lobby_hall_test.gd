@@ -191,6 +191,38 @@ func test_the_tap_marker_stands_beside_the_bar_clear_of_every_box() -> void:
 	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
 
 
+## #1398: the pinball machine is one marker outside the Pinball box (#1399 owns that node), inside
+## the walls, clear of every collider by a capsule, with the box's edge within the machine's reach.
+func test_the_pinball_marker_stands_before_the_machine_clear_of_every_box() -> void:
+	var spots := _root.find_children("*", "Marker3D", true, false).filter(
+		func(node: Node) -> bool: return node.is_in_group(&"spawn_pinball")
+	)
+	assert_int(spots.size()).is_equal(1)
+	var spot := spots[0] as Node3D
+	assert_object(spot.get_parent()).is_same(_root)
+	var at := Vector2(spot.position.x, spot.position.z)
+	assert_bool(_inner_rect().has_point(at)).is_true()
+	var mode := load(BASE_MODE) as GameMode
+	var clearance := mode.player_rules.capsule_radius_m + MARGIN_M
+	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
+		if shape.get_parent() == _root.get_node("Floor"):
+			continue
+		var bounds := _bounds(shape as CollisionShape3D)
+		var block := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
+		(
+			assert_bool(block.grow(clearance).has_point(at))
+			. override_failure_message(str(shape.get_parent().name))
+			. is_false()
+		)
+	var machine := _bounds(_shape_of(_root.get_node("Pinball")))
+	var nearest := Vector2(
+		clampf(at.x, machine.position.x, machine.end.x),
+		clampf(at.y, machine.position.z, machine.end.z)
+	)
+	var kind := load("res://content/stations/pinball.tres") as StationKind
+	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
+
+
 func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	assert_str(mode.lobby_level).is_equal(LOBBY)

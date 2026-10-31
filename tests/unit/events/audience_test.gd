@@ -94,6 +94,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		GillFlippedEvent.new(1, 2, true),
 		BreakerChainEvent.new(1, PackedInt32Array([3, 5]), 1, 40),
 		CrystalChangedEvent.new(2, 4, CrystalProblem.CHARGING, 1, 200),
+		PinballStateEvent.new(),
 		FitChangedEvent.new(1, 2, 40),
 		PartFittedEvent.new(1, 3),
 		PhotoPrintedEvent.new(4, 0),

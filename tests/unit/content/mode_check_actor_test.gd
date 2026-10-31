@@ -174,6 +174,8 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"OfferedTo": [true, true, none],
 		&"Offering": [true, false, none],
 		&"OverFloor": [true, false, none],
+		&"PinballSeated": [true, false, none],
+		&"PinballUsable": [true, false, none],
 		&"PlaceChanges": [true, false, none],
 		&"PlaceInRange": [true, false, none],
 		&"StaminaCost": [true, false, none],

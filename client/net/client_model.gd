@@ -227,6 +227,8 @@ var offers: Dictionary[int, int] = {}
 var tasks: Dictionary[int, Task] = {}
 ## The ship's engine's problems, blasts, gills and crystals (#1462), folded from every event.
 var engine := ClientEngineBook.new()
+## The lobby's pinball (#1398): the game as its last PinballState told it, the best kept.
+var pinball := ClientPinball.new()
 ## Cooking's herbs as HerbsDealt told them (#776): the herb kind id per icon index (the herb
 ## board) and per bed, in bed station order. Empty before the deal.
 var herb_code := PackedStringArray()
@@ -400,6 +402,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 	var living_before := life_of(own_peer) == Life.ALIVE
 	_fold_event(event_name, fields)
 	engine.fold(event_name, fields)
+	pinball.fold(event_name, fields)
 	if phase != phase_before or (living_before and life_of(own_peer) != Life.ALIVE):
 		silencings += 1
 
@@ -484,6 +487,7 @@ func clear_match() -> void:
 	tasks.clear()
 	stations.clear()
 	engine = ClientEngineBook.new()
+	pinball.clear_match()
 	herb_code = PackedStringArray()
 	herb_beds = PackedStringArray()
 	film_shots.clear()
@@ -986,15 +990,9 @@ func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
 	if board == null:
 		return
 	photo.position = board.position
-	var slot := hang_slot(board)
-	if slot == board.hung.size():
+	# The lowest free slot (a photo taken down), else a new one: counted photos never move.
+	var slot := board.hung.find(-1)
+	if slot < 0:
 		board.hung.append(fields["item"] as int)
 	else:
 		board.hung[slot] = fields["item"]
-
-
-## The slot of `board` the next hung photo takes: the lowest free one (a taken-down uncounted
-## photo's), else a new one after the last. Counted photos never move.
-static func hang_slot(board: Station) -> int:
-	var free := board.hung.find(-1)
-	return free if free >= 0 else board.hung.size()

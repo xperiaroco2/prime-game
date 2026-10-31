@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="StationKind" format=3 uid="uid://du6ynps8ptjdx"]
+
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="1_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="3_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="4_effect"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="5_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="6_in_sight"]
+[ext_resource type="Script" uid="uid://q8abqstaximh" path="res://core/pinball/pinball_usable.gd" id="7_usable"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="8_cooldown"]
+[ext_resource type="Script" uid="uid://bjfnw3cnit7no" path="res://core/pinball/use_pinball.gd" id="9_use"]
+[ext_resource type="Script" uid="uid://ucrr8lnem1el" path="res://core/pinball/pinball_target.gd" id="10_target"]
+
+[sub_resource type="Resource" id="Seat_at"]
+script = ExtResource("5_at_station")
+
+[sub_resource type="Resource" id="Seat_sight"]
+script = ExtResource("6_in_sight")
+
+[sub_resource type="Resource" id="Seat_usable"]
+script = ExtResource("7_usable")
+
+[sub_resource type="Resource" id="Seat_cooldown"]
+script = ExtResource("8_cooldown")
+key = &"pinball_seat"
+seconds = 0.5
+
+[sub_resource type="Resource" id="Target_bumper"]
+script = ExtResource("10_target")
+id = &"bumper"
+points = 100
+
+[sub_resource type="Resource" id="Target_kicker"]
+script = ExtResource("10_target")
+id = &"kicker"
+points = 50
+
+[sub_resource type="Resource" id="Target_target"]
+script = ExtResource("10_target")
+id = &"target"
+points = 500
+
+[sub_resource type="Resource" id="Seat_use"]
+script = ExtResource("9_use")
+balls = 3
+targets = Array[ExtResource("10_target")]([SubResource("Target_bumper"), SubResource("Target_kicker"), SubResource("Target_target")])
+
+[sub_resource type="Resource" id="Rule_seat"]
+script = ExtResource("2_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("3_condition")]([SubResource("Seat_at"), SubResource("Seat_sight"), SubResource("Seat_usable"), SubResource("Seat_cooldown")])
+effects = Array[ExtResource("4_effect")]([SubResource("Seat_use")])
+
+[resource]
+script = ExtResource("1_station")
+id = &"pinball"
+spawn_tag = &"pinball"
+radius_m = 1.5
+height_m = 2.0
+palette = null
+actions = Array[ExtResource("2_rule")]([SubResource("Rule_seat")])
+metadata/note = "The lobby's pinball machine (GDD 3 \"The pinball\", #1398): E at it takes the seat and starts a game, E again gives it up; the table (server/, #1399) reports the balls and the hits. The balls per game (3), the targets' ids and points (bumper 100, kicker 50, target 500), the radius, the height (the tap's 1.5 m, 2 m) and the seat's Cooldown (0.5 s) are provisional, not a decision (the numbers come on the hall greybox, #1095)."

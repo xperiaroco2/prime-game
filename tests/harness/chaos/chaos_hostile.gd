@@ -167,6 +167,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.HAND_OVER,
 		Intents.TAKE_OFFER,
 		Intents.CANCEL_OFFER,
+		Intents.FLIPPERS,
 	]
 	if phase == &"loading":
 		# Every hand hits (#1437): a living Use in the lobby, the countdown or the round would
@@ -220,6 +221,9 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.CANCEL_OFFER:
 			# Its bot never offers: no_offer (Offering, #1434).
 			args = {}
+		Intents.FLIPPERS:
+			# Its bot never sits at the pinball: not_seated (PinballSeated, #1398).
+			args = {"left": rng.randf() < 0.5, "right": rng.randf() < 0.5}
 		Intents.HELLO:
 			args = {
 				"version": WireSchema.VERSION,
@@ -270,8 +274,8 @@ func _fresh_seq() -> int:
 ## Interact's args (#770): a station id 0 to 9, an item (one its client knows, or NO_ITEM, which
 ## names nothing), both or neither (-1 is none). Round takes Interact from the living (#800), and
 ## Lobby and Countdown (#1388); on the greybox each is bad_args or nothing_to_do (no target there
-## has an Interact rule), in the lobby the tap's is out_of_reach from afar (#1390), else
-## not_accepted.
+## has an Interact rule), in the lobby the tap's and the pinball's are out_of_reach from afar
+## (#1390, #1398), else not_accepted.
 func _interact_args() -> Dictionary:
 	var named := rng.randi_range(0, 3)
 	var station := rng.randi_range(0, 9) if named & 1 else -1
