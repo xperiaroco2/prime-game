@@ -69,8 +69,9 @@ func test_round_runs_life_channel_flight_vanish_task_ticks_and_the_mode_deals_de
 	# by colours, checked here; the zone task (#649) left the base mode on #842, and
 	# zone_base_mode_test.gd checks the fixture mode that still deals it.
 	# The Generator (#800), the photo task (#784), Cooking (#775) and car repair (#810) play on the
-	# House beside its Delivery: six types, `tasks` 1 to 5.
-	assert_int(mode.task_types.size()).is_equal(6)
+	# House beside its Delivery: six types, `tasks` 1 to 5; the ship's engine (#1462) plays on the
+	# estate: seven types.
+	assert_int(mode.task_types.size()).is_equal(7)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 

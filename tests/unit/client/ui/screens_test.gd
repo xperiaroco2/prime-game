@@ -44,8 +44,11 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_str(panel.shortfalls_label.text).is_equal("1 more player to start")
 	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
 	# match_duration, tasks, packages, switches (the Generator, #800), photos (the photo task,
-	# #784), burgers (Cooking, #775), car_parts (car repair, #810), dissidents, knives.
-	assert_int(steppers.size()).is_equal(9)
+	# #784), burgers (Cooking, #775), car_parts (car repair, #810), engine_stages (the ship's
+	# engine, #1462), dissidents, knives.
+	assert_int(steppers.size()).is_equal(10)
+	# The engine's stages are fixed at 3 (#507): nothing to choose, so the row hides.
+	assert_bool((panel.settings_box.get_node(^"EngineStages") as Control).visible).is_false()
 	# The task count is 1 to 5 since the Generator, the photo task, Cooking and car repair (#800,
 	# #784, #775, #810; GD7: every type the map plays): its row shows. A fixed count's row hides:
 	# the zones test below checks that on the Zones row.

@@ -39,6 +39,9 @@ const ITEMS_NOT_IN_DECK_YET: Dictionary[StringName, String] = {
 	&"car_part_green": "Green part",
 	&"car_part_blue": "Blue part",
 	&"car_part_yellow": "Yellow part",
+	# The ship's engine's crystals (#1461, in the base mode since #1462): the UI track's keys.
+	&"crystal_spent": "Spent crystal",
+	&"crystal_charged": "Charged crystal",
 }
 ## Shipped task types the deck has no key for yet and ContentNames.TASK_EXCEPTIONS does not map,
 ## each with the display name it shows meanwhile: car repair (#810), which runs beside client work
