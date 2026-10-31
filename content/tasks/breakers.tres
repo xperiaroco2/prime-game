@@ -1,0 +1,84 @@
+[gd_resource type="Resource" script_class="BreakersProblem" format=3]
+
+[ext_resource type="Script" uid="uid://4ly1418nbrq0" path="res://core/tasks/breakers_problem.gd" id="1_kind"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+
+[sub_resource type="Resource" id="Board_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Board_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Board_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Board_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Board_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_breaker_board"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Board_one_handed"), SubResource("Board_at_station"), SubResource("Board_in_sight"), SubResource("Board_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Board_use")])
+
+[sub_resource type="Resource" id="StationKind_breaker_board"]
+script = ExtResource("2_station")
+id = &"breaker_board"
+spawn_tag = &"breaker_board"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_breaker_board")])
+
+[sub_resource type="Resource" id="Breaker_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Breaker_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Breaker_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Breaker_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Breaker_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_breaker"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Breaker_one_handed"), SubResource("Breaker_at_station"), SubResource("Breaker_in_sight"), SubResource("Breaker_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Breaker_use")])
+
+[sub_resource type="Resource" id="StationKind_breaker"]
+script = ExtResource("2_station")
+id = &"breaker"
+spawn_tag = &"breaker"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_breaker")])
+
+[resource]
+script = ExtResource("1_kind")
+id = &"breakers"
+seconds = 30.0
+site = SubResource("StationKind_breaker_board")
+site_count = 2
+fixtures = Array[ExtResource("2_station")]([SubResource("StationKind_breaker")])
+trips = PackedInt32Array(2, 4, 6)
+side_changes = PackedInt32Array(0, 1, 5)
+ramp_seconds = 1.0
+green_seconds = 5.0
