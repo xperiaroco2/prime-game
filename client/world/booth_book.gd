@@ -94,9 +94,13 @@ func holds(session: Session) -> bool:
 	return session != null and (_running.values().has(session) or _bound.values().has(session))
 
 
-## True once for a strip just printed: the own hand slides it in.
+## Whether strip `item_id` was just printed (the own hand slides it in); forgets every fresh
+## strip, since the print is in its place by the first ask: one printed onto the belt or the floor
+## never slides in later. ItemViews asks once a physics frame.
 func take_fresh(item_id: int) -> bool:
-	return _fresh.erase(item_id)
+	var fresh := _fresh.has(item_id)
+	_fresh.clear()
+	return fresh
 
 
 ## Binds strip item `item_id` to a finished session of `records` (one row array per frame, in

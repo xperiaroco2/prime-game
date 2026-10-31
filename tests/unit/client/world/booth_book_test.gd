@@ -105,10 +105,12 @@ func test_a_handed_over_strip_keeps_its_session() -> void:
 	assert_object(_book.session_of(30)).is_same(session)
 
 
-func test_a_fresh_strip_is_taken_once() -> void:
+func test_a_fresh_strip_is_taken_once_and_the_others_with_it() -> void:
 	_step(BoothStepEvent.STARTED)
-	_print([30])
-	assert_bool(_book.take_fresh(30)).is_true()
+	_print([30, 31])
+	assert_bool(_book.take_fresh(31)).is_true()
+	assert_bool(_book.take_fresh(31)).is_false()
+	# Strip 30 went to the belt or the floor: taken later into the hand, it does not slide.
 	assert_bool(_book.take_fresh(30)).is_false()
 
 

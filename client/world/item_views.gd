@@ -24,6 +24,10 @@ extends Node3D
 ## jumps out of the body's eye's sight is hidden in that same physics frame, never drawn for a
 ## frame first. The own arc's sweep reads the physics space, legal only in the physics step.
 ##
+## A photo shows its shot's picture (PhotoPictures, #787) and a booth's strip its session's frames
+## (StripPictures through the BoothBook, #1397), within PICTURE_RANGE_M; a strip just printed into
+## the own hand slides in (FirstPersonHand.begin_slide).
+##
 ## The throw's sounds go out through `sound_due` when the drawn item launches and lands (ItemWorld
 ## connects it to WorldSounds, which cuts and muffles them like every world sound).
 
@@ -37,6 +41,9 @@ const PICTURE_RANGE_M := 12.0
 ## The second belt item (the higher belt place, GDD §6) hangs this far from the belt socket, in
 ## its frame, until the art gives the belt a second socket. A look, "not a decision" (#1218).
 const SECOND_BELT_OFFSET := Vector3(-0.15, 0.0, 0.0)
+## A strip the booth printed into the own hand slides in over this long (#1397). A look, "not a
+## decision".
+const PRINT_SLIDE_SECONDS := 0.6
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands, and the Throw rule's numbers.
@@ -54,6 +61,10 @@ var flights := ItemFlights.new()
 var station_point := Callable()
 ## The shots' pictures (PhotoPictures, #787): a photo shows its shot's; unset: none.
 var pictures: PhotoPictures
+## The booth's strips (#1397): a strip shows its session's frames (StripPictures), found
+## through the BoothBook that binds it; unset: none.
+var strips: StripPictures
+var booth: BoothBook
 
 var _views: Dictionary[int, ItemView] = {}
 ## The model's Item each view was built for: ItemSpawned makes a new one, so a reused id shows.
@@ -140,7 +151,7 @@ func _physics_process(delta: float) -> void:
 			_built_for[id] = item
 			add_child(view)
 		_place(view, item)
-		_show_picture(view, item)
+		_show_picture(view, item, id)
 	_show_own_hand()
 	_send_due()
 
@@ -262,7 +273,10 @@ func _show_own_hand() -> void:
 		player.hand_view().show_item(
 			hand.kind, hand.colour, _two_handed(hand.kind), hand_id, hand.parts
 		)
-		player.hand_view().set_picture(picture_for(hand))
+		player.hand_view().set_picture(picture_for(hand, hand_id))
+	# A strip just printed (#1397) slides up from the booth's slot into the hand.
+	if booth != null and booth.take_fresh(hand_id):
+		player.hand_view().begin_slide(PRINT_SLIDE_SECONDS)
 
 
 ## The own arc's sweep (the throwing ADR's TE5 (a)): a sphere of `radius` from `from` towards `to`
@@ -302,22 +316,33 @@ func _two_handed(item_kind: StringName) -> bool:
 	return kind != null and kind.is_two_handed()
 
 
-## The picture photo `item` shows (#787): its shot's texture, or null (no shot, no picture yet,
-## no PhotoPictures).
-func picture_for(item: ClientModel.Item) -> Texture2D:
-	if pictures == null or item == null or item.shot < 0:
+## The picture item `item` (id `id`; -1: looked up in the model) shows: a photo its shot's
+## texture (#787), a booth's strip its session's frames (#1397); null: no picture source, none
+## yet, or no PhotoPictures or StripPictures.
+func picture_for(item: ClientModel.Item, id := -1) -> Texture2D:
+	if item == null:
+		return null
+	if StripLooks.has(item.kind):
+		if strips == null or booth == null:
+			return null
+		if id < 0 and model != null:
+			var key: Variant = model.items.find_key(item)
+			id = key if key != null else -1
+		return strips.texture_of(booth.session_of(id))
+	if pictures == null or item.shot < 0:
 		return null
 	return pictures.texture_of(item.shot)
 
 
-## A photo's view shows its shot's picture while its look is shown within PICTURE_RANGE_M of the
-## drawing camera; else the blank, so the texture is no longer held and PhotoPictures frees it.
-func _show_picture(view: ItemView, item: ClientModel.Item) -> void:
-	if item.shot < 0 and view.picture() == null:
+## A photo's or a strip's view shows its picture while its look is shown within PICTURE_RANGE_M of
+## the drawing camera; else the blank, so the texture is no longer held and PhotoPictures frees
+## it. An item with no picture source (no shot, not a strip) and no picture is left alone.
+func _show_picture(view: ItemView, item: ClientModel.Item, id: int) -> void:
+	if item.shot < 0 and not StripLooks.has(item.kind) and view.picture() == null:
 		return
 	var texture: Texture2D = null
 	if view.look().visible and view.visible and _near(view.global_position):
-		texture = picture_for(item)
+		texture = picture_for(item, id)
 	view.set_picture(texture)
 
 
