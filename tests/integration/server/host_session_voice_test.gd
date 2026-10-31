@@ -170,3 +170,49 @@ func test_a_listener_after_an_unreachable_one_gets_its_own_stream_s_seqs() -> vo
 		got.append("%d:%d:%s" % [down.fields["speaker"], down.fields["seq"], opus.hex_encode()])
 	assert_array(got).is_equal(["3:0:0a", "3:1:0b"])
 	assert_int(_h.voice_of(skipped).size()).is_equal(3)
+
+
+func test_a_drunk_speaker_s_frames_carry_its_strength_to_whoever_hears_it() -> void:
+	# #1392. Lobby markers 2 m apart, heard within 3 m: 1 and 3 hear 2, 1 and 3 not each other.
+	var mode := Harness.fixture_mode()
+	var effect := VoiceEffect.new()
+	effect.id = &"wobble"
+	effect.bus_effect = &"FixtureBusEffect"
+	effect.parameter = &"depth"
+	effect.swing = 0.5
+	var lobby_rule := mode.find_phase(&"lobby").voice_rule
+	lobby_rule.drunk_effect = effect
+	mode.player_rules.drunk_max = 100
+	mode.player_rules.drunk_too_much_at = 90
+	mode.player_rules.drunk_point_s = 1.0
+	_h = Harness.new(mode)
+	assert_array(_h.session.errors).is_empty()
+	var second := _h.join()
+	var third := _h.join()
+	assert_bool(_h.welcome_all()).is_true()
+	_h.pump_frames(3)
+	var state := _h.session.game.state
+	state.player(_h.peer_of(second)).drunk = 50
+	state.player(_h.peer_of(third)).drunk = 100
+	# In play the state changes only inside a Match call; set here between two, the drunk values
+	# reach view_of and the relay's lazy table together at the next tick.
+	var before := _h.session.game.ticked_through()
+	var ticked := func() -> bool: return _h.session.game.ticked_through() > before
+	assert_bool(_h.pump_until(ticked, 20)).is_true()
+	_h.settle_after_tick()
+	var tick := _h.session.game.ticked_through()
+	_h.own.send_voice(PackedByteArray([1]))
+	second.send_voice(PackedByteArray([2]))
+	third.send_voice(PackedByteArray([3]))
+	_h.pump()
+	# 2 (drunk 50) is heard by 1 and 3 at 128; 1 is sober; 3 (drunk 100) is heard by 2 at 255.
+	var own_view := _h.own.view
+	assert_array(own_view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
+	assert_array(third.view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
+	assert_array(second.view.voice_strengths[Vector2i(1, tick)]).is_equal(PackedInt32Array([0]))
+	assert_array(second.view.voice_strengths[Vector2i(3, tick)]).is_equal(PackedInt32Array([255]))
+	# Nobody gets a frame, so a strength, of a speaker it does not hear: 1 and 3 not each other.
+	assert_bool(own_view.voice_strengths.has(Vector2i(3, tick))).is_false()
+	assert_bool(third.view.voice_strengths.has(Vector2i(1, tick))).is_false()
+	for client: ClientSession in _h.clients:
+		assert_array(_h.mismatches(client)).is_empty()

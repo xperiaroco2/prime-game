@@ -107,7 +107,9 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(found).contains("was changed")
 	# Through the wire's batched row (M5-4b): a frame of a speaker it may not hear, an empty batch.
 	var batched := _copy(own)
-	var frames: Array[Dictionary] = [{"speaker": 7, "seq": 0, "opus": LeakCheck.voice_frame(7, 0)}]
+	var frames: Array[Dictionary] = [
+		{"speaker": 7, "seq": 0, "strength": 0, "opus": LeakCheck.voice_frame(7, 0)}
+	]
 	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 3, "frames": frames}))
 	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 4, "frames": [] as Array[Dictionary]}))
 	found = _text(leaks.check_bot("bot 2", 2, batched, false))

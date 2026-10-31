@@ -49,8 +49,8 @@ func _init(schema: WireSchema) -> void:
 	count_at = _header(0).size() - 1
 
 
-## The record of one relayed frame (`down`: a VoiceDown's speaker, seq and opus), as WireSchema
-## writes it inside a VoiceBatch; empty when the codec refused it (it logged why).
+## The record of one relayed frame (`down`: a VoiceDown's speaker, seq, strength and opus), as
+## WireSchema writes it inside a VoiceBatch; empty when the codec refused it (it logged why).
 func record(down: WireMessage) -> PackedByteArray:
 	var one := _schema.encode(_batch(0, [_frame(down.fields, down.fields["seq"] as int)]))
 	if one.is_empty():
@@ -153,4 +153,9 @@ static func _batch(tick: int, frames: Array[Dictionary]) -> WireMessage:
 
 
 static func _frame(fields: Dictionary, seq: int) -> Dictionary:
-	return {"speaker": fields["speaker"], SEQ: seq, "opus": fields["opus"]}
+	return {
+		"speaker": fields["speaker"],
+		SEQ: seq,
+		"strength": fields.get("strength", 0),
+		"opus": fields["opus"],
+	}

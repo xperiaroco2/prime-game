@@ -515,7 +515,12 @@ func _refresh_routes() -> void:
 		still_out[peer] = true
 	for peer: int in _disconnected:
 		still_out[peer] = true
-	_relay.refresh_lazily(_route_table, still_out)
+	_relay.refresh_lazily(_route_table, still_out, _strength_table)
+
+
+## Each present player's voice strength (Match.voice_strengths, #1392), built with _route_table.
+func _strength_table() -> Dictionary[int, int]:
+	return game.voice_strengths()
 
 
 ## speakers_for every present player.

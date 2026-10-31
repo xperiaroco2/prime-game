@@ -28,14 +28,17 @@ var repeated_snapshots: Array[Dictionary] = []
 var voice: Dictionary[Vector2i, Array] = {}
 ## Vector2i(speaker, tick) -> the seq of each of those frames, in the same order.
 var voice_seqs: Dictionary[Vector2i, PackedInt32Array] = {}
+## Vector2i(speaker, tick) -> the strength of each of those frames (how drunk the speaker's voice
+## sounds, 0 to 255, #1392), in the same order.
+var voice_strengths: Dictionary[Vector2i, PackedInt32Array] = {}
 ## VoiceBatch messages decoded, and those that held no frame (the host never sends one: the leak
 ## test fails on any).
 var voice_batches := 0
 var empty_batches := 0
 
 
-## The frames of a decoded VoiceBatch, in its order, each as a VoiceDown of its speaker, seq, the
-## batch's tick and the bytes.
+## The frames of a decoded VoiceBatch, in its order, each as a VoiceDown of its speaker, seq,
+## strength, the batch's tick and the bytes.
 static func voice_downs(batch: WireMessage) -> Array[WireMessage]:
 	var found: Array[WireMessage] = []
 	var at_tick := batch.fields["tick"] as int
@@ -43,6 +46,7 @@ static func voice_downs(batch: WireMessage) -> Array[WireMessage]:
 		var fields := {
 			"speaker": frame["speaker"] as int,
 			"seq": frame["seq"] as int,
+			"strength": frame["strength"] as int,
 			"tick": at_tick,
 			"opus": frame["opus"] as PackedByteArray,
 		}
@@ -73,6 +77,9 @@ func record(message: WireMessage) -> void:
 		var seqs: PackedInt32Array = voice_seqs.get(key, PackedInt32Array())
 		seqs.append(message.fields["seq"] as int)
 		voice_seqs[key] = seqs
+		var strengths: PackedInt32Array = voice_strengths.get(key, PackedInt32Array())
+		strengths.append(message.fields.get("strength", 0) as int)
+		voice_strengths[key] = strengths
 	else:
 		events.append(message)
 

@@ -288,8 +288,8 @@ func peer_of(client: ClientSession) -> int:
 
 
 ## The difference between what `client` decoded and view_of its peer (§4.6): the events in order
-## (name and fields, by type), each decoded snapshot's avatars, and each frame's speaker for its
-## tick. Empty when they agree.
+## (name and fields, by type), each decoded snapshot's avatars, and each frame's speaker and
+## strength (#1392) for its tick. Empty when they agree.
 func mismatches(client: ClientSession) -> PackedStringArray:
 	var found := PackedStringArray()
 	var view := session.game.view_of(peer_of(client))
@@ -319,6 +319,17 @@ func mismatches(client: ClientSession) -> PackedStringArray:
 			if not allowed.has(speaker):
 				found.append(
 					"voice of %d under tick %d, which view_of does not allow" % [speaker, at_tick]
+				)
+	# Each frame's strength is view_of's effect for its speaker and tick (#1392), 0 for none.
+	for key: Vector2i in client.view.voice_strengths:
+		var effects: Dictionary = view.effects.get(key.y, {})
+		for strength: int in client.view.voice_strengths[key]:
+			if strength != effects.get(key.x, 0):
+				found.append(
+					(
+						"strength %d of %d under tick %d, view_of %d"
+						% [strength, key.x, key.y, effects.get(key.x, 0)]
+					)
 				)
 	return found
 
