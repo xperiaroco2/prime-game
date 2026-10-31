@@ -21,6 +21,7 @@ const CHILDREN: Array[Array] = [
 	[&"CarRepairViews", "CarRepairViews"],
 	[&"PhotoViews", "PhotoViews"],
 	[&"PhotoPictures", "PhotoPictures"],
+	[&"ShipEngineViews", "ShipEngineViews"],
 ]
 
 

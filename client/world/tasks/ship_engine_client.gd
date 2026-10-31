@@ -2,9 +2,10 @@ class_name ShipEngineClient
 extends TaskClient
 ## The ship engine's client (#1260, ARCHITECTURE §4.7.59; the core: #1453): E is answered for the
 ## console and for every kind's site and fixture station (ShipEngine.station_kinds). The client does
-## not know whether the engine has started or a site holds a problem, so it always offers the use
-## and the host's StationUsable refuses it (`unavailable`). No circle and no view yet: the ship's
-## stations and lamps are the level's scenes and a view is part 3 of #1225 (#1453).
+## not know whether the engine has started or a site holds a problem, so it offers the use and the
+## host's StationUsable refuses it (`unavailable`); a breaker board is never offered, since no use
+## of it is ever taken (BreakersProblem: its breakers are), so E aims at the breaker beside it. No
+## circle; its view is ShipEngineViews (#1462, part 3 of #1225).
 
 
 ## Every ShipEngine of `mode`, in the mode's order.
@@ -29,6 +30,19 @@ func owns(type: TaskType, kind_id: StringName) -> bool:
 	return false
 
 
-## Always: the host refuses a use that no start or no problem answers.
-func usable(_model: ClientModel, _type: TaskType, _id: int) -> bool:
+## Always but on a breaker board: the host refuses a use that no start or no problem answers.
+func usable(model: ClientModel, type: TaskType, id: int) -> bool:
+	var station: ClientModel.Station = model.stations.get(id) if model != null else null
+	var engine := type as ShipEngine
+	if station == null or engine == null:
+		return true
+	for kind: ProblemKind in engine.kinds:
+		if kind is BreakersProblem and kind.site != null and kind.site.id == station.kind:
+			return false
 	return true
+
+
+func make_view() -> Node3D:
+	var view := ShipEngineViews.new()
+	view.name = "ShipEngineViews"
+	return view

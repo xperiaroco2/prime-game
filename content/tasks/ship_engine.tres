@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="ShipEngine" format=3 uid="uid://cwnhmkw0fmii4"]
+
+[ext_resource type="Script" uid="uid://bir848fjwuojv" path="res://core/tasks/ship_engine.gd" id="1_engine"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+[ext_resource type="Resource" path="res://content/tasks/gills.tres" id="11_gills"]
+[ext_resource type="Resource" path="res://content/tasks/breakers.tres" id="12_breakers"]
+[ext_resource type="Resource" path="res://content/tasks/crystal.tres" id="13_crystal"]
+[ext_resource type="Script" uid="uid://dsv8oxuq6cjrt" path="res://core/tasks/problem_kind.gd" id="14_problem_kind"]
+
+[sub_resource type="Resource" id="Console_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Console_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Console_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Console_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Console_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_engine_console"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Console_one_handed"), SubResource("Console_at_station"), SubResource("Console_in_sight"), SubResource("Console_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Console_use")])
+
+[sub_resource type="Resource" id="StationKind_engine_console"]
+script = ExtResource("2_station")
+id = &"engine_console"
+spawn_tag = &"engine_console"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_engine_console")])
+
+[resource]
+script = ExtResource("1_engine")
+start = SubResource("StationKind_engine_console")
+kinds = Array[ExtResource("14_problem_kind")]([ExtResource("11_gills"), ExtResource("12_breakers"), ExtResource("13_crystal")])
+stage_problems = PackedInt32Array(2, 4, 6)
+stage_seconds = 30.0
+id = &"engine"
+display_name = "Ship's engine"
+description = "Press start on the console in the ship's hall, then fix each problem before its timer runs out."
+maps = PackedStringArray("res://levels/estate/estate.tscn")
+subtasks_setting = &"engine_stages"

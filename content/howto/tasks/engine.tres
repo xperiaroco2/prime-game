@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="HowtoCard" format=3 uid="uid://dm0gqisiin122"]
+
+[ext_resource type="Script" uid="uid://cetfr522fmpdv" path="res://core/content/howto/howto_card.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://bhqxouukqa5pa" path="res://core/content/howto/howto_frame.gd" id="2_frame"]
+
+[sub_resource type="Resource" id="HowtoFrame_1"]
+script = ExtResource("2_frame")
+text = &"room.ship"
+
+[sub_resource type="Resource" id="HowtoFrame_2"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.press"
+key_action = &"interact"
+
+[sub_resource type="Resource" id="HowtoFrame_3"]
+script = ExtResource("2_frame")
+text = &"task.engine"
+done = true
+
+[resource]
+script = ExtResource("1_card")
+id = &"engine"
+title = &"task.engine"
+frames = Array[ExtResource("2_frame")]([SubResource("HowtoFrame_1"), SubResource("HowtoFrame_2"), SubResource("HowtoFrame_3")])
