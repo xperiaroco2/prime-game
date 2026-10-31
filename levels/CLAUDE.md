@@ -34,11 +34,11 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `spawn_film_box`, `spawn_printer`, `spawn_photo_board`, `spawn_car`, `spawn_car_end`, `spawn_lift_panel`,
   `spawn_part_bin_<n>`, `spawn_part_picture`, `spawn_order_board`, `spawn_herb_board`, `spawn_grill`, `spawn_place`,
   `spawn_herb_bed`; `spawn_film`, `spawn_photo`; the cooking boxes' `spawn_box_bun_white`/`_sesame`/`_dark`,
-  `spawn_box_patty_light`/`_red`/`_deep_red`). A marker in two such groups is a load error. The host reads them in
-  scene-tree order. The bot scenarios snap station markers only on the levels they play (the lobby, the first map, any
-  map a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), through a flat fake (floor at y = 0):
-  on those, no station marker (`circle` or `zone`, #681) below that floor and no two markers of different tags at one
-  (x, z). The other maps (House) are read as placed (GE12, #798), so a station marker may stand below y = 0 there.
+  `spawn_box_patty_light`/`_red`/`_deep_red`; the estate's ship engine: §9.5.27). A marker in two is a load error.
+  The host reads them in scene-tree order. Bot scenarios snap station markers only on the levels they play (the lobby,
+  the first map, any a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), on a flat fake (floor
+  y = 0): there no station marker (`circle` or `zone`, #681) below it and no two of different tags at one (x, z).
+  Other maps (House) are read as placed (GE12, #798): a station marker may stand below y = 0 there.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
