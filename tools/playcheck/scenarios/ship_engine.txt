@@ -5,8 +5,8 @@
 # then steps back: the console's hologram over its pedestal, its three empty stage strips and the
 # mimic board (shot). It walks to the nearest gill set (shot: its slits), looks back at the
 # hologram (shot) and walks to the nearest breaker (shot: no lamp or mark there shows the breakers'
-# order). Back at the console, E starts the engine; the first problem opens: a red lamp over its station (shot); nobody mends it, so
-# the stage's time runs out and the engine blasts (shot).
+# order). Back at the console, E starts the engine; the first problem opens: a red lamp over its station
+# (shot); nobody mends it, so its own deadline (its kind's `seconds`) runs out and the engine blasts (shot).
 # The waypoints are x,z in metres on the estate's ground: the ring round the bonfire inside its
 # spawns' arc, then the lower loop's walk over the pipe's banks and the ramp's (estate_walk_test).
 players 1
@@ -36,23 +36,31 @@ release move_back
 frames 30
 shot console
 aim off
-# Before the engine runs (its stage clock blasts the ship once it runs out): the nearest gill set.
+# Before the engine runs (an open problem unmended past its deadline blasts the ship): the nearest
+# gill set, then a step back so the slits over the low button are in the shot.
 aim station gill_button
 hold move_forward
 wait text hud.aim has gill_button timeout=30
 release move_forward
-aim off
+hold move_back
+frames 40
+release move_back
 frames 30
+aim off
 shot gills
 aim station engine_console
 frames 40
 shot console_from_the_gills
 aim off
+# The nearest breaker, then a step back so its board's wall is in the shot.
 aim station breaker
 hold move_forward
 wait text hud.aim has breaker timeout=30
 release move_forward
+hold move_back
 frames 40
+release move_back
+frames 30
 shot breakers
 aim off
 aim station engine_console
@@ -69,7 +77,7 @@ frames 15
 release move_back
 frames 30
 shot problem_open
-# Nobody mends the problem: the stage's time runs out and the engine blasts, a sphere growing from
+# Nobody mends the problem: its deadline runs out and the engine blasts, a sphere growing from
 # the console (shot), and the player aboard goes down.
 wait event EngineBlast timeout=60
 frames 12
