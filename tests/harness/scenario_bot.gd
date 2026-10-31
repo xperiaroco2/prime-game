@@ -228,6 +228,7 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			var positions: Dictionary = fields["positions"]
 			for other: int in positions:
 				seen[other] = positions[other]
+			_welcome_items(fields.get("items", []) as Array)
 		&"PlayerJoined":
 			seen[fields["peer"] as int] = fields["spot"] as Vector3
 		&"PlayersPlaced":
@@ -517,6 +518,19 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 		&"SelfStatus":
 			sprint_available = fields["sprint_available"] as bool
 			drunk = fields.get("drunk", 0) as int
+
+
+## The hall's items as a Welcome lists them (#1404), in place of any known before: each row's
+## kind, position and rest state (its `where`, in Where's order); a locked one at no station.
+func _welcome_items(rows: Array) -> void:
+	items.clear()
+	for row: Dictionary in rows:
+		items[row["item"] as int] = {
+			"kind": StringName(str(row["kind"])),
+			"position": row["position"] as Vector3,
+			"where": row["where"] as int,
+			"station": -1,
+		}
 
 
 ## The bot no longer holds or belts `item`.
