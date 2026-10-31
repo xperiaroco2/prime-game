@@ -3,7 +3,8 @@ extends RefCounted
 ## ModeCheck's checks of the photo booth (#1396; ARCHITECTURE §9.4.2, §9.4.5, §9.5.28): a StartBooth
 ## stands only in a station kind's Interact rule, after AtStation and StationInSight, not negated
 ## (the host checks the press's reach and sight, as GiveItem.required_conditions); a mode with one
-## lists BoothTicks in some phase (else every press is refused); and every row from a phase that
+## lists BoothTicks in some phase (else every press is refused), and only in phases on the lobby's
+## level (the booth is a hall toy, #1396); and every row from a phase that
 ## lists BoothTicks to one that does not holds a StopBooth, so no session outlives its clock.
 ## StartBooth's own check bounds its numbers and its strip kind. A mode with no StartBooth and no
 ## BoothTicks needs nothing.
@@ -31,6 +32,8 @@ static func problems(mode: GameMode) -> PackedStringArray:
 	for phase: PhaseSpec in mode.phases:
 		if BoothTicks.listed_in(phase):
 			ticking.append(String(phase.id))
+			if phase.level != PhaseSpec.Level.LOBBY:
+				found.append("phase %s lists BoothTicks off the lobby's level" % phase.id)
 	if starts and ticking.is_empty():
 		found.append("a station starts the booth (StartBooth), and no phase lists BoothTicks")
 	for row: Transition in mode.transitions:
