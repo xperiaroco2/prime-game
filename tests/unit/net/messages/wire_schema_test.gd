@@ -87,10 +87,10 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
 			assert_int(each.max_size()).is_equal(773)
 		elif each.name == &"VoiceBatch":
-			# The unreliable cap bounds it first (M5-4b): 113 frames of one byte fit, of more do not.
+			# The unreliable cap bounds it first (M5-4b): 101 frames of one byte fit, of more do not.
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
-			assert_int(4 + 1 + WireSchema.MAX_BATCH_FRAMES * 9).is_less_equal(each.cap)
-			assert_int(4 + 1 + (WireSchema.MAX_BATCH_FRAMES + 1) * 9).is_greater(each.cap)
+			assert_int(4 + 1 + WireSchema.MAX_BATCH_FRAMES * 10).is_less_equal(each.cap)
+			assert_int(4 + 1 + (WireSchema.MAX_BATCH_FRAMES + 1) * 10).is_greater(each.cap)
 			assert_int(each.max_size()).is_greater(each.cap)
 		elif each.name in OVER_CAP_AT_MAXIMA:
 			assert_bool(each.content_sized).is_true()
@@ -108,14 +108,17 @@ func test_a_field_s_fixed_offset_counts_the_fixed_sizes_before_it() -> void:
 	assert_int(batch.fixed_offset("tick")).is_equal(0)
 	assert_int(batch.fixed_offset("frames")).is_equal(-1)
 	assert_object(batch.field_named("listener")).is_null()
-	# Inside each frame's record: speaker (a peer, 4 bytes), seq (u16), then the sized Opus bytes.
+	# Inside each frame's record: speaker (a peer, 4 bytes), seq (u16), strength (u8, #1392), then
+	# the sized Opus bytes.
 	var frame := batch.field_named("frames").element
 	assert_int(frame.fixed_offset("speaker")).is_equal(0)
 	assert_int(frame.fixed_offset("seq")).is_equal(4)
+	assert_int(frame.fixed_offset("strength")).is_equal(6)
 	assert_int(frame.fixed_offset("opus")).is_equal(-1)
 	assert_int(frame.fixed_offset("listener")).is_equal(-1)
 	assert_int(frame.parts[1].type).is_equal(WireField.Type.U16)
-	assert_int(frame.parts[2].type).is_equal(WireField.Type.SIZED_OPUS)
+	assert_int(frame.parts[2].type).is_equal(WireField.Type.U8)
+	assert_int(frame.parts[3].type).is_equal(WireField.Type.SIZED_OPUS)
 	# Only a record has parts to place.
 	assert_int(batch.field_named("tick").fixed_offset("tick")).is_equal(-1)
 	assert_object(schema.row_named(&"VoiceDown")).is_null()

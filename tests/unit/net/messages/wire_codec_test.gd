@@ -165,15 +165,17 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	_assert_refused(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": frame}))
 	# A VoiceBatch's frames (M5-4b): 1 to MAX_OPUS bytes each, at most MAX_BATCH_FRAMES, the cap.
 	for opus: PackedByteArray in [PackedByteArray(), frame]:
-		var one: Array[Dictionary] = [{"speaker": 2, "seq": 0, "opus": opus}]
+		var one: Array[Dictionary] = [{"speaker": 2, "seq": 0, "strength": 0, "opus": opus}]
 		_assert_refused(WireMessage.new(&"VoiceBatch", {"tick": 1, "frames": one}))
 	var many: Array[Dictionary] = []
 	for i: int in WireSchema.MAX_BATCH_FRAMES + 1:
-		many.append({"speaker": 2, "seq": i, "opus": PackedByteArray([1])})
+		many.append({"speaker": 2, "seq": i, "strength": 0, "opus": PackedByteArray([1])})
 	_assert_refused(WireMessage.new(&"VoiceBatch", {"tick": 1, "frames": many}))
 	var big: Array[Dictionary] = []
 	for i: int in 3:
-		big.append({"speaker": 2, "seq": i, "opus": frame.slice(0, WireSchema.MAX_OPUS)})
+		big.append(
+			{"speaker": 2, "seq": i, "strength": 0, "opus": frame.slice(0, WireSchema.MAX_OPUS)}
+		)
 	_assert_refused(WireMessage.new(&"VoiceBatch", {"tick": 1, "frames": big}))
 
 

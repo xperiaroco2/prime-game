@@ -86,6 +86,8 @@ var _outbox_from := 0
 var _snapshots: Dictionary[int, Dictionary] = {}
 ## Peer -> {tick: PackedInt32Array of speakers}.
 var _speakers: Dictionary[int, Dictionary] = {}
+## Peer -> {tick: voice_effects_for(peer)}, only the ticks with an effect (#1392).
+var _effects: Dictionary[int, Dictionary] = {}
 
 
 ## A match of `game_mode`, seeded by the session seed, asking `world` its geometry, with the
@@ -308,8 +310,32 @@ func speakers_for(listener: int) -> PackedInt32Array:
 	return _phase_spec.voice_rule.speakers_of(state, listener)
 
 
-## Everything an honest client of `peer` can know (§5): its events in order, its snapshots and
-## its speakers per tick.
+## The effects of the speakers `listener` may hear now (#1392, §6): speaker -> strength (1 to
+## VoiceRule.MAX_STRENGTH), only for a heard speaker whose voice sounds drunk
+## (VoiceRule.effects_of).
+func voice_effects_for(listener: int) -> Dictionary[int, int]:
+	if _phase_spec == null or _phase_spec.voice_rule == null:
+		var none: Dictionary[int, int] = {}
+		return none
+	return _phase_spec.voice_rule.effects_of(state, listener)
+
+
+## Each present player's voice strength now (#1392): speaker -> 1 to VoiceRule.MAX_STRENGTH, a
+## strength 0 left out. The host's relay stamps each frame it routes with its speaker's entry, so a
+## listener gets a strength only on a frame it hears (voice_effects_for is that per listener).
+func voice_strengths() -> Dictionary[int, int]:
+	var found: Dictionary[int, int] = {}
+	if _phase_spec == null or _phase_spec.voice_rule == null:
+		return found
+	for speaker: int in state.present_peers():
+		var strength := _phase_spec.voice_rule.effect_strength(state, speaker)
+		if strength > 0:
+			found[speaker] = strength
+	return found
+
+
+## Everything an honest client of `peer` can know (§5): its events in order, its snapshots, its
+## speakers per tick and their effects (#1392).
 func view_of(peer: int) -> PeerView:
 	var view := PeerView.new(peer)
 	for emitted_event: EmittedEvent in _emitted:
@@ -321,6 +347,9 @@ func view_of(peer: int) -> PeerView:
 	var speakers: Dictionary = _speakers.get(peer, {})
 	for at_tick: int in speakers:
 		view.speakers[at_tick] = speakers[at_tick]
+	var effects: Dictionary = _effects.get(peer, {})
+	for at_tick: int in effects:
+		view.effects[at_tick] = effects[at_tick]
 	return view
 
 
@@ -719,3 +748,8 @@ func _record_views(at_tick: int) -> void:
 		if not _speakers.has(peer):
 			_speakers[peer] = {}
 		_speakers[peer][at_tick] = speakers_for(peer)
+		var effects := voice_effects_for(peer)
+		if not effects.is_empty():
+			if not _effects.has(peer):
+				_effects[peer] = {}
+			_effects[peer][at_tick] = effects

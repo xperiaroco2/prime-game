@@ -116,15 +116,17 @@ func test_the_model_folds_settings_and_placements_as_decoded() -> void:
 func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	_harness.welcome()
 	var heard: Array[Vector3i] = []
+	var strengths: Array[int] = []
 	_harness.session.voice_received.connect(
-		func(speaker: int, seq: int, tick: int, _opus: PackedByteArray) -> void:
+		func(speaker: int, seq: int, tick: int, _opus: PackedByteArray, strength: int) -> void:
 			heard.append(Vector3i(speaker, seq, tick))
+			strengths.append(strength)
 	)
 	# Two VoiceBatches (M5-4b): three frames under tick 20, one under 21.
 	var first: Array[Dictionary] = [
 		_frame(1, 0, PackedByteArray([1])),
 		_frame(1, 1, PackedByteArray([2, 2])),
-		_frame(3, 0, PackedByteArray([3])),
+		_frame(3, 0, PackedByteArray([3]), 200),
 	]
 	_harness.send_message(_batch(20, first))
 	_harness.send_message(_batch(21, [_frame(3, 1, PackedByteArray([4]))] as Array[Dictionary]))
@@ -142,10 +144,13 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	assert_int(view.voice_batches).is_equal(2)
 	assert_int(view.empty_batches).is_equal(0)
 	# The signal carries each frame's speaker, seq and tick, in the batch's order (M5-5:
-	# VoiceJitter orders by seq).
+	# VoiceJitter orders by seq), and its strength (#1392).
 	assert_array(heard).contains_exactly(
 		[Vector3i(1, 0, 20), Vector3i(1, 1, 20), Vector3i(3, 0, 20), Vector3i(3, 1, 21)]
 	)
+	assert_array(strengths).contains_exactly([0, 0, 200, 0])
+	assert_array(view.voice_strengths[Vector2i(1, 20)]).is_equal(PackedInt32Array([0, 0]))
+	assert_array(view.voice_strengths[Vector2i(3, 20)]).is_equal(PackedInt32Array([200]))
 
 
 func test_a_payload_that_does_not_decode_is_counted_and_dropped() -> void:
@@ -183,8 +188,8 @@ static func _avatar(at: Vector3) -> Dictionary:
 	}
 
 
-static func _frame(speaker: int, seq: int, opus: PackedByteArray) -> Dictionary:
-	return {"speaker": speaker, "seq": seq, "opus": opus}
+static func _frame(speaker: int, seq: int, opus: PackedByteArray, strength := 0) -> Dictionary:
+	return {"speaker": speaker, "seq": seq, "strength": strength, "opus": opus}
 
 
 static func _batch(tick: int, frames: Array[Dictionary]) -> WireMessage:

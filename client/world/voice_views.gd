@@ -28,6 +28,15 @@ extends Node
 ## the LIVING and DOWNED layers); a hit muffles that speaker (Muffle: 8 dB quieter on its player,
 ## the muffled Voice bus's low-pass), eased over 100 ms. The muffle only lowers and dulls what the
 ## rules above already play; it never decides whether a frame plays.
+##
+## The drunk voice (#1392, §6): each played frame carries how drunk its speaker's voice sounds (its
+## strength, 0 to 255, the host's from the public drunk value). While the latest played frame's
+## strength is above 0 and the current phase's voice rule in the own mode has a drunk_effect, the
+## speaker plays on its own VoiceEffectBus (that effect, its parameter moved each physics frame by
+## the strength and the clock), which sends to the bus the muffle picks (Voice or VoiceMuffled). At
+## strength 0, or with no effect, the bus is removed and the speaker is back on the muffle's bus.
+## The own voice is never played, so its own player never hears its change. The effect only
+## changes how a voice that plays sounds; it never decides whether a frame plays.
 
 ## After LifeView (5) placed the ears in the physics step, before SightHider (10).
 const PHYSICS_PRIORITY := 8
@@ -58,6 +67,14 @@ var _muffles: Dictionary[int, Muffle] = {}
 var _flushed_at: Dictionary[int, int] = {}
 ## Peer -> its index of first arrival, from 1 (the F3 lines name no peer, E47).
 var _index: Dictionary[int, int] = {}
+## Peer -> the strength of its latest played frame, when above 0 (#1392).
+var _strengths: Dictionary[int, int] = {}
+## Peer -> its drunk voice's own bus, while it has one (dropped with the speaker).
+var _drunk: Dictionary[int, VoiceEffectBus] = {}
+## The effect of the current phase's voice rule, or null.
+var _effect: VoiceEffect
+## An effect VoiceEffectBus cannot make: warned once, and not tried again while it is the phase's.
+var _warned: VoiceEffect
 var _newest_tick := -1
 var _cutoff_m := 0.0
 ## The phase the cutoff was taken from: a Welcome sets the model's phase without a PhaseChanged.
@@ -93,9 +110,11 @@ func reset() -> void:
 	_flushed_at.clear()
 	_index.clear()
 	_muffles.clear()
+	_release_all()
 	_newest_tick = -1
 	model = null
 	_cutoff_m = 0.0
+	_effect = null
 	_phase = &""
 
 
@@ -117,13 +136,19 @@ func muffle_of(peer: int) -> Muffle:
 	return _muffles.get(peer)
 
 
+## `peer`'s drunk voice bus, or null while its voice plays unchanged (#1392).
+func drunk_bus_of(peer: int) -> VoiceEffectBus:
+	return _drunk.get(peer)
+
+
 ## The newest host tick recorded at `peer`'s latest flush, or -1 before any.
 func flushed_at(peer: int) -> int:
 	return _flushed_at.get(peer, -1)
 
 
-## One VoiceDown (ClientSession.voice_received): handed to its speaker if every rule allows it.
-func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> void:
+## One VoiceDown (ClientSession.voice_received): handed to its speaker if every rule allows it;
+## its `strength` then sets how drunk that speaker sounds (#1392).
+func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray, strength := 0) -> void:
 	received += 1
 	_see_tick(tick)
 	_sync_phase()
@@ -139,6 +164,10 @@ func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> void:
 		_index[speaker] = _index.size() + 1
 	player.push(seq, tick, opus, now_usec())
 	played += 1
+	if strength > 0:
+		_strengths[speaker] = strength
+	else:
+		_strengths.erase(speaker)
 
 
 ## Whether a frame of `speaker` stamped at host tick `tick` may play now, by every rule but the
@@ -264,13 +293,46 @@ func _muffle(peer: int, speaker: VoiceSpeaker, heard_from: Vector3, delta: float
 	var space := get_viewport().find_world_3d().direct_space_state
 	muffle.follow(Muffle.blocked(space, heard_from, speaker.global_position), delta)
 	speaker.extra_db = muffle.volume_db()
-	var bus := muffle.bus_for(AudioBuses.VOICE)
+	var bus := _bus_of(peer, muffle.bus_for(AudioBuses.VOICE))
 	if speaker.bus != bus:
 		speaker.bus = bus
 
 
-## `peer`'s speaker casts no ray this frame: its next one sets the muffle without easing.
+## The bus `peer`'s speaker plays on (#1392): its drunk voice's own bus, made or kept, its send set
+## to `clear` (the muffle's) and its parameter moved, while its strength is above 0 and the phase
+## has an effect; else `clear`, with any drunk bus of it removed.
+func _bus_of(peer: int, clear: StringName) -> StringName:
+	var strength: int = _strengths.get(peer, 0)
+	var drunk: VoiceEffectBus = _drunk.get(peer)
+	if drunk != null and (strength <= 0 or drunk.effect != _effect):
+		_release(peer)
+		drunk = null
+	if strength <= 0 or _effect == null:
+		return clear
+	if drunk == null:
+		if _warned == _effect:
+			return clear
+		var bus_name := StringName("%s%d_%d" % [VoiceEffectBus.PREFIX, get_instance_id(), peer])
+		drunk = VoiceEffectBus.make(_effect, bus_name, clear)
+		if drunk == null:
+			_warned = _effect
+			push_warning("voice: the drunk effect %s names no usable bus effect" % _effect.id)
+			return clear
+		_drunk[peer] = drunk
+	if not drunk.apply(strength, clear, now_usec() / 1000000.0):
+		_release(peer)
+		return clear
+	return drunk.name
+
+
+## `peer`'s speaker casts no ray this frame: its next one sets the muffle without easing, and an
+## idle drunk speaker's bus is removed (the next frame played makes it again).
 func _rest(peer: int) -> void:
+	if _drunk.has(peer):
+		_release(peer)
+		var idle := speaker_of(peer)
+		if idle != null:
+			idle.bus = AudioBuses.VOICE
 	var muffle: Muffle = _muffles.get(peer)
 	if muffle != null:
 		muffle.rest()
@@ -307,6 +369,7 @@ func _sync_phase() -> void:
 		return
 	_phase = model.phase
 	_cutoff_m = _phase_radius()
+	_effect = _phase_effect()
 	if _cutoff_m <= 0.0:
 		flush_all()
 	for peer: int in _speakers:
@@ -319,6 +382,8 @@ func _forget(peer: int, speaker: VoiceSpeaker) -> void:
 	if _speakers.get(peer) == speaker:
 		_speakers.erase(peer)
 		_muffles.erase(peer)
+		_strengths.erase(peer)
+		_release(peer)
 
 
 func _record_flush(peer: int) -> void:
@@ -338,6 +403,26 @@ func _free_speaker(peer: int) -> void:
 		speaker.queue_free()
 	_speakers.erase(peer)
 	_muffles.erase(peer)
+	_strengths.erase(peer)
+	_release(peer)
+
+
+## Removes `peer`'s drunk voice bus, if it has one.
+func _release(peer: int) -> void:
+	var drunk: VoiceEffectBus = _drunk.get(peer)
+	if drunk != null:
+		drunk.release()
+	_drunk.erase(peer)
+
+
+func _release_all() -> void:
+	for peer: int in _drunk.keys():
+		_release(peer)
+	_strengths.clear()
+
+
+func _exit_tree() -> void:
+	_release_all()
 
 
 func _own_dead() -> bool:
@@ -350,6 +435,16 @@ func _phase_radius() -> float:
 		return 0.0
 	var spec := mode.find_phase(model.phase)
 	return VoiceRule.radius_of(spec.voice_rule if spec != null else null)
+
+
+## The current phase's drunk effect from the own mode, or null.
+func _phase_effect() -> VoiceEffect:
+	if model == null or mode == null:
+		return null
+	var spec := mode.find_phase(model.phase)
+	if spec == null or spec.voice_rule == null:
+		return null
+	return spec.voice_rule.drunk_effect
 
 
 func _ears_position() -> Variant:

@@ -4,9 +4,11 @@ extends RefCounted
 ## `Match.speakers_for(l)` for every present player l, refreshed after every `Match.tick` call
 ## (catch-up ticks included), so between two ticks it is the routing `view_of` records for the
 ## last one; the host's refresh builds it only when a frame needs it (refresh_lazily). A VoiceUp
-## from speaker s goes, as a VoiceDown (s, the stream's next seq, the host tick, the bytes
-## unchanged), to each listener l != s whose entry holds s; a frame from a peer that is not a
-## present player is dropped. The host never decodes Opus.
+## from speaker s goes, as a VoiceDown (s, the stream's next seq, s's strength, the host tick, the
+## bytes unchanged), to each listener l != s whose entry holds s; a frame from a peer that is not a
+## present player is dropped. The host never decodes Opus. The strength (how drunk s's voice
+## sounds, #1392) is per speaker, built with the table from the same state, so only a listener that
+## hears s gets it, on s's frames.
 ##
 ## Frames are held during one poll and relayed right after it: after a freeze of the host or of the
 ## speaker only the newest NEWEST_PER_POLL frames per speaker (by the speaker's own seq) are
@@ -33,8 +35,12 @@ var relayed := 0
 
 ## Listener -> the speakers it may hear: every present player has an entry.
 var _routes: Dictionary[int, PackedInt32Array] = {}
-## Builds _routes on its next read, when valid (refresh_lazily).
+## Speaker -> how drunk its voice sounds, 1 to 255 (Match.voice_strengths, #1392); a speaker with
+## none is sober. Built and refreshed with _routes, from the same state.
+var _strengths: Dictionary[int, int] = {}
+## Builds _routes on its next read, when valid (refresh_lazily), and _strengths with it.
 var _build := Callable()
+var _build_strengths := Callable()
 ## Peers that left (peer_left) and are out of the relay until a refresh no longer keeps them.
 var _muted: Dictionary[int, bool] = {}
 ## Vector2i(speaker, listener) -> the next seq of that stream.
@@ -58,19 +64,30 @@ class Outgoing:
 
 ## The routing after a Match.tick call: listener -> speakers_for(listener), one entry per present
 ## player. A muted peer stays muted while `still_leaving` has it (its PeerLeft is not applied yet,
-## or this session disconnected it).
-func refresh(table: Dictionary[int, PackedInt32Array], still_leaving: Dictionary) -> void:
+## or this session disconnected it). `strengths`: Match.voice_strengths() of the same state (#1392),
+## stamped on each frame of its speaker; none, every voice sober.
+func refresh(
+	table: Dictionary[int, PackedInt32Array],
+	still_leaving: Dictionary,
+	strengths: Dictionary[int, int] = {}
+) -> void:
 	_routes = table
+	_strengths = strengths
 	_build = Callable()
+	_build_strengths = Callable()
 	_unmute(still_leaving)
 
 
-## The same as refresh(build.call(), still_leaving), but `build` runs only on the first hold(),
-## flush() or routes() after it, so a tick nobody talks after builds no table (#1251). `build`
-## must return the routing of the state this refresh is for: the host calls it only before the
-## next Match call. The muted peers are updated now, as refresh() does.
-func refresh_lazily(build: Callable, still_leaving: Dictionary) -> void:
+## The same as refresh(build.call(), still_leaving, build_strengths.call()), but both run only on
+## the first hold(), flush() or routes() after it, together, so a tick nobody talks after builds
+## no table (#1251) and a frame's strength comes from the state of its routing. Each must return
+## what the state this refresh is for says: the host calls them only before the next Match call.
+## No `build_strengths`: every voice sober. The muted peers are updated now, as refresh() does.
+func refresh_lazily(
+	build: Callable, still_leaving: Dictionary, build_strengths := Callable()
+) -> void:
 	_build = build
+	_build_strengths = build_strengths
 	_unmute(still_leaving)
 
 
@@ -138,7 +155,13 @@ func flush(host_tick: int) -> Array[Outgoing]:
 				var seq: int = _next_seq.get(key, 0)
 				_next_seq[key] = (seq + 1) % SEQ_MODULO
 				seqs.append(seq)
-			var fields := {"speaker": speaker, "seq": seqs[0], "tick": host_tick, "opus": frame[1]}
+			var fields := {
+				"speaker": speaker,
+				"seq": seqs[0],
+				"strength": _strengths.get(speaker, 0),
+				"tick": host_tick,
+				"opus": frame[1],
+			}
 			var each := Outgoing.new(WireMessage.new(VOICE_DOWN, fields))
 			each.listeners = hearing
 			each.seqs = seqs
@@ -158,8 +181,13 @@ func _build_routes() -> void:
 	if not _build.is_valid():
 		return
 	var build := _build
+	var build_strengths := _build_strengths
 	_build = Callable()
+	_build_strengths = Callable()
 	_routes = build.call()
+	_strengths = {}
+	if build_strengths.is_valid():
+		_strengths = build_strengths.call()
 
 
 ## The newest NEWEST_PER_POLL of one speaker's frames, ordered by its seq (which wraps at

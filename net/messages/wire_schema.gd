@@ -89,7 +89,9 @@ extends RefCounted
 ## 48 since #1398 (the pinball): the intent Flippers (kind 25, the seated player's two flippers)
 ## and the event PinballState (94, the machine's game, its seated player or none, the flippers,
 ## the ball in play, the score, the balls left, the best score and its owner's name).
-const VERSION := 48
+## 49 since #1392 (the drunk voice): VoiceBatch's frame record (kind 114) gains `strength` (U8,
+## after `seq`), and MAX_BATCH_FRAMES falls from 113 to 101.
+const VERSION := 49
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -136,8 +138,8 @@ const MAX_TEXT_NUMBERS := 4
 ## One 20 ms Opus frame.
 const MAX_OPUS := 500
 ## A VoiceBatch's frames: as many 1-byte frames as fit its 1024-byte cap behind its tick and
-## count (each takes speaker 4, seq 2, length 2 and its bytes). The cap bounds it first.
-const MAX_BATCH_FRAMES := 113
+## count (each takes speaker 4, seq 2, strength 1, length 2 and its bytes). The cap bounds it first.
+const MAX_BATCH_FRAMES := 101
 
 ## Built once per build kind: the rows never change at run time.
 static var _built: Dictionary[bool, WireSchema] = {}
@@ -781,12 +783,18 @@ static func _state_and_voice() -> Array[WireRow]:
 		[_u16("seq"), WireField.opus("opus", MAX_OPUS)]
 	)
 	# One poll's relayed frames for one listener (M5-4b, #374); kind 113, the single-frame
-	# VoiceDown of protocol 7, is retired. Each frame decodes to a VoiceDown (DecodedView).
+	# VoiceDown of protocol 7, is retired. Each frame decodes to a VoiceDown (DecodedView). Its
+	# strength is how drunk the speaker's voice sounds, 0 to 255 (#1392; core's VoiceRule).
 	var frame := (
 		WireField
 		. record(
 			"",
-			[_peer("speaker"), _u16("seq"), WireField.sized_opus("opus", MAX_OPUS)],
+			[
+				_peer("speaker"),
+				_u16("seq"),
+				_of("strength", WireField.Type.U8),
+				WireField.sized_opus("opus", MAX_OPUS),
+			],
 		)
 	)
 	var voice_batch := _row(

@@ -144,6 +144,7 @@
 [ext_resource type="Script" uid="uid://dak407qpyhuxo" path="res://core/pinball/pinball_seated.gd" id="213_pinball_seated"]
 [ext_resource type="Script" uid="uid://0j0fqsw0t0ps" path="res://core/pinball/set_flippers.gd" id="214_set_flippers"]
 [ext_resource type="Resource" path="res://content/stations/light_breaker.tres" id="198_light_breaker"]
+[ext_resource type="Script" uid="uid://dksgpuwd17pse" path="res://core/content/voice_effect.gd" id="199_voice_effect"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -393,9 +394,22 @@ script = ExtResource("211_pinball_ticks")
 [sub_resource type="Resource" id="Pinball_end"]
 script = ExtResource("212_end_pinball")
 
+[sub_resource type="Resource" id="VoiceEffect_drunk"]
+script = ExtResource("199_voice_effect")
+id = &"pitch_wobble"
+bus_effect = &"AudioEffectPitchShift"
+parameter = &"pitch_scale"
+rest = 1.0
+swing = 0.12
+wobble_hz = 0.6
+settings = {
+"fft_size": 2
+}
+
 [sub_resource type="Resource" id="Voice_lobby"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
+drunk_effect = SubResource("VoiceEffect_drunk")
 
 [sub_resource type="Resource" id="Phase_lobby"]
 script = ExtResource("5_phase")
@@ -461,6 +475,7 @@ from = 4
 [sub_resource type="Resource" id="Voice_countdown"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
+drunk_effect = SubResource("VoiceEffect_drunk")
 
 [sub_resource type="Resource" id="Phase_countdown"]
 script = ExtResource("5_phase")

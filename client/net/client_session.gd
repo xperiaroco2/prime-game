@@ -38,9 +38,9 @@ signal corrected(position: Vector3, velocity: Vector3)
 signal map_loaded(path: String, scene: PackedScene)
 ## One frame of a VoiceBatch (M5-4b), in the batch's order: the speaker, the stream's seq (u16,
 ## renumbered by the host per speaker and listener, running on across talk spurts), the host tick
-## it was relayed at, and the frame.
+## it was relayed at, the frame, and how drunk the speaker's voice sounds (0 to 255, #1392).
 ## VoiceViews (client/world/) plays only these (the M5 ADR §3 item 1).
-signal voice_received(speaker: int, seq: int, tick: int, opus: PackedByteArray)
+signal voice_received(speaker: int, seq: int, tick: int, opus: PackedByteArray, strength: int)
 ## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
 ## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
 signal snapshot_received(tick: int, avatars: Dictionary)
@@ -396,7 +396,8 @@ func _on_packet(_from_peer: int, kind: int, payload: PackedByteArray) -> void:
 				down.fields["speaker"] as int,
 				down.fields["seq"] as int,
 				down.fields["tick"] as int,
-				down.fields["opus"] as PackedByteArray
+				down.fields["opus"] as PackedByteArray,
+				down.fields["strength"] as int
 			)
 	else:
 		_on_event(message.name, message.fields)

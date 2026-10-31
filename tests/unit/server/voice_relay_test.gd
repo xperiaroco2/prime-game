@@ -115,6 +115,60 @@ func test_a_lazy_refresh_builds_the_table_once_and_only_when_a_frame_needs_it() 
 	assert_int(builds[0]).is_equal(2)
 
 
+func test_each_frame_carries_its_speaker_s_strength_and_only_to_its_listeners() -> void:
+	# #1392: 2 is drunk (40) and 3 sober, both heard by 1; 4 is drunk (90) and heard by nobody.
+	var relay := VoiceRelay.new()
+	var strengths: Dictionary[int, int] = {2: 40, 4: 90}
+	relay.refresh(_table({1: [2, 3], 2: [1], 3: [1], 4: []}), {}, strengths)
+	relay.hold(2, 0, PackedByteArray([2]))
+	relay.hold(3, 0, PackedByteArray([3]))
+	relay.hold(4, 0, PackedByteArray([4]))
+	# 4's frame goes to nobody, so its strength reaches nobody either.
+	assert_array(_strengths(relay.flush(7))).is_equal(["2>1 40", "3>1 0"])
+
+
+func test_no_strengths_means_every_voice_is_sober() -> void:
+	var relay := VoiceRelay.new()
+	relay.refresh(_table({1: [2], 2: [1]}), {})
+	relay.hold(2, 0, PackedByteArray([2]))
+	assert_array(_strengths(relay.flush(1))).is_equal(["2>1 0"])
+
+
+func test_a_lazy_refresh_builds_the_strengths_with_the_table() -> void:
+	var relay := VoiceRelay.new()
+	var builds: Array[int] = [0, 0]
+	var build := func() -> Dictionary[int, PackedInt32Array]:
+		builds[0] += 1
+		return _table({1: [2], 2: [1]})
+	var build_strengths := func() -> Dictionary[int, int]:
+		builds[1] += 1
+		var found: Dictionary[int, int] = {2: 255}
+		return found
+	relay.refresh_lazily(build, {}, build_strengths)
+	assert_array(builds).is_equal([0, 0])
+	relay.hold(2, 0, PackedByteArray([2]))
+	assert_array(builds).is_equal([1, 1])
+	assert_array(_strengths(relay.flush(3))).is_equal(["2>1 255"])
+	# A refresh without strengths sobers every voice: none of the last build's stays.
+	relay.refresh_lazily(build, {})
+	relay.hold(2, 1, PackedByteArray([2]))
+	assert_array(_strengths(relay.flush(4))).is_equal(["2>1 0"])
+	assert_array(builds).is_equal([2, 1])
+
+
+func _strengths(out: Array[VoiceRelay.Outgoing]) -> Array[String]:
+	var found: Array[String] = []
+	for each: VoiceRelay.Outgoing in out:
+		for listener: int in each.listeners:
+			found.append(
+				(
+					"%d>%d %d"
+					% [each.message.fields["speaker"], listener, each.message.fields["strength"]]
+				)
+			)
+	return found
+
+
 func _table(entries: Dictionary) -> Dictionary[int, PackedInt32Array]:
 	var table: Dictionary[int, PackedInt32Array] = {}
 	for listener: int in entries:

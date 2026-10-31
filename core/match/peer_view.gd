@@ -10,6 +10,9 @@ var events: Array[MatchEvent] = []
 var snapshots: Dictionary[int, Dictionary] = {}
 ## Tick -> the speakers this peer could hear on that tick, in peer-id order.
 var speakers: Dictionary[int, PackedInt32Array] = {}
+## Tick -> the effects of those speakers (#1392): speaker -> strength (1 to 255), only a heard
+## speaker whose voice sounds drunk; a tick with none is left out.
+var effects: Dictionary[int, Dictionary] = {}
 
 
 func _init(peer_id: int) -> void:

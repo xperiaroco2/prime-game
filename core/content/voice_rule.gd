@@ -13,6 +13,12 @@ extends ContentPart
 ## The bounds of every voice radius, in metres (§9.4).
 const MIN_RADIUS_M := 0.5
 const MAX_RADIUS_M := 100.0
+## The strength of a drunk_max drunk speaker's voice (#1392): the wire's U8.
+const MAX_STRENGTH := 255
+
+## How a drunk speaker sounds to whoever hears it (#1392; ARCHITECTURE §6): null, the class
+## default, for no change. Its strength follows the speaker's public drunk value (effect_strength).
+@export var drunk_effect: VoiceEffect
 
 
 ## Whether `listener` hears `speaker` now. Called only for a living speaker and a living or
@@ -67,6 +73,51 @@ func speakers_of(state: MatchState, listener: int) -> PackedInt32Array:
 		if hears_at(state, listener, speaker, listener_at, other.position):
 			heard.append(speaker)
 	return heard
+
+
+## How strongly `speaker`'s voice sounds drunk now, 0 to MAX_STRENGTH (#1392): 0 with no
+## drunk_effect or for a sober speaker, else strength_of its drunk value. Asked only for a present
+## player.
+func effect_strength(state: MatchState, speaker: int) -> int:
+	if drunk_effect == null or state.player_rules == null:
+		return 0
+	return strength_of(state.player(speaker).drunk, state.player_rules.drunk_max)
+
+
+## The strength of a voice `drunk` points drunk of `drunk_max`: 0 when sober (or drunk_max 0),
+## else drunk / drunk_max of MAX_STRENGTH rounded up, so a drunk speaker always has at least 1 and
+## a drunk_max one MAX_STRENGTH.
+static func strength_of(drunk: int, drunk_max: int) -> int:
+	if drunk <= 0 or drunk_max <= 0:
+		return 0
+	@warning_ignore("integer_division")
+	var scaled := (drunk * MAX_STRENGTH + drunk_max - 1) / drunk_max
+	return clampi(scaled, 1, MAX_STRENGTH)
+
+
+## The routing's effects for `listener` (#1392): each speaker it hears now (speakers_of) whose
+## voice sounds drunk, with its strength (1 to MAX_STRENGTH). A speaker it does not hear, or a
+## sober one, has no entry, so no effect ever reaches a listener for a speaker it cannot hear.
+func effects_of(state: MatchState, listener: int) -> Dictionary[int, int]:
+	var found: Dictionary[int, int] = {}
+	if drunk_effect == null:
+		return found
+	for speaker: int in speakers_of(state, listener):
+		var strength := effect_strength(state, speaker)
+		if strength > 0:
+			found[speaker] = strength
+	return found
+
+
+## The mode check (§9.1): a drunk_effect needs a mode with a drunk scale (PlayerRules.drunk_max),
+## else it would never sound. Every voice rule's check appends these.
+func check(mode: GameMode) -> PackedStringArray:
+	var found := PackedStringArray()
+	if drunk_effect == null:
+		return found
+	if mode.player_rules == null or mode.player_rules.drunk_max <= 0:
+		found.append("drunk_effect is set, but the mode has no drunk_max, so it would never sound")
+	return found
 
 
 ## Whether the last accepted positions of `a` and `b` are at most `radius_m` apart (3D).

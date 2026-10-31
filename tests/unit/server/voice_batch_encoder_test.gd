@@ -77,7 +77,7 @@ func test_without_an_offset_every_copy_is_encoded_in_full() -> void:
 
 func test_records_fill_each_batch_up_to_the_cap_in_order() -> void:
 	var encoder := VoiceBatchEncoder.new(_schema)
-	# 9 speakers by 5 frames of 67 bytes (the spike's peak): 75 bytes a record, 13 to a batch.
+	# 9 speakers by 5 frames of 67 bytes (the spike's peak): 76 bytes a record, 13 to a batch.
 	var records: Array[PackedByteArray] = []
 	var frames: Array[Dictionary] = []
 	for speaker in range(2, 11):
@@ -121,10 +121,10 @@ func test_records_fill_each_batch_up_to_the_cap_in_order() -> void:
 
 func test_a_batch_fills_to_exactly_the_cap_and_one_byte_more_starts_the_next() -> void:
 	var encoder := VoiceBatchEncoder.new(_schema)
-	# The header (5), then records of 508, 502 and 9 bytes: 1024 in all, the cap itself.
+	# The header (5), then records of 509, 500 and 10 bytes: 1024 in all, the cap itself.
 	var records: Array[PackedByteArray] = []
 	var frames: Array[Dictionary] = []
-	for size: int in [WireSchema.MAX_OPUS, 494, 1, 1]:
+	for size: int in [WireSchema.MAX_OPUS, 491, 1, 1]:
 		var opus := _opus(size, size)
 		records.append(encoder.record(_down(4, frames.size(), 2, opus)))
 		frames.append(_frame(4, frames.size(), opus))
@@ -226,12 +226,12 @@ func test_the_relay_s_frames_reach_each_listener_as_the_codec_would_write_them()
 
 func _down(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> WireMessage:
 	return WireMessage.new(
-		&"VoiceDown", {"speaker": speaker, "seq": seq, "tick": tick, "opus": opus}
+		&"VoiceDown", {"speaker": speaker, "seq": seq, "tick": tick, "strength": 0, "opus": opus}
 	)
 
 
 func _frame(speaker: int, seq: int, opus: PackedByteArray) -> Dictionary:
-	return {"speaker": speaker, "seq": seq, "opus": opus}
+	return {"speaker": speaker, "seq": seq, "strength": 0, "opus": opus}
 
 
 func _codec(tick: int, frames: Array[Dictionary]) -> String:
