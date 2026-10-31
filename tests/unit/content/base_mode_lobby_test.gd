@@ -15,6 +15,7 @@ extends GdUnitTestSuite
 ## The pinball (#1398, provisional numbers): both also run StationTicks (the machine, on the hall's
 ## `pinball` marker) and PinballTicks, take Flippers from the living, and `countdown_done` runs
 ## EndPinball before ClearStations.
+## The pose wheel (#1485, provisional): both also take WheelPose from the living.
 ## The drunk voice (#1392, a provisional effect): the voice rules of both carry the pitch wobble
 ## (pitch_scale of a pitch shift, 1.0 at rest, a 0.12 swing at 0.6 Hz); no other phase's does.
 ## Loads `content/` and the levels on purpose (§9.6).
@@ -37,6 +38,7 @@ const TAKEN: Array[StringName] = [
 	Intents.TAKE_OFFER,
 	Intents.CANCEL_OFFER,
 	Intents.FLIPPERS,
+	Intents.WHEEL_POSE,
 ]
 const REFUSED: Array[StringName] = [
 	Intents.THROW, Intents.RAISE, Intents.STOP_RAISE, Intents.GIVE_UP, Intents.POSE

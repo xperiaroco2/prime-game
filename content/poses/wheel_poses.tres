@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="WheelPoses" format=3 uid="uid://b5afecexrhfee"]
+
+[ext_resource type="Script" uid="uid://bafgrj5cikfby" path="res://core/content/wheel_poses.gd" id="1_poses"]
+
+[resource]
+script = ExtResource("1_poses")
+legs = PackedStringArray("stand", "on_one_leg", "squat", "on_one_knee", "lunge", "sit_on_ground")
+arms = PackedStringArray("hands_on_hips", "arms_out_like_a_plane", "flex", "heart", "finger_to_the_sky", "hands_behind_the_head", "palms_to_the_camera", "salute")
