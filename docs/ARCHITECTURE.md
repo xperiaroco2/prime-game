@@ -8659,8 +8659,8 @@ its §5a device, on the deck and clear, each gill set by a gill button, the holo
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
-slits and bar, the blast, no board offered); the playcheck `ship_engine` (the walk to the console, the start, the
-first problem's lamp, the gills, the hologram from them).
+slits and bar, the blast, no board offered); the playcheck `ship_engine` (the walk to the console and its hologram,
+the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
