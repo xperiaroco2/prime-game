@@ -100,3 +100,16 @@ func test_start_booth_bounds_its_numbers_and_its_strip() -> void:
 
 func test_a_mode_without_a_booth_needs_nothing() -> void:
 	assert_array(Array(BoothCheck.problems(FixtureLobbyHands.mode()))).is_empty()
+
+
+func test_a_row_out_of_the_booth_s_clock_with_other_actions_but_no_stop_booth_is_refused() -> void:
+	var made := FixtureBooth.mode()
+	for row: Transition in made.transitions:
+		var kept: Array[RuleEffect] = [ResetMatch.new()]
+		for action: RuleEffect in row.actions:
+			if not action is StopBooth:
+				kept.append(action)
+		row.actions = kept
+	var found := Array(BoothCheck.problems(made))
+	assert_array(found.filter(_mentions("row lobby, all_ready"))).has_size(1)
+	assert_array(found.filter(_mentions("without StopBooth"))).is_not_empty()
