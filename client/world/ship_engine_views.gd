@@ -4,11 +4,12 @@ extends Node3D
 ## ARCHITECTURE §9.5.27 "For part 3's client", §4.7.59): everything from the own ClientModel (its
 ## ClientEngineBook and the console's ZoneProgress), the estimated host tick and the client's own
 ## copy of the mode; nothing is predicted. While the engine is dealt (its console placed):
-## - the console's hologram above its use spot: three stage strips, each filling with its third of
-##   the bar (ZoneViews.ticks_at of the console's ZoneProgress), and the mimic board, a lamp per
-##   breaker at its place in the ship scaled down round the console: red while tripped, green once
-##   on, and the open chain's order played on it one lamp at a time, white (GDD §8: read it out or
-##   remember it). It is the only place the order shows;
+## - the console's hologram at the level's point for it (a Node3D in group `engine_hologram`, over
+##   the console itself, which its use spot faces), else above its use spot: three stage strips,
+##   each filling with its third of the bar (ZoneViews.ticks_at of the console's ZoneProgress),
+##   and the mimic board, a lamp per breaker at its place in the ship scaled down round the
+##   console: red while tripped, green once on, and the open chain's order played on it one lamp
+##   at a time, white (GDD §8: read it out or remember it). It is the only place the order shows;
 ## - a red alarm lamp over each station an open problem holds (EngineProblemOpened until its
 ##   EngineProblemFixed or a blast);
 ## - a lamp over each breaker: red while tripped, yellow then green for the last one on (its ramp,
@@ -23,7 +24,8 @@ extends Node3D
 
 ## How far a gill set's Button may lie from its gill button's use spot, in metres.
 const BIND_TOLERANCE_M := 1.5
-## The hologram's centre over the console's use spot, and its scale of the ship.
+## The hologram's centre over the console's use spot when the level gives no point for it, and its
+## scale of the ship.
 const HOLOGRAM_LIFT_M := 1.9
 const MIMIC_SCALE := 0.1
 const MIMIC_LAMP_M := 0.06
@@ -53,10 +55,13 @@ var model: ClientModel
 var mode: GameMode
 ## The estimated host tick now (AvatarViews.host_tick); unset: the newest snapshot's tick.
 var host_tick := Callable()
-## The level now (Game's), or null; a new one is searched for gill sets again.
+## The level now (Game's), or null; a new one is searched for gill sets again, and a drawn
+## engine is drawn again for its hologram point.
 var level: Node:
 	set(value):
 		level = value
+		if _console >= 0:
+			clear()
 		_gills.clear()
 		_searched = false
 
@@ -162,7 +167,7 @@ func _ids_of(kind: StationKind) -> Array[int]:
 
 
 func _build(type: ShipEngine) -> void:
-	var centre := model.stations[_console].position + Vector3.UP * HOLOGRAM_LIFT_M
+	var centre := _hologram_centre()
 	var strips := maxi(1, type.stage_problems.size())
 	for i in strips:
 		var x := (i - (strips - 1) / 2.0) * (STRIP_LENGTH_M + STRIP_GAP_M)
@@ -184,6 +189,16 @@ func _build(type: ShipEngine) -> void:
 					lamp.position = centre + Vector3(at.x, 0.0, at.z) * MIMIC_SCALE
 					_mimic[id] = lamp
 	_blasts_seen = model.engine.blasts
+
+
+## The first Node3D of the level in group `engine_hologram`, else HOLOGRAM_LIFT_M over the
+## console's use spot (a player standing on the spot would have it over the head).
+func _hologram_centre() -> Vector3:
+	if level != null and is_instance_valid(level) and level.is_inside_tree():
+		for found: Node in level.get_tree().get_nodes_in_group(&"engine_hologram"):
+			if found is Node3D and level.is_ancestor_of(found):
+				return (found as Node3D).global_position
+	return model.stations[_console].position + Vector3.UP * HOLOGRAM_LIFT_M
 
 
 func _box(size: Vector3, colour: Color, over := Vector3.INF) -> MeshInstance3D:

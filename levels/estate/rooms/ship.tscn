@@ -1035,3 +1035,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.6, 1, -8.1)
 
 [node name="Aboard02" type="Marker3D" parent="Engine/Markers" unique_id=1946492527 groups=["spawn_engine_aboard"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.6, 4.6, 3.6)
+
+[node name="Hologram" type="Marker3D" parent="Engine" unique_id=1462071425 groups=["engine_hologram"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 0.6)

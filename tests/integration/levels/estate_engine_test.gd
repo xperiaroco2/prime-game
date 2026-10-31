@@ -151,6 +151,20 @@ func test_each_gill_set_has_its_slits_lights_and_button_by_a_gill_button_marker(
 	remove_child(root)
 
 
+func test_the_hologram_point_stands_over_the_console_s_pedestal() -> void:
+	# §5a: the console a low ring pedestal (0.6 m) with the hologram above it, in a hall 3.2 m high.
+	var root: Node3D = auto_free((load(SHIP) as PackedScene).instantiate())
+	add_child(root)
+	var points := get_tree().get_nodes_in_group(&"engine_hologram")
+	assert_int(points.size()).is_equal(1)
+	var at := (points[0] as Node3D).global_position
+	var console: Vector2 = DOC_POINTS[&"engine_console"][0]
+	assert_float(Vector2(at.x, at.z).distance_to(console)).is_less(0.01)
+	assert_float(at.y - DECK_M).is_greater(0.6)
+	assert_float(at.y - DECK_M).is_less(3.2)
+	remove_child(root)
+
+
 func _ship_origin() -> Vector3:
 	var estate: Node3D = (load(MAP) as PackedScene).instantiate()
 	var origin := (estate.get_node(^"Ship") as Node3D).position

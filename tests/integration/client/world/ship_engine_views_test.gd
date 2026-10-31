@@ -108,6 +108,23 @@ func test_the_stage_strips_fill_with_their_third_of_the_bar() -> void:
 	assert_bool(_view.strip_fill(2).visible).is_false()
 
 
+func test_the_hologram_stands_at_the_level_s_point_else_over_the_console_s_use_spot() -> void:
+	_place()
+	_view._process(0.0)
+	# The middle strip stands centred a quarter metre over the hologram's centre.
+	var lift := Vector3.UP * 0.25
+	var over_spot := Vector3(0.0, 1.2, -0.4) + Vector3.UP * ShipEngineViews.HOLOGRAM_LIFT_M
+	assert_vector(_view._strip_at[1]).is_equal_approx(over_spot + lift, Vector3.ONE * 1e-4)
+	var level := _level()
+	var point := Node3D.new()
+	point.add_to_group(&"engine_hologram", true)
+	point.position = Vector3(0.0, 2.9, 0.6)
+	level.add_child(point)
+	_view.level = level
+	_view._process(0.0)
+	assert_vector(_view._strip_at[1]).is_equal_approx(point.position + lift, Vector3.ONE * 1e-4)
+
+
 func test_the_gills_show_their_slits_and_the_white_bar_from_the_opening_tick() -> void:
 	_place()
 	var level := _level()

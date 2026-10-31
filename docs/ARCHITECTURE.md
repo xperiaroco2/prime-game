@@ -8616,13 +8616,14 @@ plays it on the estate (#1462, "The estate and the content" below).
   `docs/design/estate-map.md` §5a (the breakers' places are not in the doc), and the two `engine_aboard` corners (the
   hull's inside from the tunnel's mouth to the vault hatch, deck to roof: the ground under the wings and the ramp are
   out). `Engine/Gills01`, `Gills02` (group `engine_gills`) are the gill sets' stand-ins on the throat wall: five slits
-  each with an `Open` and a `Shut` box, a `Light` box per slit (the white bar) and the round `Button`. Every place and
-  size is a placeholder, "not a decision".
+  each with an `Open` and a `Shut` box, a `Light` box per slit (the white bar) and the round `Button`;
+  `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.4 m over the deck above the console's pedestal.
+  Every place and size is a placeholder, "not a decision".
 - **The client** (#1462, stand-ins until the art track draws it). `ClientEngineBook` (`client/net/`,
   `ClientModel.engine`) folds the engine's public events as listed above (open problems, the last `BreakerChain`,
   the gills' slits, each socket's `CrystalChanged`, the blasts) and forgets them with the match. `ShipEngineViews`
   (`client/world/`, `ShipEngineClient.make_view`, last of `ItemWorld`'s children) draws from it and the console's
-  `ZoneProgress`: over the console a hologram of three stage strips (each filling with its third of the bar) and the
+  `ZoneProgress`: at the level's hologram point (else over the console's use spot) three stage strips (each filling with its third of the bar) and the
   mimic board (a lamp per breaker at its place in the ship scaled down, red tripped, green on, the open chain's order
   played on it one lamp at a time: the only place the order shows); a red lamp over each station an open problem
   holds; a lamp over each breaker (red, then yellow and green for the last one on, never the order) and charger
@@ -8653,11 +8654,13 @@ blast from a hand and a charger, the reasons, the check); `tests/unit/items/item
 `tests/integration/content/engine_problem_kinds_test.gd` (the provisional `.tres` load and pass their check).
 The estate and the client: `tests/integration/levels/estate_engine_test.gd` (each marker part 2 asks for, each board
 the nearest of four breakers, every station in the aboard box and the ground beside it out, each marker in front of
-its §5a device, on the deck and clear, each gill set by a gill button),
+its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
-a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the red lamps,
+a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
+point, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
-slits and bar, the blast, no board offered).
+slits and bar, the blast, no board offered); the playcheck `ship_engine` (the walk to the console, the start, the
+first problem's lamp, the gills, the hologram from them).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
