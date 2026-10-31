@@ -15,6 +15,8 @@ extends GdUnitTestSuite
 ## The pinball (#1398, provisional numbers): both also run StationTicks (the machine, on the hall's
 ## `pinball` marker) and PinballTicks, take Flippers from the living, and `countdown_done` runs
 ## EndPinball before ClearStations.
+## The drunk voice (#1392, a provisional effect): the voice rules of both carry the pitch wobble
+## (pitch_scale of a pitch shift, 1.0 at rest, a 0.12 swing at 0.6 Hz); no other phase's does.
 ## Loads `content/` and the levels on purpose (§9.6).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -473,3 +475,25 @@ func _rule_of(mode: GameMode, intent: StringName) -> Rule:
 	var rules := mode.actions.filter(func(rule: Rule) -> bool: return rule.trigger == intent)
 	assert_int(rules.size()).is_equal(1)
 	return rules[0]
+
+
+func test_the_hall_s_voice_sounds_drunk_and_no_other_phase_s_does() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	var effect := mode.find_phase(&"lobby").voice_rule.drunk_effect
+	assert_object(effect).is_not_null()
+	assert_str(String(effect.id)).is_equal("pitch_wobble")
+	assert_str(String(effect.bus_effect)).is_equal("AudioEffectPitchShift")
+	assert_str(String(effect.parameter)).is_equal("pitch_scale")
+	assert_float(effect.rest).is_equal(1.0)
+	assert_float(effect.swing).is_equal(0.12)
+	assert_float(effect.wobble_hz).is_equal(0.6)
+	assert_object(mode.find_phase(&"countdown").voice_rule.drunk_effect).is_same(effect)
+	for phase: PhaseSpec in mode.phases:
+		if HALL.has(phase.id) or phase.voice_rule == null:
+			continue
+		(
+			assert_object(phase.voice_rule.drunk_effect)
+			. override_failure_message("phase %s's voice sounds drunk" % phase.id)
+			. is_null()
+		)
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
