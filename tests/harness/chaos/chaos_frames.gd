@@ -152,8 +152,16 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	},
 	&"BoothStep":
 	{
-		"station": 1, "strip": 2, "step": 1, "presser": 0, "frames": 0, "countdown": 0, "gap": 0,
-		"frame": 1, "record": [], "items": PackedInt32Array(),
+		"station": 1,
+		"strip": 2,
+		"step": 1,
+		"presser": 0,
+		"frames": 0,
+		"countdown": 0,
+		"gap": 0,
+		"frame": 1,
+		"record": [],
+		"items": [],
 	},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
 	&"FilmLoaded": {"station": 1, "item": 1},

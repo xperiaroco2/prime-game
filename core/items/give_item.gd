@@ -5,7 +5,8 @@ extends RuleEffect
 ## names, a box at rest; else the station it names), announced by ItemSpawned (no station), then
 ## given to the actor (Items.give, which makes room). The new item never rests, so no item_rested
 ## is raised for it. Its body is give_new(), which a task type calls for a source that is a station
-## (Cooking.use_station for a herb bed, C4).
+## (Cooking.use_station for a herb bed, C4) and the photo booth's print calls from a tick for each
+## strip's receiver as the actor, with no command (BoothSessions, #1396).
 ##
 ## The cap (CE3): `kind.max_items` set, a kind with that many items in the match first vanishes the
 ## loose one of the kind that the cap ranks first (on the ground: the lowest TaskType.cap_tier, PE10
@@ -16,8 +17,8 @@ extends RuleEffect
 ##
 ## Emits: ItemVanished (the cap), ItemSpawned, then what Items.give emits: for a full belt
 ## ItemPlaced (put_down) and item_rested for the item put down at the feet, then ItemPickedUp; all
-## to everyone. Only on an intent that names a target (Interact; ModeCheck), never in a reaction
-## or a row, which have no actor.
+## to everyone. As a rule effect only on an intent that names a target (Interact; ModeCheck), never
+## in a reaction or a row, which have no actor.
 
 ## The kind given: one-handed (Items.give never gives a two-handed item) and capped (`max_items`
 ## set), as its check asks.
