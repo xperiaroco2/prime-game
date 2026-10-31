@@ -95,7 +95,10 @@ extends RefCounted
 ## station, strip, step, presser, frames, countdown, gap, frame, record and items). Kind 94 was the
 ## last free event kind (PinballState took it), so the event range widens in the same bump (#1475):
 ## FIRST_STATE and Snapshot move from 96 to 104, and 96 to 103 are events.
-const VERSION := 50
+## 51 since #1485 (the pose wheel): the intent WheelPose (kind 26, the leg stance and the arm
+## gesture, a byte each), and a `wheel_pose` byte (WheelPoseCode) after `drunk` on the Snapshot's
+## avatar and after `posed` on SelfStatus.
+const VERSION := 51
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -117,7 +120,7 @@ const LAST_VOICE := 127
 ## The wire's maxima (§4.3): they bound the decoder, not the payload; WireBudget checks the content.
 const MAX_PLAYERS := 16
 ## A snapshot holds the viewer's own avatar only while it is knocked down (the knockdown rework's
-## KE5 (a)): every player's, at most. 16 take 725 bytes of the unreliable cap.
+## KE5 (a)): every player's, at most. 16 take 789 bytes of the unreliable cap.
 const MAX_AVATARS := MAX_PLAYERS
 ## The avatars of every player but one: the photo camera's shot of a living photographer.
 const MAX_OTHER_AVATARS := MAX_PLAYERS - 1
@@ -366,6 +369,14 @@ static func _intents() -> Array[WireRow]:
 		_up(24, &"UseSecondary", 16, [_seq(), _vec3("facing")]),
 		# seq 4, flags 1 (#1398): no claim twin goes before it, a flipper hangs on no position.
 		_up(25, &"Flippers", 5, [_seq(), WireField.bits(PackedStringArray(["left", "right"]))]),
+		# seq 4, legs 1, arms 1 (#1485: indices into the mode's WheelPoses; WheelPoseInRange refuses
+		# a half or out-of-range pick, so 255 is a byte like any other).
+		_up(
+			26,
+			&"WheelPose",
+			6,
+			[_seq(), _of("legs", WireField.Type.U8), _of("arms", WireField.Type.U8)]
+		),
 	]
 
 
@@ -537,7 +548,7 @@ static func _events() -> Array[WireRow]:
 		_down(
 			54,
 			&"SelfStatus",
-			19,
+			20,
 			[
 				_s32("health"),
 				_s32("stamina"),
@@ -545,6 +556,7 @@ static func _events() -> Array[WireRow]:
 				_of("claim_tick", WireField.Type.S64),
 				_of("drunk", WireField.Type.U8),
 				_bool("posed"),
+				_of("wheel_pose", WireField.Type.U8),
 			]
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
@@ -801,6 +813,7 @@ static func _state_and_voice() -> Array[WireRow]:
 					)
 				),
 				_of("drunk", WireField.Type.U8),
+				_of("wheel_pose", WireField.Type.U8),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item", WireField.Type.ITEM),
 				WireField.maybe("belt_item2", WireField.Type.ITEM),

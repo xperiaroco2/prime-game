@@ -24,6 +24,7 @@ func test_it_goes_only_to_that_player() -> void:
 				"claim_tick": tick,
 				"drunk": 0,
 				"posed": false,
+				"wheel_pose": 0,
 			}
 		)
 	)

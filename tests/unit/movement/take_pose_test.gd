@@ -267,6 +267,17 @@ func test_a_kill_from_the_chair_stands_the_body_up() -> void:
 	assert_bool(game.state.player(P1).posed).is_false()
 
 
+func test_a_crouched_claim_keeps_the_seat() -> void:
+	# #1296: a crouched watcher stays seated (the look plays Crouch_Idle); only the wheel pose ends
+	# on a crouch (#1485).
+	var game := _posing_round([P1, P2])
+	FixtureMoves.pose(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"crouched": true})
+	assert_bool(game.state.player(P1).crouched).is_true()
+	assert_bool(game.state.player(P1).posed).is_true()
+
+
 ## A round of the posing fixture with a seat beside every player's placement spot.
 func _posing_round(peers: Array[int]) -> Match:
 	var game := FixtureItemModes.in_round(

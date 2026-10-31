@@ -96,8 +96,8 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## UseSecondary took 24 and the debug kinds moved to 28 and 29 (#1438): 26 and 31 stay free; 89
 ## and 90 left it when EngineProblemOpened and EngineProblemFixed took them (#1453), 92 and 93
 ## took theirs; 92, 93 and 95 left it when GillFlipped, BreakerChain and CrystalChanged took them
-## (#1461).
-const UNASSIGNED: Array[int] = [0, 26, 31, 97, 111, 113, 127, 128, 200, 255]
+## (#1461); WheelPose took 26 (#1485), 27 took its place.
+const UNASSIGNED: Array[int] = [0, 27, 31, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the

@@ -224,8 +224,13 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		# Any own move ends the seated pose (#1296; GDD §12: "any move gets you up"): the claim's
 		# moving input, a moved tick it covers (moved_ticks: the LATEST lane may have merged the
 		# moving claims away) or a new jump, also on a claim the checks below refuse, as its
-		# client has stood up already. A push (no input) leaves the watcher seated.
-		player.posed = false
+		# client has stood up already. A push (no input) leaves the watcher seated. The same move
+		# ends the wheel pose (#1485).
+		player.stand_up()
+	if claim.crouched or claim.sneaking:
+		# A crouch or a sneak ends the wheel pose (#1485), also on a refused claim, as its client
+		# has crouched already; the seated pose keeps (#1296: a crouched watcher stays seated).
+		player.drop_wheel_pose()
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick
 	if covered > motion.credit:
@@ -353,8 +358,8 @@ static func _accept(
 		# The host's own measure of a move (#1296): a claim that travels with no input bit and no
 		# one near to push it moved itself all the same (the coasting allowance grants walk speed
 		# whatever `moving` says), so the watcher is not shown seated while it walks. A posing
-		# client holds its body still.
-		player.posed = false
+		# client holds its body still. The wheel pose ends alike (#1485).
+		player.stand_up()
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.on_floor = claim.on_floor

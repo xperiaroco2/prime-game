@@ -123,6 +123,7 @@ func _snapshot(tick: int, at: Vector3) -> void:
 		"posed": false,
 		"limp": false,
 		"drunk": 0,
+		"wheel_pose": 0,
 		"held_item": -1,
 		"belt_item": -1,
 		"belt_item2": -1,

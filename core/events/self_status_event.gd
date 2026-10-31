@@ -2,10 +2,11 @@ class_name SelfStatusEvent
 extends MatchEvent
 ## One player's own numbers (ARCHITECTURE §4.2, §5, §7.1): health and stamina in thousandths
 ## (§3.3), whether sprint is available now, and the client tick of the player's last claim the
-## host settled (#155), and whether the player is posed (#1383). Private numbers are never avatar
-## fields, so they travel only here; `posed` is an avatar field every other peer sees, but a client
-## gets no avatar of its own (Snapshots), so its own pose comes here too. Sent on change, at most
-## once per tick (SelfStatusFeed). Audience: only that player.
+## host settled (#155), whether the player is posed (#1383) and its wheel pose (#1485). Private
+## numbers are never avatar fields, so they travel only here; `posed` and `wheel_pose` are avatar
+## fields every other peer sees, but a client gets no avatar of its own (Snapshots), so its own
+## poses come here too. Sent on change, at most once per tick (SelfStatusFeed). Audience: only that
+## player.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.ONLY
@@ -28,6 +29,9 @@ var drunk: int
 ## Whether the player sits in the seated pose (PlayerState.posed, TakePose): its own client gets no
 ## avatar of itself, so it learns it sits only here (#1383).
 var posed: bool
+## The player's wheel pose as its byte (PlayerState.wheel_pose_code, WheelPoseCode; 0 for none): its
+## own client learns its own pose only here (#1485).
+var wheel_pose: int
 
 
 func _init(
@@ -37,7 +41,8 @@ func _init(
 	can_sprint: bool,
 	settled_claim := -1,
 	drunk_now := 0,
-	is_posed := false
+	is_posed := false,
+	wheel_pose_code := 0
 ) -> void:
 	peer = to_peer
 	health = health_now
@@ -46,6 +51,7 @@ func _init(
 	claim_tick = settled_claim
 	drunk = drunk_now
 	posed = is_posed
+	wheel_pose = wheel_pose_code
 
 
 func event_name() -> StringName:
@@ -64,4 +70,5 @@ func to_dict() -> Dictionary:
 		"claim_tick": claim_tick,
 		"drunk": drunk,
 		"posed": posed,
+		"wheel_pose": wheel_pose,
 	}

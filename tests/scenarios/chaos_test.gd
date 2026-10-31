@@ -131,6 +131,15 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"Flippers", {"left": true, "right": true}, &"round", living, &"not_accepted"],
 		[&"Flippers", {"left": true, "right": false}, &"lobby", dead, &"not_accepted"],
 		[&"Flippers", {"left": true, "right": false}, &"lobby", null, &"not_accepted"],
+		# The pose wheel everywhere a living player stands (#1485): a hostile's half or
+		# out-of-range pick is no_such_pose; the frozen phases and the dead are not accepted.
+		[&"WheelPose", {"legs": 15, "arms": 0}, &"lobby", living, &"no_such_pose"],
+		[&"WheelPose", {"legs": 0, "arms": 200}, &"countdown", living, &"no_such_pose"],
+		[&"WheelPose", {"legs": 255, "arms": 255}, &"round", living, &"no_such_pose"],
+		[&"WheelPose", {"legs": 15, "arms": 0}, &"pregame", living, &"not_accepted"],
+		[&"WheelPose", {"legs": 15, "arms": 0}, &"end", living, &"not_accepted"],
+		[&"WheelPose", {"legs": 15, "arms": 0}, &"round", dead, &"not_accepted"],
+		[&"WheelPose", {"legs": 15, "arms": 0}, &"round", downed, &"not_accepted"],
 	]
 	for case: Array in cases:
 		var player: PlayerState = case[3]

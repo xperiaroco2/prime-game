@@ -73,6 +73,14 @@ const CANCEL_OFFER := &"CancelOffer"
 ## no MoveClaimReliable twin precedes it, and a fast player's flips stay inside the reliable
 ## bucket (§4.5.6). There is no nudge intent: the machine does not move.
 const FLIPPERS := &"Flippers"
+## A living player takes the pose wheel's whole pose (#1485; GDD §8 "Photo", "The pose wheel"):
+## the leg stance `legs` and the arm gesture `arms`, indices into the mode's WheelPoses, one of
+## each. PlayerState.wheel_legs and wheel_arms, which every peer sees on the avatar. The mode's
+## rule checks the pick (WheelPoseInRange) and the body (a TakeWheelPose rule and its conditions);
+## an own move, a crouch or a sneak ends it (MovementRule). A player's action (PLAYER_ACTIONS): a
+## limp body takes none, and its MoveClaimReliable twin lands first, so an in-flight step does not
+## end the new pose.
+const WHEEL_POSE := &"WheelPose"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -100,6 +108,7 @@ const ALL: Array[StringName] = [
 	CANCEL_OFFER,
 	USE_SECONDARY,
 	FLIPPERS,
+	WHEEL_POSE,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -121,6 +130,7 @@ const PLAYER_ACTIONS: Array[StringName] = [
 	TAKE_OFFER,
 	CANCEL_OFFER,
 	USE_SECONDARY,
+	WHEEL_POSE,
 ]
 
 ## Commands server/ originates from what the transport and the host's physics report; not intents,
@@ -204,6 +214,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 	BODY_MOVED: {"epoch": TYPE_INT, "position": TYPE_VECTOR3, "velocity": TYPE_VECTOR3},
 	FLIPPERS: {"left": TYPE_BOOL, "right": TYPE_BOOL},
+	WHEEL_POSE: {"legs": TYPE_INT, "arms": TYPE_INT},
 	BALL_LAUNCHED: {"game": TYPE_INT},
 	TARGET_HIT: {"game": TYPE_INT, "target": TYPE_STRING},
 	BALL_LOST: {"game": TYPE_INT},
