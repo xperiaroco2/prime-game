@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from collections.abc import Iterable
@@ -275,7 +276,9 @@ class WhichRunsStartInTheBackgroundTest(unittest.TestCase):
 @unittest.skipUnless(IS_WINDOWS, "Windows focus behaviour (#1505); CI is headless")
 @unittest.skipUnless(os.environ.get(OPT_IN) == "1", f"opens windows: set {OPT_IN}=1 to run it (docstring)")
 class WindowFocusTest(unittest.TestCase):
-    """A stand-in foreground window stays the foreground across a real `shot`: sampled every 50 ms and at the end."""
+    """A stand-in foreground window stays the foreground across a real `shot`: sampled every 5 ms and at the end, and
+    the keeper never had to hand it back (a steal it reverts within its 20 ms look would slip between samples, and a
+    brief one still throws a fullscreen game out)."""
 
     def test_a_foreground_window_stays_the_foreground_across_a_shot(self) -> None:
         real = {k: v for k, v in os.environ.items() if k != gaming.FILE_VAR}
@@ -300,21 +303,29 @@ class WindowFocusTest(unittest.TestCase):
             self.fail("the stand-in window could not take the foreground: run the test from a terminal you look at")
         cmd = [sys.executable, str(ROOT / "tools" / "run.py"), "shot", "tools/shot/probe.tscn"]
         run = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        chunks: list[bytes] = []
+        stream = run.stdout
+        assert stream is not None
+        reader = threading.Thread(target=lambda: chunks.append(stream.read()), daemon=True)
+        reader.start()  # a full pipe would stall the run
         samples: list[int] = []
         deadline = time.monotonic() + 180
         while run.poll() is None and time.monotonic() < deadline:
             root.update()
             samples.append(desktop.foreground())
-            time.sleep(0.05)
+            time.sleep(0.005)
         if run.poll() is None:
             run.kill()
-        out = run.communicate()[0].decode("utf-8", errors="replace")
+        run.wait()
+        reader.join(timeout=10)
+        out = b"".join(chunks).decode("utf-8", errors="replace")
         root.update()
         samples.append(desktop.foreground())
         self.assertEqual(run.returncode, 0, out)
         self.assertGreater(len(samples), 3, out)
         others = sorted({window for window in samples if window != stand_in})
         self.assertEqual(others, [], f"{len(samples)} samples; other foreground windows {others}\n{out}")
+        self.assertNotIn("focus: a window of the run took the foreground", out)
 
 
 if __name__ == "__main__":

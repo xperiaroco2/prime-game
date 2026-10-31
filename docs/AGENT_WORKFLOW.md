@@ -1261,7 +1261,8 @@ before they start anything, with exit code 3 and the line "gaming mode: window r
 is free" (an unreadable file counts as on). An agent that gets exit 3 lists the window run for later and goes on; it
 never waits for it (a night of play outlasts any bounded wait). Headless commands (`verify`, `check`, `test`, `lint`,
 `bots`, `perf`, `run --headless`) run as before. The focus test, `runner.tests.test_focus.WindowFocusTest`, opens a
-stand-in foreground window, runs a real `shot` and samples the foreground every 50 ms; it opens windows, so it runs
+stand-in foreground window, runs a real `shot`, samples the foreground every 5 ms and fails on the keeper's `focus:`
+line too (a steal handed back between two samples); it opens windows, so it runs
 only on Windows with `PRIME_FOCUS_TEST=1` and gaming mode off (its docstring has the command).
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
