@@ -65,7 +65,12 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
-		assert_int(systems.size()).is_equal(9)
+		# The photo booth (#1396): its station and its clock after the offers', in the Lobby only.
+		assert_int(systems.size()).is_equal(11 if phase_id == &"lobby" else 9)
+		if phase_id == &"lobby":
+			assert_object(systems[9]).is_instanceof(StationTicks)
+			assert_str(String((systems[9] as StationTicks).kind.id)).is_equal("booth")
+			assert_object(systems[10]).is_instanceof(BoothTicks)
 		assert_object(systems[0]).is_instanceof(LifeTicks)
 		assert_object(systems[1]).is_instanceof(ChannelTicks)
 		assert_object(systems[2]).is_instanceof(VanishTicks)
