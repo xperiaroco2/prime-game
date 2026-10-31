@@ -34,6 +34,15 @@ func _open(game: Match, stage: int, count: int = 1, most: int = 40) -> Array[Eng
 	return task_state.problems.duplicate()
 
 
+## The BreakerChain events `peer` received for `problem` (another problem may open meanwhile).
+func _chain(game: Match, peer: int, problem: EngineProblem) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for chain: Dictionary in FixtureEngineModes.dicts(game, peer, &"BreakerChain"):
+		if chain["problem"] == problem.id:
+			found.append(chain)
+	return found
+
+
 func _order(problem: EngineProblem) -> PackedInt32Array:
 	return (problem.data as BreakersProblem.Data).order
 
@@ -78,9 +87,9 @@ func test_stage_one_trips_two_breakers_of_one_board_and_tells_every_peer() -> vo
 	assert_int(problems[0].stations[0]).is_not_equal(problems[1].stations[0])
 	var told: Array[Dictionary] = []
 	for problem: EngineProblem in problems:
-		told.append({"problem": problem.id, "breakers": _order(problem)})
+		told.append({"problem": problem.id, "breakers": _order(problem), "next": 0, "since": -1})
 	for peer: int in PEERS:
-		assert_array(FixtureEngineModes.dicts(game, peer, &"BreakersTripped")).is_equal(told)
+		assert_array(FixtureEngineModes.dicts(game, peer, &"BreakerChain")).is_equal(told)
 
 
 func test_stage_two_trips_four_with_one_change_of_side() -> void:
@@ -130,11 +139,15 @@ func test_the_chain_in_order_inside_each_green_window_fixes_it() -> void:
 	FixtureEngineKindModes.press_at(game, ALL, order[2], at + RAMP + RAMP + GREEN)
 	at = at + RAMP + RAMP + GREEN
 	FixtureEngineKindModes.press_at(game, SECOND, order[3], at + RAMP + 5)
-	var switched := FixtureEngineModes.dicts(game, SECOND, &"BreakerSwitched")
-	assert_int(switched.size()).is_equal(4)
-	for i in 4:
-		assert_int(switched[i]["station"]).is_equal(order[i])
-		assert_bool(switched[i]["on"]).is_true()
+	# The open, then one chain per breaker on, each counting one more.
+	var chain := _chain(game, SECOND, problem)
+	assert_int(chain.size()).is_equal(5)
+	for i in 5:
+		assert_int(chain[i]["problem"]).is_equal(problem.id)
+		assert_array(chain[i]["breakers"]).is_equal(order)
+		assert_int(chain[i]["next"]).is_equal(i)
+	assert_int(chain[0]["since"]).is_equal(-1)
+	assert_int(chain[4]["since"]).is_equal(at + RAMP + 5)
 	assert_bool(FixtureEngineModes.state_of(game).problems.has(problem)).is_false()
 	assert_array(FixtureEngineModes.dicts(game, ALL, &"EngineProblemFixed")).has_size(1)
 	assert_array(FixtureEngineModes.dicts(game, ALL, &"KnockedDown")).is_empty()
@@ -151,7 +164,7 @@ func test_too_early_is_a_short_circuit_knocking_down_the_presser_only() -> void:
 	assert_int(down.size()).is_equal(1)
 	assert_int(down[0]["peer"]).is_equal(SECOND)
 	assert_bool(game.state.player(ALL).is_alive()).is_true()
-	assert_array(FixtureEngineModes.dicts(game, ALL, &"BreakerSwitched")).has_size(1)
+	assert_array(_chain(game, ALL, problem)).has_size(2)
 	# Nothing else changed: the chain goes on from the first breaker.
 	assert_int((problem.data as BreakersProblem.Data).next).is_equal(1)
 	FixtureEngineKindModes.press_at(game, ALL, order[1], at + RAMP)
@@ -166,7 +179,7 @@ func test_a_breaker_out_of_order_is_a_short_circuit() -> void:
 	var down := FixtureEngineModes.dicts(game, SECOND, &"KnockedDown")
 	assert_int(down.size()).is_equal(1)
 	assert_int(down[0]["peer"]).is_equal(ALL)
-	assert_array(FixtureEngineModes.dicts(game, SECOND, &"BreakerSwitched")).is_empty()
+	assert_array(_chain(game, SECOND, problem)).has_size(1)
 	assert_int((problem.data as BreakersProblem.Data).next).is_equal(0)
 
 
@@ -180,16 +193,21 @@ func test_too_late_the_one_before_trips_again_and_the_chain_unwinds() -> void:
 	# Its window's last tick passes: it trips again, and the first is green from then on.
 	var late := second + RAMP + GREEN + 1
 	FixtureEngineKindModes.run_to(game, late)
-	var switched := FixtureEngineModes.dicts(game, SECOND, &"BreakerSwitched")
-	assert_int(switched.size()).is_equal(3)
-	assert_dict(switched[2]).is_equal({"station": order[1], "on": false, "tick": late})
+	# The open, two on, then the unwind: one on, its window green from `late`.
+	var chain := _chain(game, SECOND, problem)
+	assert_int(chain.size()).is_equal(4)
+	assert_dict(chain[3]).is_equal(
+		{"problem": problem.id, "breakers": order, "next": 1, "since": late - RAMP}
+	)
 	var data := problem.data as BreakersProblem.Data
 	assert_int(data.next).is_equal(1)
 	# The first one's fresh window ends a whole green later: then it trips too.
 	FixtureEngineKindModes.run_to(game, late + GREEN + 1)
-	switched = FixtureEngineModes.dicts(game, SECOND, &"BreakerSwitched")
-	assert_int(switched.size()).is_equal(4)
-	assert_dict(switched[3]).is_equal({"station": order[0], "on": false, "tick": late + GREEN + 1})
+	chain = _chain(game, SECOND, problem)
+	assert_int(chain.size()).is_equal(5)
+	assert_dict(chain[4]).is_equal(
+		{"problem": problem.id, "breakers": order, "next": 0, "since": -1}
+	)
 	assert_int(data.next).is_equal(0)
 	assert_bool(FixtureEngineModes.state_of(game).problems.has(problem)).is_true()
 
@@ -266,4 +284,4 @@ func test_the_check() -> void:
 	kind.side_changes = PackedInt32Array([0, 1, 5])
 	kind.fixtures = []
 	assert_str(" ".join(kind.check(mode))).contains("one fixture")
-	assert_array(kind.use_emits()).contains([BreakerSwitchedEvent, KnockedDownEvent])
+	assert_array(kind.use_emits()).contains([BreakerChainEvent, KnockedDownEvent])

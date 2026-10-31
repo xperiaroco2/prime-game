@@ -7,18 +7,18 @@ extends ProblemKind
 ## the console's hologram blinks) and trips `trips` breakers of them in an order drawn from
 ## `order_rng`: in `side_changes + 1` runs as near equal as can be, alternating boards from a
 ## drawn one, each run's breakers drawn without repeat (GDD's placeholders: 2 on one board, then 4
-## with one change of side, then 6 alternating sides). BreakersTripped names the order to every
+## with one change of side, then 6 alternating sides). BreakerChain names the order to every
 ## peer: the hologram plays it to whoever looks (GDD §8).
 ##
-## The chain: the next breaker of the order is switched on (a use of its station, BreakerSwitched
-## on) when it is the first, or while the one before it is green: from `ramp_seconds` to
+## The chain: the next breaker of the order is switched on (a use of its station; BreakerChain
+## counts it on) when it is the first, or while the one before it is green: from `ramp_seconds` to
 ## `ramp_seconds + green_seconds` after that one went on (its lamp yellow, then green). Too late:
-## the one before trips again (BreakerSwitched off) and the chain goes on from the breaker before
-## that one, whose green starts again then (so a chain left alone unwinds one breaker per green
-## window). A short circuit, a tripped breaker out of order or one switched while the one before
-## is still yellow, knocks the presser down (LifeRules.knock_down) and changes nothing else (GDD:
-## the tripped breakers stay tripped). The last of the order on: fixed. A board, a breaker that is
-## not tripped and one already on take no use (`unavailable`).
+## the one before trips again (BreakerChain, one less on) and the chain goes on from the breaker
+## before that one, whose green starts again then (so a chain left alone unwinds one breaker per
+## green window). A short circuit, a tripped breaker out of order or one switched while the one
+## before is still yellow, knocks the presser down (LifeRules.knock_down) and changes nothing else
+## (GDD: the tripped breakers stay tripped). The last of the order on: fixed. A board, a breaker
+## that is not tripped and one already on take no use (`unavailable`).
 
 ## The breakers on each board (GDD §8: red, yellow, green, blue).
 const BREAKERS_PER_BOARD := 4
@@ -110,7 +110,7 @@ func opened(ctx: MatchContext, task: MatchTask, problem: EngineProblem) -> void:
 		side = (side + 1) % left.size()
 	data.on_since.resize(data.order.size())
 	data.on_since.fill(-1)
-	ctx.emit(BreakersTrippedEvent.new(problem.id, data.order.duplicate()))
+	ctx.emit(BreakerChainEvent.new(problem.id, data.order.duplicate(), 0, -1))
 
 
 ## `count` breakers in `changes + 1` runs as near equal as can be, the longer ones first.
@@ -184,7 +184,7 @@ func use_station(
 		return
 	data.on_since[index] = ctx.tick
 	data.next += 1
-	ctx.emit(BreakerSwitchedEvent.new(station.id, true, ctx.tick))
+	ctx.emit(chain_of(found))
 	if data.next == data.order.size():
 		ShipEngine.fix(ctx, task, found)
 
@@ -204,18 +204,25 @@ func tick_problem(ctx: MatchContext, _task: MatchTask, problem: EngineProblem) -
 		return
 	data.next -= 1
 	data.on_since[data.next] = -1
-	ctx.emit(BreakerSwitchedEvent.new(data.order[data.next], false, ctx.tick))
 	if data.next > 0:
 		# The one before is green from now: the chain goes on from it.
 		data.on_since[data.next - 1] = ctx.tick - ramp_ticks()
+	ctx.emit(chain_of(problem))
+
+
+## The chain of the breakers problem `problem` as it is now (BreakerChain).
+static func chain_of(problem: EngineProblem) -> BreakerChainEvent:
+	var data := problem.data as Data
+	var since := data.on_since[data.next - 1] if data.next > 0 else -1
+	return BreakerChainEvent.new(problem.id, data.order.duplicate(), data.next, since)
 
 
 func use_emits() -> Array[Script]:
-	return [BreakerSwitchedEvent, KnockedDownEvent, CorrectionEvent, LaunchBodyEvent]
+	return [BreakerChainEvent, KnockedDownEvent, CorrectionEvent, LaunchBodyEvent]
 
 
 func emits() -> Array[Script]:
-	return [BreakersTrippedEvent, BreakerSwitchedEvent]
+	return [BreakerChainEvent]
 
 
 ## Exactly `site_count` boards and BREAKERS_PER_BOARD breakers on each.

@@ -95,9 +95,9 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## TakeOffer, CancelOffer, OfferMade and OfferEnded took them (#1434), 89 and 90 took theirs;
 ## UseSecondary took 24 and the debug kinds moved to 28 and 29 (#1438): 26 and 31 stay free; 89
 ## and 90 left it when EngineProblemOpened and EngineProblemFixed took them (#1453), 92 and 93
-## took theirs; 92, 93, 95, 97 and 111 left it when GillFlipped, BreakersTripped, BreakerSwitched,
-## ChargerChanged and CrystalSocketChanged took them (#1461).
-const UNASSIGNED: Array[int] = [0, 26, 31, 113, 127, 128, 200, 255]
+## took theirs; 92, 93 and 95 left it when GillFlipped, BreakerChain and CrystalChanged took them
+## (#1461).
+const UNASSIGNED: Array[int] = [0, 26, 31, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the
@@ -122,10 +122,8 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"EngineProblemFixed",
 	&"EngineBlast",
 	&"GillFlipped",
-	&"BreakersTripped",
-	&"BreakerSwitched",
-	&"ChargerChanged",
-	&"CrystalSocketChanged",
+	&"BreakerChain",
+	&"CrystalChanged",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -136,10 +134,8 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"EngineProblemFixed": {"problem": 1},
 	&"EngineBlast": {"stage": 1},
 	&"GillFlipped": {"station": 1, "slit": 2, "open": true},
-	&"BreakersTripped": {"problem": 1, "breakers": [3, 5]},
-	&"BreakerSwitched": {"station": 3, "on": true, "tick": 40},
-	&"ChargerChanged": {"station": 4, "phase": 2, "item": 1, "tick": 200},
-	&"CrystalSocketChanged": {"station": 2, "item": 1},
+	&"BreakerChain": {"problem": 1, "breakers": [3, 5], "next": 1, "since": 40},
+	&"CrystalChanged": {"station": 2, "charger": 4, "phase": 2, "item": 1, "tick": 200},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
 	&"FilmLoaded": {"station": 1, "item": 1},
 	&"GrillLoaded": {"station": 1, "item": 1, "fried": 2, "burnt": 3},

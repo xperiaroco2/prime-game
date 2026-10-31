@@ -82,10 +82,10 @@ extends RefCounted
 ## 46 since #1453 (GDD §8, the ship's engine): the events EngineProblemOpened (kind 89, its problem,
 ## stations and deadline), EngineProblemFixed (90, its problem) and EngineBlast (91, the stage after
 ## the drop).
-## 47 since #1461 (GDD §8, the engine's problem kinds): the events GillFlipped (kind 92, its station,
-## slit and open), BreakersTripped (93, its problem and the order of its breakers), BreakerSwitched
-## (95, its station, on and tick), ChargerChanged (97, its station, phase, item or none, and tick)
-## and CrystalSocketChanged (111, its station and its item out or none).
+## 47 since #1461 (GDD §8, the engine's problem kinds): the events GillFlipped (kind 92, its
+## station, slit and open), BreakerChain (93, its problem, the order of its breakers, how many are
+## on and the tick the last one's window counts from or none) and CrystalChanged (95, its socket,
+## its charger or none, the charger's phase, its item or none and the charge's end tick or none).
 const VERSION := 47
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
@@ -654,37 +654,36 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(90, &"EngineProblemFixed", 2, [_u16("problem")]),
 		_down(91, &"EngineBlast", 2, [_u16("stage")]),
-		_down(92, &"GillFlipped", 4, [_station("station"), _of("slit", WireField.Type.U8), _bool("open")]),
+		_down(
+			92,
+			&"GillFlipped",
+			4,
+			[_station("station"), _of("slit", WireField.Type.U8), _bool("open")]
+		),
 		_down(
 			93,
-			&"BreakersTripped",
-			19,
+			&"BreakerChain",
+			24,
 			[
 				_u16("problem"),
 				WireField.list(
 					"breakers", _station(""), MAX_PROBLEM_STATIONS, TYPE_PACKED_INT32_ARRAY
 				),
+				_of("next", WireField.Type.U8),
+				WireField.maybe("since", _tick()),
 			]
 		),
 		_down(
-			95, &"BreakerSwitched", 7, [_station("station"), _bool("on"), _of("tick", _tick())]
-		),
-		_down(
-			97,
-			&"ChargerChanged",
-			9,
+			95,
+			&"CrystalChanged",
+			11,
 			[
 				_station("station"),
+				WireField.maybe("charger", WireField.Type.STATION),
 				_of("phase", WireField.Type.U8),
 				WireField.maybe("item", WireField.Type.ITEM),
-				_of("tick", _tick()),
+				WireField.maybe("tick", _tick()),
 			]
-		),
-		_down(
-			111,
-			&"CrystalSocketChanged",
-			4,
-			[_station("station"), WireField.maybe("item", WireField.Type.ITEM)]
 		),
 	]
 

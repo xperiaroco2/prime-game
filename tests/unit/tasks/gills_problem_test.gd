@@ -45,11 +45,14 @@ func test_a_press_flips_the_slit_under_the_bar_at_the_tick_the_host_applies_it()
 	FixtureEngineKindModes.press_at(game, ALL, button, at)
 	FixtureEngineKindModes.press_at(game, SECOND, button, at + 1)
 	var flipped := FixtureEngineKindModes.since(game, ALL, &"GillFlipped", problem.opened - 1)
-	assert_array(flipped).is_equal(
-		[
-			{"station": button, "slit": 0, "open": true},
-			{"station": button, "slit": 1, "open": true},
-		]
+	(
+		assert_array(flipped)
+		. is_equal(
+			[
+				{"station": button, "slit": 0, "open": true},
+				{"station": button, "slit": 1, "open": true},
+			]
+		)
 	)
 	# Every peer gets the same, and no event names the presser.
 	assert_array(flipped).is_equal(
@@ -65,11 +68,14 @@ func test_a_press_on_an_open_slit_shuts_it_again() -> void:
 	# Step 8 is slit 0 again: it shuts.
 	FixtureEngineKindModes.press_at(game, ALL, button, _in_step(problem, 8, 1))
 	var flipped := FixtureEngineKindModes.since(game, ALL, &"GillFlipped", problem.opened - 1)
-	assert_array(flipped).is_equal(
-		[
-			{"station": button, "slit": 0, "open": true},
-			{"station": button, "slit": 0, "open": false},
-		]
+	(
+		assert_array(flipped)
+		. is_equal(
+			[
+				{"station": button, "slit": 0, "open": true},
+				{"station": button, "slit": 0, "open": false},
+			]
+		)
 	)
 	assert_bool(GillsProblem.is_open(problem, 0)).is_false()
 	assert_bool(FixtureEngineModes.state_of(game).problems.has(problem)).is_true()

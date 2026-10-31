@@ -11,10 +11,8 @@ const KEYS := {
 	&"EngineProblemFixed": ["problem"],
 	&"EngineBlast": ["stage"],
 	&"GillFlipped": ["station", "slit", "open"],
-	&"BreakersTripped": ["problem", "breakers"],
-	&"BreakerSwitched": ["station", "on", "tick"],
-	&"ChargerChanged": ["station", "phase", "item", "tick"],
-	&"CrystalSocketChanged": ["station", "item"],
+	&"BreakerChain": ["problem", "breakers", "next", "since"],
+	&"CrystalChanged": ["station", "charger", "phase", "item", "tick"],
 }
 
 
@@ -24,10 +22,8 @@ func test_each_engine_event_names_no_player_and_reaches_everyone() -> void:
 		EngineProblemFixedEvent.new(1),
 		EngineBlastEvent.new(1),
 		GillFlippedEvent.new(1, 2, true),
-		BreakersTrippedEvent.new(1, PackedInt32Array([3, 5])),
-		BreakerSwitchedEvent.new(3, true, 40),
-		ChargerChangedEvent.new(4, CrystalProblem.CHARGING, 1, 200),
-		CrystalSocketChangedEvent.new(2, 1),
+		BreakerChainEvent.new(1, PackedInt32Array([3, 5]), 1, 40),
+		CrystalChangedEvent.new(2, 4, CrystalProblem.CHARGING, 1, 200),
 	]
 	for event: MatchEvent in samples:
 		var event_name := event.event_name()

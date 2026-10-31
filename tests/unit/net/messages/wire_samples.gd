@@ -139,20 +139,18 @@ static func events() -> Dictionary[String, Array]:
 		EngineProblemFixedEvent.new(1), EngineProblemFixedEvent.new(0xFFFF)
 	]
 	found["EngineBlastEvent"] = [EngineBlastEvent.new(1), EngineBlastEvent.new(3)]
-	found["GillFlippedEvent"] = [GillFlippedEvent.new(1, 0, true), GillFlippedEvent.new(0xFFFE, 4, false)]
-	found["BreakersTrippedEvent"] = [
-		BreakersTrippedEvent.new(1, PackedInt32Array([3])),
-		BreakersTrippedEvent.new(0xFFFF, PackedInt32Array([1, 2, 3, 4, 5, 6, 7, 0xFFFE])),
+	found["GillFlippedEvent"] = [
+		GillFlippedEvent.new(1, 0, true), GillFlippedEvent.new(0xFFFE, 4, false)
 	]
-	found["BreakerSwitchedEvent"] = [
-		BreakerSwitchedEvent.new(3, true, 40), BreakerSwitchedEvent.new(0xFFFE, false, 0xFFFFFFFE)
+	found["BreakerChainEvent"] = [
+		BreakerChainEvent.new(1, PackedInt32Array([3]), 0, -1),
+		BreakerChainEvent.new(0xFFFF, PackedInt32Array([1, 2, 3, 4, 5, 6, 7, 0xFFFE]), 7, 0),
+		BreakerChainEvent.new(2, PackedInt32Array([3, 5]), 2, 0xFFFFFFFE),
 	]
-	found["ChargerChangedEvent"] = [
-		ChargerChangedEvent.new(4, CrystalProblem.EMPTY, -1, 0),
-		ChargerChangedEvent.new(0xFFFE, CrystalProblem.CHARGING, 0xFFFE, 0xFFFFFFFE),
-	]
-	found["CrystalSocketChangedEvent"] = [
-		CrystalSocketChangedEvent.new(2, -1), CrystalSocketChangedEvent.new(0xFFFE, 0xFFFE)
+	found["CrystalChangedEvent"] = [
+		CrystalChangedEvent.new(2, -1, CrystalProblem.EMPTY, -1, -1),
+		CrystalChangedEvent.new(2, -1, CrystalProblem.EMPTY, 7, -1),
+		CrystalChangedEvent.new(0xFFFE, 0xFFFE, CrystalProblem.CHARGING, 0xFFFE, 0xFFFFFFFE),
 	]
 	found["LiftChangedEvent"] = [
 		LiftChangedEvent.new(2, true, 40), LiftChangedEvent.new(0xFFFE, false, 0xFFFFFFFE)

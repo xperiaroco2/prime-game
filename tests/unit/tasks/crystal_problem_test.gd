@@ -28,6 +28,24 @@ func _chargers(game: Match) -> Array[int]:
 	return found
 
 
+## CrystalChanged's fields for `problem`'s crystal out as `item` (or in, -1) and in no charger.
+func _out(problem: EngineProblem, item: int) -> Dictionary:
+	return _in_charger(problem, -1, CrystalProblem.EMPTY, item, -1)
+
+
+## CrystalChanged's fields for `problem`'s crystal `item` in `charger`, its `phase` and end tick.
+func _in_charger(
+	problem: EngineProblem, charger: int, phase: int, item: int, end_tick: int
+) -> Dictionary:
+	return {
+		"station": problem.stations[0],
+		"charger": charger,
+		"phase": phase,
+		"item": item,
+		"tick": end_tick,
+	}
+
+
 ## ALL pulls the crystal of `problem`; returns the item.
 func _pull(game: Match, problem: EngineProblem) -> ItemState:
 	FixtureEngineKindModes.press(game, ALL, problem.stations[0])
@@ -56,12 +74,11 @@ func test_the_pull_puts_the_spent_crystal_in_both_hands() -> void:
 	assert_int(_data(problem).item).is_equal(crystal.id)
 	for peer: int in PEERS:
 		var names := FixtureEngineModes.stream(
-			game, peer, [&"ItemSpawned", &"CrystalSocketChanged", &"ItemPickedUp"]
+			game, peer, [&"ItemSpawned", &"CrystalChanged", &"ItemPickedUp"]
 		)
-		assert_array(names).is_equal([&"ItemSpawned", &"CrystalSocketChanged", &"ItemPickedUp"])
-	(
-		assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalSocketChanged", before))
-		. is_equal([{"station": problem.stations[0], "item": crystal.id}])
+		assert_array(names).is_equal([&"ItemSpawned", &"CrystalChanged", &"ItemPickedUp"])
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+		[_out(problem, crystal.id)]
 	)
 
 
@@ -81,23 +98,19 @@ func test_the_charger_loads_charges_and_hands_out_the_charged_crystal_which_fixe
 	assert_str(String(crystal.kind.id)).is_equal("crystal_charged")
 	FixtureEngineKindModes.press(game, ALL, charger)
 	assert_object(Items.held_by(game.state, ALL)).is_same(crystal)
-	var phases: Array[int] = []
-	for changed: Dictionary in FixtureEngineModes.dicts(game, SECOND, &"ChargerChanged"):
-		assert_int(changed["station"]).is_equal(charger)
-		phases.append(changed["phase"])
+	# The pull, then the load, the press (its end tick), the charge's end and the take.
+	var id := crystal.id
 	(
-		assert_array(phases)
+		assert_array(FixtureEngineModes.dicts(game, SECOND, &"CrystalChanged"))
 		. is_equal(
 			[
-				CrystalProblem.LOADED,
-				CrystalProblem.CHARGING,
-				CrystalProblem.WAITING,
-				CrystalProblem.EMPTY,
+				_out(problem, id),
+				_in_charger(problem, charger, CrystalProblem.LOADED, id, -1),
+				_in_charger(problem, charger, CrystalProblem.CHARGING, id, at + CHARGE),
+				_in_charger(problem, charger, CrystalProblem.WAITING, id, -1),
+				_out(problem, id),
 			]
 		)
-	)
-	assert_int(FixtureEngineModes.dicts(game, SECOND, &"ChargerChanged")[1]["tick"]).is_equal(
-		at + CHARGE
 	)
 	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ItemChanged")).is_equal(
 		[{"item": crystal.id, "kind": &"crystal_charged"}]
@@ -108,14 +121,13 @@ func test_the_charger_loads_charges_and_hands_out_the_charged_crystal_which_fixe
 	assert_bool(game.state.items.has(crystal.id)).is_false()
 	assert_bool(FixtureEngineModes.state_of(game).problems.has(problem)).is_false()
 	var names := FixtureEngineModes.stream(
-		game, SECOND, [&"ItemVanished", &"CrystalSocketChanged", &"EngineProblemFixed"]
+		game, SECOND, [&"ItemVanished", &"CrystalChanged", &"EngineProblemFixed"]
 	)
 	assert_array(names.slice(-3)).is_equal(
-		[&"ItemVanished", &"CrystalSocketChanged", &"EngineProblemFixed"]
+		[&"ItemVanished", &"CrystalChanged", &"EngineProblemFixed"]
 	)
-	(
-		assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalSocketChanged", before))
-		. is_equal([{"station": problem.stations[0], "item": -1}])
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+		[_out(problem, -1)]
 	)
 
 
@@ -192,9 +204,8 @@ func test_the_blast_puts_a_carried_crystal_back_in_its_socket() -> void:
 	assert_bool(game.state.items.has(crystal.id)).is_false()
 	assert_object(Items.held_by(game.state, ALL)).is_null()
 	assert_array(FixtureEngineKindModes.since(game, SECOND, &"ItemVanished", before)).has_size(1)
-	(
-		assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalSocketChanged", before))
-		. is_equal([{"station": problem.stations[0], "item": -1}])
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+		[_out(problem, -1)]
 	)
 
 
@@ -205,8 +216,9 @@ func test_the_blast_empties_a_charger_holding_the_crystal() -> void:
 	var before := game.ticked_through()
 	FixtureEngineKindModes.run_to(game, problem.deadline)
 	assert_bool(game.state.items.has(crystal.id)).is_false()
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"ChargerChanged", before)).is_equal(
-		[{"station": _chargers(game)[0], "phase": CrystalProblem.EMPTY, "item": -1, "tick": 0}]
+	# Out of the charger and back in its socket, in one change.
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+		[_out(problem, -1)]
 	)
 	# The socket holds its crystal again: a new problem there pulls a fresh one.
 	assert_int(_data(problem).item).is_equal(-1)

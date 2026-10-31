@@ -6,25 +6,25 @@ extends ProblemKind
 ## GDD §8), spent while a problem holds the socket; the crystal is an item only while it is out.
 ##
 ## - The pull: a use of a socket with a problem whose crystal is in it spawns the `spent` crystal
-##   there (ItemSpawned), CrystalSocketChanged names it, and it goes into the user's hands
+##   there (ItemSpawned), CrystalChanged names it, and it goes into the user's hands
 ##   (Items.hand_out: the crystal is two-handed, GDD §5; ItemPickedUp).
-## - The charger (its phases EMPTY, LOADED, CHARGING, WAITING; ChargerChanged on each change):
+## - The charger (its phases EMPTY, LOADED, CHARGING, WAITING):
 ##   empty, a use by a player holding a spent crystal of an open problem puts it in its one slot
 ##   (locked there, LOADED); loaded, a use presses it (CHARGING, for `charge_seconds`); at the end
 ##   the crystal becomes `charged` (ItemChanged) and waits (WAITING) until a use takes it out
 ##   (Items.hand_out, EMPTY). One crystal a charger; a charging one takes no use.
 ## - The fit: a use of its own socket by a player holding its charged crystal: the item vanishes
-##   (ItemVanished), CrystalSocketChanged says the socket holds it again, fixed.
+##   (ItemVanished), CrystalChanged says the socket holds it again, fixed.
 ## - Never off the ship: each tick a loose crystal (carried, or lying) outside the engine's aboard
 ##   box slips and rolls back to where it last was aboard, on the floor there (ItemPlaced, cause
 ##   `slipped`; GDD §8, as the garage's tools drop at its door). A flying one is judged where it
 ##   lands.
 ## - The blast (cleared): a crystal out vanishes wherever it is, a charger holding it empties, and
-##   the socket holds its crystal again.
+##   the socket holds its crystal again. CrystalChanged follows each change of the crystal.
 ## Refuses `unavailable` (a socket without a problem, a charging charger), `empty_hand` and
 ## `wrong_item` (anything but the crystal the station takes now).
 
-## A charger's phases (ChargerChanged's `phase`).
+## A charger's phases (CrystalChanged's `phase`).
 const EMPTY := 0
 const LOADED := 1
 const CHARGING := 2
@@ -89,14 +89,7 @@ func use_problem(
 ) -> StringName:
 	var hand := Items.held_by(ctx.state, ctx.actor)
 	if station.kind == site:
-		if problem == null:
-			return StationUsable.UNAVAILABLE
-		var data := problem.data as Data
-		if data.item < 0:
-			return &""
-		if hand == null:
-			return StationUsable.EMPTY_HAND
-		return &"" if hand.id == data.item and hand.kind == charged else StationUsable.WRONG_ITEM
+		return _socket_refusal(hand, problem)
 	var held := loaded_at(task, station.id)
 	if held != null:
 		var phase := (held.data as Data).phase
@@ -107,6 +100,18 @@ func use_problem(
 	if mine == null or hand.kind != spent or (mine.data as Data).charger >= 0:
 		return StationUsable.WRONG_ITEM
 	return &""
+
+
+## Why a socket takes no use from a player holding `hand` (null: an empty hand), or "".
+func _socket_refusal(hand: ItemState, problem: EngineProblem) -> StringName:
+	if problem == null:
+		return StationUsable.UNAVAILABLE
+	var data := problem.data as Data
+	if data.item < 0:
+		return &""
+	if hand == null:
+		return StationUsable.EMPTY_HAND
+	return &"" if hand.id == data.item and hand.kind == charged else StationUsable.WRONG_ITEM
 
 
 func use_reasons() -> Array[StringName]:
@@ -131,7 +136,7 @@ func use_station(
 	Items.lock_at(ctx, ctx.state.items[data.item], station.position)
 	data.charger = station.id
 	data.phase = LOADED
-	ctx.emit(ChargerChangedEvent.new(station.id, LOADED, data.item, 0))
+	_announce(ctx, mine)
 
 
 ## The pull, or the fit of the charged crystal.
@@ -144,7 +149,7 @@ func _use_socket(
 		if crystal != null:
 			Items.vanish(ctx, crystal)
 		data.item = -1
-		ctx.emit(CrystalSocketChangedEvent.new(station.id, -1))
+		_announce(ctx, problem)
 		ShipEngine.fix(ctx, task, problem)
 		return
 	var made := Items.spawn(ctx, spent, station.position)
@@ -153,7 +158,7 @@ func _use_socket(
 	data.item = made.id
 	data.last_in = station.position
 	ctx.emit(ItemSpawnedEvent.new(made.id, spent.id, station.position))
-	ctx.emit(CrystalSocketChangedEvent.new(station.id, made.id))
+	_announce(ctx, problem)
 	Items.hand_out(ctx, ctx.actor, made)
 
 
@@ -163,7 +168,7 @@ func _use_loaded(ctx: MatchContext, station: StationState, held: EngineProblem) 
 	if data.phase == LOADED:
 		data.phase = CHARGING
 		data.done_tick = ctx.tick + charge_ticks()
-		ctx.emit(ChargerChangedEvent.new(station.id, CHARGING, data.item, data.done_tick))
+		_announce(ctx, held)
 		return
 	if data.phase != WAITING:
 		return  # use_problem refused it.
@@ -171,7 +176,7 @@ func _use_loaded(ctx: MatchContext, station: StationState, held: EngineProblem) 
 	data.phase = EMPTY
 	data.done_tick = -1
 	data.last_in = station.position
-	ctx.emit(ChargerChangedEvent.new(station.id, EMPTY, -1, 0))
+	_announce(ctx, held)
 	Items.hand_out(ctx, ctx.actor, ctx.state.items[data.item])
 
 
@@ -189,7 +194,7 @@ func tick_problem(ctx: MatchContext, task: MatchTask, problem: EngineProblem) ->
 			Items.change_kind(ctx, crystal, charged)
 			data.phase = WAITING
 			data.done_tick = -1
-			ctx.emit(ChargerChangedEvent.new(data.charger, WAITING, data.item, 0))
+			_announce(ctx, problem)
 		return
 	var where := crystal.position
 	if crystal.is_carried():
@@ -207,15 +212,21 @@ func tick_problem(ctx: MatchContext, task: MatchTask, problem: EngineProblem) ->
 ## The crystal of `problem` is back in its socket: out of any charger, its item gone.
 func _back_in(ctx: MatchContext, problem: EngineProblem) -> void:
 	var data := problem.data as Data
-	if data.charger >= 0:
-		ctx.emit(ChargerChangedEvent.new(data.charger, EMPTY, -1, 0))
 	var crystal: ItemState = ctx.state.items.get(data.item)
 	if crystal != null:
 		Items.vanish(ctx, crystal)
 	data.item = -1
 	data.charger = -1
 	data.phase = EMPTY
-	ctx.emit(CrystalSocketChangedEvent.new(problem.stations[0], -1))
+	data.done_tick = -1
+	_announce(ctx, problem)
+
+
+## CrystalChanged: `problem`'s crystal as it is now.
+func _announce(ctx: MatchContext, problem: EngineProblem) -> void:
+	var data := problem.data as Data
+	var end := data.done_tick if data.phase == CHARGING else -1
+	ctx.emit(CrystalChangedEvent.new(problem.stations[0], data.charger, data.phase, data.item, end))
 
 
 func cleared(ctx: MatchContext, _task: MatchTask, problem: EngineProblem) -> void:
@@ -226,22 +237,15 @@ func cleared(ctx: MatchContext, _task: MatchTask, problem: EngineProblem) -> voi
 func use_emits() -> Array[Script]:
 	return [
 		ItemSpawnedEvent,
-		CrystalSocketChangedEvent,
+		CrystalChangedEvent,
 		ItemPickedUpEvent,
 		ItemPlacedEvent,
 		ItemVanishedEvent,
-		ChargerChangedEvent,
 	]
 
 
 func emits() -> Array[Script]:
-	return [
-		ChargerChangedEvent,
-		ItemChangedEvent,
-		ItemPlacedEvent,
-		ItemVanishedEvent,
-		CrystalSocketChangedEvent,
-	]
+	return [CrystalChangedEvent, ItemChangedEvent, ItemPlacedEvent, ItemVanishedEvent]
 
 
 ## ProblemKind's check; one fixture, the chargers; the two crystal kinds, distinct, the mode's own,
