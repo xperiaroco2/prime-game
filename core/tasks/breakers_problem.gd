@@ -117,8 +117,10 @@ func opened(ctx: MatchContext, task: MatchTask, problem: EngineProblem) -> void:
 static func runs_of(count: int, changes: int) -> PackedInt32Array:
 	var runs := PackedInt32Array()
 	var parts := clampi(changes + 1, 1, maxi(1, count))
+	@warning_ignore("integer_division")
+	var each := count / parts
 	for j in parts:
-		runs.append(count / parts + (1 if j < count % parts else 0))
+		runs.append(each + (1 if j < count % parts else 0))
 	return runs
 
 

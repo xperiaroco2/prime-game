@@ -42,6 +42,7 @@ func step_ticks() -> int:
 
 ## The slit under the white bar of `problem` at host tick `tick` (0 to 4).
 func bar_slit(problem: EngineProblem, tick: int) -> int:
+	@warning_ignore("integer_division")
 	var steps := maxi(0, tick - problem.opened) / step_ticks()
 	return BAR[steps % BAR.size()]
 
