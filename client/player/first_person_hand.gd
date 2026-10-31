@@ -34,6 +34,10 @@ var _slide_seconds := 0.0
 
 func _init() -> void:
 	name = "FirstPersonHand"
+
+
+func _ready() -> void:
+	# Not in _init: Godot turns processing on again for a script with a _process.
 	set_process(false)
 
 
@@ -133,8 +137,8 @@ func _process(delta: float) -> void:
 
 func _hold() -> void:
 	if _close:
-		var scale := StripLooks.CLOSE_SCALE if StripLooks.has(_shown_kind) else CLOSE_SCALE
-		_view.transform = Transform3D(CLOSE_TURN.scaled(Vector3.ONE * scale), CLOSE)
+		var factor := StripLooks.CLOSE_SCALE if StripLooks.has(_shown_kind) else CLOSE_SCALE
+		_view.transform = Transform3D(CLOSE_TURN.scaled(Vector3.ONE * factor), CLOSE)
 		return
 	var at := TWO_HANDED if _two_handed else ONE_HANDED
 	if _slide_left > 0.0:

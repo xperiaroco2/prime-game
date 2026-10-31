@@ -126,13 +126,13 @@ func _process(_delta: float) -> void:
 
 ## Renders the job's next frame with a record, or composes the strip after the last.
 func _next_frame(job: Job) -> void:
-	var count := job.session.frame_count()
-	while job.index < count and job.session.record_of(job.index).is_empty():
+	var frames := job.session.frame_count()
+	while job.index < frames and job.session.record_of(job.index).is_empty():
 		job.index += 1
-	if job.index >= count:
+	if job.index >= frames:
 		var strip := Strip.new()
 		strip.session = job.session
-		strip.texture = ImageTexture.create_from_image(StripLayout.compose(count, job.images))
+		strip.texture = ImageTexture.create_from_image(StripLayout.compose(frames, job.images))
 		_strips[job.session.get_instance_id()] = strip
 		_job = null
 		return
