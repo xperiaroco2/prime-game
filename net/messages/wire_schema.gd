@@ -86,7 +86,10 @@ extends RefCounted
 ## station, slit and open), BreakerChain (93, its problem, the order of its breakers, how many are
 ## on and the tick the last one's window counts from or none) and CrystalChanged (95, its socket,
 ## its charger or none, the charger's phase, its item or none and the charge's end tick or none).
-const VERSION := 47
+## 48 since #1398 (the pinball): the intent Flippers (kind 25, the seated player's two flippers)
+## and the event PinballState (94, the machine's game, its seated player or none, the flippers,
+## the ball in play, the score, the balls left, the best score and its owner's name).
+const VERSION := 48
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -355,6 +358,8 @@ static func _intents() -> Array[WireRow]:
 		_up(23, &"CancelOffer", 4, [_seq()]),
 		# seq 4, facing 12 (#1438: as Use's; the mug's Drink ignores it, a later rule may aim).
 		_up(24, &"UseSecondary", 16, [_seq(), _vec3("facing")]),
+		# seq 4, flags 1 (#1398): no claim twin goes before it, a flipper hangs on no position.
+		_up(25, &"Flippers", 5, [_seq(), WireField.bits(PackedStringArray(["left", "right"]))]),
 	]
 
 
@@ -671,6 +676,20 @@ static func _events() -> Array[WireRow]:
 				),
 				_of("next", WireField.Type.U8),
 				WireField.maybe("since", _tick()),
+			]
+		),
+		_down(
+			94,
+			&"PinballState",
+			99,
+			[
+				_u32("game"),
+				WireField.maybe("player", WireField.Type.PEER),
+				WireField.bits(PackedStringArray(["left", "right", "in_play"])),
+				_u32("score"),
+				_of("balls_left", WireField.Type.U8),
+				_u32("best"),
+				_name("best_name"),
 			]
 		),
 		_down(

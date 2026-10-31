@@ -167,6 +167,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.HAND_OVER,
 		Intents.TAKE_OFFER,
 		Intents.CANCEL_OFFER,
+		Intents.FLIPPERS,
 	]
 	if phase == &"loading":
 		# Every hand hits (#1437): a living Use in the lobby, the countdown or the round would
@@ -220,6 +221,9 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.CANCEL_OFFER:
 			# Its bot never offers: no_offer (Offering, #1434).
 			args = {}
+		Intents.FLIPPERS:
+			# Its bot never sits at the pinball: not_seated (PinballSeated, #1398).
+			args = {"left": rng.randf() < 0.5, "right": rng.randf() < 0.5}
 		Intents.HELLO:
 			args = {
 				"version": WireSchema.VERSION,
