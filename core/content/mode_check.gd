@@ -18,8 +18,10 @@ extends RefCounted
 ## a phase that accepts an intent whose rule throws an item (a ThrowItem) that lists no
 ## FlightTicks, so the item would never fly (#643); a ThrowItem outside an action, or in a rule
 ## that lacks HoldsItem or OverFloor, so a belt item could be thrown or a throw over no floor
-## leave its item in the air (the throwing ADR, TD11); a TakePose outside an action, or in a rule
-## that lacks AtMarker, so a player could sit anywhere (#1383); a required condition only counts
+## leave its item in the air (the throwing ADR, TD11); a TakePose or a TakeWheelPose outside an
+## action, or in a rule that lacks AtMarker (a player could sit anywhere, #1383) or WheelPoseInRange
+## (a pose outside the mode's lists, #1485), or a TakeWheelPose in a mode without wheel_poses; a
+## required condition only counts
 ## when it is not negated; a reaction or a win condition holding a condition that reads the actor
 ## (Condition.reads_actor_state: HoldsItem, InReach, Cooldown, ...), which tests no player there
 ## (actor 0): a cost of that kind always refuses, so the reaction would never run (#283) or the
@@ -102,6 +104,7 @@ func _check_mode(mode: GameMode) -> void:
 	_check_ticking(mode)
 	_check_vanishing(mode)
 	_check_rules(mode)
+	_check_wheel_poses(mode)
 	_check_rows(mode)
 	_check_phases(mode)
 	_check_transitions(mode)
@@ -356,31 +359,50 @@ func _check_hand_over_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 				)
 
 
-## A TakePose of `rule`: only in an action (a rule on an intent: a pose is a player's), and with
-## every condition class it requires (TakePose.required_conditions: AtMarker), so no mode lets a
-## player sit anywhere (the engineer's answer 1a on PR #1382, #1383).
+## A TakePose or a TakeWheelPose of `rule`: only in an action (a rule on an intent: a pose is a
+## player's), and with every condition class it requires (TakePose.required_conditions: AtMarker,
+## so no mode lets a player sit anywhere, the engineer's answer 1a on PR #1382, #1383;
+## TakeWheelPose: WheelPoseInRange, so no pose outside the mode's lists, #1485).
 func _check_pose_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 	for effect: RuleEffect in rule.effects:
-		if not effect is TakePose:
+		var required_classes: Array[Script] = []
+		var verb := "seats"
+		if effect is TakePose:
+			required_classes = (effect as TakePose).required_conditions()
+		elif effect is TakeWheelPose:
+			required_classes = (effect as TakeWheelPose).required_conditions()
+			verb = "wheel-poses"
+		else:
 			continue
 		if not on_intent:
 			errors.append(
 				(
-					"%s: rule %s seats a player, which only a player's intent can"
-					% [owner, rule.trigger]
+					"%s: rule %s %s a player, which only a player's intent can"
+					% [owner, rule.trigger, verb]
 				)
 			)
-		for required: Script in (effect as TakePose).required_conditions():
+		for required: Script in required_classes:
 			if not _has_condition(rule, required):
-				(
-					errors
-					. append(
-						(
-							"%s: rule %s seats the actor, which requires the condition %s, which it lacks"
-							% [owner, rule.trigger, required.get_global_name()]
-						)
+				errors.append(
+					(
+						"%s: rule %s %s the actor, which requires the condition %s, which it lacks"
+						% [owner, rule.trigger, verb, required.get_global_name()]
 					)
 				)
+
+
+## A mode whose action takes a wheel pose (TakeWheelPose) names its WheelPoses (#1485): without
+## them no pick is ever whole, so the rule would refuse every pose.
+func _check_wheel_poses(mode: GameMode) -> void:
+	if mode.wheel_poses != null:
+		return
+	for intent: StringName in Intents.ALL:
+		for rule: Rule in _actions_on(mode, intent):
+			if _holds_effect(rule, TakeWheelPose):
+				errors.append(
+					"rule %s takes a wheel pose, but the mode has no wheel_poses" % rule.trigger
+				)
+				return
 
 
 ## The intent an offer's effect belongs to (HandOver, TakeOffer, CancelOffer), else empty.

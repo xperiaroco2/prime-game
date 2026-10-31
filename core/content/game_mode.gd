@@ -34,6 +34,9 @@ extends ContentPart
 @export var phases: Array[PhaseSpec] = []
 @export var first_phase: StringName
 @export var transitions: Array[Transition] = []
+## The pose wheel's leg stances and arm gestures (#1485), or null for a mode without the wheel. A
+## rule holding TakeWheelPose needs it (ModeCheck).
+@export var wheel_poses: WheelPoses
 
 
 func find_phase(id: StringName) -> PhaseSpec:

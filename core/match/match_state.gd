@@ -309,7 +309,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.sprinting = false
 	someone.crouched = false
 	someone.sneaking = false
-	someone.posed = false
+	someone.stand_up()
 	someone.sober()
 	someone.sprint_held = false
 	someone.moving = false

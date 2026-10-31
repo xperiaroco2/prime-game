@@ -44,9 +44,9 @@ func run(ctx: MatchContext) -> void:
 		player.position = spots[order[i]]
 		player.crouched = false
 		player.sneaking = false
-		# The placed player stands up from the chair: its client learns it in its SelfStatus (#1383).
-		var was_posed := player.posed
-		player.posed = false
+		# The placed player stands up from the chair or the wheel pose: its client learns it in its
+		# SelfStatus (#1383, #1485).
+		var was_posed := player.stand_up()
 		# A limp body never outlasts a placement (#1393): StopBody frees the host's body.
 		LifeRules.clear_limp(ctx, player, true)
 		if player.sober() or was_posed:

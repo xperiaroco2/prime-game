@@ -165,6 +165,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"ClockEnded": [false, false, none],
 		&"Cooldown": [true, false, none],
 		&"Cost": [true, false, none],
+		&"CrouchedOrSneaking": [true, false, none],
 		&"HandNotTwoHanded": [true, false, none],
 		&"HoldsItem": [true, false, none],
 		&"InReach": [true, true, item],
@@ -178,6 +179,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"PinballUsable": [true, false, none],
 		&"PlaceChanges": [true, false, none],
 		&"PlaceInRange": [true, false, none],
+		&"Posed": [true, false, none],
 		&"StaminaCost": [true, false, none],
 		&"StationInSight": [true, true, none],
 		&"StationUsable": [true, true, none],
@@ -185,6 +187,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"TargetInReach": [true, true, none],
 		&"TargetInSight": [true, true, none],
 		&"TargetLiving": [true, true, none],
+		&"WheelPoseInRange": [true, false, none],
 	}
 	var found: Dictionary[StringName, Array] = {}
 	for entry: Dictionary in ProjectSettings.get_global_class_list():

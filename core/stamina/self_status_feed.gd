@@ -21,7 +21,7 @@ class FeedState:
 	## Peers touched since the last flush.
 	var touched: Dictionary[int, bool] = {}
 	## Peer -> the last SelfStatus it was sent, as [health, stamina, sprint available, drunk,
-	## posed].
+	## posed, wheel pose code].
 	var sent: Dictionary[int, Array] = {}
 
 
@@ -45,14 +45,24 @@ static func flush(ctx: MatchContext) -> void:
 		if player == null or not player.is_present():
 			continue
 		var available := StaminaLedger.sprint_available(player, ctx.state.player_rules)
-		var status: Array = [player.health, player.stamina, available, player.drunk, player.posed]
+		var pose := player.wheel_pose_code()
+		var status: Array = [
+			player.health, player.stamina, available, player.drunk, player.posed, pose
+		]
 		if feed.sent.get(peer, []) == status:
 			continue
 		feed.sent[peer] = status
 		var claimed := MovementRule.settled_claim_tick(ctx.state, player)
 		ctx.emit(
 			SelfStatusEvent.new(
-				peer, player.health, player.stamina, available, claimed, player.drunk, player.posed
+				peer,
+				player.health,
+				player.stamina,
+				available,
+				claimed,
+				player.drunk,
+				player.posed,
+				pose
 			)
 		)
 

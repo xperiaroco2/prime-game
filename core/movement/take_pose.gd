@@ -14,7 +14,10 @@ extends RuleEffect
 
 
 func run(ctx: MatchContext) -> void:
-	ctx.state.player(ctx.actor).posed = true
+	var actor := ctx.state.player(ctx.actor)
+	# The chair and the pose wheel exclude each other (#1485): sitting down ends the wheel pose.
+	actor.drop_wheel_pose()
+	actor.posed = true
 	SelfStatusFeed.touch(ctx.state, ctx.actor)
 
 

@@ -12,6 +12,10 @@ extends RefCounted
 ##
 ## posing(mode): `mode` with a Pose rule (AtMarker on SEAT_TAG, TakePose) and Round accepting it
 ## from the living (#1296, #1383); seat(game, peer) puts a seat beside `peer`.
+##
+## wheeling(mode): `mode` with the pose wheel (#1485): WheelPoses of LEGS leg and ARMS arm ids, a
+## WheelPose rule as the base mode's (WheelPoseInRange, Posed negated, CrouchedOrSneaking negated,
+## HandNotTwoHanded; TakeWheelPose), and Lobby and Round accepting it from the living.
 
 ## The spawn tag of the fixture's seats (posing, seat).
 const SEAT_TAG := &"seat"
@@ -20,6 +24,9 @@ const SEAT_RADIUS_M := 1.0
 const SEAT_HEIGHT_M := 2.0
 ## Where seat() puts a seat from the player: inside the radius, off the player's own spot.
 const SEAT_OFFSET := Vector3(0.5, 0, 0)
+## How many leg stances and arm gestures wheeling() gives the mode (fixture ids, not the content's).
+const LEGS := 3
+const ARMS := 4
 
 
 ## A match of the fixture mode on `world` (FixtureTerrainWorld when null) whose `peers` joined,
@@ -157,3 +164,33 @@ static func context(game: Match) -> MatchContext:
 	ctx.world = FlatWorldQuery.new()
 	ctx.tick = game.ticked_through() + 1
 	return ctx
+
+
+## `mode` with the pose wheel (#1485): WheelPoses of LEGS and ARMS fixture ids, the WheelPose rule
+## with the base mode's conditions in its order, and Lobby and Round accepting WheelPose from the
+## living only.
+static func wheeling(mode: GameMode) -> GameMode:
+	var poses := WheelPoses.new()
+	for index in LEGS:
+		poses.legs.append("legs_%d" % index)
+	for index in ARMS:
+		poses.arms.append("arms_%d" % index)
+	mode.wheel_poses = poses
+	var posed := Posed.new()
+	posed.negate = true
+	var lowered := CrouchedOrSneaking.new()
+	lowered.negate = true
+	var conditions: Array[Condition] = [
+		WheelPoseInRange.new(), posed, lowered, HandNotTwoHanded.new()
+	]
+	mode.actions.append(FixtureModes.rule(Intents.WHEEL_POSE, conditions, [TakeWheelPose.new()]))
+	for phase: StringName in [&"lobby", &"round"]:
+		mode.find_phase(phase).accepts.append(
+			AcceptSpec.of(Intents.WHEEL_POSE, AcceptSpec.From.LIVING)
+		)
+	return mode
+
+
+## `peer` sends the WheelPose intent of (`legs`, `arms`), applied on the next host tick.
+static func wheel_pose(game: Match, peer: int, legs: int, arms: int, seq: int = 0) -> void:
+	FixtureModes.send(game, Intents.WHEEL_POSE, peer, {"legs": legs, "arms": arms}, seq)

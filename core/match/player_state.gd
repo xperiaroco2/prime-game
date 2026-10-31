@@ -61,6 +61,15 @@ var sneaking := false
 ## Public body state: the snapshot relays it to every peer. The host keeps the standing capsule
 ## and eye for it (only `crouched` lowers them).
 var posed := false
+## The pose wheel's whole pose (#1485; GDD §8 "Photo", "The pose wheel"): the index of the leg
+## stance in the mode's WheelPoses.legs and of the arm gesture in its arms, -1 each for none. Set
+## together by TakeWheelPose (the WheelPose intent); ended (stand_up, drop_wheel_pose) by the same
+## own move that ends `posed`, by a crouched or sneaking claim (MovementRule), by the chair's
+## TakePose, and at every placement, knockdown, limp, death, respawn and reset. Public body state:
+## the snapshot relays it, packed by WheelPoseCode, on the avatar. The host keeps the standing
+## capsule and eye for every wheel pose (only `crouched` lowers them).
+var wheel_legs := -1
+var wheel_arms := -1
 ## How drunk the player is (#1390; GDD §3 Base mode, "The bar"): 0 is sober, up to the mode's
 ## PlayerRules.drunk_max. Raised by Drink (a mug's UseSecondary), lowered one point per
 ## PlayerRules.drunk_point_s by DrunkTicks, and back to 0 (sober()) at every placement, knockdown,
@@ -153,6 +162,27 @@ func is_limp() -> bool:
 ## give only a facing (MovementRule), and the host's physics moves its body.
 func holds_still() -> bool:
 	return life == Life.DOWNED or limp != null
+
+
+## The wheel pose as its one wire byte (WheelPoseCode): 0 for none.
+func wheel_pose_code() -> int:
+	return WheelPoseCode.encode(wheel_legs, wheel_arms)
+
+
+## Ends the wheel pose; whether there was one (the caller touches the SelfStatusFeed).
+func drop_wheel_pose() -> bool:
+	var had := wheel_legs >= 0 or wheel_arms >= 0
+	wheel_legs = -1
+	wheel_arms = -1
+	return had
+
+
+## Ends both poses, the chair's `posed` and the wheel pose (an own move, a placement, a knockdown,
+## the limp, a death, a respawn, a reset); whether either was held.
+func stand_up() -> bool:
+	var had := posed
+	posed = false
+	return drop_wheel_pose() or had
 
 
 ## The two places not selected, the lower first: the belt.
