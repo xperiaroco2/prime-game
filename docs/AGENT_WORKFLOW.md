@@ -1232,13 +1232,33 @@ window script calls `tools/offscreen/offscreen.gd` `place()` first, which moves 
 `DisplayServer.window_set_position` (no clamp), grows it and prints an `OFFSCREEN window <x>,<y> <w>x<h> screens ...`
 line. The runner fails a run whose line is missing or whose window meets a screen. What a window watcher still saw:
 the frame's 1 px left border, 2 px tall at the top-right corner, until `place()` (0.5 to 0.8 s for a shot, 3.7 and
-4.9 s for playcheck's two windows); the game keeps its title bar and focus (no command-line flag makes a window
-borderless or unfocused). The pictures are unchanged: pixel-identical for `probe.tscn` and the attic; the End
+4.9 s for playcheck's two windows); the game keeps its title bar (no command-line flag makes a window borderless or
+unfocused). The pictures are unchanged: pixel-identical for `probe.tscn` and the attic; the End
 screen of `client/dev/end_preview.tscn` fades in over 0.4 s of real time, so its background differs by 1 to 2 levels
 between two runs of the same code too. A 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level
 piece) gets one that frames all its geometry, plus a light if it has none. It prints the driver it drew with
 (`renderer: vulkan forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
 gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
+
+**Focus and gaming mode (#1505).** The engineer plays games on this PC, and the off-screen windows of `shot`,
+`playcheck` and `run --offscreen` took the foreground from his game. Godot 4.7.2 shows its main window before any
+script runs, with `ShowWindow(SW_SHOW)` and `SetForegroundWindow`, so `tools/runner/focus.py` adds three layers (no-ops
+off Windows): the process starts with `STARTUPINFO.wShowWindow = SW_SHOWNOACTIVATE` (it counts only for an exe the
+runner starts directly: the console exe, `GODOT_BIN`, does not pass it on to `godot.exe`); `place()` sets
+`DisplayServer.WINDOW_FLAG_NO_FOCUS` once the window is off-screen, so it never activates again; and a keeper records
+the foreground window before the run and gives the foreground back (through `ctypes`: `AttachThreadInput`, then
+`SetForegroundWindow`) whenever a window of the run's process tree takes it, printing `focus: a window of the run
+took the foreground N time(s); handed back N`. A window of another process (the human switching apps) is left alone.
+`run` with an on-screen window and `host`/`join` windows are for a human to look at and take the focus as before.
+The hard guarantee is **gaming mode**: `tools\run.cmd gaming --on` (`--off`, `--status`) writes
+`%LOCALAPPDATA%\prime-game\gaming-mode.json`, outside every checkout, so the main checkout and every worktree read one
+file; while it is there, `shot`, `playcheck`, `run` without `--headless`, and `host` and `join` with windows refuse
+before they start anything, with exit code 3 and the line "gaming mode: window runs wait; `gaming --off` when the PC
+is free" (an unreadable file counts as on). An agent that gets exit 3 lists the window run for later and goes on; it
+never waits for it (a night of play outlasts any bounded wait). Headless commands (`verify`, `check`, `test`, `lint`,
+`bots`, `perf`, `run --headless`) run as before. The focus test, `runner.tests.test_focus.WindowFocusTest`, opens a
+stand-in foreground window, runs a real `shot` and samples the foreground every 50 ms; it opens windows, so it runs
+only on Windows with `PRIME_FOCUS_TEST=1` and gaming mode off (its docstring has the command).
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
 Runs a scene, or a `-s` script that extends `SceneTree`, with the

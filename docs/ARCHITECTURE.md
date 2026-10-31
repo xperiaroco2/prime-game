@@ -3259,7 +3259,7 @@ see them as just pressed; holds through `Input.action_press`, screenshots throug
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows stay off every
 screen as `shot`'s does (never headless: Godot then draws nothing; `playcheck_window.gd` calls
 `tools/offscreen/offscreen.gd` `place()` first, since Godot clamps `--position` onto the screen, #1141, AGENT_WORKFLOW
-§11.4), with the dummy audio driver and a `MousePointer`
+§11.4; they never keep the foreground, and gaming mode holds them, #1505), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured. The item keys read the game's pointer
 (`ItemInteractions.mouse_captured`, which `Game` gives `pointer.captured`, #1114), so `hold use` (the left button has
 no key to press) uses the hand item and takes the viewfinder's shot (`house_photo`). Spectate cycling reads the
