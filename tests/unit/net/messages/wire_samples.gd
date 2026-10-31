@@ -194,6 +194,7 @@ static func events() -> Dictionary[String, Array]:
 	found["ShotTakenEvent"] = [
 		ShotTakenEvent.new(1, 2, 0, none), ShotTakenEvent.new(0xFFFE, 0xFFFE, 0xFFFF, rows)
 	]
+	found["BoothStepEvent"] = _booth_steps()
 	found["GrillLoadedEvent"] = [
 		GrillLoadedEvent.new(3, 7, 220, 320),
 		GrillLoadedEvent.new(0xFFFE, 0xFFFE, 0xFFFFFFFD, 0xFFFFFFFE),
@@ -234,6 +235,44 @@ static func events() -> Dictionary[String, Array]:
 	]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
 	return found
+
+
+## BoothStep (#1396): each step, a FLASH with no row and one with every flag at its extremes.
+static func _booth_steps() -> Array:
+	var started := BoothStepEvent.new(1, 0, BoothStepEvent.STARTED)
+	started.presser = WireField.PEER_MAX
+	started.frames = 4
+	started.countdown = 60
+	started.gap = 40
+	var empty := BoothStepEvent.new(0xFFFE, 0xFFFF, BoothStepEvent.FLASH)
+	var flash := BoothStepEvent.new(3, 7, BoothStepEvent.FLASH)
+	flash.frame = 3
+	flash.record = [
+		{
+			"peer": 2,
+			"colour": 0,
+			"position": Vector3(18.5, 0, -9.5),
+			"facing": Vector3.FORWARD,
+			"crouched": true,
+			"sneaking": false,
+			"posed": true,
+			"limp": false,
+		},
+		{
+			"peer": WireField.PEER_MAX,
+			"colour": 9,
+			"position": Vector3(-0.0, 0.25, 5),
+			"facing": Vector3.LEFT,
+			"crouched": false,
+			"sneaking": true,
+			"posed": false,
+			"limp": true,
+		},
+	]
+	var printed := BoothStepEvent.new(3, 7, BoothStepEvent.PRINTED)
+	printed.items = PackedInt32Array([1, 0xFFFE])
+	var stopped := BoothStepEvent.new(3, 8, BoothStepEvent.STOPPED)
+	return [started, empty, flash, printed, stopped]
 
 
 ## Every intent as a client sends it: the args of its MatchCommand, and its seq.

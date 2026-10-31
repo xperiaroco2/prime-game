@@ -735,7 +735,7 @@ static func _booth_step() -> WireRow:
 	return _down(
 		96,
 		&"BoothStep",
-		530,
+		529,
 		[
 			_station("station"),
 			_u16("strip"),
