@@ -51,8 +51,9 @@ func test_a_mode_at_the_wires_maxima_is_refused_with_the_kinds_named() -> void:
 	assert_str(problems).contains("over its cap of 8192")
 	assert_str(problems).not_contains("LoadMatch")
 	assert_str(problems).not_contains("PlayersPlaced")
-	# Welcome's cap is 8192 since #1404 (the hall's items): its most rows of a 32-character kind
-	# beside 16 players' longest names pass it with the most whole-number settings, 32.
+	# Welcome's cap is 8192 since #1404 (the hall's items): the 16-setting mode above now fits under
+	# it, so the assertion that Welcome goes over it runs on a mode with the most whole-number
+	# settings, 32 (its rows of a 32-character kind beside 16 players' longest names).
 	var most_numbers := _mode(WireSchema.MAX_PLAYERS, WireSchema.MAX_ENTRIES, 0, 1)
 	var welcome_problems := "\n".join(WireBudget.check(most_numbers))
 	assert_str(welcome_problems).contains("Welcome (kind 33): ")
