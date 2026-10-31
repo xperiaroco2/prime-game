@@ -194,6 +194,35 @@ func test_a_crystal_put_down_outside_slips_back_aboard() -> void:
 	assert_vector(crystal.position).is_equal(edge)
 
 
+func test_a_crystal_thrown_off_the_ship_is_judged_where_it_lands() -> void:
+	var kinds: Array[ProblemKind] = [FixtureEngineKindModes.crystal()]
+	var mode := FixtureThrowModes.with_throw(FixtureEngineKindModes.of(kinds))
+	var game := FixtureEngineKindModes.in_round(mode, PEERS)
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var crystal := _pull(game, problem)
+	var edge := Vector3(FixtureEngineModes.INSIDE_HIGH.x - 0.5, 0, 20)
+	FixtureItemModes.stand(game, ALL, edge)
+	FixtureModes.run_ticks(game, 1)
+	FixtureThrowModes.throw(game, ALL, Vector3.RIGHT)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(crystal.where).is_equal(ItemState.Where.FLYING)
+	# In flight, out of the box: nothing slips until it lands.
+	for _i in 200:
+		if crystal.where != ItemState.Where.FLYING:
+			break
+		FixtureModes.run_ticks(game, 1)
+	var placed := FixtureEngineModes.dicts(game, SECOND, &"ItemPlaced")
+	assert_int(placed.size()).is_equal(1)
+	assert_str(str(placed[0]["cause"])).is_equal(str(Items.THROWN))
+	assert_bool(placed[0]["position"].x > FixtureEngineModes.INSIDE_HIGH.x).is_true()
+	FixtureModes.run_ticks(game, 1)
+	placed = FixtureEngineModes.dicts(game, SECOND, &"ItemPlaced")
+	assert_int(placed.size()).is_equal(2)
+	assert_dict(placed[1]).is_equal(
+		{"item": crystal.id, "position": edge, "cause": CrystalProblem.SLIPPED}
+	)
+
+
 func test_the_blast_puts_a_carried_crystal_back_in_its_socket() -> void:
 	var game := _game()
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
