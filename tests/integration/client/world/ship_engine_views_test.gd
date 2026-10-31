@@ -108,6 +108,23 @@ func test_the_stage_strips_fill_with_their_third_of_the_bar() -> void:
 	assert_bool(_view.strip_fill(2).visible).is_false()
 
 
+func test_the_strips_are_the_engine_s_task_state_total_of_stages() -> void:
+	_place()
+	_view._process(0.0)
+	var engine: ShipEngine = ShipEngineClient.types_of(_mode)[0]
+	_model.fold(&"TaskState", {"task": 9, "type": engine.id, "done": 0, "total": 4})
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 300, "needed": 600, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	# Half the bar is two of four stages: the first two full, the others empty.
+	assert_object(_view.strip_fill(3)).is_not_null()
+	assert_object(_view.strip_fill(4)).is_null()
+	assert_float(_view.strip_fill(1).scale.x).is_equal_approx(1.0, 1e-4)
+	assert_bool(_view.strip_fill(2).visible).is_false()
+
+
 func test_the_hologram_stands_at_the_level_s_point_else_over_the_console_s_use_spot() -> void:
 	_place()
 	_view._process(0.0)

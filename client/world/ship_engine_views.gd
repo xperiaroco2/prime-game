@@ -5,8 +5,9 @@ extends Node3D
 ## ClientEngineBook and the console's ZoneProgress), the estimated host tick and the client's own
 ## copy of the mode; nothing is predicted. While the engine is dealt (its console placed):
 ## - the console's hologram at the level's point for it (a Node3D in group `engine_hologram`, over
-##   the console itself, which its use spot faces), else above its use spot: three stage strips,
-##   each filling with its third of the bar (ZoneViews.ticks_at of the console's ZoneProgress),
+##   the console itself, which its use spot faces), else above its use spot: a stage strip per
+##   stage (the engine's TaskState total), each filling with its share of the bar (ZoneViews.fill
+##   of the console's ZoneProgress),
 ##   and the mimic board, a lamp per breaker at its place in the ship scaled down round the
 ##   console: red while tripped, green once on, and the open chain's order played on it one lamp
 ##   at a time, white (GDD §8: read it out or remember it). It is the only place the order shows;
@@ -71,6 +72,7 @@ var _gills: Dictionary[Node3D, int] = {}
 ## The drawn parts by station id: lamps, mimic lamps, the strips' fills.
 var _lamps: Dictionary[int, MeshInstance3D] = {}
 var _mimic: Dictionary[int, MeshInstance3D] = {}
+var _backs: Array[MeshInstance3D] = []
 var _fills: Array[MeshInstance3D] = []
 var _strip_at: Array[Vector3] = []
 var _console := -1
@@ -107,6 +109,7 @@ func clear() -> void:
 		child.queue_free()
 	_lamps.clear()
 	_mimic.clear()
+	_backs.clear()
 	_fills.clear()
 	_strip_at.clear()
 	_console = -1
@@ -130,7 +133,7 @@ func _process(delta: float) -> void:
 	if _console < 0:
 		return
 	var now := _now()
-	_draw_strips(now)
+	_draw_strips(type, now)
 	_draw_lamps(type, now)
 	_draw_gills(type, now)
 	_draw_blast(delta)
@@ -168,15 +171,7 @@ func _ids_of(kind: StationKind) -> Array[int]:
 
 func _build(type: ShipEngine) -> void:
 	var centre := _hologram_centre()
-	var strips := maxi(1, type.stage_problems.size())
-	for i in strips:
-		var x := (i - (strips - 1) / 2.0) * (STRIP_LENGTH_M + STRIP_GAP_M)
-		var back := _box(Vector3(STRIP_LENGTH_M, STRIP_HEIGHT_M, 0.02), DARK)
-		back.position = centre + Vector3(x, 0.25, 0.0)
-		var fill := _box(Vector3(STRIP_LENGTH_M, STRIP_HEIGHT_M, 0.03), CYAN)
-		fill.position = back.position
-		_fills.append(fill)
-		_strip_at.append(back.position)
+	_build_strips(_stages(type))
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
 			_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
@@ -189,6 +184,34 @@ func _build(type: ShipEngine) -> void:
 					lamp.position = centre + Vector3(at.x, 0.0, at.z) * MIMIC_SCALE
 					_mimic[id] = lamp
 	_blasts_seen = model.engine.blasts
+
+
+## The stages the bar is split in: the engine's TaskState total (the `engine_stages` setting, the
+## N of the bar_ticks(N) its ZoneProgress `needed` is), else, before that comes, `stage_problems`'.
+func _stages(type: ShipEngine) -> int:
+	for task: ClientModel.Task in model.tasks.values():
+		if task.type == type.id and task.total > 0:
+			return task.total
+	return maxi(1, type.stage_problems.size())
+
+
+## A strip per stage side by side over the hologram's centre, drawn anew when the count changes.
+func _build_strips(strips: int) -> void:
+	for part: MeshInstance3D in _backs + _fills:
+		part.queue_free()
+	_backs.clear()
+	_fills.clear()
+	_strip_at.clear()
+	var centre := _hologram_centre()
+	for i in strips:
+		var x := (i - (strips - 1) / 2.0) * (STRIP_LENGTH_M + STRIP_GAP_M)
+		var back := _box(Vector3(STRIP_LENGTH_M, STRIP_HEIGHT_M, 0.02), DARK)
+		back.position = centre + Vector3(x, 0.25, 0.0)
+		var fill := _box(Vector3(STRIP_LENGTH_M, STRIP_HEIGHT_M, 0.03), CYAN)
+		fill.position = back.position
+		_backs.append(back)
+		_fills.append(fill)
+		_strip_at.append(back.position)
 
 
 ## The first Node3D of the level in group `engine_hologram`, else HOLOGRAM_LIFT_M over the
@@ -227,7 +250,9 @@ func _material(colour: Color) -> StandardMaterial3D:
 	return _materials[colour]
 
 
-func _draw_strips(now: int) -> void:
+func _draw_strips(type: ShipEngine, now: int) -> void:
+	if _stages(type) != _fills.size():
+		_build_strips(_stages(type))
 	var console: ClientModel.Station = model.stations.get(_console)
 	var share := ZoneViews.fill(console, now) if console != null else 0.0
 	var strips := _fills.size()
