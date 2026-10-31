@@ -6,5 +6,4 @@
 script = ExtResource("1_kind")
 id = &"crystal_charged"
 display_name = "Charged crystal"
-spawn_tag = &"crystal_charged"
 hands = 2
