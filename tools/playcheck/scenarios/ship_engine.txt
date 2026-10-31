@@ -8,7 +8,8 @@
 # order). Back at the console, E starts the engine; the first problem opens: a red lamp over its station
 # (shot); nobody mends it, so its own deadline (its kind's `seconds`) runs out and the engine blasts (shot).
 # The waypoints are x,z in metres on the estate's ground: a point before the ramp's foot, which
-# every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test).
+# every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
+# both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall").
 players 1
 windows 1
 map res://levels/estate/estate.tscn

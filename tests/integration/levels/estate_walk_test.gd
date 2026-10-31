@@ -18,6 +18,8 @@ const SPACING := 0.1
 const BONFIRE := Vector2(65.3, 41)
 ## A line before the skat's ramp (its foot at z 59.4, §5a) on the walk "ship, ramp to hall".
 const RAMP_FRONT_Z := 58.8
+## The first waypoint of tools/playcheck/scenarios/ship_engine.txt's route `to_ship`.
+const SHIP_ROUTE_START := Vector3(116, 0, 58.5)
 ## §2: the east road's far edge (the road runs x 135..141).
 const ROAD_EAST_EDGE := 141.0
 ## The roof terrace's floor, the chimney shaft's centre and a point on its lip (§5c: the house at
@@ -429,6 +431,8 @@ func test_each_round_and_respawn_marker_walks_to_the_ramp_s_foot() -> void:
 		var at := LevelWorld.transform_in_scene(node as Node3D, map).origin
 		var corners := [at, Vector3(at.x, 0, RAMP_FRONT_Z), Vector3(116, 0, RAMP_FRONT_Z)]
 		_walk("from %s" % node.name, corners, 0.0)
+		# The playcheck scenario ship_engine.txt walks straight to its first waypoint instead.
+		_walk("from %s straight" % node.name, [at, SHIP_ROUTE_START], 0.0)
 		spawns += 1
 	assert_int(spawns).is_greater(0)
 
