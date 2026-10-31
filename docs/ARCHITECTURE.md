@@ -3989,10 +3989,10 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   `map_screen_test.gd` (the card over the map, Dim2, focus, Close, the map hiding closes it),
   `game_ui_overlays_test.gd` (Esc and the map key close only the card, then Esc closes the map),
   `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
-  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
-  shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
-  finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
-  type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
+  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (on the House with tasks
+  5, its five types dealt, as the estate deals the engine alone since #1496: a host's first loading shows the card
+  and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task finished in the round
+  completes its type for the next loading, seen failing without `GameHowto.follow`; a banned type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
   card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
 
