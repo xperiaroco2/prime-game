@@ -302,6 +302,16 @@ func test_a_reset_ends_the_pose() -> void:
 	assert_int(player.wheel_arms).is_equal(-1)
 
 
+func test_the_return_to_the_lobby_ends_the_pose() -> void:
+	var game := _posed_round([P1, P2])
+	game.state.reset_match()
+	var player := game.state.player(P1)
+	assert_int(player.wheel_legs).is_equal(-1)
+	assert_int(player.wheel_arms).is_equal(-1)
+	assert_int(player.wheel_pose_code()).is_equal(WheelPoseCode.NONE)
+	assert_int(_shown(game, P2, P1)).is_equal(WheelPoseCode.NONE)
+
+
 func test_take_wheel_pose_emits_nothing_and_requires_the_range() -> void:
 	assert_array(TakeWheelPose.new().emits()).is_empty()
 	assert_array(TakeWheelPose.new().required_conditions()).is_equal([WheelPoseInRange])
@@ -332,8 +342,8 @@ func _assert_ended(game: Match) -> void:
 	assert_int(game.state.player(P1).wheel_legs).is_equal(-1)
 	assert_int(game.state.player(P1).wheel_arms).is_equal(-1)
 	var avatars: Dictionary = game.snapshot_for(P2).get("avatars", {})
-	if avatars.has(P1):
-		assert_int((avatars[P1] as Dictionary)["wheel_pose"]).is_equal(WheelPoseCode.NONE)
+	assert_bool(avatars.has(P1)).is_true()
+	assert_int((avatars[P1] as Dictionary)["wheel_pose"]).is_equal(WheelPoseCode.NONE)
 
 
 ## `peer`'s wheel pose byte in `viewer`'s newest snapshot.
