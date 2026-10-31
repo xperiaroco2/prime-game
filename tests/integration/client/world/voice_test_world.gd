@@ -95,12 +95,13 @@ func event(event_name: StringName, fields: Dictionary) -> void:
 	voices.on_event(event_name, fields)
 
 
-## `count` frames of `peer` stamped at host tick `tick`, each a 20 ms sine of `amplitude`.
-func speak(peer: int, count: int, tick: int, amplitude := 0.5) -> void:
+## `count` frames of `peer` stamped at host tick `tick`, each a 20 ms sine of `amplitude`, each
+## with `strength` (how drunk the voice sounds, #1392).
+func speak(peer: int, count: int, tick: int, amplitude := 0.5, strength := 0) -> void:
 	for i: int in count:
 		var seq: int = seqs.get(peer, 0)
 		seqs[peer] = seq + 1
-		voices.on_voice(peer, seq & 0xFFFF, tick, sine(seq, amplitude))
+		voices.on_voice(peer, seq & 0xFFFF, tick, sine(seq, amplitude), strength)
 
 
 ## A box of `size` centred at `at` on physics layer `layer` (the level's by default), in this
