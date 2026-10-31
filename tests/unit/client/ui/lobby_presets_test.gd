@@ -22,7 +22,7 @@ func test_a_preset_is_the_modes_defaults_with_its_own_changes_and_no_ban() -> vo
 			assert_array(Array(standard[spec.id] as PackedStringArray)).is_empty()
 	(
 		assert_int(LobbyPresets.values_of(LobbyPresets.QUICK, _mode)[&"match_duration"] as int)
-		. is_equal(5)
+		. is_equal(3)
 	)
 	assert_int(LobbyPresets.values_of(LobbyPresets.NO_KNIVES, _mode)[&"knives"] as int).is_equal(0)
 
