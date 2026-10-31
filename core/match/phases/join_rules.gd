@@ -45,11 +45,11 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## this build can read (§4.3). Accepted: the joiner gets its number from its `key`
 ## (MatchState.give_number: a returner its old one, anyone else the next), is named (joiner_name),
 ## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
-## with a new epoch; Welcome (the joiner), PlayerJoined (everyone), a StationPlaced (everyone)
-## for each standing station in id order (_replay_stations: the lobby's tap, #1390, a stopgap
-## until Welcome carries the stations, #1404) and SettingsChanged (everyone). A name or a key
-## is never a reason to refuse: a bad name falls back, an unusable key is none (P7 (a)). `spec`
-## is the phase's own (its id goes into Welcome, its level decides the spot).
+## with a new epoch; Welcome (the joiner, with the hall's items, #1404), PlayerJoined (everyone),
+## a StationPlaced (everyone) for each standing station in id order (_replay_stations: the
+## lobby's tap, #1390; the way a joiner learns the stations) and SettingsChanged (everyone). A
+## name or a key is never a reason to refuse: a bad name falls back, an unusable key is none
+## (P7 (a)). `spec` is the phase's own (its id goes into Welcome, its level decides the spot).
 static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
@@ -255,12 +255,66 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 	welcome.map = ctx.state.map
 	welcome.phase = phase_id
 	welcome.lobby_name = ctx.state.lobby_name
+	welcome.items = _items(ctx)
 	return welcome
 
 
+## Welcome's item rows (#1404, WelcomeEvent.items): each present player's carried items by peer id
+## and place, then every other item in item-id order, at most WelcomeEvent.MAX_ITEMS (the rows past
+## it are left out with an error). A carried item's rest state is where its carrier holds it. No
+## item flies in Lobby or Countdown (both refuse Throw): one found is an error, sent as lying where
+## it was thrown from (its ItemPlaced at the flight's end settles it). A carried item whose carrier
+## is no present player is an error and left out.
+static func _items(ctx: MatchContext) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var listed: Dictionary[int, bool] = {}
+	for peer: int in ctx.state.present_peers():
+		var places := ctx.state.players[peer].places
+		for place: int in places.size():
+			var item: ItemState = ctx.state.items.get(places[place])
+			if item != null and item.is_carried():
+				rows.append(_item_row(item, item.where, peer, place))
+				listed[item.id] = true
+	var ids: Array[int] = []
+	ids.assign(ctx.state.items.keys())
+	ids.sort()
+	for id: int in ids:
+		var item := ctx.state.items[id]
+		if listed.has(id):
+			continue
+		if item.is_carried():
+			ctx.error(
+				"Welcome: item %d is carried by %d, who holds no place of it" % [id, item.holder]
+			)
+			continue
+		var where := item.where
+		if item.is_in_flight():
+			ctx.error("Welcome: item %d flies in %s" % [id, ctx.phase_spec().id])
+			where = ItemState.Where.GROUND
+		rows.append(_item_row(item, where, 0, 0))
+	if rows.size() > WelcomeEvent.MAX_ITEMS:
+		ctx.error("Welcome: %d items, %d sent" % [rows.size(), WelcomeEvent.MAX_ITEMS])
+		rows.resize(WelcomeEvent.MAX_ITEMS)
+	return rows
+
+
+static func _item_row(
+	item: ItemState, where: ItemState.Where, holder: int, place: int
+) -> Dictionary:
+	return {
+		"item": item.id,
+		"kind": item.kind.id,
+		"where": where as int,
+		"holder": holder,
+		"place": place,
+		"position": item.position,
+	}
+
+
 ## The stations standing before a join (#1390: the lobby's tap, StationTicks), again in id order
-## (StationPlaced, everyone): Welcome carries none yet (#1404), and a client overwrites a station
-## it knows by id, so the others' copies change nothing. Lobby and Countdown both join here.
+## (StationPlaced, everyone): the way a joiner learns them (Welcome carries the items only, #1404),
+## and a client overwrites a station it knows by id, so the others' copies change nothing. Lobby
+## and Countdown both join here.
 static func _replay_stations(ctx: MatchContext) -> void:
 	var ids: Array[int] = []
 	ids.assign(ctx.state.stations.keys())
