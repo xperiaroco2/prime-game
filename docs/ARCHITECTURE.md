@@ -1906,11 +1906,11 @@ wait for the bots that play Cooking (CE22): the House tests run `ScenarioInvaria
 stands in for a bot: `cooking_serve_test`'s "no event tells right or wrong before the serve" (planted: a `right` field
 back in `IngredientPlaced`'s dict, failed, reverted) and `cooking_events_name_no_player_test`.
 **#1453 (the ship's engine, part 1 of #1225)** added `EngineProblemOpened`, `EngineProblemFixed` and `EngineBlast` to both
-`TASK_EVENTS` lists and to `LeakCheck.UNREACHED` (no map has the ship's markers until part 3); what stands in for a
-bot: `ship_engine_blast_test`'s "the living and the downed see the same engine events" and
+`TASK_EVENTS` lists and to `LeakCheck.UNREACHED` (no scenario plays the estate, since #1462 the one map with the
+ship's markers); what stands in for a bot: `ship_engine_blast_test`'s "the living and the downed see the same engine events" and
 `engine_events_name_no_player_test`.
 **#1461 (the ship engine's problem kinds, part 2 of #1225)** added `GillFlipped`, `BreakerChain` and `CrystalChanged`
-to both `TASK_EVENTS` lists and to `LeakCheck.UNREACHED` (no map has the ship's markers until part 3); what stands in
+to both `TASK_EVENTS` lists and to `LeakCheck.UNREACHED` (as #1453's); what stands in
 for a bot: `engine_events_name_no_player_test` and the kinds' suites, which assert each event on every peer's view.
 **#808 (car repair R4)** added `FitChanged` and `PartFitted` to both `TASK_EVENTS` lists; no bot plays the House
 (§9.7), so their plant waits for its bots. What stands in: `car_repair_events_name_no_player_test` (`PartFitted` names
@@ -5193,7 +5193,7 @@ What the client does for each core task type class sits behind one table, client
   subclass per class: `DeliveryClient` (the circles, `CircleViews`), `DeliveryByMeaningClient` (its drop-offs as
   circles), `ZoneTaskClient` (`ZoneViews`), `GeneratorClient` (`StationViews`; the generator and the switches until
   the charge is done), `CookingClient` (`CookingViews`, `CookingUse`), `CarRepairClient` (`CarRepairViews`,
-  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`), `ShipEngineClient` (E on the console and every kind's stations, no view until #1225's part 3). Each but `DeliveryClient` also has the static
+  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`), `ShipEngineClient` (`ShipEngineViews`; E on the console and every kind's stations but a breaker board, §9.5.27). Each but `DeliveryClient` also has the static
   `types_of(mode)`, the mode's types of its class in the mode's order: the one place outside `core/` an `is` or `as`
   of a task type class stands; the `*Use` helpers (`CookingUse.types_of`, `StationUse.generators_of`, `PhotoUse.type_of`, ...) and the
   views call it.
@@ -8528,8 +8528,8 @@ plays it: the scenarios and the leak test play the greybox's Delivery by colours
 GDD §8 "The ship's engine" is the source (#1225, split in three: #1453 the core, #1461 the problem kinds, part 3 the
 estate's markers and the client's views). `ShipEngine` (`core/tasks/ship_engine.gd`, id `engine`; the copy deck's
 `task.engine`) is one shared task whose subtasks are its stages: `stage_problems`' first N (GDD: 2, 4, 6), N the
-subtasks setting (0 to their count; 0 is done at the deal, #79). Nobody owns it; nothing reads a role. It is in no
-mode yet: part 3 wires its kinds (below) into the base mode and puts the ship's markers on the estate.
+subtasks setting (0 to their count; 0 is done at the deal, #79). Nobody owns it; nothing reads a role. The base mode
+plays it on the estate (#1462, "The estate and the content" below).
 - **Data:** `start` (the console's `StationKind`), `kinds` (`ProblemKind`s, §9.3), `stage_problems` (1 to 6 stages,
   each 1 to 16 problems), `stage_seconds` (each stage's part of the bar and the span its spawn moments are drawn
   over; 0.05 to 600; GDD's placeholder about 30 s), `aboard_tag` (`engine_aboard`), the RNG purposes `when_rng`
@@ -8561,8 +8561,8 @@ mode yet: part 3 wires its kinds (below) into the base mode and puts the ship's 
   s to s - 1 (stage 1 restarts stage 1), its bar back to that stage's start, `ZoneProgress` at once; the stage's
   moments drawn again. Downed, dead and absent players and those outside are untouched. `knocks_down()` is true, so
   the mode check requires `LifeTicks` with a `Respawn` wherever `TaskTicks` runs (`KillCheck`, §9.3).
-- **The problem kinds** (#1461; `content/tasks/gills.tres`, `breakers.tres`, `crystal.tres`, provisional and in no
-  mode until part 3; the GDD's placeholder numbers). None reads a role; every event below is everyone's and names no
+- **The problem kinds** (#1461; `content/tasks/gills.tres`, `breakers.tres`, `crystal.tres`, provisional; the
+  engine's kinds in the base mode since #1462; the GDD's placeholder numbers). None reads a role; every event below is everyone's and names no
   player.
   - **The overheat** (`GillsProblem`): site the gill set's round button (tag `gill_button`, 2), one per problem. It
     opens with the five slits shut; a white bar runs over them 1-2-3-4-5-4-3-2 and round, one step every
@@ -8606,6 +8606,30 @@ mode yet: part 3 wires its kinds (below) into the base mode and puts the ship's 
   from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console's mimic
   board, GDD §8: remembered or read out, so no lamp, marker or HUD line at the boards shows it); a socket's crystal,
   a charger's phase and its fill = the problem's last `CrystalChanged`.
+- **The estate and the content** (#1462, provisional under the MVP content ADR). `content/tasks/ship_engine.tres`
+  (the console kind `engine_console`, the three kinds above, `stage_problems` 2, 4, 6, `stage_seconds` 30 (the GDD's
+  placeholder, the engineer's to set), `maps` the estate alone) is a task type of the base mode, which also lists the
+  two crystal item kinds and the setting `engine_stages` fixed at 3 (min = max = default: the stages are not a host's
+  knob, #507). `levels/estate/rooms/ship.tscn`'s `Engine/Markers` holds a `Marker3D` per station in its `spawn_<tag>`
+  group: the console, two gill buttons, two breaker boards, eight breakers (four along each board's wall, 0.5 m
+  apart), four cartridge sockets and two chargers, each on the deck in front of its device's point in
+  `docs/design/estate-map.md` §5a (the breakers' places are not in the doc), and the two `engine_aboard` corners (the
+  hull's inside from the tunnel's mouth to the vault hatch, deck to roof: the ground under the wings and the ramp are
+  out). `Engine/Gills01`, `Gills02` (group `engine_gills`) are the gill sets' stand-ins on the throat wall: five slits
+  each with an `Open` and a `Shut` box, a `Light` box per slit (the white bar) and the round `Button`. Every place and
+  size is a placeholder, "not a decision".
+- **The client** (#1462, stand-ins until the art track draws it). `ClientEngineBook` (`client/net/`,
+  `ClientModel.engine`) folds the engine's public events as listed above (open problems, the last `BreakerChain`,
+  the gills' slits, each socket's `CrystalChanged`, the blasts) and forgets them with the match. `ShipEngineViews`
+  (`client/world/`, `ShipEngineClient.make_view`, last of `ItemWorld`'s children) draws from it and the console's
+  `ZoneProgress`: over the console a hologram of three stage strips (each filling with its third of the bar) and the
+  mimic board (a lamp per breaker at its place in the ship scaled down, red tripped, green on, the open chain's order
+  played on it one lamp at a time: the only place the order shows); a red lamp over each station an open problem
+  holds; a lamp over each breaker (red, then yellow and green for the last one on, never the order) and charger
+  (yellow charging, green a crystal waiting); each gill set's slits open or shut and the white bar from the opening
+  tick (`GillsProblem.bar_slit`); and the blast, an orange sphere from the console. `ShipEngineClient` never offers E
+  on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
+  shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
 
 Produces: `StationPlaced` and `ZoneProgress` in the deal; `ButtonPressed`, `EngineProblemFixed` and the kinds'
 `use_emits` on a use (the breakers' short circuit: `KnockedDown`, `Correction`, `LaunchBody`; the crystal's moves:
@@ -8627,6 +8651,13 @@ the chain in its windows, too early and out of order a short circuit, too late t
 check) and `crystal_problem_test.gd` (the pull, the charger, the fit, the slip carried, put down and thrown, the
 blast from a hand and a charger, the reasons, the check); `tests/unit/items/items_give_test.gd` (`Items.hand_out`);
 `tests/integration/content/engine_problem_kinds_test.gd` (the provisional `.tres` load and pass their check).
+The estate and the client: `tests/integration/levels/estate_engine_test.gd` (each marker part 2 asks for, each board
+the nearest of four breakers, every station in the aboard box and the ground beside it out, each marker in front of
+its §5a device, on the deck and clear, each gill set by a gill button),
+`tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
+a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the red lamps,
+the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
+slits and bar, the blast, no board offered).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
@@ -8649,9 +8680,11 @@ content/
   tasks/photo.tres                 the photo task, with its five station kinds inside it (#784)
   tasks/cooking.tres               Cooking, with its five station kinds inside it (#775)
   tasks/car_repair.tres            car repair, with its car, lift panel, three bins and picture inside it (#810)
+  tasks/ship_engine.tres           the ship's engine on the estate, its console inside it (#1462, §9.5.27); its kinds
+                                   tasks/gills.tres, breakers.tres, crystal.tres (#1461)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
-  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres, cooking.tres, car_repair.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/tasks/delivery.tres, colour_delivery.tres, generator.tres, photo.tres, cooking.tres, car_repair.tres, engine.tres   a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.46; client data on core/content/tutorial/)
 levels/
@@ -8704,7 +8737,8 @@ levels/
   The base mode plays it as a test bench (#1374, beside the greybox in `bench_maps`, so the picker still lists the
   House alone, #767): its map-wide `Markers` piece holds the round spawns (an arc by the bonfire, the party's heart,
   estate-map.md §1), respawns, knives and the greybox Delivery by colours' packages and circles (`colour_delivery`
-  lists the estate, its stand-in task until the estate's own); every place a placeholder, "not a decision". Each lot
+  lists the estate, its stand-in task until the estate's own) and the ship's `Engine` the ship's engine's markers and
+  gill stand-ins (#1462, §9.5.27); every place a placeholder, "not a decision". Each lot
   with a footprint carries its room record, centred (§4.7.33). No throw at the base mode's numbers rests on a top no
   player stands on (the outbuildings', the gazebo's, the ship's, the fallen trunk's, raised to 3.2 m for it): the
   throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd). Every other flat box top outside the House's
@@ -8731,7 +8765,8 @@ levels/
   `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, each circle where it
   is placed, on flat floor, the layout the base mode accepts), `tests/unit/levels/estate_room_records_test.gd`,
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
-  `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped); the
+  `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped),
+  `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a

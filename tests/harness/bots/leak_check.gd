@@ -115,12 +115,12 @@ const TASK_EVENTS: Array[StringName] = [
 ## across storeys #1197 listed here. A task event added later that no scenario reaches comes here
 ## with its reason, until a scenario plays it.
 const UNREACHED: Dictionary[StringName, String] = {
-	&"EngineProblemOpened": "no map has the ship's markers until #1225's part 3 (#1453)",
-	&"EngineProblemFixed": "no map has the ship's markers until #1225's part 3 (#1453)",
-	&"EngineBlast": "no map has the ship's markers until #1225's part 3 (#1453)",
-	&"GillFlipped": "no map has the ship's markers until #1225's part 3 (#1461)",
-	&"BreakerChain": "no map has the ship's markers until #1225's part 3 (#1461)",
-	&"CrystalChanged": "no map has the ship's markers until #1225's part 3 (#1461)",
+	&"EngineProblemOpened": "no scenario plays the estate, the ship's map (#1462)",
+	&"EngineProblemFixed": "no scenario plays the estate, the ship's map (#1462)",
+	&"EngineBlast": "no scenario plays the estate, the ship's map (#1462)",
+	&"GillFlipped": "no scenario plays the estate, the ship's map (#1462)",
+	&"BreakerChain": "no scenario plays the estate, the ship's map (#1462)",
+	&"CrystalChanged": "no scenario plays the estate, the ship's map (#1462)",
 }
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
