@@ -68,6 +68,21 @@ func test_the_bookcase_and_the_wine_rack_are_one_toggle() -> void:
 	assert_str(world.calls[world.calls.size() - 1]).is_equal("bookcase 0 off")
 
 
+func test_one_player_flips_a_toggle_at_most_once_per_its_cooldown() -> void:
+	# The flood guard: E held at the book does not swing the bookcase twenty times a second.
+	var world := FixtureToggleWorld.new()
+	var game := FixtureToggles.in_round(FixtureToggles.mode(), world, [P1, P2])
+	var book := FixtureToggles.ids_of(game, &"book")[0]
+	FixtureToggles.flip(game, P1, book, FixtureToggles.BOOK, 1)
+	FixtureToggles.flip(game, P1, book, FixtureToggles.BOOK, 2)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([Cooldown.TOO_SOON])
+	assert_bool(game.state.stations[book].on).is_true()
+	FixtureModes.run_ticks(game, Ticks.from_seconds(FixtureToggles.COOLDOWN_S))
+	FixtureToggles.flip(game, P1, book, FixtureToggles.BOOK, 3)
+	assert_bool(game.state.stations[book].on).is_false()
+	assert_str(world.calls[world.calls.size() - 1]).is_equal("bookcase 0 off")
+
+
 func test_a_closed_part_blocks_sight_until_its_toggle_opens() -> void:
 	# The bookcase's part stands between the wine rack and a player beside it.
 	var wall := AABB(FixtureToggles.BOTTLE + Vector3(0.4, -1, -1), Vector3(0.2, 5, 2))

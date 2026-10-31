@@ -13,6 +13,8 @@ const COVERS: Array[Vector3] = [Vector3(40, 0, 0), Vector3(44, 0, 0)]
 const BOOK := Vector3(50, 0, 0)
 const BOTTLE := Vector3(50, 0, 8)
 const BREAKER := Vector3(60, 0, 0)
+## The fixture's toggle Cooldown (a test number, as the tap's 0.25 s).
+const COOLDOWN_S := 0.25
 
 
 static func mode() -> GameMode:
@@ -33,8 +35,8 @@ static func mode() -> GameMode:
 	return made
 
 
-## A toggle kind `id` (spawn tag `id`, key `key`): radius 1.5 m, height 2 m, its Interact at it and
-## in sight runs ToggleStation.
+## A toggle kind `id` (spawn tag `id`, key `key`): radius 1.5 m, height 2 m, its Interact at it, in
+## sight and past cooldown() runs ToggleStation.
 static func kind(id: StringName, key: StringName) -> StationKind:
 	var made := StationKind.new()
 	made.id = id
@@ -45,10 +47,18 @@ static func kind(id: StringName, key: StringName) -> StationKind:
 	made.actions = [
 		FixtureModes.rule(
 			Intents.INTERACT,
-			[AtStation.new(), StationInSight.new()] as Array[Condition],
+			[AtStation.new(), StationInSight.new(), cooldown()] as Array[Condition],
 			[ToggleStation.new()] as Array[RuleEffect]
 		)
 	]
+	return made
+
+
+## The toggles' flood guard (ToggleStation's required Cooldown): one flip per player per COOLDOWN_S.
+static func cooldown() -> Cooldown:
+	var made := Cooldown.new()
+	made.key = &"toggle"
+	made.seconds = COOLDOWN_S
 	return made
 
 

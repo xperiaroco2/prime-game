@@ -6,8 +6,10 @@ extends RuleEffect
 ## rack's bottle are one); a kind with no key is a toggle of its own stations, one by one. Each
 ## station of the toggle takes the new state, in id order, and SwitchChanged (everyone: a toggle is
 ## public, it names no player) tells it; with a key the host's world follows (WorldQuery.set_toggle,
-## once). Requires AtStation and StationInSight in its rule (ModeCheck), so only a player in reach
-## and in sight flips it, and only in a toggle kind's rule (a kind PlaceToggles places).
+## once). Requires AtStation, StationInSight and a Cooldown in its rule (ModeCheck), so only a
+## player in reach and in sight flips it, at most once per the Cooldown's seconds (a flood guard,
+## cooking's CE17: each flip moves bodies on the host and every client), and only in a toggle
+## kind's rule (a kind PlaceToggles places).
 ##
 ## Emits: SwitchChanged (everyone), one per station of the toggle.
 
@@ -33,7 +35,7 @@ func run(ctx: MatchContext) -> void:
 
 ## The condition classes its rule must hold, not negated (ModeCheck).
 func required_conditions() -> Array[Script]:
-	return [AtStation, StationInSight]
+	return [AtStation, StationInSight, Cooldown]
 
 
 func emits() -> Array[Script]:

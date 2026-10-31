@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## ModeCheck on world toggles (#1295; ARCHITECTURE §9.4.2, §9.4.3): a ToggleStation's rule holds
-## AtStation and StationInSight on an intent naming a station; a ToggleStation only in a toggle
-## kind's rule; a toggle kind sharing a spawn tag with another kind; PlaceToggles' own check; a
-## toggle key with a space.
+## AtStation, StationInSight and a Cooldown (the flood guard) on an intent naming a station; a
+## ToggleStation only in a toggle kind's rule; a toggle kind sharing a spawn tag with another kind;
+## PlaceToggles' own check; a toggle key with a space.
 
 
 func test_a_toggle_rule_without_sight_is_refused() -> void:
@@ -10,6 +10,15 @@ func test_a_toggle_rule_without_sight_is_refused() -> void:
 	var cover := _kind(made, &"cover")
 	cover.actions[0].conditions = [AtStation.new()] as Array[Condition]
 	assert_str(_errors(made)).contains("requires the condition StationInSight")
+
+
+func test_a_toggle_rule_without_a_cooldown_is_refused() -> void:
+	# The flood guard: each flip moves bodies on the host and on every client.
+	var made := FixtureToggles.mode()
+	var cover := _kind(made, &"cover")
+	cover.actions[0].conditions = [AtStation.new(), StationInSight.new()] as Array[Condition]
+	assert_str(_errors(made)).contains("requires the condition Cooldown")
+	assert_array(ModeCheck.run(FixtureToggles.mode()).errors).is_empty()
 
 
 func test_a_toggle_in_a_role_rule_is_refused() -> void:
