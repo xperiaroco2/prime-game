@@ -45,6 +45,8 @@ const MIX_RATE := 22050
 const PHOTO_BLIP_SECONDS: Dictionary[StringName, float] = {
 	SoundChooser.SHUTTER: 0.08,
 	SoundChooser.PRINT: 0.6,
+	# The photo booth's countdown beep (#1397): its flash is the shutter, its print the print's.
+	SoundChooser.BOOTH_BEEP: 0.12,
 }
 ## The Generator's placeholder clicks (#801, G6) and the length of each in seconds: placeholders,
 ## "not a decision", until the engineer's files arrive.
@@ -199,8 +201,8 @@ static func throw_blip() -> AudioStreamWAV:
 
 ## The placeholder sound of the photo task's sound `id` (#785, PD15: blips built in code, as
 ## throw_blip(), until the engineer's files arrive): a 16-bit mono burst PHOTO_BLIP_SECONDS long.
-## The shutter two quick clicks; the printer a buzz stepping a dozen times a second. Null for an
-## id with no blip.
+## The shutter two quick clicks; the printer a buzz stepping a dozen times a second; the booth's
+## beep a short tone (#1397). Null for an id with no blip.
 static func photo_blip(id: StringName) -> AudioStreamWAV:
 	if not PHOTO_BLIP_SECONDS.has(id):
 		return null
@@ -218,6 +220,8 @@ static func photo_blip(id: StringName) -> AudioStreamWAV:
 			value = noise * exp(-t / 0.004)
 			if t >= 0.045:
 				value += 0.7 * noise * exp(-(t - 0.045) / 0.004)
+		elif id == SoundChooser.BOOTH_BEEP:
+			value = 0.6 * sin(TAU * 880.0 * t) * minf(1.0, minf(t, seconds - t) / 0.01)
 		else:
 			var fade := minf(1.0, minf(t / 0.02, (seconds - t) / 0.05))
 			var step := 0.6 + 0.4 * signf(sin(TAU * 12.0 * t))
