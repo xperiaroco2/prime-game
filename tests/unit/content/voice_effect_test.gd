@@ -31,7 +31,7 @@ func test_a_wobble_swings_around_rest_at_its_rate() -> void:
 	assert_float(effect.value_at(255, 1.0)).is_equal_approx(1.0, 1e-6)
 	assert_float(effect.value_at(255, 1.5)).is_equal_approx(0.8, 1e-6)
 	# Half the strength, half the swing.
-	assert_float(effect.value_at(255 / 2, 0.5)).is_equal_approx(1.0 + 0.2 * 127 / 255.0, 1e-6)
+	assert_float(effect.value_at(127, 0.5)).is_equal_approx(1.0 + 0.2 * 127 / 255.0, 1e-6)
 	# Sober: rest whatever the clock.
 	assert_float(effect.value_at(0, 0.5)).is_equal(1.0)
 

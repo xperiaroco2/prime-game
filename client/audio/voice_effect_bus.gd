@@ -23,37 +23,37 @@ var effect: VoiceEffect
 var _made: AudioEffect
 
 
-## A new bus `bus_name` sending to `send`, with `effect`'s bus effect on it; null (nothing made)
-## when `effect` names no engine bus effect with that parameter (usable()).
-static func make(effect: VoiceEffect, bus_name: StringName, send: StringName) -> VoiceEffectBus:
-	if not usable(effect):
+## A new bus `bus_name` sending to `send`, with `from`'s bus effect on it; null (nothing made)
+## when `from` names no engine bus effect with that parameter (usable()).
+static func make(from: VoiceEffect, bus_name: StringName, send: StringName) -> VoiceEffectBus:
+	if not usable(from):
 		return null
-	var made := ClassDB.instantiate(effect.bus_effect) as AudioEffect
-	for key: Variant in effect.settings:
-		made.set(StringName(str(key)), effect.settings[key])
+	var built := ClassDB.instantiate(from.bus_effect) as AudioEffect
+	for key: Variant in from.settings:
+		built.set(StringName(str(key)), from.settings[key])
 	AudioServer.add_bus()
-	var index := AudioServer.bus_count - 1
-	AudioServer.set_bus_name(index, bus_name)
-	AudioServer.set_bus_send(index, send)
-	AudioServer.add_bus_effect(index, made)
+	var at := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(at, bus_name)
+	AudioServer.set_bus_send(at, send)
+	AudioServer.add_bus_effect(at, built)
 	var bus := VoiceEffectBus.new()
-	bus.name = AudioServer.get_bus_name(index)
-	bus.effect = effect
-	bus._made = made
+	bus.name = AudioServer.get_bus_name(at)
+	bus.effect = from
+	bus._made = built
 	return bus
 
 
-## Whether `effect` names an engine class that is a bus effect, can be made, and has `parameter`.
-static func usable(effect: VoiceEffect) -> bool:
-	if effect == null or effect.bus_effect == &"" or effect.parameter == &"":
+## Whether `candidate` names an engine class that is a bus effect, can be made, and has `parameter`.
+static func usable(candidate: VoiceEffect) -> bool:
+	if candidate == null or candidate.bus_effect == &"" or candidate.parameter == &"":
 		return false
-	var named := effect.bus_effect
+	var named := candidate.bus_effect
 	if not ClassDB.class_exists(named) or not ClassDB.is_parent_class(named, BUS_EFFECT_BASE):
 		return false
 	if not ClassDB.can_instantiate(named):
 		return false
 	var probe := ClassDB.instantiate(named) as AudioEffect
-	return probe != null and probe.get(effect.parameter) != null
+	return probe != null and probe.get(candidate.parameter) != null
 
 
 ## The bus's index now, or -1 once it is gone.
