@@ -17,7 +17,11 @@ extends RuleEffect
 func run(ctx: MatchContext) -> void:
 	var legs := ctx.command.get_int("legs", -1) if ctx.command != null else -1
 	var arms := ctx.command.get_int("arms", -1) if ctx.command != null else -1
-	if ctx.mode.wheel_poses == null or not ctx.mode.wheel_poses.has_pick(legs, arms):
+	if (
+		ctx.mode == null
+		or ctx.mode.wheel_poses == null
+		or not ctx.mode.wheel_poses.has_pick(legs, arms)
+	):
 		ctx.error("TakeWheelPose: %d, %d is no pose of the mode (WheelPoseInRange)" % [legs, arms])
 		return
 	var actor := ctx.state.player(ctx.actor)
