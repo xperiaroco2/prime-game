@@ -84,6 +84,7 @@ const TASK_EVENTS: Array[StringName] = [
 	&"GillFlipped",
 	&"BreakerChain",
 	&"CrystalChanged",
+	&"BoothStep",
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
