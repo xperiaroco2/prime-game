@@ -3,7 +3,8 @@ extends GameMode
 ## The base mode as release/m7's #649 made it, for the zone task's tests and scenarios: the
 ## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
 ## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
-## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task; the Generator, the photo
+## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task, on the House, its one
+## player map (the estate, the shipped mode's since #1496, left out); the Generator, the photo
 ## task (#784), Cooking (#775), car repair (#810) and the ship's engine (#1462), their settings,
 ## Cooking's item kinds and the Interact accepts of Round (#800), the Lobby and the Countdown
 ## (#1388) left out (the film, photo, car part and crystal item kinds stay, unused). The
@@ -15,6 +16,8 @@ extends GameMode
 const PATH := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ZONE_TASK := "res://content/tasks/hold_the_zone.tres"
+const HOUSE := "res://levels/house/house.tscn"
+const ESTATE := "res://levels/estate/estate.tscn"
 
 
 func _init() -> void:
@@ -62,6 +65,7 @@ func _init() -> void:
 			kinds_out.append_array((type as Cooking).boxes)
 	types.append(load(ZONE_TASK) as TaskType)
 	task_types = types
+	_house_maps(base)
 	var kinds: Array[ItemKind] = []
 	for kind: ItemKind in base.item_kinds:
 		if not kinds_out.has(kind):
@@ -81,6 +85,22 @@ func _init() -> void:
 ## The mode, loaded from PATH.
 static func mode() -> GameMode:
 	return load(PATH) as GameMode
+
+
+## The maps as #649 played them: the House the one player map, so every match starts on it, the
+## greybox its test bench. The shipped mode's estate (its player map since the M8 slice, #1496)
+## stays out: without the ship's engine no task type here plays on it.
+func _house_maps(base: GameMode) -> void:
+	var kept := PackedStringArray()
+	var benches := PackedStringArray()
+	for path: String in base.maps:
+		if path == ESTATE:
+			continue
+		kept.append(path)
+		if path != HOUSE and base.bench_maps.has(path):
+			benches.append(path)
+	maps = kept
+	bench_maps = benches
 
 
 ## The own copies (Round, the Lobby and the Countdown) without Interact, which only the task types'

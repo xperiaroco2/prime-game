@@ -143,7 +143,12 @@ func test_the_car_parts_setting_and_every_type_in_every_match() -> void:
 	for path: String in mode.maps:
 		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
 	assert_int(most).is_equal(5)
-	assert_array([tasks.default_value, tasks.max_value]).is_equal([most, most])
+	assert_int(tasks.max_value).is_equal(most)
+	# Its default deals every type of the default map: the estate's one ship's engine, the M8
+	# slice's (#1496); the House's matches set `tasks` to its five.
+	assert_int(tasks.default_value).is_equal(
+		DealTasks.pool_of(mode, PackedStringArray(), mode.default_map()).size()
+	)
 	var repair := _repair(mode)
 	assert_bool(DealTasks.pool_of(mode, PackedStringArray(), HOUSE).has(repair)).is_true()
 	assert_bool(DealTasks.pool_of(mode, PackedStringArray(), GREYBOX).has(repair)).is_false()

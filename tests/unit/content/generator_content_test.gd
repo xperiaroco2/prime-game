@@ -66,8 +66,8 @@ func test_the_switches_setting_and_every_type_in_every_match() -> void:
 	)
 	# The label is GD1's placeholder, "not a decision": the engineer approves it in the PR.
 	assert_str(switches.display_name).is_not_empty()
-	# `tasks` (GD7 (i)): every type that plays on the map, every match, so its default and maximum
-	# are the most types one map plays: the House's five (Delivery, the Generator, the photo task,
+	# `tasks` (GD7 (i)): every type that plays on the map, every match, so its maximum is the most
+	# types one map plays: the House's five (Delivery, the Generator, the photo task,
 	# #784, Cooking, #775, and car repair, #810); the greybox deals its Delivery by colours alone
 	# (DealTasks deals a smaller pool whole).
 	var tasks := mode.find_setting(&"tasks")
@@ -75,7 +75,12 @@ func test_the_switches_setting_and_every_type_in_every_match() -> void:
 	for path: String in mode.maps:
 		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
 	assert_int(most).is_equal(5)
-	assert_array([tasks.default_value, tasks.max_value]).is_equal([most, most])
+	assert_int(tasks.max_value).is_equal(most)
+	# Its default deals every type of the default map: the estate's one ship's engine, the M8
+	# slice's (#1496); the House's matches set `tasks` to its five.
+	assert_int(tasks.default_value).is_equal(
+		DealTasks.pool_of(mode, PackedStringArray(), mode.default_map()).size()
+	)
 	assert_int(DealTasks.pool_of(mode, PackedStringArray(), GREYBOX).size()).is_equal(1)
 	assert_bool(mode.task_types.has(_generator(mode))).is_true()
 

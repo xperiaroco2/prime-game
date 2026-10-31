@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## The estate's world toggles (#1459) follow the toggle level contract (ARCHITECTURE §4.5.9,
-## levels/CLAUDE.md): the base mode's PlaceToggles kinds each find their markers on the estate,
+## levels/CLAUDE.md): the toggle kinds (the base mode's PlaceToggles until the M8 slice took them
+## off, #1496; _toggle_mode places them again) each find their markers on the estate,
 ## every part in a `toggle_<key>` group builds in the host's world without an error, the marker of
 ## each toggle's station stands at its own part (a part's `toggle_index` is its marker's ordinal, so
 ## a marker out of order would open another passage), each marker can be used in sight from a
@@ -10,6 +11,7 @@ extends GdUnitTestSuite
 
 const MAP := "res://levels/estate/estate.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const STATIONS_DIR := "res://content/stations/"
 ## The markers each toggle kind has on the estate: the bookcase and the wine rack, each side of the
 ## secret stair (estate-map §5b); a manhole and its inside for the cellar, the bonfire, the well and
 ## the ship's west wing (§5b); the six fixed cameras (§5c); the light breaker (§6).
@@ -55,8 +57,8 @@ func test_every_toggle_part_builds_without_an_error() -> void:
 	assert_int(level.toggle_part_count()).is_equal(PARTS)
 
 
-func test_the_base_mode_places_every_toggle_kind_on_its_markers() -> void:
-	var mode := _base_mode()
+func test_the_mode_places_every_toggle_kind_on_its_markers() -> void:
+	var mode := _toggle_mode()
 	var layout := _read(mode).layout
 	var placed: Array[StringName] = []
 	for kind: StationKind in Stations.toggle_kinds(mode):
@@ -70,7 +72,7 @@ func test_the_base_mode_places_every_toggle_kind_on_its_markers() -> void:
 
 
 func test_each_toggle_marker_stands_at_its_own_part() -> void:
-	var mode := _base_mode()
+	var mode := _toggle_mode()
 	var layout := _read(mode).layout
 	var parts := _parts()
 	assert_int(parts.size()).is_equal(PARTS)
@@ -100,7 +102,7 @@ func test_each_toggle_marker_stands_at_its_own_part() -> void:
 
 
 func test_each_toggle_marker_is_used_in_sight_shut_and_open() -> void:
-	var mode := _base_mode()
+	var mode := _toggle_mode()
 	var world := _world(mode)
 	var layout := MarkerReader.read_scene(MAP, world, MarkerReader.floor_tags_of(mode)).layout
 	var eye := mode.player_rules.eye_height_of(false)
@@ -124,7 +126,7 @@ func test_each_toggle_marker_is_used_in_sight_shut_and_open() -> void:
 
 
 func test_a_shut_toggle_closes_its_opening_and_an_open_one_frees_it() -> void:
-	var world := _world(_base_mode())
+	var world := _world(_toggle_mode())
 	for opening: Array in OPENINGS:
 		var key: StringName = opening[0]
 		var index: int = opening[1]
@@ -170,7 +172,7 @@ func _usable(world: HostWorldQuery, marker: Vector3, eye: float) -> bool:
 func test_each_toggle_marker_stands_on_the_floor() -> void:
 	# PlaceToggles' kinds are no task type's, so the host reads their markers as placed
 	# (MarkerReader.floor_tags_of): each must be placed on its floor.
-	var mode := _base_mode()
+	var mode := _toggle_mode()
 	var world := _world(mode)
 	var layout := MarkerReader.read_scene(MAP, world, MarkerReader.floor_tags_of(mode)).layout
 	for kind: StationKind in Stations.toggle_kinds(mode):
@@ -208,8 +210,25 @@ func _collect(node: Node, root: Node3D, found: Array[Part]) -> void:
 		_collect(child, root, found)
 
 
-func _base_mode() -> GameMode:
-	return load(BASE_MODE) as GameMode
+## The base mode with the world toggles it placed on the estate before the M8 slice (#1459; off
+## the base mode since #1496): a PlaceToggles of every kind in MARKERS after its DealTasks, on a
+## copy, so the shipped mode stays as loaded.
+func _toggle_mode() -> GameMode:
+	var made := (load(BASE_MODE) as GameMode).duplicate() as GameMode
+	var placing := PlaceToggles.new()
+	for id: StringName in MARKERS:
+		placing.kinds.append(load(STATIONS_DIR + String(id) + ".tres") as StationKind)
+	var rows: Array[Transition] = []
+	for row: Transition in made.transitions:
+		if row.from == &"loading" and row.outcome == &"all_loaded":
+			var own := row.duplicate() as Transition
+			own.actions = row.actions.duplicate()
+			own.actions.insert(2, placing)
+			rows.append(own)
+		else:
+			rows.append(row)
+	made.transitions = rows
+	return made
 
 
 func _world(mode: GameMode) -> HostWorldQuery:

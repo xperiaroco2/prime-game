@@ -18,7 +18,9 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([5, 1, 5])
+	# The default 1 since the M8 slice (#1496): the estate deals its one ship's engine; the House's
+	# matches set 5.
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([1, 1, 5])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
@@ -86,7 +88,9 @@ func test_each_delivery_plays_on_one_map_of_the_base_mode_the_two_apart() -> voi
 	assert_bool(by_meaning is DeliveryByMeaning).is_true()
 	assert_bool(by_colours is Delivery).is_true()
 	assert_array(Array(by_meaning.maps)).is_equal([HOUSE])
-	assert_array(Array(by_colours.maps)).is_equal([GREYBOX, ESTATE])
+	# Off the estate since the M8 slice (#1496), whose one task is the ship's engine.
+	assert_array(Array(by_colours.maps)).is_equal([GREYBOX])
+	assert_bool(by_colours.plays_on(ESTATE)).is_false()
 	for type: TaskType in [by_meaning, by_colours]:
 		assert_bool(mode.maps.has(type.maps[0])).is_true()
 		for map: String in tutorial.maps:

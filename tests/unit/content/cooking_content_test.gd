@@ -182,15 +182,20 @@ func test_the_burgers_setting_and_every_type_in_every_match() -> void:
 	assert_bool(burgers.is_number()).is_true()
 	assert_array([burgers.default_value, burgers.min_value, burgers.max_value]).is_equal([1, 0, 3])
 	assert_str(burgers.display_name).is_equal("Burgers (Cooking)")
-	# `tasks` (GD7 (i)): every type that plays on the map, every match, so its default and maximum
-	# are the most types one map plays: the House's five (Delivery, the Generator, the photo task,
+	# `tasks` (GD7 (i)): every type that plays on the map, every match, so its maximum is the most
+	# types one map plays: the House's five (Delivery, the Generator, the photo task,
 	# Cooking and car repair, #810); the greybox deals its Delivery by colours alone.
 	var tasks := mode.find_setting(&"tasks")
 	var most := 0
 	for path: String in mode.maps:
 		most = maxi(most, DealTasks.pool_of(mode, PackedStringArray(), path).size())
 	assert_int(most).is_equal(5)
-	assert_array([tasks.default_value, tasks.max_value]).is_equal([most, most])
+	assert_int(tasks.max_value).is_equal(most)
+	# Its default deals every type of the default map: the estate's one ship's engine, the M8
+	# slice's (#1496); the House's matches set `tasks` to its five.
+	assert_int(tasks.default_value).is_equal(
+		DealTasks.pool_of(mode, PackedStringArray(), mode.default_map()).size()
+	)
 	assert_bool(DealTasks.pool_of(mode, PackedStringArray(), HOUSE).has(_cooking(mode))).is_true()
 	assert_int(DealTasks.pool_of(mode, PackedStringArray(), GREYBOX).size()).is_equal(1)
 
