@@ -75,8 +75,9 @@ const FOR_ONE: Array[StringName] = [
 ## Cooking's GrillLoaded and IngredientPlaced (#773), the car repair's FitChanged and PartFitted
 ## (#808), the photo task's PhotoPrinted and PhotoHung (#782), Cooking's BurgerPlated and
 ## BurgerServed (#1101) and the ship engine's EngineProblemOpened, EngineProblemFixed and
-## EngineBlast (#1453). Since #1197 the House scenarios play them over the wire, and since #1209
-## every one of them but the UNREACHED ones (check_coverage).
+## EngineBlast (#1453) and its problem kinds' GillFlipped, BreakersTripped, BreakerSwitched,
+## ChargerChanged and CrystalSocketChanged (#1461). Since #1197 the House scenarios play them over
+## the wire, and since #1209 every one of them but the UNREACHED ones (check_coverage).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -105,6 +106,11 @@ const TASK_EVENTS: Array[StringName] = [
 	&"EngineProblemOpened",
 	&"EngineProblemFixed",
 	&"EngineBlast",
+	&"GillFlipped",
+	&"BreakersTripped",
+	&"BreakerSwitched",
+	&"ChargerChanged",
+	&"CrystalSocketChanged",
 ]
 ## The task events no scenario reaches, each with why (check_coverage, #1197): none since the bots
 ## change storey over the House's stairs (#1209, ARCHITECTURE §9.7), which played the nine chains
@@ -114,6 +120,11 @@ const UNREACHED: Dictionary[StringName, String] = {
 	&"EngineProblemOpened": "no map has the ship's markers until #1225's part 3 (#1453)",
 	&"EngineProblemFixed": "no map has the ship's markers until #1225's part 3 (#1453)",
 	&"EngineBlast": "no map has the ship's markers until #1225's part 3 (#1453)",
+	&"GillFlipped": "no map has the ship's markers until #1225's part 3 (#1461)",
+	&"BreakersTripped": "no map has the ship's markers until #1225's part 3 (#1461)",
+	&"BreakerSwitched": "no map has the ship's markers until #1225's part 3 (#1461)",
+	&"ChargerChanged": "no map has the ship's markers until #1225's part 3 (#1461)",
+	&"CrystalSocketChanged": "no map has the ship's markers until #1225's part 3 (#1461)",
 }
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
