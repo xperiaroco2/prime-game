@@ -32,18 +32,18 @@ func test_the_seated_players_flippers_reach_every_peer() -> void:
 func test_the_same_held_state_again_is_applied_silently() -> void:
 	var game := _seated()
 	FixturePinball.flippers(game, P1, true, true, 1)
-	var before := FixturePinball.states(game, P2).size()
+	var told := FixturePinball.states(game, P2).size()
 	FixturePinball.flippers(game, P1, true, true, 2)
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
-	assert_int(FixturePinball.states(game, P2).size()).is_equal(before)
+	assert_int(FixturePinball.states(game, P2).size()).is_equal(told)
 
 
 func test_anyone_but_the_seated_player_is_not_seated_and_changes_nothing() -> void:
 	var game := _seated()
-	var before := FixturePinball.states(game, P1)
+	var told := FixturePinball.states(game, P1)
 	FixturePinball.flippers(game, P2, true, true, 4)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([Pinball.NOT_SEATED])
-	assert_array(FixturePinball.states(game, P1)).is_equal(before)
+	assert_array(FixturePinball.states(game, P1)).is_equal(told)
 	var game_free := FixturePinball.at_machine(FixturePinball.mode(), [P1])
 	FixturePinball.flippers(game_free, P1, true, false, 1)
 	assert_array(FixtureModes.rejections(game_free, P1)).is_equal([Pinball.NOT_SEATED])

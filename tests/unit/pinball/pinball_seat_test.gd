@@ -29,11 +29,11 @@ func test_an_interact_seats_the_player_and_every_peer_sees_the_same_game() -> vo
 func test_a_second_player_is_refused_while_one_plays() -> void:
 	var game := FixturePinball.at_machine(FixturePinball.mode(), [P1, P2])
 	FixturePinball.interact(game, P1)
-	var before := FixturePinball.states(game, P2).size()
+	var told := FixturePinball.states(game, P2).size()
 	FixturePinball.interact(game, P2, 3)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable"])
 	assert_int(Pinball.seated(game.state)).is_equal(P1)
-	assert_int(FixturePinball.states(game, P2).size()).is_equal(before)
+	assert_int(FixturePinball.states(game, P2).size()).is_equal(told)
 
 
 func test_the_seated_players_interact_again_gives_the_seat_up() -> void:

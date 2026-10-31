@@ -47,18 +47,18 @@ func test_the_game_ends_after_its_last_ball() -> void:
 func test_reports_that_do_not_fit_are_ignored_with_no_event() -> void:
 	var game := _seated()
 	var serial := Pinball.game(game.state).serial
-	var before := FixturePinball.states(game, P2).size()
+	var told := FixturePinball.states(game, P2).size()
 	StubTable.hit(game, serial, &"bumper")
 	StubTable.lost(game, serial)
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixturePinball.states(game, P2).size()).is_equal(before)
+	assert_int(FixturePinball.states(game, P2).size()).is_equal(told)
 	StubTable.play(game, [&"launch"])
-	before = FixturePinball.states(game, P2).size()
+	told = FixturePinball.states(game, P2).size()
 	StubTable.launch(game, serial)
 	StubTable.hit(game, serial + 1, &"bumper")
 	StubTable.lost(game, 0)
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixturePinball.states(game, P2).size()).is_equal(before)
+	assert_int(FixturePinball.states(game, P2).size()).is_equal(told)
 	assert_int(FixturePinball.last(game, P2)["score"]).is_equal(0)
 	assert_array(Array(game.diagnostics)).is_empty()
 
