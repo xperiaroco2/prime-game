@@ -5184,7 +5184,7 @@ What the client does for each core task type class sits behind one table, client
   subclass per class: `DeliveryClient` (the circles, `CircleViews`), `DeliveryByMeaningClient` (its drop-offs as
   circles), `ZoneTaskClient` (`ZoneViews`), `GeneratorClient` (`StationViews`; the generator and the switches until
   the charge is done), `CookingClient` (`CookingViews`, `CookingUse`), `CarRepairClient` (`CarRepairViews`,
-  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`). Each but `DeliveryClient` also has the static
+  `CarRepairUse`), `PhotoTaskClient` (`PhotoViews`, `PhotoUse`), `ShipEngineClient` (E on the console and every kind's stations, no view until #1225's part 3). Each but `DeliveryClient` also has the static
   `types_of(mode)`, the mode's types of its class in the mode's order: the one place outside `core/` an `is` or `as`
   of a task type class stands; the `*Use` helpers (`CookingUse.types_of`, `StationUse.generators_of`, `PhotoUse.type_of`, ...) and the
   views call it.

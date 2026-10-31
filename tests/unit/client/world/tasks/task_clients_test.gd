@@ -14,6 +14,7 @@ const CORE_TYPES: Array[String] = [
 	"Cooking",
 	"CarRepair",
 	"PhotoTask",
+	"ShipEngine",
 ]
 
 
