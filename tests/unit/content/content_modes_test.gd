@@ -813,6 +813,31 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_the_base_mode_s_default_humans_follow_the_player_count() -> void:
+	# The M8 slice (GDD §3, m8-match §2; #1492, provisional numbers): by default 1 dissident at 4-5
+	# players, 2 at 6-8, 3 at 9-10, and today's 1 below 4; the host's own number still wins.
+	var mode := _base_mode()
+	var spec := mode.find_setting(&"dissidents")
+	assert_int(spec.default_value).is_equal(1)
+	var defaults: Array[int] = []
+	for players in range(1, 11):
+		defaults.append(spec.default_for(players))
+	assert_array(defaults).is_equal([1, 1, 1, 1, 1, 2, 2, 2, 3, 3])
+	# Through the real lobby: ten join, nobody names the number, and the deal draws three.
+	var peers: Array[int] = []
+	for peer in range(1, 11):
+		peers.append(peer)
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	assert_int(game.state.settings[&"dissidents"]).is_equal(3)
+	_ready_and_load(game, peers)
+	assert_int(FixtureDealModes.players_of(game, &"dissident").size()).is_equal(3)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() -> void:
 	# The engineer's decision (MVP rules), through the real lobby: the host sets 0 dissidents and
 	# a 1-minute round; nobody is a dissident, nothing is delivered, and time up is their win.
