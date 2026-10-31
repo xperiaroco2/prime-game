@@ -26,7 +26,11 @@ const HAND_INTENTS: Array[StringName] = [
 
 
 static func mode() -> GameMode:
-	var made := FixtureBaseMode.mode()
+	return with_hands(FixtureBaseMode.mode())
+
+
+## `made` (FixtureBaseMode's or one built from it) with the hall's hands as mode() has them.
+static func with_hands(made: GameMode) -> GameMode:
 	var items := FixtureItemModes.basic()
 	made.player_rules.eye_height_m = FixtureItemModes.EYE_HEIGHT_M
 	made.item_kinds = items.item_kinds
