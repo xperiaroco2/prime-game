@@ -155,3 +155,28 @@ func test_a_point_on_the_aboard_box_s_edge_is_aboard_and_one_past_it_is_not() ->
 	assert_bool(ShipEngine.in_box(Vector3(10.1, 0, 5), low, high)).is_false()
 	assert_bool(ShipEngine.in_box(Vector3(5, -0.1, 5), low, high)).is_false()
 	assert_bool(ShipEngine.in_box(Vector3(5, 2, 10.1), low, high)).is_false()
+
+
+func test_its_blast_rule_keys_on_task_ticks_not_on_interact() -> void:
+	var mode := FixtureEngineModes.basic()
+	var round_phase := mode.find_phase(&"round")
+	FixtureCombatModes.life_ticks(mode).respawn = null
+	# A phase that runs TaskTicks but takes no Interact still needs the respawn.
+	var kept: Array[AcceptSpec] = []
+	for entry: AcceptSpec in round_phase.accepts:
+		if entry.intent != Intents.INTERACT:
+			kept.append(entry)
+	round_phase.accepts = kept
+	assert_str(_errors(mode)).contains(
+		"phase round lists TaskTicks, and task type engine can knock down"
+	)
+	# A phase that takes Interact but runs no TaskTicks has no blast to answer for.
+	var other := FixtureEngineModes.basic()
+	FixtureCombatModes.life_ticks(other).respawn = null
+	var other_round := other.find_phase(&"round")
+	var systems: Array[TickSystem] = []
+	for system: TickSystem in other_round.tick_systems:
+		if not system is TaskTicks:
+			systems.append(system)
+	other_round.tick_systems = systems
+	assert_str(_errors(other)).not_contains("can knock down")
