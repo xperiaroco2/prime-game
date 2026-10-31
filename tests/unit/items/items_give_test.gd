@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 ## item goes onto the belt (`belted` the item itself), a full belt's item put down at the feet
 ## first, and the two-handed item stays in the hand. Driven by Use through FixtureItemMove's GIVE
 ## (a box's take stand-in) on a seeded fixture match; asserted on the events, view_of and the state.
+## Items.hand_out (#1461) through HAND_OUT_AT: a two-handed item, locked at a source, into the hand
+## by take()'s hand rules; a one-handed one as give() does.
 
 const P1 := 1
 const P2 := 2
@@ -175,3 +177,57 @@ func _newest(game: Match) -> ItemState:
 
 func _last_pick(game: Match, peer: int) -> ItemPickedUpEvent:
 	return game.view_of(peer).events_named(&"ItemPickedUp")[-1] as ItemPickedUpEvent
+
+
+func test_hand_out_puts_a_locked_two_handed_item_into_empty_hands() -> void:
+	var game := _game()
+	var package := _locked(game, &"package")
+	var seen := game.view_of(P2).events.size()
+	FixtureItemMove.use(game, P1, FixtureItemMove.HAND_OUT_AT, SOURCE)
+	assert_int(game.state.player(P1).held_item).is_equal(package.id)
+	assert_int(package.where).is_equal(ItemState.Where.HAND)
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_hand_out_puts_a_one_handed_hand_item_onto_the_belt_for_a_two_handed_one() -> void:
+	var game := _game()
+	var hand := _picked(game, &"herb")
+	var package := _locked(game, &"package")
+	FixtureItemMove.use(game, P1, FixtureItemMove.HAND_OUT_AT, SOURCE)
+	var player := game.state.player(P1)
+	assert_int(player.held_item).is_equal(package.id)
+	assert_int(player.belt_item).is_equal(hand.id)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_hand_out_swaps_a_two_handed_hand_item_out_at_the_feet() -> void:
+	var game := _game()
+	var hand := _picked(game, &"package")
+	var package := _locked(game, &"package")
+	var seen := game.view_of(P2).events.size()
+	FixtureItemMove.use(game, P1, FixtureItemMove.HAND_OUT_AT, SOURCE)
+	assert_int(game.state.player(P1).held_item).is_equal(package.id)
+	assert_int(hand.where).is_equal(ItemState.Where.GROUND)
+	# The swapped item rests (item_rested: FixtureNote rows after the two moves).
+	assert_array(FixtureItemModes.names_after(game, P2, seen).slice(0, 2)).is_equal(
+		[&"ItemPickedUp", &"ItemPlaced"]
+	)
+	var placed := game.view_of(P2).events_named(&"ItemPlaced")[-1].to_dict()
+	assert_int(placed["item"]).is_equal(hand.id)
+	assert_str(str(placed["cause"])).is_equal(String(Items.SWAP))
+
+
+func test_hand_out_gives_a_one_handed_item_as_give_does() -> void:
+	var game := _game()
+	var herb := FixtureItemModes.lay(game, &"herb", SOURCE)
+	FixtureItemMove.use(game, P1, FixtureItemMove.HAND_OUT_AT, SOURCE)
+	assert_int(game.state.player(P1).held_item).is_equal(herb.id)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## An item of `kind_id` locked at SOURCE (a station's, as the crystal in its charger).
+func _locked(game: Match, kind_id: StringName) -> ItemState:
+	var item := FixtureItemModes.lay(game, kind_id, SOURCE)
+	Items.lock(item)
+	return item
