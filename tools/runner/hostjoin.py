@@ -31,12 +31,12 @@ over ENet on 127.0.0.1, both welcomed into the lobby, then both stopped through 
 from __future__ import annotations
 
 import math
+import contextlib
 import os
 import re
 import socket
 import subprocess
 import sys
-import contextlib
 import threading
 import time
 from collections.abc import Callable, Mapping

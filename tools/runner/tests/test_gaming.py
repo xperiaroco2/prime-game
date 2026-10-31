@@ -141,7 +141,8 @@ class WindowRunsRefuseTest(Switch):
     def test_with_gaming_mode_off_they_get_past_the_switch(self) -> None:
         # Off: the same commands reach the code that starts Godot (here a stub that raises Started).
         for argv in self.WINDOW_RUNS:
-            with self.subTest(argv=argv), mock.patch.object(shot, "has_display", return_value=True),                     mock.patch.object(playcheck, "IS_CI", False), self.assertRaises(Started):  # fmt: skip
+            with self.subTest(argv=argv), mock.patch.object(shot, "has_display", return_value=True), \
+                    mock.patch.object(playcheck, "IS_CI", False), self.assertRaises(Started):  # fmt: skip
                 self.run_cli(argv)
 
     def test_host_and_join_headless_run_as_before(self) -> None:
