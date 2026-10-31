@@ -186,8 +186,8 @@ static func _settings_changed(content: _Content) -> WireMessage:
 		"players": content.mode.max_players,
 		"needed_markers": content.counts(content.tags),
 		"map_markers": content.counts(content.tags),
-		"needed_colours": content.counts(content.stations),
-		"palettes": content.counts(content.stations),
+		"needed_colours": content.counts(content.colour_stations),
+		"palettes": content.counts(content.colour_stations),
 		"shortfalls": shortfalls,
 		"lobby_name": "L".repeat(NAME_BYTES),
 	}
@@ -261,6 +261,9 @@ class _Content:
 	## The station kinds the map demands a palette of with every setting at its maximum (a subset
 	## of `stations`): one shortfall each at most.
 	var palettes: Array[StringName] = []
+	## The station kinds SettingsChanged's needed_colours and palettes may name: `stations` but the
+	## world toggles' kinds (PlaceToggles demands no colour, #1295), kept when a demand names one.
+	var colour_stations: Array[StringName] = []
 
 	func _init(of_mode: GameMode) -> void:
 		mode = of_mode
@@ -293,6 +296,12 @@ class _Content:
 		for colour_kind: StringName in demands.colours.keys():
 			if not stations.has(colour_kind):
 				stations.append(colour_kind)
+		var toggles: Array[StringName] = []
+		for kind: StationKind in Stations.toggle_kinds(mode):
+			toggles.append(kind.id)
+		for id: StringName in stations:
+			if not toggles.has(id) or demands.colours.has(id):
+				colour_stations.append(id)
 		station = _longest(PackedStringArray(stations))
 
 	## `count` distinct players (peer ids 2 and up) at the origin.

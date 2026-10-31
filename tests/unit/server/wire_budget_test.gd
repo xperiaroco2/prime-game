@@ -356,6 +356,33 @@ func test_the_longest_short_axis_text_is_a_host_text_the_wire_takes() -> void:
 	assert_int(text.numbers.size()).is_less_equal(WireSchema.MAX_TEXT_NUMBERS)
 
 
+func test_world_toggle_kinds_size_the_station_ids_but_never_the_colour_maps() -> void:
+	# A PlaceToggles kind demands no colour (#1295: no demand), so it never reaches SettingsChanged's
+	# needed_colours or palettes, capped at MAX_ENTRIES: the estate's eight toggle kinds pushed the
+	# base mode's worst case to 38 entries and refused every host (#1459). Its id still rides a
+	# StationPlaced.
+	var mode := _mode(10, 3, 1, 1)
+	var kinds: Array[StationKind] = []
+	for i: int in WireSchema.MAX_ENTRIES:
+		kinds.append(FixtureKindsType.kind(StringName(_id(100 + i)), &"spot"))
+	mode.task_types = [FixtureKindsType.of(&"kinds", kinds)]
+	var placing := PlaceToggles.new()
+	placing.kinds = [FixtureToggles.kind(StringName(_id(200)), &"cover")]
+	var row := Transition.new()
+	row.actions = [placing]
+	mode.transitions = [row]
+	var found := {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		found[message.name] = message
+	var changed: WireMessage = found[&"SettingsChanged"]
+	(
+		assert_bool((changed.fields["needed_colours"] as Dictionary).has(StringName(_id(200))))
+		. is_false()
+	)
+	assert_int((changed.fields["palettes"] as Dictionary).size()).is_equal(WireSchema.MAX_ENTRIES)
+	assert_array(Array(WireBudget.check(mode))).is_empty()
+
+
 func test_station_kinds_with_no_demanded_palette_add_no_shortfall() -> void:
 	# Demands.shortfalls names a station kind only for a demanded palette (`colours`): kinds that
 	# demand none (the photo task's five, #784) size the station ids, never the shortfalls.

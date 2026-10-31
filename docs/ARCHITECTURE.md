@@ -885,7 +885,7 @@ sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlace
 `PlayersPlaced`, and since #772 `HerbsDealt`, both lists as long as the mode's longest Cooking herbs, every case with
 empty lists when it has none), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
 spawn tag and demanded palette (a station kind no action demands a palette of has none, #784), each sized as the one subject and two arguments `Demands.shortfalls` makes (#775: 29 tags in the base mode, so the longest host text, 257 bytes each, would have gone over the 8192 bytes of `SettingsChanged`; since #810 the subject is the mode's longest demanded tag or palette kind, the text id the longest of the three a shortfall uses and the arguments `need` and `have`, not ids as long as the wire takes: the House's 36 tags), plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
-when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
+when the host starts, with the kind named; `SettingsChanged`'s `needed_colours` and `palettes` (`MAX_ENTRIES`, 32) count every station kind but a world toggle's, which demands no colour (#1459: the estate's eight toggle kinds took the base mode to 38 and refused every host; a toggle kind a demand names still counts); a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
 
 **Host text** (#548). No row carries a sentence: what the host words for players travels as host text, `record{id:
