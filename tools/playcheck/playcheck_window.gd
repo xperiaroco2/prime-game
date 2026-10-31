@@ -50,6 +50,10 @@ class RememberedPointer:
 	func captured() -> bool:
 		return on
 
+	## An off-screen window is never focused; the game must capture all the same (#1466).
+	func focused() -> bool:
+		return true
+
 
 ## The View of playcheck_steps.gd over this window's Game.
 class GameView:
