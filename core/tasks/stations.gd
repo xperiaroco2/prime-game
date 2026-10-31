@@ -43,7 +43,8 @@ static func property_names_of(type: TaskType) -> PackedStringArray:
 
 ## Every station kind of `mode`, each once: its task types' in the mode's order, then the kinds its
 ## phases place themselves (StationTicks, #1390: the lobby's tap, which no task type owns, so
-## owner_of returns null for it) in phase and list order.
+## owner_of returns null for it) in phase and list order, then the world toggles' kinds
+## (toggle_kinds, #1295; no owner either).
 static func kinds_in(mode: GameMode) -> Array[StationKind]:
 	var found: Array[StationKind] = []
 	for type: TaskType in mode.task_types:
@@ -59,6 +60,26 @@ static func kinds_in(mode: GameMode) -> Array[StationKind]:
 			var placed := system as StationTicks
 			if placed != null and placed.kind != null and not found.has(placed.kind):
 				found.append(placed.kind)
+	for kind: StationKind in toggle_kinds(mode):
+		if not found.has(kind):
+			found.append(kind)
+	return found
+
+
+## The world toggles' station kinds of `mode` (#1295), each once: the `kinds` of every PlaceToggles
+## in its transition rows' actions, in row and list order.
+static func toggle_kinds(mode: GameMode) -> Array[StationKind]:
+	var found: Array[StationKind] = []
+	for row: Transition in mode.transitions:
+		if row == null:
+			continue
+		for action: RuleEffect in row.actions:
+			var placing := action as PlaceToggles
+			if placing == null:
+				continue
+			for kind: StationKind in placing.kinds:
+				if kind != null and not found.has(kind):
+					found.append(kind)
 	return found
 
 

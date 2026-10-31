@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 44
+const PROTOCOL_VERSION := 45
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -338,3 +338,6 @@ static func _replay_stations(ctx: MatchContext) -> void:
 	for id: int in ids:
 		var station := ctx.state.stations[id]
 		ctx.emit(StationPlacedEvent.new(id, station.kind.id, station.colour, station.position))
+		# An open world toggle (#1295): its StationPlaced just made every copy off.
+		if station.on:
+			ctx.emit(SwitchChangedEvent.new(id, true))

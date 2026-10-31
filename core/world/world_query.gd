@@ -29,6 +29,21 @@ func use_level(_path: String) -> void:
 	pass
 
 
+## A world toggle changed (#1295, ToggleStation): the parts of the current level in group
+## `toggle_<key>` whose index is `index` (StationKind's TOGGLE_ constants) now stand as the toggle
+## is, so the questions that follow see them so. server/'s implementation moves a mover to its
+## OnPose and takes a collider out while `on`. A fake and the replay ignore it (the replay's
+## recorded answers already saw the toggled world). A command, not an answer: nothing is recorded.
+func set_toggle(_key: StringName, _index: int, _on: bool) -> void:
+	pass
+
+
+## Every toggle part of the current level back to off, as the scene stands (PlaceToggles, before
+## it places a match's toggles: a level world outlives a match). Not an answer: nothing recorded.
+func reset_toggles() -> void:
+	pass
+
+
 ## Whether the segment from `from` to `to` is clear of walls.
 func line_of_sight(_from: Vector3, _to: Vector3) -> bool:
 	return true

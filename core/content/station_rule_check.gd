@@ -12,13 +12,16 @@ extends RefCounted
 ## a StationUsable only after AtStation and StationInSight, so its reason only ever tells about a
 ## station the actor has in reach and in sight (§9.4.1). A HoldStation only on an intent that names
 ## a station too (the car repair ADR's RE9, #805; its required conditions ModeCheck's
-## _check_channel_rule's).
+## _check_channel_rule's). A ToggleStation (#1295) as a UseStation: on an intent that names a
+## station, with its required conditions (AtStation, StationInSight).
 static func rule_problems(owner: String, rule: Rule) -> PackedStringArray:
 	var found := PackedStringArray()
 	var uses_station := false
 	var holds := false
 	for effect: RuleEffect in rule.effects:
-		uses_station = uses_station or effect is UseStation or effect is HoldStation
+		uses_station = (
+			uses_station or effect is UseStation or effect is HoldStation or effect is ToggleStation
+		)
 		holds = holds or effect is HoldStation
 		if effect is HoldStation and not Stations.names_station(rule.trigger):
 			found.append(
@@ -49,7 +52,12 @@ static func rule_problems(owner: String, rule: Rule) -> PackedStringArray:
 				)
 				break
 	for effect: RuleEffect in rule.effects:
-		if not effect is UseStation:
+		var required_ones: Array[Script] = []
+		if effect is UseStation:
+			required_ones = (effect as UseStation).required_conditions()
+		elif effect is ToggleStation:
+			required_ones = (effect as ToggleStation).required_conditions()
+		else:
 			continue
 		if not Stations.names_station(rule.trigger):
 			found.append(
@@ -58,7 +66,7 @@ static func rule_problems(owner: String, rule: Rule) -> PackedStringArray:
 					% [owner, rule.trigger, ModeCheck.station_intents()]
 				)
 			)
-		for required: Script in (effect as UseStation).required_conditions():
+		for required: Script in required_ones:
 			# Not held: no condition of that class that is not negated (a negated one passes
 			# exactly where the required one would refuse).
 			if _index_of(rule, required) < 0:
@@ -116,7 +124,8 @@ static func hand_item_problems(owner: String, rules: Array[Rule]) -> PackedStrin
 ## ADR): each task type places its stations on markers of its kind's tag without asking whether a
 ## station stands there already, so two kinds on one tag would share spots, and Demands counts
 ## palette colours per kind id. One entry per StationKind property of a task type, not per kind:
-## one kind held by two properties (a zone and a circle) would share spots the same way.
+## one kind held by two properties (a zone and a circle) would share spots the same way. The world
+## toggles' kinds (PlaceToggles, #1295) count too: they stand on every marker of their tag.
 static func kind_problems(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	var paths: Array[String] = []
@@ -132,6 +141,9 @@ static func kind_problems(mode: GameMode) -> PackedStringArray:
 			var name := names[k] if names.size() == held.size() else "station_kinds()[%d]" % k
 			paths.append("mode.task_types[%d].%s" % [i, name])
 			kinds.append(held[k])
+	for kind: StationKind in Stations.toggle_kinds(mode):
+		paths.append("the toggle kind %s" % kind.id)
+		kinds.append(kind)
 	for i in kinds.size():
 		for j in range(i + 1, kinds.size()):
 			var pair := "%s and %s" % [paths[i], paths[j]]
@@ -202,3 +214,39 @@ static func _index_of(rule: Rule, condition_class: Script, negated_too := false)
 ## Whether `condition` is one of the three that look for the station an intent names.
 static func _is_station_condition(condition: Condition) -> bool:
 	return condition is AtStation or condition is StationInSight or condition is StationUsable
+
+
+## A ToggleStation only in the rule of a world toggle's kind (#1295): a role's, the mode's, an
+## item kind's or another station kind's would flip a station that is no toggle (ToggleStation
+## refuses it at run time with a rule error).
+static func toggle_owner_problems(mode: GameMode) -> PackedStringArray:
+	var found := PackedStringArray()
+	var owners: Dictionary[String, Array] = {"mode.actions": mode.actions}
+	for role: GameRole in mode.roles:
+		if role != null:
+			owners["role %s.actions" % role.id] = role.actions
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null:
+			owners["item kind %s.actions" % kind.id] = kind.actions
+			owners["item kind %s.target_actions" % kind.id] = kind.target_actions
+	var toggles := Stations.toggle_kinds(mode)
+	for kind: StationKind in Stations.kinds_in(mode):
+		if not toggles.has(kind):
+			owners["station kind %s.actions" % kind.id] = kind.actions
+	for owner: String in owners:
+		for rule: Variant in owners[owner]:
+			if rule is Rule and _has_toggle(rule as Rule):
+				found.append(
+					(
+						"%s: rule %s flips a world toggle, which only a toggle's station kind can"
+						% [owner, (rule as Rule).trigger]
+					)
+				)
+	return found
+
+
+static func _has_toggle(rule: Rule) -> bool:
+	for effect: RuleEffect in rule.effects:
+		if effect is ToggleStation:
+			return true
+	return false

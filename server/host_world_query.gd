@@ -89,6 +89,18 @@ func use_level(path: String) -> void:
 	bodies.use_world(_current.world if _current != null else null)
 
 
+## The current level's parts of toggle (key, index) as the toggle is (#1295, LevelWorld).
+func set_toggle(key: StringName, index: int, on: bool) -> void:
+	if _current != null:
+		_current.set_toggle(key, index, on)
+
+
+## Every toggle part of the current level off, as its scene stands.
+func reset_toggles() -> void:
+	if _current != null:
+		_current.reset_toggles()
+
+
 ## Whether the segment from `from` to `to` hits nothing (§4.5).
 func line_of_sight(from: Vector3, to: Vector3) -> bool:
 	return _ray(from, to).is_empty()

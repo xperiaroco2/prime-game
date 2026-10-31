@@ -18,6 +18,16 @@ func use_level(path: String) -> void:
 	_inner.use_level(path)
 
 
+## Forwarded; a command, not an answer, so nothing is recorded (#1295).
+func set_toggle(key: StringName, index: int, on: bool) -> void:
+	_inner.set_toggle(key, index, on)
+
+
+## Forwarded; a command, not an answer, so nothing is recorded (#1295).
+func reset_toggles() -> void:
+	_inner.reset_toggles()
+
+
 func line_of_sight(from: Vector3, to: Vector3) -> bool:
 	var answer := _inner.line_of_sight(from, to)
 	_log.world_answers.append(answer)
