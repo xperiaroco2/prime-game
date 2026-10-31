@@ -80,15 +80,19 @@ func test_each_toggle_marker_stands_at_its_own_part() -> void:
 		var spots := layout.positions(kind.spawn_tag)
 		for i in spots.size():
 			var nearest := INF
+			var nearest_name := "none"
 			for part: Part in parts:
 				if part.key == kind.toggle_key and part.index == i:
-					nearest = minf(nearest, spots[i].distance_to(part.at))
+					var gap := spots[i].distance_to(part.at)
+					if gap < nearest:
+						nearest = gap
+						nearest_name = part.name
 			(
 				assert_float(nearest)
 				. override_failure_message(
 					(
-						"%s's marker %d at %s: its toggle's nearest part is %.1f m away"
-						% [kind.id, i, spots[i], nearest]
+						"%s's marker %d at %s: its toggle's nearest part (%s) is %.1f m away"
+						% [kind.id, i, spots[i], nearest_name, nearest]
 					)
 				)
 				. is_less_equal(NEAR_PART_M)
@@ -202,14 +206,6 @@ func _collect(node: Node, root: Node3D, found: Array[Part]) -> void:
 				found.append(part)
 	for child: Node in node.get_children():
 		_collect(child, root, found)
-
-
-func _kinds_of(mode: GameMode, key: StringName) -> Array[StationKind]:
-	var found: Array[StationKind] = []
-	for kind: StationKind in Stations.toggle_kinds(mode):
-		if kind.toggle_key == key:
-			found.append(kind)
-	return found
 
 
 func _base_mode() -> GameMode:
