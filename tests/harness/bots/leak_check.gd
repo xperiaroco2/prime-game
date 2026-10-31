@@ -150,6 +150,9 @@ var _limp_at: Dictionary[int, PackedInt32Array] = {}
 ## hearing radius of the phase then.
 var _positions_at: Dictionary[int, Dictionary] = {}
 var _radius_at: Dictionary[int, float] = {}
+## Tick -> the present players drunk after that tick (#1392): a sober speaker's voice carries no
+## strength.
+var _drunk_at: Dictionary[int, PackedInt32Array] = {}
 ## Tick -> the hall's items after that tick, as a Welcome lists them (item id -> row, _hall_items),
 ## recorded only in a phase that accepts Hello: a Welcome is sent in no other.
 var _items_at: Dictionary[int, Dictionary] = {}
@@ -191,10 +194,13 @@ func record_tick(at_tick: int) -> void:
 	var downed := PackedInt32Array()
 	var limp := PackedInt32Array()
 	var dead := PackedInt32Array()
+	var drunk := PackedInt32Array()
 	var positions: Dictionary[int, Vector3] = {}
 	var state := _game.state
 	for peer: int in state.present_peers():
 		positions[peer] = state.players[peer].position
+		if state.players[peer].drunk > 0:
+			drunk.append(peer)
 		match state.players[peer].life:
 			PlayerState.Life.ALIVE:
 				alive.append(peer)
@@ -208,6 +214,7 @@ func record_tick(at_tick: int) -> void:
 	_downed_at[at_tick] = downed
 	_limp_at[at_tick] = limp
 	_dead_at[at_tick] = dead
+	_drunk_at[at_tick] = drunk
 	_positions_at[at_tick] = positions
 	_radius_at[at_tick] = ScenarioInvariants.phase_radius(_game)
 	var spec := _game.mode.find_phase(_game.phase_id())
@@ -729,6 +736,34 @@ func _check_voice(
 			var problem := frame_problem(speaker, frame)
 			if not problem.is_empty():
 				found.append(problem)
+		found.append_array(_strength_problems(view, decoded, speaker, at_tick))
+
+
+## Why the strengths `decoded` holds for `speaker`'s frames under `at_tick` are wrong (#1392):
+## each must be view_of's effect for that speaker and tick (0 for none, so a frame of a speaker
+## that view_of does not let it hear carries none either), and a speaker the observer recorded
+## sober after that tick has none, whatever the rule says.
+func _strength_problems(
+	view: PeerView, decoded: DecodedView, speaker: int, at_tick: int
+) -> PackedStringArray:
+	var found := PackedStringArray()
+	var effects: Dictionary = view.effects.get(at_tick, {})
+	var allowed: int = effects.get(speaker, 0)
+	var drunk: PackedInt32Array = _drunk_at.get(at_tick, PackedInt32Array())
+	var key := Vector2i(speaker, at_tick)
+	for strength: int in decoded.voice_strengths.get(key, PackedInt32Array()):
+		if strength != allowed:
+			found.append(
+				(
+					"strength %d of %d under tick %d, which view_of gives as %d"
+					% [strength, speaker, at_tick, allowed]
+				)
+			)
+		if strength > 0 and not drunk.has(speaker):
+			found.append(
+				"strength %d of %d under tick %d, who was sober" % [strength, speaker, at_tick]
+			)
+	return found
 
 
 ## The voice invariant's broken parts (§6) for `peer` decoding `speaker`'s frame under `at_tick`,

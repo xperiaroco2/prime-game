@@ -8,12 +8,15 @@ extends GdUnitTestSuite
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 
 var _h: Harness
+## The leak test's view of the host's match (#1392), its record_tick called after every tick.
+var _leaks: LeakCheck
 
 
 func after_test() -> void:
 	if _h != null:
 		_h.close()
 		_h = null
+	_leaks = null
 
 
 func test_voice_goes_only_along_speakers_for() -> void:
@@ -174,6 +177,44 @@ func test_a_listener_after_an_unreachable_one_gets_its_own_stream_s_seqs() -> vo
 
 func test_a_drunk_speaker_s_frames_carry_its_strength_to_whoever_hears_it() -> void:
 	# #1392. Lobby markers 2 m apart, heard within 3 m: 1 and 3 hear 2, 1 and 3 not each other.
+	var tick := _drunk_hall_speaks(false)
+	var second := _h.clients[1]
+	var third := _h.clients[2]
+	# 2 (drunk 50) is heard by 1 and 3 at 128; 1 is sober; 3 (drunk 100) is heard by 2 at 255.
+	var own_view := _h.own.view
+	assert_array(own_view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
+	assert_array(third.view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
+	assert_array(second.view.voice_strengths[Vector2i(1, tick)]).is_equal(PackedInt32Array([0]))
+	assert_array(second.view.voice_strengths[Vector2i(3, tick)]).is_equal(PackedInt32Array([255]))
+	# Nobody gets a frame, so a strength, of a speaker it does not hear: 1 and 3 not each other.
+	assert_bool(own_view.voice_strengths.has(Vector2i(3, tick))).is_false()
+	assert_bool(third.view.voice_strengths.has(Vector2i(1, tick))).is_false()
+	for client: ClientSession in _h.clients:
+		assert_array(_h.mismatches(client)).is_empty()
+
+
+func test_the_leak_check_finds_a_strength_view_of_does_not_give() -> void:
+	# #1392: the leak check's strength oracle passes the relayed strengths and finds a planted one,
+	# a changed strength of a drunk speaker and any strength of a sober one.
+	var tick := _drunk_hall_speaks(true)
+	for client: ClientSession in _h.clients:
+		assert_array(_leaks.check_bot("client", _h.peer_of(client), client.view, false)).is_empty()
+	var own_view := _h.own.view
+	own_view.voice_strengths[Vector2i(2, tick)] = PackedInt32Array([77])
+	var changed := _leaks.check_bot("client", 1, own_view, false)
+	assert_int(changed.size()).is_equal(1)
+	assert_str(changed[0]).contains("strength 77 of 2 under tick %d" % tick)
+	var second := _h.clients[1]
+	second.view.voice_strengths[Vector2i(1, tick)] = PackedInt32Array([9])
+	var sober := " ".join(_leaks.check_bot("client", 2, second.view, false))
+	assert_str(sober).contains("which view_of gives as 0")
+	assert_str(sober).contains("strength 9 of 1 under tick %d, who was sober" % tick)
+
+
+## The fixture hall with a drunk effect on the lobby's voice rule and three players, 2 drunk 50 and
+## 3 drunk 100 of 100, each having sent one synthetic frame under the returned tick; with_leaks,
+## _leaks records every tick of the match from the start.
+func _drunk_hall_speaks(with_leaks: bool) -> int:
 	var mode := Harness.fixture_mode()
 	var effect := VoiceEffect.new()
 	effect.id = &"wobble"
@@ -187,6 +228,16 @@ func test_a_drunk_speaker_s_frames_carry_its_strength_to_whoever_hears_it() -> v
 	mode.player_rules.drunk_point_s = 1.0
 	_h = Harness.new(mode)
 	assert_array(_h.session.errors).is_empty()
+	if with_leaks:
+		var leaks := LeakCheck.new(_h.session.game)
+		_leaks = leaks
+		var inner := _h.session.observer
+		_h.session.observer = func(
+			at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]
+		) -> void:
+			inner.call(at_tick, command, slice)
+			if command == null:
+				leaks.record_tick(at_tick)
 	var second := _h.join()
 	var third := _h.join()
 	assert_bool(_h.welcome_all()).is_true()
@@ -201,18 +252,8 @@ func test_a_drunk_speaker_s_frames_carry_its_strength_to_whoever_hears_it() -> v
 	assert_bool(_h.pump_until(ticked, 20)).is_true()
 	_h.settle_after_tick()
 	var tick := _h.session.game.ticked_through()
-	_h.own.send_voice(PackedByteArray([1]))
-	second.send_voice(PackedByteArray([2]))
-	third.send_voice(PackedByteArray([3]))
+	_h.own.send_voice(LeakCheck.voice_frame(1, 0))
+	second.send_voice(LeakCheck.voice_frame(2, 0))
+	third.send_voice(LeakCheck.voice_frame(3, 0))
 	_h.pump()
-	# 2 (drunk 50) is heard by 1 and 3 at 128; 1 is sober; 3 (drunk 100) is heard by 2 at 255.
-	var own_view := _h.own.view
-	assert_array(own_view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
-	assert_array(third.view.voice_strengths[Vector2i(2, tick)]).is_equal(PackedInt32Array([128]))
-	assert_array(second.view.voice_strengths[Vector2i(1, tick)]).is_equal(PackedInt32Array([0]))
-	assert_array(second.view.voice_strengths[Vector2i(3, tick)]).is_equal(PackedInt32Array([255]))
-	# Nobody gets a frame, so a strength, of a speaker it does not hear: 1 and 3 not each other.
-	assert_bool(own_view.voice_strengths.has(Vector2i(3, tick))).is_false()
-	assert_bool(third.view.voice_strengths.has(Vector2i(1, tick))).is_false()
-	for client: ClientSession in _h.clients:
-		assert_array(_h.mismatches(client)).is_empty()
+	return tick
