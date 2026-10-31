@@ -124,6 +124,13 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"round", living, &"not_accepted"],
 		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"end", dead, &"not_accepted"],
 		[&"SetProfile", {"name": "Player4", "colour": 0}, &"lobby", null, &"not_accepted"],
+		# The machine takes Flippers from the living in Lobby and Countdown only (#1398); a chaos
+		# peer never sits, so PinballSeated answers not_seated.
+		[&"Flippers", {"left": true, "right": false}, &"lobby", living, &"not_seated"],
+		[&"Flippers", {"left": false, "right": true}, &"countdown", living, &"not_seated"],
+		[&"Flippers", {"left": true, "right": true}, &"round", living, &"not_accepted"],
+		[&"Flippers", {"left": true, "right": false}, &"lobby", dead, &"not_accepted"],
+		[&"Flippers", {"left": true, "right": false}, &"lobby", null, &"not_accepted"],
 	]
 	for case: Array in cases:
 		var player: PlayerState = case[3]
@@ -172,6 +179,21 @@ func test_the_oracle_refuses_pose_out_of_reach_since_no_chaos_level_holds_a_chai
 		var layout: LevelLayout = levels.layouts.get(path)
 		assert_object(layout).override_failure_message(path).is_not_null()
 		assert_array(Array(layout.positions(chair.tag))).override_failure_message(path).is_empty()
+
+
+func test_the_oracle_leaves_flippers_from_the_seated_player_open() -> void:
+	# A seated sender's Flippers goes to SetFlippers, which the chaos peers never reach (#1398).
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	var args := {"left": true, "right": false}
+	var answer := ChaosOracle.answer(&"Flippers", args, 4, &"lobby", me, 0, state)
+	assert_str(str(answer)).is_equal("not_seated")
+	Pinball.game(state).player = 4
+	answer = ChaosOracle.answer(&"Flippers", args, 4, &"lobby", me, 0, state)
+	assert_str(str(answer)).is_equal("?")
+	Pinball.game(state).player = 3
+	answer = ChaosOracle.answer(&"Flippers", args, 4, &"countdown", me, 0, state)
+	assert_str(str(answer)).is_equal("not_seated")
 
 
 func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach() -> void:
