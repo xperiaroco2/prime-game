@@ -102,8 +102,9 @@ static func _flash(ctx: MatchContext, session: Session, station: StationState) -
 	var rows := frame_of(ctx.state, station)
 	for row: Dictionary in rows:
 		var peer: int = row["peer"]
-		if not session.seen.has(peer):
-			session.seen[peer] = ctx.state.player(peer)
+		# The player now in the frame, not the first one seen with this id: a peer id that came
+		# back after a leave is a new player, and its frames earn it a strip.
+		session.seen[peer] = ctx.state.player(peer)
 	var flash := BoothStepEvent.new(session.station, session.strip, BoothStepEvent.FLASH)
 	flash.frame = session.frames_done
 	flash.record = rows

@@ -121,3 +121,18 @@ func test_a_rejoiner_with_the_peer_id_of_a_leaver_gets_no_strip() -> void:
 	assert_int(printed[0].items.size()).is_equal(1)
 	assert_int(game.state.player(P2).held_item).is_equal(-1)
 	assert_array(game.diagnostics).is_empty()
+
+
+func test_a_rejoiner_with_the_peer_id_of_a_leaver_gets_a_strip_for_its_own_frames() -> void:
+	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1, P2])
+	FixtureBooth.press(game, P1)
+	FixtureModes.run_ticks(game, FixtureBooth.COUNTDOWN + 1)
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureBaseMode.join(game, P2)
+	FixtureItemModes.stand(game, P2, FixtureBooth.inside(P2))
+	FixtureModes.run_ticks(game, FixtureBooth.whole())
+	var printed := FixtureBooth.steps_of(game, P1, PRINTED)
+	assert_int(printed[0].items.size()).is_equal(2)
+	var rejoiner := game.state.player(P2)
+	assert_int(rejoiner.held_item).is_equal(printed[0].items[1])
+	assert_array(game.diagnostics).is_empty()
