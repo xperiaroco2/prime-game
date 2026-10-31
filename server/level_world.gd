@@ -14,9 +14,18 @@ extends RefCounted
 ## where players collide: D2 (a), the designer's answer on #96); any other physics body on
 ## layer 1 (a RigidBody3D, a CharacterBody3D), which players collide with but the host's static
 ## world would not hold. An AnimatableBody3D is a StaticBody3D: it is built where the scene puts
-## it, and never moves on the host. A scene that gives the world no body at all is an error too:
+## it. A scene that gives the world no body at all is an error too:
 ## the host would see through everything and find no floor. A level with errors is refused by
 ## the host like one with marker errors.
+##
+## World toggles (#1295, §4.5.9): a StaticBody3D in group `toggle_<key>` with the int metadata
+## `toggle_index` (StationKind's TOGGLE_ constants) is a part of toggle (key, index). A part with
+## a child Marker3D `OnPose` is a mover: it gets a second body at the OnPose pose, kept out of the
+## space while the toggle is off; `set_toggle` swaps which of the two is in the space. A part
+## without one is a collider, taken out of the space while the toggle is on. Only body_set_space
+## changes, never a body's pose or layer: an unstepped space sees an added body at once (the
+## probe below), which is all a swap needs. A part without its index, or in two toggle groups,
+## is an error.
 ##
 ## A fresh space answers rays at once, before any physics step (the probe in
 ## tests/integration/server/level_world_test.gd, §4.5), so a world is ready when it is built.
@@ -32,8 +41,22 @@ var world := World3D.new()
 var errors := PackedStringArray()
 
 var _bodies: Array[RID] = []
+# The movers' bodies at their OnPose, out of the space while their toggle is off: not counted.
+var _on_bodies: Array[RID] = []
 # The level's shapes: a body holds only their RIDs, which live as long as these resources.
 var _shapes: Array[Shape3D] = []
+# The toggle parts, in scene-tree order.
+var _parts: Array[TogglePart] = []
+
+
+## A part of toggle (key, index): `off_body` stands while the toggle is off; `on_body` (a mover's
+## OnPose body, else invalid) while it is on.
+class TogglePart:
+	extends RefCounted
+	var key: StringName
+	var index: int
+	var off_body: RID
+	var on_body: RID
 
 
 ## The world of the level scene at `level_path`: loaded (from `scenes` when given, which keeps it
@@ -101,11 +124,37 @@ func body_count() -> int:
 	return _bodies.size()
 
 
+## How many toggle parts the level has (each counted once, a mover too).
+func toggle_part_count() -> int:
+	return _parts.size()
+
+
+## The parts of toggle (key, index) as the toggle is (WorldQuery.set_toggle): a collider out of
+## the space while `on`, a mover's OnPose body in it instead of its scene pose. No part: nothing.
+func set_toggle(key: StringName, index: int, on: bool) -> void:
+	for part: TogglePart in _parts:
+		if part.key == key and part.index == index:
+			_stand(part, on)
+
+
+## Every toggle part off, as the scene stands (WorldQuery.reset_toggles).
+func reset_toggles() -> void:
+	for part: TogglePart in _parts:
+		_stand(part, false)
+
+
+func _stand(part: TogglePart, on: bool) -> void:
+	PhysicsServer3D.body_set_space(part.off_body, RID() if on else world.space)
+	if part.on_body.is_valid():
+		PhysicsServer3D.body_set_space(part.on_body, world.space if on else RID())
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for body: RID in _bodies:
+		for body: RID in _bodies + _on_bodies:
 			PhysicsServer3D.free_rid(body)
 		_bodies.clear()
+		_on_bodies.clear()
 
 
 func _read(node: Node, root: Node) -> void:
@@ -135,7 +184,7 @@ func _read(node: Node, root: Node) -> void:
 func _add_body(node: StaticBody3D, root: Node) -> void:
 	if (node.collision_layer & WORLD_LAYER) == 0:
 		return
-	var body := RID()
+	var shapes: Array[CollisionShape3D] = []
 	for child: Node in node.get_children():
 		if child is CollisionPolygon3D:
 			_fail(_unread(child, root, "a CollisionPolygon3D"))
@@ -145,19 +194,69 @@ func _add_body(node: StaticBody3D, root: Node) -> void:
 		var collision := child as CollisionShape3D
 		if collision.disabled or collision.shape == null:
 			continue
-		if not body.is_valid():
-			body = PhysicsServer3D.body_create()
-			PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
-			PhysicsServer3D.body_set_collision_layer(body, WORLD_LAYER)
-			PhysicsServer3D.body_set_collision_mask(body, 0)
-			PhysicsServer3D.body_set_state(
-				body, PhysicsServer3D.BODY_STATE_TRANSFORM, transform_in_scene(node, root)
-			)
-			_bodies.append(body)
+		shapes.append(collision)
 		_shapes.append(collision.shape)
+	if shapes.is_empty():
+		return
+	var at := transform_in_scene(node, root)
+	var body := _body_of(shapes, at)
+	_bodies.append(body)
+	PhysicsServer3D.body_set_space(body, world.space)
+	var part := _toggle_part_of(node, root)
+	if part == null:
+		return
+	part.off_body = body
+	var on_pose := node.get_node_or_null(StationKind.ON_POSE) as Marker3D
+	if on_pose != null:
+		part.on_body = _body_of(shapes, at * on_pose.transform)
+		_on_bodies.append(part.on_body)
+	_parts.append(part)
+
+
+# A static body on layer 1 at `at` with `shapes`, in no space yet.
+func _body_of(shapes: Array[CollisionShape3D], at: Transform3D) -> RID:
+	var body := PhysicsServer3D.body_create()
+	PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
+	PhysicsServer3D.body_set_collision_layer(body, WORLD_LAYER)
+	PhysicsServer3D.body_set_collision_mask(body, 0)
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, at)
+	for collision: CollisionShape3D in shapes:
 		PhysicsServer3D.body_add_shape(body, collision.shape.get_rid(), collision.transform)
-	if body.is_valid():
-		PhysicsServer3D.body_set_space(body, world.space)
+	return body
+
+
+# The toggle `node` is a part of (its toggle_<key> group and toggle_index metadata), or null for
+# a body in no toggle group. A part without an int index, or in two toggle groups: an error, null.
+func _toggle_part_of(node: StaticBody3D, root: Node) -> TogglePart:
+	var keys: Array[StringName] = []
+	for group: StringName in node.get_groups():
+		if String(group).begins_with(StationKind.TOGGLE_GROUP_PREFIX):
+			keys.append(StringName(String(group).trim_prefix(StationKind.TOGGLE_GROUP_PREFIX)))
+	if keys.is_empty():
+		return null
+	var where := root.get_path_to(node)
+	if keys.size() > 1:
+		_fail("%s: %s is in two toggle groups" % [path, where])
+		return null
+	var index: Variant = node.get_meta(StationKind.TOGGLE_INDEX_META, null)
+	if not index is int or (index as int) < 0:
+		_fail(
+			(
+				"%s: %s in group %s%s has no int metadata %s"
+				% [
+					path,
+					where,
+					StationKind.TOGGLE_GROUP_PREFIX,
+					keys[0],
+					StationKind.TOGGLE_INDEX_META
+				]
+			)
+		)
+		return null
+	var part := TogglePart.new()
+	part.key = keys[0]
+	part.index = index as int
+	return part
 
 
 # Whether a used cell of `grid` holds an item with collision shapes: a looks-only GridMap (items
