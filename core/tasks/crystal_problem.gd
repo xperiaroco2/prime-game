@@ -18,7 +18,8 @@ extends ProblemKind
 ## - Never off the ship: each tick a loose crystal (carried, or lying) outside the engine's aboard
 ##   box slips and rolls back to where it last was aboard, on the floor there (ItemPlaced, cause
 ##   `slipped`; GDD §8, as the garage's tools drop at its door). A flying one is judged where it
-##   lands.
+##   lands. A crystal lying on that spot already stays: a socket or charger a level put outside
+##   the box would else slip it again every tick.
 ## - The blast (cleared): a crystal out vanishes wherever it is, a charger holding it empties, and
 ##   the socket holds its crystal again. CrystalChanged follows each change of the crystal.
 ## Refuses `unavailable` (a socket without a problem, a charging charger), `empty_hand` and
@@ -206,7 +207,10 @@ func tick_problem(ctx: MatchContext, task: MatchTask, problem: EngineProblem) ->
 		data.last_in = where
 		return
 	var rest := ctx.world.floor_below(Items.lifted(data.last_in))
-	Items.place(ctx, crystal, data.last_in if rest == WorldQuery.NO_FLOOR else rest, SLIPPED)
+	var spot := data.last_in if rest == WorldQuery.NO_FLOOR else rest
+	if crystal.where == ItemState.Where.GROUND and crystal.position == spot:
+		return  # Slipped already: its last aboard spot is out of the box (a level's station).
+	Items.place(ctx, crystal, spot, SLIPPED)
 
 
 ## The crystal of `problem` is back in its socket: out of any charger, its item gone.

@@ -63,10 +63,111 @@ func _charge(game: Match, problem: EngineProblem) -> ItemState:
 	return crystal
 
 
+## ALL starts the engine; the ticks run until two problems are open. Returns them.
+func _two_open(game: Match) -> Array[EngineProblem]:
+	FixtureEngineModes.start(game, ALL)
+	var task_state := FixtureEngineModes.state_of(game)
+	for i in 40:
+		if task_state.problems.size() >= 2:
+			break
+		FixtureModes.run_ticks(game, 1)
+	return task_state.problems.duplicate()
+
+
+## The ItemPlaced events `peer` received with cause `slipped`.
+func _slips(game: Match, peer: int) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for placed: Dictionary in FixtureEngineModes.dicts(game, peer, &"ItemPlaced"):
+		if placed["cause"] == CrystalProblem.SLIPPED:
+			found.append(placed)
+	return found
+
+
+func test_a_charger_in_use_and_another_sockets_charged_crystal_are_refused() -> void:
+	var game := _game()
+	var problems := _two_open(game)
+	assert_int(problems.size()).is_equal(2)
+	var mine := problems[0]
+	var other := problems[1]
+	var charger := _chargers(game)[0]
+	var crystal := _pull(game, mine)
+	FixtureEngineKindModes.press(game, ALL, charger)
+	var at := FixtureEngineKindModes.press(game, ALL, charger)
+	FixtureEngineKindModes.press(game, SECOND, other.stations[0])
+	var others := Items.held_by(game.state, SECOND)
+	assert_int(_data(other).item).is_equal(others.id)
+	# The second crystal waits for that charger (GDD §8).
+	FixtureEngineKindModes.press(game, SECOND, charger)
+	assert_str(String(FixtureEngineKindModes.last_reason(game, SECOND))).is_equal("unavailable")
+	assert_object(Items.held_by(game.state, SECOND)).is_same(others)
+	FixtureEngineKindModes.run_to(game, at + CHARGE)
+	FixtureEngineKindModes.press(game, ALL, charger)
+	assert_object(Items.held_by(game.state, ALL)).is_same(crystal)
+	assert_str(String(crystal.kind.id)).is_equal("crystal_charged")
+	# A charged crystal fits only its own socket.
+	FixtureEngineKindModes.press(game, ALL, other.stations[0])
+	assert_str(String(FixtureEngineKindModes.last_reason(game, ALL))).is_equal("wrong_item")
+	var task_state := FixtureEngineModes.state_of(game)
+	assert_bool(task_state.problems.has(mine)).is_true()
+	assert_bool(task_state.problems.has(other)).is_true()
+	assert_object(Items.held_by(game.state, ALL)).is_same(crystal)
+	assert_object(Items.held_by(game.state, SECOND)).is_same(others)
+	assert_bool(game.state.items.has(others.id)).is_true()
+	FixtureEngineKindModes.press(game, ALL, mine.stations[0])
+	assert_bool(task_state.problems.has(mine)).is_false()
+	assert_bool(task_state.problems.has(other)).is_true()
+
+
+func test_a_crystal_slips_once_from_a_charger_outside_the_ship() -> void:
+	var game := _game()
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var charger := _chargers(game)[0]
+	# A level's charger out of the aboard box: the crystal's last aboard spot is outside.
+	game.state.stations[charger].position = FixtureEngineKindModes.OUTSIDE
+	var crystal := _charge(game, problem)
+	assert_int(crystal.where).is_equal(ItemState.Where.LOCKED)
+	assert_array(_slips(game, SECOND)).is_empty()
+	# The take: the crystal comes into ALL's hands and slips in that tick's problem tick.
+	FixtureEngineKindModes.press(game, ALL, charger)
+	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ItemPickedUp")).has_size(2)
+	FixtureModes.run_ticks(game, 5)
+	assert_bool(crystal.is_carried()).is_false()
+	assert_int(crystal.where).is_equal(ItemState.Where.GROUND)
+	# Once: lying on its slip spot, it stays (no ItemPlaced each tick).
+	assert_array(_slips(game, SECOND)).has_size(1)
+
+
+func test_a_crystal_thrown_from_outside_flies_until_it_lands() -> void:
+	var kinds: Array[ProblemKind] = [FixtureEngineKindModes.crystal()]
+	var mode := FixtureThrowModes.with_throw(FixtureEngineKindModes.of(kinds))
+	var game := FixtureEngineKindModes.in_round(mode, PEERS)
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var crystal := _pull(game, problem)
+	FixtureModes.run_ticks(game, 1)
+	var last_in := game.state.player(ALL).position
+	# A step over the edge and a throw in the same tick: no problem tick saw it carried outside.
+	FixtureItemModes.stand(game, ALL, FixtureEngineKindModes.OUTSIDE)
+	FixtureThrowModes.throw(game, ALL, Vector3.RIGHT)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(crystal.where).is_equal(ItemState.Where.FLYING)
+	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ItemPlaced")).is_empty()
+	for _i in 200:
+		if crystal.where != ItemState.Where.FLYING:
+			break
+		FixtureModes.run_ticks(game, 1)
+	var placed := FixtureEngineModes.dicts(game, SECOND, &"ItemPlaced")
+	assert_int(placed.size()).is_equal(1)
+	assert_str(str(placed[0]["cause"])).is_equal(str(Items.THROWN))
+	FixtureModes.run_ticks(game, 1)
+	assert_array(_slips(game, SECOND)).is_equal(
+		[{"item": crystal.id, "position": last_in, "cause": CrystalProblem.SLIPPED}]
+	)
+
+
 func test_the_pull_puts_the_spent_crystal_in_both_hands() -> void:
 	var game := _game()
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
-	var before := game.ticked_through()
+	var from_tick := game.ticked_through()
 	var crystal := _pull(game, problem)
 	assert_object(crystal).is_not_null()
 	assert_str(String(crystal.kind.id)).is_equal("crystal_spent")
@@ -77,7 +178,7 @@ func test_the_pull_puts_the_spent_crystal_in_both_hands() -> void:
 			game, peer, [&"ItemSpawned", &"CrystalChanged", &"ItemPickedUp"]
 		)
 		assert_array(names).is_equal([&"ItemSpawned", &"CrystalChanged", &"ItemPickedUp"])
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", from_tick)).is_equal(
 		[_out(problem, crystal.id)]
 	)
 
@@ -115,7 +216,7 @@ func test_the_charger_loads_charges_and_hands_out_the_charged_crystal_which_fixe
 	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ItemChanged")).is_equal(
 		[{"item": crystal.id, "kind": &"crystal_charged"}]
 	)
-	var before := game.ticked_through()
+	var from_tick := game.ticked_through()
 	FixtureEngineKindModes.press(game, ALL, problem.stations[0])
 	assert_object(Items.held_by(game.state, ALL)).is_null()
 	assert_bool(game.state.items.has(crystal.id)).is_false()
@@ -126,7 +227,7 @@ func test_the_charger_loads_charges_and_hands_out_the_charged_crystal_which_fixe
 	assert_array(names.slice(-3)).is_equal(
 		[&"ItemVanished", &"CrystalChanged", &"EngineProblemFixed"]
 	)
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", from_tick)).is_equal(
 		[_out(problem, -1)]
 	)
 
@@ -227,13 +328,13 @@ func test_the_blast_puts_a_carried_crystal_back_in_its_socket() -> void:
 	var game := _game()
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
 	var crystal := _pull(game, problem)
-	var before := game.ticked_through()
+	var from_tick := game.ticked_through()
 	FixtureEngineKindModes.run_to(game, problem.deadline)
 	assert_array(FixtureEngineModes.dicts(game, SECOND, &"EngineBlast")).has_size(1)
 	assert_bool(game.state.items.has(crystal.id)).is_false()
 	assert_object(Items.held_by(game.state, ALL)).is_null()
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"ItemVanished", before)).has_size(1)
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"ItemVanished", from_tick)).has_size(1)
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", from_tick)).is_equal(
 		[_out(problem, -1)]
 	)
 
@@ -242,11 +343,11 @@ func test_the_blast_empties_a_charger_holding_the_crystal() -> void:
 	var game := _game()
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
 	var crystal := _charge(game, problem)
-	var before := game.ticked_through()
+	var from_tick := game.ticked_through()
 	FixtureEngineKindModes.run_to(game, problem.deadline)
 	assert_bool(game.state.items.has(crystal.id)).is_false()
 	# Out of the charger and back in its socket, in one change.
-	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", before)).is_equal(
+	assert_array(FixtureEngineKindModes.since(game, SECOND, &"CrystalChanged", from_tick)).is_equal(
 		[_out(problem, -1)]
 	)
 	# The socket holds its crystal again: a new problem there pulls a fresh one.
@@ -266,9 +367,9 @@ func test_the_check() -> void:
 	kind.charged = FixtureItemModes.item_kind(&"crystal_charged", [], 2)
 	assert_str(" ".join(kind.check(mode))).contains("not the mode's")
 	kind.charged = mode.find_item_kind(&"crystal_charged")
-	kind.charged.vanish_seconds = 5.0
+	kind.charged.vanish_seconds = 5
 	assert_str(" ".join(kind.check(mode))).contains("vanishes")
-	kind.charged.vanish_seconds = 0.0
+	kind.charged.vanish_seconds = 0
 	kind.site = FixtureEngineModes.kind(&"cartridge_socket")
 	assert_str(" ".join(kind.check(mode))).contains("refuses the two-handed crystal")
 	kind.site = FixtureEngineKindModes.two_handed_kind(&"cartridge_socket")
