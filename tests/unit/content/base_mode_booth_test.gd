@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The base mode's photo booth (#1396; GDD §3 "The photo booth"; ARCHITECTURE §9.5.28): the
+## The base mode's photo booth (#1396; GDD §3 "The photo booth"; ARCHITECTURE §9.5.29): the
 ## shipped booth and strip carry the provisional numbers; on the hall's real layout the booth
 ## stands on its one `booth` marker, a press inside it runs the whole session and prints a strip
 ## for each player in the frames; readying up mid-session stops it, and countdown_done clears the

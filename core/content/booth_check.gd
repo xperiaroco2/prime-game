@@ -1,6 +1,6 @@
 class_name BoothCheck
 extends RefCounted
-## ModeCheck's checks of the photo booth (#1396; ARCHITECTURE §9.4.2, §9.4.5, §9.5.28): a StartBooth
+## ModeCheck's checks of the photo booth (#1396; ARCHITECTURE §9.4.2, §9.4.5, §9.5.29): a StartBooth
 ## stands only in a station kind's Interact rule, after AtStation and StationInSight, not negated
 ## (the host checks the press's reach and sight, as GiveItem.required_conditions); a mode with one
 ## lists BoothTicks in some phase (else every press is refused), and only in phases on the lobby's

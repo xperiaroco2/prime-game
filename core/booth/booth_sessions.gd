@@ -1,6 +1,6 @@
 class_name BoothSessions
 extends RefCounted
-## The photo booth's session (#1396; ARCHITECTURE §9.4.2, §9.5.28): at most one per match, in
+## The photo booth's session (#1396; ARCHITECTURE §9.4.2, §9.5.29): at most one per match, in
 ## MatchState's per-part state (so ResetMatch drops it). StartBooth starts it, BoothTicks advances
 ## it on the host's clock, StopBooth (a transition action) ends it with the phase. Its frames are
 ## not kept: each FLASH event carries its record, and the session remembers only who was in any

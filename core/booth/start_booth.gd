@@ -1,6 +1,6 @@
 class_name StartBooth
 extends RuleEffect
-## The photo booth's button (#1396; GDD §3 "The photo booth"; ARCHITECTURE §9.4.2, §9.5.28): an
+## The photo booth's button (#1396; GDD §3 "The photo booth"; ARCHITECTURE §9.4.2, §9.5.29): an
 ## accepted Interact at the booth's station starts a booth session (BoothSessions.start): a
 ## countdown of `countdown_s`, then `frames` flashes `gap_s` apart, on the host's clock
 ## (BoothTicks), each recording every living present player inside the station's own cylinder

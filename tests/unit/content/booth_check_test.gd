@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ModeCheck on the photo booth (#1396; ARCHITECTURE §9.4.2, §9.4.5, §9.5.28): the fixture booth
+## ModeCheck on the photo booth (#1396; ARCHITECTURE §9.4.2, §9.4.5, §9.5.29): the fixture booth
 ## passes; StartBooth stands only in a station kind's Interact rule with AtStation and
 ## StationInSight; a mode with one lists BoothTicks, only on the lobby's level; a row out of a
 ## BoothTicks phase into one without holds StopBooth; StartBooth bounds its numbers and its strip.

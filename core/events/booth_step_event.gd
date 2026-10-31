@@ -1,6 +1,6 @@
 class_name BoothStepEvent
 extends MatchEvent
-## A step of the lobby's photo booth (#1396; GDD §3 "The photo booth"; ARCHITECTURE §4.2, §9.5.28):
+## A step of the lobby's photo booth (#1396; GDD §3 "The photo booth"; ARCHITECTURE §4.2, §9.5.29):
 ## one event for the whole sequence, `step` telling which (the wire's event kinds have one free row,
 ## §4.3.4). Each names the booth's `station` and the session's `strip` (an id wrapping at 0x10000,
 ## BoothSessions), so a client binds the steps of one session together:

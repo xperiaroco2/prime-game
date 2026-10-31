@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The booth's frames (#1396; ARCHITECTURE §9.4.5, §9.5.28): every living present player inside the
+## The booth's frames (#1396; ARCHITECTURE §9.4.5, §9.5.29): every living present player inside the
 ## booth station's cylinder when a flash fires is one row of its record, in peer order, with the
 ## public look and body state it has at that tick (so a pose changed between flashes shows at the
 ## next one); a player outside by a hair, above it, downed or dead is not; a limp one is, with its

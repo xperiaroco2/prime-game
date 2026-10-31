@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## StartBooth and the session's clock (#1396; ARCHITECTURE §9.4.2, §9.5.28): an Interact at the
+## StartBooth and the session's clock (#1396; ARCHITECTURE §9.4.2, §9.5.29): an Interact at the
 ## booth starts one session (BoothStep STARTED to everyone, with the presser and the numbers in
 ## ticks); a second press while it runs, and any press in a phase without BoothTicks (Countdown),
 ## is refused `unavailable` and starts nothing; the flashes come on the host's clock, exactly

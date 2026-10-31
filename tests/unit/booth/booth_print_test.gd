@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The booth's print (#1396; ARCHITECTURE §9.4.5, §9.5.28): after the last flash, one strip for each
+## The booth's print (#1396; ARCHITECTURE §9.4.5, §9.5.29): after the last flash, one strip for each
 ## player in any frame who is still the same player, present and alive, given as GiveItem gives
 ## (the hand, else the belt, else the feet); PRINTED names the strips, the ids ItemSpawned
 ## announced, in peer order. A player of frame 1 who left before the print gets none and no rule
