@@ -113,7 +113,12 @@ func _add_part(body: StaticBody3D) -> void:
 	for group: StringName in body.get_groups():
 		if String(group).begins_with(StationKind.TOGGLE_GROUP_PREFIX):
 			key = StringName(String(group).trim_prefix(StationKind.TOGGLE_GROUP_PREFIX))
-	var index: Variant = body.get_meta(StationKind.TOGGLE_INDEX_META, null)
+	# get_meta with a null default still logs an engine error when the key is missing: ask first.
+	var index: Variant = (
+		body.get_meta(StationKind.TOGGLE_INDEX_META)
+		if body.has_meta(StationKind.TOGGLE_INDEX_META)
+		else null
+	)
 	# The host refuses a level whose part has no int index (LevelWorld): nothing to bind here.
 	if String(key).is_empty() or not index is int:
 		return

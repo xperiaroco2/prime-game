@@ -238,7 +238,11 @@ func _toggle_part_of(node: StaticBody3D, root: Node) -> TogglePart:
 	if keys.size() > 1:
 		_fail("%s: %s is in two toggle groups" % [path, where])
 		return null
-	var index: Variant = node.get_meta(StationKind.TOGGLE_INDEX_META, null)
+	var index: Variant = (
+		node.get_meta(StationKind.TOGGLE_INDEX_META)
+		if node.has_meta(StationKind.TOGGLE_INDEX_META)
+		else null
+	)
 	if not index is int or (index as int) < 0:
 		_fail(
 			(

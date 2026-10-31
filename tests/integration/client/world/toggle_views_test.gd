@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 ## (StationUse), and only a StaticBody3D is a part, as on the host.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 ## Station ids as the fixture's deal gives them: the covers in marker order, then book, bottle
 ## and breaker (FixtureToggles).
 const COVER_0 := 1
@@ -34,6 +35,10 @@ func before_test() -> void:
 	_cover_0 = _part(&"cover", 0, Vector3(0, 1, 0))
 	_cover_1 = _part(&"cover", 1, Vector3(0, 1, 10))
 	_mover = _part(&"bookcase", 0, Vector3(10, 1, 0))
+	# A level's plain wall: in no toggle group, with no metadata (the search walks past it).
+	var wall := StaticBody3D.new()
+	wall.collision_layer = PhysicsLayers.WORLD
+	_level.add_child(wall)
 	var pose := Marker3D.new()
 	pose.name = StationKind.ON_POSE
 	pose.position = ON_POSE
@@ -118,6 +123,18 @@ func test_parts_stand_as_their_scene_once_the_model_or_the_level_goes() -> void:
 	assert_int(_cover_0.collision_layer).is_equal(PhysicsLayers.WORLD)
 	assert_bool(_cover_0.visible).is_true()
 	assert_int(_views.part_count()).is_equal(0)
+
+
+func test_the_search_past_a_plain_wall_logs_no_engine_error() -> void:
+	# get_meta with a null default logs an engine error when the key is missing (the session
+	# smoke test's red, #1295): every plain wall of a real level is walked.
+	var errors := EngineErrors.new()
+	errors.start()
+	_views.model = _dealt()
+	await _frames()
+	errors.stop()
+	assert_int(_views.part_count()).is_equal(3)
+	assert_array(Array(errors.snapshot())).is_empty()
 
 
 func test_only_a_static_body_is_a_part_as_on_the_host() -> void:
