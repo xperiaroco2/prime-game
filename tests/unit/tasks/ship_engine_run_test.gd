@@ -86,9 +86,9 @@ func test_problems_open_at_their_drawn_moments_spread_over_the_stage() -> void:
 	if not task_state.problems.is_empty():
 		opened.append(game.ticked_through())
 	for i in FixtureEngineModes.STAGE_TICKS:
-		var before := task_state.problems.size()
+		var opened_before := task_state.problems.size()
 		FixtureModes.run_ticks(game, 1)
-		for k in task_state.problems.size() - before:
+		for k in task_state.problems.size() - opened_before:
 			opened.append(game.ticked_through())
 	var expected: Array[int] = []
 	for moment: int in schedule:

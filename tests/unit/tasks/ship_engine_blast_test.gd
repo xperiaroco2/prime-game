@@ -64,7 +64,7 @@ func test_a_timer_out_on_stage_two_knocks_down_everyone_aboard_and_drops_to_stag
 		FixtureEngineModes.stub_of(mode, 0).calls + FixtureEngineModes.stub_of(mode, 1).calls
 	)
 	(
-		assert_bool(calls.any(func(call: String) -> bool: return call.begins_with("cleared ")))
+		assert_bool(calls.any(func(entry: String) -> bool: return entry.begins_with("cleared ")))
 		. is_true()
 	)
 	assert_int(FixtureEngineModes.dicts(game, 3, &"TaskState").size()).is_equal(1)
