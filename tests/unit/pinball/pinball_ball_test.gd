@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## The ball's place (#1399, ARCHITECTURE §7.1.22): BallMoved, the table's fourth report, places the
 ## live game's ball for the snapshots (Pinball.shown_ball) and emits nothing; every viewer's
-## snapshot and view_of hold the same `ball`, and none holds one before a launch, after a loss, after
-## the game's end, or from a report of another game. Driven by FixturePinball and StubTable.
+## snapshot and view_of hold the same `ball`, and none holds one before a launch, after a loss,
+## after the game's end, or from a report of another game. Driven by FixturePinball and StubTable.
 
 const P1 := FixturePinball.P1
 const P2 := FixturePinball.P2
