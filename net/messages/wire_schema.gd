@@ -77,7 +77,9 @@ extends RefCounted
 ## the intents' range now 1 to 27.
 ## 44 since #1404 (a joiner learns the hall's items): Welcome's `items` (kind 33), after
 ## `lobby_name`, a list of item, kind, where, holder, place and position; its cap 2048 -> 8192.
-const VERSION := 44
+## 45 since #1295 (the world toggles): SwitchChanged (kind 70) may name a world toggle's station,
+## whose level parts an older client would not move; no row changed.
+const VERSION := 45
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
