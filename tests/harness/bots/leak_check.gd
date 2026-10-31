@@ -122,7 +122,6 @@ const UNREACHED: Dictionary[StringName, String] = {
 	&"GillFlipped": "no scenario plays the estate, the ship's map (#1462)",
 	&"BreakerChain": "no scenario plays the estate, the ship's map (#1462)",
 	&"CrystalChanged": "no scenario plays the estate, the ship's map (#1462)",
-	&"BoothStep": "no scenario presses the lobby's photo booth: the bots play the round (#1396)",
 }
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
