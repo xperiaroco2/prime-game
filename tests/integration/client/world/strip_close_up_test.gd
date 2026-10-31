@@ -21,16 +21,22 @@ var _strips: StubStrips
 var _book: BoothBook
 var _harness: Harness
 var _model: ClientModel
-var _red: Texture2D
 
 
-## A texture for every session asked, no render.
+## A texture of its own for every session asked (so a wrong session shows), no render.
 class StubStrips:
 	extends StripPictures
-	var texture: Texture2D
+	var textures: Dictionary[int, Texture2D] = {}
 
 	func texture_of(session: BoothBook.Session) -> Texture2D:
-		return texture if session != null else null
+		if session == null:
+			return null
+		var key := session.get_instance_id()
+		if not textures.has(key):
+			var image := Image.create_empty(4, 4, false, Image.FORMAT_RGB8)
+			image.fill(Color.RED)
+			textures[key] = ImageTexture.create_from_image(image)
+		return textures[key]
 
 
 func before_test() -> void:
@@ -49,10 +55,6 @@ func before_test() -> void:
 	_book = BoothBook.new()
 	_strips = StubStrips.new()
 	_strips.enabled = false
-	var image := Image.create_empty(4, 4, false, Image.FORMAT_RGB8)
-	image.fill(Color.RED)
-	_red = ImageTexture.create_from_image(image)
-	_strips.texture = _red
 	_world.add_child(_strips)
 	_items = ItemViews.new()
 	_items.model = _model
@@ -73,7 +75,7 @@ func test_a_strip_printed_into_the_hand_shows_its_frames_and_slides_in_once() ->
 	await _frames(2)
 	var hand := _player.hand_view()
 	assert_object(hand.shown_kind()).is_equal(StripLooks.STRIP)
-	assert_object(hand.view().picture()).is_same(_red)
+	assert_object(hand.view().picture()).is_same(_picture_of(STRIP_A))
 	assert_bool(hand.is_sliding()).is_true()
 	assert_bool(_book.take_fresh(STRIP_A)).is_false()
 
@@ -93,10 +95,14 @@ func test_a_friend_holding_the_strip_shows_the_same_picture() -> void:
 	_print_into_hand(STRIP_A)
 	await _frames(2)
 	var own: Texture2D = _items.picture_for(_model.items[STRIP_A] as ClientModel.Item)
+	# Another strip, from another session, so a hand-over that rebinds to it shows.
+	_printed([STRIP_B], 1, 2)
 	_fold(&"ItemPickedUp", {"peer": FRIEND, "item": STRIP_A})
 	# Looked up by the item alone (LifeView's spectate hand has no id at hand).
-	assert_object(_items.picture_for(_model.items[STRIP_A] as ClientModel.Item)).is_same(own)
-	assert_object(_book.session_of(STRIP_A)).is_not_null()
+	var friends: Texture2D = _items.picture_for(_model.items[STRIP_A] as ClientModel.Item)
+	assert_object(friends).is_same(own)
+	assert_object(friends).is_same(_picture_of(STRIP_A))
+	assert_object(friends).is_not_same(_picture_of(STRIP_B))
 
 
 func test_a_strip_lying_near_shows_its_picture_and_beyond_the_range_none() -> void:
@@ -107,7 +113,7 @@ func test_a_strip_lying_near_shows_its_picture_and_beyond_the_range_none() -> vo
 	_fold(&"ItemSpawned", {"item": STRIP_B, "kind": StripLooks.STRIP, "position": far})
 	_printed([STRIP_A, STRIP_B])
 	await _frames(2)
-	assert_object(_items.view_of(STRIP_A).picture()).is_same(_red)
+	assert_object(_items.view_of(STRIP_A).picture()).is_same(_picture_of(STRIP_A))
 	assert_object(_items.view_of(STRIP_B).picture()).is_null()
 
 
@@ -117,7 +123,7 @@ func test_a_reused_id_shows_no_old_strip() -> void:
 	)
 	_printed([STRIP_A])
 	await _frames(2)
-	assert_object(_items.view_of(STRIP_A).picture()).is_same(_red)
+	assert_object(_items.view_of(STRIP_A).picture()).is_same(_picture_of(STRIP_A))
 	_fold(&"ItemVanished", {"item": STRIP_A})
 	_fold(
 		&"ItemSpawned", {"item": STRIP_A, "kind": StripLooks.STRIP, "position": Vector3(0, 0, -3)}
@@ -134,10 +140,10 @@ func _print_into_hand(id: int) -> void:
 	_printed([id])
 
 
-func _printed(ids: Array[int]) -> void:
+func _printed(ids: Array[int], station := 0, strip := 1) -> void:
 	var fields := {
-		"station": 0,
-		"strip": 1,
+		"station": station,
+		"strip": strip,
 		"step": BoothStepEvent.STARTED,
 		"frames": 1,
 	}
@@ -157,3 +163,8 @@ func _fold(event_name: StringName, fields: Dictionary) -> void:
 func _frames(count: int) -> void:
 	for i in count:
 		await get_tree().physics_frame
+
+
+## The picture the strip stub made for the session that holds item `id`.
+func _picture_of(id: int) -> Texture2D:
+	return _strips.texture_of(_book.session_of(id))
