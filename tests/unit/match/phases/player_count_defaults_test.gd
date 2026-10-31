@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## with a `defaults_by_players` table that the host never named takes the table's value for the
 ## players present on every join (before Welcome), on a leave in the Lobby and the Countdown and on
 ## the return to the lobby (ResetMatch), never in Loading; a number the host named keeps his value
-## for the session. A fixture mode (FixtureBaseMode, 1 to 4 players) with a `humans` table
+## for the session. A fixture mode (FixtureBaseMode, 1 to 4 players) with a `dissidents` table
 ## {2: 1, 4: 2} over a default of 0: 1 player 0, 2 or 3 players 1, 4 players 2.
 
 const P1 := 1

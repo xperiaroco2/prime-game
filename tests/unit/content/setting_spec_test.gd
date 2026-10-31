@@ -55,6 +55,9 @@ func test_a_player_count_table_is_checked() -> void:
 	var spec := FixtureModes.setting(&"dissidents", 1, 0, 9)
 	spec.defaults_by_players = {4: 1, 6: 2, 9: 3}
 	assert_array(Array(spec.check(mode))).is_empty()
+	# A key may be max_players itself: only one above it is refused.
+	spec.defaults_by_players = {4: 1, 10: 3}
+	assert_array(Array(spec.check(mode))).is_empty()
 	spec.defaults_by_players = {0: 1, 6: 12, 11: 3}
 	(
 		assert_array(Array(spec.check(mode)))
