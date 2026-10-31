@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## ToggleViews (#1295, ARCHITECTURE §4.7.61) on a fixture level read by the names LevelWorld reads
 ## (group `toggle_<key>`, metadata `toggle_index`, a mover's OnPose), fed only the events a client
-## receives (StationPlaced, SwitchChanged) for FixtureToggles' mode: an open cover leaves layer 1,
-## so the voice's muffle ray (Muffle.blocked) and SightHider pass it; the bookcase's mover stands
-## at its OnPose on layer 1, opened from the wine rack too (one key); the breaker (no key) moves
-## nothing; every part stands as its scene again when the model or the level goes. Also: no
-## toggle kind is drawn as a cylinder (CircleViews), and a placed toggle is offered (StationUse).
+## receives (StationPlaced, SwitchChanged) for FixtureToggles' mode: an open cover leaves layer 1
+## and is hidden, so the voice's muffle ray (Muffle.blocked) and SightHider pass it; the
+## bookcase's mover stands at its OnPose on layer 1, opened from the wine rack too (one key); the
+## breaker (no key) moves nothing; every part stands as its scene again when the model or the level
+## goes. Also: no toggle kind is drawn as a cylinder (CircleViews), a placed toggle is offered
+## (StationUse), and only a StaticBody3D is a part, as on the host.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 ## Station ids as the fixture's deal gives them: the covers in marker order, then book, bottle
@@ -55,12 +56,15 @@ func test_an_open_cover_leaves_layer_1_and_the_voice_ray_passes() -> void:
 	_switch(COVER_0, true)
 	await _frames()
 	assert_int(_cover_0.collision_layer).is_equal(0)
+	assert_bool(_cover_0.visible).is_false()
 	assert_int(_cover_1.collision_layer).is_equal(PhysicsLayers.WORLD)
+	assert_bool(_cover_1.visible).is_true()
 	assert_bool(Muffle.blocked(_space(), Vector3(-3, 1, 0), Vector3(3, 1, 0))).is_false()
 	assert_bool(SightHider.sees(_space(), Vector3(-3, 1, 10), Vector3(3, 1, 10))).is_false()
 	_switch(COVER_0, false)
 	await _frames()
 	assert_int(_cover_0.collision_layer).is_equal(PhysicsLayers.WORLD)
+	assert_bool(_cover_0.visible).is_true()
 	assert_bool(Muffle.blocked(_space(), Vector3(-3, 1, 0), Vector3(3, 1, 0))).is_true()
 
 
@@ -112,6 +116,7 @@ func test_parts_stand_as_their_scene_once_the_model_or_the_level_goes() -> void:
 	assert_int(_cover_0.collision_layer).is_equal(0)
 	_views.level = null
 	assert_int(_cover_0.collision_layer).is_equal(PhysicsLayers.WORLD)
+	assert_bool(_cover_0.visible).is_true()
 	assert_int(_views.part_count()).is_equal(0)
 
 

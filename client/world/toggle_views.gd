@@ -7,9 +7,10 @@ extends Node3D
 ## are (SwitchChanged). A station's index is its ordinal among the model's stations of its kind in
 ## id order, which is the marker order the host gave it (PlaceToggles, StationState.index).
 ##
-## While its toggle is on, a collider (no child Marker3D `OnPose`) leaves every collision layer, so
-## the client's own rays on layer 1 (SightHider, Muffle's voice occlusion) and its player pass
-## through it, as on the host; a mover stands at its OnPose (the scene pose times the OnPose's
+## While its toggle is on, a collider (no child Marker3D `OnPose`) is gone, as on the host: it
+## leaves every collision layer, so the client's own rays on layer 1 (SightHider, Muffle's voice
+## occlusion) and its player pass through it, and it is hidden with its child meshes (an open
+## manhole cover is not drawn shut); a mover stands at its OnPose (the scene pose times the OnPose's
 ## transform, LevelWorld's pose), its layers kept, its child meshes moving with it. It jumps there:
 ## a swing's time would be a look nobody chose. Off, or once the model, the mode or the level goes,
 ## each part stands as the scene put it again.
@@ -38,6 +39,7 @@ class Part:
 	var key: StringName
 	var index: int
 	var layer: int
+	var visible: bool
 	var rest: Transform3D
 	var mover := false
 	var on_pose: Transform3D
@@ -120,6 +122,7 @@ func _add_part(body: CollisionObject3D) -> void:
 	part.key = key
 	part.index = index as int
 	part.layer = body.collision_layer
+	part.visible = body.visible
 	part.rest = body.transform
 	var on_pose := body.get_node_or_null(StationKind.ON_POSE) as Marker3D
 	if on_pose != null:
@@ -136,3 +139,4 @@ func _stand(part: Part, on: bool) -> void:
 		part.node.transform = part.rest * part.on_pose if on else part.rest
 	else:
 		part.node.collision_layer = 0 if on else part.layer
+		part.node.visible = part.visible and not on
