@@ -8,7 +8,8 @@ extends Node3D
 ## and its hum while it charges (StationHums, #801) and the photo camera's viewfinder
 ## (PhotoViewfinder, #786) and its scenes and items (PhotoViews, #787) and the shots' pictures
 ## (PhotoPictures, #787) and the hand-over key and its target (HandOverUse, #1411) and the world
-## toggles' parts (ToggleViews, #1295),
+## toggles' parts (ToggleViews, #1295) and the photo booth's sessions (BoothBook), its lamp,
+## countdown, flash and print (BoothViews) and its strips' pictures (StripPictures, #1397),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -37,6 +38,8 @@ const _ORDER: Array[StringName] = [
 	&"CarRepairViews",
 	&"PhotoViews",
 	&"PhotoPictures",
+	&"BoothViews",
+	&"StripPictures",
 	&"ShipEngineViews",
 ]
 
@@ -61,6 +64,11 @@ var car_repair := task_views.get(CarRepair) as CarRepairViews
 ## The photo task's scenes and items (its TaskClient's view): drawn_point and aim_point ask it.
 var photos := task_views.get(PhotoTask) as PhotoViews
 var pictures := PhotoPictures.new()
+## The photo booth (#1397): its sessions folded from BoothStep (outside the model, BoothBook),
+## what the players see of them, and the strips' pictures from the records.
+var booth := BoothBook.new()
+var booth_views := BoothViews.new()
+var strips := StripPictures.new()
 
 var _model: ClientModel
 var _mode: GameMode
@@ -78,6 +86,7 @@ func _init() -> void:
 	hums.name = "StationHums"
 	toggles.name = "ToggleViews"
 	pictures.name = "PhotoPictures"
+	strips.name = "StripPictures"
 	for each: Node3D in [
 		items,
 		interactions,
@@ -88,6 +97,8 @@ func _init() -> void:
 		toggles,
 		viewfinder,
 		pictures,
+		booth_views,
+		strips,
 	]:
 		add_child(each)
 	for view: Node3D in task_views.values():
@@ -99,6 +110,10 @@ func _init() -> void:
 			move_child(child, at)
 			at += 1
 	items.pictures = pictures
+	items.strips = strips
+	items.booth = booth
+	strips.book = booth
+	booth_views.book = booth
 	# The throw key's predicted arc, one at a time, and the throw's sounds when the drawn item
 	# launches and lands (37e).
 	interactions.throw_sent.connect(items.predict_throw)
@@ -113,6 +128,8 @@ func _init() -> void:
 	items.station_point = drawn_point
 	hums.ears = sounds.ears
 	items.sound_due.connect(sounds.on_event)
+	# The booth's countdown beeps, due on the host's ticks.
+	booth_views.sound_due.connect(sounds.on_event)
 
 
 ## Follows `client`'s model with the client's own copy of `game_mode`; `views` draws the others.
@@ -140,6 +157,10 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	pictures.mode = game_mode
 	pictures.avatars = views
 	pictures.flashes = flashes
+	strips.mode = game_mode
+	strips.avatars = views
+	booth_views.model = _model
+	booth_views.host_tick = views.host_tick
 	hums.model = _model
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
@@ -181,6 +202,11 @@ func reset() -> void:
 	_host_tick = Callable()
 	pictures.clear()
 	pictures.model = null
+	booth.clear_match()
+	booth_views.clear()
+	booth_views.model = null
+	booth_views.host_tick = Callable()
+	strips.clear()
 	hums.clear()
 	hums.model = null
 	toggles.model = null
@@ -236,7 +262,10 @@ func fit_shown(tick: float = -1.0) -> float:
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if _model == null:
 		return
+	# The booth's book folds first: BoothViews and the strips' pictures read it.
+	booth.fold(event_name, fields)
 	items.on_event(event_name, fields)
+	booth_views.on_event(event_name, fields)
 	flashes.on_event(event_name, fields)
 	pictures.on_event(event_name, fields)
 	viewfinder.on_event(event_name, fields)
