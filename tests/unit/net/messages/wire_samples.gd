@@ -129,6 +129,16 @@ static func events() -> Dictionary[String, Array]:
 		SwitchChangedEvent.new(2, true), SwitchChangedEvent.new(0xFFFE, false)
 	]
 	found["ButtonPressedEvent"] = [ButtonPressedEvent.new(1), ButtonPressedEvent.new(0xFFFE)]
+	found["EngineProblemOpenedEvent"] = [
+		EngineProblemOpenedEvent.new(1, PackedInt32Array([2]), 40),
+		EngineProblemOpenedEvent.new(
+			0xFFFF, PackedInt32Array([1, 2, 3, 4, 5, 6, 7, 0xFFFE]), 0xFFFFFFFE
+		),
+	]
+	found["EngineProblemFixedEvent"] = [
+		EngineProblemFixedEvent.new(1), EngineProblemFixedEvent.new(0xFFFF)
+	]
+	found["EngineBlastEvent"] = [EngineBlastEvent.new(1), EngineBlastEvent.new(3)]
 	found["LiftChangedEvent"] = [
 		LiftChangedEvent.new(2, true, 40), LiftChangedEvent.new(0xFFFE, false, 0xFFFFFFFE)
 	]

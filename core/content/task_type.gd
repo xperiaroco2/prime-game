@@ -234,6 +234,13 @@ func hold_completed(
 	pass
 
 
+## Whether this type's tick() can knock a player down (LifeRules.knock_down: the ship engine's
+## blast, #1453). A downed player bleeds out into death, so ModeCheck (KillCheck) requires
+## LifeTicks with a Respawn in every phase that lists TaskTicks. False by default.
+func knocks_down() -> bool:
+	return false
+
+
 ## Whether this type can kill a player (LifeRules.kill through kill_later: the car's drop; the car
 ## repair ADR's RE6, #806). ModeCheck then requires LifeTicks with a Respawn in every phase that
 ## accepts Interact, so a dead player always comes back. False by default.

@@ -79,7 +79,10 @@ extends RefCounted
 ## `lobby_name`, a list of item, kind, where, holder, place and position; its cap 2048 -> 8192.
 ## 45 since #1295 (the world toggles): SwitchChanged (kind 70) may name a world toggle's station,
 ## whose level parts an older client would not move; no row changed.
-const VERSION := 45
+## 46 since #1453 (GDD §8, the ship's engine): the events EngineProblemOpened (kind 89, its problem,
+## stations and deadline), EngineProblemFixed (90, its problem) and EngineBlast (91, the stage after
+## the drop).
+const VERSION := 46
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -117,6 +120,9 @@ const MAX_HERBS := 255
 const MAX_SHORTFALLS := 64
 ## Welcome's item rows (#1404): core's WelcomeEvent.MAX_ITEMS (a test pins the two).
 const MAX_WELCOME_ITEMS := 96
+## The stations of one ship engine problem (EngineProblemOpened, #1453): core's
+## ShipEngine.MAX_PROBLEM_STATIONS, which a unit test pins equal (net/ names no core/ class).
+const MAX_PROBLEM_STATIONS := 8
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
 const MAX_TEXT_NUMBERS := 4
@@ -630,6 +636,20 @@ static func _events() -> Array[WireRow]:
 		_down(86, &"BurgerServed", 3, [_station("station"), _bool("right")]),
 		_down(87, &"OfferMade", 8, [_peer("giver"), _peer("target")]),
 		_down(88, &"OfferEnded", 8, [_peer("giver"), _peer("target")]),
+		_down(
+			89,
+			&"EngineProblemOpened",
+			23,
+			[
+				_u16("problem"),
+				WireField.list(
+					"stations", _station(""), MAX_PROBLEM_STATIONS, TYPE_PACKED_INT32_ARRAY
+				),
+				_of("deadline", _tick()),
+			]
+		),
+		_down(90, &"EngineProblemFixed", 2, [_u16("problem")]),
+		_down(91, &"EngineBlast", 2, [_u16("stage")]),
 	]
 
 
