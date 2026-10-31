@@ -103,6 +103,23 @@ func test_stage_two_trips_four_with_one_change_of_side() -> void:
 	assert_int(boards[1]).is_not_equal(boards[2])
 
 
+func test_a_drawn_order_never_repeats_a_breaker_over_twenty_seeds() -> void:
+	for seed_value in 20:
+		for stage: int in [2, 3]:
+			var game := _game(seed_value + 1)
+			var problem := _open(game, stage)[0]
+			var order := _order(problem)
+			assert_int(order.size()).is_equal(2 * stage)
+			var seen: Dictionary[int, bool] = {}
+			for breaker: int in order:
+				seen[breaker] = true
+			(
+				assert_int(seen.size())
+				. override_failure_message("seed %d stage %d: %s" % [seed_value + 1, stage, order])
+				. is_equal(order.size())
+			)
+
+
 func test_stage_three_trips_six_alternating_sides() -> void:
 	var game := _game()
 	var problem := _open(game, 3)[0]
