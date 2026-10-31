@@ -282,9 +282,10 @@ static func change_kind(ctx: MatchContext, item: ItemState, kind: ItemKind) -> v
 
 ## `item` (in a hand, say) is locked at `at`, a station's spot (the cooking ADR, CE5: a patty on
 ## the grill, a right ingredient on a place): out of any hand or belt, held by nobody, not
-## interactive (no PickUp takes it) and not lying, so it never vanishes. Only give() hands it out
-## again. Emits nothing: the station's event (GrillLoaded, IngredientPlaced) announces it. No item
-## is a rule error, logged, and nothing moves.
+## interactive (no PickUp takes it) and not lying, so it never vanishes. Only give() and
+## hand_out() hand it out again. Emits nothing: the station's event (GrillLoaded,
+## IngredientPlaced, CrystalChanged) announces it. No item is a rule error, logged, and nothing
+## moves.
 static func lock_at(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 	if item == null:
 		ctx.error("lock_at: no item to lock at %s" % at)

@@ -791,7 +791,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29), or the item itself when it went straight onto the belt beside a two-handed hand item (the cooking ADR, CE20, CE21, #771); `place`: the place (0 to 2) the item went into: the place in the hand when the item went into the hand (a take into a free place selects it), a belt place when it went straight onto the belt (#1218, GDD §6) | everyone | `PickUp`; or `Items.give` (#771): a new item from a source, or an item locked on a station taken back (a box's, a bed's or the grill's take, the cooking ADR §2), the taker making room by §2's table (a hand item it puts down at its feet comes first as `ItemPlaced` `put_down`) |
 | `Swapped` | peer, place | everyone | a `Swap` or a `Draw` (M4-5; #1218): `place` (0 to 2) is now the peer's place in the hand, its other places on the belt; no item moves between places. With `ItemPickedUp`'s `belted` and `place` and `ItemPlaced` it tells every client every player's three places, its own included (its avatar is sent to it only while it is knocked down, KE5) |
 | `ItemThrown` | item, peer (the thrower), origin, velocity, gravity, launch tick: exactly the flight's vectors, so a client computes the host's arc bit for bit (`ItemFlight.point`, §7.1.16) | everyone: the item was in a hand everyone sees, and the velocity shows only the facing the snapshot already shows (a role-owned `Throw` rule would put the role into it: ModeCheck warns, §9.2) | a `Throw` (#643), before the flight's first tick |
-| `ItemPlaced` | item, rest position, cause: put down (also a hand item put down at the feet by a take or a give with all three places full, or a two-handed one by a `Draw`, #1218), swap (a two-handed hand item beside a two-handed pickup: it rests where the picked one lay), death or leave (at a death or a leave the hand item's comes first, then the belt items' in place order), thrown (a flight's rest, §7.1.16) | everyone | an item comes to rest |
+| `ItemPlaced` | item, rest position, cause: put down (also a hand item put down at the feet by a take or a give with all three places full, or a two-handed one by a `Draw`, #1218), swap (a two-handed hand item beside a two-handed pickup: it rests where the picked one lay), death or leave (at a death or a leave the hand item's comes first, then the belt items' in place order), thrown (a flight's rest, §7.1.16), slipped (the ship's crystal outside the aboard box, back to the floor where it last was aboard: a part's own cause, `CrystalProblem.SLIPPED`, §9.5.27, #1461) | everyone | an item comes to rest |
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `ItemVanished` | item | everyone: items on the ground are public, and it names no player | an item of a kind with `vanish_seconds` lay on the ground that long (`VanishTicks`, §9.4.5; the cooking ADR, CD6 (c), #779); its id may later name a new item (§9.3) |
 | `ItemChanged` | item, kind | everyone: items are public, and it names no player | `Items.change_kind` (the cooking ADR, CE4, #771): an item became another kind where it is (a patty on the grill turning fried, then burnt), keeping its id, place and holder; nothing is sent when it already is that kind |
@@ -7060,7 +7060,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down (also a hand item dropped at the feet by a take with all three places full, or a two-handed one by a `Draw`, #1218); swapped (a two-handed hand item beside a two-handed pickup, M4-5); dropped at a death or a leave, once per carried item, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642); laid on the ground at a station (`Items.lay_on_station`, the cooking ADR's CE5, #771: a wrong ingredient at a place). A `Swap` or a `Draw` between places raises none but for a `Draw`'s two-handed item: nothing else comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`, `on_station`), the rest position |
+| `item_rested` | an item comes to rest: put down (also a hand item dropped at the feet by a take with all three places full, or a two-handed one by a `Draw`, #1218); swapped (a two-handed hand item beside a two-handed pickup, M4-5); dropped at a death or a leave, once per carried item, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642); laid on the ground at a station (`Items.lay_on_station`, the cooking ADR's CE5, #771: a wrong ingredient at a place); slipped back aboard (the ship's crystal, `CrystalProblem`, §9.5.27, #1461). A `Swap` or a `Draw` between places raises none but for a `Draw`'s two-handed item: nothing else comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`, `on_station`, and the crystal's `slipped`), the rest position |
 | `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), or a living or downed one is killed at once (`LifeRules.kill`, #806), before its hand and belt items drop | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before its hand and belt items drop | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
@@ -8592,8 +8592,9 @@ mode yet: part 3 wires its kinds (below) into the base mode and puts the ship's 
     10), then `ItemChanged` to `charged`, then taken out (`Items.hand_out`); a charging one takes no use. The fit (its
     own socket, the charged crystal in hand): `ItemVanished`, `CrystalChanged`, fixed. Each tick a loose crystal
     (carried, or lying; a flying one where it lands) outside the aboard box slips back to the floor below where it
-    last was aboard (`Items.place`, cause `slipped`: `ItemPlaced`). A blast (`cleared`) vanishes a crystal out and
-    empties its charger. `CrystalChanged(station, charger, phase, item, tick)` follows each change. The socket and
+    last was aboard (`Items.place`, cause `slipped`: `ItemPlaced`); one lying on that spot already stays, so a socket
+    or charger a level puts outside the box slips it once, not every tick (nothing checks that the stations lie in
+    the box). A blast (`cleared`) vanishes a crystal out and empties its charger. `CrystalChanged(station, charger, phase, item, tick)` follows each change. The socket and
     charger rules carry no `HandNotTwoHanded` (the check refuses one that does). Rejects: `unavailable` (a socket
     without a problem, a charging charger), `empty_hand`, `wrong_item`.
 - **For part 3's client:** started = a `ButtonPressed` on the console; the bar, its stage and its thirds =
@@ -8602,8 +8603,9 @@ mode yet: part 3 wires its kinds (below) into the base mode and puts the ship's 
   `deadline` against the estimated host tick; done = `TaskState` n of n. The kinds: a gill set's slits = its
   `GillFlipped`s since the problem opened (all shut at the open), its bar = `bar_slit` from the opening tick; the
   breakers' order and lamps = the problem's last `BreakerChain` (the first `next` on, the last one's yellow and green
-  from `since` with the client's copy of the ramp and green seconds); a socket's crystal, a charger's phase and its
-  fill = the problem's last `CrystalChanged`.
+  from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console's mimic
+  board, GDD §8: remembered or read out, so no lamp, marker or HUD line at the boards shows it); a socket's crystal,
+  a charger's phase and its fill = the problem's last `CrystalChanged`.
 
 Produces: `StationPlaced` and `ZoneProgress` in the deal; `ButtonPressed`, `EngineProblemFixed` and the kinds'
 `use_emits` on a use (the breakers' short circuit: `KnockedDown`, `Correction`, `LaunchBody`; the crystal's moves:
