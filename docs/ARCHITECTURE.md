@@ -5245,16 +5245,18 @@ from the own `ClientModel`'s `StationPlaced` and `SwitchChanged` only.
 - **Which toggle.** A station of a `PlaceToggles` kind with a `toggle_key` is toggle (key, index), its index its
   ordinal among the model's stations of its kind in id order: the host placed them in marker order, so no wire field
   is needed. A toggle is on while one of its stations is (the host flips them together).
-- **What moves.** An open collider's `collision_layer` goes to 0, so the client's own rays on layer 1 (`SightHider`,
-  `Muffle`'s voice occlusion) and the own player pass it as the host's `line_of_sight` does; an open mover stands at
-  its scene pose times its `OnPose`'s transform, its layers kept, its child meshes moving with it. It jumps there: a
-  swing's time would be a look nobody chose (a later issue may animate it). The level is searched once per level;
-  a new level, a reset (`ItemWorld.reset`) or a dropped model stands every part as its scene put it first.
+- **What moves.** An open collider's `collision_layer` goes to 0 and it is hidden with its meshes (gone, as on the
+  host: an open cover is not drawn shut), so the client's own rays on layer 1 (`SightHider`, `Muffle`'s voice
+  occlusion) and the own player pass it as the host's `line_of_sight` does; an open mover stands at its scene pose
+  times its `OnPose`'s transform, its layers kept, its child meshes moving with it. It jumps there: a swing's time
+  would be a look nobody chose (a later issue may animate it). Only a `StaticBody3D` is a part, as on the host (an
+  `Area3D` in a toggle group would move here alone). The level is searched once per level; a new level, a reset
+  (`ItemWorld.reset`) or a dropped model stands every part as its scene put it first.
 - **Not drawn, but offered.** `CircleViews.draws` is false for every toggle kind (a cylinder would mark a secret
   passage; the look is the level's), and `StationUse` offers E at it (a kind of no type, §4.7.59).
 - **Tests.** `tests/integration/client/world/toggle_views_test.gd` (a cover off layer 1 and the muffle ray through
-  it, the second marker's station opening the second cover, the bookcase at its OnPose from either station, the
-  breaker moving nothing, the restore on a dropped model and level, no cylinder, offered), and
+  it, hidden and shown again, the second marker's station opening the second cover, the bookcase at its OnPose from
+  either station, the breaker moving nothing, the restore on a dropped model and level, no cylinder, offered), and
   `item_world_children_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
