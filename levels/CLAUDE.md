@@ -27,7 +27,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   can hide behind (partition, tarp, shelf) needs a layer-1 collider over it, or name plates show through (`docs/ARCHITECTURE.md`
   §4.7.29, #257). Voice muffling is a client ray on layer 1 (`client/world/muffle.gd`): openings and covers decide it.
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6): a `Marker3D` in exactly one persistent group `spawn_<tag>` (Groups
-  dock: `spawn_lobby_player`, `spawn_tap`, `spawn_round_player`, `spawn_package`, `spawn_knife`, `spawn_circle` (greybox, estate),
+  dock: `spawn_lobby_player`, `spawn_tap`, `spawn_booth`, `spawn_round_player`, `spawn_package`, `spawn_knife`, `spawn_circle` (greybox, estate),
   `spawn_zone`; House only, provisional (DE10, #826): `spawn_drop_dining_table`, `spawn_drop_terrace_table`,
   `spawn_drop_garden`, `spawn_drop_workbench`, one each at its furniture (#831); House only, "not a decision" (#799,
   #783, #809, #774): use spots `spawn_switch`, `spawn_generator`, `spawn_camera`, `spawn_photo_spot`,
