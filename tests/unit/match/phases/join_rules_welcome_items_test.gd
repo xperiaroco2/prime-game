@@ -100,6 +100,32 @@ func test_rows_past_the_cap_are_left_out_with_an_error_carried_first() -> void:
 	assert_str(errors).contains("Welcome: %d items, %d sent" % [97, WelcomeEvent.MAX_ITEMS])
 
 
+func test_a_flying_item_is_sent_lying_where_it_was_with_an_error() -> void:
+	var game := FixtureLobbyHands.in_lobby(FixtureLobbyHands.mode(), [P1])
+	var flying := FixtureItemModes.lay(game, &"tool", Vector3(1, 0, 3))
+	# Lobby refuses Throw, so no rule does this: the host state is set wrong by hand.
+	flying.where = ItemState.Where.FLYING
+	FixtureBaseMode.join(game, P2)
+	var welcome := _welcome(game, P2)
+	assert_array(welcome.items).is_equal([_row(flying, ItemState.Where.GROUND, 0, 0)])
+	assert_int(welcome.items[0]["where"]).is_equal(ItemState.Where.GROUND)
+	assert_vector(welcome.items[0]["position"]).is_equal(Vector3(1, 0, 3))
+	assert_str("\n".join(game.diagnostics)).contains("Welcome: item %d flies in" % flying.id)
+
+
+func test_an_item_in_a_place_of_a_player_who_is_not_its_holder_is_left_out_with_an_error() -> void:
+	var game := FixtureLobbyHands.in_lobby(FixtureLobbyHands.mode(), [P1, P2])
+	var held := FixtureLobbyHands.give(game, P1, &"tool")
+	# A second place list naming the same item: the host state disagrees with itself.
+	game.state.player(P2).places[0] = held.id
+	FixtureBaseMode.join(game, P3)
+	var welcome := _welcome(game, P3)
+	assert_array(welcome.items).is_equal([_row(held, ItemState.Where.HAND, P1, 0)])
+	assert_str("\n".join(game.diagnostics)).contains(
+		"Welcome: item %d is in place 0 of %d" % [held.id, P2]
+	)
+
+
 ## An item laid at a placed station and locked there, as Items.lock_at leaves it; no lobby rule
 ## does this today (the issue asks for the case all the same).
 func _locked_at_a_station(game: Match) -> ItemState:

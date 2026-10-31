@@ -264,7 +264,8 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 ## it are left out with an error). A carried item's rest state is where its carrier holds it. No
 ## item flies in Lobby or Countdown (both refuse Throw): one found is an error, sent as lying where
 ## it was thrown from (its ItemPlaced at the flight's end settles it). A carried item whose carrier
-## is no present player is an error and left out.
+## is no present player, one found in a place of a player who is not its holder, or one found in two
+## places, is an error and left out (each loop reports its own case).
 static func _items(ctx: MatchContext) -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	var listed: Dictionary[int, bool] = {}
@@ -272,9 +273,24 @@ static func _items(ctx: MatchContext) -> Array[Dictionary]:
 		var places := ctx.state.players[peer].places
 		for place: int in places.size():
 			var item: ItemState = ctx.state.items.get(places[place])
-			if item != null and item.is_carried():
-				rows.append(_item_row(item, item.where, peer, place))
-				listed[item.id] = true
+			if item == null or not item.is_carried():
+				continue
+			if item.holder != peer or listed.has(item.id):
+				ctx.error(
+					(
+						"Welcome: item %d is in place %d of %d, held by %d%s"
+						% [
+							item.id,
+							place,
+							peer,
+							item.holder,
+							" (listed)" if listed.has(item.id) else ""
+						]
+					)
+				)
+				continue
+			rows.append(_item_row(item, item.where, peer, place))
+			listed[item.id] = true
 	var ids: Array[int] = []
 	ids.assign(ctx.state.items.keys())
 	ids.sort()
