@@ -17,6 +17,8 @@ extends RefCounted
 ##   table, CD3 (b), CD5 (b), CE19, CE20) goes to a player, who makes room: the hand item stays on
 ##   the belt when a place is free, else it is put down at the taker's feet; beside a two-handed
 ##   hand item the new item goes onto the belt, a full belt's lower item first down at the feet.
+## - hand_out(): give() for a source that hands out a two-handed item too (the ship's crystal from
+##   its socket or a charger, #1461): a two-handed one goes into the hand by take()'s hand rules.
 ## - take_offered(): a hand item another player offers (#1434) goes to the receiver as take()
 ##   would take it from the floor: it leaves the giver's place first.
 ## - select(), back(): another place comes into the hand (a Draw: keys 1, 2, 3 and the wheel; X:
@@ -50,9 +52,9 @@ extends RefCounted
 ##   its id freed for reuse (MatchState.remove_item).
 ##
 ## A move into a hand, onto a belt, into flight or into the locked state (take(), give(),
-## launch(), lock(), lock_at()) clears the rest tick. Every lay and every move into a hand, onto a
-## belt, into flight or into the locked state bumps the move serial, ItemState.moves (the photo
-## ADR, PE17); select() between one player's own places does not.
+## hand_out(), launch(), lock(), lock_at()) clears the rest tick. Every lay and every move into a
+## hand, onto a belt, into flight or into the locked state bumps the move serial, ItemState.moves
+## (the photo ADR, PE17); select() between one player's own places does not.
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
 ##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
@@ -229,6 +231,23 @@ static func give(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	_give_checked(ctx, peer, item)
 
 
+## give() for a source that hands out a two-handed item too (the ship's crystal, GDD §5's hit table
+## and §8, #1461: pulled from its socket, taken from a charger): a one-handed `item` goes through
+## give(); a two-handed one, lying or locked, goes to `peer` as take_offered() takes it, by
+## take()'s hand rules (a one-handed hand item onto the belt or down at the feet, a two-handed one
+## swapped out at the feet, ItemPlaced `swap`). Emits ItemPickedUp; an item carried or in flight,
+## or no player, is a rule error, logged, and nothing moves.
+static func hand_out(ctx: MatchContext, peer: int, item: ItemState) -> void:
+	var player := ctx.state.player(peer)
+	if item == null or not item.kind.is_two_handed():
+		give(ctx, peer, item)
+		return
+	if player == null or item.is_carried() or item.is_in_flight():
+		ctx.error("hand_out: item %s cannot go to player %d" % [_id(item), peer])
+		return
+	_take_into(ctx, peer, item, _feet(ctx, player))
+
+
 ## give()'s moves for a one-handed `item` that give() checked: `peer` makes room.
 static func _give_checked(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
@@ -263,9 +282,10 @@ static func change_kind(ctx: MatchContext, item: ItemState, kind: ItemKind) -> v
 
 ## `item` (in a hand, say) is locked at `at`, a station's spot (the cooking ADR, CE5: a patty on
 ## the grill, a right ingredient on a place): out of any hand or belt, held by nobody, not
-## interactive (no PickUp takes it) and not lying, so it never vanishes. Only give() hands it out
-## again. Emits nothing: the station's event (GrillLoaded, IngredientPlaced) announces it. No item
-## is a rule error, logged, and nothing moves.
+## interactive (no PickUp takes it) and not lying, so it never vanishes. Only give() and
+## hand_out() hand it out again. Emits nothing: the station's event (GrillLoaded,
+## IngredientPlaced, CrystalChanged) announces it. No item is a rule error, logged, and nothing
+## moves.
 static func lock_at(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 	if item == null:
 		ctx.error("lock_at: no item to lock at %s" % at)

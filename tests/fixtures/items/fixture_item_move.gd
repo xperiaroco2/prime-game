@@ -7,6 +7,8 @@ extends RuleEffect
 ##   (Items.give), as a box's take.
 ## - GIVE_AT: the item lying or locked at `at` given to the actor (Items.give), as the grill's
 ##   take-off.
+## - HAND_OUT_AT: the item lying or locked at `at` handed out to the actor (Items.hand_out, a
+##   two-handed one too), as the ship crystal's socket and charger (#1461).
 ## - LOCK: the actor's hand item locked at `at` (Items.lock_at), as a patty put on the grill.
 ## - LAY: the actor's hand item laid at `at` (Items.lay_on_station), as a wrong ingredient.
 ## - CHANGE: the item lying or locked at `at` becomes `kind` (Items.change_kind).
@@ -18,6 +20,7 @@ extends RuleEffect
 
 const GIVE := &"give"
 const GIVE_AT := &"give_at"
+const HAND_OUT_AT := &"hand_out_at"
 const LOCK := &"lock"
 const LAY := &"lay"
 const CHANGE := &"change"
@@ -36,6 +39,8 @@ func run(ctx: MatchContext) -> void:
 			Items.give(ctx, ctx.actor, made)
 		GIVE_AT:
 			Items.give(ctx, ctx.actor, _at(ctx))
+		HAND_OUT_AT:
+			Items.hand_out(ctx, ctx.actor, _at(ctx))
 		LOCK:
 			Items.lock_at(ctx, Items.held_by(ctx.state, ctx.actor), at)
 		LAY:

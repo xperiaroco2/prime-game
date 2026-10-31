@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="CrystalProblem" format=3]
+
+[ext_resource type="Script" uid="uid://deiv31e61k1h3" path="res://core/tasks/crystal_problem.gd" id="1_kind"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+[ext_resource type="Resource" path="res://content/items/crystal_spent.tres" id="11_spent"]
+[ext_resource type="Resource" path="res://content/items/crystal_charged.tres" id="12_charged"]
+
+[sub_resource type="Resource" id="Socket_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Socket_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Socket_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Socket_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_cartridge_socket"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Socket_at_station"), SubResource("Socket_in_sight"), SubResource("Socket_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Socket_use")])
+
+[sub_resource type="Resource" id="StationKind_cartridge_socket"]
+script = ExtResource("2_station")
+id = &"cartridge_socket"
+spawn_tag = &"cartridge_socket"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_cartridge_socket")])
+
+[sub_resource type="Resource" id="Charger_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Charger_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Charger_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Charger_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_cartridge_charger"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Charger_at_station"), SubResource("Charger_in_sight"), SubResource("Charger_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Charger_use")])
+
+[sub_resource type="Resource" id="StationKind_cartridge_charger"]
+script = ExtResource("2_station")
+id = &"cartridge_charger"
+spawn_tag = &"cartridge_charger"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_cartridge_charger")])
+
+[resource]
+script = ExtResource("1_kind")
+id = &"crystal"
+seconds = 30.0
+site = SubResource("StationKind_cartridge_socket")
+site_count = 4
+fixtures = Array[ExtResource("2_station")]([SubResource("StationKind_cartridge_charger")])
+spent = ExtResource("11_spent")
+charged = ExtResource("12_charged")
+charge_seconds = 10.0

@@ -16,7 +16,8 @@ extends RefCounted
 ##   ShotTaken, #781, Cooking's GrillLoaded and IngredientPlaced, #773, and the car repair's
 ##   FitChanged and PartFitted, #808, the photo task's PhotoPrinted and PhotoHung, #782, and
 ##   Cooking's BurgerPlated and BurgerServed, #1101, and the ship engine's EngineProblemOpened,
-##   EngineProblemFixed and EngineBlast, #1453).
+##   EngineProblemFixed and EngineBlast, #1453, and its problem kinds' GillFlipped, BreakerChain
+##   and CrystalChanged, #1461).
 ## - No event and no snapshot holds the session seed or a match seed.
 ## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
 ##   holds its own avatar exactly when its player is knocked down or limp (#1393), read from the
@@ -80,6 +81,9 @@ const TASK_EVENTS: Array[StringName] = [
 	&"EngineProblemOpened",
 	&"EngineProblemFixed",
 	&"EngineBlast",
+	&"GillFlipped",
+	&"BreakerChain",
+	&"CrystalChanged",
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.

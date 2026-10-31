@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="GillsProblem" format=3]
+
+[ext_resource type="Script" uid="uid://co2puc1hddi0b" path="res://core/tasks/gills_problem.gd" id="1_kind"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="3_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="4_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="5_effect"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="6_one_handed"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="7_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="8_in_sight"]
+[ext_resource type="Script" uid="uid://cabhuegjosl8j" path="res://core/tasks/station_usable.gd" id="9_usable"]
+[ext_resource type="Script" uid="uid://c5wfxshgjn87y" path="res://core/tasks/use_station.gd" id="10_use_station"]
+
+[sub_resource type="Resource" id="Gill_one_handed"]
+script = ExtResource("6_one_handed")
+
+[sub_resource type="Resource" id="Gill_at_station"]
+script = ExtResource("7_at_station")
+
+[sub_resource type="Resource" id="Gill_in_sight"]
+script = ExtResource("8_in_sight")
+
+[sub_resource type="Resource" id="Gill_usable"]
+script = ExtResource("9_usable")
+
+[sub_resource type="Resource" id="Gill_use"]
+script = ExtResource("10_use_station")
+
+[sub_resource type="Resource" id="Rule_use_gill_button"]
+script = ExtResource("3_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("4_condition")]([SubResource("Gill_one_handed"), SubResource("Gill_at_station"), SubResource("Gill_in_sight"), SubResource("Gill_usable")])
+effects = Array[ExtResource("5_effect")]([SubResource("Gill_use")])
+
+[sub_resource type="Resource" id="StationKind_gill_button"]
+script = ExtResource("2_station")
+id = &"gill_button"
+spawn_tag = &"gill_button"
+radius_m = 2.0
+height_m = 2.0
+palette = PackedColorArray()
+actions = Array[ExtResource("3_rule")]([SubResource("Rule_use_gill_button")])
+
+[resource]
+script = ExtResource("1_kind")
+id = &"gills"
+seconds = 10.0
+site = SubResource("StationKind_gill_button")
+site_count = 2
+step_seconds = 0.6
