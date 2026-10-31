@@ -842,7 +842,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents) and, when a win condition reported the `won`, its id as the reason with `numbers` {`time`: the round's play time in whole seconds, when the clock ran} (#548); no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
-| `PinballState` | the lobby pinball's whole state (#1398, §7.1.22): `game` (the game's serial, 0 before the first), `player` (the seated peer, or none), `left`, `right` (the flippers held), `in_play` (a ball on the table), `score`, `balls_left`, `best` and `best_name` (the session's best and its owner's name as it was when the game started) | everyone: public (§5) | a game starts or ends; a flipper changes; a table report that fits the live game; and to everyone once a present player was not told the state yet (a joiner; every player after `ResetMatch`), only once the session played a game (`PinballTicks`) |
+| `PinballState` | the lobby pinball's whole state (#1398, §7.1.22): `game` (the game's serial, 0 before the first), `player` (the seated peer, or none), `left`, `right` (the flippers held), `in_play` (a ball on the table), `score`, `balls_left`, `best` and `best_name` (the session's best and its owner's name as it was when the game ended) | everyone: public (§5) | a game starts or ends; a flipper changes; a table report that fits the live game; and to everyone once a present player was not told the state yet (a joiner; every player after `ResetMatch`), only once the session played a game (`PinballTicks`) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `LaunchBody(peer, epoch, origin, velocity)` and `StopBody(peer)` (the host's body of a knocked-down player on a map
@@ -6969,8 +6969,8 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
 - **The best score** (`Pinball.Session`: `best`, `best_name`, and `games`, the count that gives each game its
   serial) is session state (`MatchState.session_part_state`, §3.5): `reset_match` keeps it, nothing writes it to
   disk, and it is gone when the host closes the lobby (provisional). A score strictly above the best replaces it (a
-  tie keeps the older); the name is the seated player's when the game started, so it stays after the owner left
-  (provisional: yes). Scores stop at 999,999,999 (`Pinball.MAX_SCORE`).
+  tie keeps the older); the name is the owner's when the game ends (a rename mid-game counts), or the one copied
+  when it started for an owner already gone, so it stays after the owner left (provisional: yes). Scores stop at 999,999,999 (`Pinball.MAX_SCORE`).
 - **What everyone sees.** Each change emits one `PinballState` (§4.2, kind 94) to everyone: the whole state, so a
   missed one is repaired by the next. `PinballTicks` tells it again to everyone when a present player was not told
   yet (a joiner; every player after `ResetMatch`, which made a new `Machine`), once the session played a game: before

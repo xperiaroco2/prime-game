@@ -40,7 +40,7 @@ class Machine:
 	var serial := 0
 	## The seated player's peer, or -1: no game running.
 	var player := -1
-	## The seated player's name when the game started (the best's owner if it beats the best).
+	## The seated player's name when the game started: the best's owner's name if that player left.
 	var player_name := ""
 	## The station the game is played at, or -1.
 	var station := -1
@@ -126,7 +126,10 @@ static func end(ctx: MatchContext) -> void:
 	var kept := session(ctx.state)
 	if played.score > kept.best:
 		kept.best = played.score
-		kept.best_name = played.player_name
+		# The name now (a SetProfile mid-game renames the owner); the copy from the game's start
+		# only for a player already gone.
+		var owner := ctx.state.player(played.player)
+		kept.best_name = owner.name if owner != null else played.player_name
 	played.player = -1
 	played.player_name = ""
 	played.station = -1

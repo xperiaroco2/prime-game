@@ -54,6 +54,17 @@ func test_a_game_walked_off_counts_for_the_best() -> void:
 	assert_str(FixturePinball.last(game, P2)["best_name"]).is_equal("Ann")
 
 
+func test_a_player_renamed_mid_game_is_credited_under_the_new_name() -> void:
+	var game := FixturePinball.at_machine(FixturePinball.mode(), [P1, P2])
+	_named(game, P1, "Ann")
+	FixturePinball.interact(game, P1)
+	StubTable.play(game, [&"launch", [&"hit", &"target"]])
+	_named(game, P1, "Bea")
+	FixturePinball.interact(game, P1, game.ticked_through())
+	assert_int(FixturePinball.last(game, P2)["best"]).is_equal(FixturePinball.TARGET)
+	assert_str(FixturePinball.last(game, P2)["best_name"]).is_equal("Bea")
+
+
 func test_the_owners_name_stays_after_the_owner_leaves() -> void:
 	var game := FixturePinball.at_machine(FixturePinball.mode(), [P1, P2])
 	_named(game, P1, "Ann")
