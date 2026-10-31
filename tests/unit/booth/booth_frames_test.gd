@@ -67,7 +67,7 @@ func test_a_downed_or_dead_player_is_not_in_the_frame_and_a_limp_one_is() -> voi
 
 
 func test_the_record_at_flash_k_holds_the_body_at_flash_k() -> void:
-	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1, P2])
+	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1, P2, P3])
 	var p2 := game.state.player(P2)
 	FixtureBooth.press(game, P1)
 	FixtureModes.run_ticks(game, FixtureBooth.COUNTDOWN + 1)
@@ -76,11 +76,12 @@ func test_the_record_at_flash_k_holds_the_body_at_flash_k() -> void:
 	p2.facing = Vector3(0, 0, 1)
 	game.state.player(P1).sneaking = true
 	FixtureModes.run_ticks(game, FixtureBooth.GAP)
-	# Between flash 1 and flash 2: P2 stands and takes the seated pose, then steps out.
+	# Between flash 1 and flash 2: P2 stands and takes the seated pose, P1 goes limp, P3 steps out.
 	p2.crouched = false
 	p2.posed = true
+	game.state.player(P1).limp = LimpState.new(game.ticked_through() + 1000)
 	FixtureModes.run_ticks(game, FixtureBooth.GAP - 1)
-	FixtureItemModes.stand(game, P2, FixtureBooth.BOOTH + Vector3(5, 0, 0))
+	FixtureItemModes.stand(game, P3, FixtureBooth.BOOTH + Vector3(5, 0, 0))
 	FixtureModes.run_ticks(game, 1)
 	var flashes := FixtureBooth.steps_of(game, P1, FLASH)
 	assert_array(flashes).has_size(FixtureBooth.FRAMES)
@@ -93,7 +94,13 @@ func test_the_record_at_flash_k_holds_the_body_at_flash_k() -> void:
 	assert_bool(second["posed"] as bool).is_false()
 	assert_vector(second["facing"] as Vector3).is_equal(Vector3(0, 0, 1))
 	assert_bool(flashes[1].record[0]["sneaking"] as bool).is_true()
-	assert_array(FixtureBooth.peers_of(flashes[2])).is_equal([P1])
+	assert_bool(flashes[1].record[0]["limp"] as bool).is_false()
+	assert_bool(flashes[1].record[1]["posed"] as bool).is_false()
+	assert_array(FixtureBooth.peers_of(flashes[2])).is_equal([P1, P2])
+	var third: Dictionary = flashes[2].record[1]
+	assert_bool(third["posed"] as bool).is_true()
+	assert_bool(third["crouched"] as bool).is_false()
+	assert_bool(flashes[2].record[0]["limp"] as bool).is_true()
 
 
 func test_every_lobby_peer_gets_the_same_flash() -> void:
