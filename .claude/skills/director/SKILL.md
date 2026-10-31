@@ -85,6 +85,14 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
   otherwise; the notes that wake you count here. Once a shift, in the night report and your handover, and when he
   asks: `tools\run.cmd metrics --session <your id> --since <the shift's start> --compact`. Once his 5% looks short
   for the week, say so in the chat line.
+  **The weekly pace** (his standing rule of 2026-10-31,
+  [#507 comment 6536862547](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6536862547)): every week
+  aims to spend up to the 93% stop by the reset. In each digest, the night report and the night plan, compare the
+  weekly counter (`get_usage`) with the pace line, 93% x the elapsed share of the week (from the reset, Tuesday
+  10:00 UTC, or a reset by hand). Counter behind the line: propose more work to him, naming the ready, taste-free
+  work and the tracks with budget left, so no night stands idle while such work exists. The budget shares per track
+  still hold; a track with work left and budget left keeps running (the budget ADR's amendment of 2026-10-31).
+
 - **Context:** hand over at the shift change, or earlier at 60% of your context window (the app's context meter,
   or `tools\run.cmd ctx --transcript <your transcript> --at <60% of the window in tokens>`). An early handover is
   your own half of the shift change only (steps 3 and 4 of [shift-change.md](shift-change.md)): the sub-sessions
@@ -129,7 +137,8 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
   issue, "Night report DD.MM": what each sub-session did (one line each, with its link), what merged (PR links),
   what waits for him (the inbox's numbered items, [digest.md](digest.md)), **taken for you** (each technical choice
   you or a sub-session took by the recommendation, with the option and its link, so he can reverse it), and the
-  spend (the `metrics` line of "Limits", and each linked session's when he asks). The day shift's handover carries
+  spend (the `metrics` line of "Limits", and each linked session's when he asks) with the weekly counter against the
+  pace line ("Limits", "The weekly pace"). The day shift's handover carries
   the same list.
 - Then he decides, and you finish what he decided during the morning: relays, merges on his word (below), sessions
   to start. Then the shift change to the day director, on his word.
