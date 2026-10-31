@@ -8,14 +8,15 @@ SCRIPT ERROR or a push_error, so the exit code alone would hide them.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import focus, gaming, shot
 from . import offscreen as offscreen_window
-from . import shot
 from .check import ensure_import
 from .common import (
     LOGS,
@@ -178,7 +179,8 @@ def launch(
 ) -> list[Instance]:
     """Start every command at once, wait for all of them and write one log each. One instance echoes live.
 
-    `env` is added to each instance's environment; `offscreen`: each must prove its window stayed off-screen."""
+    `env` is added to each instance's environment; `offscreen`: each must prove its window stayed off-screen, and
+    each starts without activating its window and never keeps the foreground (focus, #1505)."""
     log_dir.mkdir(parents=True, exist_ok=True)
     own_log = re.compile(rf"{re.escape(name)}-\d+\.log")  # never another target's logs, such as lobby-test-1.log
     for old in log_dir.iterdir():
@@ -186,20 +188,31 @@ def launch(
             old.unlink()
     results: dict[int, Result] = {}
     failures: list[Failure] = []
+    keeper = focus.keep() if offscreen else None
 
     def one(number: int, cmd: list[str]) -> None:
         own = {**(env or {}), INSTANCE_ENV: str(number)}
         try:
             # One of several instances (one ENet game on one port) is not restarted: its late start fails the others.
-            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=own, restart=len(cmds) == 1)
+            results[number] = run(
+                cmd,
+                timeout=seconds,
+                cwd=cwd,
+                echo=len(cmds) == 1,
+                env=own,
+                restart=len(cmds) == 1,
+                on_start=keeper.watch if keeper is not None else None,
+                background=offscreen,
+            )
         except Failure as exc:  # the exe could not start: report it once, after the others finished
             failures.append(exc)
 
     threads = [threading.Thread(target=one, args=(i, cmd)) for i, cmd in enumerate(cmds, start=1)]
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
+    with keeper if keeper is not None else contextlib.nullcontext():
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
     if failures:
         raise failures[0]
     instances = []
@@ -251,6 +264,8 @@ def main(
     log_name: str | None = None,
 ) -> int:
     say("run")
+    if not headless:
+        gaming.refuse_windows("run (without --headless)")
     if headless and offscreen:
         raise Failure("--offscreen opens a real window; drop --headless, or drop --offscreen")
     if not 1 <= seconds <= MAX_SECONDS:

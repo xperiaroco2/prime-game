@@ -98,7 +98,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import hostjoin, launch, offscreen, shot
+from . import gaming, hostjoin, launch, offscreen, shot
 from .common import IS_CI, LOGS, OUT, ROOT, Failure, bad, ensure_out, ok, rel, require_godot, say
 
 SCENARIOS = ROOT / "tools" / "playcheck" / "scenarios"
@@ -656,8 +656,8 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
 
 def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
     """Windows: the window script in a real window off-screen (offscreen.START, its SIZE in the environment) with the
-    dummy audio driver. The console exe opens them too, and relays the lines the runner reads. The bots: their script
-    headless."""
+    dummy audio driver, each a background part (started without activating it, never keeping the foreground: focus,
+    #1505). The console exe opens them too, and relays the lines the runner reads. The bots: their script headless."""
     for part in parts:
         bots = part.label == "bots"
         part.cmd = launch.command(
@@ -670,6 +670,7 @@ def set_commands(parts: list[hostjoin.Part], exe: str) -> None:
             user_args=part.user_args,
         )
         part.env = {} if bots else offscreen.env(SIZE)
+        part.background = not bots
 
 
 def failed_line(part: hostjoin.Part) -> str:
@@ -780,6 +781,7 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
 
 def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     say("playcheck")
+    gaming.refuse_windows("playcheck")
     seconds = DEFAULT_SECONDS if seconds is None else seconds
     if IS_CI or not shot.has_display():
         raise Failure("playcheck needs a desktop session with a GPU (real windows, like shot); CI never runs it")

@@ -15,6 +15,10 @@ extends RefCounted
 ##   OFFSCREEN window <x>,<y> <w>x<h> screens <x>,<y>,<w>,<h>[;...] ticks <ms since start>
 ## (the window's rect with its title bar and borders, every screen's rect). Returns "" when placed,
 ## else why not (the caller fails with it).
+## Once off-screen, place() sets WINDOW_FLAG_NO_FOCUS (#1505): the window never activates again, so
+## it cannot take the foreground from a game the human plays. Its first show, in Main::setup2
+## before any script runs, may still activate it: the runner gives the foreground back
+## (tools/runner/focus.py). The flag also makes the window topmost, harmless at POSITION.
 ##   const Offscreen := preload("res://tools/offscreen/offscreen.gd")
 ##   var placed: String = Offscreen.place()
 ##   if placed != "": _fail(placed); return
@@ -32,8 +36,8 @@ static func wanted() -> Vector2i:
 	return Vector2i(int(parts[0]), int(parts[1]))
 
 
-## Moves the main window off-screen, then gives it PRIME_WINDOW's size; "" when it is off every
-## screen and has that size.
+## Moves the main window off-screen, gives it PRIME_WINDOW's size and makes it unfocusable; ""
+## when it is off every screen and has that size.
 static func place() -> String:
 	if DisplayServer.get_name() == "headless":
 		return "running headless; this script needs a real window (off-screen)"
@@ -42,6 +46,7 @@ static func place() -> String:
 		return "no window size: the runner sets %s=<w>x<h> (tools/runner/offscreen.py)" % ENV
 	DisplayServer.window_set_position(POSITION)
 	DisplayServer.window_set_size(want)
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
 	return report(want)
 
 

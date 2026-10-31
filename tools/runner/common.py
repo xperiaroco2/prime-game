@@ -339,6 +339,7 @@ def run(
     env: dict[str, str] | None = None,
     on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
     restart: bool = True,
+    background: bool = False,
 ) -> Result:
     """Run cmd with stdout+stderr merged, a hard timeout and a process-tree kill.
 
@@ -347,8 +348,11 @@ def run(
     not start (not_started, #441) is started once more after RESTART_PAUSE seconds, loudly; one that ran is never
     started again, whatever it returned. `restart` False only names it: an instance that runs together with others
     (one ENet game on one port), whose late second start would turn into another failure of the whole run.
+    `background`: a window nobody looks at (an off-screen one), started without activating it (focus.startup, #1505).
     """
-    first = _run_once(cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start)
+    first = _run_once(
+        cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start, background=background
+    )
     if first.timed_out or not not_started(first.rc, first.out, first.seconds):
         return first
     name = Path(cmd[0]).name
@@ -367,7 +371,9 @@ def run(
         return first
     warn(f"NOT STARTED, restarted once: {what}; starting it again in {RESTART_PAUSE:g}s (#441).{load}")
     _restart_sleep(RESTART_PAUSE)
-    again = _run_once(cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start)
+    again = _run_once(
+        cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start, background=background
+    )
     with STARTS.lock:
         if not again.timed_out and not_started(again.rc, again.out, again.seconds):
             STARTS.refused += 1
@@ -517,9 +523,15 @@ def _run_once(
     echo: bool = False,
     env: dict[str, str] | None = None,
     on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    background: bool = False,
 ) -> Result:
     """One start of cmd for run(): its output, exit code, timeout and seconds."""
     started = time.monotonic()
+    shown: dict[str, object] = {}
+    if background:
+        from . import focus  # focus imports this module
+
+        shown = focus.startup()
     try:
         proc = subprocess.Popen(
             cmd,
@@ -529,6 +541,7 @@ def _run_once(
             stderr=subprocess.STDOUT,
             env={**os.environ, **(env or {})},
             **group_kwargs(),  # type: ignore[arg-type]
+            **shown,  # type: ignore[arg-type]
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {cmd[0]}: {exc}") from exc
@@ -683,11 +696,12 @@ def godot(
     echo: bool = False,
     env: dict[str, str] | None = None,
     on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    background: bool = False,
 ) -> Result:
-    """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors."""
+    """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors. `background`: as run's."""
     exe = require_godot()
     cmd = [exe, "--no-header", "--path", str(ROOT), *args]
-    return run(cmd, timeout=timeout, log=log, echo=echo, env=env, on_start=on_start)
+    return run(cmd, timeout=timeout, log=log, echo=echo, env=env, on_start=on_start, background=background)
 
 
 # --- user:// (#182) -------------------------------------------------------------------------------
