@@ -9,9 +9,13 @@
 # (shot). The shot reads the game's pointer, which a playcheck window keeps without touching the
 # real mouse (#1114). The pictures (P8, #787) are not on main yet.
 # The waypoints are x,z in metres on the House's floor; the Yard's spawns lie around x 24-38,
-# z 52-55, so the first one is reached straight from any of them.
+# z 52-55, so the first one is reached straight from any of them. The House is a bench map since
+# the M8 slice (#1496): `map` picks it, and `tasks` 5 deals its five task types, the photo task
+# among them.
 players 1
 windows 1
+setting tasks 5
+map res://levels/house/house.tscn
 route to_film_box 30,53 30,40.5 32,38 32,27 29,27 28.5,28.5 27,28.5 27,24.5 25,24.5 25,30 24,30.5
 route to_camera 25,30.5 25,24.5 27,24.5 27,28.5 29,28.5 29,27 32,27 34,25.5 36,25 36,21.5 34,19.5 31,18 29,17 29,14 26.5,11.5 14,11.5
 

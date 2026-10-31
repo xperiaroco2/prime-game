@@ -1,5 +1,6 @@
-# The forest estate in the game's real window (#1374): its greybox (#1158) registered in the base
-# mode as a test bench (`map` below, as the greybox's #767), its markers and room records. Window 1
+# The forest estate in the game's real window (#1374): its greybox (#1158), the base mode's one
+# player map and default since the M8 slice (#1496; `map` below names it all the same), its
+# markers and room records. Window 1
 # hosts alone (the base mode plays with one) and readies: the round starts on the estate, the
 # player on the skat's clearing before its ramp (shot, #1492); M opens the map and tasks screen,
 # whose board draws the estate's lots from their room records, each over its footprint (shot); M
