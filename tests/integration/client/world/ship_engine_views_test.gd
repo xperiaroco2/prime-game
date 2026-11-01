@@ -311,6 +311,44 @@ func test_a_started_engine_does_not_call_to_one_who_never_saw_the_press() -> voi
 	assert_bool(_view.hologram().button().visible).is_false()
 
 
+func test_an_open_problem_stops_the_call_for_an_idle_unpressed_console() -> void:
+	_place()
+	# A client that joined a started engine, right after a stage-1 blast: the bar is empty and
+	# still, no press seen, and a problem is already open.
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 0, "needed": 600, "counting": false, "tick": 0}
+	)
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	assert_bool(hologram.called()).is_false()
+	assert_bool(hologram.button().visible).is_false()
+	assert_float(hologram.turbine_speed()).is_equal(
+		ShipEngineHologram.SPIN_RAD_PER_SECOND * ShipEngineHologram.SLOW_FACTOR
+	)
+
+
+func test_the_start_button_sits_under_the_centre_toward_the_use_spot() -> void:
+	_place()
+	var level := _level()
+	var marker := Node3D.new()
+	marker.add_to_group(&"engine_hologram", true)
+	level.add_child(marker)
+	marker.global_position = Vector3(3.0, 3.0, -0.4)
+	_view.level = level
+	_view._process(0.0)
+	# The console's use spot is 3 m west of the centre, at the same depth.
+	var expected := (
+		marker.global_position
+		+ Vector3.DOWN * ShipEngineHologram.BUTTON_DROP_M
+		+ Vector3.LEFT * ShipEngineHologram.BUTTON_TOWARD_M
+	)
+	assert_vector(_view.hologram().button().global_position).is_equal_approx(
+		expected, Vector3.ONE * 1e-4
+	)
+
+
 func test_the_turbines_spin_once_started_and_slower_while_a_problem_is_open() -> void:
 	_place()
 	_model.fold(&"ButtonPressed", {"station": CONSOLE})
@@ -493,6 +531,12 @@ func test_a_slit_opened_puffs_steam_and_all_five_open_leave_a_mist() -> void:
 	assert_vector(_view.steam()[0].global_position).is_equal_approx(
 		Vector3(1.0, 2.0, -4.0), Vector3.ONE * 1e-4
 	)
+	# Half-way through its life the puff has risen half its rise and swelled.
+	_view._process(ShipEngineViews.STEAM_SECONDS / 2.0)
+	assert_float(_view.steam()[0].global_position.y).is_equal_approx(
+		2.0 + ShipEngineViews.STEAM_RISE_M / 2.0, 1e-4
+	)
+	assert_float(_view.steam()[0].scale.x).is_greater(0.1)
 	_view._process(ShipEngineViews.STEAM_SECONDS)
 	assert_int(_view.steam().size()).is_equal(0)
 	# Shut again: no puff.
@@ -510,6 +554,12 @@ func test_a_slit_opened_puffs_steam_and_all_five_open_leave_a_mist() -> void:
 	_view._process(0.0)
 	assert_int(_view.steam().size()).is_equal(5)
 	assert_int(_view.mist().size()).is_equal(1)
+	# The cloud stands at the middle of the five slits, not at the gill set's own place.
+	var middle := Vector3.ZERO
+	for slit in range(1, 6):
+		middle += (gills.get_node("Slit%d" % slit) as Node3D).global_position / 5.0
+	assert_vector(_view.mist()[0].global_position).is_equal_approx(middle, Vector3.ONE * 1e-4)
+	assert_float(middle.distance_to(gills.global_position)).is_greater(0.1)
 	_view._process(ShipEngineViews.MIST_SECONDS)
 	assert_int(_view.steam().size()).is_equal(0)
 	assert_int(_view.mist().size()).is_equal(0)
