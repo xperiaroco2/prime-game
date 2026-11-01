@@ -313,34 +313,34 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9472, 1.2, -3.1527)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9472, 1.2, -3.1527)
 
 [node name="BreakerBoard01" type="Marker3D" parent="Engine/Markers" unique_id=341824149 groups=["spawn_breaker_board"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.596, 1.2, -0.457)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.535758, 1.2, -0.061562)
 
 [node name="BreakerBoard02" type="Marker3D" parent="Engine/Markers" unique_id=759557885 groups=["spawn_breaker_board"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.596, 1.2, -0.457)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.535758, 1.2, -0.061562)
 
 [node name="Breaker01" type="Marker3D" parent="Engine/Markers" unique_id=1496965518 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.8546, 1.2, -0.57)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.794358, 1.2, -0.174562)
 
 [node name="Breaker02" type="Marker3D" parent="Engine/Markers" unique_id=1835327864 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3488, 1.2, -0.4947)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.288558, 1.2, -0.099262)
 
 [node name="Breaker03" type="Marker3D" parent="Engine/Markers" unique_id=1744260811 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.8432, 1.2, -0.4193)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.782958, 1.2, -0.023862)
 
 [node name="Breaker04" type="Marker3D" parent="Engine/Markers" unique_id=623887057 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.3374, 1.2, -0.3441)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.277158, 1.2, 0.051338)
 
 [node name="Breaker05" type="Marker3D" parent="Engine/Markers" unique_id=1905640358 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8546, 1.2, -0.57)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.794358, 1.2, -0.174562)
 
 [node name="Breaker06" type="Marker3D" parent="Engine/Markers" unique_id=1727568903 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.3488, 1.2, -0.4947)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.288558, 1.2, -0.099262)
 
 [node name="Breaker07" type="Marker3D" parent="Engine/Markers" unique_id=744635403 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.8432, 1.2, -0.4193)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.782958, 1.2, -0.023862)
 
 [node name="Breaker08" type="Marker3D" parent="Engine/Markers" unique_id=788951749 groups=["spawn_breaker"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3374, 1.2, -0.3441)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.277158, 1.2, 0.051338)
 
 [node name="CartridgeSocket01" type="Marker3D" parent="Engine/Markers" unique_id=1618376554 groups=["spawn_cartridge_socket"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4579, 1.2, 2.4446)
