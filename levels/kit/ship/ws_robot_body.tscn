@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://ditfiyga01dgg"]
+
+[ext_resource type="PackedScene" uid="uid://c2dyyvw7kjjh1" path="res://assets/environment/ship/ws_robot_body.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bbkdk34n8ahls" path="res://levels/kit/ship/ws_robot_body.col.tres" id="2"]
+
+[node name="ws_robot_body" unique_id=901887821 instance=ExtResource("1")]
+
+[node name="col" type="StaticBody3D" parent="." unique_id=254309585]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="col" unique_id=657275863]
+shape = ExtResource("2")

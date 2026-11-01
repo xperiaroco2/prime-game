@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/ship/metal.gdshader" id="1_bjxf6"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_bjxf6")
+shader_parameter/base_color = Color(0.38109186, 0.38857287, 0.39588127, 1)
+shader_parameter/metallic = 0.8
+shader_parameter/roughness = 0.42
+shader_parameter/grain = 0.4
+shader_parameter/seams = 0.0
+shader_parameter/seam_size = null
+shader_parameter/scratches = 0.0
+shader_parameter/grime = 0.3

@@ -1,0 +1,39 @@
+[gd_resource type="Environment" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/ship/night_sky.gdshader" id="1_4yfcc"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wxjl1"]
+shader = ExtResource("1_4yfcc")
+shader_parameter/zenith = null
+shader_parameter/horizon = Color(0.6651851, 0.7977377, 1.0832683, 1)
+shader_parameter/below = null
+shader_parameter/star_density = null
+shader_parameter/star_energy = null
+shader_parameter/moon_color = null
+shader_parameter/moon_size_deg = null
+shader_parameter/moon_energy = null
+
+[sub_resource type="Sky" id="Sky_m5p8l"]
+sky_material = SubResource("ShaderMaterial_wxjl1")
+
+[resource]
+background_mode = 2
+sky = SubResource("Sky_m5p8l")
+ambient_light_source = 2
+ambient_light_color = Color(0.13, 0.155, 0.24, 1)
+ambient_light_energy = 0.12
+reflected_light_source = 2
+tonemap_mode = 4
+ssao_enabled = true
+ssao_radius = 0.6
+ssao_intensity = 1.5
+ssil_enabled = true
+ssil_intensity = 0.4
+glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.03
+glow_blend_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.05, 0.07, 0.12, 1)
+fog_density = 0.0045
+fog_sky_affect = 0.0

@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://14nlcq8oh5nd"]
+
+[ext_resource type="PackedScene" uid="uid://dx7fwevyoax07" path="res://assets/environment/ship/tip_panel_low_b.glb" id="1"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://dvafjbhhwo1wx" path="res://levels/kit/ship/tip_panel_low_b.belt_col.tres" id="2"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cjtj2bwrl3c5s" path="res://levels/kit/ship/tip_panel_low_b.body_col.tres" id="3"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://busq10gf5ejv2" path="res://levels/kit/ship/tip_panel_low_b.corners_col.tres" id="4"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c4rnsbgjmeoie" path="res://levels/kit/ship/tip_panel_low_b.diamond_col.tres" id="5"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://clspjquqx8yc7" path="res://levels/kit/ship/tip_panel_low_b.kick_col.tres" id="6"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://djcqr6it0funu" path="res://levels/kit/ship/tip_panel_low_b.upper_col.tres" id="7"]
+
+[node name="tip_panel_low_b" unique_id=906208775 instance=ExtResource("1")]
+
+[node name="belt_col" type="StaticBody3D" parent="." unique_id=774423542]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="belt_col" unique_id=694926506]
+shape = ExtResource("2")
+
+[node name="body_col" type="StaticBody3D" parent="." unique_id=513530468]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="body_col" unique_id=1345249021]
+shape = ExtResource("3")
+
+[node name="corners_col" type="StaticBody3D" parent="." unique_id=727197740]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="corners_col" unique_id=1447340957]
+shape = ExtResource("4")
+
+[node name="diamond_col" type="StaticBody3D" parent="." unique_id=370926211]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="diamond_col" unique_id=1165223315]
+shape = ExtResource("5")
+
+[node name="kick_col" type="StaticBody3D" parent="." unique_id=1696661551]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kick_col" unique_id=411931771]
+shape = ExtResource("6")
+
+[node name="upper_col" type="StaticBody3D" parent="." unique_id=2011401324]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="upper_col" unique_id=1172027715]
+shape = ExtResource("7")

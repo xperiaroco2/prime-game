@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://dchi2wmx80lrn"]
+
+[ext_resource type="PackedScene" uid="uid://dhbiaydhcm5r2" path="res://assets/environment/ship/ws_bench_open_low.glb" id="1"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cbvkqlle2rkc6" path="res://levels/kit/ship/ws_bench_open_low.bay_col.tres" id="2"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://btu0d0xr1ih6l" path="res://levels/kit/ship/ws_bench_open_low.body_col.tres" id="3"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c5w4o8ae28mco" path="res://levels/kit/ship/ws_bench_open_low.fronts_col.tres" id="4"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cjbqdtasvuf17" path="res://levels/kit/ship/ws_bench_open_low.mat_col.tres" id="5"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://dqent1mptmcoo" path="res://levels/kit/ship/ws_bench_open_low.nosing_col.tres" id="6"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cf8f4dknndroq" path="res://levels/kit/ship/ws_bench_open_low.panels_col.tres" id="7"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://db11j58por1jx" path="res://levels/kit/ship/ws_bench_open_low.pull_lights_col.tres" id="8"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cdlhsvjah7dbj" path="res://levels/kit/ship/ws_bench_open_low.pulls_col.tres" id="9"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c4dmh4a6ncome" path="res://levels/kit/ship/ws_bench_open_low.stiles_col.tres" id="10"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://qyrl60xjbrev" path="res://levels/kit/ship/ws_bench_open_low.strip_col.tres" id="11"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://ckvj48ia6a824" path="res://levels/kit/ship/ws_bench_open_low.toe_col.tres" id="12"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://btjwqbembwo2c" path="res://levels/kit/ship/ws_bench_open_low.top_col.tres" id="13"]
+
+[node name="ws_bench_open_low" unique_id=492839491 instance=ExtResource("1")]
+
+[node name="bay_col" type="StaticBody3D" parent="." unique_id=113051775]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bay_col" unique_id=492205245]
+shape = ExtResource("2")
+
+[node name="body_col" type="StaticBody3D" parent="." unique_id=1862684249]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="body_col" unique_id=335677006]
+shape = ExtResource("3")
+
+[node name="fronts_col" type="StaticBody3D" parent="." unique_id=1076808649]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fronts_col" unique_id=1137138190]
+shape = ExtResource("4")
+
+[node name="mat_col" type="StaticBody3D" parent="." unique_id=140885031]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="mat_col" unique_id=210349748]
+shape = ExtResource("5")
+
+[node name="nosing_col" type="StaticBody3D" parent="." unique_id=1474831438]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="nosing_col" unique_id=335924382]
+shape = ExtResource("6")
+
+[node name="panels_col" type="StaticBody3D" parent="." unique_id=1593544768]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="panels_col" unique_id=1471994606]
+shape = ExtResource("7")
+
+[node name="pull_lights_col" type="StaticBody3D" parent="." unique_id=1389515478]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pull_lights_col" unique_id=2135381536]
+shape = ExtResource("8")
+
+[node name="pulls_col" type="StaticBody3D" parent="." unique_id=396138496]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="pulls_col" unique_id=1279954431]
+shape = ExtResource("9")
+
+[node name="stiles_col" type="StaticBody3D" parent="." unique_id=1808347519]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="stiles_col" unique_id=88183007]
+shape = ExtResource("10")
+
+[node name="strip_col" type="StaticBody3D" parent="." unique_id=1110943915]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="strip_col" unique_id=614074333]
+shape = ExtResource("11")
+
+[node name="toe_col" type="StaticBody3D" parent="." unique_id=497662584]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="toe_col" unique_id=1936103373]
+shape = ExtResource("12")
+
+[node name="top_col" type="StaticBody3D" parent="." unique_id=900309642]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="top_col" unique_id=286796364]
+shape = ExtResource("13")
