@@ -148,7 +148,7 @@ visible = false
 collision_layer = 0
 
 [node name="Hull" type="StaticBody3D" parent="." unique_id=1499000101]
-metadata/made_from = "the art ship's skin_top and skin_belly meshes (no -col hints in the package): tests/fixtures/ship_hull_colliders.gd; the EdgeFence boxes on the low wing edges by hand (#1543: no throw from the ground rests on a wing edge out of reach); the Cap hulls on the jaw flanks, the corridor walls, the lens alcove lintels and behind the east lounge sofa by hand (#1551: no throw from a floor walked in or by the hull rests out of a pick-up)"
+metadata/made_from = "the art ship's skin_top and skin_belly meshes (no -col hints in the package): tests/fixtures/ship_hull_colliders.gd; the EdgeFence boxes on the low wing edges by hand (#1543: no throw from the ground rests on a wing edge out of reach); the Cap hulls on the jaw flanks, the corridor walls, the lens alcove lintels and behind the east lounge sofa from probed geometry, mirrored about x 116 (#1551: no throw from a floor walked in or by the hull rests out of a pick-up; the corridor panes run from 3.45 m to 0.06 m under the SkinTop sampled every 0.1 m along their back line, the others are flat: re-probe them when a re-import moves the skin, see docs/ARCHITECTURE.md)"
 
 [node name="SkinTop" type="CollisionShape3D" parent="Hull" unique_id=1499000102]
 shape = ExtResource("6_skintop")
