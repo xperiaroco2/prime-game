@@ -132,6 +132,30 @@ func test_a_strip_id_reused_by_a_new_item_is_not_replayed() -> void:
 	assert_int(BoothSessions.kept_prints(game.state)).is_equal(0)
 
 
+## The guard: Items.change_kind keeps an item's id and instance, so a strip turned into another
+## kind is no longer one of the print's strips; the print is dropped and not replayed.
+func test_a_strip_turned_into_another_kind_is_not_replayed() -> void:
+	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1])
+	_session(game)
+	var strip: ItemState = game.state.items[_printed(game)[0]]
+	strip.kind = ItemKind.new()
+	FixtureBaseMode.join(game, JOINER)
+	assert_array(_replays(game, JOINER)).is_empty()
+	assert_int(BoothSessions.kept_prints(game.state)).is_equal(0)
+
+
+## A join between the press and the first flash: the session has no frame yet, so nothing is
+## replayed; the joiner gets the print as everyone does.
+func test_a_joiner_before_the_first_flash_gets_no_replay() -> void:
+	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1, P2])
+	FixtureBooth.press(game, P1)
+	FixtureModes.run_ticks(game, FixtureBooth.COUNTDOWN - 1)
+	FixtureBaseMode.join(game, JOINER)
+	assert_array(_replays(game, JOINER)).is_empty()
+	FixtureModes.run_ticks(game, FixtureBooth.whole())
+	assert_array(FixtureBooth.steps_of(game, JOINER, PRINTED)).has_size(1)
+
+
 func test_a_joiner_mid_session_gets_the_frames_taken_so_far_without_strips() -> void:
 	var game := FixtureBooth.in_booth(FixtureBooth.mode(), [P1, P2])
 	FixtureBooth.press(game, P1)
