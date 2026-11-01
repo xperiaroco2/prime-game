@@ -4,7 +4,9 @@ extends ContentPart
 ## must pass. Checked in the mode's order, in phases whose spec says so, after every fact and at
 ## the end of every step; the first that holds reports `won(side)`, and MatchEnded names its `id`
 ## to every player as the reason (#548): the id is public, so which condition held must be a fact
-## every player may learn (the tasks done, the clock, who is left).
+## every player may learn (the tasks done, the clock, who is left). A win that holds as a task with
+## a finale is done is decided there and reported after the phase's linger, with no check between
+## (§3.1, #1502).
 
 @export var id: StringName
 ## A SideSpec id of the mode.
