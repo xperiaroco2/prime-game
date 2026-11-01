@@ -1631,7 +1631,7 @@ forgets the game and keeps the best and its name: they are the lobby's, as the h
 snapshots: `ClientModel.fold_snapshot` hands each snapshot it keeps (inside its tick guard, so an older one changes
 nothing) to `ClientPinball.fold_snapshot`, which sets `ball_shown`, `ball` (the table's frame) and `ball_tick`, and a
 snapshot with no ball block clears it, so no ball stays drawn after `BallLost`; `clear_match()` clears it too.
-Nothing is predicted; the views (the table, the display, the close-up camera) are #1400's. Tests:
+Nothing is predicted; the views (the table, the display, the close-up camera) are §4.7.63. Tests:
 `tests/unit/client/net/client_pinball_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
@@ -3510,14 +3510,14 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
 #### 4.7.28 Give-up on F and the controls the player rebinds (#211)
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
-- `client/app/Controls`: the 23 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, `throw` after `swap`, #851, `use_secondary` after `use`, #1446, and `place_1` to `place_3` after `put_down`, #1218) in order with their `control.*` deck
+- `client/app/Controls`: the 25 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, `throw` after `swap`, #851, `use_secondary` after `use`, #1446, and `place_1` to `place_3` after `put_down`, #1218, and `flipper_left` and `flipper_right` after `swap`, #1400) in order with their `control.*` deck
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
   living, `interact`, `use`, `put_down`, `swap` and the places' 1, 2, 3 in the lobby too (#1408:
   `GamePlayer.apply_flags` lets `ItemInteractions` listen there, the Lobby accepting the hand intents and the Draw,
   #1388; `throw` and the raise stay the
-  round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
+  round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` and the flippers (Z and Slash, provisional, #1400) the lobby, the spectate
   buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
   check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
@@ -5409,6 +5409,60 @@ are (§4.7.58).
   range, a reused id), `item_world_booth_test.gd` (a session off the wire through a real `ItemWorld`),
   `item_world_children_test.gd` and `tests/integration/client/player/first_person_hand_test.gd`.
 
+#### 4.7.63 The pinball's client (#1400)
+The client half of the lobby's pinball (§7.1.22, §9.5.28; GDD §3 "The pinball"), from the own `ClientModel`'s
+`ClientPinball` alone (`PinballState`, which everyone gets, and the snapshot's ball, §4.6.1.3); the wire, `core/` and
+`server/` are unchanged, and nothing is predicted. `PinballViews` (`client/world/pinball_views.gd`, in `ItemWorld`
+after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the frame's render tick) holds four parts.
+- **The places.** Marker3Ds found by group in the level (`TABLE_GROUP` `pinball_table`: the table scene's origin and
+  axes, its -Z up the table; `CLOSE_UP_GROUP` `pinball_closeup`: the close-up camera's pose; `DISPLAY_GROUP`
+  `pinball_display`: the display, its text facing +Z). The lobby has them as placeholders under its `Pinball` node
+  (`TableMount`, `CloseUp`, `Display`; provisional, the engineer moves them in the editor). A level without a marker
+  draws no table, shows no close-up, or no display; `ItemWorld.set_level` hands the level over.
+- **The table.** `PinballTableView` reads the table scene by its own `levels/` path (`SCENE`; never
+  `PinballTable.SCENE`, client/ names no server/ path) once and draws one plain mesh per collision shape, with no
+  physics body in the client's tree (a collider would stop the own player's rays and body). The flippers turn toward
+  `PinballState`'s `left` and `right` on receipt at the host's swing and speed (`SWING_DEG` 50, `SPEED_DEG_S` 1500,
+  `BALL_RADIUS_M` 0.03: the view's own copies of `PinballTableSpec`'s shipped values, a test fails when they part).
+  The ball is drawn where `PinballBallTrack` (pure) puts it at `AvatarViews.drawn_at`, the remote bodies' render tick:
+  linear between two samples that show it, held past the newest (no extrapolation), hidden from the tick of a sample
+  without it (never earlier: a draining ball is seen to the drain), a jump over `SNAP_M` 0.5 m held until the newer
+  tick (a new ball is not slid across), a tick at or below the newest ignored (`snapshot_received` also fires for a
+  snapshot the model skipped, so the track takes `ball_tick`, never the emitted tick); a new game clears it. The
+  flippers are drawn on receipt, not at the render tick: up to the buffer delay ahead of the ball (kept simple).
+- **The close-up.** `PinballCloseUp`: while `ClientPinball.player` is the own peer, the own life is living and the
+  marker is there, its own `Camera3D` (`cull_mask` `PhotoLayers.LIVE_VIEW`) eases from the eye to the marker
+  (smoothstep) and stays; the controller's `held` is set (only if it was not, and let go only if the close-up set it,
+  when the ease out starts) and the hand hidden; the controller's head, pitch and yaw are never touched. The seat's
+  end eases back. It snaps back, no ease, on `LoadMatch`, a level swapped, the session gone, the marker or player gone,
+  or the own life no longer living; the eye is made current again only if the lens still was, so it never steals the
+  downed or the spectate camera. `ItemWorld.live_camera()` (the viewfinder's lens, else the close-up's) is
+  `LifeView.view_camera`. The Esc menu opens over it and changes nothing there.
+- **The keys.** `PinballKeys`: the held state of the Settings rows `flipper_left` and `flipper_right` (§4.7.28) goes
+  as one `Flippers(left, right)` intent on each change, only while the own player is seated. A key counts only while
+  `listening` (`GamePlayer.apply_flags`: no Esc menu, the lobby screen), `reads_device_input` and the window has the
+  focus; when one stops, the next step sends the release (no stuck flipper). At most one intent per `SEND_GAP_MSEC`
+  60 ms (16 a second, under `PeerBudget`'s 20): a change inside the gap waits for its end and is never dropped (a tap
+  inside one gap sends both edges, a gap apart; more changes merge into the newest). Reconcile: when `PinballState`
+  still differs from the last state sent `RECONCILE_MSEC` 250 ms after the last send and nothing waits, it goes again.
+- **The display.** `PinballDisplay`: three `Label3D` lines on the display marker: the best and its owner's name, and
+  while a game is on the score and the balls left, re-texted only on a change (or the language). The owner's name is in
+  the owner's roster body colour, found by name (`PinballState` carries the name, not a peer): only a name exactly one
+  roster member has gets a colour; an owner gone or a shared name is drawn in the neutral colour. Captions are deck
+  keys (`pinball.best`, `pinball.score`, `pinball.balls`; raw until the deck has them, asked on #150) with the number
+  after them.
+- **Provisional, not a decision** (taste, the engineer's: taken under his standing word, #507): the keys Z and Slash,
+  the close-up (1.6 m from the table, 55 degrees down, fov 50, ease 0.6 s), the markers' poses (the 1.3 m table
+  overhangs the machine's 1 m box), the gap and reconcile times, the table's and the display's Toy-style looks.
+- **Tests.** `tests/unit/client/world/pinball_ball_track_test.gd` (between samples, held past the newest, hidden only
+  from its tick, the snap, a stale or repeated tick), `pinball_keys_test.gd` (seated only, a change, the gap, a tap,
+  the Esc menu and the focus release, reconcile), `pinball_table_view_test.gd` (meshes and no body, the flippers' turn,
+  the ball, the constants against `PinballTableSpec` and `PinballTable.SCENE`), `pinball_display_test.gd` (the best,
+  the colour by a unique name, a shared name, an owner gone, the game line), `pinball_close_up_test.gd` (`held`, the
+  current camera, `cull_mask`, the ease, every exit and snap, a knockdown, the hall's frustum: the whole table and the
+  display in view), `pinball_views_test.gd` (the markers, the feed, `LoadMatch`); `controls_test.gd`,
+  `input_actions_test.gd`, `lobby_hall_test.gd` (the markers) and `item_world_children_test.gd`.
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -7108,7 +7162,7 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
 - **What everyone sees.** Each change emits one `PinballState` (§4.2, kind 94) to everyone: the whole state, so a
   missed one is repaired by the next. `PinballTicks` tells it again to everyone when a present player was not told
   yet (a joiner; every player after `ResetMatch`, which made a new `Machine`), once the session played a game: before
-  that every peer's default (nobody seated, best 0) is the state. The client folds it (§4.6.1.3); the views are #1400.
+  that every peer's default (nobody seated, best 0) is the state. The client folds it (§4.6.1.3); the views are §4.7.63.
 - **The table interface.** The ball runs on the host's server side, a small physics scene stepped on the host's
   physics frame, host-authoritative: no client ever positions the ball. `server/` reports into `core/` with four
   commands it originates (`Intents.TABLE_REPORTS`, peer 0, no wire row: never decodable from the network, as
@@ -7131,7 +7185,7 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
   `StubTable` (`tests/fixtures/pinball/stub_table.gd`) plays the interface with scripted reports and no physics.
 - **The ball for everyone.** While a ball has a place, `Match.snapshot_for` (`Snapshots.sent`) gives every peer the
   same public `ball` beside the avatars (no ball, no key); the Snapshot's optional ball block carries it (§4.3, kind
-  104, protocol 52) and the client folds it (§4.6.1.3). The position only: the views (#1400) interpolate between
+  104, protocol 52) and the client folds it (§4.6.1.3). The position only: the views (§4.7.63) interpolate between
   snapshots. The flippers are not in the snapshot: watchers animate them from `PinballState`'s `left` and `right`
   (reliable, to everyone), one source for one fact.
 - **The table** (`server/pinball_table.gd`, `PinballTable`, #1399). Godot physics (Jolt) on the host in `server/`, as
@@ -9001,7 +9055,7 @@ placed by `StationTicks(pinball)` on the hall's one `pinball` marker. The base m
 Every number is provisional, not a decision (the engineer tunes them on the hall greybox, #1095, #1354); the taste
 items (walking off ends the game; the best is not saved past the lobby; the owner's name stays when the owner leaves)
 were taken by the engineer's standing word ([#1398](https://github.com/xperiaroco2/prime-game/issues/1398#issuecomment-6547795365)).
-The rules and the table interface are §7.1.22; the client's views (camera, table view, display) are #1400.
+The rules and the table interface are §7.1.22; the client's views (camera, table view, display) are §4.7.63.
 - **The table (#1399).** `levels/pinball/pinball_table.tscn` (a greybox: walls, `FlipperLeft` and `FlipperRight`,
   the targets `bumper` (kick 1 m/s), `kicker` (1.5 m/s) and `target`, `BallStart`, `Drain`; the ids are
   `pinball.tres`'s) and `levels/pinball/pinball_table_spec.tres` (`PinballTableSpec`): ball radius 0.03 m, mass
@@ -9025,7 +9079,7 @@ The rules and the table interface are §7.1.22; the client's views (camera, tabl
   new game frees the ball, the scene's ids are `pinball.tres`'s), `host_session_pinball_test.gd` (a scripted table
   over the loopback wire: the launch tick's snapshot shows the ball to every client as `view_of`, `LeakCheck`, the
   ball gone after `BallLost`; no table on a flat world), `server/snapshot_encoder_test.gd` (the ball block, the
-  worst case under the cap).
+  worst case under the cap); the views (#1400): the client tests §4.7.63 lists.
 
 #### 9.5.29 The photo booth (lobby, #1396; provisional numbers)
 
