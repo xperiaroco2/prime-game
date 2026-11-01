@@ -4,9 +4,10 @@ extends RefCounted
 ## BoothStep events (§9.5.29) after the own ClientModel folded them: each session's FLASH records in
 ## frame order, and the strip items PRINTED bound to the session whose frames they show. It keeps
 ## the client_pinball shape (fold, clear_match) but sits in client/world/, not in ClientModel: the
-## model is at gdlint's line limit and client/net/ is #1474's (a joiner's strips through Welcome);
-## it moves to the model when ClientModel is split. #1474's Welcome hands a joiner's strips over
-## through bind_strip.
+## model is at gdlint's line limit; it moves to the model when ClientModel is split. A joiner learns
+## the frames taken before it joined from its own BoothReplay events (#1474, after Welcome): a
+## print's strips bound to one PRINTED session (not fresh: no slide-in), or the running session's
+## frames so far (no strips), which its later FLASH and PRINTED complete.
 ##
 ## A strip is bound to its item id from PRINTED until that id's next ItemSpawned or ItemVanished
 ## (an id freed and reused is a new item, CE3: the ItemSpawned of a print comes before its PRINTED),
@@ -15,6 +16,7 @@ extends RefCounted
 
 enum State { RUNNING, PRINTED, STOPPED }
 const STEP_EVENT := &"BoothStep"
+const REPLAY_EVENT := &"BoothReplay"
 
 ## The running session by station id (one at most per booth).
 var _running: Dictionary[int, Session] = {}
@@ -66,6 +68,8 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 	match event_name:
 		STEP_EVENT:
 			_fold_step(fields)
+		REPLAY_EVENT:
+			_fold_replay(fields)
 		&"ItemSpawned", &"ItemVanished":
 			unbind(fields.get("item", -1) as int)
 		&"LoadMatch":
@@ -104,7 +108,7 @@ func take_fresh(item_id: int) -> bool:
 
 
 ## Binds strip item `item_id` to a finished session of `records` (one row array per frame, in
-## frame order): #1474's Welcome gives a joiner the strips printed before it joined.
+## frame order), as a BoothReplay does with each of its strips.
 func bind_strip(item_id: int, frames: int, records: Array) -> Session:
 	var session := Session.new()
 	session.frames = frames
@@ -130,6 +134,35 @@ func clear_match() -> void:
 	_fresh.clear()
 
 
+## A joiner's BoothReplay: with strips, a PRINTED session they all show; without, the session
+## running at the station, with the frames it took before the join.
+func _fold_replay(fields: Dictionary) -> void:
+	var session := Session.new()
+	session.station = fields.get("station", -1) as int
+	session.strip = fields.get("strip", -1) as int
+	var records := fields.get("records", []) as Array
+	for index in records.size():
+		session.records[index] = _rows_of(records[index])
+	var items := fields.get("items", PackedInt32Array()) as PackedInt32Array
+	if items.is_empty():
+		_running[session.station] = session
+		return
+	session.frames = records.size()
+	session.state = State.PRINTED
+	for id: int in items:
+		_bound[id] = session
+
+
+## A record's rows, copied (a row that is not a Dictionary is skipped).
+static func _rows_of(record: Variant) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	if record is Array:
+		for row: Variant in record as Array:
+			if row is Dictionary:
+				rows.append((row as Dictionary).duplicate(true))
+	return rows
+
+
 func _fold_step(fields: Dictionary) -> void:
 	var station := fields.get("station", -1) as int
 	var strip := fields.get("strip", -1) as int
@@ -153,11 +186,7 @@ func _fold_step(fields: Dictionary) -> void:
 		_running[station] = session
 	match step:
 		BoothStepEvent.FLASH:
-			var rows: Array[Dictionary] = []
-			for row: Variant in fields.get("record", []) as Array:
-				if row is Dictionary:
-					rows.append((row as Dictionary).duplicate(true))
-			session.records[fields.get("frame", 0) as int] = rows
+			session.records[fields.get("frame", 0) as int] = _rows_of(fields.get("record", []))
 		BoothStepEvent.PRINTED:
 			session.state = State.PRINTED
 			_running.erase(station)
