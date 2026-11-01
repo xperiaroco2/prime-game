@@ -5,7 +5,9 @@
 # shots of the end screen come right after its texts, before that. In the lobby again nobody is
 # ready (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced
 # clock is session state, so the second round ends after 20 s too: its shots come well before that.
-# lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show.
+# lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show; it shows
+# the lit art hall (#1520: the greybox hall had no light and a dark block before every spawn, so
+# its view was black before and after a round; tests/unit/levels/lobby_view_test.gd guards it).
 # The text waits read short parts of the greybox wording (#150), never whole sentences; the end
 # screen's are the copy deck's English (#498): the dissident sees its side's win on the title plate,
 # the guest the same line as plain text (end.winner reads the one shown).
