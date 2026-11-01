@@ -9171,7 +9171,11 @@ plays it on the estate (#1462, "The estate and the content" below).
   on each flank of the upper jaw over the ramp (2.85 to 4.8 m, inner face on the jaw's edge), a pane on each corridor
   wall's inner top edge from 3.45 m up to within 0.1 m of the skin (an item went over the wall into the gap behind it
   or rested on its top), each lens alcove's lintel filled up under the skin, and in the east lens room the floor
-  strip behind the curved sofa filled to 1.49 m, just under its seat (the west room has no sofa). The art's grated and inlaid floors stand on
+  strip behind the curved sofa filled to 1.49 m, just under its seat (the west room has no sofa). Their points were
+  written from probed geometry, each West and East pair mirrored about x 116: the corridor panes run from 3.45 m to
+  0.06 m under the `SkinTop` as sampled every 0.1 m along their back line, the other caps are flat. A re-import that
+  moves the skin needs them probed and written again (a pane short of the skin leaves a gap, one into it pokes out),
+  whether the hull sweep turns red or not. The art's grated and inlaid floors stand on
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
   by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
@@ -9510,10 +9514,12 @@ levels/
   `tests/integration/levels/estate_ship_test.gd` (the art ship piece, #1499),
   `tests/integration/levels/estate_ship_wing_throw_test.gd` (#1543: every throw round and under the ship that rests
   on its skin under open sky rests in reach of a player's feet; red without the wing edge fences and on a 2.4 m probe
-  ledge), `tests/integration/levels/estate_ship_hull_throw_test.gd` (#1551: from every floor walked in and by the
-  hull, a flood fill of the crouched capsule with the jump, every throw that rests inside the hull's outline off its
-  top passes the PickUp rule as it is, InReach with the jump and InSight standing or crouched; red with the `Cap`
-  shapes off); the
+  ledge), `tests/integration/levels/estate_ship_hull_throw_test.gd` (#1551: the floors walked in and by the
+  hull, a flood fill of the crouched capsule with the jump, thinned to one thrower per 2 m cell and 0.5 m band; from
+  those at least 0.4 m up every throw that rests inside the hull's outline off its top, and from the ground by and
+  under the ship (with the roof sweep's ring spots, one per 3 m cell) every one that rests in the hull, under its
+  roof and 0.4 m up or more (the ground under the belly is #1560), passes the PickUp rule as it is from any walked
+  floor, InReach with the jump and InSight standing or crouched; red with the `Cap` shapes off); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
