@@ -307,7 +307,12 @@ func _draw_site(site: int, now: int, nearest: int, delta: float, blasted: bool) 
 	_place_line(site, FLASH_THICKER if flashing else 1.0)
 
 
-## The deadline of the open problem that blows first, or -1 with none open.
+## The deadline of the open problem that blows first, or -1 with none open (the art console's
+## countdown and fastest blink, ShipStationLooks).
+func nearest_deadline() -> int:
+	return _nearest_deadline()
+
+
 func _nearest_deadline() -> int:
 	var nearest := -1
 	for problem: ClientEngineBook.Problem in _model.engine.problems.values():

@@ -45,6 +45,8 @@ const FAN_CENTRES: Array[Vector3] = [
 const FAN_AXIS := Vector3(0.0, -0.20791, 0.97815)
 const BUTTON_LIGHT_ENERGY := 0.08
 const FAR_PAST := -1.0e6
+## The art's stage strips (ShipEngineViews draws its own for any other count).
+const STRIPS := 3
 
 var _strips: ShaderMaterial
 var _lamps: ShaderMaterial

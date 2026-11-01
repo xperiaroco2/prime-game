@@ -119,11 +119,18 @@ var _mist: Dictionary[MeshInstance3D, float] = {}
 ## Per bound gill button's station: its open slits and whether a problem held it last frame.
 var _was_open: Dictionary[int, int] = {}
 var _was_held: Dictionary[int, bool] = {}
+## The station devices' looks (#1550), bound with the engine; null before.
+var _looks: ShipStationLooks
 
 
 ## The hologram made readable, or null before the console is placed.
 func hologram() -> ShipEngineHologram:
 	return _hologram
+
+
+## The station devices' looks, or null before the console is placed.
+func station_looks() -> ShipStationLooks:
+	return _looks
 
 
 ## The puffs of steam showing now.
@@ -175,6 +182,7 @@ func clear() -> void:
 	_blast_left = 0.0
 	_blasts_seen = 0
 	_hologram = null
+	_looks = null
 	_finale = null
 	_sounds = ShipEngineSounds.new()
 	_vapour = null
@@ -203,6 +211,7 @@ func _process(delta: float) -> void:
 	var blasted := model.engine.blasts != _blasts_seen
 	var share := _draw_strips(type, now)
 	_hologram.update(now, share, delta, blasted)
+	_looks.update(now, delta, _hologram, share, _order_lit(now), blasted)
 	for cue: Dictionary in _sounds.due(model, _console, _centre, now, _hologram.called()):
 		sound_due.emit(ShipEngineSounds.EVENT, cue)
 		if cue["id"] == SfxSet.ENGINE_ROAR:
@@ -249,17 +258,24 @@ func _ids_of(kind: StationKind) -> Array[int]:
 func _build(type: ShipEngine) -> void:
 	var centre := _hologram_centre()
 	_centre = centre
-	_build_strips(_stages(type))
+	# The devices first: a station whose device shows it draws no stand-in, and the art console
+	# replaces the mimic board, the strips (while they are its three) and the hologram's look.
+	_looks = ShipStationLooks.new()
+	_looks.bind(model, type, level if is_instance_valid(level) else null, _console)
+	var art := _looks.console() != null
+	_build_strips(_strip_count(type))
 	var sites: Array[int] = []
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
-			_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
+			if not _looks.has_art(site):
+				_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
 			if not sites.has(site):
 				sites.append(site)
 		for fixture: StationKind in kind.fixtures:
 			for id: int in _ids_of(fixture):
-				_lamps[id] = _box(Vector3.ONE * LAMP_M, DARK, model.stations[id].position)
-				if kind is BreakersProblem:
+				if not _looks.has_art(id):
+					_lamps[id] = _box(Vector3.ONE * LAMP_M, DARK, model.stations[id].position)
+				if kind is BreakersProblem and not art:
 					var at := model.stations[id].position - model.stations[_console].position
 					var lamp := _box(Vector3.ONE * MIMIC_LAMP_M, DARK)
 					lamp.position = centre + Vector3(at.x, 0.0, at.z) * MIMIC_SCALE
@@ -270,6 +286,8 @@ func _build(type: ShipEngine) -> void:
 	add_child(_finale)
 	var point := _hologram_point()
 	_hologram.setup(model, _console, centre, sites, _turbine_places(point), _button_place(point))
+	# The state readers stay (called(), nearest_deadline()); the art console draws them.
+	_hologram.visible = not art
 	_vapour = Node3D.new()
 	add_child(_vapour)
 	_blasts_seen = model.engine.blasts
@@ -282,6 +300,14 @@ func _stages(type: ShipEngine) -> int:
 		if task.type == type.id and task.total > 0:
 			return task.total
 	return maxi(1, type.stage_problems.size())
+
+
+## The stand-in strips to draw: none while the art console's three show the stages.
+func _strip_count(type: ShipEngine) -> int:
+	var stages := _stages(type)
+	if _looks != null and _looks.console() != null and stages == ShipConsoleLook.STRIPS:
+		return 0
+	return stages
 
 
 ## A strip per stage side by side over the hologram's centre, drawn anew when the count changes.
@@ -372,8 +398,8 @@ func _material(colour: Color) -> StandardMaterial3D:
 
 ## Fills the strips with the bar at host tick `now` and gives its share (0 to 1).
 func _draw_strips(type: ShipEngine, now: int) -> float:
-	if _stages(type) != _fills.size():
-		_build_strips(_stages(type))
+	if _strip_count(type) != _fills.size():
+		_build_strips(_strip_count(type))
 	var console: ClientModel.Station = model.stations.get(_console)
 	var share := ZoneViews.fill(console, now) if console != null else 0.0
 	var strips := _fills.size()
@@ -393,7 +419,9 @@ func _draw_lamps(type: ShipEngine, now: int) -> void:
 		_light(lamp, DARK)
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
-			_lamps[site].visible = model.engine.problem_at(site) != null
+			var alarm: MeshInstance3D = _lamps.get(site)
+			if alarm != null:
+				alarm.visible = model.engine.problem_at(site) != null
 		if kind is BreakersProblem:
 			_draw_breakers(kind as BreakersProblem, now)
 	for socket: int in model.engine.crystals:
@@ -426,11 +454,30 @@ func _draw_breakers(kind: BreakersProblem, now: int) -> void:
 		if order.is_empty():
 			continue
 		# The order, played on the mimic board alone: one lamp a step, then a pause.
-		var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
-		@warning_ignore("integer_division")
-		var step := (maxi(now, 0) / step_ticks) % (order.size() + ORDER_PAUSE_STEPS)
-		if step < order.size() and _mimic.has(order[step]):
+		var step := order_step(order.size(), now)
+		if step >= 0 and _mimic.has(order[step]):
 			_light(_mimic[order[step]], WHITE)
+
+
+## The step of an order of `size` breakers that plays at host tick `now` (one a step, then a
+## pause), or -1 in the pause.
+static func order_step(size: int, now: int) -> int:
+	if size <= 0:
+		return -1
+	var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
+	@warning_ignore("integer_division")
+	var step := (maxi(now, 0) / step_ticks) % (size + ORDER_PAUSE_STEPS)
+	return step if step < size else -1
+
+
+## The breaker station the order plays on at host tick `now` (the mimic's or the art console's
+## lit lamp), or -1.
+func _order_lit(now: int) -> int:
+	for problem: ClientEngineBook.Problem in model.engine.problems.values():
+		var step := order_step(problem.breakers.size(), now)
+		if step >= 0:
+			return problem.breakers[step]
+	return -1
 
 
 func _light(lamp: MeshInstance3D, colour: Color) -> void:
