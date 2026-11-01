@@ -47,7 +47,7 @@ func _init() -> void:
 		line.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		line.pixel_size = PIXEL_M
 		line.font_size = sizes[i]
-		line.outline_size = sizes[i] / 6
+		line.outline_size = floori(sizes[i] / 6.0)
 		line.modulate = NEUTRAL
 		line.outline_modulate = OUTLINE
 		line.position = Vector3(0.0, -LINE_M * i, 0.0)
