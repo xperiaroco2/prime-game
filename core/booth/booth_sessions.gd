@@ -5,8 +5,8 @@ extends RefCounted
 ## it on the host's clock, StopBooth (a transition action) ends it with the phase. Each FLASH
 ## event carries its record, and the session keeps the records too; a print keeps them (Print) while
 ## any strip it made still exists, so a joiner learns the strips' frames (#1474, ARCHITECTURE §4.2:
-## replay_to). A print whose last strip vanished is dropped at the next prune (each BoothTicks
-## tick, a print, a replay); ResetMatch drops them all.
+## replay_to, which JoinRules.hello calls). A print whose last strip vanished is dropped at the
+## next prune (each BoothTicks tick, a print, a replay); ResetMatch drops them all.
 
 ## Its key in MatchState's per-part state (§9.1).
 const PART_KEY := &"booth"
@@ -151,6 +151,28 @@ static func _print(ctx: MatchContext, session: Session, station: StationState) -
 	kept.kind = session.effect.strip
 	kept.records = session.records
 	_table(ctx.state).prints.append(kept)
+
+
+## A joiner's replay (#1474, ARCHITECTURE §3.5): one BoothReplay to `joiner` alone per kept print,
+## in print order, with its strips that exist now; then the running session's frames so far, if it
+## took one (empty items), so the joiner's later FLASH and PRINTED complete it. Nothing in a mode
+## whose booth never ran: it makes no booth state.
+static func replay_to(ctx: MatchContext, joiner: int) -> void:
+	if not ctx.state.has_part_state(PART_KEY):
+		return
+	_prune(ctx.state)
+	var table := _table(ctx.state)
+	for kept: Print in table.prints:
+		var replay := BoothReplayEvent.new(joiner, kept.station, kept.strip)
+		replay.records = kept.records.duplicate()
+		replay.items = kept.alive(ctx.state)
+		ctx.emit(replay)
+	var session := table.session
+	if session != null and not session.records.is_empty():
+		var running_now := BoothReplayEvent.new(joiner, session.station, session.strip)
+		# A copy: the session takes more frames after this event is sent.
+		running_now.records = session.records.duplicate()
+		ctx.emit(running_now)
 
 
 ## The prints kept now, without a prune (the tests' view of when they are dropped).
