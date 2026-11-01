@@ -150,7 +150,7 @@ static func _print(ctx: MatchContext, session: Session, station: StationState) -
 	kept.strip = session.strip
 	kept.kind = session.effect.strip
 	kept.records = session.records
-	_table(ctx.state).prints.append(kept)
+	_table(ctx.state).printed.append(kept)
 
 
 ## A joiner's replay (#1474, ARCHITECTURE §3.5): one BoothReplay to `joiner` alone per kept print,
@@ -162,7 +162,7 @@ static func replay_to(ctx: MatchContext, joiner: int) -> void:
 		return
 	_prune(ctx.state)
 	var table := _table(ctx.state)
-	for kept: Print in table.prints:
+	for kept: Print in table.printed:
 		var replay := BoothReplayEvent.new(joiner, kept.station, kept.strip)
 		replay.records = kept.records.duplicate()
 		replay.items = kept.alive(ctx.state)
@@ -177,7 +177,7 @@ static func replay_to(ctx: MatchContext, joiner: int) -> void:
 
 ## The prints kept now, without a prune (the tests' view of when they are dropped).
 static func kept_prints(state: MatchState) -> int:
-	return _table(state).prints.size() if state.has_part_state(PART_KEY) else 0
+	return _table(state).printed.size() if state.has_part_state(PART_KEY) else 0
 
 
 ## Drops every kept print with no strip left.
@@ -186,10 +186,10 @@ static func _prune(state: MatchState) -> void:
 		return
 	var table := _table(state)
 	var left: Array[Print] = []
-	for kept: Print in table.prints:
+	for kept: Print in table.printed:
 		if not kept.alive(state).is_empty():
 			left.append(kept)
-	table.prints = left
+	table.printed = left
 
 
 ## Whether `player` is still in the roster as itself (not a later player with its peer id) and
@@ -208,7 +208,7 @@ class Table:
 	var session: Session = null
 	var next_strip := 0
 	## The prints with a strip left, in print order.
-	var prints: Array[Print] = []
+	var printed: Array[Print] = []
 
 
 ## A finished print's frames, kept while a strip of it exists.
