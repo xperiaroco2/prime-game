@@ -9201,10 +9201,13 @@ levels/
   layer-1 box bodies under the root (origin the north-west floor corner, on the whole-metre grid; every place a
   placeholder, "not a decision"), clear of the art's colliders; the ten `lobby_player` markers stand on the art's
   spawns (x −9..9 in steps of 2, z 2.5). The lobby's flatness there: a ray down at every lobby marker meets the
-  art floor at y 0 first. Tests: `content_modes_test.gd` (that rule); `lobby_hall_test.gd` (the art set with the
+  art floor at y 0 first. The host's LevelWorld never runs `lobby_hall.gd`, so a node the script frees must hold
+  no layer-1 body: the hall takes the ship's clearing ground (an endless WorldBoundary at y 0) off layer 1, else
+  the host has a floor past the window and every floor check passes on it alone.
+  Tests: `content_modes_test.gd` (that rule); `lobby_hall_test.gd` (the art set with the
   ship docked shut, its script freeing the ship's clearing and second environment in the tree, the player camera's
   reach, the spawns on the art's markers, each piece a separate box on the grid inside the hall, apart and clear of
-  the art, the host reading the lobby without errors, the tap, pinball and booth markers clear, and no collider
+  the art, the host reading the lobby without errors and holding only the colliders the client keeps, the tap, pinball and booth markers clear, and no collider
   but the floor near a lobby marker or a walk a scenario takes in the lobby before
   it first waits).
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
