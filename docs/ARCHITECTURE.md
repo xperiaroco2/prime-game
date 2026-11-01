@@ -3276,7 +3276,7 @@ that text the focus and `ui_accept`'s key, so no mouse event captures the mouse.
 nearest item of that kind resting (no holder) in the window's own `ClientModel`, whose positions every client is
 sent, and calls `PlayerController.look` on `Game.player()` to face its middle (`ItemView.centre_of`), as mouse motion
 would. The pick-up hint stops a walking margin short of the host's reach (#319, §4.7 "Interactions"), so a scenario
-presses `interact` the moment the hint shows, with no settle step (`items.txt`, #353). `frames N` counts drawn frames, so a walk timed by frames goes a distance that changes with the frame rate (40 frames were 6 m at 7 fps, 0.2 m at 190): a scenario times a walk by the clock, `seconds <s>` (the window's clock, 0 to 600 s), or ends it on a wait (`ship_engine.txt` steps back until `hud.aim` lacks the station, then `seconds 0.3`, #1530). Keys go in through
+presses `interact` the moment the hint shows, with no settle step (`items.txt`, #353). `frames N` counts drawn frames, so a walk timed by frames goes a distance that changes with the frame rate (40 frames were 6 m at 7 fps, 0.2 m at 190): a scenario times a walk by the clock, `seconds <s>` (the window's clock, above 0 and at most 600 s), or ends it on a wait (`ship_engine.txt` steps back until `hud.aim` lacks the station, then `seconds 0.3`, #1530). Keys go in through
 `Input.parse_input_event`, before the frame's `_process`, so actions polled there (`interact`, `swap`, `put_down`)
 see them as just pressed; holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows stay off every
