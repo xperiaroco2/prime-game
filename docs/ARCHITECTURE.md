@@ -9076,7 +9076,13 @@ plays it on the estate (#1462, "The estate and the content" below).
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
   by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
-  within 1 cm. The art root's own `size_m` makes no
+  within 1 cm. The hall disc's hub and bolt ring (4 and 11 mm over the deck) are turned off (`disabled`): the host
+  snaps the console's marker onto the floor under it, and AtStation refuses feet more than
+  `StationState.FLOOR_SLACK_M` (1 mm) under a station's floor, so a marker on a raised plate leaves every player on the
+  deck beside it out of reach (`estate_engine_test`: the deck within 0.6 m of each engine marker is no lower than
+  it). The overrides inside the nested kit pieces carry their `[editable path]`. The roof sweep
+  (`estate_throws.gd`) takes the ship's top over its colliders' outline (the hull, wings and jaws pass the §3
+  rect), and `estate_tops_reach_test` fails on a non-box shape outside every swept footprint. The art root's own `size_m` makes no
   second room inside the lot (`MapData`: a room inside a room is part of it).
   Every place and size is a placeholder, "not a decision".
 - **The client** (#1462, stand-ins until the art track draws it). `ClientEngineBook` (`client/net/`,
