@@ -5,9 +5,11 @@ extends RefCounted
 ## steel, cyan, amber and lens materials on an imported crystal_charger.glb by its glTF material
 ## names, its soft cyan glow, and the moving parts: the carrier (up RISE and round its Y axis), the
 ## track ring (round its Y axis) and the button (pressed TRAVEL in). The states: "idle", "charging",
-## "charged". Values only: ShipStationLooks drives them from the filtered model. Left out: the
-## render layer 20 the art gives the meshes (PhotoLayers.PHOTO here, which every live camera skips)
-## and seat_crystal (no crystal model is drawn on a charger); the lightning is the game's, not yet.
+## "charged". The crystal (a ShipCrystalLook, #1556) sits on the carrier's `crystal_anchor` with the
+## package's softer seated light, shown and charged by set_crystal(). Values only: ShipStationLooks
+## drives them from the filtered model. Left out: the render layer 20 the art gives the meshes
+## (PhotoLayers.PHOTO here, which every live camera skips); the crystal's own light skips the
+## meshes' layer instead (ShipCrystalLook.seat).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 
@@ -50,6 +52,7 @@ var _rise := 0.0
 var _turn := 0.0
 var _ring_turn := 0.0
 var _pressed := false
+var _crystal: ShipCrystalLook
 
 
 ## Puts the charger's materials on every surface under `root`; null when it has no carrier (not a
@@ -84,8 +87,28 @@ static func apply(root: Node3D) -> ShipChargerLook:
 	look._glow.shadow_enabled = false
 	look._glow.position = Vector3(0.0, 1.13, 0.38)
 	root.add_child(look._glow)
+	var anchor := look._carrier.find_child("crystal_anchor", true, false) as Node3D
+	if anchor != null:
+		look._crystal = ShipCrystalLook.apply()
+		if look._crystal != null:
+			look._crystal.seat(anchor, true)
+			look._crystal.set_shown(false)
 	look.set_state("idle")
 	return look
+
+
+## The crystal on the carrier: drawn or not, and its charge (0 spent, 1 charged). Nothing with no
+## crystal model (CI's Git LFS stand-in).
+func set_crystal(shown: bool, charge: float) -> void:
+	if _crystal == null:
+		return
+	_crystal.set_shown(shown)
+	_crystal.set_charge(charge)
+
+
+## The crystal's look, or null with no crystal model.
+func crystal() -> ShipCrystalLook:
+	return _crystal
 
 
 ## "idle" (no crystal or not charging), "charging" or "charged"; out of "charging" the carrier
