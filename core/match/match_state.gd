@@ -279,12 +279,6 @@ func session_part_state(key: StringName, create: Callable) -> RefCounted:
 	return _session_part_state[key]
 
 
-## Clears everything a match changed and keeps the roster (ResetMatch, 2b): items, stations,
-## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
-## the players who left during the match (§3.5) leave the roster; each other player's role,
-## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
-## to the next match of the session (§3.3); the join count, the return keys' numbers and the
-## session part state (session_part_state()) stay (§3.5).
 ## Whether a win is decided and waits out the round's linger (verdict_tick, §3.4).
 func decided() -> bool:
 	return verdict_tick >= 0
@@ -297,6 +291,13 @@ func clear_verdict() -> void:
 	verdict_tick = -1
 
 
+## Clears everything a match changed and keeps the roster (ResetMatch, 2b): items, stations,
+## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner,
+## the pending win and the finale's tick (§3.4); the players who left during the match (§3.5)
+## leave the roster; each other player's role, life, hand, health and stamina start again from
+## player_rules; everyone un-ready. The RNG moves to the next match of the session (§3.3); the
+## join count, the return keys' numbers and the session part state (session_part_state()) stay
+## (§3.5).
 func reset_match() -> void:
 	for peer: int in peers():
 		if not players[peer].is_present():
