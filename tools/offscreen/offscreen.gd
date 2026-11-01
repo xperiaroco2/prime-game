@@ -17,8 +17,9 @@ extends RefCounted
 ## else why not (the caller fails with it).
 ## Once off-screen, place() sets WINDOW_FLAG_NO_FOCUS (#1505): the window never activates again, so
 ## it cannot take the foreground from a game the human plays. Its first show, in Main::setup2
-## before any script runs, may still activate it: the runner gives the foreground back
-## (tools/runner/focus.py). The flag also makes the window topmost, harmless at POSITION.
+## before any script runs, calls SetForegroundWindow: the runner holds the foreground lock for the
+## run so that call fails, and gives the foreground back should a window of the run take it anyway
+## (tools/runner/focus.py, #1515). The flag also makes the window topmost, harmless at POSITION.
 ##   const Offscreen := preload("res://tools/offscreen/offscreen.gd")
 ##   var placed: String = Offscreen.place()
 ##   if placed != "": _fail(placed); return

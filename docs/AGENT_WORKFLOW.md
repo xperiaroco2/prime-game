@@ -1242,12 +1242,16 @@ gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.
 
 **Focus and gaming mode (#1505).** The engineer plays games on this PC, and the off-screen windows of `shot`,
 `playcheck` and `run --offscreen` took the foreground from his game. Godot 4.7.2 shows its main window before any
-script runs, with `ShowWindow(SW_SHOW)` and `SetForegroundWindow`, so `tools/runner/focus.py` adds three layers (no-ops
+script runs, with `ShowWindow(SW_SHOW)` and `SetForegroundWindow`, so `tools/runner/focus.py` adds four layers (no-ops
 off Windows): the process starts with `STARTUPINFO.wShowWindow = SW_SHOWNOACTIVATE` (it counts only for an exe the
 runner starts directly: the console exe, `GODOT_BIN`, does not pass it on to `godot.exe`, so the off-screen windows of
 all three come from `GODOT_GUI_BIN`, which relays the lines the runner reads too; without it, `GODOT_BIN` with a
 warning, and only the keeper below is left); `place()` sets
-`DisplayServer.WINDOW_FLAG_NO_FOCUS` once the window is off-screen, so it never activates again; and a keeper records
+`DisplayServer.WINDOW_FLAG_NO_FOCUS` once the window is off-screen, so it never activates again; the keeper holds
+`LockSetForegroundWindow(LSFW_LOCK)` for the run, so `godot.exe`'s own `SetForegroundWindow` fails (#1515: a run
+started from the foreground app's process tree inherits the right to take the foreground, and `SW_SHOWNOACTIVATE`
+does not stop that call; Windows grants the lock only to a process that may set the foreground itself, and Alt or a
+click lifts it); and the keeper records
 the foreground window before the run and gives the foreground back (through `ctypes`: `AttachThreadInput`, then
 `SetForegroundWindow`) whenever a window of the run's process tree takes it, printing `focus: a window of the run
 took the foreground N time(s); handed back N` (one steal counts once). A window of another process (the human

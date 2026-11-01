@@ -28,9 +28,11 @@ OPT_IN = "PRIME_FOCUS_TEST"
 class FakeDesktop:
     """Windows 1 (the human's game, pid 10) and 2 (the run's window, pid 21: a child of the run's pid 20)."""
 
-    def __init__(self, front: int = 1, give_works: bool = True) -> None:
+    def __init__(self, front: int = 1, give_works: bool = True, lock_works: bool = True) -> None:
         self.front = front
         self.give_works = give_works
+        self.lock_works = lock_works
+        self.locks: list[bool] = []
         self.owners = {1: 10, 2: 21, 3: 30}
         self.given: list[int] = []
         self.snapshots = 0
@@ -50,6 +52,10 @@ class FakeDesktop:
         if self.give_works:
             self.front = window
         return self.give_works
+
+    def lock(self, on: bool) -> bool:
+        self.locks.append(on)
+        return self.lock_works
 
 
 def proc(pid: int) -> subprocess.Popen[bytes]:
@@ -114,6 +120,27 @@ class KeeperTest(unittest.TestCase):
             keeper.watch(proc(20))
             desktop.front = 2
         self.assertEqual(desktop.front, 1)
+
+    def test_the_foreground_stays_locked_for_the_run(self) -> None:
+        desktop = FakeDesktop()
+        keeper, _ = self.keeper(desktop)
+        with keeper:
+            self.assertEqual(desktop.locks, [True])  # before the run starts: godot.exe's SetForegroundWindow fails
+        self.assertEqual(desktop.locks, [True, False])
+
+    def test_a_lock_windows_refused_is_not_lifted(self) -> None:
+        desktop = FakeDesktop(lock_works=False)
+        keeper, _ = self.keeper(desktop)
+        with keeper:
+            pass
+        self.assertEqual(desktop.locks, [True])
+
+    def test_no_foreground_window_no_lock(self) -> None:
+        desktop = FakeDesktop(front=0)
+        keeper, _ = self.keeper(desktop)
+        with keeper:
+            pass
+        self.assertEqual(desktop.locks, [])
 
     def test_a_refused_hand_back_is_reported(self) -> None:
         desktop = FakeDesktop(give_works=False)
