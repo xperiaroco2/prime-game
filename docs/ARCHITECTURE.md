@@ -1963,6 +1963,12 @@ ship's markers); what stands in for a bot: `ship_engine_blast_test`'s "the livin
 **#1461 (the ship engine's problem kinds, part 2 of #1225)** added `GillFlipped`, `BreakerChain` and `CrystalChanged`
 to both `TASK_EVENTS` lists and to `LeakCheck.UNREACHED` (as #1453's); what stands in
 for a bot: `engine_events_name_no_player_test` and the kinds' suites, which assert each event on every peer's view.
+**#1498** took all six off `LeakCheck.UNREACHED`: the estate's two engine scenarios (§9.7) decode them over the wire,
+so `check_tasks`, `_check_events` and `ScenarioInvariants` compare them per peer (all six go to everyone). Seen
+failing: `bots` with the scenarios and the old list printed `BOTS coverage: FAILED` (`a bot decoded GillFlipped, listed
+as unreached: take it off UNREACHED`, and the same for the other five); `GillFlippedEvent.audience()` planted as
+`Audience.only(1)` failed `bots crew_mends_the_ships_engine` on `ScenarioInvariants` (`GillFlipped reached [1], not every
+present player [1, 2, 3, 4]`); reverted.
 **#1396 (the photo booth)** added `BoothStep` to both `TASK_EVENTS` lists; every step goes to everyone (each frame is
 public lobby body state, §9.5.29), and the scenario `booth_strip_of_frames` plays each step but `STOPPED` over the
 wire (§9.7), so it is not in `LeakCheck.UNREACHED`.
@@ -9059,7 +9065,10 @@ the order on the mimic board and never at the boards, the breaker and charger la
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
 turbines' spin, the points and lines, the blink and the flash, the nearest blinking fastest, the countdown, the ring,
 the steam and the mist and none replayed or blasted); the playcheck `ship_engine` (the walk to the console and its hologram,
-the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast).
+the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast). Over the wire
+with the shipped base mode on the estate: the scenarios `crew_mends_the_ships_engine` and
+`engine_blast_gives_the_humans_the_clock` (§9.7, #1498) and `tests/scenarios/engine_scenarios_test.gd`; the bots'
+policy in `tests/unit/harness/engine_mender_test.gd` and their book in `scenario_bot_engine_test.gd`.
 
 #### 9.5.28 The pinball (lobby, #1398, #1399; provisional numbers)
 
@@ -9346,7 +9355,10 @@ told. One format runs in two runners.
   takes `expect_rejected` (a reason, empty by default): with it, the step is done when that `Rejected` arrives, and
   fails when the intent succeeds or is refused with another reason. So a scenario can script a downed player's `PickUp`,
   a second swing within the interval (`too_soon`), a swing without stamina (`tired`) or a `PickUp` of a delivered
-  package (`unavailable`).
+  package (`unavailable`). `MendEngine` is the one reactive step: a policy picks its moves as the match goes, and it
+  decides only from what the bot received (the client's own `ClientEngineBook`, folded by `ScenarioBot`, and the
+  crystal's item from `CrystalChanged`) and the mode's content numbers (the kinds' seconds, the gills' step, the
+  breakers' ramp and green window), timing its presses by the runner's tick, never from `Match` state.
 
 | Step | The bot | Done when |
 |---|---|---|
@@ -9377,6 +9389,7 @@ told. One format runs in two runners.
 | `Draw(place)` | sends `Draw` of `place`, 0 to 2, as it is (#1218, #1377: a refusal step may name another) | its own `Swapped` of that place arrives (`no_such_place`, `same_place`, `not_accepted` when refused) |
 | `NextStage` | (the host's bot) sends `NextStage`: a scripted mode (the tutorial's stages) moves on (#599) | a `PhaseChanged` arrives, whichever phase (an `Expect` after it names one); the base mode refuses it (`not_accepted`). `tests/scenarios/next_stage_step_test.gd` |
 | `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
+| `MendEngine(share, of, start, boarding)` | mends the ship's engine (§9.5.27, #1498) by a policy, `EngineMender` (`tests/harness/engine_mender.gd`): with `start` it presses the console; then it takes each open problem whose id % `of` is `share` (the bots of a scenario split the problems without talking), walks there (over the `boarding` points, the ramp, while below the station's floor) and presses the gill button while the bar is on a shut slit, the next breaker in its green window, or carries the crystal to a charger, presses it and fits it back once charged; no fixed script can, since the engine draws its problems' moments, kinds, sites and orders. A refusal `unavailable` (the problem closed before the press landed) or any while the bot is down is no failure, the policy looks again; any other fails the step | the console's bar is full (the engine done), or `MatchEnded` arrives |
 
 The classes (`core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and one class
 per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
@@ -9446,7 +9459,7 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat lobby hall (the art hall's floor at y 0
     under every lobby marker, its walls, ship and pieces kept clear of every walk, #1354, #1451) and the marker-only map (§9.6). Only the levels the
     scenarios play on must be flat: the mode's lobby, the map a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
-    (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House). The
+    (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House and the estate). The
     four-level House (#626), the one map players played until the M8 slice made it a bench (#767, #1496), was played
     by people in the host's real world, and since
     #1197 by bot scenarios (below); the runners
@@ -9462,12 +9475,15 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     `PANTRY_UP` and `house_photo_test`'s `UPSTAIRS`), a storey's floor cut out over a flight (the stairwell). On
     any other level (the lobby, which `Match` names with `use_level`) it is one floor at y 0. A remote bot instance
     (`bots --instances`) has no `Match` to name the level, so its world stays on the storeys: a House scenario run
-    over ENet keeps its lobby walks off the stairs. Each position a walk
+    over ENet keeps its lobby walks off the stairs. Since #1498 a scenario on the estate plays in such a fake too: two
+    storeys, the ground at 0 and the ship's deck at 1.2, joined by the ramp, one flight 3.3 m wide
+    (`ScenarioLevels.ESTATE_FLIGHTS`, from [estate-map](design/estate-map.md) §5a; `estate_walk_test` checks its ends
+    and edges lie on the real ramp), so the bots board the ship over the ramp. Each position a walk
     claims stands on the floor found from a step and the claim's travel (the steepest floor, 45°) above the
     bot's feet (`scenario_play.gd`), so a bot climbs a step or a flight, even after a stall that makes one claim span
     several ticks, and walks down one; a drop past that reach is a fall, which the host does not bound (§7.1): the step fails (`route it over the stairs`), so a bot changes
     storey only over the stairs, through waypoints, and a ground walk keeps off the pantry's stairwell. The fake has none of the House's walls,
-    so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (each House station, drop-off and storage marker stands on a storey of the fake; a flat map's on its one floor); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    so the bots walk straight and see everything, which the wire checks do not depend on. A flat level a scenario plays is still snapped. `content_modes_test.gd` reads every map so (each House or estate station, drop-off and storage marker stands on a storey of the fake, and some marker on each storey; a flat map's on its one floor); ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and `tests/fixtures/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
@@ -9662,8 +9678,20 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   basement's board (`PhotoPrinted`, `PhotoHung`); the dissident holding the lift panel. Its plated burger's items and
   the printer's film vanish on the spot (`ItemVanished`), so no scenario waits out a loose item's `vanish_seconds`
   and no shipped task setting changed. The burger takes at least 48 s of the clock (46 s failed at the herb), so
-  56 s leaves about 8 s. Every bot decodes them alike (`LeakCheck.check_tasks`, `ScenarioInvariants`), and
-  `LeakCheck.UNREACHED` is empty (§4.6.4.1).
+  56 s leaves about 8 s. Every bot decodes them alike (`LeakCheck.check_tasks`, `ScenarioInvariants`).
+  The ship's engine over the wire (#1498; §9.5.27; GDD §3 "The M8 slice", §10): two scenarios play it on the estate
+  in the storeyed fake (above) with the shipped base mode and its defaults (the real kinds, the 5-minute clock, one
+  task, no `clock_s`), from the console's start to `MatchEnded`, the crew boarding over the ramp.
+  `crew_mends_the_ships_engine` (4 bots, a forced dissident, a 240 s time limit; about 173 s of match time): three
+  crew bots `MendEngine` with a share each, the first pressing the console; its seed draws all three kinds, which
+  each crew bot's `Expect` after its `MendEngine` holds (`GillFlipped`, a `BreakerChain` with `next` 1,
+  `CrystalChanged`), every problem of the three stages is fixed, `EngineBlast` is `never`, and the crew wins by
+  `every_task_done`. `engine_blast_gives_the_humans_the_clock` (2 bots, a forced dissident, a 400 s time limit): the
+  crew bot walks up the ramp, presses the console and stays; the first problem runs out, `EngineBlast`, its own
+  `KnockedDown`, its `Respawned`, and the dissidents win by `time_up` (`EngineProblemFixed` is `never`).
+  `tests/scenarios/engine_scenarios_test.gd` checks both on the core runner (the defaults, every opened problem fixed,
+  the kinds, the blast before the knockdown and the respawn, the winning side and reason, every bot's engine events
+  alike). With them `LeakCheck.UNREACHED` is empty (§4.6.4.1).
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
