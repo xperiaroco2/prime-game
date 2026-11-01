@@ -39,6 +39,11 @@ const INSIDE_STEP_M := 2.0
 ## each floor it finds.
 const COLUMN_TOP_BELOW_M := 0.3
 const COLUMN_STEP_M := 0.3
+## The highest floor a player stands on round and under a top, by top (#1499): the
+## ship has one deck, 1.2 m up (estate-map.md §5a); over it the art hull's curved skin, which
+## no player reaches (no way up, the wing edges 1.5 m and more over the ground), drops more than
+## COLUMN_TOP_BELOW_M below its top, so its own floors are no spots.
+const HIGHEST_SPOT_M: Dictionary[String, float] = {"Ship": 1.5}
 
 
 ## The top of each module in TOPS: its plan rect (the footprint, not grown) and its height, read
@@ -70,6 +75,7 @@ static func spots(world: HostWorldQuery, headroom: float) -> Dictionary[String, 
 	for top_name: String in all_tops:
 		var rect: Rect2 = all_tops[top_name]["rect"]
 		var below: float = (all_tops[top_name]["y"] as float) - COLUMN_TOP_BELOW_M
+		below = minf(below, HIGHEST_SPOT_M.get(top_name, INF) as float)
 		var into: Array[Vector3] = []
 		for ring: float in RINGS_M:
 			var around := rect.grow(ring)
