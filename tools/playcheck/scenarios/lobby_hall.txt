@@ -1,8 +1,10 @@
-# The lobby hall greybox (#1354) in the game's real window, in the game's own lighting: window 1
-# hosts alone and stays in the lobby. It shoots the hall from its lobby spawn point (the first
-# `lobby_player` marker, facing the skat), sprints back to the south wall and left to the west
-# side, then towards the bar. Off-screen frames run fast, so a walk covers only a few metres: the
-# plan of the whole hall is `tools\run.cmd shot` of a top-down camera over levels/lobby/lobby.tscn.
+# The lobby hall (#1451: the art lobby hall's level set, the game's bar, booth, pinball and mirror
+# boxes beside it) in the game's real window, in the hall's own lighting: window 1 hosts alone and
+# stays in the lobby. It shoots the hall from its lobby spawn point (the first `lobby_player`
+# marker, x -9, z 2.5; the player keeps its own facing, north, towards the docked ship), sprints
+# back towards the window and left to the west wall (the mirror), steps off the wall and walks
+# north towards the bar. The plan of the whole hall is `tools\run.cmd shot` of a top-down camera
+# over levels/lobby/lobby.tscn.
 players 1
 windows 1
 
@@ -30,8 +32,11 @@ frames 600
 release move_left
 frames 10
 shot lobby_west_side
+hold move_right
+frames 120
+release move_right
 hold move_forward
-frames 300
+frames 600
 release move_forward
 frames 10
 shot lobby_bar
