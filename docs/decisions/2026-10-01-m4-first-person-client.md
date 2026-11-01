@@ -465,3 +465,8 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
   HUD (§4.7.37) and #497 (§4.7.41); its hold-Tab `TaskScreen` (`task_screen_preview.tscn`) became #253's `MapScreen`
   on M (§4.7.33). The world sounds were 0.15 s generated blips heard from the viewport's camera until M5-5 gave them
   the ears, M5-7 the muffling and #525 (§4.7.43) Kenney's files and footsteps.
+- 2026-11-01 (#1522): a placement faces its marker. The game manager's re-scope on #1522 (the technical
+  standing word, #507 comment 6495904155; the engineer to confirm on PR #1538) replaced #191's "the yaw kept,
+  no protocol change": the spawn markers' yaw is game data, `Welcome` and `Correction` carry the marker's facing
+  (protocol 53), and the client turns the body to it on a placement only (ARCHITECTURE §3.2, §4.7.13); the pitch is
+  still levelled (#191, #240).

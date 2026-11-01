@@ -1,10 +1,11 @@
 class_name WelcomeEvent
 extends MatchEvent
-## A joiner's accepted Hello (ARCHITECTURE §3.5, §4.2): its peer id, spawn point and epoch, and
-## the public facts of the lobby it arrives in: the roster with names, ready flags and colours, the
-## settings and the map, the phase, the other players' positions, the lobby's name (#214) and the
-## items already in the hall (#1404). It holds nothing hidden (§5): in Lobby and Countdown nobody
-## has a role and everyone is alive, and every item fact in it was an everyone-event already.
+## A joiner's accepted Hello (ARCHITECTURE §3.5, §4.2): its peer id, spawn point, facing (#1522)
+## and epoch, and the public facts of the lobby it arrives in: the roster with names, ready flags
+## and colours, the settings and the map, the phase, the other players' positions, the lobby's
+## name (#214) and the items already in the hall (#1404). It holds nothing hidden (§5): in Lobby
+## and Countdown nobody has a role and everyone is alive, and every item fact in it was an
+## everyone-event already.
 ## Audience: only the joiner.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
@@ -18,6 +19,10 @@ const MAX_ITEMS := 96
 
 var peer: int
 var spot: Vector3
+## The facing of the joiner's lobby marker (#1522), a level unit vector its client turns to;
+## Vector3.ZERO when the marker has none or there is no marker (a Hello at Level.NONE): keep the
+## look. Its own facing only: the others' come in the snapshots.
+var facing: Vector3
 var epoch: int
 ## Per player, in peer-id order: {"peer", "name", "ready", "colour"} (the colour an index into
 ## PlayerColours, #551).
@@ -43,10 +48,11 @@ var lobby_name := ""
 var items: Array[Dictionary] = []
 
 
-func _init(joiner: int, at: Vector3, joiner_epoch: int) -> void:
+func _init(joiner: int, at: Vector3, joiner_epoch: int, looking := Vector3.ZERO) -> void:
 	peer = joiner
 	spot = at
 	epoch = joiner_epoch
+	facing = looking
 
 
 func event_name() -> StringName:
@@ -61,6 +67,7 @@ func to_dict() -> Dictionary:
 	return {
 		"peer": peer,
 		"spot": spot,
+		"facing": facing,
 		"epoch": epoch,
 		"roster": roster.duplicate(true),
 		"settings": settings.duplicate(),

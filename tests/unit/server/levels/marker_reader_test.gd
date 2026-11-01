@@ -225,3 +225,39 @@ func test_floor_tags_include_the_kinds_an_overriding_type_names() -> void:
 	)
 	assert_int(result.errors.size()).is_equal(0)
 	assert_array(Array(result.layout.positions(&"tag_a"))).is_equal([Vector3(3, 0, 3)])
+
+
+func test_a_marker_faces_the_yaw_of_its_forward_through_its_parents() -> void:
+	var root := _root()
+	_marker(root, "Plain", &"spawn_respawn", Vector3(1, 0, 0))
+	var turned := _marker(root, "Turned", &"spawn_respawn", Vector3(2, 0, 0))
+	turned.rotation = Vector3(0, PI, 0)
+	var tilted := _marker(root, "Tilted", &"spawn_respawn", Vector3(3, 0, 0))
+	tilted.rotation = Vector3(0.7, PI / 2, 0.3)
+	var room := Node3D.new()
+	room.rotation = Vector3(0, -PI / 2, 0)
+	root.add_child(room)
+	var inner := _marker(room, "Inner", &"spawn_respawn", Vector3(0, 0, 4))
+	inner.rotation = Vector3(0, PI, 0)
+	var layout := MarkerReader.read(root, LEVEL, FlatWorldQuery.new()).layout
+	var faced := layout.facings(&"respawn")
+	var near := Vector3(1e-5, 1e-5, 1e-5)
+	# Unturned: Godot's forward, -Z. A half turn: +Z. A tilted marker keeps its heading (-X for a
+	# quarter turn left). A turned parent turns its markers too: a quarter right then a half turn.
+	assert_vector(faced[0]).is_equal_approx(Vector3(0, 0, -1), near)
+	assert_vector(faced[1]).is_equal_approx(Vector3(0, 0, 1), near)
+	assert_vector(faced[2]).is_equal_approx(Vector3(-1, 0, 0), near)
+	assert_vector(faced[3]).is_equal_approx(Vector3(-1, 0, 0), near)
+
+
+func test_a_floor_marker_keeps_its_facing() -> void:
+	var root := _root()
+	var circle := _marker(root, "Circle", &"spawn_circle", Vector3(1, 0.4, 0))
+	circle.rotation = Vector3(0, PI / 2, 0)
+	var floor_tags: Array[StringName] = [&"circle"]
+	var result := MarkerReader.read(root, LEVEL, FlatWorldQuery.new(), floor_tags)
+	assert_array(Array(result.errors)).is_empty()
+	assert_float(result.layout.positions(&"circle")[0].y).is_equal(0.0)
+	assert_vector(result.layout.facing_at(&"circle", 0)).is_equal_approx(
+		Vector3(-1, 0, 0), Vector3(1e-5, 1e-5, 1e-5)
+	)

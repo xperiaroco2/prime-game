@@ -95,8 +95,17 @@ func test_the_downed_player_gets_a_new_epoch_told_to_it_alone() -> void:
 	assert_int(downed.epoch).is_equal(epoch + 1)
 	var corrections := FixtureMoves.corrections(game, P2)
 	assert_int(corrections.size()).is_equal(seen + 1)
-	assert_dict(corrections[corrections.size() - 1].to_dict()).is_equal(
-		{"epoch": epoch + 1, "position": Vector3(0, 0, 1), "velocity": Vector3.ZERO}
+	# No facing (#1522): a knockdown is no placement, so the client keeps its look.
+	(
+		assert_dict(corrections[corrections.size() - 1].to_dict())
+		. is_equal(
+			{
+				"epoch": epoch + 1,
+				"position": Vector3(0, 0, 1),
+				"velocity": Vector3.ZERO,
+				"facing": Vector3.ZERO,
+			}
+		)
 	)
 	for peer: int in [P1, P3]:
 		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])

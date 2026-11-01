@@ -25,6 +25,9 @@ const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
 ## steps_room with a `tap` marker at BAR_TAP, the lobby of with_tap() (#1408).
 const BAR_ROOM := "res://tests/fixtures/client/steps_room_bar.tscn"
 const BAR_TAP := Vector3(3, 0, -2)
+## steps_room with its markers faced (#1522): the two first lobby markers face +z (yaw PI), the
+## round markers -x (yaw PI / 2); the lobby and the map of with_faced_room().
+const FACED_ROOM := "res://tests/fixtures/client/steps_room_faced.tscn"
 const PORT := 7400
 ## One physics frame at 60 Hz, in microseconds.
 const FRAME_USEC := 16667
@@ -178,6 +181,14 @@ func with_life(respawn_s: float) -> void:
 			]
 		)
 	)
+
+
+## Plays the fixture `steps_room_faced.tscn` (#1522: steps_room with faced lobby and round markers,
+## FACED_ROOM) as the lobby and the match's map, before start(). The motion map stays the last: the
+## match plays the first, which keeps today's knockdown.
+func with_faced_room() -> void:
+	mode.lobby_level = FACED_ROOM
+	mode.maps = PackedStringArray([FACED_ROOM, MOTION_LEVEL])
 
 
 ## Plays the fixture `crouch_room.tscn` (#791: a slab 1.4 m above the floor, over x -9.5 to -6.5

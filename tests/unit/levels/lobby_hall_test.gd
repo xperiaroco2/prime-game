@@ -134,6 +134,17 @@ func test_the_lobby_spawns_stand_on_the_art_halls_spawn_markers() -> void:
 		assert_float((-spawn.basis.z).z).is_equal_approx(1.0, EPS)
 
 
+func test_the_host_reads_each_lobby_spawn_facing_the_window() -> void:
+	# #1522: the host's marker reader carries each spawn's facing, which a joiner's Welcome and the
+	# lobby's placement turn the player to: the window, south (+z).
+	var read := MarkerReader.read_scene(LOBBY, FlatWorldQuery.new())
+	assert_array(Array(read.errors)).is_empty()
+	var faced := read.layout.facings(&"lobby_player")
+	assert_int(faced.size()).is_equal(10)
+	for facing: Vector3 in faced:
+		assert_vector(facing).is_equal_approx(Vector3.BACK, Vector3(EPS, EPS, EPS))
+
+
 func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
 	for piece_name: String in PIECES:
 		var piece := _root.get_node_or_null(piece_name) as StaticBody3D

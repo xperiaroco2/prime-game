@@ -6,10 +6,11 @@ extends RefCounted
 ##
 ## A spawn point is a Marker3D in exactly one persistent group `spawn_<tag>`; the markers are read
 ## in scene-tree order (depth first, a parent before its children), the level order of §3.3, and
-## each is placed where the scene puts it (its transform through its Node3D parents). Load errors,
-## all reported, none fatal to the rest: a marker in two `spawn_` groups (it is left out), a node
-## that is not a Marker3D in a `spawn_` group, a group named `spawn_` alone, and a floor-standing
-## marker with no floor below it.
+## each is placed where the scene puts it (its transform through its Node3D parents), facing the
+## yaw of its forward, -Z (LevelLayout.level_facing: its pitch and roll do not count; #1522).
+## Load errors, all reported, none fatal to the rest: a marker in two `spawn_` groups (it is left
+## out), a node that is not a Marker3D in a `spawn_` group, a group named `spawn_` alone, and a
+## floor-standing marker with no floor below it.
 ##
 ## Floor-standing markers (the engineer's answer on #82, item 3, on #66): a station's cylinder
 ## starts at its marker's height, so a circle marker even a little above the floor would leave
@@ -158,7 +159,8 @@ static func _read_marker(
 	if tag.is_empty():
 		into.errors.append("%s is in the group %s, which names no tag" % [where, GROUP_PREFIX])
 		return
-	var position := LevelWorld.transform_in_scene(node as Node3D, root).origin
+	var placed := LevelWorld.transform_in_scene(node as Node3D, root)
+	var position := placed.origin
 	if floor_tags.has(tag):
 		var found := world.floor_below(position + Vector3.UP * FLOOR_PROBE_M)
 		if found == WorldQuery.NO_FLOOR:
@@ -167,4 +169,6 @@ static func _read_marker(
 			)
 			return
 		position.y = found.y
-	into.layout.add_marker(tag, position)
+	# Its facing (#1522): the yaw of its forward (-Z) through every parent's turn; a placement on it
+	# gives the player that yaw.
+	into.layout.add_marker(tag, position, -placed.basis.z)

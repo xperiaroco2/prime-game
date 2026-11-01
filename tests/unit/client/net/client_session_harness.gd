@@ -70,8 +70,8 @@ func send_message(message: WireMessage) -> void:
 
 
 ## Welcomes the client into `phase` with epoch `epoch`, one other player (peer 1) in the roster.
-func welcome(phase := &"lobby", epoch := 1) -> WelcomeEvent:
-	var event := WelcomeEvent.new(peer, Vector3(1, 0, 2), epoch)
+func welcome(phase := &"lobby", epoch := 1, facing := Vector3.ZERO) -> WelcomeEvent:
+	var event := WelcomeEvent.new(peer, Vector3(1, 0, 2), epoch, facing)
 	(
 		event
 		. roster

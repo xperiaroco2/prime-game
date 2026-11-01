@@ -6,10 +6,11 @@ extends RuleEffect
 ## and the markers are shuffled with the RNG purpose `rng_purpose`; with `ordered` (#599, the
 ## tutorial's deal) they are not: the i-th player stands on the i-th marker in level order (the
 ## host's player, peer 1, on the first) and nothing is drawn. Each placed player gets a new
-## epoch, so claims still in flight from the old scene are dropped as stale.
+## epoch, so claims still in flight from the old scene are dropped as stale, and faces its marker's
+## facing (#1522; a marker with none leaves the player's own).
 ##
 ## Emits: StopBody (server) for a limp player's body (#1393), PlayersPlaced (everyone: positions
-## are public), then a Correction per player, in
+## are public), then a Correction per player (its marker's facing, Vector3.ZERO for none), in
 ## peer-id order (that player only: its new epoch). Demands: one `tag` marker per player.
 
 ## The spawn tag of the markers: `round_player` in the deal, `lobby_player` on `End -> Lobby`.
@@ -39,9 +40,14 @@ func run(ctx: MatchContext) -> void:
 	else:
 		order = RngStreams.shuffled_indices(spots.size(), ctx.rng(rng_purpose))
 	var placed: Dictionary[int, Vector3] = {}
+	var facings: Dictionary[int, Vector3] = {}
 	for i in peers.size():
 		var player := ctx.state.players[peers[i]]
 		player.position = spots[order[i]]
+		# The marker's facing (#1522), none for a marker without one: the player keeps its own.
+		facings[player.peer] = ctx.layout.facing_at(tag, order[i])
+		if facings[player.peer] != Vector3.ZERO:
+			player.facing = facings[player.peer]
 		player.crouched = false
 		player.sneaking = false
 		# The placed player stands up from the chair or the wheel pose: its client learns it in its
@@ -57,7 +63,9 @@ func run(ctx: MatchContext) -> void:
 	ctx.emit(PlayersPlacedEvent.new(placed))
 	for peer: int in peers:
 		var player := ctx.state.players[peer]
-		ctx.emit(CorrectionEvent.new(peer, player.epoch, player.position, player.velocity))
+		ctx.emit(
+			CorrectionEvent.new(peer, player.epoch, player.position, player.velocity, facings[peer])
+		)
 
 
 func emits() -> Array[Script]:

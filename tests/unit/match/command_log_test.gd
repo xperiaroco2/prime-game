@@ -42,3 +42,24 @@ func test_a_missing_entry_reads_as_its_default() -> void:
 	assert_int(read.ticked_through).is_equal(-1)
 	assert_array(read.commands).is_empty()
 	assert_dict(read.layouts).is_empty()
+
+
+func test_a_layout_read_back_keeps_each_marker_s_facing_bit_for_bit() -> void:
+	# #1522: a replay places players with the recorded facings, so reading a layout back must not
+	# normalize a facing again (float32 normalize is not idempotent). Oblique yaws, a tenth of a
+	# degree apart, from forwards of a scaled basis as the marker reader passes them.
+	var layout := LevelLayout.new("res://levels/oblique.tscn")
+	for tenth in 3600:
+		var yaw := deg_to_rad(tenth / 10.0)
+		layout.add_marker(&"respawn", Vector3(tenth, 0, 0), Vector3(-sin(yaw), 0, -cos(yaw)) * 1.3)
+	var log := CommandLog.new()
+	log.layouts[layout.path] = layout
+	var read := CommandLog.from_dict(log.to_dict())
+	var expected := layout.facings(&"respawn")
+	var got := read.layouts[layout.path].facings(&"respawn")
+	assert_int(got.size()).is_equal(expected.size())
+	var differ := 0
+	for i in expected.size():
+		if got[i] != expected[i]:
+			differ += 1
+	assert_int(differ).is_equal(0)

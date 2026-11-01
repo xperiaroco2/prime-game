@@ -131,3 +131,57 @@ func _ordered_mode() -> GameMode:
 	var mode := FixtureModes.basic()
 	(mode.transitions[0].actions[0] as PlacePlayers).ordered = true
 	return mode
+
+
+func test_at_the_round_s_start_each_player_faces_its_marker_and_only_it_learns_its_own() -> void:
+	# #1522: the marker's facing, in the host's state and in that player's own Correction.
+	for seed_value: int in [3, 5]:
+		var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3], seed_value, true)
+		for peer: int in [P1, P2, P3]:
+			var facing := FixtureModes.marker_facing(game, FixtureModes.MAP, &"round_player", peer)
+			assert_vector(facing).is_not_equal(Vector3.ZERO)
+			assert_vector(game.state.player(peer).facing).is_equal(facing)
+			var corrections := game.view_of(peer).events_named(&"Correction")
+			assert_int(corrections.size()).is_equal(1)
+			assert_int((corrections[0] as CorrectionEvent).peer).is_equal(peer)
+			assert_vector((corrections[0] as CorrectionEvent).facing).is_equal(facing)
+
+
+func test_back_in_the_lobby_players_face_their_lobby_markers() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2], 7, true)
+	for peer: int in [P1, P2]:
+		game.state.player(peer).facing = Vector3.FORWARD
+	game.state.set_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	for peer: int in [P1, P2]:
+		game.state.player(peer).ready = false
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	for peer: int in [P1, P2]:
+		var facing := FixtureModes.marker_facing(game, FixtureModes.LOBBY, &"lobby_player", peer)
+		assert_vector(facing).is_not_equal(Vector3.ZERO)
+		assert_vector(game.state.player(peer).facing).is_equal(facing)
+		var correction := game.view_of(peer).events_named(&"Correction").back() as CorrectionEvent
+		assert_int(correction.epoch).is_equal(2)
+		assert_vector(correction.facing).is_equal(facing)
+
+
+func test_ordered_gives_the_i_th_player_the_i_th_marker_s_facing() -> void:
+	var game := FixtureModes.in_round(_ordered_mode(), [P3, P1, P2], 7, true)
+	for i in 3:
+		var peer: int = [P1, P2, P3][i]
+		assert_vector(game.state.player(peer).facing).is_equal(FixtureModes.FACINGS[i])
+		var correction := game.view_of(peer).events_named(&"Correction")[0] as CorrectionEvent
+		assert_vector(correction.facing).is_equal(FixtureModes.FACINGS[i])
+
+
+func test_a_marker_with_no_facing_leaves_the_player_s_own_and_sends_none() -> void:
+	var game := FixtureModes.started(FixtureModes.basic(), [P1, P2])
+	game.state.player(P1).facing = Vector3.LEFT
+	for peer: int in [P1, P2]:
+		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+	assert_vector(game.state.player(P1).facing).is_equal(Vector3.LEFT)
+	assert_vector(game.state.player(P2).facing).is_equal(Vector3.FORWARD)
+	for peer: int in [P1, P2]:
+		var correction := game.view_of(peer).events_named(&"Correction")[0] as CorrectionEvent
+		assert_vector(correction.facing).is_equal(Vector3.ZERO)

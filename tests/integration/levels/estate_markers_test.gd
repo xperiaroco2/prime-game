@@ -5,8 +5,9 @@ extends GdUnitTestSuite
 ## players. Its round and respawn markers, read as placed, each stand a player on the floor under
 ## it with a standing capsule clear of the level (house_markers_test.gd's check, #1042); its
 ## package markers lie on the floor, and none inside a circle; the round's and the respawns' stand
-## together on the skat's clearing before its ramp (#1492). The markers' places are placeholders,
-## "not a decision", for the engineer to move (#1374's PR, #1492's PR).
+## together on the skat's clearing before its ramp (#1492), each with a level facing the player
+## turns to (#1522). The markers' places are placeholders, "not a decision", for the engineer to
+## move (#1374's PR, #1492's PR).
 
 const HouseMarkers := preload("res://tests/integration/levels/house_markers_test.gd")
 const MAP := "res://levels/estate/estate.tscn"
@@ -47,6 +48,21 @@ func test_the_estate_has_a_marker_per_player_and_the_most_packages() -> void:
 	assert_int(layout.count(&"circle")).is_greater_equal(_max_of(mode, &"packages"))
 	assert_int(layout.count(&"knife")).is_greater_equal(_default_of(mode, &"knives"))
 	assert_int(layout.count(&"respawn")).is_greater(0)
+
+
+func test_each_round_and_respawn_marker_gives_a_level_facing() -> void:
+	# #1522: the round's start and a respawn turn the player to its marker's facing, as placed
+	# (the marker's forward, -Z, made level): every marker has one, level and of length 1.
+	var layout := _read(_base_mode()).layout
+	for tag: StringName in [&"round_player", &"respawn"]:
+		var faced := layout.facings(tag)
+		assert_int(faced.size()).is_equal(layout.count(tag))
+		for facing: Vector3 in faced:
+			var where := "a %s marker facing %s" % [tag, facing]
+			assert_float(facing.y).override_failure_message(where).is_equal(0.0)
+			assert_float(facing.length()).override_failure_message(where).is_equal_approx(
+				1.0, 0.0001
+			)
 
 
 func test_the_round_and_the_respawns_start_on_the_skat_s_clearing() -> void:

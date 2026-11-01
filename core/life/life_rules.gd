@@ -355,9 +355,10 @@ static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 
 ## `peer`, dead, comes back at `at` (a respawn marker, which Respawn draws): its body goes, it is
 ## living with its role, full health and stamina, an empty hand and belt and a new epoch, and
-## invulnerable (make_invulnerable). Respawned (everyone), then its Correction, then its SelfStatus
-## (at the end of the tick).
-static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
+## invulnerable (make_invulnerable). It faces `facing` (the marker's, #1522) unless that is
+## Vector3.ZERO (a marker with none: it keeps its own). Respawned (everyone), then its Correction
+## (with `facing`), then its SelfStatus (at the end of the tick).
+static func respawn(ctx: MatchContext, peer: int, at: Vector3, facing := Vector3.ZERO) -> void:
 	var back := ctx.state.player(peer)
 	if back == null or back.life != PlayerState.Life.DEAD:
 		ctx.error("respawn: player %d is not dead" % peer)
@@ -386,10 +387,12 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	back.moving = false
 	back.position = at
 	back.velocity = Vector3.ZERO
+	if facing != Vector3.ZERO:
+		back.facing = facing
 	back.epoch += 1
 	make_invulnerable(ctx, peer)
 	ctx.emit(RespawnedEvent.new(peer, at))
-	ctx.emit(CorrectionEvent.new(peer, back.epoch, back.position, back.velocity))
+	ctx.emit(CorrectionEvent.new(peer, back.epoch, back.position, back.velocity, facing))
 	SelfStatusFeed.touch(ctx.state, peer)
 
 

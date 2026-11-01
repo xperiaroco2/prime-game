@@ -668,6 +668,8 @@ func _on_welcomed(own_peer: int) -> void:
 	GamePlayer.place(
 		_player, _client.model.spots.get(own_peer, Vector3.ZERO) as Vector3, Vector3.ZERO
 	)
+	# The lobby marker's facing (#1522): once, now that the body and its head are in the world.
+	_player.face(_client.welcome_facing)
 
 
 ## Every snapshot: into the buffer, and the own body follows the own avatar's limp flag (§7.1.21),
