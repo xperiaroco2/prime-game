@@ -143,7 +143,13 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if sound.id == SoundChooser.LIFT_CRASH:
 		_held_crashes.append(sound)
 		return
-	_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
+	_start(
+		sound,
+		_stream_of(sound.id),
+		heard_from as Vector3,
+		true,
+		sound.heard_within(SoundChooser.HEARING_RANGE_M)
+	)
 
 
 ## Plays the lift crashes held from the last batch of events while the round still runs (#811);

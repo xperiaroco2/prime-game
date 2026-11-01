@@ -135,6 +135,10 @@ func _init() -> void:
 	items.sound_due.connect(sounds.on_event)
 	# The booth's countdown beeps, due on the host's ticks.
 	booth_views.sound_due.connect(sounds.on_event)
+	# A task type's view with sounds of its own (ShipEngineViews' engine cues, #1501) the same way.
+	for view: Node3D in task_views.values():
+		if view.has_signal(&"sound_due"):
+			view.connect(&"sound_due", sounds.on_event)
 
 
 ## Follows `client`'s model with the client's own copy of `game_mode`; `views` draws the others.

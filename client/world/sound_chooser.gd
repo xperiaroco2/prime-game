@@ -52,6 +52,11 @@ extends RefCounted
 ##   patty turned burnt and a PhotoHung not counted (a photo without a person). A delivery or a
 ##   charge done at the deal (a package that spawned in its circle, a generator dealt with no
 ##   switch) is no one's success: those two play only in play (in_play()).
+## - the ship's engine (#1501, ARCHITECTURE §4.7.64): ShipEngineViews' cues (ShipEngineSounds.EVENT:
+##   the call, the order's beeps, a problem's wails, the blast and the roar, each at its own place,
+##   the blast and the roar heard within ShipEngineSounds.FAR_RANGE_M), and a KnockedDown in play
+##   by a tripped breaker still off its zap there (ShipEngineSounds.zap_at); any other knockdown is
+##   silent here.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -114,17 +119,25 @@ const DELIVERY_AIM_M := ITEM_AIM_M
 const ZONE_AIM_M := PANEL_AIM_M
 
 
-## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
+## One sound to play: where it plays, where the occlusion ray aims (`lift` above it) and, for one
+## that carries farther than the hearing range (the engine's blast and roar), how far (0: the
+## caller's hearing range).
 class Sound:
 	extends RefCounted
 	var id: StringName
 	var position := Vector3.ZERO
 	var aim := Vector3.ZERO
+	var range_m := 0.0
 
-	func _init(sound_id: StringName, at: Vector3, lift: float) -> void:
+	func _init(sound_id: StringName, at: Vector3, lift: float, reach_m := 0.0) -> void:
 		id = sound_id
 		position = at
 		aim = at + Vector3.UP * lift
+		range_m = reach_m
+
+	## How far it is heard, given the caller's hearing range `hearing_m`.
+	func heard_within(hearing_m: float) -> float:
+		return range_m if range_m > 0.0 else hearing_m
 
 
 ## The sound for event `event_name` (already folded into `model`) within `hearing_m` of
@@ -144,7 +157,7 @@ static func choose(
 	mode: GameMode = null
 ) -> Sound:
 	var sound := source(event_name, fields, model, position_of, lens_m, mode)
-	if sound == null or not audible(sound.position, listener, hearing_m):
+	if sound == null or not audible(sound.position, listener, sound.heard_within(hearing_m)):
 		return null
 	return sound
 
@@ -238,6 +251,17 @@ static func source(
 			if fitted == null:
 				return null
 			return Sound.new(SfxSet.TASK_SUCCESS, fitted.position, CAR_AIM_M)
+		ShipEngineSounds.EVENT:
+			var id: StringName = fields["id"]
+			var at: Vector3 = fields["position"]
+			return Sound.new(id, at, ShipEngineSounds.AIM_M, ShipEngineSounds.range_of(id))
+		&"KnockedDown":
+			if not in_play(model):
+				return null
+			var zapped: Variant = ShipEngineSounds.zap_at(fields, model, mode)
+			if not zapped is Vector3:
+				return null
+			return Sound.new(SfxSet.ENGINE_ZAP, zapped as Vector3, ShipEngineSounds.AIM_M)
 	return null
 
 
