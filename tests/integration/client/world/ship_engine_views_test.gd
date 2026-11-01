@@ -3,7 +3,9 @@ extends GdUnitTestSuite
 ## driven from a ClientModel folded from the engine's events, the base mode's engine and a host
 ## tick the test sets: the console's stage strips, a red lamp over each station of an open problem,
 ## the breakers' lamps and the mimic board, where alone the order plays, the gill sets' slits and
-## white bar, a charger's lamp and the blast. And ShipEngineClient offers no breaker board.
+## white bar, a charger's lamp and the blast; the hologram made readable (#1500, GDD §8): the call,
+## the turbines' spin, a point and a line per site station, the blink, the flash, the countdown and
+## the ring; the gills' steam and mist. And ShipEngineClient offers no breaker board.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const CONSOLE := 1
@@ -263,6 +265,341 @@ func test_the_client_offers_no_breaker_board_but_its_breakers() -> void:
 	assert_bool(client.usable(_model, engine, FIRST_BREAKER)).is_true()
 	assert_bool(client.usable(_model, engine, CONSOLE)).is_true()
 	assert_bool(client.usable(_model, engine, GILLS)).is_true()
+
+
+func test_the_ship_calls_while_the_engine_is_off() -> void:
+	_place()
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	assert_bool(hologram.called()).is_true()
+	assert_object(_colour(hologram.turbine(0))).is_equal(ShipEngineHologram.ORANGE_DIM)
+	assert_bool(hologram.button().visible).is_true()
+	assert_object(_colour(hologram.button())).is_equal(ShipEngineHologram.ORANGE)
+	# The turbines pulse with the host tick, orange at the pulse's peak, and stand still.
+	_now = Ticks.from_seconds(ShipEngineHologram.PULSE_SECONDS / 2.0)
+	var still := hologram.turbine(0).rotation.y
+	_view._process(0.5)
+	for i in 2:
+		(
+			assert_bool(_colour(hologram.turbine(i)).is_equal_approx(ShipEngineHologram.ORANGE))
+			. is_true()
+		)
+	assert_float(hologram.turbine_speed()).is_equal(0.0)
+	assert_float(hologram.turbine(0).rotation.y).is_equal(still)
+	# Pressed: no call, the button out, the turbines the hologram's cyan.
+	_model.fold(&"ButtonPressed", {"station": CONSOLE})
+	_view._process(0.0)
+	assert_bool(hologram.called()).is_false()
+	assert_bool(hologram.button().visible).is_false()
+	assert_object(_colour(hologram.turbine(0))).is_equal(ShipEngineViews.CYAN)
+
+
+func test_a_started_engine_does_not_call_to_one_who_never_saw_the_press() -> void:
+	_place()
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 0, "needed": 600, "counting": true, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_bool(_view.hologram().called()).is_false()
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 120, "needed": 600, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_bool(_view.hologram().called()).is_false()
+	assert_bool(_view.hologram().button().visible).is_false()
+
+
+func test_an_open_problem_stops_the_call_for_an_idle_unpressed_console() -> void:
+	_place()
+	# A client that joined a started engine, right after a stage-1 blast: the bar is empty and
+	# still, no press seen, and a problem is already open.
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 0, "needed": 600, "counting": false, "tick": 0}
+	)
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	assert_bool(hologram.called()).is_false()
+	assert_bool(hologram.button().visible).is_false()
+	assert_float(hologram.turbine_speed()).is_equal(
+		ShipEngineHologram.SPIN_RAD_PER_SECOND * ShipEngineHologram.SLOW_FACTOR
+	)
+
+
+func test_the_start_button_sits_under_the_centre_toward_the_use_spot() -> void:
+	_place()
+	var level := _level()
+	var marker := Node3D.new()
+	marker.add_to_group(&"engine_hologram", true)
+	level.add_child(marker)
+	marker.global_position = Vector3(3.0, 3.0, -0.4)
+	_view.level = level
+	_view._process(0.0)
+	# The console's use spot is 3 m west of the centre, at the same depth.
+	var expected := (
+		marker.global_position
+		+ Vector3.DOWN * ShipEngineHologram.BUTTON_DROP_M
+		+ Vector3.LEFT * ShipEngineHologram.BUTTON_TOWARD_M
+	)
+	assert_vector(_view.hologram().button().global_position).is_equal_approx(
+		expected, Vector3.ONE * 1e-4
+	)
+
+
+func test_the_turbines_spin_once_started_and_slower_while_a_problem_is_open() -> void:
+	_place()
+	_model.fold(&"ButtonPressed", {"station": CONSOLE})
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	var full := ShipEngineHologram.SPIN_RAD_PER_SECOND
+	assert_float(hologram.turbine_speed()).is_equal(full)
+	var from := hologram.turbine(1).rotation.y
+	_view._process(0.1)
+	assert_float(hologram.turbine(1).rotation.y).is_equal_approx(from + full * 0.1, 1e-4)
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	assert_float(hologram.turbine_speed()).is_less(full)
+	assert_float(hologram.turbine_speed()).is_equal(full * ShipEngineHologram.SLOW_FACTOR)
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_view._process(0.0)
+	assert_float(hologram.turbine_speed()).is_equal(full)
+
+
+func test_every_site_station_is_a_point_with_a_line_and_all_points_look_alike() -> void:
+	_place()
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	for site: int in [GILLS, BOARD_EAST, BOARD_WEST, SOCKET]:
+		var point := hologram.point_of(site)
+		assert_object(point).override_failure_message("site %d" % site).is_not_null()
+		assert_object(_colour(point)).is_equal(ShipEngineViews.WHITE)
+		assert_object((point.mesh as BoxMesh).size).is_equal(
+			(hologram.point_of(SOCKET).mesh as BoxMesh).size
+		)
+		assert_object(_colour(hologram.line_of(site))).is_equal(ShipEngineHologram.LINE)
+	for other: int in [CONSOLE, FIRST_BREAKER, CHARGER]:
+		assert_object(hologram.point_of(other)).is_null()
+	# A point stands where the mimic board would put it, a little over it.
+	var centre := Vector3(0.0, 1.2, -0.4) + Vector3.UP * ShipEngineViews.HOLOGRAM_LIFT_M
+	var at := Vector3(1.5, 0.0, 2.8) * ShipEngineViews.MIMIC_SCALE
+	var lift := Vector3.UP * ShipEngineHologram.POINT_LIFT_M
+	assert_vector(hologram.point_of(SOCKET).position).is_equal_approx(
+		centre + at + lift, Vector3.ONE * 1e-4
+	)
+	# Its line runs from the point to the turbine on its side.
+	var line := hologram.line_of(SOCKET)
+	var to := hologram.turbine(1).position
+	assert_vector(line.position).is_equal_approx(
+		(hologram.point_of(SOCKET).position + to) / 2.0, Vector3.ONE * 1e-4
+	)
+	assert_float(line.basis.z.length()).is_equal_approx(
+		hologram.point_of(SOCKET).position.distance_to(to), 1e-4
+	)
+
+
+func test_a_held_station_blinks_red_and_its_line_goes_dark() -> void:
+	_place()
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	var step := Ticks.from_seconds(ShipEngineHologram.BLINK_FAST_SECONDS)
+	for at: int in [0, step - 1, step, 2 * step - 1, 2 * step]:
+		_now = at
+		_view._process(0.0)
+		@warning_ignore("integer_division")
+		var expected := ShipEngineViews.RED if (at / step) % 2 == 0 else ShipEngineViews.DARK
+		(
+			assert_object(_colour(hologram.point_of(SOCKET)))
+			. override_failure_message("tick %d" % at)
+			. is_equal(expected)
+		)
+		assert_object(_colour(hologram.line_of(SOCKET))).is_equal(ShipEngineViews.DARK)
+		assert_object(_colour(hologram.line_of(GILLS))).is_equal(ShipEngineHologram.LINE)
+		assert_object(_colour(hologram.point_of(GILLS))).is_equal(ShipEngineViews.WHITE)
+
+
+func test_a_fixed_station_s_line_flashes_back_and_a_blast_flashes_none() -> void:
+	_place()
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	var thin := hologram.line_of(SOCKET).basis.x.length()
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_view._process(0.1)
+	assert_object(_colour(hologram.line_of(SOCKET))).is_equal(ShipEngineViews.WHITE)
+	assert_float(hologram.line_of(SOCKET).basis.x.length()).is_equal_approx(
+		thin * ShipEngineHologram.FLASH_THICKER, 1e-4
+	)
+	assert_object(_colour(hologram.point_of(SOCKET))).is_equal(ShipEngineViews.WHITE)
+	_view._process(ShipEngineHologram.FLASH_SECONDS)
+	assert_object(_colour(hologram.line_of(SOCKET))).is_equal(ShipEngineHologram.LINE)
+	assert_float(hologram.line_of(SOCKET).basis.x.length()).is_equal_approx(thin, 1e-4)
+	# A blast takes the problem away unfixed: its line comes back with no flash.
+	_model.fold(&"EngineProblemOpened", _opened(2, [SOCKET], 900))
+	_view._process(0.0)
+	_model.fold(&"EngineBlast", {"stage": 1})
+	_view._process(0.0)
+	assert_object(_colour(hologram.line_of(SOCKET))).is_equal(ShipEngineHologram.LINE)
+
+
+func test_the_problem_that_blows_first_blinks_fastest() -> void:
+	_place()
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 900))
+	_model.fold(&"EngineProblemOpened", _opened(2, [GILLS], 600))
+	var fast := Ticks.from_seconds(ShipEngineHologram.BLINK_FAST_SECONDS)
+	var slow := Ticks.from_seconds(ShipEngineHologram.BLINK_SLOW_SECONDS)
+	assert_int(fast).is_less(slow)
+	_now = fast
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	assert_object(_colour(hologram.point_of(GILLS))).is_equal(ShipEngineViews.DARK)
+	assert_object(_colour(hologram.point_of(SOCKET))).is_equal(ShipEngineViews.RED)
+	_now = slow
+	_view._process(0.0)
+	assert_object(_colour(hologram.point_of(SOCKET))).is_equal(ShipEngineViews.DARK)
+	# Fixed the first, the other is the nearest and blinks fast.
+	_model.fold(&"EngineProblemFixed", {"problem": 2})
+	_now = fast
+	_view._process(0.0)
+	assert_object(_colour(hologram.point_of(SOCKET))).is_equal(ShipEngineViews.DARK)
+
+
+func test_the_countdown_shows_the_seconds_to_the_nearest_deadline() -> void:
+	_place()
+	_view._process(0.0)
+	var countdown := _view.hologram().countdown()
+	assert_bool(countdown.visible).is_false()
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 900))
+	_model.fold(&"EngineProblemOpened", _opened(2, [GILLS], 600))
+	_now = 100
+	_view._process(0.0)
+	assert_bool(countdown.visible).is_true()
+	assert_str(countdown.text).is_equal("25")
+	_now = 101
+	_view._process(0.0)
+	assert_str(countdown.text).is_equal("25")
+	_model.fold(&"EngineProblemFixed", {"problem": 2})
+	_view._process(0.0)
+	assert_str(countdown.text).is_equal("40")
+	_now = 1000
+	_view._process(0.0)
+	assert_str(countdown.text).is_equal("0")
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_view._process(0.0)
+	assert_bool(countdown.visible).is_false()
+
+
+func test_the_ring_round_the_disc_runs_with_the_strips_bar() -> void:
+	_place()
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	assert_int(hologram.ring_lit()).is_equal(0)
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 300, "needed": 600, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_int(hologram.ring_lit()).is_equal(ShipEngineHologram.RING_SEGMENTS / 2)
+	assert_bool(_view.strip_fill(2).visible).is_false()
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 600, "needed": 600, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_int(hologram.ring_lit()).is_equal(ShipEngineHologram.RING_SEGMENTS)
+	assert_int(ShipEngineHologram.ring_lit_for(0.999)).is_equal(
+		ShipEngineHologram.RING_SEGMENTS - 1
+	)
+
+
+func test_a_slit_opened_puffs_steam_and_all_five_open_leave_a_mist() -> void:
+	_place()
+	var level := _level()
+	var gills := level.get_child(0) as Node3D
+	(gills.get_node("Slit2") as Node3D).position = Vector3(1.0, 2.0, -4.0)
+	_view.level = level
+	_view._process(0.0)
+	_model.fold(&"EngineProblemOpened", _opened(1, [GILLS], 600))
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(0)
+	_model.fold(&"GillFlipped", {"station": GILLS, "slit": 1, "open": true})
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(1)
+	assert_vector(_view.steam()[0].global_position).is_equal_approx(
+		Vector3(1.0, 2.0, -4.0), Vector3.ONE * 1e-4
+	)
+	# Half-way through its life the puff has risen half its rise and swelled.
+	_view._process(ShipEngineViews.STEAM_SECONDS / 2.0)
+	assert_float(_view.steam()[0].global_position.y).is_equal_approx(
+		2.0 + ShipEngineViews.STEAM_RISE_M / 2.0, 1e-4
+	)
+	assert_float(_view.steam()[0].scale.x).is_greater(0.1)
+	_view._process(ShipEngineViews.STEAM_SECONDS)
+	assert_int(_view.steam().size()).is_equal(0)
+	# Shut again: no puff.
+	_model.fold(&"GillFlipped", {"station": GILLS, "slit": 1, "open": false})
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(0)
+	for slit in 4:
+		_model.fold(&"GillFlipped", {"station": GILLS, "slit": slit, "open": true})
+		_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(4)
+	assert_int(_view.mist().size()).is_equal(0)
+	# The fifth opens the last slit and fixes it in one frame: its puff and the mist.
+	_model.fold(&"GillFlipped", {"station": GILLS, "slit": 4, "open": true})
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(5)
+	assert_int(_view.mist().size()).is_equal(1)
+	# The cloud stands at the middle of the five slits, not at the gill set's own place.
+	var middle := Vector3.ZERO
+	for slit in range(1, 6):
+		middle += (gills.get_node("Slit%d" % slit) as Node3D).global_position / 5.0
+	assert_vector(_view.mist()[0].global_position).is_equal_approx(middle, Vector3.ONE * 1e-4)
+	assert_float(middle.distance_to(gills.global_position)).is_greater(0.1)
+	_view._process(ShipEngineViews.MIST_SECONDS)
+	assert_int(_view.steam().size()).is_equal(0)
+	assert_int(_view.mist().size()).is_equal(0)
+	# The vapour is none of the blast's sphere.
+	assert_object(_blast()).is_null()
+
+
+func test_a_view_built_again_or_a_blast_plays_no_steam_or_mist() -> void:
+	_place()
+	var level := _level()
+	_view.level = level
+	_model.fold(&"EngineProblemOpened", _opened(1, [GILLS], 600))
+	_view._process(0.0)
+	for slit in 2:
+		_model.fold(&"GillFlipped", {"station": GILLS, "slit": slit, "open": true})
+	# Built again (a new level) with two slits open and the problem holding: no puff replays.
+	_view.level = level
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(0)
+	for slit in range(2, 5):
+		_model.fold(&"GillFlipped", {"station": GILLS, "slit": slit, "open": true})
+	# Built again after the last slits opened and the fix: no puff and no mist.
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_view.level = level
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(0)
+	assert_int(_view.mist().size()).is_equal(0)
+	# A blast takes an all-open problem away unfixed: no mist.
+	_model.fold(&"EngineProblemOpened", _opened(2, [GILLS], 900))
+	_view._process(0.0)
+	for slit in 5:
+		_model.fold(&"GillFlipped", {"station": GILLS, "slit": slit, "open": true})
+	_model.fold(&"EngineBlast", {"stage": 1})
+	_view._process(0.0)
+	assert_int(_view.steam().size()).is_equal(0)
+	assert_int(_view.mist().size()).is_equal(0)
+
+
+func _colour(part: MeshInstance3D) -> Color:
+	return ShipEngineViews.colour_of(part)
 
 
 func _place() -> void:

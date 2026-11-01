@@ -19,6 +19,12 @@ extends Node3D
 ## - the level's gill sets (group `engine_gills`, each bound to the nearest gill button within
 ##   BIND_TOLERANCE_M): a slit shows `Open` or `Shut` (all open with no problem), and the white bar
 ##   `Light<n>` over the slit GillsProblem.BAR puts it at from the problem's opening tick;
+## - at a gill set, a puff of steam at each slit a press opens while a problem holds it, and a
+##   cloud of mist over the five when all five open fix it (GDD §8; edges seen frame to frame,
+##   seeded when the set is first bound, so a view built again plays none; a blast plays none);
+## - the hologram made readable (ShipEngineHologram, #1500): the call while the engine is off, the
+##   turbines' spin, the ring of the bar round its disc, a point and a line of light per site
+##   station and the countdown to the nearest problem's deadline;
 ## - a blast: an orange sphere swelling from the console and fading (EngineBlast).
 ## Every part is depth-tested and tells only public places and states; none names a player. The
 ## looks and sizes are placeholders, "not a decision".
@@ -50,6 +56,14 @@ const GREEN := Color(0.2, 0.9, 0.3)
 const WHITE := Color(0.95, 0.95, 0.95)
 const CYAN := Color(0.2, 0.9, 0.95)
 const BLAST := Color(1.0, 0.55, 0.15, 0.45)
+## A puff of steam at a slit: its seconds, its largest radius and how far it rises.
+const STEAM_SECONDS := 0.8
+const STEAM_RADIUS_M := 0.25
+const STEAM_RISE_M := 0.5
+## The cloud of mist over a gill set: its seconds and its largest radius.
+const MIST_SECONDS := 3.0
+const MIST_RADIUS_M := 1.2
+const VAPOUR := Color(0.92, 0.95, 1.0, 0.6)
 
 var model: ClientModel
 ## The client's own copy of the mode: the engine's kinds and timings.
@@ -80,6 +94,33 @@ var _blast: MeshInstance3D
 var _blast_left := 0.0
 var _blasts_seen := 0
 var _materials: Dictionary[Color, StandardMaterial3D] = {}
+var _hologram: ShipEngineHologram
+## The gills' puffs and clouds, under one node of their own, each with its seconds left.
+var _vapour: Node3D
+var _steam: Dictionary[MeshInstance3D, float] = {}
+var _mist: Dictionary[MeshInstance3D, float] = {}
+## Per bound gill button's station: its open slits and whether a problem held it last frame.
+var _was_open: Dictionary[int, int] = {}
+var _was_held: Dictionary[int, bool] = {}
+
+
+## The hologram made readable, or null before the console is placed.
+func hologram() -> ShipEngineHologram:
+	return _hologram
+
+
+## The puffs of steam showing now.
+func steam() -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	found.assign(_steam.keys())
+	return found
+
+
+## The clouds of mist showing now.
+func mist() -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	found.assign(_mist.keys())
+	return found
 
 
 ## The lamp drawn over station `id` (an alarm, a breaker's or a charger's), or null.
@@ -116,6 +157,12 @@ func clear() -> void:
 	_blast = null
 	_blast_left = 0.0
 	_blasts_seen = 0
+	_hologram = null
+	_vapour = null
+	_steam.clear()
+	_mist.clear()
+	_was_open.clear()
+	_was_held.clear()
 	for gills: Node3D in _gills:
 		_gills[gills] = -1
 
@@ -133,9 +180,13 @@ func _process(delta: float) -> void:
 	if _console < 0:
 		return
 	var now := _now()
-	_draw_strips(type, now)
+	# A blast this frame took its problems away: nothing of them was fixed.
+	var blasted := model.engine.blasts != _blasts_seen
+	var share := _draw_strips(type, now)
+	_hologram.update(now, share, delta, blasted)
 	_draw_lamps(type, now)
-	_draw_gills(type, now)
+	_draw_gills(type, now, blasted)
+	_draw_vapour(delta)
 	_draw_blast(delta)
 
 
@@ -172,9 +223,12 @@ func _ids_of(kind: StationKind) -> Array[int]:
 func _build(type: ShipEngine) -> void:
 	var centre := _hologram_centre()
 	_build_strips(_stages(type))
+	var sites: Array[int] = []
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
 			_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
+			if not sites.has(site):
+				sites.append(site)
 		for fixture: StationKind in kind.fixtures:
 			for id: int in _ids_of(fixture):
 				_lamps[id] = _box(Vector3.ONE * LAMP_M, DARK, model.stations[id].position)
@@ -183,6 +237,11 @@ func _build(type: ShipEngine) -> void:
 					var lamp := _box(Vector3.ONE * MIMIC_LAMP_M, DARK)
 					lamp.position = centre + Vector3(at.x, 0.0, at.z) * MIMIC_SCALE
 					_mimic[id] = lamp
+	_hologram = ShipEngineHologram.new()
+	add_child(_hologram)
+	_hologram.setup(model, _console, centre, sites)
+	_vapour = Node3D.new()
+	add_child(_vapour)
 	_blasts_seen = model.engine.blasts
 
 
@@ -250,7 +309,8 @@ func _material(colour: Color) -> StandardMaterial3D:
 	return _materials[colour]
 
 
-func _draw_strips(type: ShipEngine, now: int) -> void:
+## Fills the strips with the bar at host tick `now` and gives its share (0 to 1).
+func _draw_strips(type: ShipEngine, now: int) -> float:
 	if _stages(type) != _fills.size():
 		_build_strips(_stages(type))
 	var console: ClientModel.Station = model.stations.get(_console)
@@ -262,6 +322,7 @@ func _draw_strips(type: ShipEngine, now: int) -> void:
 		# Grown from the strip's left end (the fill's scale 0 is singular).
 		_fills[i].scale = Vector3(maxf(part, 0.001), 1.0, 1.0)
 		_fills[i].position = _strip_at[i] + Vector3.LEFT * STRIP_LENGTH_M * (1.0 - part) / 2.0
+	return share
 
 
 func _draw_lamps(type: ShipEngine, now: int) -> void:
@@ -316,7 +377,7 @@ func _light(lamp: MeshInstance3D, colour: Color) -> void:
 	lamp.material_override = _material(colour)
 
 
-func _draw_gills(type: ShipEngine, now: int) -> void:
+func _draw_gills(type: ShipEngine, now: int, blasted: bool) -> void:
 	var gills_kind: GillsProblem = null
 	for kind: ProblemKind in type.kinds:
 		if kind is GillsProblem:
@@ -345,6 +406,81 @@ func _draw_gills(type: ShipEngine, now: int) -> void:
 			_show(gills, "Slit%d/Open" % (slit + 1), shown_open)
 			_show(gills, "Slit%d/Shut" % (slit + 1), not shown_open)
 			_show(gills, "Light%d" % (slit + 1), slit == bar)
+		if station >= 0:
+			_puff_gills(gills, station, problem != null, open, blasted)
+
+
+## The steam and the mist of gill set `gills` (its button's station `station`), from the change
+## since the last frame: a slit newly open while a problem held the set puffs; the problem gone with
+## all five open (fixed, not blasted) leaves a cloud. The first look at a set only remembers it.
+func _puff_gills(gills: Node3D, station: int, held: bool, open: int, blasted: bool) -> void:
+	if _was_open.has(station) and not blasted:
+		var was_held := _was_held[station]
+		if held or was_held:
+			var opened := open & ~_was_open[station]
+			for slit: int in GillsProblem.SLITS:
+				if (opened & (1 << slit)) != 0:
+					var cut := gills.get_node_or_null("Slit%d" % (slit + 1)) as Node3D
+					_steam[_vapour_at(cut if cut != null else gills)] = STEAM_SECONDS
+		if was_held and not held and open == GillsProblem.ALL_OPEN:
+			_mist[_vapour_at(gills, _slits_middle(gills))] = MIST_SECONDS
+	_was_open[station] = open
+	_was_held[station] = held
+
+
+## The middle of gill set `gills`' slits, else the set's own place.
+func _slits_middle(gills: Node3D) -> Vector3:
+	var sum := Vector3.ZERO
+	var count := 0
+	for slit: int in GillsProblem.SLITS:
+		var cut := gills.get_node_or_null("Slit%d" % (slit + 1)) as Node3D
+		if cut != null:
+			sum += cut.global_position
+			count += 1
+	return sum / count if count > 0 else gills.global_position
+
+
+## A puff or a cloud at `at` (else at `over`'s place), with a material of its own to fade.
+func _vapour_at(over: Node3D, at := Vector3.INF) -> MeshInstance3D:
+	var look := StandardMaterial3D.new()
+	look.albedo_color = VAPOUR
+	look.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	look.cull_mode = BaseMaterial3D.CULL_DISABLED
+	look.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var part := MeshInstance3D.new()
+	part.mesh = SphereMesh.new()
+	part.material_override = look
+	_vapour.add_child(part)
+	part.global_position = at if at != Vector3.INF else over.global_position
+	part.scale = Vector3.ONE * 0.001
+	return part
+
+
+## Each puff swells, rises and fades over STEAM_SECONDS, each cloud over MIST_SECONDS; then freed.
+func _draw_vapour(delta: float) -> void:
+	for part: MeshInstance3D in _steam.keys():
+		_steam[part] -= delta
+		_fade(
+			part, _steam[part], STEAM_SECONDS, STEAM_RADIUS_M, STEAM_RISE_M * delta / STEAM_SECONDS
+		)
+		if _steam[part] <= 0.0:
+			_steam.erase(part)
+	for part: MeshInstance3D in _mist.keys():
+		_mist[part] -= delta
+		_fade(part, _mist[part], MIST_SECONDS, MIST_RADIUS_M, 0.0)
+		if _mist[part] <= 0.0:
+			_mist.erase(part)
+
+
+func _fade(part: MeshInstance3D, left: float, seconds: float, radius: float, rise: float) -> void:
+	if left <= 0.0:
+		part.queue_free()
+		return
+	var grown := 1.0 - left / seconds
+	part.scale = Vector3.ONE * maxf(0.001, sqrt(grown) * radius * 2.0)
+	part.position.y += rise
+	var look := part.material_override as StandardMaterial3D
+	look.albedo_color = Color(VAPOUR, VAPOUR.a * left / seconds)
 
 
 func _bind_gills(gills: Node3D, kind: GillsProblem) -> int:

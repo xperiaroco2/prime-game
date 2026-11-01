@@ -8945,7 +8945,16 @@ plays it on the estate (#1462, "The estate and the content" below).
   holds; a lamp over each breaker (red, then yellow and green for the last one on, never the order) and charger
   (yellow charging, green a crystal waiting); each gill set's slits open or shut and the white bar from the opening
   tick (the view's own copy of `GillsProblem.bar_slit`'s steps, held equal to it tick by tick by
-  `ship_engine_views_test.gd`); and the blast (once per `EngineBlast`; a view built again plays none), an orange sphere from the console. `ShipEngineClient` never offers E
+  `ship_engine_views_test.gd`); at each gill set a puff of steam per slit a press opens while a problem holds it and a
+  cloud of mist when all five open fix it (edges seen frame to frame, none on a blast); and the blast (once per
+  `EngineBlast`; a view built again plays none of these), an orange sphere from the console. Its child
+  `ShipEngineHologram` (#1500, GDD §8 "The spin-up, made readable") draws round the hologram's centre the call while
+  the engine is off (never pressed, its bar empty and still, no problem open: two stand-in turbines pulse orange with
+  the host tick and the start button glows; the beep is #1501's), the turbines spinning once started and slower while
+  a problem is open, a ring of segments round its disc filled by the strips' bar, a point (one look for every kind)
+  and a line of light to the nearer turbine per site station at the mimic board's scale (blinking red with its line
+  dark while a problem holds it, the one that blows first fastest; fixed, the line flashes back; a blast flashes
+  none) and a countdown, digits only, to the nearest problem's deadline. `ShipEngineClient` never offers E
   on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
 
@@ -8976,7 +8985,9 @@ its §5a device, on the deck and clear, each gill set by a gill button, the holo
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
-slits and bar, the blast, no board offered); the playcheck `ship_engine` (the walk to the console and its hologram,
+slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
+turbines' spin, the points and lines, the blink and the flash, the nearest blinking fastest, the countdown, the ring,
+the steam and the mist and none replayed or blasted); the playcheck `ship_engine` (the walk to the console and its hologram,
 the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast).
 
 #### 9.5.28 The pinball (lobby, #1398, #1399; provisional numbers)
