@@ -31,6 +31,8 @@ const PULSE_SECONDS := 1.5
 const BUTTON := Vector3(0.12, 0.04, 0.12)
 const BUTTON_DROP_M := 0.5
 const BUTTON_TOWARD_M := 0.3
+## The shortest horizontal gap to the use spot that still gives the button a direction.
+const BUTTON_DIRECTION_MIN_M := 0.01
 ## The central disc and the ring of the bar round it.
 const DISC_RADIUS_M := 0.8
 const RING_RADIUS_M := 0.9
@@ -90,7 +92,10 @@ func setup(model: ClientModel, console: int, centre: Vector3, sites: Array[int])
 		blade.position = centre + Vector3(side * TURBINE_OFFSET_M, POINT_LIFT_M, 0.0)
 		_turbines.append(blade)
 	var toward := Vector3(spot.x - centre.x, 0.0, spot.z - centre.z)
-	toward = toward.normalized() * BUTTON_TOWARD_M if toward.length() > LINE_MIN_M else Vector3.ZERO
+	if toward.length() > BUTTON_DIRECTION_MIN_M:
+		toward = toward.normalized() * BUTTON_TOWARD_M
+	else:
+		toward = Vector3.ZERO
 	_button = _box(BUTTON, ORANGE)
 	_button.position = centre + Vector3.DOWN * BUTTON_DROP_M + toward
 	_build_disc()
