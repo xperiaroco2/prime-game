@@ -102,6 +102,35 @@ func test_another_players_items_hang_at_its_attach_points() -> void:
 	assert_bool(_items.view_of(1).is_look_shown()).is_true()
 
 
+func test_a_crystal_in_a_charger_is_the_charger_s_to_draw_until_it_is_taken() -> void:
+	# #1556: the host locks a loaded crystal at the charger and sends no ItemPlaced, so the
+	# CrystalChanged naming the charger takes it out of the loader's hand; the charger's look draws
+	# it, no item view (else it showed twice, once still at the loader's hand).
+	_station(30, Color.WHITE, Vector3(4, 0, 0))
+	_other_at(Vector3(-3, 0, 0))
+	_spawn(1, &"crystal_spent", Vector3.ZERO)
+	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
+	await _drawn()
+	assert_bool(_items.view_of(1).is_look_shown()).is_true()
+	var loaded := {"station": 20, "charger": 30, "phase": CrystalProblem.LOADED}
+	loaded.merge({"item": 1, "tick": -1})
+	_model.fold(&"CrystalChanged", loaded)
+	await _drawn()
+	assert_int(_model.hand_item(OTHER)).is_equal(-1)
+	assert_int(_model.items[1].holder).is_equal(ClientModel.NO_HOLDER)
+	assert_bool(_model.items[1].locked).is_true()
+	assert_that(_model.items[1].position).is_equal(Vector3(4, 0, 0))
+	assert_bool(_items.view_of(1).is_look_shown()).is_false()
+	var taken := {"station": 20, "charger": -1, "phase": CrystalProblem.EMPTY}
+	taken.merge({"item": 1, "tick": -1})
+	_model.fold(&"CrystalChanged", taken)
+	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
+	await _drawn()
+	assert_int(_model.hand_item(OTHER)).is_equal(1)
+	assert_bool(_model.items[1].locked).is_false()
+	assert_bool(_items.view_of(1).is_look_shown()).is_true()
+
+
 func test_an_item_of_a_player_with_no_body_drawn_is_hidden() -> void:
 	_spawn(1, &"knife", Vector3.ZERO)
 	_model.fold(&"ItemPickedUp", {"peer": 7, "item": 1})

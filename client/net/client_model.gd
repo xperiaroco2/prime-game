@@ -401,7 +401,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 	var phase_before := phase
 	var living_before := life_of(own_peer) == Life.ALIVE
 	_fold_event(event_name, fields)
-	engine.fold(event_name, fields)
+	engine.fold(event_name, fields, self)
 	pinball.fold(event_name, fields)
 	if phase != phase_before or (living_before and life_of(own_peer) != Life.ALIVE):
 		silencings += 1
