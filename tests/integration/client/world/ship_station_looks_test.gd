@@ -197,6 +197,18 @@ func test_the_nearest_deadline_blinks_fast_and_a_later_one_slow() -> void:
 	assert_float(console.station_blink("breaker_e")).is_equal_approx(fast, 1e-5)
 
 
+func test_the_stand_in_strips_give_way_only_to_three_stages() -> void:
+	# The art console has three strips: any other stage count draws the game's strips again.
+	var engine: ShipEngine = ShipEngineClient.types_of(_mode)[0]
+	for total: int in [4, 2, 3]:
+		_model.fold(&"TaskState", {"task": 9, "type": engine.id, "done": 0, "total": total})
+		_view._process(0.0)
+		var strips := 0 if total == ShipConsoleLook.STRIPS else total
+		if strips > 0:
+			assert_object(_view.strip_fill(strips - 1)).is_not_null()
+		assert_object(_view.strip_fill(strips)).override_failure_message(str(total)).is_null()
+
+
 func test_the_shells_trip_and_the_last_on_ramps_yellow_under_the_beacon() -> void:
 	var looks := _view.station_looks()
 	var east := looks.board_of(BOARD_EAST)
