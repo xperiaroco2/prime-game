@@ -6,8 +6,10 @@ extends RefCounted
 ## names, its soft cyan glow, and the moving parts: the carrier (up RISE and round its Y axis), the
 ## track ring (round its Y axis) and the button (pressed TRAVEL in). The states: "idle", "charging",
 ## "charged". The crystal (a ShipCrystalLook, #1556) sits on the carrier's `crystal_anchor` with the
-## package's softer seated light, shown and charged by set_crystal(). Values only: ShipStationLooks
-## drives them from the filtered model. Left out: the render layer 20 the art gives the meshes
+## package's softer seated light, shown and charged by set_crystal(); the lightning into it (a
+## ShipChargerZap under the root, zap(), #1556) is stepped by its caller. Values only:
+## ShipStationLooks drives them from the filtered model. Left out: the render layer 20 the art gives
+## the meshes
 ## (PhotoLayers.PHOTO here, which every live camera skips); the crystal's own light skips the
 ## meshes' layer instead (ShipCrystalLook.seat).
 
@@ -16,6 +18,8 @@ const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 ## The carrier's travel up and the button's in, metres.
 const RISE := 0.06
 const TRAVEL := 0.01
+## The lightning's generator seed (the art's); ShipStationLooks adds the station id.
+const ZAP_SEED := 263
 const CYAN := Color(0.0, 0.45, 1.0)
 const AMBER := Color(1.0, 0.42, 0.0)
 ## Per state: the cyan's, the amber's and the lens's energy, and the glow light's.
@@ -53,11 +57,12 @@ var _turn := 0.0
 var _ring_turn := 0.0
 var _pressed := false
 var _crystal: ShipCrystalLook
+var _zap: ShipChargerZap
 
 
 ## Puts the charger's materials on every surface under `root`; null when it has no carrier (not a
 ## charger).
-static func apply(root: Node3D) -> ShipChargerLook:
+static func apply(root: Node3D, zap_seed := ZAP_SEED) -> ShipChargerLook:
 	var look := ShipChargerLook.new()
 	look._carrier = root.find_child("carrier", true, false) as Node3D
 	if look._carrier == null:
@@ -93,6 +98,8 @@ static func apply(root: Node3D) -> ShipChargerLook:
 		if look._crystal != null:
 			look._crystal.seat(anchor, true)
 			look._crystal.set_shown(false)
+			if look._ring != null:
+				look._zap = ShipChargerZap.bind(root, look._ring, look._crystal.node(), zap_seed)
 	look.set_state("idle")
 	return look
 
@@ -109,6 +116,11 @@ func set_crystal(shown: bool, charge: float) -> void:
 ## The crystal's look, or null with no crystal model.
 func crystal() -> ShipCrystalLook:
 	return _crystal
+
+
+## The lightning into the crystal (ShipChargerZap), or null with no crystal model or ring.
+func zap() -> ShipChargerZap:
+	return _zap
 
 
 ## "idle" (no crystal or not charging), "charging" or "charged"; out of "charging" the carrier
