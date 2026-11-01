@@ -43,7 +43,7 @@ const HINT_MARGIN_S := 1.0 / Ticks.RATE + 1.0 / 60.0
 const STATION_AIM_RADIUS_M := 0.4
 const STATION_AIM_LIFT_M := 0.4
 ## Float noise under a station's floor the feet may stand at, as the host's AtStation allows.
-const FLOOR_SLACK_M := 0.001
+const FLOOR_SLACK_M := 0.005
 
 
 ## What the crosshair names: an item, a station, or nothing; `t` how far along the ray.
