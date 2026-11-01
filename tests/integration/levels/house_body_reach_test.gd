@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 ## by the level, with no rule in core/. In the host's world of the House (LevelWorld and
 ## HostWorldQuery, as house_knife_launch_test.gd builds them, and HostBodies), with the base mode's
 ## own data: every Strike of its item kinds that launches, the raise rule's TargetInReach, the
-## PlayerRules' capsule, step and crouched eye.
+## PlayerRules' capsule, step and crouched eye. Played on the melee fixture
+## (FixtureBaseModeWithMelee: the shipped base mode with its Round's strike and knives, which the
+## M8 slice took out of the shipped match, #1497), so a knockdown still launches a body there.
 ##
 ## The spots a player can walk to: the floors of the House's pieces WALKABLE names (their walked
 ## colliders (_walked): the art's floor, slab and stair pieces of a room's Shell, the plot's Ground,
@@ -25,7 +27,6 @@ extends GdUnitTestSuite
 ## and its point: the House's layout is the humans' to change (#850), never a rule in core/.
 
 const HouseThrows := preload("res://tests/integration/levels/house_throws.gd")
-const BASE_MODE := "res://content/modes/base_mode.tres"
 const HOUSE := "res://levels/house/house.tscn"
 ## The House's pieces (house.tscn: a floor group, then the piece) whose floors players walk: the
 ## yard and the street, the rooms, the terrace, the balcony, the stairs, the basement and the attic.
@@ -145,7 +146,7 @@ var _pieces_in_scene: Array[String] = []
 
 
 func before() -> void:
-	_mode = load(BASE_MODE) as GameMode
+	_mode = FixtureBaseModeWithMelee.mode()
 	_rules = _mode.player_rules
 	_world = HostWorldQuery.new(_rules.capsule_radius_m, _rules.crouch_height_m)
 	for path: String in MarkerReader.level_paths_of(_mode):
@@ -553,8 +554,9 @@ func _open(spot: Vector3) -> bool:
 	return true
 
 
-## A base-mode match on the House in the host's world, its ten peers joined, readied and loaded
-## into the round (house_knife_launch_test.gd's _house_round).
+## A melee fixture match (the base mode with the Round's strike) on the House in the host's
+## world, its ten peers joined, readied and loaded into the round (house_knife_launch_test.gd's
+## _house_round).
 func _round() -> void:
 	_game = Match.new(_mode, 7, _world, _layouts)
 	assert_array(Array(_game.refusals)).is_empty()

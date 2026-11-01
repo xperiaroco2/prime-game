@@ -8,7 +8,9 @@ extends GdUnitTestSuite
 ## event, ZoneProgress among them, reaches every present player and no one else; no seed, no
 ## return key, the voice and the snapshots). The match is FixtureBaseModeWithZones (the base mode
 ## with the zone task) on the House, set up as a scenario's setup would be: forced roles, then
-## ChangeSettings with its settings and the map.
+## ChangeSettings with its settings and the map. The knockdown's match is an own copy of it whose
+## Round takes Use (FixtureBaseModeWithMelee.round_takes_use: the M8 slice took the strike out of
+## the shipped Round, #1497).
 ## - Every zone and every package: a crew member delivers the package, another fills the zone, and
 ##   the crew wins on the second subtask.
 ## - A dissident alone fills the zone (ZD3: anyone living counts, whatever the role): the crew wins.
@@ -72,7 +74,7 @@ func test_a_dissident_alone_fills_the_zone_and_the_crew_wins() -> void:
 
 
 func test_a_knockdown_pauses_the_zone_until_the_raise() -> void:
-	_start({&"tasks": 1}, {&"banned_task_types": PackedStringArray(["delivery"])})
+	_start({&"tasks": 1}, {&"banned_task_types": PackedStringArray(["delivery"])}, true)
 	var dissident := _peer(DISSIDENT)
 	var downed := _peer(CREW)
 	var raiser := _peer(OTHER_CREW)
@@ -137,12 +139,19 @@ func test_a_knockdown_pauses_the_zone_until_the_raise() -> void:
 ## Starts the match on the House in the host's world with BOTS players (bot 1 the dissident, the
 ## rest crew), sends the scenario setup's ForceRoles and ChangeSettings (its `settings` and
 ## `id_sets`, and the House) and plays it into the round. Every call is checked.
+## `melee`: on an own copy of the zone fixture whose Round takes Use, as the shipped one did
+## before #1497.
 func _start(
-	settings: Dictionary[StringName, int], id_sets: Dictionary[StringName, PackedStringArray]
+	settings: Dictionary[StringName, int],
+	id_sets: Dictionary[StringName, PackedStringArray],
+	melee := false,
 ) -> void:
 	_problems = PackedStringArray()
 	_seqs = {}
 	var mode := FixtureBaseModeWithZones.mode()
+	if melee:
+		mode = FixtureBaseModeWithZones.new()
+		FixtureBaseModeWithMelee.round_takes_use(mode)
 	var scenario := BotScenario.new()
 	scenario.mode = mode
 	scenario.session_seed = SEED

@@ -7,9 +7,9 @@ extends RefCounted
 ## and one further out on its own spoke, so the bots cross and every snapshot moves; then it waits
 ## for the end. The round lasts the run's seconds (`clock_s`, ForceClock, a debug command) and ends
 ## by time up, which the base mode's win conditions give to the dissidents: nobody delivers a
-## package or swings a knife. It deals the default draw, Delivery alone: the zone task plays on the
-## House alone (TaskType.maps, the Generator ADR's GD13 (b), #804), so the run measures no
-## ZoneProgress since (the zone task over the wire:
+## package, and its Round takes no strike (the M8 slice, #1497). It deals the default draw,
+## Delivery alone: the zone task plays on the House alone (TaskType.maps, the Generator ADR's
+## GD13 (b), #804), so the run measures no ZoneProgress since (the zone task over the wire:
 ## tests/integration/server/host_session_zone_test.gd).
 
 const MODE := "res://content/modes/base_mode.tres"

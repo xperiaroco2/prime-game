@@ -2,7 +2,9 @@ extends GdUnitTestSuite
 ## The base mode's knife launch on its maps (728e, #849; the knockdown rework's KD10 (A), KD11,
 ## KE1 (b), KE12, §9), in the host's world of each map (LevelWorld and HostWorldQuery, as
 ## house_markers_test.gd builds them, and HostBodies), since bots play the House only on a flat
-## fake floor (ARCHITECTURE §9.7). A match of content/modes/base_mode.tres itself, its knife
+## fake floor (ARCHITECTURE §9.7). A match of content/modes/base_mode.tres's own data in the melee
+## fixture (FixtureBaseModeWithMelee: the shipped mode with the Round's strike and knives, which
+## the M8 slice took out of the shipped match, #1497), its knife
 ## (content/items/knife.tres: launch_mps and launch_up_mps, placeholders "not a decision") and its
 ## PlayerRules (the crouching capsule, the rest, the longest motion), with the host's loop written
 ## out as host_bodies_test.gd writes it: three physics frames per host tick, the bodies' reports at
@@ -20,7 +22,6 @@ extends GdUnitTestSuite
 ## knockdown there is today's, its events step for step those of a knife with no launch.
 
 const HouseThrows := preload("res://tests/integration/levels/house_throws.gd")
-const BASE_MODE := "res://content/modes/base_mode.tres"
 const HOUSE := "res://levels/house/house.tscn"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 ## 60 physics frames a second, 20 host ticks.
@@ -51,7 +52,7 @@ var _launch_up_mps := 0.0
 
 
 func before() -> void:
-	_mode = load(BASE_MODE) as GameMode
+	_mode = FixtureBaseModeWithMelee.mode()
 	_rules = _mode.player_rules
 	_strike = _mode.find_item_kind(&"knife").actions[0].effects[0] as Strike
 	_launch_mps = _strike.launch_mps
