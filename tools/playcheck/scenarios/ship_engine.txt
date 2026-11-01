@@ -12,7 +12,8 @@
 # every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
 # both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); east of the console, on the
 # walk "ship, hall to the east lens room".
-# Each step back lasts until the HUD no longer names the station (#1530): a count of frames walks
+# Each step back lasts until the HUD no longer names the station, then `seconds 0.3` (#1530): a
+# count of frames walks
 # a distance that depends on the frame rate (40 frames were 6 m at 7 fps, 0.2 m at 190).
 players 1
 windows 1
@@ -39,7 +40,7 @@ release move_forward
 # A step back, still facing the console, so the hologram over it is in the shot.
 hold move_back
 wait text hud.aim lacks Engine console timeout=30
-frames 20
+seconds 0.3
 release move_back
 frames 30
 shot console
@@ -52,7 +53,7 @@ wait text hud.aim has Gill button timeout=30
 release move_forward
 hold move_back
 wait text hud.aim lacks Gill button timeout=30
-frames 20
+seconds 0.3
 release move_back
 frames 30
 aim off
@@ -68,7 +69,7 @@ wait text hud.aim has Breaker timeout=30
 release move_forward
 hold move_back
 wait text hud.aim lacks Breaker timeout=30
-frames 20
+seconds 0.3
 release move_back
 frames 30
 shot breakers
@@ -84,7 +85,7 @@ wait event EngineProblemOpened timeout=60
 aim station engine_console
 hold move_back
 wait text hud.aim lacks Engine console timeout=30
-frames 20
+seconds 0.3
 release move_back
 frames 30
 shot problem_open
