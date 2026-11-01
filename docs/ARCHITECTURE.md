@@ -9159,7 +9159,12 @@ plays it on the estate (#1462, "The estate and the content" below).
   #1451), its sky, suns and clearing saved hidden (the clearing's ground off layer 1) and freed on the client by
   `ship.gd` (`art_free`); `Hull` holds the game's trimesh colliders of the art's skin
   (`ship_hull/skin_{top,belly}_col.tres`, written by `tests/fixtures/ship_hull_colliders.gd`: the package's skin has no
-  `-col` hint), backfaced so nothing thrown inside leaves through the roof. The art's grated and inlaid floors stand on
+  `-col` hint), backfaced so nothing thrown inside leaves through the roof, and six invisible `EdgeFence` boxes
+  (#1543), 0.1 m thick and 2 to 3 m over the ground, their outer face on the six diagonal wing edges (front, nose and
+  rear, on both sides; a fence's flat bottom at 2 m hangs up to 0.8 m below the visible edge near its 3 m end and
+  stands up to 0.8 m over the skin near its 2.2 m end): an item thrown from the ground rested on a wing's edge (2.2 to 3 m up) out of every player's
+  reach, and a throw's arc from the ground tops out under 3 m less an item's radius, so an item meets a fence's face
+  and drops in front of the wing (the host never slides an item). The art's grated and inlaid floors stand on
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
   by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
@@ -9428,7 +9433,8 @@ levels/
   "not a decision". Each lot
   with a footprint carries its room record, centred (§4.7.33). No throw at the base mode's numbers rests on a top no
   player stands on (the outbuildings', the gazebo's, the ship's, the fallen trunk's, raised to 3.2 m for it): the
-  throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd). Every other flat box top outside the House's
+  throwing ADR's TD5 (a), as House's roof (estate_roof_throw_test.gd), nor on the art ship's skin under open sky (its
+  wing edges fenced, estate_ship_wing_throw_test.gd). Every other flat box top outside the House's
   lot is a floor, a step, in reach or over every throw (estate_tops_reach_test.gd), so the fence stands 1.8 m, the
   creek's banks 3.5 m, the gate's posts 3.2 m, the ship's tunnel walls 4.4 m (its throat's) and the bonfire's camera
   post collides up to 3.3 m, over its camera. §5b's hidden passages are box corridors in the map-wide `Passages`
@@ -9455,7 +9461,10 @@ levels/
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
   `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped),
   `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27),
-  `tests/integration/levels/estate_ship_test.gd` (the art ship piece, #1499); the
+  `tests/integration/levels/estate_ship_test.gd` (the art ship piece, #1499),
+  `tests/integration/levels/estate_ship_wing_throw_test.gd` (#1543: every throw round and under the ship that rests
+  on its skin under open sky rests in reach of a player's feet; red without the wing edge fences and on a 2.4 m probe
+  ledge; the rests inside the hull are #1551's); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a

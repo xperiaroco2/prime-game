@@ -51,6 +51,15 @@ size = Vector3(0.08, 0.74, 0.01)
 material = ExtResource("5_white")
 size = Vector3(0.12, 0.014, 0.01)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_edge_front"]
+size = Vector3(8.4, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_edge_nose"]
+size = Vector3(3.8, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_edge_rear"]
+size = Vector3(12.2, 1, 0.1)
+
 [node name="Ship" type="Node3D" unique_id=777999643]
 script = ExtResource("1_shipgd")
 art_free = Array[NodePath]([NodePath("Art/Environment"), NodePath("Art/Lights/@DirectionalLight3D@3"), NodePath("Art/Lights/@DirectionalLight3D@4"), NodePath("Art/Clearing")])
@@ -82,13 +91,37 @@ visible = false
 collision_layer = 0
 
 [node name="Hull" type="StaticBody3D" parent="." unique_id=1499000101]
-metadata/made_from = "the art ship's skin_top and skin_belly meshes (no -col hints in the package): tests/fixtures/ship_hull_colliders.gd"
+metadata/made_from = "the art ship's skin_top and skin_belly meshes (no -col hints in the package): tests/fixtures/ship_hull_colliders.gd; the EdgeFence boxes on the low wing edges by hand (#1543: no throw from the ground rests on a wing edge out of reach)"
 
 [node name="SkinTop" type="CollisionShape3D" parent="Hull" unique_id=1499000102]
 shape = ExtResource("6_skintop")
 
 [node name="SkinBelly" type="CollisionShape3D" parent="Hull" unique_id=1499000103]
 shape = ExtResource("7_skinbelly")
+
+[node name="EdgeFenceFrontWest" type="CollisionShape3D" parent="Hull" unique_id=1499000111]
+transform = Transform3D(0.845489, 0, 0.533993, 0, 1, 0, -0.533993, 0, 0.845489, -7.729045, 2.5, -3.569594)
+shape = SubResource("BoxShape3D_edge_front")
+
+[node name="EdgeFenceNoseWest" type="CollisionShape3D" parent="Hull" unique_id=1499000112]
+transform = Transform3D(0.316228, 0, 0.948683, 0, 1, 0, -0.948683, 0, 0.316228, -3.846601, 2.5, -7.018309)
+shape = SubResource("BoxShape3D_edge_nose")
+
+[node name="EdgeFenceRearWest" type="CollisionShape3D" parent="Hull" unique_id=1499000113]
+transform = Transform3D(0.691564, 0, -0.722307, 0, 1, 0, 0.722307, 0, 0.691564, -7.389849, 2.5, 7.983778)
+shape = SubResource("BoxShape3D_edge_rear")
+
+[node name="EdgeFenceFrontEast" type="CollisionShape3D" parent="Hull" unique_id=1499000114]
+transform = Transform3D(-0.845489, 0, 0.533993, 0, 1, 0, -0.533993, 0, -0.845489, 7.729045, 2.5, -3.569594)
+shape = SubResource("BoxShape3D_edge_front")
+
+[node name="EdgeFenceNoseEast" type="CollisionShape3D" parent="Hull" unique_id=1499000115]
+transform = Transform3D(-0.316228, 0, 0.948683, 0, 1, 0, -0.948683, 0, -0.316228, 3.846601, 2.5, -7.018309)
+shape = SubResource("BoxShape3D_edge_nose")
+
+[node name="EdgeFenceRearEast" type="CollisionShape3D" parent="Hull" unique_id=1499000116]
+transform = Transform3D(-0.691564, 0, -0.722307, 0, 1, 0, 0.722307, 0, -0.691564, 7.389849, 2.5, 7.983778)
+shape = SubResource("BoxShape3D_edge_rear")
 
 [node name="Name" type="Label3D" parent="." unique_id=941827273]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.9, 0)
