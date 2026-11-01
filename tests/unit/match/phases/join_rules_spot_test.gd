@@ -126,3 +126,43 @@ func _hello(game: Match, ctx: MatchContext, peer: int, spec: PhaseSpec) -> bool:
 	var fields := {"name": "p%d" % peer, "version": JoinRules.PROTOCOL_VERSION, "content": 0}
 	ctx.command = MatchCommand.new(Intents.HELLO, peer, ctx.tick, fields, 0)
 	return JoinRules.hello(ctx, ctx.command, spec)
+
+
+func test_a_joiner_faces_its_lobby_marker_and_only_it_learns_its_own() -> void:
+	# #1522: the first free marker's facing, in the host's state and in the joiner's Welcome.
+	var game := FixtureBaseMode.started()
+	var layout := LevelLayout.new(FixtureBaseMode.LOBBY)
+	var facings: Array[Vector3] = [Vector3(0, 0, 1), Vector3(-0.6, 0, 0.8)]
+	for i in 2:
+		layout.add_marker(LayoutCheck.LOBBY_PLAYER, Vector3(5 + i * 2, 0, 0), facings[i])
+	var ctx := _context(game, layout)
+	assert_bool(_hello(game, ctx, P1, _lobby(game))).is_true()
+	assert_bool(_hello(game, ctx, P2, _lobby(game))).is_true()
+	assert_bool(_hello(game, ctx, P3, _lobby(game))).is_true()
+	var expected: Dictionary[int, Vector3] = {
+		P1: layout.facing_at(LayoutCheck.LOBBY_PLAYER, 0),
+		P2: layout.facing_at(LayoutCheck.LOBBY_PLAYER, 1),
+		# Every marker taken: the first, with its facing.
+		P3: layout.facing_at(LayoutCheck.LOBBY_PLAYER, 0),
+	}
+	for peer: int in expected:
+		assert_vector(game.state.player(peer).facing).is_equal(expected[peer])
+		# Its own Welcome only: each view holds one, its own.
+		var welcomes := game.view_of(peer).events_named(&"Welcome")
+		assert_int(welcomes.size()).is_equal(1)
+		assert_int((welcomes[0] as WelcomeEvent).peer).is_equal(peer)
+		assert_vector((welcomes[0] as WelcomeEvent).facing).is_equal(expected[peer])
+	assert_vector(expected[P2]).is_equal_approx(facings[1], Vector3(1e-6, 1e-6, 1e-6))
+
+
+func test_a_joiner_at_no_level_or_on_a_marker_with_none_keeps_its_own_facing() -> void:
+	var game := _started(_no_level_mode())
+	FixtureBaseMode.join(game, P1, "p1")
+	var welcome := game.view_of(P1).events_named(&"Welcome")[0] as WelcomeEvent
+	assert_vector(welcome.facing).is_equal(Vector3.ZERO)
+	assert_vector(game.state.player(P1).facing).is_equal(Vector3.FORWARD)
+	var lobby := FixtureBaseMode.started()
+	FixtureBaseMode.join(lobby, P1, "p1")
+	welcome = lobby.view_of(P1).events_named(&"Welcome")[0] as WelcomeEvent
+	assert_vector(welcome.facing).is_equal(Vector3.ZERO)
+	assert_vector(lobby.state.player(P1).facing).is_equal(Vector3.FORWARD)

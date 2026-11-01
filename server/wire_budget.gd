@@ -127,6 +127,7 @@ static func _welcome(content: _Content) -> WireMessage:
 	var fields := {
 		"peer": 1,
 		"spot": Vector3.ZERO,
+		"facing": Vector3.ZERO,
 		"epoch": LARGEST_U32,
 		"roster": roster,
 		"settings": content.numbers,

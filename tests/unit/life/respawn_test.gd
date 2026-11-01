@@ -72,8 +72,16 @@ func test_respawned_reaches_everyone_then_the_correction_and_selfstatus_reach_th
 	)
 	var corrections := FixtureMoves.corrections(game, P2)
 	assert_int(corrections.size()).is_equal(seen + 1)
-	assert_dict(corrections[seen].to_dict()).is_equal(
-		{"epoch": back.epoch, "position": back.position, "velocity": Vector3.ZERO}
+	(
+		assert_dict(corrections[seen].to_dict())
+		. is_equal(
+			{
+				"epoch": back.epoch,
+				"position": back.position,
+				"velocity": Vector3.ZERO,
+				"facing": Vector3.ZERO,
+			}
+		)
 	)
 	for peer: int in [P1, P3]:
 		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
@@ -336,3 +344,69 @@ func _run_out(game: Match) -> void:
 func _flag(game: Match, viewer: int, peer: int) -> bool:
 	var snapshot: Dictionary = game.view_of(viewer).snapshots[game.ticked_through()]
 	return snapshot["avatars"][peer]["invulnerable"]
+
+
+func test_the_respawned_face_their_marker_and_only_they_learn_it() -> void:
+	# #1522: whatever it faced before its death, the respawned player faces the drawn marker's
+	# facing, in the host's state and in its own Correction; the others' Corrections are as before.
+	for seed_value: int in [7, 8, 9]:
+		var game := _faced_duel(seed_value)
+		_kill(game)
+		game.state.player(P2).facing = EAST
+		var seen := FixtureMoves.corrections(game, P2).size()
+		var others: Dictionary[int, int] = {}
+		for peer: int in [P1, P3]:
+			others[peer] = FixtureMoves.corrections(game, peer).size()
+		_run_out(game)
+		assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.ALIVE)
+		var facing := FixtureModes.marker_facing(
+			game, FixtureModes.MAP, FixtureModes.RESPAWN_TAG, P2
+		)
+		assert_vector(facing).is_not_equal(Vector3.ZERO)
+		assert_vector(game.state.player(P2).facing).is_equal(facing)
+		var corrections := FixtureMoves.corrections(game, P2)
+		assert_int(corrections.size()).is_equal(seen + 1)
+		assert_vector((corrections[seen] as CorrectionEvent).facing).is_equal(facing)
+		for peer: int in [P1, P3]:
+			assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
+
+
+func test_a_respawn_marker_with_no_facing_leaves_the_player_s_own() -> void:
+	var game := _duel()
+	_kill(game)
+	game.state.player(P2).facing = EAST
+	_run_out(game)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.ALIVE)
+	assert_vector(game.state.player(P2).facing).is_equal(EAST)
+
+
+func test_the_free_indexes_are_the_free_markers() -> void:
+	var game := _duel()
+	var spots := PackedVector3Array(FixtureModes.RESPAWNS)
+	FixtureItemModes.stand(game, P3, spots[1])
+	var free := Respawn.free_indexes(game.state, spots)
+	assert_array(Array(free)).is_equal([0, 2])
+	var markers := PackedVector3Array()
+	for i: int in free:
+		markers.append(spots[i])
+	assert_array(Array(Respawn.free_markers(game.state, spots))).is_equal(Array(markers))
+
+
+## _duel on FixtureModes.faced_layouts(): every marker has a facing (#1522).
+func _faced_duel(seed_value: int) -> Match:
+	var game := Match.new(
+		FixtureCombatModes.respawning(),
+		seed_value,
+		FlatWorldQuery.new(),
+		FixtureModes.faced_layouts()
+	)
+	game.keep_history = true
+	game.start(0)
+	for peer: int in [P1, P2, P3]:
+		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
+	for peer: int in [P1, P2, P3]:
+		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	FixtureItemModes.stand(game, P3, Vector3(5, 0, 5))
+	return game

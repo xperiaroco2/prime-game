@@ -6,7 +6,8 @@ extends RuleEffect
 ## when no living or downed player stands within `PlayerRules.respawn_free_m` of it (from its
 ## feet). When none is free it is drawn from all of them (the engineer's answer 5 on PR #133: a
 ## respawn is never delayed by where others stand; players push apart, §7.1). LifeRules.respawn
-## then does the rest: the body goes, full health and stamina, empty hands, a new epoch and
+## then does the rest: the body goes, full health and stamina, empty hands, a new epoch, the
+## marker's facing (#1522; a marker with none leaves the player's own) and
 ## invulnerability.
 ##
 ## LifeTicks runs it, with the dead player as the actor, when its respawn time
@@ -38,29 +39,38 @@ func run(ctx: MatchContext) -> void:
 	if spots.is_empty():
 		ctx.error("Respawn: the level has no %s marker" % tag)
 		return
-	var pool := free_markers(ctx.state, spots)
+	var pool := free_indexes(ctx.state, spots)
 	if pool.is_empty():
-		pool = spots
-	var drawn := ctx.rng(rng_purpose).randi_range(0, pool.size() - 1)
-	LifeRules.respawn(ctx, ctx.actor, pool[drawn])
+		for i in spots.size():
+			pool.append(i)
+	var drawn := pool[ctx.rng(rng_purpose).randi_range(0, pool.size() - 1)]
+	LifeRules.respawn(ctx, ctx.actor, spots[drawn], ctx.layout.facing_at(tag, drawn))
 
 
 ## The markers of `spots` with no living or downed player within the free radius, in level order.
 static func free_markers(state: MatchState, spots: PackedVector3Array) -> PackedVector3Array:
-	var radius := state.player_rules.respawn_free_m
 	var found := PackedVector3Array()
-	for spot: Vector3 in spots:
+	for i: int in free_indexes(state, spots):
+		found.append(spots[i])
+	return found
+
+
+## The indexes in `spots` of the free markers (free_markers), in level order.
+static func free_indexes(state: MatchState, spots: PackedVector3Array) -> PackedInt32Array:
+	var radius := state.player_rules.respawn_free_m
+	var found := PackedInt32Array()
+	for i in spots.size():
 		var taken := false
 		for peer: int in state.peers():
 			var player := state.players[peer]
 			var standing := (
 				player.life == PlayerState.Life.ALIVE or player.life == PlayerState.Life.DOWNED
 			)
-			if standing and player.position.distance_to(spot) <= radius:
+			if standing and player.position.distance_to(spots[i]) <= radius:
 				taken = true
 				break
 		if not taken:
-			found.append(spot)
+			found.append(i)
 	return found
 
 

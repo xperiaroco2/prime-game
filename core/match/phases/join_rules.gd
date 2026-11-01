@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 52
+const PROTOCOL_VERSION := 53
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -44,9 +44,10 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
 ## this build can read (§4.3). Accepted: the joiner gets its number from its `key`
 ## (MatchState.give_number: a returner its old one, anyone else the next), is named (joiner_name),
-## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
-## with a new epoch; the defaults that follow the player count count it (PlayerCountDefaults,
-## #1492); Welcome (the joiner, with the hall's items, #1404), PlayerJoined (everyone),
+## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_marker)
+## facing its facing (#1522), with a new epoch; the defaults that follow the player count count
+## it (PlayerCountDefaults, #1492); Welcome (the joiner, with the hall's items, #1404),
+## PlayerJoined (everyone),
 ## a StationPlaced (everyone) for each standing station in id order (_replay_stations: the
 ## lobby's tap, #1390; the way a joiner learns the stations) and SettingsChanged (everyone). A
 ## name or a key is never a reason to refuse: a bad name falls back, an unusable key is none
@@ -71,7 +72,13 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 		_drop(ctx, peer)
 		return false
 	ctx.state.newcomers.erase(peer)
-	var spot := _free_spot(ctx, spec)
+	var marker := _free_marker(ctx, spec)
+	var spot := Vector3.ZERO
+	# The marker's facing (#1522), Vector3.ZERO for none: the joiner keeps the default one.
+	var facing := Vector3.ZERO
+	if marker >= 0:
+		spot = ctx.layout.positions(LayoutCheck.LOBBY_PLAYER)[marker]
+		facing = ctx.layout.facing_at(LayoutCheck.LOBBY_PLAYER, marker)
 	var number := ctx.state.give_number(command.field("key"))
 	var player_name := joiner_name(ctx, command.field("name"), number)
 	var colour := PlayerColours.first_free(_colours_of_others(ctx, peer))
@@ -80,10 +87,12 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	joined.colour = colour
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
+	if facing != Vector3.ZERO:
+		joined.facing = facing
 	joined.epoch += 1
 	# Before Welcome, which copies the settings: the joiner counts (#1492).
 	PlayerCountDefaults.follow(ctx)
-	ctx.emit(_welcome(ctx, joined, spec.id))
+	ctx.emit(_welcome(ctx, joined, spec.id, facing))
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
 	_replay_stations(ctx)
 	ctx.emit(FitCheck.settings_changed(ctx))
@@ -218,35 +227,38 @@ static func _drop(ctx: MatchContext, peer: int) -> void:
 	ctx.emit(DisconnectPeerEvent.new(peer))
 
 
-## Where a joiner stands (§3.5). In a phase at no level (PhaseSpec.Level.NONE: the tutorial's
+## The index of the lobby_player marker a joiner stands on (§3.5), -1 for none: it stands at the
+## origin with its own facing. In a phase at no level (PhaseSpec.Level.NONE: the tutorial's
 ## `gather`, E72) the origin, with no error: nobody sees it and the deal places everyone. Otherwise
 ## the first lobby_player marker of the phase's level with no player within SPOT_CLEARANCE_M, or
 ## the first marker when all are taken; none (no marker, or the layout failed to load: null) is a
 ## match error and the origin. Keyed on the spec's level, never on ctx.layout being null, which
 ## both cases have.
-static func _free_spot(ctx: MatchContext, spec: PhaseSpec) -> Vector3:
+static func _free_marker(ctx: MatchContext, spec: PhaseSpec) -> int:
 	if spec.level == PhaseSpec.Level.NONE:
-		return Vector3.ZERO
+		return -1
 	var spots := PackedVector3Array()
 	if ctx.layout != null:
 		spots = ctx.layout.positions(LayoutCheck.LOBBY_PLAYER)
 	if spots.is_empty():
 		ctx.error("no %s marker for a joiner" % LayoutCheck.LOBBY_PLAYER)
-		return Vector3.ZERO
-	for spot: Vector3 in spots:
+		return -1
+	for i in spots.size():
 		var taken := false
 		for peer: int in ctx.state.present_peers():
-			if ctx.state.players[peer].position.distance_to(spot) < SPOT_CLEARANCE_M:
+			if ctx.state.players[peer].position.distance_to(spots[i]) < SPOT_CLEARANCE_M:
 				taken = true
 				break
 		if not taken:
-			return spot
-	return spots[0]
+			return i
+	return 0
 
 
 ## Public facts only (§5): in Lobby and Countdown nobody has a role and everyone is alive.
-static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringName) -> WelcomeEvent:
-	var welcome := WelcomeEvent.new(joined.peer, joined.position, joined.epoch)
+static func _welcome(
+	ctx: MatchContext, joined: PlayerState, phase_id: StringName, facing: Vector3
+) -> WelcomeEvent:
+	var welcome := WelcomeEvent.new(joined.peer, joined.position, joined.epoch, facing)
 	for peer: int in ctx.state.present_peers():
 		var player := ctx.state.players[peer]
 		welcome.roster.append(

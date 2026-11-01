@@ -16,7 +16,7 @@ const KEY := "0123456789abcdef0123456789abcdef"
 static func events() -> Dictionary[String, Array]:
 	var found: Dictionary[String, Array] = {}
 	found["RejectedEvent"] = [RejectedEvent.new(3, 0xFFFFFFFF, &"wrong_version")]
-	var welcome := WelcomeEvent.new(3, Vector3(1.5, 0.0, -2.25), 7)
+	var welcome := WelcomeEvent.new(3, Vector3(1.5, 0.0, -2.25), 7, Vector3(0, 0, 1))
 	(
 		welcome
 		. roster
@@ -229,7 +229,10 @@ static func events() -> Dictionary[String, Array]:
 	found["PhotoHungEvent"] = [
 		PhotoHungEvent.new(7, 5, true), PhotoHungEvent.new(0xFFFE, 0xFFFE, false)
 	]
-	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
+	found["CorrectionEvent"] = [
+		CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5)),
+		CorrectionEvent.new(2, 4, Vector3(1, 0, 1), Vector3.ZERO, Vector3(-0.6, 0, 0.8)),
+	]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),
 		MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}),

@@ -22,6 +22,14 @@ const DOWNED := AcceptSpec.From.DOWNED
 ## from where the unit tests stand their players.
 const RESPAWNS: Array[Vector3] = [Vector3(-25, 0, 15), Vector3(25, 0, 15), Vector3(5, 0, -25)]
 const RESPAWN_TAG := &"respawn"
+## The facings of faced_layouts() (#1522), level and unit, none of them Vector3.FORWARD.
+const FACINGS: Array[Vector3] = [
+	Vector3(0, 0, 1),
+	Vector3(-1, 0, 0),
+	Vector3(0.6, 0, -0.8),
+	Vector3(1, 0, 0),
+	Vector3(-0.8, 0, 0.6)
+]
 ## The subtasks setting the fixture task types name (TaskType requires one, the Generator ADR's G0,
 ## #795): `knives`, the whole-number setting from 0 that basic() and FixtureDealModes declare. They
 ## deal a fixed count or nothing, so none of them reads it.
@@ -135,6 +143,29 @@ static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 	return {LOBBY: lobby, MAP: map, MOTION_MAP: map}
 
 
+## layouts() with a facing on every marker (#1522): the i-th marker of a tag faces FACINGS[i] (the
+## respawn markers FACINGS[i + 2]), none of them Vector3.FORWARD, a player's own facing until it
+## claims one. A placement on them turns the player.
+static func faced_layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
+	var lobby := LevelLayout.new(LOBBY)
+	var map := LevelLayout.new(MAP)
+	for i in count:
+		var facing := FACINGS[i % FACINGS.size()]
+		lobby.add_marker(&"lobby_player", Vector3(i, 0, 0), facing)
+		map.add_marker(&"round_player", Vector3(10 + i, 0, 5), facing)
+	for i in RESPAWNS.size():
+		map.add_marker(RESPAWN_TAG, RESPAWNS[i], FACINGS[(i + 2) % FACINGS.size()])
+	return {LOBBY: lobby, MAP: map, MOTION_MAP: map}
+
+
+## The facing of the marker `peer` stands on in `game`'s layout of `path` for `tag` (the marker at
+## its position; Vector3.ZERO when it stands on none).
+static func marker_facing(game: Match, path: String, tag: StringName, peer: int) -> Vector3:
+	var layout: LevelLayout = game.command_log.layouts[path]
+	var at := layout.positions(tag).find(game.state.player(peer).position)
+	return layout.facing_at(tag, at)
+
+
 ## `mode` with MOTION_MAP after its maps and as its one PlayerRules.motion_maps (KE12): a mode
 ## whose rules can knock down keeps today's knockdown on its first map (§9: every existing life
 ## test plays on a map motion_maps leaves out) and moves bodies on MOTION_MAP. Layouts: layouts().
@@ -146,15 +177,20 @@ static func with_motion_map(mode: GameMode) -> GameMode:
 
 
 ## A match of `mode` that keeps its history for view_of().
-static func create(mode: GameMode, seed_value: int = 7) -> Match:
-	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts())
+static func create(mode: GameMode, seed_value: int = 7, faced: bool = false) -> Match:
+	var game := Match.new(
+		mode, seed_value, FlatWorldQuery.new(), faced_layouts() if faced else layouts()
+	)
 	game.keep_history = true
 	return game
 
 
-## A started match of `mode` whose players `peers` joined in the lobby.
-static func started(mode: GameMode, peers: Array[int], seed_value: int = 7) -> Match:
-	var game := create(mode, seed_value)
+## A started match of `mode` whose players `peers` joined in the lobby (`faced`: on
+## faced_layouts()).
+static func started(
+	mode: GameMode, peers: Array[int], seed_value: int = 7, faced: bool = false
+) -> Match:
+	var game := create(mode, seed_value, faced)
 	game.start(0)
 	for peer: int in peers:
 		send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
@@ -162,8 +198,10 @@ static func started(mode: GameMode, peers: Array[int], seed_value: int = 7) -> M
 
 
 ## `peers` joined and all ready: the match is in the round.
-static func in_round(mode: GameMode, peers: Array[int], seed_value: int = 7) -> Match:
-	var game := started(mode, peers, seed_value)
+static func in_round(
+	mode: GameMode, peers: Array[int], seed_value: int = 7, faced: bool = false
+) -> Match:
+	var game := started(mode, peers, seed_value, faced)
 	for peer: int in peers:
 		send(game, Intents.SET_READY, peer, {"ready": true})
 	return game

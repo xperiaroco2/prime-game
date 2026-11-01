@@ -585,6 +585,8 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 			correction.peer != peer
 			or correction.epoch != before_epoch + 1
 			or correction.position != before
+			# A refused claim keeps the player's own look (#1522): only a placement turns it.
+			or correction.facing != Vector3.ZERO
 			or emitted.recipients != PackedInt32Array([peer])
 		):
 			problems.append("a Correction %s" % correction.to_dict())

@@ -100,7 +100,10 @@ extends RefCounted
 ## avatar and after `posed` on SelfStatus.
 ## 52 since #1399 (the pinball table): Snapshot (kind 104) gains the optional ball block
 ## (`has_ball`, then `ball`, the vec3 of the ball's table-local place) before `avatars`, the last.
-const VERSION := 52
+## 53 since #1522 (a player placed on a spawn marker faces its yaw): Welcome (kind 33) gains
+## `facing` after `spot`, and Correction (kind 56) gains `facing` after `velocity` (Vector3.ZERO:
+## keep the own look).
+const VERSION := 53
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -437,6 +440,7 @@ static func _events() -> Array[WireRow]:
 		[
 			_peer("peer"),
 			_vec3("spot"),
+			_vec3("facing"),
 			_u32("epoch"),
 			WireField.list("roster", roster_entry, MAX_PLAYERS),
 			numbers,
@@ -562,7 +566,12 @@ static func _events() -> Array[WireRow]:
 			]
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
-		_down(56, &"Correction", 28, [_u32("epoch"), _vec3("position"), _vec3("velocity")]),
+		_down(
+			56,
+			&"Correction",
+			40,
+			[_u32("epoch"), _vec3("position"), _vec3("velocity"), _vec3("facing")]
+		),
 		_down(
 			57,
 			&"MatchEnded",
