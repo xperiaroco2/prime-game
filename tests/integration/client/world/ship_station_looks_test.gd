@@ -9,6 +9,7 @@ const CONSOLE_GLB := preload("res://assets/environment/start_console/start_conso
 const SOCKET_KIT := preload("res://levels/kit/crystal_socket/crystal_socket.tscn")
 const BOARD_KIT := preload("res://levels/kit/breaker_board/breaker_board.tscn")
 const CHARGER_KIT := preload("res://levels/kit/crystal_charger/crystal_charger.tscn")
+const ShipDeviceArt := preload("res://tests/integration/client/world/ship_device_art.gd")
 const CONSOLE := 1
 const GILLS := 2
 const BOARD_EAST := 3
@@ -42,6 +43,8 @@ func before_test() -> void:
 
 
 func test_each_station_binds_to_its_device() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	assert_object(looks.console()).is_not_null()
 	assert_object(looks.socket_of(SOCKET)).is_not_null()
@@ -57,6 +60,8 @@ func test_each_station_binds_to_its_device() -> void:
 
 
 func test_breakers_bind_to_shells_by_their_rank_along_the_board() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	# The east breakers run +X from 5 to 8; the west ones run -X from 9 to 12.
 	assert_array([5, 6, 7, 8].map(looks.shell_of)).is_equal([0, 1, 2, 3])
@@ -64,6 +69,8 @@ func test_breakers_bind_to_shells_by_their_rank_along_the_board() -> void:
 
 
 func test_a_breaker_s_console_lamp_has_its_shell_s_colour_on_its_board_s_wing() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	for i in 8:
 		var breaker := FIRST_BREAKER + i
@@ -72,6 +79,8 @@ func test_a_breaker_s_console_lamp_has_its_shell_s_colour_on_its_board_s_wing() 
 
 
 func test_each_site_takes_its_wiring_point_by_its_side_in_the_console_s_frame() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	assert_str(looks.slot_of(SOCKET)).is_equal("socket_e")
 	assert_str(looks.slot_of(GILLS)).is_equal("vent_e")
@@ -82,6 +91,8 @@ func test_each_site_takes_its_wiring_point_by_its_side_in_the_console_s_frame() 
 
 
 func test_the_devices_replace_their_stand_ins_and_the_art_hologram_the_game_s() -> void:
+	if _no_art():
+		return
 	for id: int in [SOCKET, CHARGER, CHARGER_WEST, BOARD_EAST, BOARD_WEST]:
 		assert_object(_view.lamp_of(id)).is_null()
 	for i in 8:
@@ -103,6 +114,8 @@ func test_every_device_mesh_and_light_stays_on_the_live_cameras_layers() -> void
 
 
 func test_the_console_keeps_the_host_s_clock_and_calls_on_the_beep_s_tick() -> void:
+	if _no_art():
+		return
 	var console := _view.station_looks().console()
 	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
 	var beeps: Array[int] = []
@@ -126,6 +139,8 @@ func test_the_console_keeps_the_host_s_clock_and_calls_on_the_beep_s_tick() -> v
 
 
 func test_the_call_stops_at_the_press_and_a_held_site_blinks_then_shows_fixed() -> void:
+	if _no_art():
+		return
 	var console := _view.station_looks().console()
 	assert_str(console.station_state("socket_e")).is_equal("off")
 	assert_str(console.station_state("socket_fw")).is_equal("off")
@@ -152,6 +167,8 @@ func test_the_call_stops_at_the_press_and_a_held_site_blinks_then_shows_fixed() 
 
 
 func test_a_blast_shows_no_site_fixed() -> void:
+	if _no_art():
+		return
 	_model.fold(&"ButtonPressed", {"station": CONSOLE})
 	var console := _view.station_looks().console()
 	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
@@ -164,6 +181,8 @@ func test_a_blast_shows_no_site_fixed() -> void:
 
 
 func test_the_order_lights_the_console_lamp_of_its_breaker_a_step_at_a_time() -> void:
+	if _no_art():
+		return
 	var console := _view.station_looks().console()
 	var looks := _view.station_looks()
 	var order: Array[int] = [7, 5, 8]
@@ -180,6 +199,8 @@ func test_the_order_lights_the_console_lamp_of_its_breaker_a_step_at_a_time() ->
 
 
 func test_the_nearest_deadline_blinks_fast_and_a_later_one_slow() -> void:
+	if _no_art():
+		return
 	var console := _view.station_looks().console()
 	_model.fold(&"ButtonPressed", {"station": CONSOLE})
 	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
@@ -198,6 +219,8 @@ func test_the_nearest_deadline_blinks_fast_and_a_later_one_slow() -> void:
 
 
 func test_the_stand_in_strips_give_way_only_to_three_stages() -> void:
+	if _no_art():
+		return
 	# The art console has three strips: any other stage count draws the game's strips again.
 	var engine: ShipEngine = ShipEngineClient.types_of(_mode)[0]
 	for total: int in [4, 2, 3]:
@@ -210,6 +233,8 @@ func test_the_stand_in_strips_give_way_only_to_three_stages() -> void:
 
 
 func test_two_open_orders_take_turns_on_the_console_s_lamp() -> void:
+	if _no_art():
+		return
 	# BreakersProblem.claim can hold one board while a second problem opens on the other: the
 	# console's one lamp plays both orders in turn, not only the first problem's.
 	var console := _view.station_looks().console()
@@ -239,6 +264,8 @@ func test_two_open_orders_take_turns_on_the_console_s_lamp() -> void:
 
 
 func test_the_shells_trip_and_the_last_on_ramps_yellow_under_the_beacon() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	var east := looks.board_of(BOARD_EAST)
 	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
@@ -263,6 +290,8 @@ func test_the_shells_trip_and_the_last_on_ramps_yellow_under_the_beacon() -> voi
 
 
 func test_the_socket_shows_its_crystal_and_opens_its_claws_while_it_is_out() -> void:
+	if _no_art():
+		return
 	var socket := _view.station_looks().socket_of(SOCKET)
 	assert_str(socket.state()).is_equal("charged")
 	assert_float(socket.claws()).is_equal(0.0)
@@ -283,6 +312,8 @@ func test_the_socket_shows_its_crystal_and_opens_its_claws_while_it_is_out() -> 
 
 
 func test_the_charger_shows_the_charge_of_the_crystal_it_holds() -> void:
+	if _no_art():
+		return
 	var charger := _view.station_looks().charger_of(CHARGER)
 	assert_str(charger.state()).is_equal("idle")
 	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 6000))
@@ -308,6 +339,8 @@ func test_the_charger_shows_the_charge_of_the_crystal_it_holds() -> void:
 
 
 func test_each_charger_shows_only_the_crystal_it_holds() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	var east := looks.charger_of(CHARGER)
 	var west := looks.charger_of(CHARGER_WEST)
@@ -332,6 +365,8 @@ func test_each_charger_shows_only_the_crystal_it_holds() -> void:
 
 
 func test_two_views_built_at_other_ticks_show_the_same_states() -> void:
+	if _no_art():
+		return
 	# Every peer alike: a view built late (a late joiner, a level bound again) shows what one built
 	# at the start shows, from the same model and host tick (the fans' angle aside, see §9.5.27).
 	_model.fold(&"ButtonPressed", {"station": CONSOLE})
@@ -460,3 +495,8 @@ func _chain(problem: int, order: Array[int], next: int, since: int) -> Dictionar
 
 func _crystal(charger: int, phase: int, item: int) -> Dictionary:
 	return {"station": SOCKET, "charger": charger, "phase": phase, "item": item, "tick": -1}
+
+
+## Whether the packages' art is missing here (CI: LFS pointers); the test then skips.
+func _no_art() -> bool:
+	return ShipDeviceArt.missing(self)

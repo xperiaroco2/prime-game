@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 const SHIP := "res://levels/estate/rooms/ship.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const SPAWN := "spawn_"
+const ShipDeviceArt := preload("res://tests/integration/client/world/ship_device_art.gd")
 
 var _model: ClientModel
 var _view: ShipEngineViews
@@ -43,6 +44,8 @@ func before() -> void:
 
 
 func test_every_station_binds_to_a_device_of_its_own() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	assert_object(looks.console()).is_not_null()
 	var sockets: Array[ShipSocketLook] = []
@@ -68,6 +71,8 @@ func test_every_station_binds_to_a_device_of_its_own() -> void:
 
 
 func test_each_board_s_four_breakers_take_its_four_shells_and_lamps_of_their_colour() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	var shells: Dictionary[int, Array] = {}
 	for id: int in _markers:
@@ -88,6 +93,8 @@ func test_each_board_s_four_breakers_take_its_four_shells_and_lamps_of_their_col
 
 
 func test_each_site_takes_its_own_wiring_point_by_its_side_and_end() -> void:
+	if _no_art():
+		return
 	var looks := _view.station_looks()
 	var console := _first(&"engine_console")
 	var taken: Array[String] = []
@@ -114,3 +121,8 @@ func _first(kind: StringName) -> int:
 		if _kind(id) == kind:
 			return id
 	return -1
+
+
+## Whether the packages' art is missing here (CI: LFS pointers); the test then skips.
+func _no_art() -> bool:
+	return ShipDeviceArt.missing(self)
