@@ -258,8 +258,9 @@ moving, using and hearing each other; nothing in the linger can change the resul
 `MatchEnded`'s time is the clock at the decision. A win at any other moment (a delivery on the house, no crew present,
 time up) ends the round at once. Tests: `tests/unit/match/match_linger_test.gd` (seeded: the decision at the last
 stage, End once after the linger with its reason and time, the clock stopped, a clock due in the linger, a leave of
-every crew member in it, the round running on, no setting, a win not at the finale, the same seed, a reset, the
-setting's bounds, only the engine has a finale).
+every crew member in it, the round running on, no setting, a win not at the finale or after its tick, every task
+done without a finale, only the subtask that finishes a finale task marking its tick, a round left by another row
+dropping its pending win, the same seed, a reset, the setting's bounds, only the engine has a finale).
 
 Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
 everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). The checks are in `core/win/`, tested through seeded matches in
