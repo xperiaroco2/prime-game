@@ -60,9 +60,14 @@ static func from_dict(data: Dictionary) -> CommandLog:
 		var layout_path: String = entry.get("path", path)
 		var layout := LevelLayout.new(layout_path)
 		var markers: Dictionary = entry.get("markers", {})
+		# A tag left out of "facings" (or an older log) has markers with no facing.
+		var faced: Dictionary = entry.get("facings", {})
 		for tag: String in markers:
-			for position: Vector3 in markers[tag] as PackedVector3Array:
-				layout.add_marker(StringName(tag), position)
+			var at_tag: PackedVector3Array = markers[tag]
+			var facings: PackedVector3Array = faced.get(tag, PackedVector3Array())
+			for i in at_tag.size():
+				var facing := facings[i] if i < facings.size() else Vector3.ZERO
+				layout.add_marker(StringName(tag), at_tag[i], facing)
 		loaded.layouts[path] = layout
 	var command_data: Array = data.get("commands", [])
 	for command: Dictionary in command_data:
