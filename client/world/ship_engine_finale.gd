@@ -85,18 +85,18 @@ static func seconds_of(mode: GameMode) -> float:
 	if mode != null:
 		for spec: PhaseSpec in mode.phases:
 			if spec.phase_class == RoundPhase:
-				var seconds := RoundPhase.linger_seconds_of(spec)
-				if seconds > 0.0:
-					return seconds
+				var linger := RoundPhase.linger_seconds_of(spec)
+				if linger > 0.0:
+					return linger
 	return DEFAULT_SECONDS
 
 
-## Starts the finish over the hologram's `centre`, from `nozzles` (nozzles_of()), for `seconds`.
-func start(centre: Vector3, nozzles: Array[Transform3D], seconds: float) -> void:
+## Starts the finish over the hologram's `centre`, from `nozzles` (nozzles_of()), for `length` s.
+func start(centre: Vector3, nozzles: Array[Transform3D], length: float) -> void:
 	stop()
 	_playing = true
 	_elapsed = 0.0
-	_seconds = maxf(seconds, GROW_SECONDS + FADE_SECONDS)
+	_seconds = maxf(length, GROW_SECONDS + FADE_SECONDS)
 	_centre = centre
 	_mouths = nozzles.duplicate()
 	for mouth: Transform3D in _mouths:
