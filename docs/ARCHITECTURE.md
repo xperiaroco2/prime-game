@@ -1478,7 +1478,8 @@ round).
   score; each pushed once by the host). The session runs on (a broken table is inert, the lobby is not), and
   `errors` stays the start's and the end's reason. The bots (`BotsRunner`, so the chaos run, and `BotsEnet`) and the
   core runner, whose frames are no engine physics frames, set `ScriptedPinballTable` (`tests/harness/`, §4.6.3)
-  before the start; `BotsRunner` fails a run on any `table_errors`. A test may also set its own table after the
+  before the start; `BotsRunner` and `ChaosRun` fail a run on any `table_errors` (a guard for a runner given a real
+  table: the scripted one reads no scene, so it reports none; `BotsEnet` does not check it). A test may also set its own table after the
   start. Tests: `tests/integration/server/pinball_table_test.gd`, `host_session_pinball_test.gd`,
   `tests/scenarios/pinball_bots_test.gd`.
 

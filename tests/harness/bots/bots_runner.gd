@@ -299,10 +299,18 @@ func host_problems() -> PackedStringArray:
 	var found := PackedStringArray()
 	if session.over_budget != 0:
 		found.append("the host counted %d messages over budget" % session.over_budget)
-	for problem: String in session.table_errors:
-		found.append("the host's pinball table: %s" % problem)
+	found.append_array(table_problems())
 	if host_transport.rejects.total() != 0:
 		found.append("the host's transport rejected %d packets" % host_transport.rejects.total())
+	return found
+
+
+## What the host found wrong with its pinball table (HostSession.table_errors), as run failures.
+## The scripted table reads no scene, so this guards a runner given a real table.
+func table_problems() -> PackedStringArray:
+	var found := PackedStringArray()
+	for problem: String in session.table_errors:
+		found.append("the host's pinball table: %s" % problem)
 	return found
 
 
