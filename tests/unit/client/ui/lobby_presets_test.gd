@@ -72,9 +72,25 @@ func test_a_card_leaves_a_default_that_follows_the_player_count() -> void:
 	assert_int(many[0][&"match_duration"] as int).is_equal(3)
 
 
-func test_a_card_sends_every_change_in_one_change_settings() -> void:
+func test_a_preset_changing_a_setting_no_part_reads_has_no_card() -> void:
+	# The base mode keeps `knives`, but places no knife since #1497: no No knives card (#1525),
+	# and its values still fit the setting. The melee fixture places them again: its card shows.
+	assert_array(LobbyPresets.shown(_mode)).contains_exactly(
+		[LobbyPresets.STANDARD, LobbyPresets.QUICK]
+	)
+	assert_array(LobbyPresets.shown(FixtureBaseModeWithMelee.mode())).contains_exactly(
+		[LobbyPresets.STANDARD, LobbyPresets.QUICK, LobbyPresets.NO_KNIVES]
+	)
 	var panel := _panel()
-	var host := Preview.fake_model(_mode, true)
+	assert_bool(panel.cards.has(LobbyPresets.NO_KNIVES)).is_false()
+	assert_bool(panel.cards.has(LobbyPresets.QUICK)).is_true()
+
+
+func test_a_card_sends_every_change_in_one_change_settings() -> void:
+	# The melee fixture: the base mode's No knives card hides since #1525 (no part reads knives).
+	var melee := FixtureBaseModeWithMelee.mode()
+	var panel := _panel(melee)
+	var host := Preview.fake_model(melee, true)
 	host.settings[&"knives"] = 3
 	host.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
 	panel.refresh(host, -1, true)
@@ -131,8 +147,8 @@ func test_save_keeps_the_own_preset_and_shows_its_card() -> void:
 	assert_str(String(panel.applied_preset())).is_equal(String(LobbyPresets.OWN))
 
 
-func _panel() -> LobbyPanel:
+func _panel(mode: GameMode = null) -> LobbyPanel:
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
-	panel.set_mode(_mode)
+	panel.set_mode(mode if mode != null else _mode)
 	return panel

@@ -59,13 +59,15 @@ static func values_of(
 	return values
 
 
-## The presets whose card shows: one changing a setting the mode lacks has no card.
+## The presets whose card shows: one changing a setting the mode lacks, or one no part of the mode
+## reads (GameMode.read_settings: the base mode's `knives` in the M8 slice, #1525), has no card.
 static func shown(mode: GameMode) -> Array[StringName]:
+	var read := mode.read_settings()
 	var cards: Array[StringName] = []
 	for preset: StringName in CHANGES:
 		var fits := true
 		for id: Variant in CHANGES[preset]:
-			fits = fits and mode.find_setting(id as StringName) != null
+			fits = fits and mode.find_setting(id as StringName) != null and read.has(id)
 		if fits:
 			cards.append(preset)
 	return cards
@@ -73,10 +75,17 @@ static func shown(mode: GameMode) -> Array[StringName]:
 
 ## The preset the match is set to now (`settings` and `id_sets` as ClientModel holds them), or &""
 ## for none; the own preset counts when `own` is given. `players`: the players present (values_of).
+## `cards`: shown(mode) when the caller keeps it (the lobby panel, which refreshes every frame:
+## shown walks the mode); empty computes it.
 static func applied(
-	settings: Dictionary, id_sets: Dictionary, mode: GameMode, own: Dictionary = {}, players := 0
+	settings: Dictionary,
+	id_sets: Dictionary,
+	mode: GameMode,
+	own: Dictionary = {},
+	players := 0,
+	cards: Array[StringName] = [],
 ) -> StringName:
-	var candidates: Array[StringName] = shown(mode)
+	var candidates: Array[StringName] = cards.duplicate() if not cards.is_empty() else shown(mode)
 	if not own.is_empty():
 		candidates.append(OWN)
 	for preset: StringName in candidates:

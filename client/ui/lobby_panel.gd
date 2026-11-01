@@ -77,6 +77,8 @@ var _mode: GameMode
 var _model: ClientModel
 ## The own preset's values (Save your own); empty hides its card.
 var _own: Dictionary = {}
+## The preset cards the mode shows (LobbyPresets.shown, once per mode: it walks the mode).
+var _shown: Array[StringName] = []
 var _steppers: Dictionary[StringName, SettingStepper] = {}
 ## Setting id -> task type id -> its toggle chip (the host's) and its plate (a player's).
 var _bans: Dictionary[StringName, Dictionary] = {}
@@ -162,6 +164,7 @@ func set_mode(mode: GameMode) -> void:
 	map_picker.clear()
 	for map in _maps:
 		map_picker.add_item(map_name(map))
+	var read := mode.read_settings()
 	for spec: SettingSpec in mode.settings:
 		var row: Array = ROWS.get(spec.id, [String(spec.id).to_pascal_case(), "", ""])
 		var key := str(row[1]) if not str(row[1]).is_empty() else spec.display_name
@@ -174,8 +177,9 @@ func set_mode(mode: GameMode) -> void:
 			stepper.stepped.connect(func(value: int) -> void: _send(id, value))
 			_steppers[spec.id] = stepper
 			var made := SettingRows.row(str(row[0]), key, stepper)
-			# A setting with one allowed value (the base mode's task count) has nothing to show.
-			made.visible = spec.min_value < spec.max_value
+			# A setting with one allowed value (the base mode's task count) has nothing to show,
+			# nor one no part of the mode reads (the base mode's knives in the M8 slice, #1525).
+			made.visible = spec.min_value < spec.max_value and read.has(spec.id)
 			settings_box.add_child(made)
 		else:
 			settings_box.add_child(_task_row(str(row[0]), key, spec.id, mode))
@@ -287,7 +291,9 @@ func settings_editable() -> bool:
 func applied_preset() -> StringName:
 	if _model == null or _mode == null:
 		return &""
-	return LobbyPresets.applied(_model.settings, _model.id_sets, _mode, _own, _model.roster.size())
+	return LobbyPresets.applied(
+		_model.settings, _model.id_sets, _mode, _own, _model.roster.size(), _shown
+	)
 
 
 func _notification(what: int) -> void:
@@ -514,7 +520,8 @@ func _build_cards() -> void:
 		child.free()
 	cards.clear()
 	var group := ButtonGroup.new()
-	var shown: Array[StringName] = LobbyPresets.shown(_mode)
+	_shown = LobbyPresets.shown(_mode)
+	var shown: Array[StringName] = _shown.duplicate()
 	shown.append(LobbyPresets.OWN)
 	for preset: StringName in shown:
 		var card := _card(preset, String(preset).to_pascal_case(), LobbyPresets.NAME_KEYS[preset])

@@ -93,6 +93,11 @@ func test_the_melee_fixture_is_the_base_mode_with_the_round_s_use_and_the_knives
 	assert_str(String(spawn.kind.id)).is_equal("knife")
 	assert_str(String(spawn.count_setting)).is_equal("knives")
 	assert_object(row.actions.back()).is_instanceof(PlacePlayers)
+	# The shipped mode keeps the knives setting, but nothing reads it there: the lobby hides it
+	# (#1525); the fixture's knife spawn reads it again.
+	assert_object(base.find_setting(&"knives")).is_not_null()
+	assert_array(base.read_settings()).not_contains([&"knives"])
+	assert_array(fixture.read_settings()).contains([&"knives"])
 	var check := ModeCheck.run(fixture)
 	assert_array(Array(check.errors)).is_empty()
 	# Everything else is the shipped mode's.
