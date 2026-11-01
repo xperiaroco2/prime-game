@@ -8,7 +8,7 @@
 # Adding a night job: copy the `flaky` job, change its command, the options its check needs, its artifact name and
 # timeout, and add its id to `report`'s `needs`. `perf` (#187) also keeps its report for the next night of the same
 # ref in a cache. `chaos` (#188) is the long chaos run with random seeds, each printed in its log.
-# `lfs` (#1213) runs the two suites that need LFS content, with only their LFS files pulled (CI has none).
+# `lfs` (#1213, #1557) runs the suites that need LFS content, with only their LFS files pulled (CI has none).
 # `windows` (#1240) runs the runner's tests that start no Godot on windows-latest, through tools\run.cmd: its own
 # setup (setup-python and PYTHON_BIN, no Godot, so not the shared action) and two runner calls (the gdtoolkit pin,
 # then `selftest --group python`); the rest of the pattern above holds.
@@ -313,10 +313,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
-  # The two suites that need LFS content (#1213, #877 e6): CI checks out with no LFS (the LFS ADR), so there they
+  # The suites that need LFS content (#1213, #877 e6, #1557): CI checks out with no LFS (the LFS ADR), so there they
   # print "skip" and check only that the GLB is a pointer. This job pulls the LFS files these suites load and nothing
-  # else (11,938,695 bytes a ref: assets/characters/slice_m1/ and two House kit GLBs, about 12 MB a night, against
-  # the 10 GiB of free LFS bandwidth a month), imports and runs them through the runner; red when either fails.
+  # else (21,432,975 bytes a ref: assets/characters/slice_m1/, two House kit GLBs and the four ship station GLBs,
+  # about 21 MB a night, against the 10 GiB of free LFS bandwidth a month), imports and runs them through the
+  # runner; red when any fails.
   lfs:
     name: lfs suites on ${{ matrix.ref }} (the art-bound tests, only their LFS files)
     needs: refs
@@ -327,8 +328,8 @@ jobs:
     timeout-minutes: 20
     env:
       REF: ${{ matrix.ref }}
-      LFS_INCLUDE: assets/characters/slice_m1/**,assets/environment/house_kit/beam_concrete_1m.glb,assets/environment/house_kit/dormer_gable.glb
-      LFS_SUITES: tests/integration/client/player/character_rig_art_test.gd tests/integration/levels/house_wrapper_test.gd
+      LFS_INCLUDE: assets/characters/slice_m1/**,assets/environment/house_kit/beam_concrete_1m.glb,assets/environment/house_kit/dormer_gable.glb,assets/environment/start_console/start_console.glb,assets/environment/crystal_socket/crystal_socket.glb,assets/environment/breaker_board/breaker_board.glb,assets/environment/crystal_charger/crystal_charger.glb
+      LFS_SUITES: tests/integration/client/player/character_rig_art_test.gd tests/integration/levels/house_wrapper_test.gd tests/integration/client/world/ship_device_looks_test.gd tests/integration/client/world/ship_station_looks_test.gd tests/integration/client/world/ship_station_looks_ship_test.gd
     steps:
       # The ref's commit, not this run's: the ref's own tools/run.sh, setup action and tests. No LFS content yet.
       - uses: actions/checkout@v7
@@ -377,9 +378,11 @@ jobs:
             total=$((total + $(stat -c %s "$file")))
             count=$((count + 1))
           done < <(find assets/characters/slice_m1 assets/environment/house_kit/beam_concrete_1m.glb \
-            assets/environment/house_kit/dormer_gable.glb \
+            assets/environment/house_kit/dormer_gable.glb assets/environment/start_console/start_console.glb \
+            assets/environment/crystal_socket/crystal_socket.glb assets/environment/breaker_board/breaker_board.glb \
+            assets/environment/crystal_charger/crystal_charger.glb \
             -type f \( -name '*.glb' -o -name '*.png' \) -print0)
-          if [ "$count" -lt 3 ]; then
+          if [ "$count" -lt 7 ]; then
             echo "::error::Only $count LFS files with content after git lfs pull."
             exit 1
           fi

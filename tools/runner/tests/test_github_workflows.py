@@ -339,6 +339,30 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertEqual(steps[index]["shell"], "powershell", names[index])
         self.assertGreaterEqual(job["timeout-minutes"], 30, "Windows runs the group slower than CI's 15 minutes")
 
+    def test_the_lfs_job_pulls_the_art_the_ship_station_looks_suites_load_and_runs_them(self) -> None:
+        # #1557: CI has no LFS content, so these suites print "skip" there; their real gate is this job.
+        job = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["lfs"]
+        include = job["env"]["LFS_INCLUDE"].split(",")
+        suites = job["env"]["LFS_SUITES"].split()
+        stations = ("start_console", "crystal_socket", "breaker_board", "crystal_charger")
+        for station in stations:
+            glb = f"assets/environment/{station}/{station}.glb"
+            self.assertIn(glb, include)
+            self.assertTrue((ROOT / glb).is_file(), glb)
+        for suite in (
+            "ship_device_looks_test.gd",
+            "ship_station_looks_test.gd",
+            "ship_station_looks_ship_test.gd",
+        ):
+            self.assertIn(f"tests/integration/client/world/{suite}", suites)
+        for suite in suites:
+            self.assertTrue((ROOT / suite).is_file(), suite)
+        # The pull step checks every file it pulled is content, and at least the files named above.
+        pull = next(step["run"] for step in job["steps"] if step.get("name") == "Pull only the LFS files of the suites")
+        for station in stations:
+            self.assertIn(f"assets/environment/{station}/{station}.glb", pull)
+        self.assertIn('[ "$count" -lt 7 ]', pull)
+
     def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
         steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
         names = [step.get("name", step.get("uses", "")) for step in steps]
