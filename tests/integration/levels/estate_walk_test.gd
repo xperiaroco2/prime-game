@@ -81,12 +81,11 @@ const WALKS := {
 		Vector3(67.5, 0, 94),
 	],
 	"driveway to the road": [Vector3(104, 0, 11), Vector3(140, 0, 11)],
-	# It ends on the hall's plain deck, short of the art's centre plate (4 mm over the deck, #1499).
 	"ship, ramp to hall":
 	[
 		Vector3(116, 0, 57.5),
 		Vector3(116, 0, 64),
-		Vector3(116, 1.2, 70.8),
+		Vector3(116, 1.2, 71.6),
 	],
 	"ship, hall to the east lens room": [Vector3(116, 1.2, 71.6), Vector3(126.5, 1.2, 73.2)],
 	"ship, hall to the west lens room": [Vector3(116, 1.2, 71.6), Vector3(105.5, 1.2, 73.2)],
