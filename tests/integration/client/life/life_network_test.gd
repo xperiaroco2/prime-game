@@ -15,12 +15,15 @@ extends GdUnitTestSuite
 ##   it is driven, it spectates the host's player from its eyes with the lift music, switches to
 ##   the camera above the host's body when the host goes down, and respawns at a marker in first
 ##   person, invulnerable on the host's screen, its body gone; never a Correction;
-## - a respawned joiner looks level with the yaw it had while downed, whatever it did downed or
-##   dead (mouse motion while dead turns nothing), from the first claim after the respawn (#191);
-##   the host's living player, who sees that respawn too, keeps its own look;
-## - a joiner who died looking up, never respawned before the round ended, is placed level with
-##   the yaw it had by End -> Lobby's PlayersPlaced, and again by the next match's deal after
-##   looking up in the lobby, from the placement's Correction on (#240).
+## - a respawned joiner looks level (#191) along its respawn marker's facing (#1522), whatever it
+##   did downed or dead (mouse motion while dead turns nothing), from the respawn's Correction and
+##   the first claim after it; the host's living player, who sees that respawn too, keeps its own
+##   look;
+## - a joiner who died looking up, never respawned before the round ended, is placed level (#240)
+##   along its lobby marker's facing (#1522) by End -> Lobby's PlayersPlaced, and again along its
+##   round marker's by the next match's deal after looking up and aside in the lobby, from the
+##   placement's Correction on. The fixture's markers (steps_room.tscn) face -z (yaw 0); each test
+##   turns the player away from that first, so the turn is seen.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The fixture's respawn markers (steps_room.tscn).
@@ -236,9 +239,10 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	await _pair.stop()
 
 
-func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
+func test_a_respawned_player_looks_level_along_its_marker() -> void:
 	# #191: after a respawn the player looked up. The engineer's answer on #191: level (head pitch
-	# 0), straight ahead, keeping the yaw, as at the round's start; no protocol change.
+	# 0), straight ahead, as at the round's start. #1522 (the engineer's re-scope) replaces "keeping
+	# the yaw": the respawn's Correction carries the marker's facing, and the body turns to it.
 	assert_bool(await _pair.start()).is_true()
 	assert_bool(await _pair.to_round()).is_true()
 	var joiner := _pair.peer_of(_pair.client)
@@ -251,6 +255,8 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 	await _pair.frames(5)
 	var yaw := player.rotation.y
 	assert_float(_pitch(player)).is_equal_approx(1.0, 0.001)
+	# Turned away from the respawn markers' facing (-z, yaw 0): the respawn must turn it back.
+	assert_float(absf(angle_difference(yaw, 0.0))).is_greater(0.5)
 	# The host's living player looks up and aside: another player's respawn keeps that look.
 	var watcher := _pair.host.player()
 	watcher.look(0.3, 0.6)
@@ -287,10 +293,10 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 	var living := func() -> bool: return session.model.is_alive(joiner)
 	assert_bool(await _until(living, 240)).is_true()
 	assert_bool(await _until(func() -> bool: return not first_claim.is_empty())).is_true()
-	# Level, straight ahead, with the yaw it had while downed.
-	var ahead := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	# Level, straight ahead, along the respawn marker's facing (-z, yaw 0), not the downed yaw.
+	var ahead := Vector3.FORWARD
 	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
-	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	assert_float(angle_difference(player.rotation.y, 0.0)).is_equal_approx(0.0, 0.0001)
 	assert_vector(player.look_vector()).is_equal_approx(ahead, Vector3.ONE * 0.0001)
 	assert_vector(player.get_camera().global_basis.z * -1.0).is_equal_approx(
 		ahead, Vector3.ONE * 0.0001
@@ -314,7 +320,9 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 	# #240: a player who died looking up and was next placed by a new match (the own
 	# PlayersPlaced), not by a respawn, kept that pitch. The engineer's answer on #240 (option b):
-	# every placement into a round starts level with the yaw kept, as the own Respawned has it.
+	# every placement into a round starts level, as the own Respawned has it. #1522 (the
+	# engineer's re-scope) replaces "the yaw kept": the placement's Correction carries the
+	# marker's facing, and the body turns to it, dead or living.
 	# No respawn within the test: the round ends first.
 	_pair.mode.player_rules.respawn_s = 300.0
 	assert_bool(await _pair.start()).is_true()
@@ -326,7 +334,8 @@ func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 	assert_bool(await _until(func() -> bool: return player.is_downed())).is_true()
 	player.look(0.6, 1.0)
 	await _pair.frames(5)
-	var yaw := player.rotation.y
+	# Turned away from the lobby markers' facing (-z, yaw 0): the placement must turn it back.
+	assert_float(absf(angle_difference(player.rotation.y, 0.0))).is_greater(0.5)
 	_pair.client.life().give_up()
 	var dead := func() -> bool: return session.model.life_of(joiner) == ClientModel.Life.DEAD
 	assert_bool(await _until(dead)).is_true()
@@ -355,24 +364,24 @@ func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 		return session.model.phase == &"lobby" and not at_placement.is_empty()
 	assert_bool(await _until(lobby)).is_true()
 	await _pair.frames(5)
-	var ahead := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	# Level, along the lobby marker's facing (-z, yaw 0).
+	var ahead := Vector3.FORWARD
 	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
-	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	assert_float(angle_difference(player.rotation.y, 0.0)).is_equal_approx(0.0, 0.0001)
 	assert_vector(player.look_vector()).is_equal_approx(ahead, Vector3.ONE * 0.0001)
 	assert_vector(at_placement[0]).is_equal_approx(ahead, Vector3.ONE * 0.0001)
 	# In the lobby the living player looks up and aside; the new match's deal places it level
-	# again, with the yaw it had.
+	# again, along its round marker's facing (-z, yaw 0).
 	player.look(-0.4, 0.8)
 	await _pair.frames(2)
 	assert_float(_pitch(player)).is_equal_approx(0.8, 0.0001)
-	yaw = player.rotation.y
+	assert_float(absf(angle_difference(player.rotation.y, 0.0))).is_greater(0.3)
 	placed[0] = false
 	at_placement.clear()
 	assert_bool(await _pair.to_round()).is_true()
 	assert_int(at_placement.size()).is_equal(1)
-	ahead = Vector3(-sin(yaw), 0.0, -cos(yaw))
 	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
-	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	assert_float(angle_difference(player.rotation.y, 0.0)).is_equal_approx(0.0, 0.0001)
 	assert_vector(at_placement[0]).is_equal_approx(ahead, Vector3.ONE * 0.0001)
 	assert_int(session.corrections).is_equal(0)
 	await _pair.stop()
