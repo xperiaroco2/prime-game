@@ -28,7 +28,7 @@ press ready
 wait screen round timeout=60
 aim station engine_console via to_ship
 hold move_forward
-wait text hud.aim has engine_console timeout=120
+wait text hud.aim has Engine console timeout=120
 release move_forward
 # A step back, still facing the console, so the hologram over it is in the shot.
 hold move_back
@@ -41,7 +41,7 @@ aim off
 # gill set, then a step back so the slits over the low button are in the shot.
 aim station gill_button
 hold move_forward
-wait text hud.aim has gill_button timeout=30
+wait text hud.aim has Gill button timeout=30
 release move_forward
 hold move_back
 frames 40
@@ -56,7 +56,7 @@ aim off
 # The nearest breaker, then a step back so its board's wall is in the shot.
 aim station breaker
 hold move_forward
-wait text hud.aim has breaker timeout=30
+wait text hud.aim has Breaker timeout=30
 release move_forward
 hold move_back
 frames 40
@@ -66,7 +66,7 @@ shot breakers
 aim off
 aim station engine_console
 hold move_forward
-wait text hud.aim has engine_console timeout=60
+wait text hud.aim has Engine console timeout=60
 release move_forward
 aim off
 press interact
