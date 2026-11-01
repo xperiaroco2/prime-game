@@ -1,7 +1,8 @@
 class_name SfxSet
 extends RefCounted
 ## The game's sound effects (#525; ARCHITECTURE §4.7.43): Kenney's CC0 packs and the project's
-## own task sounds (#1341, §4.7.60) under `res://assets/audio/` (§11.1; docs/credits/), each sound
+## own task sounds (#1341, §4.7.60) and ship engine sounds (#1501, §4.7.64) under
+## `res://assets/audio/` (§11.1; docs/credits/), each sound
 ## id its own files, played as one AudioStreamRandomizer: a file at random, never the same twice
 ## in a row, with a small random
 ## pitch (PITCH) and volume (VOLUME_OFFSET_DB). The world's sounds (WorldSounds) and the UI's click,
@@ -22,6 +23,22 @@ const TASK_SUCCESS := &"task_success"
 ## Every task's error, at its station (SoundChooser, #1341): a miss by the task's own rules. P1,
 ## the same kalimba falling a minor third.
 const TASK_ERROR := &"task_error"
+## The ship engine's placeholders, the project's own synthesis (docs/credits/prime_engine.md,
+## tools/sfx/engine_synth.gd; #1501, ARCHITECTURE §4.7.64), each played where ShipEngineSounds says
+## (GDD §8 "The ship's engine"):
+const ENGINE := "res://assets/audio/prime_engine/"
+## The ship calls: a soft beep at each pulse of the hologram's turbines while the engine is off.
+const ENGINE_CALL := &"engine_call"
+## A beep at each lamp of the breakers' order the hologram plays.
+const ENGINE_BEEP := &"engine_beep"
+## A problem opens: a rising wail at each of its stations.
+const ENGINE_WAIL := &"engine_wail"
+## A short circuit at a breaker: its zap.
+const ENGINE_ZAP := &"engine_zap"
+## A problem's timer ran out: the blast through the ship.
+const ENGINE_BLAST := &"engine_blast"
+## The last stage passed: the ship roars.
+const ENGINE_ROAR := &"engine_roar"
 ## A UI press (UiSounds).
 const UI_CLICK := &"ui_click"
 ## The one sound of both outcomes when End starts (EndScreen.outro_began, #657).
@@ -42,6 +59,12 @@ const FILES: Dictionary[StringName, Array] = {
 	UI_ROLE_DISSIDENTS: [INTERFACE + "ui_role_dissidents.ogg"],
 	TASK_SUCCESS: [TASK_FEEDBACK + "task_success.wav"],
 	TASK_ERROR: [TASK_FEEDBACK + "task_error.wav"],
+	ENGINE_CALL: [ENGINE + "engine_call.wav"],
+	ENGINE_BEEP: [ENGINE + "engine_beep.wav"],
+	ENGINE_WAIL: [ENGINE + "engine_wail.wav"],
+	ENGINE_ZAP: [ENGINE + "engine_zap.wav"],
+	ENGINE_BLAST: [ENGINE + "engine_blast.wav"],
+	ENGINE_ROAR: [ENGINE + "engine_roar.wav"],
 }
 ## The variants of a footstep on each surface: footstep_<surface>_000 to _004 (Impact Sounds).
 const FOOTSTEP_VARIANTS := 5
