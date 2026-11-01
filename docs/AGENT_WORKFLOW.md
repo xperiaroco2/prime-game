@@ -1635,7 +1635,10 @@ windows running scripted steps, with screenshots at named steps, for the UI and 
 players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port; with the `tutorial` header it
 is the only window and starts the solo tutorial, `--tutorial`, #601), up to two more windows join it,
 and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
-scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
+scripts over ENet (`bots <file.tres>`); `mode <file.tres>` (#1497) sets the GameMode every window plays before its
+`_ready` (`Game.mode`; without it the shipped base mode): the knockdown, spectate and items scenarios play the melee
+fixture, `tests/fixtures/combat/base_mode_with_melee.tres`, whose Round keeps the strike and the knives, and their
+bots files name the same mode; the `role`, `setting` and `clock` lines are the setup window 1 sends as the
 host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
 phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`, Esc menu and
 pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks <text>` and `wait
