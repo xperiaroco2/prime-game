@@ -537,3 +537,83 @@ shape = ExtResource("16_floor")
 shape = ExtResource("16_floor")
 
 [editable path="Art"]
+
+[editable path="Art/Pieces/cor_grate_134"]
+
+[editable path="Art/Pieces/cor_grate_148"]
+
+[editable path="Art/Pieces/cor_grate_162"]
+
+[editable path="Art/Pieces/cor_grate_176"]
+
+[editable path="Art/Pieces/cor_grate_190"]
+
+[editable path="Art/Pieces/cor_grate_218"]
+
+[editable path="Art/Pieces/cor_grate_232"]
+
+[editable path="Art/Pieces/cor_grate_246"]
+
+[editable path="Art/Pieces/cor_grate_260"]
+
+[editable path="Art/Pieces/cor_grate_274"]
+
+[editable path="Art/Pieces/hall_floor_disc_1"]
+
+[editable path="Art/Pieces/hall_grate_11"]
+
+[editable path="Art/Pieces/hall_grate_14"]
+
+[editable path="Art/Pieces/hall_grate_17"]
+
+[editable path="Art/Pieces/hall_grate_20"]
+
+[editable path="Art/Pieces/hall_grate_23"]
+
+[editable path="Art/Pieces/hall_grate_26"]
+
+[editable path="Art/Pieces/hall_grate_5"]
+
+[editable path="Art/Pieces/hall_grate_8"]
+
+[editable path="Art/Pieces/throat_floor_3"]
+
+[editable path="Art/Pieces/tip_floor_disc_311"]
+
+[editable path="Art/Pieces/tip_floor_disc_394"]
+
+[editable path="Art/Pieces/tip_floor_rim_312"]
+
+[editable path="Art/Pieces/tip_floor_rim_395"]
+
+[editable path="Art/Pieces/tip_grate_314"]
+
+[editable path="Art/Pieces/tip_grate_317"]
+
+[editable path="Art/Pieces/tip_grate_320"]
+
+[editable path="Art/Pieces/tip_grate_323"]
+
+[editable path="Art/Pieces/tip_grate_326"]
+
+[editable path="Art/Pieces/tip_grate_329"]
+
+[editable path="Art/Pieces/tip_grate_332"]
+
+[editable path="Art/Pieces/tip_grate_335"]
+
+[editable path="Art/Pieces/tip_grate_397"]
+
+[editable path="Art/Pieces/tip_grate_400"]
+
+[editable path="Art/Pieces/tip_grate_403"]
+
+[editable path="Art/Pieces/tip_grate_406"]
+
+[editable path="Art/Pieces/tip_grate_409"]
+
+[editable path="Art/Pieces/tip_grate_412"]
+
+[editable path="Art/Pieces/tip_grate_415"]
+
+[editable path="Art/Pieces/tip_grate_418"]
