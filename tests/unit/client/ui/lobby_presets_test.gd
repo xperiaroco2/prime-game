@@ -69,7 +69,7 @@ func test_a_card_leaves_a_default_that_follows_the_player_count() -> void:
 	panel.cards[LobbyPresets.QUICK].pressed.emit()
 	assert_int(many.size()).is_equal(1)
 	assert_bool(many[0].has(&"dissidents")).is_false()
-	assert_int(many[0][&"match_duration"] as int).is_equal(5)
+	assert_int(many[0][&"match_duration"] as int).is_equal(3)
 
 
 func test_a_card_sends_every_change_in_one_change_settings() -> void:
