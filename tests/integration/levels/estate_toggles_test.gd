@@ -71,6 +71,14 @@ func test_the_mode_places_every_toggle_kind_on_its_markers() -> void:
 	assert_array(placed).contains_exactly_in_any_order(MARKERS.keys())
 
 
+func test_the_mode_check_passes_with_every_shipped_toggle_kind_placed() -> void:
+	# The base mode no longer places the toggles (#1496), so this is where each kind's rule, its
+	# AtStation, StationInSight and Cooldown and its spawn tag are checked by ModeCheck.
+	var mode := _toggle_mode()
+	assert_int(Stations.toggle_kinds(mode).size()).is_equal(MARKERS.size())
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
 func test_each_toggle_marker_stands_at_its_own_part() -> void:
 	var mode := _toggle_mode()
 	var layout := _read(mode).layout
