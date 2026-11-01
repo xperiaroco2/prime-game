@@ -21,11 +21,18 @@ func _init(level_path: String = "") -> void:
 ## Adds a marker of `tag` at `position`, facing `facing` (level_facing of it: only its yaw counts;
 ## Vector3.ZERO, or a vertical one, for none).
 func add_marker(tag: StringName, position: Vector3, facing := Vector3.ZERO) -> void:
+	add_recorded_marker(tag, position, level_facing(facing))
+
+
+## Adds a marker of `tag` at `position` with `facing` stored as it is: one that facings() gave,
+## read back from a command log. level_facing again could change its last bit (a float32 normalize
+## is not idempotent), and a replay must place players with the recorded facings.
+func add_recorded_marker(tag: StringName, position: Vector3, facing: Vector3) -> void:
 	var at_tag: PackedVector3Array = _markers.get(tag, PackedVector3Array())
 	at_tag.append(position)
 	_markers[tag] = at_tag
 	var faced: PackedVector3Array = _facings.get(tag, PackedVector3Array())
-	faced.append(level_facing(facing))
+	faced.append(facing)
 	_facings[tag] = faced
 
 

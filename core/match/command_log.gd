@@ -67,7 +67,7 @@ static func from_dict(data: Dictionary) -> CommandLog:
 			var facings: PackedVector3Array = faced.get(tag, PackedVector3Array())
 			for i in at_tag.size():
 				var facing := facings[i] if i < facings.size() else Vector3.ZERO
-				layout.add_marker(StringName(tag), at_tag[i], facing)
+				layout.add_recorded_marker(StringName(tag), at_tag[i], facing)
 		loaded.layouts[path] = layout
 	var command_data: Array = data.get("commands", [])
 	for command: Dictionary in command_data:
