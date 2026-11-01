@@ -75,8 +75,17 @@ func test_the_raise_events_reach_everyone_and_the_revived_player_gets_its_status
 	)
 	var corrections := FixtureMoves.corrections(game, P2)
 	var placed := corrections[corrections.size() - 1]
-	assert_dict(placed.to_dict()).is_equal(
-		{"epoch": game.state.player(P2).epoch, "position": lies, "velocity": Vector3.ZERO}
+	# No facing (#1522): a revive is no placement on a marker, so the client keeps its look.
+	(
+		assert_dict(placed.to_dict())
+		. is_equal(
+			{
+				"epoch": game.state.player(P2).epoch,
+				"position": lies,
+				"velocity": Vector3.ZERO,
+				"facing": Vector3.ZERO,
+			}
+		)
 	)
 	for peer: int in [P1, P3]:
 		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
