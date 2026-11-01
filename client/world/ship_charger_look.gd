@@ -90,20 +90,20 @@ static func apply(root: Node3D) -> ShipChargerLook:
 
 ## "idle" (no crystal or not charging), "charging" or "charged"; out of "charging" the carrier
 ## goes back down. Another name is refused with a warning.
-func set_state(state: String) -> void:
-	if state == _state:
+func set_state(to: String) -> void:
+	if to == _state:
 		return
-	if not STATES.has(state):
-		push_warning("ShipChargerLook: no state '%s'" % state)
+	if not STATES.has(to):
+		push_warning("ShipChargerLook: no state '%s'" % to)
 		return
-	_state = state
-	var s: Array = STATES[state]
+	_state = to
+	var s: Array = STATES[to]
 	_cyan.emission_energy_multiplier = s[0]
 	_amber.emission_energy_multiplier = s[1]
 	_lens.emission_energy_multiplier = s[2]
 	_glow.light_energy = s[3]
 	_glow.visible = _glow.light_energy > 0.0
-	if state != "charging":
+	if to != "charging":
 		set_carrier(0.0, 0.0)
 		set_ring(0.0)
 		set_pressed(false)

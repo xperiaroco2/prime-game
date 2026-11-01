@@ -117,14 +117,14 @@ func claws() -> float:
 
 ## "charged" (a charged crystal in it: the lamp off, the bay lit), "spent" (a spent one: the lamp
 ## lit) or "empty" (none: the lamp lit). Another name is refused with a warning.
-func set_state(state: String) -> void:
-	if state == _state:
+func set_state(to: String) -> void:
+	if to == _state:
 		return
-	if not state in STATES:
-		push_warning("ShipSocketLook: no state '%s'" % state)
+	if not to in STATES:
+		push_warning("ShipSocketLook: no state '%s'" % to)
 		return
-	_state = state
-	var on := state != "charged"
+	_state = to
+	var on := to != "charged"
 	_lamp.emission_energy_multiplier = LAMP_ENERGY if on else 0.0
 	_lamp_light.light_energy = LAMP_LIGHT if on else 0.0
 	_lamp_light.visible = on

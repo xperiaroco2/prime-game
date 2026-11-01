@@ -54,12 +54,12 @@ static func apply(root: Node3D) -> ShipBoardLook:
 	var look := ShipBoardLook.new()
 	var parts: Array[Array] = []
 	for c: String in COLOURS:
-		var shell := root.find_child("shell_" + c, true, false) as Node3D
+		var hinge := root.find_child("shell_" + c, true, false) as Node3D
 		var core := root.find_child("core_" + c, true, false) as MeshInstance3D
 		var lamp := root.find_child("lamp_" + c, true, false) as MeshInstance3D
-		if shell == null or core == null or lamp == null:
+		if hinge == null or core == null or lamp == null:
 			return null
-		parts.append([shell, core, lamp])
+		parts.append([hinge, core, lamp])
 	var by_name := look._materials()
 	for m: Node in root.find_children("*", "MeshInstance3D", true, false):
 		var mesh := m as MeshInstance3D
