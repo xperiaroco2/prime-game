@@ -6,10 +6,13 @@ extends GdUnitTestSuite
 ## handoff path onto the built tree (the differences the PR lists), and NOT_BUILT names the paths
 ## the menu does not build, each with its reason. A mismatch is fixed in the code or listed in the
 ## PR, never by editing these lists. Character and character-round wait for #73 (M7): not built.
-## Each state is built as the preview scenes build it (screen_preview.gd's Preview.ESC branch).
+## Each state is built as the preview scenes build it (screen_preview.gd's Preview.ESC branch), on
+## the melee fixture: the handoff draws a Knives row, which the shipped base mode hides since no
+## part of it reads `knives` (the M8 slice, #1497, #1525; screens_test.gd checks that hide), and
+## the fixture is the shipped mode with the knives placed again.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
-const MODE := "res://content/modes/base_mode.tres"
+const MODE := FixtureBaseModeWithMelee.PATH
 const CODE := "K7M2QX"
 const S := GameFlow.Screen
 const TAB := EscMenuState.Tab
