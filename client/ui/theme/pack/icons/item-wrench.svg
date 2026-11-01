@@ -1,0 +1,9 @@
+<!-- generated from pages/components/icons/item-wrench.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "wrench": the round-3 line icon pages/glow-bars/icons/line-wrench.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins; the source transform rotate(-45 32 32) as one matrix. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g transform="matrix(0.7071 -0.7071 0.7071 0.7071 -13.2548 32)">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M21.62 28L42.38 28A9.5 9.5 0 0 1 59.83 28.5L49 28.5A3.5 3.5 0 0 0 49 35.5L59.83 35.5A9.5 9.5 0 0 1 42.38 36L21.62 36A9.5 9.5 0 1 1 21.62 28Z"/><path d="M10.66 29.26L11.62 28.67L14.38 28.67L15.34 29.26L14.2 28.61L15.19 29.14L16.57 31.53L16.54 32.66L16.54 31.34L16.57 32.47L15.19 34.86L14.2 35.39L15.34 34.74L14.38 35.33L11.62 35.33L10.66 34.74L11.8 35.39L10.81 34.86L9.43 32.47L9.46 31.34L9.46 32.66L9.43 31.53L10.81 29.14L11.8 28.61Z"/></g>
+</g>
+</svg>

@@ -1,0 +1,7 @@
+<!-- generated from pages/components/icons/item-battery.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "battery": the round-3 line icon pages/glow-bars/icons/line-battery.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19A11 4 0 0 1 43 19A11 4 0 0 1 21 19Z"/><path d="M21 19V50A11 4 0 0 0 43 50V19"/><path d="M28.5 11.5H35.5"/><path d="M32 37v8M28 41h8"/><path d="M21 28A11 4 0 0 0 43 28"/></g>
+</svg>

@@ -1,0 +1,9 @@
+<!-- generated from pages/components/icons/item-rocket.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "rocket": the round-3 line icon pages/glow-bars/icons/line-rocket.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins; the source transform rotate(30 32 32) translate(32 32) scale(1.18) translate(-32 -33) as one matrix. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g transform="matrix(1.0219 0.59 -0.59 1.0219 18.7689 -20.603)">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M25 22L32 9L39 22V44H25Z"/><path d="M25 22H39"/><path d="M32 44V60"/><path d="M28 44q-1 4-5 5.5"/><path d="M25 33l3.5-3 3.5 3 3.5-3 3.5 3"/></g>
+</g>
+</svg>
