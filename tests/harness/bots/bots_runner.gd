@@ -96,6 +96,8 @@ func run() -> void:
 		return
 	host_transport = _make_host_transport()
 	session = HostSession.new(host_transport, schema)
+	# Its frames are not physics frames: a scripted table, not PinballTable (#1510, §7.1.22).
+	session.table = ScriptedPinballTable.for_scenarios()
 	session.replay_dir = ""
 	session.hello_deadline_usec = (ceili(scenario.time_limit_s + LURKER_MARGIN_S) * USEC_PER_SECOND)
 	session.observer = _on_call
@@ -291,11 +293,14 @@ func _check_client(
 	views[label] = client.view
 
 
-## Honest bots trip no host budget and send nothing the host's transport rejects.
+## Honest bots trip no host budget and send nothing the host's transport rejects; the host found
+## nothing wrong with its pinball table (HostSession.table_errors).
 func host_problems() -> PackedStringArray:
 	var found := PackedStringArray()
 	if session.over_budget != 0:
 		found.append("the host counted %d messages over budget" % session.over_budget)
+	for problem: String in session.table_errors:
+		found.append("the host's pinball table: %s" % problem)
 	if host_transport.rejects.total() != 0:
 		found.append("the host's transport rejected %d packets" % host_transport.rejects.total())
 	return found

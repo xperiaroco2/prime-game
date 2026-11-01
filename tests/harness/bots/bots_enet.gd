@@ -336,6 +336,8 @@ func _start_host(bot: ScenarioBot) -> bool:
 		enet.bind_address = ADDRESS
 		transport = enet
 	session = HostSession.new(transport, schema)
+	# As BotsRunner: a scripted table, its frames not physics frames (#1510, §7.1.22).
+	session.table = ScriptedPinballTable.for_scenarios()
 	session.replay_dir = ""
 	session.hello_deadline_usec = ceili(scenario.time_limit_s + MARGIN_S) * USEC_PER_SECOND
 	session.observer = _on_call
