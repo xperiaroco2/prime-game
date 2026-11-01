@@ -94,6 +94,27 @@ func test_changes_inside_one_gap_merge_into_the_newest_state() -> void:
 	)
 
 
+func test_a_change_back_to_the_waiting_edge_inside_one_gap_queues_no_duplicate() -> void:
+	# Pressed and sent; inside the gap: released (queued), pressed, released again. The newest state
+	# equals the waiting edge, so one release goes, never the same intent twice.
+	_keys.update(true, false, 1000)
+	_keys.update(false, false, 1010)
+	_keys.update(true, false, 1020)
+	_keys.update(false, false, 1030)
+	_keys.update(false, false, 1060)
+	_keys.update(false, false, 1120)
+	_keys.update(false, false, 1180)
+	(
+		assert_array(_sent)
+		. is_equal(
+			[
+				{"left": true, "right": false},
+				{"left": false, "right": false},
+			]
+		)
+	)
+
+
 func test_a_host_state_left_behind_is_sent_again_after_the_reconcile_time() -> void:
 	_keys.update(true, false, 1000)
 	# The host's PinballState still shows the flipper down (in flight, or lost).
