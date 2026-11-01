@@ -113,6 +113,9 @@ var engine := ClientEngineBook.new()
 ## ZoneProgress at its `needed`): the engine is done.
 var engine_started := false
 var engine_done := false
+## Socket station -> its crystal's item while out of the socket, else -1 (CrystalChanged's `item`,
+## which ClientEngineBook leaves out): a bot holding it carries that crystal.
+var crystal_items: Dictionary[int, int] = {}
 ## Peer -> where the bot last saw that player: PlayerJoined, Welcome, PlayersPlaced, snapshots.
 var seen: Dictionary[int, Vector3] = {}
 ## Peer -> that player's drunk value in the bot's last snapshot that showed it (#1390).
@@ -544,6 +547,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 		# CrystalChanged naming a charger says it is locked there.
 		&"CrystalChanged":
 			var item := fields["item"] as int
+			crystal_items[fields["station"] as int] = item
 			if fields["charger"] as int >= 0 and item >= 0:
 				_let_go(item)
 				if items.has(item):
@@ -555,6 +559,7 @@ func _forget_engine() -> void:
 	engine = ClientEngineBook.new()
 	engine_started = false
 	engine_done = false
+	crystal_items.clear()
 
 
 ## The hall's items as a Welcome lists them (#1404), in place of any known before: each row's
