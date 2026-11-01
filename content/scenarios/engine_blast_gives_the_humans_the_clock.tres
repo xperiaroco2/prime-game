@@ -1,0 +1,127 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" path="res://core/content/scenario/never_event.gd" id="2_never"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_scenario.gd" id="3_scenario"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_script.gd" id="4_script"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_step.gd" id="5_step"]
+[ext_resource type="Script" path="res://core/content/scenario/step_ready.gd" id="6_ready"]
+[ext_resource type="Script" path="res://core/content/scenario/step_wait_for.gd" id="7_wait_for"]
+[ext_resource type="Script" path="res://core/content/scenario/step_walk_to.gd" id="8_walk_to"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_target.gd" id="9_target"]
+[ext_resource type="Script" path="res://core/content/scenario/step_interact.gd" id="10_interact"]
+[ext_resource type="Script" path="res://core/content/scenario/step_expect.gd" id="11_expect"]
+
+[sub_resource type="Resource" id="Resource_ready1"]
+script = ExtResource("6_ready")
+
+[sub_resource type="Resource" id="Resource_round1"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_end1"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "end"
+}
+
+[sub_resource type="Resource" id="Resource_human"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Resource_ready1"), SubResource("Resource_round1"), SubResource("Resource_end1")])
+
+[sub_resource type="Resource" id="Resource_ready2"]
+script = ExtResource("6_ready")
+
+[sub_resource type="Resource" id="Resource_round2"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_foot"]
+script = ExtResource("9_target")
+point = Vector3(116, 0, 58.5)
+
+[sub_resource type="Resource" id="Resource_to_foot"]
+script = ExtResource("8_walk_to")
+target = SubResource("Resource_foot")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_deck"]
+script = ExtResource("9_target")
+point = Vector3(116, 1.2, 64.5)
+
+[sub_resource type="Resource" id="Resource_up_the_ramp"]
+script = ExtResource("8_walk_to")
+target = SubResource("Resource_deck")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_console"]
+script = ExtResource("9_target")
+kind = 5
+station_kind = &"engine_console"
+
+[sub_resource type="Resource" id="Resource_to_console"]
+script = ExtResource("8_walk_to")
+target = SubResource("Resource_console")
+sprint = true
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Resource_press"]
+script = ExtResource("10_interact")
+station = SubResource("Resource_console")
+until = &"ButtonPressed"
+
+[sub_resource type="Resource" id="Resource_blast"]
+script = ExtResource("7_wait_for")
+event = &"EngineBlast"
+
+[sub_resource type="Resource" id="Resource_down"]
+script = ExtResource("11_expect")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_respawned"]
+script = ExtResource("7_wait_for")
+event = &"Respawned"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Resource_end2"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "end"
+}
+
+[sub_resource type="Resource" id="Resource_alien"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Resource_ready2"), SubResource("Resource_round2"), SubResource("Resource_to_foot"), SubResource("Resource_up_the_ramp"), SubResource("Resource_to_console"), SubResource("Resource_press"), SubResource("Resource_blast"), SubResource("Resource_down"), SubResource("Resource_respawned"), SubResource("Resource_end2")])
+
+[sub_resource type="Resource" id="Resource_no_fix"]
+script = ExtResource("2_never")
+event = &"EngineProblemFixed"
+
+[resource]
+script = ExtResource("3_scenario")
+mode = ExtResource("1_mode")
+map = "res://levels/estate/estate.tscn"
+session_seed = 149800000002
+bots = 2
+forced_roles = Dictionary[int, StringName]({
+1: &"dissident"
+})
+scripts = Array[ExtResource("4_script")]([SubResource("Resource_human"), SubResource("Resource_alien")])
+expected_ends = Array[StringName]([&"dissidents"])
+time_limit_s = 400.0
+never = Array[ExtResource("2_never")]([SubResource("Resource_no_fix")])
