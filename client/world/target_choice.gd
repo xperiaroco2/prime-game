@@ -150,7 +150,9 @@ static func choose_target(
 			best = Target.new(Target.Kind.ITEM, picked, enters_at(eye, look, centre, PICK_RADIUS_M))
 	for id: int in model.stations:
 		var station := model.stations[id]
-		if not StationUse.usable(model, mode, id) or not stands_at(station, mode, feet):
+		# Where the feet stand first: it culls all but the few stations in reach before the
+		# costlier usable (#1530: every station of the estate each physics tick).
+		if not stands_at(station, mode, feet) or not StationUse.usable(model, mode, id):
 			continue
 		var t := blocked_at if id == device_station else INF
 		var spot := enters_at(eye, look, aim_point(station), STATION_AIM_RADIUS_M)
