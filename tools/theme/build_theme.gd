@@ -41,7 +41,7 @@ func _build() -> int:
 	if not base.is_empty():
 		push_error("THEME %s" % base)
 		return 1
-	for deprecated in Builder.deprecated_names(pack):
+	for deprecated in Builder.deprecated_names(pack, mapping):
 		print("THEME skipped deprecated variation %s" % deprecated)
 	var themes: Dictionary = mapping.get("themes", {})
 	for key: String in themes:
