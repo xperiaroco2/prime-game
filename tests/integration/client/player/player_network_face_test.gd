@@ -38,12 +38,12 @@ func test_each_player_stands_in_the_lobby_facing_its_marker() -> void:
 		# What the next MoveClaim says.
 		assert_vector(_claim_facing(game)).is_equal_approx(Vector3.BACK, Vector3.ONE * EPS)
 	# The own look stands between placements: no later step turns it back.
-	var player := _pair.client.player()
-	player.look(0.8, 0.5)
-	var yaw := player.rotation.y
+	var own := _pair.client.player()
+	own.look(0.8, 0.5)
+	var yaw := own.rotation.y
 	await _pair.frames(30)
-	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, EPS)
-	assert_float(_pitch(player)).is_equal_approx(0.5, EPS)
+	assert_float(angle_difference(own.rotation.y, yaw)).is_equal_approx(0.0, EPS)
+	assert_float(_pitch(own)).is_equal_approx(0.5, EPS)
 	assert_int(_pair.client.client().corrections).is_equal(0)
 	await _pair.stop()
 
@@ -78,4 +78,4 @@ func _pitch(player: PlayerController) -> float:
 
 ## The facing the session's next MoveClaim carries.
 func _claim_facing(game: Game) -> Vector3:
-	return game.client().get("_facing") as Vector3
+	return game.client().claim_facing()

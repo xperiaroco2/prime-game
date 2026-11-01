@@ -283,12 +283,12 @@ func test_a_respawned_player_looks_level_along_its_marker() -> void:
 	session.corrected.connect(
 		func(_position: Vector3, _velocity: Vector3) -> void:
 			if respawned[0] and at_placement.is_empty():
-				at_placement.append(_pair.client.client().get("_facing") as Vector3)
+				at_placement.append(_pair.client.client().claim_facing())
 	)
 	session.claim_sent.connect(
 		func(_epoch: int, _tick: int, _covered: int, _sprint: bool, _moved: bool) -> void:
 			if respawned[0] and first_claim.is_empty():
-				first_claim.append(_pair.client.client().get("_facing") as Vector3)
+				first_claim.append(_pair.client.client().claim_facing())
 	)
 	var living := func() -> bool: return session.model.is_alive(joiner)
 	assert_bool(await _until(living, 240)).is_true()
@@ -352,7 +352,7 @@ func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 	session.corrected.connect(
 		func(_position: Vector3, _velocity: Vector3) -> void:
 			if placed[0] and at_placement.is_empty():
-				at_placement.append(_pair.client.client().get("_facing") as Vector3)
+				at_placement.append(_pair.client.client().claim_facing())
 	)
 	# The round ends while the joiner is dead; the host's ReturnToLobby places everyone.
 	_pair.win()

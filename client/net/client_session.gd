@@ -305,6 +305,11 @@ func set_facing(facing: Vector3) -> void:
 	_facing = facing
 
 
+## The facing the next MoveClaim says (set_motion's or set_facing's last).
+func claim_facing() -> Vector3:
+	return _facing
+
+
 ## The mover jumped: the claims' count of jumps in this epoch rises (E2).
 func count_jump() -> void:
 	_jumps = mini(_jumps + 1, MAX_JUMPS)
