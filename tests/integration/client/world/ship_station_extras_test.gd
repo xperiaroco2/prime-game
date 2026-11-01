@@ -118,6 +118,74 @@ func test_the_charger_draws_the_crystal_it_holds_with_its_charge() -> void:
 	assert_bool(crystal.shown()).is_false()
 
 
+func test_the_charger_arcs_while_it_charges_and_flashes_once_at_its_end() -> void:
+	if _no_art():
+		return
+	var looks := _view.station_looks()
+	var zap := looks.charger_of(Rig.CHARGER).zap()
+	assert_object(zap).is_not_null()
+	var root := zap.node().get_parent() as Node3D
+	assert_str(root.scene_file_path).is_equal(Rig.CHARGER_KIT.resource_path)
+	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.SOCKET], 6000))
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.LOADED, 7))
+	_view._process(0.05)
+	assert_bool(zap.arcing()).is_false()
+	var ticks := Rig.crystals(_mode).charge_ticks()
+	var ends := 400
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.CHARGING, 7, ends))
+	_now = ends - ticks / 2
+	_view._process(0.05)
+	assert_bool(zap.arcing()).is_true()
+	assert_bool(zap.flashing()).is_false()
+	assert_bool(looks.charger_of(Rig.CHARGER_WEST).zap().arcing()).is_false()
+	# The arcs land on the crystal: within its radius of the carrier's axis.
+	var crystal := looks.charger_of(Rig.CHARGER).crystal().node()
+	for frame: int in 10:
+		_view._process(0.05)
+		var axis := ShipStationLooks.relative(crystal, root)
+		for arc: PackedVector3Array in zap.ends():
+			var local := axis.affine_inverse() * arc[1]
+			assert_float(Vector2(local.x, local.z).length()).is_less(0.1)
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.WAITING, 7))
+	_now = ends
+	_view._process(0.05)
+	assert_bool(zap.flashing()).is_true()
+	assert_float(looks.flash_of(Rig.CHARGER)).is_greater(0.0)
+	for frame: int in 13:
+		_view._process(0.05)
+	assert_bool(zap.flashing()).is_false()
+	assert_bool(zap.arcing()).is_false()
+	assert_float(looks.flash_of(Rig.CHARGER)).is_equal(0.0)
+
+
+func test_a_blast_ends_the_flash_and_a_late_view_plays_none() -> void:
+	if _no_art():
+		return
+	var looks := _view.station_looks()
+	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.SOCKET], 6000))
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.CHARGING, 7, 400))
+	_view._process(0.05)
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.WAITING, 7))
+	_view._process(0.05)
+	assert_float(looks.flash_of(Rig.CHARGER)).is_greater(0.0)
+	_model.fold(&"CrystalChanged", Rig.crystal(-1, CrystalProblem.EMPTY, -1))
+	_view._process(0.05)
+	assert_float(looks.flash_of(Rig.CHARGER)).is_equal(0.0)
+	assert_bool(looks.charger_of(Rig.CHARGER).zap().flashing()).is_false()
+	# A view built while the charger already waits saw no edge: no flash.
+	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.WAITING, 7))
+	var late: ShipEngineViews = auto_free(ShipEngineViews.new())
+	late.model = _model
+	late.mode = _mode
+	late.host_tick = func() -> int: return _now
+	late.level = Rig.devices(self)
+	add_child(late)
+	late._process(0.05)
+	late._process(0.05)
+	assert_float(late.station_looks().flash_of(Rig.CHARGER)).is_equal(0.0)
+	assert_bool(late.station_looks().charger_of(Rig.CHARGER).zap().flashing()).is_false()
+
+
 func test_a_charge_s_share_runs_from_its_start_to_its_end() -> void:
 	assert_float(ShipStationLooks.charge_share(100, 300, 200)).is_equal(0.0)
 	assert_float(ShipStationLooks.charge_share(50, 300, 200)).is_equal(0.0)
