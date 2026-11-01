@@ -126,7 +126,9 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   h 1.15 m;
   the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902); the lens rooms'
   centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
-  band.
+  band. The game's markers (#1499) stand on the deck in front of each spot, the boards' and their breakers'
+  0.45 m (the corridor floor is a grate from 0.55 m out); the hologram's centre 1.457 m over the deck (the start
+  console package's hall disc), its turbines at the three nozzle pods and its button at the package's button.
 - **The start clearing** (the M8 slice, GDD §3, #1492; the spots a level choice, "not a decision"): the crew starts
   together on the open ground before the ramp's foot, world (116, 59.4), between the creek's south bank and the
   hull, and comes back there after a respawn. As built (`levels/estate/rooms/markers.tscn`), world x and z: the ten

@@ -14,6 +14,8 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const RADIUS := 0.4
 const HEIGHT := 1.8
 const STEP := 0.3
+## The disc cast down for the highest floor under the capsule (_disc_floor_under): its thickness.
+const DISC_M := 0.02
 const JUMP := 1.0
 const SPACING := 0.1
 const BONFIRE := Vector2(65.3, 41)
@@ -603,8 +605,13 @@ func _points(corners: Array) -> Array[Vector3]:
 
 
 ## How high the player's capsule rests at (x, z): on the highest floor under its circle; NAN when
-## there is no floor under it at all.
+## there is no floor under it at all. A thin disc of the circle cast down finds it between the rays
+## too: the art ship's grates and floor grooves (#1499) leave gaps a few centimetres deep, finer
+## than the rays' spacing, which the capsule rides over.
 func _rest_height(x: float, z: float, last: float) -> float:
+	var cast := _disc_floor_under(x, z, last)
+	if not is_nan(cast):
+		return cast
 	var top := _floor_under(x, z, last)
 	for ring: float in [RADIUS / 2, RADIUS * 0.98]:
 		for k in 8:
@@ -613,6 +620,25 @@ func _rest_height(x: float, z: float, last: float) -> float:
 			if not is_nan(under) and (is_nan(top) or under > top):
 				top = under
 	return top
+
+
+## The highest floor under the circle at (x, z) (the rings' outer radius), a disc cast from a step
+## above the last floor down to 1 m below it; NAN when it meets none or starts in a collider (the
+## rays decide then).
+func _disc_floor_under(x: float, z: float, last: float) -> float:
+	var disc := CylinderShape3D.new()
+	disc.radius = RADIUS * 0.98
+	disc.height = DISC_M
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = disc
+	query.collision_mask = LevelWorld.WORLD_LAYER
+	var from := last + STEP + 0.05 + DISC_M / 2.0
+	query.transform = Transform3D(Basis.IDENTITY, Vector3(x, from, z))
+	query.motion = Vector3(0.0, -(STEP + 1.05), 0.0)
+	var fractions := _level.space_state().cast_motion(query)
+	if fractions.size() < 2 or fractions[1] >= 1.0 or fractions[0] <= 0.0:
+		return NAN
+	return from - DISC_M / 2.0 + query.motion.y * fractions[0]
 
 
 ## The top of the floor under (x, z), searched from a step above the last floor down to 1 m

@@ -23,8 +23,10 @@ extends Node3D
 ##   cloud of mist over the five when all five open fix it (GDD §8; edges seen frame to frame,
 ##   seeded when the set is first bound, so a view built again plays none; a blast plays none);
 ## - the hologram made readable (ShipEngineHologram, #1500): the call while the engine is off, the
-##   turbines' spin, the ring of the bar round its disc, a point and a line of light per site
-##   station and the countdown to the nearest problem's deadline;
+##   turbines' spin (the turbines and the start button at the places the level gives under
+##   the hologram's point, `Turbine<n>` and `Button`, #1499), the ring of the bar round its disc,
+##   a point and a line of light per site station and the countdown to the nearest problem's
+##   deadline;
 ## - a blast: an orange sphere swelling from the console and fading (EngineBlast);
 ## - the engine's sounds (#1501, ShipEngineSounds): each cue due this frame goes out as
 ##   `sound_due` (ItemWorld hands it to WorldSounds), and the roar's with `finished`.
@@ -256,7 +258,8 @@ func _build(type: ShipEngine) -> void:
 					_mimic[id] = lamp
 	_hologram = ShipEngineHologram.new()
 	add_child(_hologram)
-	_hologram.setup(model, _console, centre, sites)
+	var point := _hologram_point()
+	_hologram.setup(model, _console, centre, sites, _turbine_places(point), _button_place(point))
 	_vapour = Node3D.new()
 	add_child(_vapour)
 	_blasts_seen = model.engine.blasts
@@ -293,11 +296,42 @@ func _build_strips(strips: int) -> void:
 ## The first Node3D of the level in group `engine_hologram`, else HOLOGRAM_LIFT_M over the
 ## console's use spot (a player standing on the spot would have it over the head).
 func _hologram_centre() -> Vector3:
+	var point := _hologram_point()
+	if point != null:
+		return point.global_position
+	return model.stations[_console].position + Vector3.UP * HOLOGRAM_LIFT_M
+
+
+## The first Node3D of the level in group `engine_hologram`, or null.
+func _hologram_point() -> Node3D:
 	if level != null and is_instance_valid(level) and level.is_inside_tree():
 		for found: Node in level.get_tree().get_nodes_in_group(&"engine_hologram"):
 			if found is Node3D and level.is_ancestor_of(found):
-				return (found as Node3D).global_position
-	return model.stations[_console].position + Vector3.UP * HOLOGRAM_LIFT_M
+				return found as Node3D
+	return null
+
+
+## The places of the hologram's turbines the level gives under its point (#1499): each Node3D
+## child named `Turbine<n>`, in name order; none, the hologram's stand-ins.
+func _turbine_places(point: Node3D) -> Array[Vector3]:
+	var places: Array[Vector3] = []
+	if point == null:
+		return places
+	var named: Array[Node3D] = []
+	for child: Node in point.get_children():
+		if child is Node3D and str(child.name).begins_with("Turbine"):
+			named.append(child as Node3D)
+	named.sort_custom(func(a: Node3D, b: Node3D) -> bool: return str(a.name) < str(b.name))
+	for turbine: Node3D in named:
+		places.append(turbine.global_position)
+	return places
+
+
+## The place of the hologram's start button the level gives under its point (#1499): its Node3D
+## child `Button`; none, Vector3.INF (the hologram's stand-in).
+func _button_place(point: Node3D) -> Vector3:
+	var button := point.get_node_or_null(^"Button") as Node3D if point != null else null
+	return button.global_position if button != null else Vector3.INF
 
 
 func _box(size: Vector3, colour: Color, over := Vector3.INF) -> MeshInstance3D:
