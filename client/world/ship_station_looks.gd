@@ -62,6 +62,8 @@ var _shell: Dictionary[int, int] = {}
 var _lamp: Dictionary[int, int] = {}
 ## Per site station: its wiring point on the console.
 var _slot: Dictionary[int, String] = {}
+## The wiring points some site station took (set once at bind, read each frame).
+var _taken: Dictionary[String, bool] = {}
 ## Per site station: what it is on the wiring ("socket", "breaker", "vent").
 var _site_what: Dictionary[int, String] = {}
 var _held: Dictionary[int, bool] = {}
@@ -115,8 +117,9 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 	if _console != null:
 		for site: int in sites:
 			var slot := _slot_of(site)
-			if slot != "" and not _slot.values().has(slot):
+			if slot != "" and not _taken.has(slot):
 				_slot[site] = slot
+				_taken[slot] = true
 		for breaker: int in _shell:
 			var board_side := _slot_of(_board_of[breaker])
 			var wing := 4 if board_side.ends_with("_e") else 0
@@ -241,7 +244,7 @@ func _update_console(
 			_set_station(slot, "ok", 1.0)
 	# A wiring point with no site station of its own reads as the rest: off while calling, else ok.
 	for slot: String in ShipConsoleLook.STATIONS:
-		if not _slot.values().has(slot):
+		if not _taken.has(slot):
 			_set_station(slot, "off" if calling else "ok", 1.0)
 	var lit: int = _lamp.get(order_lit, -1)
 	_console.set_lit(lit)
