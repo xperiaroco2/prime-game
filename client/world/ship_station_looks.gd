@@ -20,11 +20,13 @@ extends RefCounted
 ##   deadline; the order lamp of the breaker the order plays on now (its wing and its shell's
 ##   colour, so the lamp's colour is the shell's).
 ## - A socket: "charged" with no problem, "empty" while its crystal is out (an item), else "spent";
-##   the claws open while it is empty, eased over the drawing's 0.25 s and closed over 0.15 s.
+##   the claws open while it is empty, eased over the drawing's 0.25 s and closed over 0.15 s; its
+##   crystal (#1556) drawn charged, spent, or not while it is out.
 ## - A board: per bound breaker of the open chain, tripped (shell open, lamp dark), the last one on
 ##   during its ramp (lamp yellow) or on (green); the beacon while any of its shells is tripped.
 ## - A charger: by the phase of the crystal it holds: "charging" (the carrier rising and turning,
-##   the ring turning, the button in), "charged" (waiting) or "idle".
+##   the ring turning, the button in), "charged" (waiting) or "idle"; the crystal it holds (#1556)
+##   drawn spent while loaded, fading to charged over the charge (charge_share), charged waiting.
 ## The timings HANDOFF leaves to the game are placeholders, "not a decision".
 
 ## The device scenes a level instances, by what they are.
@@ -204,6 +206,14 @@ static func site_slot(what: String, local: Vector3) -> String:
 	return what + "_" + side
 
 
+## How far a charge ending on host tick `ends` and lasting `ticks` is at host tick `now`: 0 at its
+## start, 1 at its end (#1556: the charger's crystal fades from spent to charged over it).
+static func charge_share(now: int, ends: int, ticks: int) -> float:
+	if ticks <= 0:
+		return 1.0
+	return clampf(float(now - (ends - ticks)) / float(ticks), 0.0, 1.0)
+
+
 ## `node`'s transform relative to its ancestor `root` (no tree needed).
 static func relative(node: Node3D, root: Node3D) -> Transform3D:
 	var t := Transform3D.IDENTITY
@@ -263,6 +273,7 @@ func _update_socket(id: int, delta: float) -> void:
 	if _model.engine.problem_at(id) != null:
 		state = "empty" if crystal != null and crystal.item >= 0 else "spent"
 	look.set_state(state)
+	look.set_crystal(state != "empty", 1.0 if state == "charged" else 0.0)
 	var target := 1.0 if state == "empty" else 0.0
 	var claws: float = _claws.get(id, target)
 	if not _fresh:
@@ -320,12 +331,15 @@ func _update_charger(id: int, now: int) -> void:
 			held = crystal
 	if held == null or held.phase == CrystalProblem.LOADED or held.phase == CrystalProblem.EMPTY:
 		look.set_state("idle")
+		look.set_crystal(held != null and held.phase == CrystalProblem.LOADED, 0.0)
 	elif held.phase == CrystalProblem.WAITING:
 		look.set_state("charged")
+		look.set_crystal(true, 1.0)
 	else:
 		look.set_state("charging")
 		var ticks := _crystals.charge_ticks() if _crystals != null else 0
 		var seconds := maxf(0.0, float(now - (held.tick - ticks))) / Ticks.RATE
+		look.set_crystal(true, charge_share(now, held.tick, ticks))
 		look.set_carrier(
 			clampf(seconds / CARRIER_RISE_SECONDS, 0.0, 1.0),
 			fposmod(TAU * CARRIER_TURNS_PER_SECOND * seconds, TAU)
