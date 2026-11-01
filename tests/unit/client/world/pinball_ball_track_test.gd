@@ -59,9 +59,15 @@ func test_a_stale_or_repeated_tick_is_ignored() -> void:
 
 func test_samples_older_than_keep_ticks_are_dropped() -> void:
 	_track.add(1, true, Vector3(0.1, 0.03, 0.0))
+	_track.add(2, true, Vector3(0.15, 0.03, 0.0))
 	_track.add(2 + PinballBallTrack.KEEP_TICKS, true, Vector3(0.2, 0.03, 0.0))
 	# The first is gone: before the kept one nothing is known.
 	assert_object(_track.at(1.5)).is_null()
+	# The one exactly KEEP_TICKS below the newest is not older than KEEP_TICKS: it stays.
+	assert_object(_track.at(2.0)).is_not_null()
+	assert_vector(_track.at(2.0) as Vector3).is_equal_approx(
+		Vector3(0.15, 0.03, 0.0), Vector3.ONE * 0.0001
+	)
 
 
 func test_clear_forgets_every_sample() -> void:
