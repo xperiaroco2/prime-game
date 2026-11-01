@@ -552,8 +552,7 @@ func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 ## Whether the event puts the own player somewhere anew, looking level: its Respawned (#191), or a
 ## PlayersPlaced that names it (End -> Lobby and a new match's deal, the engineer's answer on #240:
 ## every placement, the lobby's and a new round's, starts level; a marker's facing turns it after,
-## #1522). Each comes right before the
-## Correction that moves it.
+## #1522). Each comes right before the Correction that moves it.
 func _places_level(event_name: StringName, fields: Dictionary) -> bool:
 	var own := session.model.own_peer
 	if event_name == &"Respawned":

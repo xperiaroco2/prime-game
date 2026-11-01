@@ -7,8 +7,7 @@ extends RuleEffect
 ## feet). When none is free it is drawn from all of them (the engineer's answer 5 on PR #133: a
 ## respawn is never delayed by where others stand; players push apart, §7.1). LifeRules.respawn
 ## then does the rest: the body goes, full health and stamina, empty hands, a new epoch, the
-## marker's facing (#1522; a marker with none leaves the player's own) and
-## invulnerability.
+## marker's facing (#1522; a marker with none leaves the player's own) and invulnerability.
 ##
 ## LifeTicks runs it, with the dead player as the actor, when its respawn time
 ## (`PlayerRules.respawn_s` after the death) runs out; it is held by LifeTicks, not by a row, so

@@ -2,10 +2,10 @@ class_name WelcomeEvent
 extends MatchEvent
 ## A joiner's accepted Hello (ARCHITECTURE §3.5, §4.2): its peer id, spawn point, facing (#1522)
 ## and epoch, and the public facts of the lobby it arrives in: the roster with names, ready flags
-## and colours, the
-## settings and the map, the phase, the other players' positions, the lobby's name (#214) and the
-## items already in the hall (#1404). It holds nothing hidden (§5): in Lobby and Countdown nobody
-## has a role and everyone is alive, and every item fact in it was an everyone-event already.
+## and colours, the settings and the map, the phase, the other players' positions, the lobby's
+## name (#214) and the items already in the hall (#1404). It holds nothing hidden (§5): in Lobby
+## and Countdown nobody has a role and everyone is alive, and every item fact in it was an
+## everyone-event already.
 ## Audience: only the joiner.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
