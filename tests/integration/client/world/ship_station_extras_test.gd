@@ -195,6 +195,56 @@ func test_a_charge_s_share_runs_from_its_start_to_its_end() -> void:
 	assert_float(ShipStationLooks.charge_share(0, 300, 0)).is_equal(1.0)
 
 
+func test_a_tripped_core_smokes_once_its_shell_is_open_and_stops_when_it_is_on() -> void:
+	if _no_art():
+		return
+	var looks := _view.station_looks()
+	var east := looks.board_of(Rig.BOARD_EAST)
+	var smoke := east.smoke()
+	# Each core's emitter sits at its centre, HANDOFF.md's (u, 0.872, 0.18) in the board's frame.
+	for i: int in ShipBoardLook.COLOURS.size():
+		var want := Vector3(ShipBoardLook.CORE_U[i], 0.872, 0.18)
+		assert_float(smoke.emitter(i).position.distance_to(want)).is_less(0.01)
+	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.BOARD_EAST], 900))
+	_model.fold(&"BreakerChain", Rig.chain(1, [5, 6, 7, 8], 2, 99))
+	_now = 100
+	_view._process(0.1)
+	var seven := looks.shell_of(7)
+	# 0.4 open: the core is still behind its shell.
+	assert_bool(east.smoking(seven)).is_false()
+	_view._process(0.2)
+	assert_bool(east.smoking(seven)).is_true()
+	assert_bool(east.smoking(looks.shell_of(8))).is_true()
+	assert_bool(east.smoking(looks.shell_of(5))).is_false()
+	assert_bool(east.smoking(looks.shell_of(6))).is_false()
+	for i: int in 4:
+		assert_bool(looks.board_of(Rig.BOARD_WEST).smoking(i)).is_false()
+	# On again: the smoke stops emitting at once, while the shell is still closing.
+	_model.fold(&"BreakerChain", Rig.chain(1, [5, 6, 7, 8], 3, 200))
+	_now = 200
+	_view._process(0.05)
+	assert_float(east.open_of(seven)).is_greater(0.5)
+	assert_bool(east.smoking(seven)).is_false()
+	assert_bool(east.smoking(looks.shell_of(8))).is_true()
+
+
+func test_a_view_built_late_shows_a_tripped_core_smoking_at_once() -> void:
+	if _no_art():
+		return
+	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.BOARD_EAST], 900))
+	_model.fold(&"BreakerChain", Rig.chain(1, [5, 6, 7, 8], 3, 99))
+	var late: ShipEngineViews = auto_free(ShipEngineViews.new())
+	late.model = _model
+	late.mode = _mode
+	late.host_tick = func() -> int: return _now
+	late.level = Rig.devices(self)
+	add_child(late)
+	late._process(0.0)
+	var looks := late.station_looks()
+	assert_bool(looks.board_of(Rig.BOARD_EAST).smoking(looks.shell_of(8))).is_true()
+	assert_bool(looks.board_of(Rig.BOARD_EAST).smoking(looks.shell_of(7))).is_false()
+
+
 ## Whether the packages' art is missing here (CI: LFS pointers); the test then skips.
 func _no_art() -> bool:
 	return ShipDeviceArt.missing(self, true)
