@@ -9128,8 +9128,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   `deadline` against the estimated host tick; done = `TaskState` n of n. The kinds: a gill set's slits = its
   `GillFlipped`s since the problem opened (all shut at the open), its bar = `bar_slit` from the opening tick; the
   breakers' order and lamps = the problem's last `BreakerChain` (the first `next` on, the last one's yellow and green
-  from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console's mimic
-  board, GDD §8: remembered or read out, so no lamp, marker or HUD line at the boards shows it); a socket's crystal,
+  from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console (its
+  mimic board, or the art console's order lamps), GDD §8: remembered or read out, so no lamp, marker or HUD line at the boards shows it); a socket's crystal,
   a charger's phase and its fill = the problem's last `CrystalChanged`.
 - **The estate and the content** (#1462, provisional under the MVP content ADR). `content/tasks/ship_engine.tres`
   (the console kind `engine_console`, the three kinds above, `stage_problems` 2, 4, 6, `stage_seconds` 30 (the GDD's
@@ -9149,9 +9149,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   (`CartridgeSocket01`..`04`), the breaker board (`BreakerBoard01`, `02`) and the crystal charger (`Charger01`,
   `02`), their convex hint colliders on layer 1. Each stands on its `Art/Stations` spot as its HANDOFF's
   "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's panels):
-  `estate_ship_test` holds them there and `estate_engine_test` each marker's player clear of them. They show the
-  GLBs' plain-PBR fallback: the packages' look scripts (`apply()` and the states: the console's spin-up, a socket's
-  lamp, a board's shells, a charger's carrier), which an asset may not carry (§11.1), are not in the game;
+  `estate_ship_test` holds them there and `estate_engine_test` each marker's player clear of them. An asset carries
+  no look script (§11.1): the client ports them (`ShipStationLooks`, "The client" below; #1550) and drives their
+  states (the console's spin-up and hologram, a socket's lamp and claws, a board's shells, a charger's carrier);
   `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.457 m over the deck above the
   console's pedestal (the start console package's hall disc), its `Turbine1`..`Turbine3` at the art's three nozzle
   pods at the mimic board's scale and its `Button` at the console package's button.
@@ -9202,7 +9202,28 @@ plays it on the estate (#1462, "The estate and the content" below).
   level's hologram point has its `Turbine<n>` and `Button` children (#1499; without them two stand-ins either side of
   the centre and the button under it, toward the console). Its sounds (the call, the order's beeps, the wail, the zap,
   the blast, the roar) are §4.7.64's. `ShipEngineClient` never offers E
-  on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
+  on a breaker board (no use of one is taken: its breakers are).
+  **The devices' looks** (#1550): `ShipStationLooks` (`client/world/`, built by `ShipEngineViews` with the engine)
+  finds the level's station devices by the scene each instances (the console GLB, the socket, board and charger
+  kit wrappers) and binds each station to the nearest free device of its kind within `BIND_M` on the floor, one to
+  one; a breaker to the nearest bound board and its shell by its rank along the board's local +X (red, yellow,
+  green, blue as you face it; the 0.5 m markers and the 0.34 m shells differ, so only the rank holds). Each frame
+  it sets the ported looks (`ShipConsoleLook`, `ShipSocketLook`, `ShipBoardLook`, `ShipChargerLook`, one per
+  package's look script, on the live layers: the scripts' layer 20 is `PhotoLayers.PHOTO`) from the model and the
+  host tick, alike on every peer: the console's clock (the host tick's), its bar (the `ZoneProgress` share), the
+  call while `ShipEngineHologram.called()` with the stand-in's period, its onset on the call beep's tick, the fans
+  (each broken wiring point halving them, the art's rule), a wiring point per site station by its side (and a
+  socket's front or back) in the console's own frame (off while calling, broken while held, blinking as the
+  stand-in, fixed on its release but not at a blast; a point with no station reads as the rest), the countdown and
+  the order lamp of the breaker the order plays on, on its board's wing in its shell's colour; a socket charged
+  with no problem, empty while its crystal is out (`Crystal.item`), else spent, its claws open while empty; a
+  board's shells tripped (open, lamp dark), the last one on yellow through its ramp, else green, its beacon while
+  a shell is tripped; a charger idle, charging (the carrier rising and turning, the ring turning, the button in)
+  or charged. A station whose device is bound draws no stand-in lamp; with the art console bound its hologram is
+  the hologram (`ShipEngineHologram` stays as the state readers and the look where no console is bound, hidden),
+  and it replaces the mimic board and, while the bar has its three stages, the strips. The timings the packages
+  leave open (the shells' and the carrier's) are placeholders, not a decision.
+  The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
   **The finish** (#1502, GDD §8): `ShipEngineFinale` (`client/world/`, a child of `ShipEngineViews`) starts with
   `finished(at)` (the roar's frame, the console's done `ZoneProgress`, so every peer alike from the filtered events)
@@ -9243,8 +9264,15 @@ its §5a device, on the deck and clear, each gill set by a gill button, the holo
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
 slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot, the
 finish's three nozzles out of the stern, each pod with its `pod_bell` for the flame, #1552),
-`tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
-a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
+`tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals
+and their items, a new match), `tests/integration/client/world/ship_device_looks_test.gd` (each ported look covers
+every surface of its device on the live layers, refuses another device, the call's onset every period, the fans
+halved per broken point, the values it holds), `tests/integration/client/world/ship_station_looks_test.gd` (each
+station bound to its device, the breakers to shells by rank, a breaker's console lamp in its shell's colour, the
+wiring points by side, no stand-ins under the devices and the art hologram, the live layers, the host's clock and
+the call on the beep's tick, the press, the blink, fixed and none at a blast, the order lamp a step at a time, the
+shells, lamps and beacon, the socket's crystal and claws, the charger's charge, a bare level keeping the stand-ins)
+and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
@@ -10008,8 +10036,11 @@ assets/
   asset never refers back to them.
   One kind of text file is data too: an art set's own materials, its shader and the `.tres` that use it, at the
   paths its scenes reference, copied as the art ships them (the House's `house_kit/kit_set.gdshader` and
-  `kit_set.tres`, `house_props/prop_fine.gdshader` with `prop_fine_high.tres` and `prop_fine_low.tres`, #523);
-  never GDScript.
+  `kit_set.tres`, `house_props/prop_fine.gdshader` with `prop_fine_high.tres` and `prop_fine_low.tres`, #523),
+  and the shaders a package's look script loads, copied as data next to its asset for the client's port of that
+  script (the ship's stations, #1550: `start_console/console_signal.gdshader` and `console_holo.gdshader`,
+  `crystal_socket/socket_bay.gdshader`, `breaker_board/board_core.gdshader`; their `*_metal` shaders are the same
+  file as `ship/console_metal.gdshader`, used from there); never GDScript.
 - An art level set ships its assembled scene too, at the path its HANDOFF names under `levels/` (#1451): the
   ship package's `levels/ship/ship.tscn` over `environment/ship/`, and the lobby hall package's
   `levels/lobby/lobby_hall.tscn` over `environment/lobby/`, which instances the ship's scene and carries the
