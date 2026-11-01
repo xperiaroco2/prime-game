@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/lobby/window_glass.gdshader" id="1_qb1h6"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_qb1h6")
+shader_parameter/tint = Color(0.55, 0.7, 0.75, 1)
+shader_parameter/base_alpha = 0.05
+shader_parameter/edge_alpha = null

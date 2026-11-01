@@ -263,6 +263,27 @@ The 23 icons of `icons/` (the CheckBox and SpinBox ones since `ui-0.7.0`, #1020)
 scale the pack's `assets` list gives (#520); the pinned copy under `client/ui/theme/pack/` (#288) is text Godot does
 not import. Each file's "what" is in its folder's `LICENCES.json`.
 
+## The lobby hall (prime-game-art)
+
+- **Files:** `assets/environment/lobby/**`
+- **Author:** the prime-game art track (own work: the hall, its metal, the shaders, the light rig, made by the art
+  pipeline's code); the Earth's textures from NASA imagery (below)
+- **Source:** the art manifest `assets/environment/lobby/manifest.toml` in xperiaroco2/prime-game-art (art #356, PR
+  xperiaroco2/prime-game-art#364, `main` at `0e90955f`); the files are the package's export
+  `lobby/hall/v16/export3` from the art's raw folder, each matching the SHA-256 its `package.json` lists. The PNGs
+  beside the GLBs are their embedded textures as Godot's importer extracts them. The art manifest's `approved_by` is
+  still empty; the engineer approved the lobby for the M8 slice:
+  https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184. The Earth: NASA's Black Marble 2016
+  (Joshua Stevens and Miguel Roman, Suomi NPP VIIRS), Blue Marble Next Generation (December 2004) and the Blue Marble
+  clouds (Reto Stockli), NASA Earth Observatory / Goddard Space Flight Center, from eoimages.gsfc.nasa.gov (records
+  144898, 73909, 57747; downloaded 2026-10-30; the art's `sources/nasa_earth_lobby.toml`), scaled by the art's
+  `lobby --earth-tex`. Credit line: "Earth imagery: NASA".
+- **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
+  file, so all rights reserved); the Earth's textures: NASA public domain imagery (NASA-PD,
+  https://www.nasa.gov/nasa-brand-center/images-and-media/; no NASA logos or insignia, no implied endorsement)
+- **AI generated:** false
+- **Public repo OK:** true (own work and NASA public domain)
+
 ## The ship (prime-game-art)
 
 - **Files:** `assets/environment/ship/**`
