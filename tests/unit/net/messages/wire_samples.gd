@@ -362,6 +362,9 @@ static func state_and_voice() -> Array[WireMessage]:
 	return [
 		WireMessage.new(&"Snapshot", {"tick": 99, "avatars": avatars}),
 		WireMessage.new(&"Snapshot", {"tick": 0, "avatars": {}}),
+		WireMessage.new(
+			&"Snapshot", {"tick": 7, "ball": Vector3(0.25, 0, -1.5), "avatars": avatars}
+		),
 		WireMessage.new(&"VoiceUp", {"seq": 0xFFFF, "opus": PackedByteArray([1])}),
 		_batch(7, [{"speaker": 4, "seq": 0, "strength": 0, "opus": frame}]),
 		_batch(0xFFFFFFFE, [] as Array[Dictionary]),

@@ -12,12 +12,13 @@ extends RefCounted
 ## the lobby stays, and is gone when the host closes it. The owner's name is copied when the game
 ## starts, so it stays when the owner leaves.
 ##
-## The table (the ball's physics, server/, #1399) reports into core through three commands that
+## The table (the ball's physics, server/, #1399) reports into core through four commands that
 ## server/ originates (Intents.TABLE_REPORTS), each naming the game it belongs to (`game`, the
 ## serial PinballState carries): BallLaunched, TargetHit (`target`, a PinballTarget's id) and
-## BallLost (report()). A report of a game that is not the live one (none seated, or another game
-## since) is ignored: a report in flight at a release is a normal race. Every change goes out as one
-## public PinballState, the whole state (announce()).
+## BallLost (report()), and BallMoved, the ball's place for the snapshots (shown_ball()). A report
+## of a game that is not the live one (none seated, or another game since) is ignored: a report in
+## flight at a release is a normal race. Every change but BallMoved goes out as one public
+## PinballState, the whole state (announce()).
 ##
 ## A game ends (end(): the best updated, the seat freed) after its last ball, on the seated
 ## player's Interact again (UsePinball), through PinballTicks when the seated player is no longer
@@ -47,6 +48,10 @@ class Machine:
 	var balls_left := 0
 	## Whether a ball is on the table (BallLaunched, until BallLost).
 	var in_play := false
+	## Whether the ball on the table has a place (a BallMoved since its BallLaunched), and the place:
+	## table-local metres (Intents.BALL_MOVED), public in every snapshot (#1399, §5).
+	var ball_placed := false
+	var ball := Vector3.ZERO
 	var score := 0
 	var left := false
 	var right := false
@@ -135,6 +140,7 @@ static func end(ctx: MatchContext) -> void:
 	played.station = -1
 	played.balls_left = 0
 	played.in_play = false
+	played.ball_placed = false
 	played.left = false
 	played.right = false
 	announce(ctx)
@@ -157,16 +163,24 @@ static func set_flippers(ctx: MatchContext, left: bool, right: bool) -> void:
 ## the last one ends the game. A report of a game that is not the live one, or one that does not
 ## fit (a second launch, a hit or a loss with no ball on the table) is ignored, with no event; a
 ## target id the game's data does not hold is a table bug (ctx.error). Each change: one
-## PinballState.
+## PinballState. BallMoved (#1399) only places the ball on the table for the snapshots
+## (shown_ball()): no event, the ball's place is no PinballState.
 static func report(ctx: MatchContext, command: MatchCommand) -> void:
 	var played := game(ctx.state)
 	if played.player < 0 or command.get_int("game", -1) != played.serial:
 		return
 	match command.kind:
+		Intents.BALL_MOVED:
+			var position := command.get_vector3("position")
+			if played.in_play and position.is_finite():
+				played.ball = position
+				played.ball_placed = true
+			return
 		Intents.BALL_LAUNCHED:
 			if played.in_play or played.balls_left <= 0:
 				return
 			played.in_play = true
+			played.ball_placed = false
 		Intents.TARGET_HIT:
 			var target := StringName(command.get_string("target"))
 			if not played.points.has(target):
@@ -179,11 +193,22 @@ static func report(ctx: MatchContext, command: MatchCommand) -> void:
 			if not played.in_play:
 				return
 			played.in_play = false
+			played.ball_placed = false
 			played.balls_left -= 1
 			if played.balls_left <= 0:
 				end(ctx)
 				return
 	announce(ctx)
+
+
+## The ball every snapshot shows (#1399, §5: public, the same for every viewer): {"ball": its
+## table-local place} while a game's ball is on the table and the table has placed it; else empty,
+## and the snapshot holds no ball.
+static func shown_ball(state: MatchState) -> Dictionary:
+	var played := game(state)
+	if played.player < 0 or not played.in_play or not played.ball_placed:
+		return {}
+	return {"ball": played.ball}
 
 
 ## Whether the session's machine has anything to show: a game was ever started (before that every

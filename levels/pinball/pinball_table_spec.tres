@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="PinballTableSpec" format=3]
+
+[ext_resource type="Script" path="res://server/pinball_table_spec.gd" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+ball_radius_m = 0.03
+ball_mass_kg = 0.08
+ball_bounce = 0.4
+wall_bounce = 0.4
+ball_friction = 0.0
+ball_damp = 0.5
+slope_mps2 = 1.5
+launch_mps = 2.5
+launch_delay_s = 1.0
+flipper_swing_deg = 50.0
+flipper_speed_deg_s = 1500.0
+kick_mps = 0.0
+stuck_mps = 0.02
+stuck_s = 8.0
+touch_m = 0.004
+bounds_margin_m = 0.05
+metadata/note = "The pinball table's physics (#1399, PinballTableSpec): every number (the ball's size, mass, bounce and friction, the slope, the launch speed and delay, the flippers' swing and speed, the kick, the stuck rule, the touch and the catch) is provisional, not a decision: the engineer tunes them on the greybox. The feel is not verified from the command line."

@@ -8,7 +8,7 @@ extends RefCounted
 ## The mode is FixtureBaseMode's with res:// level paths (the wire carries only those; the files
 ## need not exist: ContentFingerprint counts a missing one as missing on both sides), proximity
 ## voice in Lobby and Countdown, FixtureVoice in Round and none in End; a test may pass its own mode
-## and layouts (layouts() by default) to _init.
+## and layouts (layouts() by default) to _init, and its own world (a FlatWorldQuery by default).
 
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
@@ -148,6 +148,7 @@ func _init(
 	host_schema: WireSchema = null,
 	game_layouts: Dictionary[String, LevelLayout] = {},
 	release := false,
+	world: WorldQuery = null,
 ) -> void:
 	mode = game_mode if game_mode != null else fixture_mode()
 	var wire := host_schema if host_schema != null else schema
@@ -159,7 +160,8 @@ func _init(
 	if release:
 		session._debug = false
 	var levels := game_layouts if not game_layouts.is_empty() else layouts()
-	started = session.start_with(mode, FlatWorldQuery.new(), levels, PORT, 8, now, SEED)
+	var host_world := world if world != null else FlatWorldQuery.new()
+	started = session.start_with(mode, host_world, levels, PORT, 8, now, SEED)
 	if started:
 		session.game.keep_history = not release
 		if with_own_client:
@@ -288,8 +290,8 @@ func peer_of(client: ClientSession) -> int:
 
 
 ## The difference between what `client` decoded and view_of its peer (§4.6): the events in order
-## (name and fields, by type), each decoded snapshot's avatars, and each frame's speaker and
-## strength (#1392) for its tick. Empty when they agree.
+## (name and fields, by type), each decoded snapshot's avatars and ball, and each frame's speaker
+## and strength (#1392) for its tick. Empty when they agree.
 func mismatches(client: ClientSession) -> PackedStringArray:
 	var found := PackedStringArray()
 	var view := session.game.view_of(peer_of(client))
@@ -312,6 +314,10 @@ func mismatches(client: ClientSession) -> PackedStringArray:
 			found.append("a snapshot of tick %d that view_of lacks" % at_tick)
 		elif client.view.snapshots[at_tick]["avatars"] != view.snapshots[at_tick]["avatars"]:
 			found.append("the snapshot of tick %d differs" % at_tick)
+		elif not WireSamples.same(
+			client.view.snapshots[at_tick].get("ball"), view.snapshots[at_tick].get("ball")
+		):
+			found.append("the snapshot of tick %d has another ball" % at_tick)
 	var heard := client.view.speakers()
 	for at_tick: int in heard:
 		var allowed: PackedInt32Array = view.speakers.get(at_tick, PackedInt32Array())

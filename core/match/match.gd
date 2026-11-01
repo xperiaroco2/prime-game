@@ -295,12 +295,13 @@ func take_outbox() -> Array[EmittedEvent]:
 
 
 ## What `peer` is entitled to now: its snapshot, or empty when the phase sends none (§5). It holds
-## the avatars alone, all the host sends (items are not on the wire, E3); the history view_of()
-## reads keeps the items and the bodies too (Snapshots.for_peer, #1198).
+## the avatars and the pinball's ball while one is on the table (`ball`, #1399), all the host sends
+## (items are not on the wire, E3); the history view_of() reads keeps the items and the bodies too
+## (Snapshots.for_peer, #1198).
 func snapshot_for(peer: int) -> Dictionary:
 	if _phase_spec == null or not _phase_spec.snapshots or not state.is_present(peer):
 		return {}
-	return {"avatars": Snapshots.avatars_for(state, peer, _ticked_through)}
+	return Snapshots.sent(state, peer, _ticked_through)
 
 
 ## The speakers `listener` may hear now (§6).

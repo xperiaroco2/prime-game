@@ -12,10 +12,12 @@ extends RefCounted
 ## command; (2) refill every peer's budgets; (3) poll: arrivals and departures become PeerConnected
 ## and PeerLeft, intents are queued by arrival, voice is relayed right after the poll; (4) when
 ## the due tick has not run: one BodyMoved per body the host simulates (HostBodies.reports, in
-## peer-id order, KE14) at the head of the batch, then every queued command, each stamped with it,
-## then Match.tick (step 1's catch-up gets no report: the physics did not run through it); (5) every
-## Match call's outbox slice is delivered as soon as it is taken; (6) snapshots for the step's own
-## tick; (7) the hello deadlines, in a step that ran (4) only.
+## peer-id order, KE14) at the head of the batch, then the pinball table's reports (`table`:
+## BallLaunched, TargetHit, BallLost oldest first, then BallMoved), then every queued command, each
+## stamped with it, then Match.tick (step 1's catch-up gets no report: the physics did not run
+## through it); (5) every Match call's outbox slice is delivered as soon as it is taken; (6)
+## snapshots for the step's own tick; (7) the hello deadlines, in a step that ran (4) only; last,
+## the table steps one physics frame against the game as of the last tick run, in every step.
 ##
 ## Delivery: an event is encoded once and sent to each of core/'s recipients in peer-id order,
 ## skipping peers this session disconnected and, from peer_left(p) until the call that applies
@@ -100,6 +102,11 @@ var voice_over_budget := 0
 ## The perf run's (#1255): while set, step() times its stages into it (StepMeter). Null in play,
 ## where step() reads no clock for it.
 var step_meter: StepMeter = null
+## The lobby pinball's table physics (#1399, §7.1.22): built by start_with for a host with
+## physics (HostWorldQuery; null on the bots' flat world); a test may set its own after start().
+## Stepped every step() against the live game (Pinball.game, read only); its reports join the
+## step-4 batch's head after the bodies'.
+var table: PinballTable = null
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -215,6 +222,10 @@ func start_with(
 	game = made
 	# A world with no physics (the bots' FlatWorldQuery) holds each launched body still (HostBodies).
 	_bodies = (world as HostWorldQuery).bodies if world is HostWorldQuery else HostBodies.new()
+	# The table reads its scene only at the first game, so a host nobody plays pinball on pays
+	# nothing for it; a flat world has no physics to run it in.
+	if table == null and world is HostWorldQuery:
+		table = PinballTable.new()
 	own_client = LoopbackTransport.own_client_of(_transport)
 	_started = true
 	_start_usec = now_usec
@@ -289,9 +300,14 @@ func step(now_usec: int) -> void:
 	_metered_voice()
 	# 4. Apply, when the due tick has not run yet; else the queue waits for the next one.
 	if game.ticked_through() < due:
-		# The bodies' reports head the batch (KE14): applied before every command stamped `due`.
+		# The bodies' reports head the batch (KE14), then the table's: applied before every
+		# command stamped `due`.
+		var batch: Array[MatchCommand] = []
 		if _bodies != null:
-			var batch := _bodies.reports()
+			batch = _bodies.reports()
+		if table != null:
+			batch.append_array(table.reports())
+		if not batch.is_empty():
 			batch.append_array(_queue)
 			_queue = batch
 		if not _metered_apply(due) or not _metered_tick(due):
@@ -301,6 +317,11 @@ func step(now_usec: int) -> void:
 		# 7. Deadlines, only after an apply: a queued Hello (one that waited out a host freeze, or
 		# read in a step with no tick due) is applied first.
 		_check_deadlines()
+	# The table follows the game as of the last tick run, one physics frame each step: after step 4,
+	# so a Flippers intent applied in this step turns its flipper in this physics frame (the
+	# physics server steps after _physics_process).
+	if table != null and is_running():
+		table.step(Pinball.game(game.state), 1.0 / Engine.physics_ticks_per_second)
 
 
 ## Ends the session: the owner's choice (the host quits, or its own client's load failed).
@@ -451,7 +472,7 @@ func _send_snapshots(at_tick: int) -> void:
 		var snapshot := game.snapshot_for(peer)
 		if snapshot.is_empty():
 			continue
-		var payload := _snapshots.payload(snapshot["avatars"] as Dictionary)
+		var payload := _snapshots.payload(snapshot)
 		if (
 			not payload.is_empty()
 			and _send(peer, _snapshots.kind, payload) == OK
@@ -525,10 +546,10 @@ func _strength_table() -> Dictionary[int, int]:
 
 ## speakers_for every present player.
 func _route_table() -> Dictionary[int, PackedInt32Array]:
-	var table: Dictionary[int, PackedInt32Array] = {}
+	var routes: Dictionary[int, PackedInt32Array] = {}
 	for peer: int in game.state.present_peers():
-		table[peer] = game.speakers_for(peer)
-	return table
+		routes[peer] = game.speakers_for(peer)
+	return routes
 
 
 func _check_deadlines() -> void:
@@ -573,6 +594,8 @@ func _end(reason: StringName) -> void:
 	end_reason = reason
 	if _bodies != null:
 		_bodies.clear()
+	if table != null:
+		table.clear()
 	if reason != CLOSED:
 		push_error("host: the session ended (%s): %s" % [reason, "; ".join(errors)])
 	if _debug and _started and game.recording and not replay_dir.is_empty():

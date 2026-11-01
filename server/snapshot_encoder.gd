@@ -3,7 +3,8 @@ extends RefCounted
 ## Builds each viewer's Snapshot payload of one tick (ARCHITECTURE §4.5 "Snapshots", #1234): each
 ## avatar's record is encoded once per tick through WireSchema, with every check its wire types
 ## make, and each viewer's payload is the tick, the count and the (peer, record) entries of the
-## avatars Match.snapshot_for gave that viewer, in ascending peer order. Every payload is byte for
+## avatars Match.snapshot_for gave that viewer, in ascending peer order, after the pinball's ball
+## when one is on the table (#1399, the same for everyone). Every payload is byte for
 ## byte what WireSchema.encode gives for the Snapshot of that viewer's avatars: before, the host
 ## encoded each avatar again for each viewer, O(N^2) encodes a tick.
 ##
@@ -15,6 +16,7 @@ extends RefCounted
 
 const SNAPSHOT := &"Snapshot"
 const AVATARS := "avatars"
+const BALL := "ball"
 
 ## Snapshot's kind, its cap and its most avatars.
 var kind := 0
@@ -31,6 +33,9 @@ var _header_built := false
 ## var_to_bytes gives it.
 var _entries: Dictionary[int, PackedByteArray] = {}
 var _records: Dictionary[int, PackedByteArray] = {}
+## The pinball's ball the header holds (#1399: {"ball": place}, or empty), and its var_to_bytes.
+var _ball := {}
+var _ball_bytes := PackedByteArray()
 
 
 func _init(schema: WireSchema) -> void:
@@ -49,11 +54,22 @@ func start(tick: int) -> void:
 	_records.clear()
 
 
-## The Snapshot of `avatars` (one viewer's, Match.snapshot_for's "avatars") under the started tick:
-## WireSchema.encode's bytes, or empty when it refuses them (it logged why).
-func payload(avatars: Dictionary) -> PackedByteArray:
-	if not _header_built:
+## The Snapshot of `snapshot` (one viewer's Match.snapshot_for: its "avatars", and its "ball" when
+## the pinball's ball is on the table) under the started tick: WireSchema.encode's bytes, or empty
+## when it refuses them (it logged why). The ball is the same for every viewer (§5), so it sits in
+## the header; one that differs from the header's builds the header and the entries again.
+func payload(snapshot: Dictionary) -> PackedByteArray:
+	var avatars: Dictionary = snapshot.get(AVATARS, {})
+	var ball := {}
+	if snapshot.has(BALL):
+		ball[BALL] = snapshot[BALL]
+	var ball_bytes := var_to_bytes(ball)
+	if not _header_built or ball_bytes != _ball_bytes:
 		_header_built = true
+		_ball = ball
+		_ball_bytes = ball_bytes
+		_entries.clear()
+		_records.clear()
 		_header = _schema.encode(_message({}))
 	if _header.is_empty():
 		return PackedByteArray()
@@ -91,5 +107,9 @@ func _entry(peer: int, record: Dictionary) -> PackedByteArray:
 	return entry
 
 
+## The Snapshot of `avatars` under the started tick, with the header's ball: every encode shares
+## the header's bytes up to the map's count.
 func _message(avatars: Dictionary) -> WireMessage:
-	return WireMessage.new(SNAPSHOT, {"tick": _tick, AVATARS: avatars})
+	var fields := {"tick": _tick, AVATARS: avatars}
+	fields.merge(_ball)
+	return WireMessage.new(SNAPSHOT, fields)

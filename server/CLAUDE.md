@@ -41,14 +41,14 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
   uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()`
   (debug builds), `skip_replay()` and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new`
-  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceBatchEncoder`, `SnapshotEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
+  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceBatchEncoder`, `SnapshotEncoder`, `RelayMeter`, `ReplayFiles`, `PinballTable` (§7.1.22). Its observer (debug
   builds) gets `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, not a change here.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
-  tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the queued
-  commands stamped with the due tick, then `Match.tick`; deliver the outbox; send the snapshots; check the hello
-  deadlines. Deliver the outbox and refresh the voice routing after every `Match.tick` call, catch-up ticks
-  included. Catching up before applying is what lets the first claim after a host freeze pass (#84).
+  tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the bodies'
+  and the pinball table's reports, then the queued commands, stamped with the due tick, then `Match.tick`; deliver
+  the outbox; send the snapshots; check the hello deadlines; step the table (last: a flipper turns that frame). Deliver
+  the outbox and refresh the voice routing after every `Match.tick` call, catch-ups too: then a post-freeze claim passes (#84).
 - One queue by arrival: the transport's signal order, the loopback's messages and the network's alike. Stamp a
   command when it is applied, with the tick it is applied on.
 - Take the outbox after every `Match.apply` and `Match.tick` call, one slice per call. Encode an event once and send it

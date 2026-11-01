@@ -12,7 +12,7 @@
 | Folder | Contains | May use | Owner |
 |---|---|---|---|
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
-| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1), simulates the knocked-down bodies on the maps `PlayerRules.motion_maps` lists and the limp ones in the lobby (`HostBodies`, §7.1.18, §7.1.21) | `core/`, the `net/` abstraction | engineer |
+| `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1), simulates the knocked-down bodies on the maps `PlayerRules.motion_maps` lists and the limp ones in the lobby (`HostBodies`, §7.1.18, §7.1.21) and the lobby pinball's table (`PinballTable`, §7.1.22) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
@@ -206,7 +206,7 @@ countdown changes no scene and places nobody.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
   of its content (every resource it loads, sub-resources included), every command with its tick and order (the ones
-  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `BodyMoved` with a body's report (§7.1.18), the pinball table's `BallLaunched`, `TargetHit` and `BallLost` (#1398, §7.1.22), and in debug builds `ForceRole`, §9.4
+  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `BodyMoved` with a body's report (§7.1.18), the pinball table's `BallLaunched`, `TargetHit`, `BallLost` (#1398) and `BallMoved` (#1399, §7.1.22), and in debug builds `ForceRole`, §9.4
   `DealRoles`), the levels' `LevelLayout`s (§9.1), and every `WorldQuery` answer (a throw's flight adds only answers,
   no command of `server/`'s: §7.1.16). A replay reads the answers from the log instead of asking the
   level, and refuses to run when the mode's hash differs (after an edit in `content/`, say the knife's damage, it
@@ -770,8 +770,9 @@ A connection and a leave are not intents: the transport reports them, and `serve
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
 the hello deadline. Nor are the host's body reports: `server/` originates `BodyMoved(peer, epoch, position,
 velocity)` from `HostBodies` (§7.1.18, KE14), never decodable from the network, and `core/` takes it in every phase.
-The pinball table's reports are server commands too (#1398, §7.1.22): `BallLaunched(game)`, `TargetHit(game,
-target)` and `BallLost(game)` (`Intents.TABLE_REPORTS`), never decodable from the network, taken in every phase.
+The pinball table's reports are server commands too (#1398, #1399, §7.1.22): `BallLaunched(game)`, `TargetHit(game,
+target)`, `BallLost(game)` and `BallMoved(game, position)` (`Intents.TABLE_REPORTS`), never decodable from the network,
+taken in every phase.
 Debug commands (§8) are outside this table and exist in debug builds only: `ForceRole` (§9.4
 `DealRoles`, 2j) is a command that `server/` originates, and on the wire (M3) it is a debug-only kind that only the
 host's own client may send (§4.3, E17).
@@ -1041,7 +1042,7 @@ directive has no row, because it reaches no peer.
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 104 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; 16 `posed`, #1296: only a living player, §7.1.19; 32 `limp`, #1393: only a living player lying limp, §7.1.21; other bits 0), `drunk: u8` (#1390, §7.1.20: how drunk the player is, 0..`PlayerRules.drunk_max`, the same for every peer),, `wheel_pose: u8` (#1485, §7.1.23: the pose wheel's pose as `WheelPoseCode`, 0 none, only a living player that is not limp), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down or limp (§5) | 410 (9 avatars); 1024 (16 avatars: 773; a knocked-down viewer's holds its own, KE5) |
+| 104 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); optional `ball: vec3` (#1399, §7.1.22: the lobby pinball's ball in the table's frame, while a game has one on the table, the same for every peer; before the avatars, which stay the last field); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; 4 `crouched`, #790: only a living player, in any phase since #991, §7.1.17; 8 `sneaking`, #990: only a living player that is not crouched, §9.5.24; 16 `posed`, #1296: only a living player, §7.1.19; 32 `limp`, #1393: only a living player lying limp, §7.1.21; other bits 0), `drunk: u8` (#1390, §7.1.20: how drunk the player is, 0..`PlayerRules.drunk_max`, the same for every peer),, `wheel_pose: u8` (#1485, §7.1.23: the pose wheel's pose as `WheelPoseCode`, 0 none, only a living player that is not limp), `held_item: item` (optional), `belt_item: item` (optional, M4-5), `belt_item2: item` (optional, #1218: the higher belt place). Every living or downed player's avatar, never a dead one's, and the viewer's own only while it is knocked down or limp (§5) | 410 (9 avatars); 1024 (16 avatars and the ball: 802; a knocked-down viewer's holds its own, KE5) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 101 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `strength: u8` (how strongly the speaker's voice is changed, the same for every listener that hears it, 0 for not at all, from the phase's voice rule, #1392, §6.6) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for and its strength. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 59 (one 45 B frame), 9 frames: 491; 1024 |
 
@@ -1078,7 +1079,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21), 40 since #1393 added the avatar's `limp` flag (32), no `ShotTaken` change, 41 since #1383 added `SelfStatus`' `posed` (54), no `ShotTaken` change, 42 since #1434 added `TakeOffer` (22), `CancelOffer` (23), `OfferMade` (87) and `OfferEnded` (88), 43 since #1438 added `UseSecondary` (24) and moved the debug kinds `ForceRole` and `ForceClock` from 24 and 25 to 28 and 29, 44 since #1404 added `Welcome`'s `items` (33) and raised its cap to 8192, 45 since #1295 let `SwitchChanged` (70) name a world toggle's station, whose level parts an older client would not move (no row changed). 46 since #1453 added `EngineProblemOpened` (89), `EngineProblemFixed` (90) and `EngineBlast` (91), 47 since #1461 added `GillFlipped` (92), `BreakerChain` (93) and `CrystalChanged` (95), 48 since #1398 added `Flippers` (25) and `PinballState` (94). 49 since #1392 added the `VoiceBatch` frame's `strength` (114), 50 since #1396 added `BoothStep` (96) and widened the event range: `FIRST_STATE` and `Snapshot` moved from 96 to 104 (#1475), 51 since #1485 added `WheelPose` (26), `SelfStatus`' `wheel_pose` (54) and the avatar's `wheel_pose` (a u8 after `drunk`), no `ShotTaken` change. M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row), 26 since #773 added `GrillLoaded` (79) and `IngredientPlaced` (80), 27 since #808 added `FitChanged` (81) and `PartFitted` (82), 28 since #782 added `PhotoPrinted` (83) and `PhotoHung` (84) and the reasons `nothing_to_print` and `no_photo`, 29 since #790 added the `crouched` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (8), the avatar's (4) and `ShotTaken`'s record row's (2), no new row, 30 since #847 let a knocked-down viewer's snapshot carry its own avatar and added the `Rejected` reason `moving`, 31 since #990 added the `sneaking` flag to `MoveClaim`'s and `MoveClaimReliable`'s flags (16) and the avatar's (8), no new row, 32 since #775 raised `SettingsChanged`'s shortfalls from 32 to 64 entries, no new row, 34 since #810 raised `SettingsChanged`'s `needed_markers` and `map_markers` from 32 to 64 entries, no new row (33 was held by #1101's open PR #1109, which took its base's plus one at its rebase; a skipped number is harmless, the versions only have to match), 35 since #1101 dropped `IngredientPlaced`'s `right` (80) and added `BurgerPlated` (85) and `BurgerServed` (86), 36 since #1218 added `Draw` (19), the `place` of `ItemPickedUp` (48) and `Swapped` (64) and the avatar's `belt_item2` (Snapshot 96, `ShotTaken` 78), 37 since #1296 added `Pose` (20) and the avatar's `posed` flag (16), no `ShotTaken` change, 38 since #1390 added the avatar's `drunk` (a u8 after the flags) and `SelfStatus`' `drunk` (54), no `ShotTaken` change, 39 since #1389 added `HandOver` (21), 40 since #1393 added the avatar's `limp` flag (32), no `ShotTaken` change, 41 since #1383 added `SelfStatus`' `posed` (54), no `ShotTaken` change, 42 since #1434 added `TakeOffer` (22), `CancelOffer` (23), `OfferMade` (87) and `OfferEnded` (88), 43 since #1438 added `UseSecondary` (24) and moved the debug kinds `ForceRole` and `ForceClock` from 24 and 25 to 28 and 29, 44 since #1404 added `Welcome`'s `items` (33) and raised its cap to 8192, 45 since #1295 let `SwitchChanged` (70) name a world toggle's station, whose level parts an older client would not move (no row changed). 46 since #1453 added `EngineProblemOpened` (89), `EngineProblemFixed` (90) and `EngineBlast` (91), 47 since #1461 added `GillFlipped` (92), `BreakerChain` (93) and `CrystalChanged` (95), 48 since #1398 added `Flippers` (25) and `PinballState` (94). 49 since #1392 added the `VoiceBatch` frame's `strength` (114), 50 since #1396 added `BoothStep` (96) and widened the event range: `FIRST_STATE` and `Snapshot` moved from 96 to 104 (#1475), 51 since #1485 added `WheelPose` (26), `SelfStatus`' `wheel_pose` (54) and the avatar's `wheel_pose` (a u8 after `drunk`), no `ShotTaken` change. 52 since #1399 added the `Snapshot`'s optional `ball` (104). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1239,7 +1240,7 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 | 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then) and `ticked_through() + 1` < t, they are applied first, stamped with `ticked_through() + 1`, and that tick runs (when `ticked_through() + 1` = t they join step 4's batch, stamped the same). Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
 | 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a debug command (§4.3, E17), queued as the command it names when p is 1, else counted as malformed; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
-| 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. The host's body reports head the batch: one `BodyMoved` per body in motion, in peer-id order (`HostBodies.reports`, KE14), stamped t like the rest; step 1's catch-up ticks get none (the bodies moved through the freeze, and their next report tells where). Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
+| 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. The host's body reports head the batch: one `BodyMoved` per body in motion, in peer-id order (`HostBodies.reports`, KE14), stamped t like the rest, then the pinball table's (`PinballTable.reports`, #1399, §7.1.22: `BallLaunched`, `TargetHit`, `BallLost` oldest first, then one `BallMoved` while a ball lives; the table steps one physics frame last in every step, after step 4, against the game as of the last tick run); step 1's catch-up ticks get none (the bodies moved through the freeze, and their next report tells where). Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
 | 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `LaunchBody` and `StopBody` start and free a host body (`HostBodies.launch`, `stop`, §7.1.18); `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included, and is dropped while p's leave is pending (it answers the connection that left, not one that took its id) | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
 | 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. Each avatar's record is encoded once per tick (#1234) and p's payload is built from the entries of the avatars its own snapshot holds, an entry reused only for a record equal by `var_to_bytes`; byte for byte `WireSchema.encode`'s (`SnapshotEncoder`; tests: `tests/unit/server/snapshot_encoder_test.gd`, `tests/integration/server/host_session_snapshot_test.gd`). The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
 | 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked only in a step that ran 4, so a `Hello` that waited out a host freeze, or was read in a step with no tick due, is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
@@ -1466,6 +1467,13 @@ round).
   scene tree. With no world to move it (no level, or a host on a fake world with no physics: the bots' and the core
   runner's `FlatWorldQuery`), a launched body is held still where it starts and reported at rest, so it rests after
   the rest time. Tests: that suite, on `tests/fixtures/levels/body_rest_course.tscn` (§7.1.18).
+- **The pinball table (#1399).** `HostSession.table` (`server/pinball_table.gd`, §7.1.22) is built by `start_with`
+  for a host with physics (`HostWorldQuery`; none on `FlatWorldQuery`, so the bots and the core runner have no ball)
+  in a `World3D` of its own, apart from the levels'. It reads its scene at the first game and keeps its space inactive
+  while no game runs; every step it is handed `Pinball.game(state)` (read only) and one physics frame's delta, and its
+  reports join step 4 after the bodies'; the host's end clears it. A test may set its own table after the start
+  (`host_session_pinball_test.gd`'s scripted one). Tests: `tests/integration/server/pinball_table_test.gd`,
+  `host_session_pinball_test.gd`.
 
 #### 4.5.10 The command log and replays (E13)
 The host keeps the log in memory (§3.3), only where it can write it: a release-build host, and one that skips its
@@ -1619,8 +1627,12 @@ one) and `ButtonPressed` counts its station's `presses`; neither keeps a peer (t
 game's serial, the seated player (-1: the seat is free), the flippers, the ball in play, the score, the balls left,
 and the lobby's best score with its owner's name. `ClientModel.clear_match()` (`LoadMatch`, entering the lobby)
 forgets the game and keeps the best and its name: they are the lobby's, as the host keeps them in
-`MatchState.session_part_state` and tells them again after `ResetMatch` (§7.1.22). Nothing is predicted; the views
-(the table, the display, the close-up camera) are #1400's. Tests: `tests/unit/client/net/client_pinball_test.gd`.
+`MatchState.session_part_state` and tells them again after `ResetMatch` (§7.1.22). The ball (#1399) comes in the
+snapshots: `ClientModel.fold_snapshot` hands each snapshot it keeps (inside its tick guard, so an older one changes
+nothing) to `ClientPinball.fold_snapshot`, which sets `ball_shown`, `ball` (the table's frame) and `ball_tick`, and a
+snapshot with no ball block clears it, so no ball stays drawn after `BallLost`; `clear_match()` clears it too.
+Nothing is predicted; the views (the table, the display, the close-up camera) are #1400's. Tests:
+`tests/unit/client/net/client_pinball_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
 A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
@@ -5614,7 +5626,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   living or downed player's avatar (position, velocity, facing, the flags `downed`, `invulnerable`, `crouched`, `sneaking`, `posed` (#1296, §7.1.19: only a living player) and `limp` (#1393, §7.1.21: only a living player lying limp), the number `drunk` (#1390, §7.1.20: public body state, the same for every peer; the own client reads its own in `SelfStatus`),
   the last two only for a living player and never together (#990, §9.5.24), `crouched` in any phase since #991, §7.1.17, #790; the byte `wheel_pose`, #1485, §7.1.23: the pose wheel's pose, only a living player that is not limp; hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
-  snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
+  snapshot holds one (M4-2, #138); bodies and items reach everyone, and so does the lobby pinball's ball (#1399, §7.1.22: public like the game it belongs to). Nobody gets their own avatar while it lives: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`, which also carries the public pose state the own client needs and its skipped
   avatar would have shown, `posed` (#1383, §7.1.19) and `wheel_pose` (#1485, §7.1.23). #728's design (§7.1.18) adds one exception: the own avatar while
   knocked down or limp (#1393, §7.1.21), on every map (the greybox included, where the body stays at rest), decided from the life state and the limp alone,
@@ -7093,26 +7105,54 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
   missed one is repaired by the next. `PinballTicks` tells it again to everyone when a present player was not told
   yet (a joiner; every player after `ResetMatch`, which made a new `Machine`), once the session played a game: before
   that every peer's default (nobody seated, best 0) is the state. The client folds it (§4.6.1.3); the views are #1400.
-- **The table interface** (for #1399, the table's physics). Where the ball runs is #1399's: "on the host's server
-  side, a small physics scene ... stepped on the host's physics frame", host-authoritative, "no client ever
-  positions the ball" (its body, taken as its default). `server/` reports into `core/` with three commands it
-  originates (`Intents.TABLE_REPORTS`, peer 0, no wire row: never decodable from the network, as `BodyMoved`),
-  queued like the others and taken in every phase (`Match._dispatch` hands them to `Pinball.report` before the
-  allowlist):
+- **The table interface.** The ball runs on the host's server side, a small physics scene stepped on the host's
+  physics frame, host-authoritative: no client ever positions the ball. `server/` reports into `core/` with four
+  commands it originates (`Intents.TABLE_REPORTS`, peer 0, no wire row: never decodable from the network, as
+  `BodyMoved`), queued like the others and taken in every phase (`Match._dispatch` hands them to `Pinball.report`
+  before the allowlist):
   - `BallLaunched(game: int)`: a ball is on the table; it counts while no ball is and balls are left.
   - `TargetHit(game: int, target: String)`: a `PinballTarget`'s id was hit while a ball is on the table; its
     `points` add to the score. An id the game's data does not hold is a table bug: a match error in `diagnostics`
     (`ctx.error`), no event.
   - `BallLost(game: int)`: the ball left the table; one ball fewer, and the last ends the game.
+  - `BallMoved(game: int, position: Vector3)`: the ball's place, in the table's own frame (metres, the origin at the
+    table scene's root; the view puts the table on the machine). Kept only while that game has a ball on the table
+    (`Machine.ball`, `ball_placed`; cleared by `BallLaunched`, `BallLost` and the end), logged for the replay like
+    every command, and it emits nothing: the snapshots carry it (`Pinball.shown_ball`, below).
 
   Each names the game it belongs to, `game`, the serial of the game `PinballState.game` announced (rising per session,
   never repeated across `ResetMatch`). A report of another game (a report still queued when a game ended and the next
-  began, or one with no game running) or one that does not fit (a second launch, a hit or a loss with no ball on the
-  table) is ignored: no event, no error, since a report in flight at a release is a normal race. The table learns the
-  live game, the seated player and the flippers from what the host emits (`PinballState`) or a read-only
-  `Pinball.game(state)`; the ball's position and the flippers' angles for the watchers are #1399's (its snapshot
-  block), not this interface. `StubTable` (`tests/fixtures/pinball/stub_table.gd`) plays the interface with scripted
-  reports and no physics.
+  began, or one with no game running) or one that does not fit (a second launch, a hit, a loss or a place with no
+  ball on the table) is ignored: no event, no error, since a report in flight at a release is a normal race.
+  `StubTable` (`tests/fixtures/pinball/stub_table.gd`) plays the interface with scripted reports and no physics.
+- **The ball for everyone.** While a ball has a place, `Match.snapshot_for` (`Snapshots.sent`) gives every peer the
+  same public `ball` beside the avatars (no ball, no key); the Snapshot's optional ball block carries it (§4.3, kind
+  104, protocol 52) and the client folds it (§4.6.1.3). The position only: the views (#1400) interpolate between
+  snapshots. The flippers are not in the snapshot: watchers animate them from `PinballState`'s `left` and `right`
+  (reliable, to everyone), one source for one fact.
+- **The table** (`server/pinball_table.gd`, `PinballTable`, #1399). Godot physics (Jolt) on the host in `server/`, as
+  the knockdown bodies (§7.1.18): a `World3D` of its own through `PhysicsServer3D`, no Node in a tree. `HostSession`
+  builds it for a host with physics (`HostWorldQuery`; the bots' flat world has none), steps it last in every step
+  (after step 4, so a flipper turns in the frame its intent is applied) against the live game (a read-only
+  `Pinball.game(state)`, so a re-told or stale `PinballState` cannot relaunch
+  a ball), and puts its reports at the head of the step-4 batch after the bodies' (§4.5): `BallLaunched`,
+  `TargetHit`, `BallLost` oldest first, then one `BallMoved` while a ball lives, so the launch tick's snapshot already
+  shows the ball. One game at a time: a new serial or nobody seated frees the ball and rests the flippers. While a
+  game runs and core has no ball in play with balls left, it launches one `launch_delay_s` after the game starts or a
+  ball is lost (no plunger, no new intent: the engineer's provisional answer, #507). The ball is lost past the
+  `Drain` marker, outside the walls' bounds (the catch), or after `stuck_s` slower than `stuck_mps` while no flipper
+  is held (a cradled ball is not stuck; `stuck_s` 0 turns it off). A target is found by a shape query each frame (the
+  ball's radius plus `touch_m`, engine-agnostic, no contact callbacks) and scores once per touch; its `kick` metadata
+  (or the spec's `kick_mps`) pushes the ball away. The flippers are kinematic bodies turned toward their held state
+  at `flipper_speed_deg_s` up to `flipper_swing_deg` (on Jolt a moving flipper throws the ball). Idle costs nothing:
+  the scene is read at the first game, the space is inactive and holds no ball while no game runs, and the session's
+  end clears it.
+  - **The scene contract** (`levels/pinball/pinball_table.tscn`, a greybox the engineer replaces; the numbers in
+    `levels/pinball/pinball_table_spec.tres`, `PinballTableSpec`, provisional, §9.5.28): a `StaticBody3D` is a wall,
+    or a scoring target with metadata `target_id` (a `PinballTarget`'s id; `kick`, m/s, its own push); the
+    `AnimatableBody3D`s `FlipperLeft` and `FlipperRight` turn about their own origin and Y axis; `Marker3D`
+    `BallStart` (its -Z the launch) and `Marker3D` `Drain` (the ball is lost past its Z). A scene with problems
+    (`PinballTable.errors`) leaves the table inert.
 - **Tests:** §9.5.28.
 
 #### 7.1.23 The pose wheel's body pose (#1485)
@@ -8922,7 +8962,7 @@ the order on the mimic board and never at the boards, the breaker and charger la
 slits and bar, the blast, no board offered); the playcheck `ship_engine` (the walk to the console and its hologram,
 the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast).
 
-#### 9.5.28 The pinball (lobby, #1398; provisional numbers)
+#### 9.5.28 The pinball (lobby, #1398, #1399; provisional numbers)
 
 GDD §3 Base mode, "The pinball". `content/stations/pinball.tres` (radius 1.5 m, height 2 m, the tap's; its Interact
 at the machine and in sight, the seat free or the actor's own (`PinballUsable`), paying `Cooldown(pinball_seat,
@@ -8933,8 +8973,16 @@ placed by `StationTicks(pinball)` on the hall's one `pinball` marker. The base m
 Every number is provisional, not a decision (the engineer tunes them on the hall greybox, #1095, #1354); the taste
 items (walking off ends the game; the best is not saved past the lobby; the owner's name stays when the owner leaves)
 were taken by the engineer's standing word ([#1398](https://github.com/xperiaroco2/prime-game/issues/1398#issuecomment-6547795365)).
-The rules and the table interface are §7.1.22; the table's physics is #1399, the client (camera, table view, display)
-#1400.
+The rules and the table interface are §7.1.22; the client's views (camera, table view, display) are #1400.
+- **The table (#1399).** `levels/pinball/pinball_table.tscn` (a greybox: walls, `FlipperLeft` and `FlipperRight`,
+  the targets `bumper` (kick 1 m/s), `kicker` (1.5 m/s) and `target`, `BallStart`, `Drain`; the ids are
+  `pinball.tres`'s) and `levels/pinball/pinball_table_spec.tres` (`PinballTableSpec`): ball radius 0.03 m, mass
+  0.08 kg, bounce 0.4 (walls 0.4), friction 0, damp 0.5, slope 1.5 m/s², launch 2.5 m/s 1 s after the game starts or a
+  ball is lost, flipper swing 50° at 1500°/s, default kick 0, stuck below 0.02 m/s for 8 s, touch 0.004 m, bounds
+  margin 0.05 m. All provisional, not a decision; the taste items (an automatic launch, no plunger; a stuck ball is
+  lost) were taken by the engineer's standing word
+  ([#507](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6547715071)). The feel is not verifiable
+  from the command line: a playtest tunes it.
 - **Tests:** `tests/unit/pinball/` over `tests/fixtures/pinball/fixture_pinball.gd` (`FixturePinball`) and
   `stub_table.gd` (`StubTable`: the table's reports, scripted, no physics): `pinball_seat_test.gd` (the seat, a
   second player `unavailable`, every release, none into a match), `flippers_test.gd` (`not_seated`, `bad_args`, the
@@ -8942,7 +8990,14 @@ The rules and the table interface are §7.1.22; the table's physics is #1399, th
   ignored), `pinball_best_test.gd` (the best across `ResetMatch` and a leave, the same on every peer, a joiner),
   `pinball_guard_test.gd` (the guard: no nudge, no TILT); `tests/unit/content/mode_check_pinball_test.gd` (ModeCheck
   and LayoutCheck), `base_mode_lobby_test.gd` (the shipped machine played through), `lobby_hall_test.gd` (the
-  marker), `tests/unit/client/net/client_pinball_test.gd`, and the wire's `wire_samples.gd` and chaos rows (§4.6.5.3).
+  marker), `tests/unit/client/net/client_pinball_test.gd`, and the wire's `wire_samples.gd` and chaos rows (§4.6.5.3);
+  the table (#1399): `tests/unit/pinball/pinball_ball_test.gd` (`BallMoved` kept only for the live game's ball, no
+  event, the snapshot's ball), `tests/integration/server/pinball_table_test.gd` (the table on real physics frames:
+  idle, the launch, a held flipper throws the ball, a drain, the bumper scores once and kicks, the catch, stuck, a
+  new game frees the ball, the scene's ids are `pinball.tres`'s), `host_session_pinball_test.gd` (a scripted table
+  over the loopback wire: the launch tick's snapshot shows the ball to every client as `view_of`, `LeakCheck`, the
+  ball gone after `BallLost`; no table on a flat world), `server/snapshot_encoder_test.gd` (the ball block, the
+  worst case under the cap).
 
 #### 9.5.29 The photo booth (lobby, #1396; provisional numbers)
 

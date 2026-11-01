@@ -98,7 +98,9 @@ extends RefCounted
 ## 51 since #1485 (the pose wheel): the intent WheelPose (kind 26, the leg stance and the arm
 ## gesture, a byte each), and a `wheel_pose` byte (WheelPoseCode) after `drunk` on the Snapshot's
 ## avatar and after `posed` on SelfStatus.
-const VERSION := 51
+## 52 since #1399 (the pinball table): Snapshot (kind 104) gains the optional ball block
+## (`has_ball`, then `ball`, the vec3 of the ball's table-local place) before `avatars`, the last.
+const VERSION := 52
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -821,13 +823,16 @@ static func _state_and_voice() -> Array[WireRow]:
 		)
 	)
 	var avatars := WireField.map("avatars", _peer(""), avatar, MAX_AVATARS, false)
+	# The pinball's ball (#1399): its key is absent when no ball is on the table. The avatars stay the
+	# last field: SnapshotEncoder patches the map's count, the header's last byte.
+	var ball := WireField.when("has_ball", [_vec3("ball")])
 	var snapshot := _row(
 		104,
 		&"Snapshot",
 		NetKindTable.Direction.HOST_TO_CLIENT,
 		NetKindTable.Lane.LATEST,
 		1024,
-		[_of("tick", _tick()), avatars]
+		[_of("tick", _tick()), ball, avatars]
 	)
 	var voice_up := _row(
 		112,

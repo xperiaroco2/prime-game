@@ -702,6 +702,10 @@ func _check_snapshots(
 		var avatars: Dictionary = decoded.snapshots[at_tick]["avatars"]
 		if not WireSamples.same(avatars, view.snapshots[at_tick]["avatars"]):
 			found.append("the snapshot of tick %d differs from view_of's" % at_tick)
+		# The pinball's ball (#1399): absent on both sides, or the same place.
+		var ball: Variant = (decoded.snapshots[at_tick] as Dictionary).get("ball")
+		if not WireSamples.same(ball, (view.snapshots[at_tick] as Dictionary).get("ball")):
+			found.append("the snapshot of tick %d has another ball than view_of's" % at_tick)
 		var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
 		var limp: PackedInt32Array = _limp_at.get(at_tick, PackedInt32Array())
 		var held := downed.has(peer) or limp.has(peer)
