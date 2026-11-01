@@ -9193,7 +9193,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   coloured lights circling and pulsing. A level with no pods shows the lights alone; a view built again plays none;
   `clear()` (End, a new match) frees it. It only draws, so it never delays or changes End. Every size, colour and rate
   is a provisional placeholder (#507's standing word). The round clock on the HUD and the map stops once every task
-  is done (`GameFlow.clock_left`: it holds at the last done bar's `ZoneProgress` tick, no wire change).
+  is done (`GameFlow.clock_left`: it holds at the last done bar's `ZoneProgress` tick, no wire change). Its `shot`s:
+  `client/dev/ship_engine_finale_preview.tscn` (the stern's flames on the estate's ship room) and
+  `ship_engine_finale_inside_preview.tscn` (the show in the hall).
 
 Produces: `StationPlaced` and `ZoneProgress` in the deal; `ButtonPressed`, `EngineProblemFixed` and the kinds'
 `use_emits` on a use (the breakers' short circuit: `KnockedDown`, `Correction`, `LaunchBody`; the crystal's moves:
@@ -9220,7 +9222,8 @@ the nearest of four breakers, every station in the aboard box and the ground bes
 its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
 `tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
-slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
+slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot, the
+finish's three nozzles out of the stern),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
