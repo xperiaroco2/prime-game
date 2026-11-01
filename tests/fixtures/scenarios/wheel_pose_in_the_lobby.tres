@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" path="res://tests/fixtures/scenarios/step_wheel_pose.gd" id="5_wheel_pose"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="6_wait"]
+[ext_resource type="Script" uid="uid://bwjq8u1clvgug" path="res://core/content/scenario/step_jump.gd" id="7_jump"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="8_expect"]
+
+[sub_resource type="Resource" id="Take_the_pose"]
+script = ExtResource("5_wheel_pose")
+legs = 1
+arms = 3
+
+[sub_resource type="Resource" id="Hold_it"]
+script = ExtResource("6_wait")
+seconds = 1.0
+
+[sub_resource type="Resource" id="Jump_to_drop_it"]
+script = ExtResource("7_jump")
+
+[sub_resource type="Resource" id="Expect_no_pose"]
+script = ExtResource("8_expect")
+event = &"SelfStatus"
+fields = {
+"wheel_pose": 0
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Poser_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Take_the_pose"), SubResource("Hold_it"), SubResource("Jump_to_drop_it"), SubResource("Expect_no_pose")])
+
+[sub_resource type="Resource" id="Watch_it_held"]
+script = ExtResource("6_wait")
+seconds = 2.0
+
+[sub_resource type="Resource" id="Watcher_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Watch_it_held")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 150900000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("Poser_script"), SubResource("Watcher_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 30.0
+metadata/note = "A fixture scenario (#1509): bot 1 takes a wheel pose in the lobby (legs 1, arms 3 of the base mode's WheelPoses), holds it a second, and a jump drops it; bot 2 watches, so both decode a non-zero public wheel_pose on bot 1's avatar for the leak check."
