@@ -145,7 +145,9 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   done (the Engineers, id `crew`), every engineer has left the match (dissidents), time up with a task left
   (dissidents).
 - **End:** a black screen that names only the winning side; the game is frozen and nobody hears anybody. The host
-  returns everyone to the lobby.
+  returns everyone to the lobby. When the engine's last stage passes, the round first lingers about 4 s (provisional)
+  so everyone sees the finish (§8: the roar, the flame, the light show); the win is decided at the last stage, the
+  timer stops there, and the players keep moving and talking until End (#1502).
 
 The base mode has no meetings and no votes.
 
