@@ -170,6 +170,9 @@ func _ready() -> void:
 	# The left button's use and shot need the mouse captured, as the game's pointer has it (#1114).
 	_items.interactions.mouse_captured = func() -> bool: return pointer.captured()
 	_life.mouse_captured = func() -> bool: return pointer.captured()
+	# A flipper held while the window loses the focus is let go (#1400), by the game's own pointer
+	# (playcheck's off-screen windows count as focused, #1466).
+	_items.pinball.keys.focused = func() -> bool: return pointer.focused()
 	# E raises a downed player under the crosshair rather than hand over (#1411).
 	_items.hand_over.raise_target = _life.raise_target
 	# ...and the chair gives way to both (#1403): a hand-over target includes the cancel of the own

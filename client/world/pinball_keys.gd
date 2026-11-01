@@ -31,7 +31,8 @@ var model: ClientModel
 var listening := false
 ## Read the keyboard in the physics step; tests call update() themselves.
 var reads_device_input := true
-## Whether the window has the focus: () -> bool. A key held while the focus leaves is released.
+## Whether the window has the focus: () -> bool (Game: MousePointer.focused). A key held while the
+## focus leaves is released.
 var focused := func() -> bool: return is_inside_tree() and get_window().has_focus()
 
 ## The last state sent, [left, right]; what the host should have.
