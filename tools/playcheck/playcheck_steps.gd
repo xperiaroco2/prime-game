@@ -8,12 +8,11 @@ extends RefCounted
 ## `wait text` and `wait shown`); never HostSession, the match or core/ (invariant 2), so a window
 ## that draws before its filtered event arrives is not hidden by the host's state. A wait that does
 ## not hold within its `timeout_s` fails the run, naming the step's line and what the window saw.
-## Every step but a wait or `frames` is an action the window performs in the frame advance()
-## returns it (press, hold, release, button, aim, shot, the host's setup). From `aim item <kind>`
-## until `aim off` the window turns its own player each frame by aim_turn() toward the item
-## the station nearest_station() picks, after its route's waypoints (#1105), or from
+## Every step but a wait, `frames` or `seconds` is an action the window performs in the frame
+## advance() returns it (press, hold, release, button, aim, shot, the host's setup). From
+## `aim item <kind>` until `aim off` the window turns its own player each frame by aim_turn()
+## toward the item the station nearest_station() picks, after its route's waypoints (#1105), or from
 ## `aim player <n>` toward the avatar of the scenario's player n (#1418).
-## toward the avatar of the scenario's player n (#1418).
 
 enum Status { RUNNING, DONE, FAILED }
 
@@ -135,6 +134,12 @@ func advance(now_ms: int) -> Dictionary:
 		elif kind == "frames":
 			if _frames < number(step.get("count", 0)):
 				_frames += 1
+				break
+			_next()
+		elif kind == "seconds":
+			# The window's clock, not its frames: a walk lasts as long at 7 fps as at 190 (#1530).
+			var seconds: float = step.get("seconds", 0.0)
+			if now_ms - _started_ms < roundi(seconds * 1000.0):
 				break
 			_next()
 		else:

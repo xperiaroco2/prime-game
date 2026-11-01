@@ -19,6 +19,33 @@ func test_a_type_with_no_kind_set_finds_none() -> void:
 	assert_array(TaskType.new().station_kinds()).is_empty()
 
 
+## The property names are read once per script (#1530: get_property_list on each call cost the
+## client 15 ms a physics tick), the values on every call: a kind set after the first call is
+## found, and each instance of the script finds its own.
+func test_each_call_reads_the_kinds_the_type_holds_now() -> void:
+	var type := FixtureStationType.new()
+	assert_array(type.station_kinds()).is_empty()
+	type.panel = FixtureKindsType.kind(&"panel", &"panel")
+	assert_array(type.station_kinds()).is_equal([type.panel])
+	var other := FixtureStationType.new()
+	other.panel = FixtureKindsType.kind(&"other", &"other")
+	assert_array(other.station_kinds()).is_equal([other.panel])
+	type.panel = null
+	assert_array(type.station_kinds()).is_empty()
+	assert_array(other.station_kinds()).is_equal(_reflected(other))
+
+
+func test_the_property_list_is_built_once_per_script() -> void:
+	var first := ListCounting.new()
+	first.panel = FixtureKindsType.kind(&"panel", &"panel")
+	var second := ListCounting.new()
+	ListCounting.listed = 0
+	for i: int in 3:
+		assert_array(first.station_kinds()).is_equal([first.panel])
+		assert_array(second.station_kinds()).is_empty()
+	assert_int(ListCounting.listed).is_less_equal(1)
+
+
 func test_an_override_s_kinds_are_the_ones_stations_and_circle_views_find() -> void:
 	var kind_a := FixtureKindsType.kind(&"kind_a", &"tag_a")
 	var kind_b := FixtureKindsType.kind(&"kind_b", &"tag_b")
@@ -42,3 +69,15 @@ func _reflected(type: TaskType) -> Array[StationKind]:
 		if value is StationKind:
 			found.append(value as StationKind)
 	return found
+
+
+## A type that counts how often its property list is built (`_get_property_list` runs on each
+## get_property_list).
+class ListCounting:
+	extends TaskType
+	static var listed := 0
+	@export var panel: StationKind
+
+	func _get_property_list() -> Array[Dictionary]:
+		listed += 1
+		return []

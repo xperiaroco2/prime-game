@@ -12,6 +12,9 @@ extends ContentPart
 ## when has_tick(). Each type reads its own subtasks setting, `subtasks_setting` (Delivery:
 ## `packages`), which every type has (#256's shared part, the Generator ADR's G0, #795).
 
+## Per script: the names of its stored properties that can hold an object (_object_properties).
+static var _object_names: Dictionary[Script, Array] = {}
+
 @export var id: StringName
 @export var display_name: String
 ## What a player does for a task of this type, in a sentence or two: the task screen shows it
@@ -115,13 +118,33 @@ func item_spawn_tags() -> Array[StringName]:
 ## drawn like any other.
 func station_kinds() -> Array[StationKind]:
 	var found: Array[StationKind] = []
-	for property: Dictionary in get_property_list():
-		if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
-			continue
-		var value: Variant = get(property["name"] as String)
+	for property: StringName in _object_properties():
+		var value: Variant = get(property)
 		if value is StationKind:
 			found.append(value as StationKind)
 	return found
+
+
+## The stored properties of this type's script that can hold an object, in property order, read
+## once per script: get_property_list builds every property's dictionary on each call, 30 to 80
+## us a type, and the client asks station_kinds for every station every physics tick (TargetChoice's
+## stands_at, #1530: 15 ms a tick on the estate). The values are read on every call. The cache is
+## never cleared: a script hot-reloaded in a debug run keeps its old names until a restart.
+func _object_properties() -> Array[StringName]:
+	var script: Script = get_script() as Script
+	if script != null and _object_names.has(script):
+		var known: Array[StringName] = _object_names[script]
+		return known
+	var names: Array[StringName] = []
+	for property: Dictionary in get_property_list():
+		if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
+			continue
+		var type := property["type"] as int
+		if type == TYPE_OBJECT or type == TYPE_NIL:
+			names.append(StringName(property["name"] as String))
+	if script != null:
+		_object_names[script] = names
+	return names
 
 
 ## The event classes this type can emit (§9.2).

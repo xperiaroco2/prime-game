@@ -1652,7 +1652,7 @@ field reads as ""); `press <action>` (its key through `Input.parse_input_event`)
 (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
 `ui_accept`'s key; none or several fail the step), `aim item <kind>` (or `aim player <n>`, #1418: the avatar of the scenario's player n, whoever joined first) until `aim off` (#276: each frame the window
 turns its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`;
-paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
+paired like `hold`), `frames N`, `seconds <s>` (the window's clock, so a held walk goes as far at any frame rate, #1530) and `shot <name>`. A `press` reaches what reads input events and what polls
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
 stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
 edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` holds at once on a hidden field

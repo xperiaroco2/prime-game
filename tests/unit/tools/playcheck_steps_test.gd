@@ -194,6 +194,21 @@ func test_frames_lets_that_many_frames_pass() -> void:
 	assert_dict(steps.advance(3)).is_equal(press)
 
 
+func test_seconds_lets_that_much_of_the_clock_pass_whatever_the_frame_rate() -> void:
+	var press := {"line": 3, "text": "press ready", "do": "press", "action": "ready"}
+	var pause := {"line": 2, "text": "seconds 0.5", "do": "seconds", "seconds": 0.5}
+	var steps := _steps([pause, press], FakeView.new())
+	assert_dict(steps.advance(1000)).is_empty()
+	assert_dict(steps.advance(1004)).is_empty()
+	assert_dict(steps.advance(1499)).is_empty()
+	assert_dict(steps.advance(1500)).is_equal(press)
+	# Two frames at a low frame rate: as long as many.
+	var slow := _steps([pause.duplicate(), press], FakeView.new())
+	assert_dict(slow.advance(0)).is_empty()
+	assert_dict(slow.advance(400)).is_empty()
+	assert_dict(slow.advance(800)).is_equal(press)
+
+
 func test_life_and_ready_read_the_own_player_or_the_numbered_one() -> void:
 	var view := FakeView.new()
 	var own_downed := _wait("life", "downed")
