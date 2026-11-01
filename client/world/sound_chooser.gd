@@ -121,7 +121,9 @@ const ZONE_AIM_M := PANEL_AIM_M
 
 ## One sound to play: where it plays, where the occlusion ray aims (`lift` above it) and, for one
 ## that carries farther than the hearing range (the engine's blast and roar), how far (0: the
-## caller's hearing range).
+## caller's hearing range). A wider range only for a sound at a fixed public place from an event
+## everyone gets, never one whose place tells where a player is or acts (Swung, ItemPlaced,
+## KnockedDown): the M4 ADR's single hearing range (§3 item 10) cuts those (ARCHITECTURE §4.7.64).
 class Sound:
 	extends RefCounted
 	var id: StringName

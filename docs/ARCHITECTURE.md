@@ -5488,11 +5488,14 @@ of the mode, never `core/` state (§9.5.27's client).
   through the same randomizer as every id (§4.7.43).
 - **When and where.** `ShipEngineSounds` (`client/audio/`) says which are due each frame, as edges seen from the
   last frame (seeded at the view's first frame: a view built again, a new level or a late join, plays no old problem,
-  blast or finish), and only in the play phase (`SoundChooser.in_play`):
+  blast or finish), and only in the play phase (`SoundChooser.in_play`) or the frame it ends in (the engine's last
+  stage can end the round in the same tick: its done `ZoneProgress` and `PhaseChanged(end)` fold before one frame,
+  and the roar and `finished` must not be lost there):
   - the call: while the hologram calls (`ShipEngineHologram.called()`, the engine off), at each peak of its turbines'
     pulse (`PULSE_SECONDS`), at the hologram's centre;
   - the beep: at each lamp of an open breakers problem's order as the mimic board lights it (`ShipEngineViews`'
-    `ORDER_STEP_SECONDS` steps, none in its pause), at the hologram's centre;
+    `ORDER_STEP_SECONDS` steps, none in its pause), at the hologram's centre; every order steps on the same clock, so
+    two open at once beep once a lamp, not twice on top;
   - the wail: once at each station of a problem as it opens (a new id in the book), not looping while it stays open;
   - the blast: a new `EngineBlast` (the book's count), at the console;
   - the roar: the console's bar full (its done `ZoneProgress`), at the console, on top of §4.7.60's `TASK_SUCCESS`
@@ -5508,15 +5511,18 @@ of the mode, never `core/` state (§9.5.27's client).
   as every world sound (§4.7.43, §4.7.60): a one-shot on the Effects bus, cut at its range from the ears (its
   `max_distance` the same) and muffled behind the level. `SoundChooser.Sound.range_m` (0: the caller's hearing range)
   lets the blast and the roar carry `ShipEngineSounds.FAR_RANGE_M` (40 m, through the ship and over the party), every
-  other engine sound `SoundChooser.HEARING_RANGE_M`. Every cue tells only public places and states and names no
-  player, so everyone in range hears the same. The roar's frame also fires `ShipEngineViews.finished(at)`: the hook
-  for the finish's flame and light show (#1502).
+  other engine sound `SoundChooser.HEARING_RANGE_M`. A wider range is only for a sound at a fixed public place from an
+  event everyone gets, never for one whose place tells where a player is or acts (`Swung`, `ItemPlaced`,
+  `KnockedDown`): the M4 ADR's single hearing range (§3 item 10) exists to cut those. Every cue tells only public
+  places and states and names no player, so everyone in range hears the same. The roar's frame also fires
+  `ShipEngineViews.finished(at)`: the hook for the finish's flame and light show (#1502).
 - **Tests.** `tests/unit/client/audio/ship_engine_sounds_test.gd` (the seeded first frame, the call's pulse, the
-  wails, the order's beeps and its pause, the blast and the roar once and far, a finish before the first frame, the
-  play phase only, the zap and any other knockdown), `tests/unit/client/world/engine_sounds_test.gd` (each cue's id and
-  place, the ranges, the zap through `SoundChooser`, `WorldSounds` on the files with the range, `ItemWorld`'s
-  connection), `ship_engine_views_test.gd` (the cues and `finished`), `sfx_set_test.gd` (the six files exist) and
-  `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
+  wails, the order's beeps and its pause, two orders' one beep, the blast and the roar once and far, a finish before
+  the first frame, the play phase only, the roar of the engine that ends the round, the zap and any other knockdown
+  on this deck or another), `tests/unit/client/world/engine_sounds_test.gd` (each cue's id and place, the ranges, the
+  zap through `SoundChooser`, `WorldSounds` on the files with the range, `ItemWorld`'s connection),
+  `ship_engine_views_test.gd` (the cues and `finished`, also in the frame the round ends), `sfx_set_test.gd` (the six
+  files exist) and `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
