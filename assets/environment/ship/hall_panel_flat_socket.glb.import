@@ -50,7 +50,16 @@ _subresources={
 "PATH:kick/StaticBody3D": {
 "import/skip_import": true
 },
-"PATH:plain/StaticBody3D": {
+"PATH:relief_back/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_bolts/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_frame/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_panels/StaticBody3D": {
 "import/skip_import": true
 },
 "PATH:soffit/StaticBody3D": {

@@ -44,6 +44,9 @@ _subresources={
 "PATH:body/StaticBody3D": {
 "import/skip_import": true
 },
+"PATH:door_light/StaticBody3D": {
+"import/skip_import": true
+},
 "PATH:groove/StaticBody3D": {
 "import/skip_import": true
 },
@@ -62,7 +65,31 @@ _subresources={
 "PATH:reader/StaticBody3D": {
 "import/skip_import": true
 },
-"PATH:side/StaticBody3D": {
+"PATH:relief_back/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_back_001/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_bolts/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_bolts_001/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_frame/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_frame_001/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_panels/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:relief_panels_001/StaticBody3D": {
+"import/skip_import": true
+},
+"PATH:screen/StaticBody3D": {
 "import/skip_import": true
 },
 "PATH:soffit/StaticBody3D": {

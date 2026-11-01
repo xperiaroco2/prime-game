@@ -44,6 +44,9 @@ _subresources={
 "PATH:leg_fairing/StaticBody3D": {
 "import/skip_import": true
 },
+"PATH:leg_hose/StaticBody3D": {
+"import/skip_import": true
+},
 "PATH:leg_joint/StaticBody3D": {
 "import/skip_import": true
 },

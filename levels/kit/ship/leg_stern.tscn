@@ -4,19 +4,21 @@
 
 [ext_resource type="ConcavePolygonShape3D" uid="uid://bsgt8yh1au8vk" path="res://levels/kit/ship/leg_stern.leg_fairing_col.tres" id="2"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://b5w200x32bniv" path="res://levels/kit/ship/leg_stern.leg_joint_col.tres" id="3"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://bt0o77qbrdj4t" path="res://levels/kit/ship/leg_stern.leg_hose_col.tres" id="3"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://3tbc45muqstp" path="res://levels/kit/ship/leg_stern.leg_lip_col.tres" id="4"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://b5w200x32bniv" path="res://levels/kit/ship/leg_stern.leg_joint_col.tres" id="4"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://cew00xlibt36h" path="res://levels/kit/ship/leg_stern.leg_mount_col.tres" id="5"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://3tbc45muqstp" path="res://levels/kit/ship/leg_stern.leg_lip_col.tres" id="5"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://ctaktel2saken" path="res://levels/kit/ship/leg_stern.leg_pad_col.tres" id="6"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cew00xlibt36h" path="res://levels/kit/ship/leg_stern.leg_mount_col.tres" id="6"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://c3fr3e0jvnvre" path="res://levels/kit/ship/leg_stern.leg_piston_col.tres" id="7"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://ctaktel2saken" path="res://levels/kit/ship/leg_stern.leg_pad_col.tres" id="7"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://cdcrlpwp23men" path="res://levels/kit/ship/leg_stern.leg_sole_col.tres" id="8"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c3fr3e0jvnvre" path="res://levels/kit/ship/leg_stern.leg_piston_col.tres" id="8"]
 
-[ext_resource type="ConcavePolygonShape3D" uid="uid://c71j46owxbqiq" path="res://levels/kit/ship/leg_stern.leg_strut_col.tres" id="9"]
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cdcrlpwp23men" path="res://levels/kit/ship/leg_stern.leg_sole_col.tres" id="9"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c71j46owxbqiq" path="res://levels/kit/ship/leg_stern.leg_strut_col.tres" id="10"]
 
 [node name="leg_stern" unique_id=1212634110 instance=ExtResource("1")]
 
@@ -25,37 +27,42 @@
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_fairing_col" unique_id=1788441801]
 shape = ExtResource("2")
 
+[node name="leg_hose_col" type="StaticBody3D" parent="." unique_id=479970598]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="leg_hose_col" unique_id=1358411463]
+shape = ExtResource("3")
+
 [node name="leg_joint_col" type="StaticBody3D" parent="." unique_id=1834169512]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_joint_col" unique_id=961196117]
-shape = ExtResource("3")
+shape = ExtResource("4")
 
 [node name="leg_lip_col" type="StaticBody3D" parent="." unique_id=438539074]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_lip_col" unique_id=2126098909]
-shape = ExtResource("4")
+shape = ExtResource("5")
 
 [node name="leg_mount_col" type="StaticBody3D" parent="." unique_id=692891611]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_mount_col" unique_id=636032687]
-shape = ExtResource("5")
+shape = ExtResource("6")
 
 [node name="leg_pad_col" type="StaticBody3D" parent="." unique_id=1131337431]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_pad_col" unique_id=1329002086]
-shape = ExtResource("6")
+shape = ExtResource("7")
 
 [node name="leg_piston_col" type="StaticBody3D" parent="." unique_id=1312797192]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_piston_col" unique_id=397710257]
-shape = ExtResource("7")
+shape = ExtResource("8")
 
 [node name="leg_sole_col" type="StaticBody3D" parent="." unique_id=1338660885]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_sole_col" unique_id=1718937993]
-shape = ExtResource("8")
+shape = ExtResource("9")
 
 [node name="leg_strut_col" type="StaticBody3D" parent="." unique_id=1076483987]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="leg_strut_col" unique_id=1653306480]
-shape = ExtResource("9")
+shape = ExtResource("10")

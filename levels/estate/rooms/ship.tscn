@@ -69,25 +69,25 @@ metadata/name_key = "room.ship"
 metadata/centred = true
 metadata/art_package = "prime-game-art#335"
 
-[node name="Art" parent="." unique_id=1198407506 instance=ExtResource("2_artship")]
+[node name="Art" parent="." unique_id=209281549 instance=ExtResource("2_artship")]
 
-[node name="Environment" parent="Art" index="0" unique_id=1139476212]
+[node name="Environment" parent="Art" index="0" unique_id=1166030503]
 process_mode = 4
 visible = false
 
-[node name="@DirectionalLight3D@3" parent="Art/Lights" parent_id_path=PackedInt32Array(1198407506, 700936652) index="0" unique_id=1460766747]
+[node name="@DirectionalLight3D@3" parent="Art/Lights" parent_id_path=PackedInt32Array(209281549, 690481228) index="0" unique_id=1210169335]
 process_mode = 4
 visible = false
 
-[node name="@DirectionalLight3D@4" parent="Art/Lights" parent_id_path=PackedInt32Array(1198407506, 700936652) index="1" unique_id=1672064144]
+[node name="@DirectionalLight3D@4" parent="Art/Lights" parent_id_path=PackedInt32Array(209281549, 690481228) index="1" unique_id=88800050]
 process_mode = 4
 visible = false
 
-[node name="Clearing" parent="Art" index="4" unique_id=369450085]
+[node name="Clearing" parent="Art" index="4" unique_id=240526477]
 process_mode = 4
 visible = false
 
-[node name="Ground" parent="Art/Clearing" parent_id_path=PackedInt32Array(1198407506, 369450085) index="2" unique_id=1803442160]
+[node name="Ground" parent="Art/Clearing" parent_id_path=PackedInt32Array(209281549, 240526477) index="2" unique_id=620171806]
 collision_layer = 0
 
 [node name="Hull" type="StaticBody3D" parent="." unique_id=1499000101]
