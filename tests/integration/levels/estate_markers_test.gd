@@ -4,19 +4,26 @@ extends GdUnitTestSuite
 ## check of a mode that plays on the estate alone finds nothing missing for the mode's maximum of
 ## players. Its round and respawn markers, read as placed, each stand a player on the floor under
 ## it with a standing capsule clear of the level (house_markers_test.gd's check, #1042); its
-## package markers lie on the floor, and none inside a circle. The markers' places are
-## placeholders, "not a decision", for the engineer to move (#1374's PR).
+## package markers lie on the floor, and none inside a circle; the round's and the respawns' stand
+## together on the skat's clearing before its ramp (#1492). The markers' places are placeholders,
+## "not a decision", for the engineer to move (#1374's PR, #1492's PR).
 
 const HouseMarkers := preload("res://tests/integration/levels/house_markers_test.gd")
 const MAP := "res://levels/estate/estate.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 ## How far a marker may stand off the floor under it: float noise, no step.
 const SPAWN_FLOOR_M := 0.02
-## The bonfire's centre (docs/design/estate-map.md §3): the round's spawns stand around it.
-const BONFIRE := Vector2(65.3, 41.0)
-## How far from the bonfire's centre every round spawn stands at most: inside its clearing (§3,
-## r 13), so the match starts at the party's heart (§1, decision 4).
-const BONFIRE_CLEARING_M := 13.0
+## The foot of the skat's mouth ramp (docs/design/estate-map.md §5a: the ship at (116, 72), the
+## foot at its (0, -12.6)) and its hinge's z: the round starts and respawns on the clearing before
+## it (GDD §3 "The M8 slice", #1492).
+const RAMP_FOOT := Vector2(116, 59.4)
+const RAMP_HINGE_Z := 63.9
+## How far from the ramp's foot a start or respawn marker stands at most: the clearing.
+const RAMP_CLEARING_M := 10.5
+## Half the ramp's lane (3.3 m wide) and a capsule's radius: no marker stands on the slope.
+const RAMP_LANE_HALF_M := 2.05
+## How far apart any two start or respawn markers stand at least, so nobody spawns in another.
+const MARKERS_APART_M := 1.2
 
 
 func test_the_markers_read_without_errors_in_the_host_s_world() -> void:
@@ -40,13 +47,31 @@ func test_the_estate_has_a_marker_per_player_and_the_most_packages() -> void:
 	assert_int(layout.count(&"respawn")).is_greater(0)
 
 
-func test_the_round_starts_around_the_bonfire() -> void:
-	for at: Vector3 in _read(_base_mode()).layout.positions(&"round_player"):
-		(
-			assert_float(Vector2(at.x, at.z).distance_to(BONFIRE))
-			. override_failure_message("the round_player marker at %s" % at)
-			. is_less(BONFIRE_CLEARING_M)
-		)
+func test_the_round_and_the_respawns_start_on_the_skat_s_clearing() -> void:
+	var layout := _read(_base_mode()).layout
+	var all: Array[Vector2] = []
+	for tag: StringName in [&"round_player", &"respawn"]:
+		for at: Vector3 in layout.positions(tag):
+			var flat := Vector2(at.x, at.z)
+			var where := "the %s marker at %s" % [tag, at]
+			(
+				assert_float(flat.distance_to(RAMP_FOOT))
+				. override_failure_message(where + ": not on the clearing before the ramp")
+				. is_less_equal(RAMP_CLEARING_M)
+			)
+			assert_float(at.z).override_failure_message(where + ": past the ramp").is_less(
+				RAMP_HINGE_Z
+			)
+			var on_the_lane := absf(at.x - RAMP_FOOT.x) < RAMP_LANE_HALF_M and at.z >= RAMP_FOOT.y
+			assert_bool(on_the_lane).override_failure_message(where + ": on the ramp").is_false()
+			for other: Vector2 in all:
+				(
+					assert_float(flat.distance_to(other))
+					. override_failure_message(where + ": too close to the one at %s" % other)
+					. is_greater_equal(MARKERS_APART_M)
+				)
+			all.append(flat)
+	assert_int(all.size()).is_greater(0)
 
 
 func test_each_round_and_respawn_marker_stands_a_player_on_a_floor_clear_of_the_level() -> void:

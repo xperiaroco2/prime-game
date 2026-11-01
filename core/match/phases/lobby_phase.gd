@@ -7,6 +7,8 @@ extends Phase
 ## host's ChangeSettings (SettingsChanged; a change un-readies nobody). Reports `all_ready` when
 ## every player is ready and the settings fit the map (FitCheck): after a SetReady, a settings
 ## change, a leave, and on entry, so a lobby re-entered with everyone still ready moves on at once.
+## A join and a leave first re-derive the defaults that follow the player count
+## (PlayerCountDefaults, #1492), so their SettingsChanged carries them.
 
 const ALL_READY := &"all_ready"
 
@@ -50,6 +52,7 @@ func on_peer_connected(ctx: MatchContext, peer: int) -> void:
 
 func on_peer_left(ctx: MatchContext, peer: int) -> void:
 	if JoinRules.leave(ctx, peer):
+		PlayerCountDefaults.follow(ctx)
 		ctx.emit(FitCheck.settings_changed(ctx))
 		_check_all_ready(ctx)
 
@@ -64,7 +67,8 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 ## the mode's task types (`out_of_bounds`); a map the mode does not list (`unknown_map`); then
 ## the settings as they would be, by every row's actions (RuleEffect.settings_problem: DealTasks
 ## refuses more `tasks` than task types left, or every type banned). Whether they fit the map is
-## checked at `all_ready`.
+## checked at `all_ready`. Accepted, each whole number it names is the host's from then on
+## (MatchState.host_settings): it no longer follows the player count.
 static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 	var raw: Variant = command.field("settings") if command.has_field("settings") else {}
 	if not raw is Dictionary:
@@ -113,6 +117,12 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 				ctx.reject(command, problem)
 				return false
 	ctx.state.settings = numbers
+	# A number the host named keeps his value from now on, even one equal to the default that
+	# follows the players (#1492, PlayerCountDefaults).
+	for key: Variant in given:
+		var named := ctx.mode.find_setting(StringName(str(key)))
+		if named.is_number():
+			ctx.state.host_settings[named.id] = true
 	ctx.state.id_sets = sets
 	ctx.state.map = map
 	ctx.state.lobby_name = lobby

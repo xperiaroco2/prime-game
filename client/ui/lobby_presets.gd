@@ -3,6 +3,8 @@ extends RefCounted
 ## The Lobby tab's preset cards (#491; prime-game-ui handoff s05 `lobby-host`), pure: each preset's
 ## values for the client's own mode, and which preset the match's settings are now. A preset is the
 ## mode's number settings, each at its default unless the preset names it, and no task type banned.
+## A default that follows the player count (SettingSpec.defaults_by_players, #1492) is the one for
+## the players present, so a card leaves such a setting as the lobby derived it.
 ## The values are placeholders ("not a decision", #491's "Needs the engineer"): Quick is a 5 minute
 ## match, No knives has no knives; everything else is the mode's default.
 ## The card shown pressed is derived from the model, never remembered: equal values are that
@@ -33,13 +35,18 @@ const DURATION := &"match_duration"
 ## The settings `preset` sets in `mode`: every number setting the mode declares, at the preset's
 ## value kept within its bounds; and every id set (the banned task types) empty. A preset that
 ## names a setting the mode lacks leaves it out. `own` is the own preset's saved values (OWN).
-static func values_of(preset: StringName, mode: GameMode, own: Dictionary = {}) -> Dictionary:
+## `players` is the players present: a number's default is SettingSpec.default_for(players), so a
+## default that follows the player count (#1492) is the lobby's own and a card never names it.
+static func values_of(
+	preset: StringName, mode: GameMode, own: Dictionary = {}, players := 0
+) -> Dictionary:
 	var changes: Dictionary = own if preset == OWN else CHANGES.get(preset, {})
 	var values := {}
 	for spec: SettingSpec in mode.settings:
 		if spec.is_number():
-			var wanted: Variant = changes.get(spec.id, spec.default_value)
-			var number := spec.default_value
+			var default := spec.default_for(players)
+			var wanted: Variant = changes.get(spec.id, default)
+			var number := default
 			if wanted is int or wanted is float:
 				number = roundi(wanted as float)
 			values[spec.id] = clampi(number, spec.min_value, spec.max_value)
@@ -64,15 +71,15 @@ static func shown(mode: GameMode) -> Array[StringName]:
 
 
 ## The preset the match is set to now (`settings` and `id_sets` as ClientModel holds them), or &""
-## for none; the own preset counts when `own` is given.
+## for none; the own preset counts when `own` is given. `players`: the players present (values_of).
 static func applied(
-	settings: Dictionary, id_sets: Dictionary, mode: GameMode, own: Dictionary = {}
+	settings: Dictionary, id_sets: Dictionary, mode: GameMode, own: Dictionary = {}, players := 0
 ) -> StringName:
 	var candidates: Array[StringName] = shown(mode)
 	if not own.is_empty():
 		candidates.append(OWN)
 	for preset: StringName in candidates:
-		if _matches(values_of(preset, mode, own), settings, id_sets):
+		if _matches(values_of(preset, mode, own, players), settings, id_sets):
 			return preset
 	return &""
 

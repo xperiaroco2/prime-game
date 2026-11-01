@@ -246,7 +246,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
 |---|---|---|
-| Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included). `Welcome` carries the hall's items (each one's id, kind, rest state, carrier, place and position; carried items first, at most 96), so a joiner sees the hands, belts and ground items picked up, stashed or put down before it came (#1404) | `JoinRules.leave`, in Round's order: every channel it runs or is the target of stops, it is marked left, `PlayerLeft` (everyone else), then the hand item and then the belt items come to rest on the floor below it (`ItemPlaced`, cause `leave`, and `item_rested`; #1388), then it is dropped from the roster; `SettingsChanged` |
+| Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included). `Welcome` carries the hall's items (each one's id, kind, rest state, carrier, place and position; carried items first, at most 96), so a joiner sees the hands, belts and ground items picked up, stashed or put down before it came (#1404) | `JoinRules.leave`, in Round's order: every channel it runs or is the target of stops, it is marked left, `PlayerLeft` (everyone else), then the hand item and then the belt items come to rest on the floor below it (`ItemPlaced`, cause `leave`, and `item_rested`; #1388), then it is dropped from the roster; `SettingsChanged`, with the defaults that follow the player count re-derived (§9.1; also on a join, before `Welcome`) |
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer`. Entering Loading also disconnects every newcomer still waiting (`DisconnectPeer`, no `Rejected`), and a `Hello` that arrives now gets `Rejected` (`joins_closed`) (E14, 3e) | `JoinRules.leave`, as in Lobby (nothing is carried: `ClearItems` ran at `countdown_done`); `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which "no crew present" counts (§3.4); the avatar is removed and no body stays: a downed player who leaves leaves none, and a dead player's body is removed (the engineer's answer 1 on PR #133); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the hand item and then the belt item come to rest on the floor below where the player stood (§7.1, M4-5). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
@@ -323,7 +323,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
   applies it all or nothing with the rest of the change. (3) It reaches clients in **`Welcome`** (the host's
   answer, so a client knows it the moment it is welcomed, before the `SettingsChanged` that follows) and in
   every **`SettingsChanged`** (a change reaches everyone; a join, a leave and the return to the lobby repeat
-  it). Public: no filtering (§5). (4) The wire's `name` type carries it (§4.3.1), widened to 80 bytes for 20
+  it, with any defaults that follow the player count re-derived, §9.1). Public: no filtering (§5). (4) The wire's `name` type carries it (§4.3.1), widened to 80 bytes for 20
   four-byte characters.
   Before `Welcome` a joiner knows no name: the connecting screen shows `connect.connecting_unnamed` (#494).
   Tests: `lobby_name_test.gd`, `lobby_phase_lobby_name_test.gd`, `host_session_lobby_name_test.gd` (over
@@ -2442,7 +2442,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and there are
   two or more such maps); the demands and shortfalls come from `SettingsChanged` (the
   shortfalls worded by `HostTextView`, §4.7.45). Everyone sees the settings; only
-  the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
+  the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown);
+  a setting the host never named that has a player-count table follows the players present (§9.1).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
@@ -4293,7 +4294,9 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
   the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
-  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
+  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. A card takes a
+  default that follows the player count at the roster's size (`default_for`, §9.1), so it never names one it leaves
+  (#1492). The own preset is
   `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
   name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
 - Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
@@ -7294,6 +7297,18 @@ none is not built and is not usable in data. Which task or PR built a part is in
   reads a number never reads a set as 0. A transition action checks the settings together through
   `RuleEffect.settings_problem`, which `ChangeSettings` asks before applying any (§4.1). So the knife's numbers sit in
   the knife's own rule (§9.5), and a second weapon is a second item kind with its own numbers.
+- **A default that follows the player count** (#1492). A whole-number `SettingSpec` may carry
+  `defaults_by_players`, a table from a player count to a default: `default_for(n)` takes the entry with the largest
+  key at most n, and `default_value` below its smallest key (the base mode's `dissidents`: `{4: 1, 6: 2, 9: 3}`,
+  so 1 below 4 players). Its check refuses a table on a set setting, a key below 1 or above the mode's
+  `max_players`, and a value out of the setting's bounds. Until the host names the setting in an accepted
+  `ChangeSettings` (`MatchState.host_settings` remembers it), `PlayerCountDefaults.follow` sets it to
+  `default_for(the players present)` where the lobby's roster changes, before what tells it: in `JoinRules.hello`
+  (before `Welcome`), on a leave in Lobby or Countdown (before their `SettingsChanged`) and in `ResetMatch` (§3.5).
+  Never in Loading or later: `LoadMatch` has carried the settings, no `SettingsChanged` follows, and the deal reads
+  that value. A value the host names stays for the session, through `ResetMatch`, even one equal to the table's;
+  nothing returns it to following. Tests: `tests/unit/content/setting_spec_test.gd`,
+  `tests/unit/match/phases/player_count_defaults_test.gd`.
 
 ### 9.2 Rules: trigger → conditions → effects
 A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects`.
@@ -7689,7 +7704,7 @@ names the facts that do.
 | `KnockDown` | knocks down one present living player where it stands (`LifeRules.knock_down`); with `then_die`, `LifeRules.die` at once (the body, the drop of both slots at it). `pick` 0 is the host's player (peer 1), n the n-th present player other than peer 1 in peer-id order. A pick that names nobody present, or a player who is not alive, is a rule error during the row (`Match.row_error_count`, so `HostSession` ends the session, §4.5.11), exactly one, and nothing happens: `then_die` only kills a player this action downed (so `die`'s own error cannot follow a successful knockdown). Without `then_die` only a `LifeTicks` of the phase entered runs the knockdown out; mode check: a **warning** on a row whose `KnockDown` without `then_die` enters a phase with no `LifeTicks`, where the downed stays downed for good. The tutorial's `raise_stage` is the intended case (`docs/design/tutorial.md` §2.3: lesson 6 waits however long the player takes to raise the stand-in). Mode check: `pick` 0 to the mode's maximum players minus 1; an **error** on a row whose `KnockDown` changes the level (`Match` switches the world to the entered phase's level before a row's actions run, so the floor asked would be a level the player is not in): only on a row that stays on one level | `pick` (whole, class default 0), `then_die` (class default false) | `RaiseStopped` (everyone, for a channel involving the player: none in a row, which stops every channel first), `KnockedDown` (everyone), `Correction` (the downed); with `then_die` `Died` (everyone) and per dropped item `ItemPlaced` (death, everyone); facts `player_died`, then `item_rested` per item. No new event or audience | `core/life/knock_down.gd` (`tests/unit/life/knock_down_test.gd`, `tests/unit/content/mode_check_stage_test.gd`) |
 | `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); alone on the row into the round (`Pregame, pregame_done → Round`, #213), so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). It records the clock's length (`MatchState.clock_ticks_total`, for `EndMatch`'s time, #548). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | `core/win/start_clock.gd` |
 | `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side and, when a win condition reported the `won`, its id as `reason` with the round's play time (`numbers.time`, whole seconds the clock ran; none when it never started), #548 | `core/win/end_match.gd` |
-| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count and the session part state (the pinball's best, #1398) (§3.5); everyone un-ready; the settings and shortfalls for the players still present (`FitCheck`), as a leave in the lobby sends them (#737). Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player; then `SettingsChanged` (everyone) | `core/match/reset_match.gd`, with the resent shortfalls (`tests/unit/match/reset_match_test.gd`) |
+| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count and the session part state (the pinball's best, #1398) (§3.5); everyone un-ready; the settings and shortfalls for the players still present (`FitCheck`), as a leave in the lobby sends them (#737). Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player; then `SettingsChanged` (everyone), the player-count defaults re-derived first (§9.1) | `core/match/reset_match.gd`, with the resent shortfalls (`tests/unit/match/reset_match_test.gd`) |
 | `Drink` | the actor drinks the mug in its hand (#1390, §7.1.20): `drunk` rises by `amount` (clamped at `PlayerRules.drunk_max`), the item becomes `empty_kind` (`Items.change_kind`: `ItemChanged`, everyone) after `GiveItem.make_room` for that capped kind, and an upward crossing of `drunk_too_much_at` raises the fact `drunk_too_much`. Its check: `empty_kind` one-handed and capped, `amount` above 0, the mode's `drunk_max` set; `DrunkCheck` refuses a phase that accepts the trigger of a rule with a Drink in the mode (`UseSecondary` for the mug since #1438) and lists no `DrunkTicks` | `empty_kind`, `amount` | `ItemChanged` (everyone), `ItemVanished` from make_room; raises `drunk_too_much` | `core/drunk/drink.gd` (`tests/unit/drunk/drink_test.gd`) |
 | `ClearStations` | removes every station of the match and numbers the next one 1 again (`MatchState.clear_stations`, #1390): the base mode's `Countdown, countdown_done → Loading` row after `ClearItems`, so the hall's tap never reaches the map. Refused (a rule error) once a task is dealt. Clients forget their stations at `LoadMatch` | none | nothing | `core/placement/clear_stations.gd` (`tests/unit/placement/station_ticks_test.gd`) |
 | `PlaceToggles` | places the map's world toggles (#1295), after `DealTasks` in the `Loading → Pregame` row (the world and the layout are the map's by then): first `WorldQuery.reset_toggles()` (a host level world outlives a match), then for each kind in list order a station, off, on every marker of its `spawn_tag` in the level's marker order, its `index` the marker's ordinal (§4.5.9's level contract), its colour the kind's first palette colour, else white. A level with no marker of a kind places none of it: no error and no demand. `Stations.kinds_in` lists its kinds after `StationTicks`' (`Stations.toggle_kinds`), so ModeCheck checks their rules and spawn tags and the client offers and never draws them (§4.7.61). `ClearStations` takes them at the next Countdown. A joiner in Lobby or Countdown learns an open toggle from `JoinRules.hello`'s replay (`StationPlaced`, then `SwitchChanged`), so a mode may place toggles in a row into either. Its check: `kinds` not empty, none null, repeated or `display`, each with a `ToggleStation` rule. The base mode's row places the estate's eight kinds (#1459, `content/stations/`: the bookcase, the wine rack and their `_inside` kinds, key `bookcase`; the manhole and `manhole_inside`, key `manhole`; `fixed_camera`; `light_breaker`, no key), each rule `AtStation`, `StationInSight` and a `Cooldown` (key `toggle`), its numbers and prompt placeholders, "not a decision"; the greybox and House have no toggle marker | `kinds` | `StationPlaced` (everyone), in station-id order | `core/placement/place_toggles.gd` (`tests/unit/placement/place_toggles_test.gd` on `FixtureToggles`) |
@@ -7809,7 +7824,7 @@ Settings:
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
   `tasks` 5 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the House's Delivery, Generator, photo task, Cooking and car repair; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
   a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays five types since #810 (four since #775, three since #784, two since #800): banning any but all of them leaves the rest, and banning all five (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
-  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `car_parts`, car repair's subtasks (the parts to fit), 2 (1 to 3, the car repair ADR's RD2, a placeholder, "not a decision"; its label "Parts to fit", RD12; #810); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `car_parts`, car repair's subtasks (the parts to fit), 2 (1 to 3, the car repair ADR's RD2, a placeholder, "not a decision"; its label "Parts to fit", RD12; #810); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal; until the host names it, it follows the players present, §9.1: 1 at 1 to 5 players, 2 at 6 to 8, 3 at 9 and 10, the M8 slice, GDD §3, #1492); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed hold still (§7.1.7) for
@@ -7893,7 +7908,8 @@ Dealt by the quota `dissidents`, leaving at least one other player.
 Produces: `RoleAssigned(dissident)`; `Teammates(dissident, peers)`.
 Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to nobody else.
 Code: `content/roles/dissident.tres`. Tests:
-`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (the default humans by
+player count, 10 joiners dealt 3).
 
 #### 9.5.4 Delivery by colours (task type)
 **The greybox's Delivery** (#683, the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md),
@@ -9108,8 +9124,8 @@ levels/
   ramps; the house's links of §5 with the bookcase stair and the chimney (down only); §6's stations, §5c's six
   cameras and each lot's door openings as markers (`StationMarkers`, `CameraMarkers`, `Doors`), no station scene.
   The base mode plays it as a test bench (#1374, beside the greybox in `bench_maps`, so the picker still lists the
-  House alone, #767): its map-wide `Markers` piece holds the round spawns (an arc by the bonfire, the party's heart,
-  estate-map.md §1), respawns, knives and the greybox Delivery by colours' packages and circles (`colour_delivery`
+  House alone, #767): its map-wide `Markers` piece holds the round spawns and the respawns (together on the
+  skat's clearing before the ramp's foot, the M8 slice, estate-map.md §5a, #1492), knives and the greybox Delivery by colours' packages and circles (`colour_delivery`
   lists the estate, its stand-in task until the estate's own) and the ship's `Engine` the ship's engine's markers and
   gill stand-ins (#1462, §9.5.27), and its `Toggles` the world toggles' markers (#1459, §4.5.9): the library's
   bookcase and the cellar's wine rack (one toggle, key `bookcase`, a marker inside the secret stair at each end),
@@ -9139,9 +9155,9 @@ levels/
   the pieces each once, the crossings, no tree in a clearing, the six cameras) and
   `tests/integration/levels/estate_walk_test.gd` (the map in the host's world: the walks between the lots and the
   house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere, each hidden passage
-  both ways, the ducts too low upright, each hole's fall in reach),
+  both ways, the ducts too low upright, each hole's fall in reach, each start and respawn walks to the ramp's foot),
   `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, each circle where it
-  is placed, on flat floor, the layout the base mode accepts), `tests/unit/levels/estate_room_records_test.gd`,
+  is placed, on flat floor, the layout the base mode accepts, the starts and respawns on the skat's clearing), `tests/unit/levels/estate_room_records_test.gd`,
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
   `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped),
   `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27); the

@@ -40,6 +40,38 @@ func test_a_mode_without_a_presets_setting_has_no_such_card_and_gets_none_of_it(
 	assert_bool(LobbyPresets.values_of(LobbyPresets.NO_KNIVES, lean).has(&"knives")).is_false()
 
 
+func test_a_card_leaves_a_default_that_follows_the_player_count() -> void:
+	# The base mode's dissidents follow the players present ({4: 1, 6: 2, 9: 3}, #1492): at 6
+	# players the lobby holds 2, and no card may send the table's 1 (that would name it).
+	var spec := _mode.find_setting(&"dissidents")
+	assert_int(spec.default_for(6)).is_equal(2)
+	var settings := _mode.default_settings()
+	settings[&"dissidents"] = 2
+	var id_sets := {}
+	for preset: StringName in LobbyPresets.shown(_mode):
+		var changes := LobbyPresets.changes_from(
+			LobbyPresets.values_of(preset, _mode, {}, 6), settings, id_sets
+		)
+		assert_bool(changes.has(&"dissidents")).override_failure_message(preset).is_false()
+	assert_str(String(LobbyPresets.applied(settings, id_sets, _mode, {}, 6))).is_equal(
+		String(LobbyPresets.STANDARD)
+	)
+	# Through the panel: six in the roster, Standard shows pressed and Quick sends only its own.
+	var panel := _panel()
+	var host := Preview.fake_model(_mode, true)
+	for peer: int in [4, 5, 6]:
+		host.roster[peer] = ClientModel.Member.new()
+	host.settings[&"dissidents"] = 2
+	panel.refresh(host, -1, true)
+	assert_str(String(panel.applied_preset())).is_equal(String(LobbyPresets.STANDARD))
+	var many: Array[Dictionary] = []
+	panel.settings_changed.connect(func(values: Dictionary) -> void: many.append(values))
+	panel.cards[LobbyPresets.QUICK].pressed.emit()
+	assert_int(many.size()).is_equal(1)
+	assert_bool(many[0].has(&"dissidents")).is_false()
+	assert_int(many[0][&"match_duration"] as int).is_equal(5)
+
+
 func test_a_card_sends_every_change_in_one_change_settings() -> void:
 	var panel := _panel()
 	var host := Preview.fake_model(_mode, true)
