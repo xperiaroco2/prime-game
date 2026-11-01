@@ -10,11 +10,9 @@ extends RefCounted
 ## not hold within its `timeout_s` fails the run, naming the step's line and what the window saw.
 ## Every step but a wait, `frames` or `seconds` is an action the window performs in the frame
 ## advance() returns it (press, hold, release, button, aim, shot, the host's setup). From
-## `aim item <kind>`
-## until `aim off` the window turns its own player each frame by aim_turn() toward the item
-## the station nearest_station() picks, after its route's waypoints (#1105), or from
+## `aim item <kind>` until `aim off` the window turns its own player each frame by aim_turn()
+## toward the item the station nearest_station() picks, after its route's waypoints (#1105), or from
 ## `aim player <n>` toward the avatar of the scenario's player n (#1418).
-## toward the avatar of the scenario's player n (#1418).
 
 enum Status { RUNNING, DONE, FAILED }
 

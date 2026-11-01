@@ -10,11 +10,11 @@
 # kind's `seconds`) runs out and the engine blasts (shot).
 # The waypoints are x,z in metres on the estate's ground: a point before the ramp's foot, which
 # every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
-# both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); east of the console, on the
-# walk "ship, hall to the east lens room".
+# both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); `to_breakers` is on the walk
+# "ship, hall to the east lens room", and `east` is a metre off it (no walk test covers that one).
 # Each step back lasts until the HUD no longer names the station, then `seconds 0.3` (#1530): a
-# count of frames walks
-# a distance that depends on the frame rate (40 frames were 6 m at 7 fps, 0.2 m at 190).
+# count of frames walks a distance that depends on the frame rate (40 frames were 6 m at 7 fps,
+# 0.2 m at 190).
 players 1
 windows 1
 map res://levels/estate/estate.tscn
