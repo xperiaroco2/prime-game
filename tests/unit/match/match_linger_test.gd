@@ -195,3 +195,97 @@ func test_only_the_ship_engine_has_a_finale() -> void:
 	assert_float(RoundPhase.linger_seconds_of(spec)).is_equal(0.0)
 	spec.settings[RoundPhase.LINGER_SECONDS] = 4.0
 	assert_float(RoundPhase.linger_seconds_of(spec)).is_equal(4.0)
+
+
+func test_a_win_after_the_finale_s_tick_ends_at_once() -> void:
+	# No every_task_done (the crew wins only once no dissident is present): the engine's last stage
+	# passes and decides nothing, and the round runs on.
+	var mode := _mode()
+	var crew_never := FixtureModes.win(&"crew", NoneAlive.of(&"dissidents"))
+	mode.win_conditions = [crew_never, FixtureWinModes.no_crew_present(), FixtureWinModes.time_up()]
+	var game := _round(mode)
+	_to_the_pass(game)
+	var passed := game.ticked_through()
+	assert_str(game.phase_id()).is_equal("round")
+	assert_bool(game.state.decided()).is_false()
+	assert_int(game.state.finale_tick).is_equal(passed)
+	# Every crew member leaves later: that win was not decided in the finale's tick, so no linger.
+	FixtureModes.run_ticks(game, 3)
+	FixtureModes.send(game, Intents.PEER_LEFT, 1)
+	FixtureModes.send(game, Intents.PEER_LEFT, 2)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_bool(game.state.decided()).is_false()
+	var ended := FixtureEngineModes.dicts(game, 3, &"MatchEnded")
+	assert_int(ended.size()).is_equal(1)
+	assert_str(ended[0]["side"]).is_equal("dissidents")
+	assert_str(ended[0]["reason"]).is_equal("no_crew_present")
+
+
+func test_every_task_done_without_a_finale_ends_at_once() -> void:
+	var mode := FixtureWinModes.basic(2)
+	mode.find_phase(&"round").settings[RoundPhase.LINGER_SECONDS] = LINGER_SECONDS
+	var game := FixtureWinModes.in_round(mode, PEERS)
+	var crew := FixtureDealModes.players_of(game, &"crew")
+	FixtureWinModes.deliver(game, crew[0], 0)
+	FixtureWinModes.deliver(game, crew[0], 1)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_bool(game.state.decided()).is_false()
+	assert_int(game.state.finale_tick).is_equal(-1)
+	assert_array(FixtureWinModes.ended(game, crew[0])).is_equal([&"crew"])
+
+
+func test_only_the_subtask_that_finishes_a_finale_task_marks_its_tick() -> void:
+	var mode := FixtureWinModes.basic(2)
+	mode.task_types = [FinaleDelivery.like(mode.task_types[0] as Delivery)]
+	mode.find_phase(&"round").settings[RoundPhase.LINGER_SECONDS] = LINGER_SECONDS
+	var game := FixtureWinModes.in_round(mode, PEERS)
+	var crew := FixtureDealModes.players_of(game, &"crew")
+	# The first package is a subtask done, but the task is not: no finale yet.
+	FixtureWinModes.deliver(game, crew[0], 0)
+	assert_int(game.state.finale_tick).is_equal(-1)
+	assert_str(game.phase_id()).is_equal("round")
+	# The last package finishes the task: its tick is the finale's, and the crew's win lingers.
+	FixtureWinModes.deliver(game, crew[0], 1)
+	# The delivery is an intent stamped for the next tick: that tick is the finale's.
+	assert_int(game.state.finale_tick).is_equal(game.ticked_through() + 1)
+	assert_str(game.phase_id()).is_equal("round")
+	assert_bool(game.state.decided()).is_true()
+	assert_str(game.state.verdict_reason).is_equal("every_task_done")
+
+
+func test_leaving_the_round_another_way_drops_the_pending_win() -> void:
+	var mode := _mode()
+	mode.actions.append(FixtureModes.rule(Intents.USE, [], [FixtureReport.of(&"abort")]))
+	mode.transitions.append(FixtureModes.row(&"round", &"abort", &"end", []))
+	var game := _round(mode)
+	_to_the_pass(game)
+	var due := game.state.verdict_tick
+	FixtureModes.run_ticks(game, 2)
+	# A rule of the round reports another outcome in the linger: the round ends by that row.
+	FixtureModes.send(game, Intents.USE, 2, {"facing": Vector3.FORWARD})
+	assert_str(game.phase_id()).is_equal("end")
+	assert_bool(game.state.decided()).is_false()
+	# The dropped win is never reported later: no MatchEnded, no row error, no second phase.
+	FixtureWinModes.run_through(game, due + 5)
+	assert_array(FixtureEngineModes.dicts(game, 2, &"MatchEnded")).is_empty()
+	assert_int(game.row_error_count()).is_equal(0)
+	assert_array(game.diagnostics).is_empty()
+	assert_array(_phases(game)).is_equal([&"round", &"end"])
+
+
+## A Delivery whose task has a finale, as the ship's engine has: the linger's trigger seen on a
+## task of several subtasks, each done in its own tick.
+class FinaleDelivery:
+	extends Delivery
+
+	static func like(other: Delivery) -> FinaleDelivery:
+		var made := FinaleDelivery.new()
+		made.id = other.id
+		made.description = other.description
+		made.package = other.package
+		made.circle = other.circle
+		made.subtasks_setting = other.subtasks_setting
+		return made
+
+	func has_finale() -> bool:
+		return true
