@@ -40,12 +40,12 @@ static func mode() -> GameMode:
 	return load(PATH) as GameMode
 
 
-## Gives `mode` an own copy of Round that takes Use from the living, after PutDown (its place in
-## the shipped mode before #1497). `mode`'s phases array must be its own, as a fixture mode's copy
+## Gives `target` an own copy of Round that takes Use from the living, after PutDown (its place in
+## the shipped mode before #1497). `target`'s phases array must be its own, as a fixture mode's copy
 ## of the shipped one is (house_zone_test.gd's knockdown on the zone fixture).
-static func round_takes_use(mode: GameMode) -> void:
-	for index: int in mode.phases.size():
-		var spec := mode.phases[index]
+static func round_takes_use(target: GameMode) -> void:
+	for index: int in target.phases.size():
+		var spec := target.phases[index]
 		if spec.id != &"round":
 			continue
 		var copy := spec.duplicate() as PhaseSpec
@@ -60,7 +60,7 @@ static func round_takes_use(mode: GameMode) -> void:
 		if not accepts.has(use):
 			push_error("base_mode_with_melee: the shipped Round takes no PutDown")
 		copy.accepts = accepts
-		mode.phases[index] = copy
+		target.phases[index] = copy
 
 
 ## An own copy of the Loading row `all_loaded` that places the knives after the task deal and before
