@@ -19,7 +19,9 @@ extends ScenarioPlay
 ## and AllowJoins; DisconnectPeer ends that bot, and its PeerLeft follows on the next tick.
 ## A knocked-down body's LaunchBody and StopBody go to a HostBodies with no world, which holds
 ## the body still where it starts; its BodyMoved reports head each tick's commands, as HostSession
-## puts them (KE14), so the body rests after the rest time.
+## puts them (KE14), so the body rests after the rest time. The pinball table is a scripted one
+## (ScriptedPinballTable.for_scenarios, #1510), stepped after each tick as HostSession steps
+## its own; its reports follow the bodies'.
 
 var game: Match
 var ticks_run := 0
@@ -30,6 +32,8 @@ var _to_leave: Array[int] = []
 var _refusing := false
 ## The bodies server/ would simulate, held still (no physics here).
 var _bodies := HostBodies.new()
+## The pinball table server/ would step, scripted (no physics here; ScriptedPinballTable, #1510).
+var _table := ScriptedPinballTable.for_scenarios()
 
 
 func _init(bot_scenario: BotScenario) -> void:
@@ -85,7 +89,9 @@ func run() -> void:
 
 func _run_tick(at_tick: int) -> void:
 	_commands.clear()
-	for report: MatchCommand in _bodies.reports():
+	var reports := _bodies.reports()
+	reports.append_array(_table.reports())
+	for report: MatchCommand in reports:
 		report.tick = game.ticked_through() + 1
 		_commands.append(report)
 	for peer: int in _to_leave:
@@ -104,6 +110,8 @@ func _run_tick(at_tick: int) -> void:
 	_invariants.sender = 0
 	game.tick(at_tick)
 	_deliver()
+	# As HostSession: the table follows the game as of the tick just run; its reports head the next.
+	_table.step(Pinball.game(game.state), 1.0 / Engine.physics_ticks_per_second)
 	for problem: String in _invariants.check_tick():
 		failures.append("tick %d: %s" % [at_tick, problem])
 	for bot: ScenarioBot in bots:

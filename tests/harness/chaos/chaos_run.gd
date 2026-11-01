@@ -865,7 +865,7 @@ func _check_replayed(label: String, peer: int, budget: ChaosBudget) -> void:
 ## host's transport rejected nothing and counted nothing over budget from any peer but the two chaos
 ## peers; in the baseline, from them neither.
 func host_problems() -> PackedStringArray:
-	var found := PackedStringArray()
+	var found := table_problems()
 	var chaos: Array[int] = [hostile_peer(), malformed.peer if malformed != null else 0]
 	var others := ledger.total_except(chaos)
 	if others != 0:

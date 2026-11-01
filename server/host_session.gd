@@ -103,16 +103,25 @@ var voice_over_budget := 0
 ## where step() reads no clock for it.
 var step_meter: StepMeter = null
 ## The lobby pinball's table physics (#1399, §7.1.22): built by start_with for a host with
-## physics (HostWorldQuery; null on the bots' flat world); a test may set its own after start().
-## Stepped every step() against the live game (Pinball.game, read only); its reports join the
-## step-4 batch's head after the bodies'.
+## physics (HostWorldQuery) unless one is set before (the bots and the chaos run set a scripted
+## one, ScriptedPinballTable, on their flat world; null there otherwise); a test may also set its
+## own after start(). Stepped every step() against the live game (Pinball.game, read only); its
+## reports join the step-4 batch's head after the bodies'.
 var table: PinballTable = null
+## Why the pinball table cannot run as the mode needs (#1510, §7.1.22): its scene's problems
+## (PinballTable.errors) and the targets the scene and the game do not share
+## (PinballTable.target_problems), taken once, after the step that read the scene at the first game;
+## empty while fine or not read yet. The session runs on (a lobby without pinball); not in errors,
+## which say why a start was refused or the session ended. Each line is pushed once (push_error).
+var table_errors := PackedStringArray()
 
 var _transport: NetTransport
 var _schema: WireSchema
 var _debug := OS.is_debug_build()
 var _started := false
 var _ended := false
+## Whether table_errors were taken (once, after the table read its scene).
+var _table_checked := false
 var _start_usec := 0
 var _now_usec := 0
 var _last_refill_usec := 0
@@ -322,6 +331,8 @@ func step(now_usec: int) -> void:
 	# physics server steps after _physics_process).
 	if table != null and is_running():
 		table.step(Pinball.game(game.state), 1.0 / Engine.physics_ticks_per_second)
+		if not _table_checked and table.was_read():
+			_check_table()
 
 
 ## Ends the session: the owner's choice (the host quits, or its own client's load failed).
@@ -585,6 +596,18 @@ func _disconnect(peer: int) -> void:
 	# Only a disconnect the transport accepted brings a peer_left that clears the mark.
 	if _transport.disconnect_peer(peer) == OK:
 		_disconnected[peer] = true
+
+
+## Takes table_errors once, after the step whose table read its scene: the scene's problems (the
+## table pushed each), else the targets the scene and the live game do not share (pushed here).
+func _check_table() -> void:
+	_table_checked = true
+	if not table.errors.is_empty():
+		table_errors = table.errors.duplicate()
+		return
+	table_errors = table.target_problems(Pinball.game(game.state).points)
+	for problem: String in table_errors:
+		push_error("host: %s" % problem)
 
 
 func _end(reason: StringName) -> void:

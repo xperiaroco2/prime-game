@@ -53,6 +53,9 @@ var replay_path := ""
 var leaks: LeakCheck
 ## The task events some bot decoded, filled after the run (LeakCheck.check_coverage, #1197).
 var task_events_seen: Dictionary[StringName, bool] = {}
+## The ticks with a pinball ball that two bots or more decoded (LeakCheck.shared_ball_ticks: what
+## check_ball compared), filled after the run.
+var ball_ticks_compared := 0
 
 var _invariants: ScenarioInvariants
 
@@ -93,6 +96,8 @@ func run() -> void:
 		return
 	host_transport = _make_host_transport()
 	session = HostSession.new(host_transport, schema)
+	# Its frames are not physics frames: a scripted table, not PinballTable (#1510, §7.1.22).
+	session.table = ScriptedPinballTable.for_scenarios()
 	session.replay_dir = ""
 	session.hello_deadline_usec = (ceili(scenario.time_limit_s + LURKER_MARGIN_S) * USEC_PER_SECOND)
 	session.observer = _on_call
@@ -255,6 +260,8 @@ func _check_after() -> void:
 		if client != null:
 			_check_client("bot %d" % bot.number, bot.peer, client, bot.gone, views)
 	failures.append_array(leaks.check_tasks(views))
+	failures.append_array(LeakCheck.check_ball(views))
+	ball_ticks_compared = LeakCheck.shared_ball_ticks(views)
 	for label: String in views:
 		LeakCheck.add_task_events(views[label], task_events_seen)
 	for watcher: BotWatcher in [lurker, refused]:
@@ -286,13 +293,24 @@ func _check_client(
 	views[label] = client.view
 
 
-## Honest bots trip no host budget and send nothing the host's transport rejects.
+## Honest bots trip no host budget and send nothing the host's transport rejects; the host found
+## nothing wrong with its pinball table (HostSession.table_errors).
 func host_problems() -> PackedStringArray:
 	var found := PackedStringArray()
 	if session.over_budget != 0:
 		found.append("the host counted %d messages over budget" % session.over_budget)
+	found.append_array(table_problems())
 	if host_transport.rejects.total() != 0:
 		found.append("the host's transport rejected %d packets" % host_transport.rejects.total())
+	return found
+
+
+## What the host found wrong with its pinball table (HostSession.table_errors), as run failures.
+## The scripted table reads no scene, so this guards a runner given a real table.
+func table_problems() -> PackedStringArray:
+	var found := PackedStringArray()
+	for problem: String in session.table_errors:
+		found.append("the host's pinball table: %s" % problem)
 	return found
 
 

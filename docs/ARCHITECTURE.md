@@ -1468,12 +1468,20 @@ round).
   runner's `FlatWorldQuery`), a launched body is held still where it starts and reported at rest, so it rests after
   the rest time. Tests: that suite, on `tests/fixtures/levels/body_rest_course.tscn` (§7.1.18).
 - **The pinball table (#1399).** `HostSession.table` (`server/pinball_table.gd`, §7.1.22) is built by `start_with`
-  for a host with physics (`HostWorldQuery`; none on `FlatWorldQuery`, so the bots and the core runner have no ball)
-  in a `World3D` of its own, apart from the levels'. It reads its scene at the first game and keeps its space inactive
+  for a host with physics (`HostWorldQuery`) in a `World3D` of its own, apart from the levels'; a table set before
+  `start_with` is kept on any world. It reads its scene at the first game and keeps its space inactive
   while no game runs; every step it is handed `Pinball.game(state)` (read only) and one physics frame's delta, and its
-  reports join step 4 after the bodies'; the host's end clears it. A test may set its own table after the start
-  (`host_session_pinball_test.gd`'s scripted one). Tests: `tests/integration/server/pinball_table_test.gd`,
-  `host_session_pinball_test.gd`.
+  reports join step 4 after the bodies'; the host's end clears it. After the step whose table read its scene, the
+  host takes `HostSession.table_errors` once (#1510): the scene's problems (`PinballTable.errors`, each pushed once
+  by the table), else the targets the scene and the live game disagree on (`PinballTable.target_problems`, both
+  ways: a scene target the game lacks would be an error at its first hit, a game target the scene lacks can never
+  score; each pushed once by the host). The session runs on (a broken table is inert, the lobby is not), and
+  `errors` stays the start's and the end's reason. The bots (`BotsRunner`, so the chaos run, and `BotsEnet`) and the
+  core runner, whose frames are no engine physics frames, set `ScriptedPinballTable` (`tests/harness/`, §4.6.3)
+  before the start; `BotsRunner` and `ChaosRun` fail a run on any `table_errors` (a guard for a runner given a real
+  table: the scripted one reads no scene, so it reports none; `BotsEnet` does not check it). A test may also set its own table after the
+  start. Tests: `tests/integration/server/pinball_table_test.gd`, `host_session_pinball_test.gd`,
+  `tests/scenarios/pinball_bots_test.gd`.
 
 #### 4.5.10 The command log and replays (E13)
 The host keeps the log in memory (§3.3), only where it can write it: a release-build host, and one that skips its
@@ -1743,6 +1751,14 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `HostSession` with `keep_history` on, bot 1 its own client, the others loopback clients, all stepped by a
   simulated clock (60 steps per simulated second) as fast as the machine runs. A 10-minute scenario takes seconds
   and runs the same every time.
+- The pinball table under the bots (#1510): the runners play every frame in one synchronous loop (the ENet host on
+  its own clock), so a real `PinballTable`, whose `World3D` steps only on the engine's physics frames, would never
+  move a ball. `BotsRunner` (and so the chaos run), `BotsEnet`'s host and the core runner (`ScenarioRunner`, which
+  steps it after each tick as `HostSession` does) set `ScriptedPinballTable.for_scenarios()`
+  (`tests/harness/scripted_pinball_table.gd`) before the start: no physics, the table's reports scripted against the
+  live game. While a game runs it launches a ball whenever none is in play, places it every step (a `BallMoved`, so
+  every snapshot shows it), and each press of the left flipper hits the game's first target by id (no content id or
+  number written), each press of the right loses the ball. The real table: `pinball_table_test.gd` (§9.5.28).
 - `--instances N` runs one scenario over ENet on 127.0.0.1, on a free port as `verify`'s `enet` step: instance 1
   hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
   peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
@@ -1788,7 +1804,13 @@ Compares what each bot b decoded with `view_of(b)`:
   "bot N (connection i)" (`NetPlay.earlier_views`; over ENet `ViewFile`'s `earlier` lives), the last one as "bot N";
 - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
   lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
-  (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
+  (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first); its pinball ball is
+  `view_of`'s (`WireSamples.same`);
+- the ball across bots (#1510; the one-process runner): the pinball's ball is public, so on every tick two bots or
+  more decoded, each decoded the same ball or none (`LeakCheck.check_ball`, apart from `Snapshots.sent`, which both sides of the
+  per-bot comparison go through, so a ball made per viewer passes that one); a tick only one view holds (a LATEST
+  dropped, a joiner, an earlier connection's prefix) compares nothing, and `BotsRunner.ball_ticks_compared` counts
+  the compared ones (`shared_ball_ticks`; `pinball_bots_test.gd` asserts it above 0 for `pinball_plays_a_ball`);
 - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
   from the voice rule, the distance invariant (M5-1, #215, below and §5). Since protocol 8 every frame arrives in a
   `VoiceBatch` and is checked as the `VoiceDown` it stands for; a batch with no frame fails too (M5-4b, #374: proven
@@ -2011,6 +2033,12 @@ passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd`
 routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
 with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
 fails that sweep).
+
+**#1510** planted a ball made per viewer in `Snapshots.sent` (every viewer but peer 1 shown the ball 0.5 m along x):
+`bots pinball_plays_a_ball` (seed 151000000001) failed with only `check_ball`'s lines ("bot 1 and bot 2 decoded
+another ball at tick 122", 25 ticks), none from the comparison with `view_of`, which goes through `sent` too;
+reverted (2026-11-01). `pinball_bots_test.gd` fails `check_ball` on hand-built views with another ball, or a ball
+one view lacks, on a shared tick.
 
 **#639** planted the joiner's return key as `PlayerJoined`'s name in `JoinRules.hello`: `bots
 late_join_cancels_the_countdown` failed on `ScenarioInvariants` (`invariant at tick 1: PlayerJoined holds a return
@@ -7253,7 +7281,8 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
   (reliable, to everyone), one source for one fact.
 - **The table** (`server/pinball_table.gd`, `PinballTable`, #1399). Godot physics (Jolt) on the host in `server/`, as
   the knockdown bodies (§7.1.18): a `World3D` of its own through `PhysicsServer3D`, no Node in a tree. `HostSession`
-  builds it for a host with physics (`HostWorldQuery`; the bots' flat world has none), steps it last in every step
+  builds it for a host with physics (`HostWorldQuery`; the bots and the core runner set a scripted one, §4.6.3),
+  steps it last in every step
   (after step 4, so a flipper turns in the frame its intent is applied) against the live game (a read-only
   `Pinball.game(state)`, so a re-told or stale `PinballState` cannot relaunch
   a ball), and puts its reports at the head of the step-4 batch after the bodies' (§4.5): `BallLaunched`,
@@ -7273,7 +7302,9 @@ lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinba
     or a scoring target with metadata `target_id` (a `PinballTarget`'s id; `kick`, m/s, its own push); the
     `AnimatableBody3D`s `FlipperLeft` and `FlipperRight` turn about their own origin and Y axis; `Marker3D`
     `BallStart` (its -Z the launch) and `Marker3D` `Drain` (the ball is lost past its Z). A scene with problems
-    (`PinballTable.errors`) leaves the table inert.
+    (`PinballTable.errors`, each pushed once) leaves the table inert, and the host reports it in
+    `HostSession.table_errors` after the first game, with the targets the scene and the game's `UsePinball` disagree
+    on (both ways), while the session runs on (§4.5, #1510).
 - **Tests:** §9.5.28.
 
 #### 7.1.23 The pose wheel's body pose (#1485)
@@ -9183,10 +9214,15 @@ The rules and the table interface are §7.1.22; the client's views (camera, tabl
   the table (#1399): `tests/unit/pinball/pinball_ball_test.gd` (`BallMoved` kept only for the live game's ball, no
   event, the snapshot's ball), `tests/integration/server/pinball_table_test.gd` (the table on real physics frames:
   idle, the launch, a held flipper throws the ball, a drain, the bumper scores once and kicks, the catch, stuck, a
-  new game frees the ball, the scene's ids are `pinball.tres`'s), `host_session_pinball_test.gd` (a scripted table
+  new game frees the ball, the scene's ids are `pinball.tres`'s, `target_problems` both ways, a broken scene
+  (`tests/fixtures/pinball/broken_table.tscn`) names each missing part once and stays inert),
+  `host_session_pinball_test.gd` (a scripted table, `ScriptedPinballTable`,
   over the loopback wire: the launch tick's snapshot shows the ball to every client as `view_of`, `LeakCheck`, the
-  ball gone after `BallLost`; no table on a flat world), `server/snapshot_encoder_test.gd` (the ball block, the
-  worst case under the cap); the views (#1400): the client tests §4.7.63 lists.
+  ball gone after `BallLost`; no table on a flat world unless one is set; the real table's `table_errors` after the
+  first game: the shipped scene's targets the fixture mode lacks, and a broken scene's parts, the session running on,
+  #1510), `tests/scenarios/pinball_bots_test.gd` (`check_ball` on hand-built views; `pinball_plays_a_ball` through
+  `BotsRunner` and the core runner, every bot decoding the same ball, #1510), `server/snapshot_encoder_test.gd`
+  (the ball block, the worst case under the cap); the views (#1400): the client tests §4.7.63 lists.
 
 #### 9.5.29 The photo booth (lobby, #1396; provisional numbers)
 
@@ -9481,6 +9517,7 @@ told. One format runs in two runners.
 | `NextStage` | (the host's bot) sends `NextStage`: a scripted mode (the tutorial's stages) moves on (#599) | a `PhaseChanged` arrives, whichever phase (an `Expect` after it names one); the base mode refuses it (`not_accepted`). `tests/scenarios/next_stage_step_test.gd` |
 | `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
 | `MendEngine(share, of, start, boarding)` | mends the ship's engine (§9.5.27, #1498) by a policy, `EngineMender` (`tests/harness/engine_mender.gd`): with `start` it presses the console; then it takes each open problem whose id % `of` is `share` (the bots of a scenario split the problems without talking), walks there (over the `boarding` points, the ramp, while below the station's floor) and presses the gill button while the bar is on a shut slit, the next breaker in its green window, or carries the crystal to a charger, presses it and fits it back once charged; no fixed script can, since the engine draws its problems' moments, kinds, sites and orders. A refusal `unavailable` (the problem closed before the press landed) or any while the bot is down is no failure, the policy looks again; any other fails the step | the console's bar is full (the engine done), or `MatchEnded` arrives |
+| `Flippers(left, right)` | a test step outside the closed list (#1510: `StepFlippers` in `tests/fixtures/scenarios/`, used by `pinball_plays_a_ball` only, no shipped scenario): sends `Flippers`, the held state of the pinball's two flippers (§7.1.22); the state must change, so a script alternates | a `PinballState` with this bot seated and both flippers as the step holds them (or its `expect_rejected`) |
 
 The classes (`core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and one class
 per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
@@ -9627,6 +9664,10 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   drinks it, its drunk value 36 to 40, and bot 1's stays 0), `booth_strip_of_frames` (#1396, provisional: bot 2
   stands in the lobby's photo booth, bot 1 walks in and presses it; after the first flash bot 2 moves inside it;
   after the print each bot has its own strip in the hand (`ItemPickedUp`); both get ready and the round starts),
+  `pinball_plays_a_ball` (#1510, in `tests/fixtures/scenarios/` on the melee fixture, provisional: bot 1 walks to
+  the lobby's pinball and sits down, the scripted table (§4.6.3) launches a ball, a left press hits the game's first
+  target, a right press loses the ball and the next one comes, then bot 1 stands up past the seat's cooldown; bot 2
+  watches, so both decode the public ball, `LeakCheck.check_ball`),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; #1377: a `Draw` in the lobby of the place already in the hand is `same_place` (since #1388; `not_accepted` before the lobby took the hand), one of place 3 in the round `no_such_place`, one of the place already in the hand `same_place`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).

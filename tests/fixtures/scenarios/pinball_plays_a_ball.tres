@@ -1,0 +1,108 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://dlaaqnlkb5kmy"]
+
+[ext_resource type="Resource" path="res://tests/fixtures/combat/base_mode_with_melee.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_o3x5s"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="5_target"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="6_walk"]
+[ext_resource type="Script" uid="uid://cibnmeghu3q31" path="res://core/content/scenario/step_interact.gd" id="7_interact"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="8_expect"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="9_wait_for"]
+[ext_resource type="Script" uid="uid://dcqpx6ajcd2hb" path="res://tests/fixtures/scenarios/step_flippers.gd" id="10_flippers"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="11_wait"]
+
+[sub_resource type="Resource" id="Target_pinball"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"pinball"
+
+[sub_resource type="Resource" id="Walk_to_the_machine"]
+script = ExtResource("6_walk")
+target = SubResource("Target_pinball")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Sit_down"]
+script = ExtResource("7_interact")
+station = SubResource("Target_pinball")
+until = &"PinballState"
+
+[sub_resource type="Resource" id="Expect_a_ball"]
+script = ExtResource("8_expect")
+event = &"PinballState"
+fields = {
+"in_play": true
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Press_left"]
+script = ExtResource("10_flippers")
+left = true
+
+[sub_resource type="Resource" id="Release_left"]
+script = ExtResource("10_flippers")
+
+[sub_resource type="Resource" id="Press_right"]
+script = ExtResource("10_flippers")
+right = true
+
+[sub_resource type="Resource" id="Expect_the_ball_lost"]
+script = ExtResource("8_expect")
+event = &"PinballState"
+fields = {
+"in_play": false
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Release_right"]
+script = ExtResource("10_flippers")
+
+[sub_resource type="Resource" id="Expect_the_next_ball"]
+script = ExtResource("8_expect")
+event = &"PinballState"
+fields = {
+"in_play": true
+}
+within_s = 5.0
+
+[sub_resource type="Resource" id="Wait_past_the_seat_cooldown"]
+script = ExtResource("11_wait")
+seconds = 1.0
+
+[sub_resource type="Resource" id="Stand_up"]
+script = ExtResource("7_interact")
+station = SubResource("Target_pinball")
+until = &"PinballState"
+
+[sub_resource type="Resource" id="Player_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_to_the_machine"), SubResource("Sit_down"), SubResource("Expect_a_ball"), SubResource("Press_left"), SubResource("Release_left"), SubResource("Press_right"), SubResource("Expect_the_ball_lost"), SubResource("Release_right"), SubResource("Expect_the_next_ball"), SubResource("Wait_past_the_seat_cooldown"), SubResource("Stand_up")])
+
+[sub_resource type="Resource" id="Watch_the_ball"]
+script = ExtResource("9_wait_for")
+event = &"PinballState"
+fields = {
+"in_play": true
+}
+
+[sub_resource type="Resource" id="Watch_it_lost"]
+script = ExtResource("9_wait_for")
+event = &"PinballState"
+fields = {
+"in_play": false
+}
+
+[sub_resource type="Resource" id="Watcher_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Watch_the_ball"), SubResource("Watch_it_lost")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 151000000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("Player_script"), SubResource("Watcher_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0
+metadata/note = "A fixture scenario (#1510), provisional for the engineer to approve: bot 1 sits at the lobby's pinball, the bots' scripted table (ScriptedPinballTable) launches a ball, a left press hits the game's first target, a right press loses the ball, the next ball comes, bot 1 stands up; bot 2 watches, so both decode the public ball (LeakCheck.check_ball). No target id or number is written here."

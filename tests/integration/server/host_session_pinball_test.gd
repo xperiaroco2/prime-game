@@ -1,55 +1,18 @@
 extends GdUnitTestSuite
 ## The pinball table's reports over the real wire (#1399; ARCHITECTURE §4.5, §7.1.22): a
 ## HostSession over a LoopbackHub with a fake clock (host_session_harness.gd) on FixturePinball's
-## machine, a scripted table in place of the physics (the physics: pinball_table_test.gd). The
-## table steps against the live game and its reports head each step-4 batch: BallLaunched before
-## BallMoved, so the tick that launches the ball already shows it. Every client decodes the same
-## public ball in its snapshots as view_of its peer holds (LeakCheck too), folds it into
-## ClientPinball, and loses it with the ball. A host with no physics (the flat world) has no table.
+## machine, a scripted table (ScriptedPinballTable) in place of the physics (the physics:
+## pinball_table_test.gd). The table steps against the live game and its reports head each step-4
+## batch: BallLaunched before BallMoved, so the tick that launches the ball already shows it. Every
+## client decodes the same public ball in its snapshots as view_of its peer holds (LeakCheck too),
+## folds it into ClientPinball, and loses it with the ball. A host with no physics (the flat world)
+## has no table unless one is set before the start. The host reports a table its scene cannot give
+## (HostSession.table_errors) once, after the table's first game.
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 const OWN := 1
-
-
-## A table without physics: it launches `launches` balls of the live game, moves the ball along x
-## each batch, and loses it when `lose` is set.
-class ScriptedTable:
-	extends PinballTable
-
-	var launches := 1
-	var lose := false
-	var at := Vector3(0.25, 0.0, -0.5)
-	var steps := 0
-	## The left flipper as the last step() was handed it.
-	var seen_left := false
-	var _ball_game := 0
-	var _scripted: Array[MatchCommand] = []
-
-	func step(played: Pinball.Machine, _delta: float) -> void:
-		steps += 1
-		seen_left = played != null and played.left
-		if played == null or played.player < 0:
-			_ball_game = 0
-			return
-		if _ball_game == 0 and launches > 0 and not played.in_play and played.balls_left > 0:
-			launches -= 1
-			_ball_game = played.serial
-			_scripted.append(_scripted_report(Intents.BALL_LAUNCHED, {"game": played.serial}))
-		elif lose and _ball_game != 0:
-			lose = false
-			_scripted.append(_scripted_report(Intents.BALL_LOST, {"game": _ball_game}))
-			_ball_game = 0
-
-	func reports() -> Array[MatchCommand]:
-		var found := _scripted
-		_scripted = []
-		if _ball_game != 0:
-			at += Vector3(0.125, 0.0, 0.0)
-			found.append(_scripted_report(Intents.BALL_MOVED, {"game": _ball_game, "position": at}))
-		return found
-
-	static func _scripted_report(kind: StringName, args: Dictionary) -> MatchCommand:
-		return MatchCommand.new(kind, 0, 0, args)
+const BROKEN_SCENE := "res://tests/fixtures/pinball/broken_table.tscn"
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 
 
 ## A host with physics (HostSession builds its table) whose levels are flat: the harness's levels
@@ -161,17 +124,72 @@ func test_a_host_with_physics_builds_its_table_and_reads_it_at_the_first_game() 
 	assert_bool(table.is_active()).is_false()
 	assert_array(Array(table.target_ids())).is_empty()
 	var game := _h.session.game
+	var logged := EngineErrors.new()
+	logged.start()
 	_h.own.send_intent(Intents.INTERACT, {"station": FixturePinball.machine_id(game), "item": -1})
 	_h.pump_seconds(0.25)
 	assert_int(Pinball.game(game.state).player).is_equal(OWN)
 	assert_bool(table.is_active()).is_true()
 	assert_array(table.errors).is_empty()
 	assert_array(Array(table.target_ids())).is_not_empty()
+	# FixturePinball's targets are fewer than the shipped scene's: after the read the host reports
+	# each scene target the game lacks, once, and runs on.
+	var points := Pinball.game(game.state).points
+	var missing: Array[StringName] = []
+	for id: StringName in table.target_ids():
+		if not points.has(id):
+			missing.append(id)
+	assert_array(missing).is_not_empty()
+	assert_int(_h.session.table_errors.size()).is_equal(missing.size())
+	for id: StringName in missing:
+		assert_str("\n".join(_h.session.table_errors)).contains(
+			"has a target %s the game's targets lack" % id
+		)
+	assert_array(_h.session.errors).is_empty()
+	assert_bool(_h.session.is_running()).is_true()
 	# The real table launches on its own after the spec's delay, and core takes the ball.
 	_h.pump_seconds(table.spec().launch_delay_s + 0.5)
+	logged.stop()
+	# The host took the table's errors once: many steps ran since, and each problem was pushed once.
+	var pushed := "\n".join(logged.snapshot())
+	for problem: String in _h.session.table_errors:
+		assert_int(pushed.count(problem)).is_equal(1)
 	assert_int(_tick_of(Intents.BALL_LAUNCHED)).is_greater(0)
 	assert_bool(Pinball.game(game.state).in_play).is_true()
 	assert_bool(Pinball.game(game.state).ball_placed).is_true()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_broken_table_scene_is_reported_by_the_host_after_the_first_game() -> void:
+	_h = Harness.new(_mode(), true, null, _layouts())
+	assert_bool(_h.started).is_true()
+	var table := PinballTable.new(BROKEN_SCENE)
+	_h.session.table = table
+	_h.pump_seconds(0.25)
+	# Nobody sat yet: the scene is not read and nothing is reported.
+	assert_bool(table.was_read()).is_false()
+	assert_array(_h.session.table_errors).is_empty()
+	var game := _h.session.game
+	var logged := EngineErrors.new()
+	logged.start()
+	_h.own.send_intent(Intents.INTERACT, {"station": FixturePinball.machine_id(game), "item": -1})
+	_h.pump_seconds(0.5)
+	logged.stop()
+	assert_int(Pinball.game(game.state).player).is_equal(OWN)
+	# The scene's every missing part, reported by the host and pushed to the log; the table stays
+	# inert and the session runs on: a lobby with no ball, no ended session.
+	var reported := _h.session.table_errors
+	assert_int(reported.size()).is_equal(4)
+	assert_array(Array(reported)).is_equal(Array(table.errors))
+	for part: String in ["FlipperLeft", "FlipperRight", "Marker3D BallStart", "Marker3D Drain"]:
+		assert_str("\n".join(reported)).contains("%s has no %s" % [BROKEN_SCENE, part])
+	var pushed := "\n".join(logged.snapshot())
+	for problem: String in reported:
+		assert_str(pushed).contains(problem)
+	assert_bool(table.is_active()).is_false()
+	assert_int(_tick_of(Intents.BALL_LAUNCHED)).is_equal(-1)
+	assert_array(_h.session.errors).is_empty()
+	assert_bool(_h.session.is_running()).is_true()
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
@@ -185,11 +203,11 @@ func test_a_host_with_no_physics_has_no_table() -> void:
 
 ## The harness on FixturePinball's machine with `players` clients (the host's own among them),
 ## welcomed, the scripted table in place and _leaks recording every tick.
-func _started_with_table(players: int) -> ScriptedTable:
+func _started_with_table(players: int) -> ScriptedPinballTable:
 	_h = Harness.new(_mode(), true, null, _layouts())
 	assert_array(_h.session.errors).is_empty()
 	assert_bool(_h.started).is_true()
-	var table := ScriptedTable.new()
+	var table := ScriptedPinballTable.new()
 	_h.session.table = table
 	var leaks := LeakCheck.new(_h.session.game)
 	var inner := _h.session.observer

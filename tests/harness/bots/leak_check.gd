@@ -27,7 +27,9 @@ extends RefCounted
 ##   alone (the subject check) or also reached every living peer present then (view_of's
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
-##   task events (check_tasks).
+##   task events (check_tasks); every bot that decoded a snapshot of a tick decoded the same
+##   pinball ball in it, or none (check_ball: the bots against each other, not against view_of,
+##   whose ball comes from the same Snapshots.sent as the one sent, #1510).
 ## - The Welcome invariant (#1404, #1456): each Welcome a bot decoded lists the hall's items as the
 ##   host's state held them after the tick before the Welcome's or after its own (record_tick, in a
 ##   phase that accepts Hello), each row holding only the public facts WELCOME_ROW_KEYS names
@@ -421,6 +423,51 @@ func check_tasks(views: Dictionary[String, DecodedView]) -> PackedStringArray:
 					)
 				)
 	return found
+
+
+## The pinball's ball is public (#1399, §5): every view (`views`, a label -> a decoded view) that
+## holds a snapshot of a tick decoded the same ball in it, or none in each (WireSamples.same). The
+## views are compared with each other alone, never with Snapshots.sent or view_of (which the
+## per-bot check compares the ball with), so a ball made per viewer fails here even when what each
+## bot decoded is its own view_of. A tick only one view holds (a LATEST dropped, a joiner, an
+## earlier connection's prefix) compares nothing; shared_ball_ticks counts the compared ones.
+static func check_ball(views: Dictionary[String, DecodedView]) -> PackedStringArray:
+	var mismatches := PackedStringArray()
+	var first: Dictionary[int, String] = {}
+	var ball_of: Dictionary[int, Variant] = {}
+	for label: String in views:
+		var snapshots := views[label].snapshots
+		for at_tick: int in snapshots:
+			var ball: Variant = snapshots[at_tick].get("ball")
+			if not first.has(at_tick):
+				first[at_tick] = label
+				ball_of[at_tick] = ball
+			elif not WireSamples.same(ball, ball_of[at_tick]):
+				mismatches.append(
+					(
+						"leak: %s and %s decoded another ball at tick %d (%s, %s)"
+						% [first[at_tick], label, at_tick, ball_of[at_tick], ball]
+					)
+				)
+	var found := mismatches.slice(0, MAX_LISTED)
+	if mismatches.size() > MAX_LISTED:
+		found.append("leak: and %d more ticks with another ball" % (mismatches.size() - MAX_LISTED))
+	return found
+
+
+## How many ticks with a ball two views or more of `views` decoded (what check_ball compared).
+static func shared_ball_ticks(views: Dictionary[String, DecodedView]) -> int:
+	var holders: Dictionary[int, int] = {}
+	for label: String in views:
+		var snapshots := views[label].snapshots
+		for at_tick: int in snapshots:
+			if snapshots[at_tick].has("ball"):
+				holders[at_tick] = holders.get(at_tick, 0) + 1
+	var shared := 0
+	for at_tick: int in holders:
+		if holders[at_tick] > 1:
+			shared += 1
+	return shared
 
 
 ## Adds the names of the task events `decoded` holds to `seen`.
