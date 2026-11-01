@@ -9160,8 +9160,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   `ship.gd` (`art_free`); `Hull` holds the game's trimesh colliders of the art's skin
   (`ship_hull/skin_{top,belly}_col.tres`, written by `tests/fixtures/ship_hull_colliders.gd`: the package's skin has no
   `-col` hint), backfaced so nothing thrown inside leaves through the roof, and six invisible `EdgeFence` boxes
-  (#1543), 0.1 m thick and 2 to 3 m over the ground, their outer face on the four diagonal wing edges (front, nose and
-  rear, both sides): an item thrown from the ground rested on a wing's edge (2.2 to 3 m up) out of every player's
+  (#1543), 0.1 m thick and 2 to 3 m over the ground, their outer face on the six diagonal wing edges (front, nose and
+  rear, on both sides; a fence's flat bottom at 2 m hangs up to 0.8 m below the visible edge near its 3 m end and
+  stands up to 0.8 m over the skin near its 2.2 m end): an item thrown from the ground rested on a wing's edge (2.2 to 3 m up) out of every player's
   reach, and a throw's arc from the ground tops out under 3 m less an item's radius, so an item meets a fence's face
   and drops in front of the wing (the host never slides an item). The art's grated and inlaid floors stand on
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
