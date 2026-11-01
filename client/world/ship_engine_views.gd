@@ -29,14 +29,16 @@ extends Node3D
 ##   deadline;
 ## - a blast: an orange sphere swelling from the console and fading (EngineBlast);
 ## - the engine's sounds (#1501, ShipEngineSounds): each cue due this frame goes out as
-##   `sound_due` (ItemWorld hands it to WorldSounds), and the roar's with `finished`.
+##   `sound_due` (ItemWorld hands it to WorldSounds), and the roar's with `finished`;
+## - the finish (#1502, ShipEngineFinale): at the roar, the flame from the art ship's nozzles and
+##   the light show over the hologram, for the round's linger.
 ## Every part is depth-tested and tells only public places and states; none names a player. The
 ## looks and sizes are placeholders, "not a decision".
 
 ## An engine sound due now (ShipEngineSounds.EVENT and its cue), for WorldSounds.on_event.
 signal sound_due(event_name: StringName, fields: Dictionary)
-## The engine finished in play (the roar's moment, at the console): the hook for the finish's
-## flame and light show (#1502).
+## The engine finished in play (the roar's moment, at the console): the finish's flame and light
+## show start with it (#1502).
 signal finished(at: Vector3)
 
 ## How far a gill set's Button may lie from its gill button's use spot, in metres.
@@ -106,6 +108,8 @@ var _blasts_seen := 0
 var _materials: Dictionary[Color, StandardMaterial3D] = {}
 var _hologram: ShipEngineHologram
 var _centre := Vector3.ZERO
+## The finish (#1502): built with the engine, started by the roar.
+var _finale: ShipEngineFinale
 ## The engine's sounds' edges, seeded anew with each build.
 var _sounds := ShipEngineSounds.new()
 ## The gills' puffs and clouds, under one node of their own, each with its seconds left.
@@ -171,6 +175,7 @@ func clear() -> void:
 	_blast_left = 0.0
 	_blasts_seen = 0
 	_hologram = null
+	_finale = null
 	_sounds = ShipEngineSounds.new()
 	_vapour = null
 	_steam.clear()
@@ -202,6 +207,9 @@ func _process(delta: float) -> void:
 		sound_due.emit(ShipEngineSounds.EVENT, cue)
 		if cue["id"] == SfxSet.ENGINE_ROAR:
 			finished.emit(cue["position"] as Vector3)
+			var nozzles := ShipEngineFinale.nozzles_of(level if is_instance_valid(level) else null)
+			_finale.start(_centre, nozzles, ShipEngineFinale.seconds_of(mode))
+	_finale.update(delta)
 	_draw_lamps(type, now)
 	_draw_gills(type, now, blasted)
 	_draw_vapour(delta)
@@ -258,6 +266,8 @@ func _build(type: ShipEngine) -> void:
 					_mimic[id] = lamp
 	_hologram = ShipEngineHologram.new()
 	add_child(_hologram)
+	_finale = ShipEngineFinale.new()
+	add_child(_finale)
 	var point := _hologram_point()
 	_hologram.setup(model, _console, centre, sites, _turbine_places(point), _button_place(point))
 	_vapour = Node3D.new()

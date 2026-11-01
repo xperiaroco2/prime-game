@@ -94,6 +94,23 @@ static func seconds_left(end_tick: int, host_tick: int) -> int:
 	return maxi(0, ceili(float(end_tick - host_tick) / Ticks.RATE))
 
 
+## Seconds left on the match clock as the HUD and the map show it: seconds_left(), but once every
+## task is done (TaskProgress) the win is decided and the clock stops (GDD §3, ARCHITECTURE §3.4,
+## #1502): it holds at the host tick the last done bar finished, which its last ZoneProgress
+## carries (the ship engine's last stage, after which the round lingers).
+static func clock_left(model: ClientModel, host_tick: int) -> int:
+	var at := host_tick
+	if model.tasks_total > 0 and model.tasks_done >= model.tasks_total:
+		var stopped := -1
+		for id: int in model.stations:
+			var station := model.stations[id]
+			if station.done:
+				stopped = maxi(stopped, station.progress_tick)
+		if stopped >= 0:
+			at = mini(host_tick, stopped)
+	return seconds_left(model.end_tick, at)
+
+
 ## Whether `model`'s match is in its round now (the Round screen, #801): what a view that runs
 ## only while the round plays reads, the generator's hum and the map's charge bar, so both stop
 ## when the round ends (End, or a win) though the model's clock (`end_tick`) says nothing of when.

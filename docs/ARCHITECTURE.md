@@ -92,6 +92,15 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   land before its win check, once the command's dispatch, the phase's own timers, each tick system, the clock ending
   or a phase's entry has finished,
   and never once the step has an outcome (§9.3 "Life").
+- **A win decided for a finale lingers** (#1502, GDD §3 "End"). A phase may give a linger, `Phase.linger_ticks()`
+  (0 by default; `RoundPhase` reads its spec's `linger_seconds`). When a win condition holds in the very tick a task
+  whose type has a finale was done (`TaskType.has_finale()`: the ship engine; `Tasks.subtask_done` records the tick
+  as `MatchState.finale_tick` before it raises the fact), `Match` does not report `won` yet: it records the
+  **verdict** (`MatchState.verdict_side`, `verdict_reason`, the condition's id, and `verdict_tick`, now plus the
+  linger). While a win is decided the win checks and the match clock stop, so nothing in the linger changes the
+  result; commands, the phase's own timers and its tick systems run on. At the verdict's tick `Match` reports that
+  `won` once, with the condition's id as the step's reason, and clears the verdict; every phase entry clears it too.
+  `Match` names no condition and no task type: a win decided at any other moment is reported at once, as before.
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
   and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
   whose clock does not run pauses the match clock by its phase flag. `Match` does not change.
@@ -130,7 +139,7 @@ hello deadline.
 | Countdown | `countdown_done`: the end tick is reached | Loading | `ClearItems` (#1388): every item of the hall vanishes (`ItemVanished` to everyone, ascending id), held, belted or lying, so none reaches Pregame or Round; then `EndPinball` (#1398, §7.1.22): a pinball game still running ends (its score counts for the best), so no seat survives into a match; then `ClearStations` (#1390): the hall's tap and pinball machine go, and the next station placed is number 1 again; then `EndLimps` (#1393, §7.1.21): everyone limp gets up, and with its `restore_health` every living player is back at full health (#1439: the hall's hits end with the countdown) |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Pregame | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers` |
 | Pregame | `pregame_done`: the end tick is reached (#213) | Round | `StartClock`: the clock and `RoundStarted` begin with the round |
-| Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
+| Round | `won(winner)`: a win condition (§3.4); decided at the engine's last stage, after the round's linger (`linger_seconds`, 4 s in the base mode, provisional; §3.1) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run; a lingered win stopped it at the decision |
 | End | `back`: the end tick is reached, with no intent (#212: everyone returns after 3 s; no button), or the host's `ReturnToLobby` before it | Lobby | `ResetMatch`: the match state reset from the roster (the players who left dropped), everyone un-ready, and `SettingsChanged` to everyone (#737: with fewer players the lobby may be short again); then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
 
 The lobby shows why `all_ready` cannot fire (for example more packages than spawn points): every `SettingsChanged`
@@ -156,7 +165,9 @@ countdown changes no scene and places nobody.
   `server/` puts the loopback's messages and the network's in one queue by arrival, so the host's own client gets no
   priority. (2) The phase's own timers. (3) The current phase's tick systems in the mode's order, then the match
   clock if the phase's clock runs. The win conditions are checked after every fact and at the end of every step
-  (§9.2), so a delivery in the last tick counts: its command came before the clock ended.
+  (§9.2), so a delivery in the last tick counts: its command came before the clock ended. While a win decided for a
+  finale lingers (§3.1) the clock does not step and the win conditions are not checked; the decided `won` is
+  reported after the tick systems, at the verdict's tick.
 - **The match clock** counts only the ticks of phases whose clock runs. Every entry into such a phase announces the
   clock's end as a host tick (`PhaseChanged`), so a clock paused by a phase whose clock does not run is
   re-announced on resume.
@@ -239,6 +250,17 @@ delivers (V4): `player_died` comes first and meets no win condition, then the dr
 fixture win conditions in the base mode's order (`tests/unit/life/life_rules_test.gd`,
 `tests/unit/match/phases/round_phase_test.gd`) and again with the real win conditions and Delivery
 (`tests/unit/win/none_alive_test.gd`), with the control that the same package put down wins for the crew.
+
+**The linger** (#1502; the engineer's word, #507, GDD §3 "End"): when the engine's last stage passes and so every
+task is done, the crew's win is decided there and the timer stops, but the round lingers about 4 s (the base mode's
+Round `linger_seconds`, a provisional number) before End, so everyone sees the engine's finish (§9.5.27). Players keep
+moving, using and hearing each other; nothing in the linger can change the result (no win check, no clock end), and
+`MatchEnded`'s time is the clock at the decision. A win at any other moment (a delivery on the house, no crew present,
+time up) ends the round at once. Tests: `tests/unit/match/match_linger_test.gd` (seeded: the decision at the last
+stage, End once after the linger with its reason and time, the clock stopped, a clock due in the linger, a leave of
+every crew member in it, the round running on, no setting, a win not at the finale or after its tick, every task
+done without a finale, only the subtask that finishes a finale task marking its tick, a round left by another row
+dropping its pending win, the same seed, a reset, the setting's bounds, only the engine has a finale).
 
 Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
 everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). The checks are in `core/win/`, tested through seeded matches in
@@ -4072,7 +4094,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
   Control ignores the mouse and takes no focus.
 - **What it shows** (`HudText`, pure, from the own `ClientModel`, the own mode and `HudText.Local`): the time left
-  as mm:ss (data); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
+  as mm:ss (data; stopped once every task is done, `GameFlow.clock_left`, §3.4); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
   fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
   first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
   push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the three places, the selected one lit (a kind's
@@ -5564,7 +5586,8 @@ of the mode, never `core/` state (§9.5.27's client).
   event everyone gets, never for one whose place tells where a player is or acts (`Swung`, `ItemPlaced`,
   `KnockedDown`): the M4 ADR's single hearing range (§3 item 10) exists to cut those. Every cue tells only public
   places and states and names no player, so everyone in range hears the same. The roar's frame also fires
-  `ShipEngineViews.finished(at)`: the hook for the finish's flame and light show (#1502).
+  `ShipEngineViews.finished(at)`, which starts the finish's flame and light show (`ShipEngineFinale`, #1502,
+  §9.5.27).
 - **Tests.** `tests/unit/client/audio/ship_engine_sounds_test.gd` (the seeded first frame, the call's pulse, the
   wails, the order's beeps and its pause, two orders' one beep, the blast and the roar once and far, a finish before
   the first frame, the play phase only, the roar of the engine that ends the round, the zap and any other knockdown
@@ -7565,7 +7588,8 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
 - **Win conditions** (`WinCondition`: a side and its conditions) are checked in the mode's order, in phases whose
   spec says so (Round in the base mode): after every fact, and at the end of every step (a command, a tick, a phase
   entry). The first that holds reports `won(side)`, and once a step has an outcome no win condition is checked again
-  in it. Its `id` reaches every player as `MatchEnded`'s reason (#548): which condition held must be a fact every player
+  in it. A win decided for a finale is held as the verdict and reported after the phase's linger, with no check in
+  between (§3.1, §3.4). Its `id` reaches every player as `MatchEnded`'s reason (#548): which condition held must be a fact every player
   may learn. The check after every fact orders the effects of one command (§3.4): the last crew member leaving raises
   `player_left` before its package drops into its circle, so "no crew present" is reported first, while a death's
   `player_died` meets no win condition and the dropped package then delivers. The check at the step's end catches a
@@ -7743,7 +7767,7 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag (empty for a kind no deal places, one only given or changed into: each part that places a kind on markers, `SpawnItems` and `Delivery's package, refuses one without a tag in its own check; the cooking ADR's CE18 (a), #780), and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5), and `vanish_seconds` (0, never, or 1 to 3600: how long it may lie before it vanishes, `VanishTicks`, #779), `max_items` (0, no cap, or 1 to `MatchState.MAX_ITEM_ID`, a technical bound: the most of the kind at once, which `GiveItem` keeps by vanishing the loose one that lay longest, the cooking ADR's CE3, #770), `target_actions` (its rules on an intent naming one of its items on the ground, `Interact`'s `item`, §9.2: a box's take, CE1, #770) (any kind may be offered, §9.4 `HandOver`; #1434 removed `handable`) | `ItemKind` | `content/items/` | Package, Knife; Wine, Oil, Gnome, Parasol (the House's Delivery, #828) |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order, their names read once per script and kept (#1530: the client asks it for every station each tick; tests: `tests/unit/content/task_type_station_kinds_test.gd`); a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); whether its tick can knock a player down, `knocks_down()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` in every phase that lists `TaskTicks`, as the downed bleed out into death: `KillCheck`, the ship engine's blast, #1453); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery (by meaning, the House's, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's, §9.5.4) |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting, `subtasks_setting` (in `TaskType` itself since #795, the Generator ADR's G0, #256's shared part: every type names a whole-number setting of the mode; `TaskType.check` refuses it empty or going below 0, a type adding only its own bound, the Generator's `switches`; tests: `tests/unit/content/task_type_subtasks_test.gd`); what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the station kinds it places, `station_kinds()` (by default the reflection over its `StationKind` properties, in property order, their names read once per script and kept (#1530: the client asks it for every station each tick; tests: `tests/unit/content/task_type_station_kinds_test.gd`); a type that holds its kinds another way overrides it: `Stations`, `MarkerReader.floor_tags_of` (the floor-snapped tags), the mode check's ZE3 (§9.6), `CircleViews.station_kind` and `WireBudget` all ask it, so they see the same kinds; DE4 of the delivery-by-meaning ADR, #827); whether it can kill, `kills()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` wherever `Interact` is accepted, #806); whether its tick can knock a player down, `knocks_down()` (false by default; true makes the mode check require `LifeTicks` with a `Respawn` in every phase that lists `TaskTicks`, as the downed bleed out into death: `KillCheck`, the ship engine's blast, #1453); whether a win decided as one of its tasks is done lingers for the phase's linger, `has_finale()` (false by default; the ship engine's true, #1502, §3.1); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery (by meaning, the House's, §9.5.25), Delivery by colours (`colour_delivery`, the greybox's, §9.5.4) |
 | Ship engine problem kind | one kind of the ship engine's problems (GDD §8: the overheat, the breakers, the cartridge; #1453): its timer `seconds`, its `site` station kind on exactly `site_count` markers, its `fixtures` (station kinds never a site, on every marker of their tags); the engine owns the stages, spawns, timers, blast and bar, the kind which sites a problem takes (`claim`), what its uses do (`use_problem`, `use_reasons`, `use_station`, `use_emits`; a fix is `ShipEngine.fix`), its per-problem data (`opened`, `tick_problem`, `cleared`, `EngineProblem.data`) and its events (`emits`) (§9.5.27) | `ProblemKind` subclasses | inside the ship engine's `.tres` (`ShipEngine.kinds`) | `GillsProblem` (the overheat), `BreakersProblem` (the tripped breakers), `CrystalProblem` (the burnt crystal) (#1461); the tests' `StubProblemKind` |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796; `display`, a station that is placed but never used, such as the cooking task's order and herb boards: `Match` refuses an `Interact` naming one `nothing_to_do` before any rule, and its check refuses `actions` on it, the cooking ADR's CE6, #770; `toggle_key`, a world toggle's key naming its level parts, #1295: a kind placed by `PlaceToggles` instead, §9.4.3, its check refuses a key with a space) | inside its task type (a world toggle's: inside its `PlaceToggles`) (Delivery by meaning: in its `routes`, each route's `drop_off`, #828) | the delivery circle; a drop-off of Delivery by meaning (white, no palette; its station ids in `routes` order) |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
@@ -9162,6 +9186,17 @@ plays it on the estate (#1462, "The estate and the content" below).
   the blast, the roar) are §4.7.64's. `ShipEngineClient` never offers E
   on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
+  **The finish** (#1502, GDD §8): `ShipEngineFinale` (`client/world/`, a child of `ShipEngineViews`) starts with
+  `finished(at)` (the roar's frame, the console's done `ZoneProgress`, so every peer alike from the filtered events)
+  and lasts the Round's linger (`RoundPhase.linger_seconds_of`, the mode's copy; §3.4): per nozzle pod of the level
+  (a `Node3D` named `nozzle_pod_*`, the art ship's) an orange flame cone with a pale core and a light out of its
+  mouth along `EXHAUST_AXIS`, growing, flickering by sines and fading; over the hologram a white flash and four
+  coloured lights circling and pulsing. A level with no pods shows the lights alone; a view built again plays none;
+  `clear()` (End, a new match) frees it. It only draws, so it never delays or changes End. Every size, colour and rate
+  is a provisional placeholder (#507's standing word). The round clock on the HUD and the map stops once every task
+  is done (`GameFlow.clock_left`: it holds at the last done bar's `ZoneProgress` tick, no wire change). Its `shot`s:
+  `client/dev/ship_engine_finale_preview.tscn` (the stern's flames on the estate's ship room) and
+  `ship_engine_finale_inside_preview.tscn` (the show in the hall).
 
 Produces: `StationPlaced` and `ZoneProgress` in the deal; `ButtonPressed`, `EngineProblemFixed` and the kinds'
 `use_emits` on a use (the breakers' short circuit: `KnockedDown`, `Correction`, `LaunchBody`; the crystal's moves:
@@ -9188,14 +9223,18 @@ the nearest of four breakers, every station in the aboard box and the ground bes
 its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
 `tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
-slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
+slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot, the
+finish's three nozzles out of the stern),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
 turbines' spin, the points and lines, the blink and the flash, the nearest blinking fastest, the countdown, the ring,
-the steam and the mist and none replayed or blasted); the playcheck `ship_engine` (the walk to the console and its hologram,
+the steam and the mist and none replayed or blasted), `tests/integration/client/world/ship_engine_finale_test.gd`
+(a flame at each rotated pod's mouth along its axis and the lights round the centre, the linger's length then gone,
+no pods, none before the last stage or for a view built again, the frame the round ends, the seconds from the mode),
+`tests/unit/client/app/game_flow_test.gd` (the clock stopped once every task is done); the playcheck `ship_engine` (the walk to the console and its hologram,
 the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast). Over the wire
 with the shipped base mode on the estate: the scenarios `crew_mends_the_ships_engine` and
 `engine_blast_gives_the_humans_the_clock` (§9.7, #1498) and `tests/scenarios/engine_scenarios_test.gd`; the bots'

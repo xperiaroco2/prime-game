@@ -773,6 +773,9 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
+settings = Dictionary[StringName, float]({
+&"linger_seconds": 4.0
+})
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("WheelPose_accept")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round"), SubResource("Offer_ticks")])
 checks_wins = true

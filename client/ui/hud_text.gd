@@ -149,7 +149,7 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 		shown.vitals = true
 		shown.mic = local.mic
 		return shown
-	var left := GameFlow.seconds_left(model.end_tick, floori(host_tick))
+	var left := GameFlow.clock_left(model, floori(host_tick))
 	if left >= 0:
 		shown.time = clock_text(left)
 	shown.role = role_key(model, mode)

@@ -264,6 +264,13 @@ func knocks_down() -> bool:
 	return false
 
 
+## Whether this type has a finale (the ship engine's roar, flame and light show, #1502): a win
+## decided in the tick a task of it is done lingers for the phase's linger_ticks() before its
+## `won`, so everyone sees the finish (§3.4). False by default.
+func has_finale() -> bool:
+	return false
+
+
 ## Whether this type can kill a player (LifeRules.kill through kill_later: the car's drop; the car
 ## repair ADR's RE6, #806). ModeCheck then requires LifeTicks with a Respawn in every phase that
 ## accepts Interact, so a dead player always comes back. False by default.

@@ -239,12 +239,14 @@ func tick(at_tick: int) -> bool:
 	for system: TickSystem in _phase_spec.tick_systems:
 		system.run(_context("tick system of phase %s" % _phase_spec.id))
 		_settle_kills()
-	if _phase_spec.clock_runs and state.clock_ticks_left > 0:
+	# A decided win stops the clock (§3.3): the linger runs on no clock.
+	if _phase_spec.clock_runs and state.clock_ticks_left > 0 and not state.decided():
 		state.clock_ticks_left -= 1
 		if state.clock_ticks_left == 0 and not state.clock_ended:
 			state.clock_ended = true
 			raise_fact(Fact.new(Facts.CLOCK_ENDED))
 			_settle_kills()
+	_report_verdict()
 	_finish_step()
 	# SelfStatus goes out on change, at most once per tick, with the tick's final numbers (§4.2).
 	SelfStatusFeed.flush(_context("self status"))
@@ -473,12 +475,34 @@ func _settle_kills() -> void:
 func _check_wins() -> void:
 	if _in_transition or _step_has_outcome or _phase_spec == null or not _phase_spec.checks_wins:
 		return
+	# A win decided for a finale is final (§3.4): nothing in the linger checks the wins again.
+	if state.decided():
+		return
 	for condition: WinCondition in mode.win_conditions:
 		if condition.holds(_context("win condition %s" % condition.id)):
+			var linger := _phase.linger_ticks()
+			if linger > 0 and state.finale_tick == _now:
+				# The finale's tick: the win is decided now, its `won` is due after the linger.
+				state.verdict_side = condition.side
+				state.verdict_reason = condition.id
+				state.verdict_tick = _now + linger
+				return
 			report_outcome(WON, condition.side, null)
 			# The step had no outcome (checked above), so this one is recorded: name its cause.
 			_step_reason = condition.id
 			return
+
+
+## The decided win's `won` once its linger has run (§3.4), named by its condition as
+## _check_wins() names one; dropped from MatchState as it is reported, so it is reported once.
+func _report_verdict() -> void:
+	if not state.decided() or _now < state.verdict_tick or _step_has_outcome:
+		return
+	var side := state.verdict_side
+	var reason := state.verdict_reason
+	state.clear_verdict()
+	report_outcome(WON, side, null)
+	_step_reason = reason
 
 
 ## Runs the row of `outcome` from the current phase: its actions, the exit, the next entry. An
@@ -512,6 +536,8 @@ func _transition(outcome: StringName, argument: Variant, reason: StringName) -> 
 
 
 func _enter_phase(id: StringName) -> void:
+	# A pending win belongs to the phase that decided it (§3.4).
+	state.clear_verdict()
 	_phase_spec = mode.find_phase(id)
 	_phase = _phase_spec.create_phase()
 	_phase.entered_tick = _now

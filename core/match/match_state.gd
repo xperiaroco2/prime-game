@@ -48,6 +48,15 @@ var clock_ticks_total := -1
 var clock_ended := false
 ## The winning side once EndMatch ran (2h), else empty.
 var winner: StringName
+## The win decided while the round lingers for a finale (§3.4, #1502): the winning side, the id of
+## the win condition that held, and the tick its `won` is due (Match reports it then); -1 when no
+## win is pending. Nothing in the linger changes it: the win checks and the clock stop meanwhile.
+var verdict_side: StringName
+var verdict_reason: StringName
+var verdict_tick := -1
+## The tick a task whose type has a finale (TaskType.has_finale(): the ship engine) was done, set
+## by Tasks.subtask_done; -1 before. A win decided in that tick lingers (Phase.linger_ticks()).
+var finale_tick := -1
 var rng: RngStreams
 ## The mode's numbers for a player's body: a new or reset player starts from them.
 var player_rules: PlayerRules
@@ -270,12 +279,25 @@ func session_part_state(key: StringName, create: Callable) -> RefCounted:
 	return _session_part_state[key]
 
 
+## Whether a win is decided and waits out the round's linger (verdict_tick, §3.4).
+func decided() -> bool:
+	return verdict_tick >= 0
+
+
+## Drops a pending win: Match reported it, or its phase was left.
+func clear_verdict() -> void:
+	verdict_side = &""
+	verdict_reason = &""
+	verdict_tick = -1
+
+
 ## Clears everything a match changed and keeps the roster (ResetMatch, 2b): items, stations,
-## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
-## the players who left during the match (§3.5) leave the roster; each other player's role,
-## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
-## to the next match of the session (§3.3); the join count, the return keys' numbers and the
-## session part state (session_part_state()) stay (§3.5).
+## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner,
+## the pending win and the finale's tick (§3.4); the players who left during the match (§3.5)
+## leave the roster; each other player's role, life, hand, health and stamina start again from
+## player_rules; everyone un-ready. The RNG moves to the next match of the session (§3.3); the
+## join count, the return keys' numbers and the session part state (session_part_state()) stay
+## (§3.5).
 func reset_match() -> void:
 	for peer: int in peers():
 		if not players[peer].is_present():
@@ -295,6 +317,8 @@ func reset_match() -> void:
 	clock_ticks_total = -1
 	clock_ended = false
 	winner = &""
+	clear_verdict()
+	finale_tick = -1
 	for peer: int in peers():
 		reset_player(players[peer], player_rules)
 	rng.next_match()
