@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The pinball's views together (#1400, ARCHITECTURE §4.7.63): placed on the level's markers (none:
 ## nothing drawn), the flippers following PinballState's held state, the ball fed from each newly
 ## folded snapshot (never under a skipped one's tick) and drawn at the remote bodies' render tick,
-## a new game starting the track afresh, and a LoadMatch or a level swap snapping the close-up.
+## a new game starting the track afresh, a LoadMatch or a level swap snapping the close-up, and
+## the `shot` previews (client/dev/pinball_*_preview.tscn) building headless.
 
 const LOBBY := "res://levels/lobby/lobby.tscn"
 const OWN := 2
@@ -112,6 +113,25 @@ func test_a_load_match_and_a_level_swap_snap_the_close_up_back() -> void:
 	_views.level = null
 	assert_bool(_views.close_up.active()).is_false()
 	assert_bool((player as PlayerController).held).is_false()
+
+
+func test_the_shot_previews_build_headless() -> void:
+	for stage: String in ["close_up", "table"]:
+		var preview := (
+			(load("res://client/dev/pinball_%s_preview.tscn" % stage) as PackedScene).instantiate()
+		)
+		_viewport.add_child(preview)
+		var views := preview.find_child("PinballViews", true, false) as PinballViews
+		assert_bool(views.table.visible).override_failure_message(stage).is_true()
+		assert_bool(views.display.visible).override_failure_message(stage).is_true()
+		# The ball and the flippers are drawn in the physics step, as in the game.
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		assert_bool(views.table.ball.visible).override_failure_message(stage).is_true()
+		assert_float(views.table.flipper_angle(0)).is_greater(0.0)
+		var current := _viewport.get_camera_3d()
+		assert_bool(current == views.close_up.camera).is_equal(stage == "close_up")
+		preview.free()
 
 
 func _lobby() -> Node:

@@ -5460,7 +5460,8 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   the ball, the constants against `PinballTableSpec` and `PinballTable.SCENE`), `pinball_display_test.gd` (the best,
   the colour by a unique name, a shared name, an owner gone, the game line), `pinball_close_up_test.gd` (`held`, the
   current camera, `cull_mask`, the ease, every exit and snap, a knockdown, the hall's frustum: the whole table and the
-  display in view), `pinball_views_test.gd` (the markers, the feed, `LoadMatch`); `controls_test.gd`,
+  display in view), `pinball_views_test.gd` (the markers, the feed, `LoadMatch`, the `shot` previews
+  `client/dev/pinball_close_up_preview.tscn` and `pinball_table_preview.tscn` build); `controls_test.gd`,
   `input_actions_test.gd`, `lobby_hall_test.gd` (the markers) and `item_world_children_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
