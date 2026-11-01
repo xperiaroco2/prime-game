@@ -9274,12 +9274,17 @@ levels/
   art floor at y 0 first. The host's LevelWorld never runs `lobby_hall.gd`, so a node the script frees must hold
   no layer-1 body: the hall takes the ship's clearing ground (an endless WorldBoundary at y 0) off layer 1, else
   the host has a floor past the window and every floor check passes on it alone.
+  PlacePlayers sets positions only, so a player in the lobby (before a round, and after End -> Lobby) looks
+  along the yaw it had: the lobby as the client loads it is lit (an environment with ambient light, and a
+  light), and the test holds the view from each spawn at the eye open (no collider within 4 m in any heading, a
+  test bound, not a layout rule of the hall; #1520: the greybox
+  hall had no light and its dark ship block stood 3 m before every spawn, a black view before and after a round).
   Tests: `content_modes_test.gd` (that rule); `lobby_hall_test.gd` (the art set with the
   ship docked shut, its script freeing the ship's clearing and second environment in the tree, the player camera's
   reach, the spawns on the art's markers, each piece a separate box on the grid inside the hall, apart and clear of
   the art, the host reading the lobby without errors and holding only the colliders the client keeps, the tap, pinball and booth markers clear, and no collider
   but the floor near a lobby marker or a walk a scenario takes in the lobby before
-  it first waits).
+  it first waits); `lobby_view_test.gd` (the lobby lit in the tree, and the open view from every lobby spawn); `game_level_test.gd` (GameLevel loads the lobby again after a round).
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
