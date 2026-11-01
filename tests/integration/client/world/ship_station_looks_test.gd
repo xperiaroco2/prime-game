@@ -331,6 +331,31 @@ func test_each_charger_shows_only_the_crystal_it_holds() -> void:
 	assert_bool(west.pressed()).is_true()
 
 
+func test_two_views_built_at_other_ticks_show_the_same_states() -> void:
+	# Every peer alike: a view built late (a late joiner, a level bound again) shows what one built
+	# at the start shows, from the same model and host tick (the fans' angle aside, see §9.5.27).
+	_model.fold(&"ButtonPressed", {"station": CONSOLE})
+	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
+	_model.fold(&"BreakerChain", _chain(1, [7, 5, 8], 1, 40))
+	_model.fold(&"EngineProblemOpened", _opened(2, [SOCKET], 600))
+	var fields := _crystal(CHARGER, CrystalProblem.CHARGING, 7)
+	fields["tick"] = 400
+	_model.fold(&"CrystalChanged", fields)
+	_now = 50
+	_view._process(1.0)
+	var late: ShipEngineViews = auto_free(ShipEngineViews.new())
+	late.model = _model
+	late.mode = _mode
+	late.host_tick = func() -> int: return _now
+	late.level = _devices()
+	add_child(late)
+	for tick: int in [60, 61, 75, 130]:
+		_now = tick
+		_view._process(1.0)
+		late._process(1.0)
+		_assert_alike(_view.station_looks(), late.station_looks(), tick)
+
+
 func test_a_level_without_devices_keeps_the_stand_ins() -> void:
 	var bare: Node3D = auto_free(Node3D.new())
 	add_child(bare)
@@ -355,6 +380,42 @@ func _devices() -> Node3D:
 	_add(level, CHARGER_KIT, Vector3(10.3, 3.2, 3.0))
 	_add(level, CHARGER_KIT, Vector3(-10.3, 3.2, 3.0))
 	return level
+
+
+func _assert_alike(a: ShipStationLooks, b: ShipStationLooks, tick: int) -> void:
+	var at := "tick %d " % tick
+	assert_object(b.console()).is_not_same(a.console())
+	for slot: String in ShipConsoleLook.STATIONS:
+		var said := at + slot
+		var state := b.console().station_state(slot)
+		assert_str(state).override_failure_message(said).is_equal(a.console().station_state(slot))
+		var blink := b.console().station_blink(slot)
+		assert_float(blink).override_failure_message(said).is_equal(a.console().station_blink(slot))
+	assert_int(b.console().lit()).override_failure_message(at).is_equal(a.console().lit())
+	assert_float(b.console().countdown()).is_equal(a.console().countdown())
+	assert_float(b.console().clock()).is_equal(a.console().clock())
+	assert_bool(b.console().calling()).is_equal(a.console().calling())
+	assert_float(b.console().charge()).is_equal(a.console().charge())
+	assert_float(b.console().spin_rate()).is_equal(a.console().spin_rate())
+	assert_str(b.socket_of(SOCKET).state()).is_equal(a.socket_of(SOCKET).state())
+	assert_float(b.socket_of(SOCKET).claws()).is_equal(a.socket_of(SOCKET).claws())
+	for board: int in [BOARD_EAST, BOARD_WEST]:
+		for shell in 4:
+			var open := b.board_of(board).open_of(shell)
+			assert_float(open).override_failure_message(at).is_equal(
+				a.board_of(board).open_of(shell)
+			)
+			var lamp := b.board_of(board).lamp_of(shell)
+			assert_int(lamp).override_failure_message(at).is_equal(a.board_of(board).lamp_of(shell))
+		assert_bool(b.board_of(board).problem()).is_equal(a.board_of(board).problem())
+	for charger: int in [CHARGER, CHARGER_WEST]:
+		var x := b.charger_of(charger)
+		var y := a.charger_of(charger)
+		assert_str(x.state()).override_failure_message(at).is_equal(y.state())
+		assert_float(x.carrier_rise()).is_equal_approx(y.carrier_rise(), 1e-5)
+		assert_float(x.carrier_turn()).is_equal_approx(y.carrier_turn(), 1e-5)
+		assert_float(x.ring_turn()).is_equal_approx(y.ring_turn(), 1e-5)
+		assert_bool(x.pressed()).is_equal(y.pressed())
 
 
 func _add(level: Node3D, scene: PackedScene, at: Vector3) -> void:
