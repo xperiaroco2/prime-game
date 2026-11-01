@@ -109,8 +109,9 @@ jobs:
       # A new key every run, saved after a green job: a run restores the newest one of its branch, else of main's.
       # Only the parts that run `test`'s halves read and write them, so no other part saves a stale copy; each under
       # keys of its own (#980: two jobs saving one key race, and the second save is lost), restoring its own part's
-      # newest, else the newest of any key (the keys before #980 had no part; a nightly's or the other half's file may
-      # come, harmless: a half balances only its own suites, and the merge keeps the times it did not run).
+      # newest only: the other half's file times few of this half's suites, so the shard timeout it sets is too short
+      # (PR #1542: its first test-2 failed, every rerun restored test-1's file, "about 279s", and the 600 s shards
+      # timed out at about 650 s of work, #1509). A branch with none of its own part's restores main's.
       - name: Restore the GdUnit4 suite times
         if: matrix.part == 'test-1' || matrix.part == 'test-2'
         uses: actions/cache@v6
@@ -119,7 +120,6 @@ jobs:
           key: gdunit-times-${{ matrix.part }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             gdunit-times-${{ matrix.part }}-
-            gdunit-times-
 
       # CI on Linux runs without the TwoVoIP addon (docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md
       # §2, E35 (a)): only its Windows libraries are committed, and Godot prints an ERROR: line for a .gdextension it

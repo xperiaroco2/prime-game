@@ -245,8 +245,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 	elif step is StepTalk:
 		bot.talking = (step as StepTalk).talking
 		result = Result.DONE
-	elif step is StepFlippers:
-		result = _flippers(bot, step as StepFlippers)
+	elif step is FixtureIntentStep:
+		result = _fixture_intent(bot, step as FixtureIntentStep)
 	elif step is StepMendEngine:
 		result = _mend(bot, step as StepMendEngine)
 	else:
@@ -627,14 +627,14 @@ func _interact(bot: ScenarioBot, step: StepInteract) -> Result:
 	return _intent_result(bot, step, done != null)
 
 
-## Sends Flippers with the step's held state (the fixture step, #1510); done when a PinballState
-## shows this bot seated with both flippers as the step holds them.
-func _flippers(bot: ScenarioBot, step: StepFlippers) -> Result:
+## Sends a fixture step's intent once; done when the event it names shows it applied (#1510, #1509:
+## Flippers, WheelPose).
+func _fixture_intent(bot: ScenarioBot, step: FixtureIntentStep) -> Result:
 	if bot.sent_seq < 0:
-		_send(bot, Intents.FLIPPERS, {"left": step.left, "right": step.right})
+		_send(bot, step.intent_kind(), step.intent_args())
 		return Result.WAITING
-	var held := {"player": bot.peer, "left": step.left, "right": step.right}
-	return _intent_result(bot, step, _received(bot, bot.step_cursor, &"PinballState", held))
+	var done := _received(bot, bot.step_cursor, step.done_event(), step.done_fields(bot.peer))
+	return _intent_result(bot, step, done)
 
 
 ## Sends Raise of the target bot's player, then holds it: done once its RaiseStarted arrived and

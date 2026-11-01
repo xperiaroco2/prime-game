@@ -1,5 +1,5 @@
 class_name StepFlippers
-extends ScenarioStep
+extends FixtureIntentStep
 ## Sends Flippers(left, right), the held state of the pinball's two flippers (Intents.FLIPPERS,
 ## §7.1.22): done when a PinballState arrives with this bot's player seated and both flippers as
 ## the step holds them, or with `expect_rejected` when that Rejected arrives. The state must change
@@ -18,5 +18,17 @@ func step_name() -> StringName:
 	return &"Flippers"
 
 
-func sends_intent() -> bool:
-	return true
+func intent_kind() -> StringName:
+	return Intents.FLIPPERS
+
+
+func intent_args() -> Dictionary:
+	return {"left": left, "right": right}
+
+
+func done_event() -> StringName:
+	return &"PinballState"
+
+
+func done_fields(peer: int) -> Dictionary:
+	return {"player": peer, "left": left, "right": right}

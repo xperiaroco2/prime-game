@@ -214,8 +214,9 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(len(cache), 1)
         settings = steps[cache[0]]["with"]
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
-        # Each test part under keys of its own (#980): two jobs saving one key race. Its own newest first, else any.
-        self.assertEqual(settings["restore-keys"], "gdunit-times-${{ matrix.part }}-\ngdunit-times-\n")
+        # Each test part under keys of its own (#980): two jobs saving one key race. Its own part's newest only: the
+        # other half's file times too few of its suites, and its shard timeout came out too short (#1509).
+        self.assertEqual(settings["restore-keys"], "gdunit-times-${{ matrix.part }}-\n")
         self.assertTrue(settings["key"].startswith("gdunit-times-${{ matrix.part }}-"), settings["key"])
         self.assertIn("${{ github.run_id }}", settings["key"])
         self.assertLess(cache[0], runs.index(VERIFY_PART))
