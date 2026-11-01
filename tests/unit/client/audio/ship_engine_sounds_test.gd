@@ -100,6 +100,25 @@ func test_the_order_beeps_at_each_lit_lamp_and_never_in_its_pause() -> void:
 		assert_array(_due(false)).is_empty()
 
 
+func test_two_open_orders_beep_once_per_lamp_not_twice_on_top() -> void:
+	_due(false)
+	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD]))
+	_model.fold(&"BreakerChain", _chain(1, [FIRST_BREAKER, FIRST_BREAKER + 2], 0))
+	_model.fold(&"EngineProblemOpened", _opened(2, [BOARD]))
+	_model.fold(&"BreakerChain", _chain(2, [FIRST_BREAKER + 1, FIRST_BREAKER + 3], 0))
+	_due(false)
+	var step := Ticks.from_seconds(ShipEngineViews.ORDER_STEP_SECONDS)
+	var cycle := 2 + ShipEngineViews.ORDER_PAUSE_STEPS
+	var beeps := 0
+	for frame in range(1, 2 * cycle * step + 1):
+		_now = frame
+		var cues := _due(false)
+		assert_int(cues.size()).is_less_equal(1)
+		beeps += cues.size()
+	# The same four lamps as one order's (steps 1, 4, 5 and 8).
+	assert_int(beeps).is_equal(4)
+
+
 func test_a_blast_sounds_once_at_the_console_and_carries_far() -> void:
 	_due(false)
 	_model.fold(&"EngineBlast", {"stage": 1})

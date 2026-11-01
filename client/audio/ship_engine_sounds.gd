@@ -136,6 +136,8 @@ func _wails(model: ClientModel, cues: Array[Dictionary]) -> void:
 func _beeps(model: ClientModel, centre: Vector3, now: int, cues: Array[Dictionary]) -> void:
 	var step_ticks := maxi(1, Ticks.from_seconds(ShipEngineViews.ORDER_STEP_SECONDS))
 	var steps: Dictionary[int, int] = {}
+	# Every order steps on the same clock: two open at once beep once, not twice on top.
+	var beeped := false
 	for id: int in model.engine.problems:
 		var order := model.engine.problems[id].breakers
 		if order.is_empty():
@@ -144,6 +146,7 @@ func _beeps(model: ClientModel, centre: Vector3, now: int, cues: Array[Dictionar
 		var step := maxi(now, 0) / step_ticks
 		steps[id] = step
 		var lit := step % (order.size() + ShipEngineViews.ORDER_PAUSE_STEPS) < order.size()
-		if _steps.has(id) and _steps[id] != step and lit:
+		if _steps.has(id) and _steps[id] != step and lit and not beeped:
 			cues.append(cue(SfxSet.ENGINE_BEEP, centre))
+			beeped = true
 	_steps = steps
