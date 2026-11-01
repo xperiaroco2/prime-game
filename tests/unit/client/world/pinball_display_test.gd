@@ -70,6 +70,18 @@ func test_a_game_on_shows_its_score_and_balls_left() -> void:
 	assert_bool(_display.game.visible).is_false()
 
 
+func test_a_seated_player_s_score_shows_before_the_launch_and_between_balls() -> void:
+	_model.pinball.player = 1
+	_model.pinball.in_play = false
+	_model.pinball.balls_left = 3
+	_display.show_state(_model)
+	assert_bool(_display.game.visible).is_true()
+	# Nobody seated and no ball: the line is hidden.
+	_model.pinball.player = -1
+	_display.show_state(_model)
+	assert_bool(_display.game.visible).is_false()
+
+
 func test_the_captions_are_deck_keys_shown_raw_until_the_deck_has_them() -> void:
 	_display.show_state(_model)
 	# The deck lacks the keys yet (requested on #150): tr() gives the key back, the number after.
