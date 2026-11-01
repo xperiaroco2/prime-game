@@ -25,6 +25,11 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     map <path.tscn>         the match's map (repo-relative or res://), a ChangeSettings sent by window 1 then; without
                             it the match is on the mode's default map, the House (#767). Only a test bench (the flat
                             greybox) suits a script that walks on flat ground
+    mode <file.tres>        the GameMode (repo-relative or res://) every window plays (Game.mode, set before its
+                            _ready); without it the shipped base mode. A test fixture mode such as
+                            tests/fixtures/combat/base_mode_with_melee.tres (#1497: the Round's strike and the knives,
+                            which the shipped mode no longer has) needs a debug build, as playcheck is; a `bots` file
+                            names the same mode as its own `mode`
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
     timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
                             every other window the first wait after its first `press ready`, waits
@@ -151,7 +156,19 @@ ACTIONS = ("press", "hold", "release")
 # PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", the kind of the item in the
 # FirstPersonHand under the current camera, and the TutorialScreen's step (#492: "Step 2 of 8", its how line as
 # drawn).
-HEADER_KEYS = ("players", "windows", "bots", "role", "setting", "map", "clock", "timeout", "tutorial", "route")
+HEADER_KEYS = (
+    "players",
+    "windows",
+    "bots",
+    "role",
+    "setting",
+    "map",
+    "mode",
+    "clock",
+    "timeout",
+    "tutorial",
+    "route",
+)
 
 FIELDS = (
     "hud.role",
@@ -212,6 +229,8 @@ class Scenario:
     bots: str = ""
     roles: dict[int, str] = field(default_factory=dict)
     settings: dict[str, int] = field(default_factory=dict)
+    # The GameMode's res:// path every window plays; "" is the shipped base mode (Game.MODE_PATH).
+    mode: str = ""
     # A level's res:// path; "" is the mode's default map.
     map: str = ""
     clock: int = 0
@@ -311,6 +330,8 @@ class _Parser:
             if not ID_RE.fullmatch(args[0]) or not INT_RE.fullmatch(args[1]):
                 raise self.fail("a setting is `setting <id> <whole number>`, such as `setting match_duration 5`")
             s.settings[args[0]] = int(args[1])
+        elif key == "mode" and len(args) == 1:
+            s.mode = mode_res(args[0], self.fail)
         elif key == "map" and len(args) == 1:
             s.map = map_res(args[0], self.fail)
         elif key == "clock" and len(args) == 1:
@@ -552,7 +573,7 @@ class _Parser:
         """A tutorial scenario: one window and one player; the stand-ins are the game's, and the setup has no host
         command to go through."""
         s = self.scenario
-        for key in ("bots", "role", "setting", "map", "clock"):
+        for key in ("bots", "role", "setting", "map", "mode", "clock"):
             if key in self.header_lines:
                 why = f"`{key}` has no place in a tutorial scenario (no bots, no host setup)"
                 raise self.fail(why, self.header_lines[key])
@@ -570,6 +591,16 @@ def bots_res(text: str, fail: Callable[[str], Failure]) -> str:
         raise fail(f"bots: give a .tres inside the project, not {text!r}")
     if not (ROOT / rel_path).is_file():
         raise fail(f"bots: {rel_path} not found")
+    return f"res://{rel_path}"
+
+
+def mode_res(text: str, fail: Callable[[str], Failure]) -> str:
+    """A GameMode's file (repo-relative or res://) -> its checked res:// path."""
+    rel_path = text.replace("\\", "/").removeprefix("res://").removeprefix("./")
+    if not rel_path.endswith(".tres") or ".." in Path(rel_path).parts or Path(rel_path).is_absolute():
+        raise fail(f"mode: give a .tres inside the project, not {text!r}")
+    if not (ROOT / rel_path).is_file():
+        raise fail(f"mode: {rel_path} not found")
     return f"res://{rel_path}"
 
 
@@ -627,6 +658,8 @@ def plan(scenario: Scenario, out: Path) -> dict[str, object]:
         "peers": str(out / "peers"),
         "out": str(out),
         "steps": steps,
+        # "" plays the shipped base mode (Game.MODE_PATH).
+        "mode": scenario.mode,
     }
 
 

@@ -21,6 +21,7 @@ from runner.common import ROOT, Failure
 
 BOTS = "tools/playcheck/scenarios/spectate_bots.tres"
 GREYBOX = "levels/greybox/greybox.tscn"
+MELEE = "tests/fixtures/combat/base_mode_with_melee.tres"
 
 GOOD = f"""
 # A comment line, and a comment after a step.
@@ -167,6 +168,27 @@ class ParserTest(unittest.TestCase):
         plain = scenario(with_header("window 1\nshot a", "players 2\nwindows 2\nrole 1 crew"))
         self.assertNotIn("map", plain.steps[1][0].args)
 
+    def test_a_mode_header_goes_into_the_plan_for_every_window(self) -> None:
+        """#1497: a knockdown in the Round plays the melee fixture, the shipped mode has no strike there."""
+        s = scenario(with_header("window 1\nshot a", f"players 2\nwindows 2\nmode res://{MELEE}"))
+        self.assertEqual(s.mode, f"res://{MELEE}")
+        self.assertEqual(playcheck.plan(s, Path("/out"))["mode"], f"res://{MELEE}")
+        # A mode alone sends nothing from window 1: every window sets it before its game starts.
+        self.assertEqual([step.do for step in s.steps[1]], ["shot"])
+        # Without a mode header the plan names none: the windows play the shipped base mode.
+        self.assertEqual(playcheck.plan(scenario(with_header("window 1\nshot a")), Path("/out"))["mode"], "")
+
+    def test_the_knockdown_spectate_and_items_scenarios_play_the_melee_fixture(self) -> None:
+        """#1497: they knock down or pick up a knife in the Round, which only the fixture still has; their bots
+        files name the same mode, or the bots' process would play another."""
+        for name in ("knockdown", "spectate", "items"):
+            with self.subTest(name=name):
+                s = playcheck.load(name)
+                self.assertEqual(s.mode, f"res://{MELEE}")
+                if s.bots:
+                    bots = (ROOT / s.bots.removeprefix("res://")).read_text(encoding="utf-8")
+                    self.assertIn(f'path="res://{MELEE}" id="1_mode"', bots)
+
     def test_a_window_without_a_section_has_no_steps(self) -> None:
         plan = playcheck.plan(scenario(with_header("window 2\nshot a")), Path("/out"))
         step = {"line": 4, "text": "shot a", "do": "shot", "name": "a", "path": str(Path("/out/a.png"))}
@@ -188,6 +210,9 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 2\nmap levels/nothing.tscn", 3, "map: levels/nothing.tscn not found"),
             ("players 2\nwindows 2\nmap ../x.tscn", 3, "give a .tscn inside the project"),
             ("players 2\nwindows 2\nmap", 3, "wrong number of words for `map`"),
+            ("players 2\nwindows 2\nmode base_mode", 3, "mode: give a .tres inside the project"),
+            ("players 2\nwindows 2\nmode content/modes/nothing.tres", 3, "mode: content/modes/nothing.tres not found"),
+            ("players 2\nwindows 2\nmode ../x.tres", 3, "give a .tres inside the project"),
             ("players 2\nwindows 2\nrole 2", 3, "wrong number of words for `role`"),
             ("players 2\nwindows 2\nrole 3 dissident\nwindow 1\nshot a", 3, "player 3: the scenario has 2"),
             ("players 2\nwindows 2\nrole 2 Dissident", 3, "a role id looks like dissident"),
@@ -366,6 +391,7 @@ class ParserTest(unittest.TestCase):
             "setting match_duration 5": "`setting` has no place",
             "clock 20": "`clock` has no place",
             f"map {GREYBOX}": "`map` has no place",
+            f"mode {MELEE}": "`mode` has no place",
             "players 3": "not players 3",
             "windows 2": "not windows 2",
         }

@@ -11,6 +11,8 @@ windows 2
 role 1 crew
 role 2 dissident
 setting knives 4
+# The melee fixture (#1497): the shipped base mode places no knife and takes no Use in the Round.
+mode tests/fixtures/combat/base_mode_with_melee.tres
 map res://levels/greybox/greybox.tscn
 
 window 1

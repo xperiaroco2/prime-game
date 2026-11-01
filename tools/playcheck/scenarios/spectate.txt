@@ -9,6 +9,8 @@ players 3
 windows 2
 bots tools/playcheck/scenarios/spectate_bots.tres
 role 3 dissident
+# The melee fixture (#1497): the shipped base mode places no knife and takes no Use in the Round.
+mode tests/fixtures/combat/base_mode_with_melee.tres
 map res://levels/greybox/greybox.tscn
 
 window 1
