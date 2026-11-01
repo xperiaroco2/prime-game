@@ -53,6 +53,9 @@ var replay_path := ""
 var leaks: LeakCheck
 ## The task events some bot decoded, filled after the run (LeakCheck.check_coverage, #1197).
 var task_events_seen: Dictionary[StringName, bool] = {}
+## The ticks with a pinball ball that two bots or more decoded (LeakCheck.shared_ball_ticks: what
+## check_ball compared), filled after the run.
+var ball_ticks_compared := 0
 
 var _invariants: ScenarioInvariants
 
@@ -255,6 +258,8 @@ func _check_after() -> void:
 		if client != null:
 			_check_client("bot %d" % bot.number, bot.peer, client, bot.gone, views)
 	failures.append_array(leaks.check_tasks(views))
+	failures.append_array(LeakCheck.check_ball(views))
+	ball_ticks_compared = LeakCheck.shared_ball_ticks(views)
 	for label: String in views:
 		LeakCheck.add_task_events(views[label], task_events_seen)
 	for watcher: BotWatcher in [lurker, refused]:
