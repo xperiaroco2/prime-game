@@ -273,6 +273,9 @@ func test_the_base_mode_writes_its_numbers() -> void:
 	assert_float(mode.find_phase(&"countdown").settings[&"seconds"]).is_equal(5.0)
 	assert_float(mode.find_phase(&"end").settings[&"seconds"]).is_equal(3.0)
 	assert_float(mode.find_phase(&"pregame").settings[&"seconds"]).is_equal(3.0)
+	# The round lingers 4 s for the engine's finish (#1502; provisional, not a decision: the
+	# engineer sizes it in a playtest).
+	assert_float(mode.find_phase(&"round").settings[RoundPhase.LINGER_SECONDS]).is_equal(4.0)
 	assert_float(mode.find_phase(&"loading").settings[&"deadline_seconds"]).is_equal(60.0)
 	var defaults := GameMode.new()
 	assert_int(defaults.min_players).is_equal(0)
