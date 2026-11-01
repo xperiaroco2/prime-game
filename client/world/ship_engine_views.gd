@@ -470,13 +470,38 @@ static func order_step(size: int, now: int) -> int:
 	return step if step < size else -1
 
 
-## The breaker station the order plays on at host tick `now` (the mimic's or the art console's
-## lit lamp), or -1.
+## The breaker station the art console's one order lamp lights at host tick `now`, or -1. Two
+## chains can be open at once (one per board): their orders take turns, by problem id, each played
+## with its own pause after it, so none waits on the other's fix.
 func _order_lit(now: int) -> int:
-	for problem: ClientEngineBook.Problem in model.engine.problems.values():
-		var step := order_step(problem.breakers.size(), now)
-		if step >= 0:
-			return problem.breakers[step]
+	var orders: Array[PackedInt32Array] = []
+	var ids: Array[int] = []
+	ids.assign(model.engine.problems.keys())
+	ids.sort()
+	for id: int in ids:
+		var problem: ClientEngineBook.Problem = model.engine.problems[id]
+		if not problem.breakers.is_empty():
+			orders.append(problem.breakers)
+	return order_turn(orders, now)
+
+
+## The breaker of `orders` that plays at host tick `now` when they take turns on one lamp (each
+## order a step a breaker, then ORDER_PAUSE_STEPS, then the next order), or -1 in a pause.
+static func order_turn(orders: Array[PackedInt32Array], now: int) -> int:
+	var cycle := 0
+	for order: PackedInt32Array in orders:
+		cycle += order.size() + ORDER_PAUSE_STEPS
+	if cycle == 0:
+		return -1
+	var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
+	@warning_ignore("integer_division")
+	var step := (maxi(now, 0) / step_ticks) % cycle
+	for order: PackedInt32Array in orders:
+		if step < order.size():
+			return order[step]
+		step -= order.size() + ORDER_PAUSE_STEPS
+		if step < 0:
+			return -1
 	return -1
 
 

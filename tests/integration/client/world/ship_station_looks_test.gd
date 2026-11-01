@@ -209,6 +209,35 @@ func test_the_stand_in_strips_give_way_only_to_three_stages() -> void:
 		assert_object(_view.strip_fill(strips)).override_failure_message(str(total)).is_null()
 
 
+func test_two_open_orders_take_turns_on_the_console_s_lamp() -> void:
+	# BreakersProblem.claim can hold one board while a second problem opens on the other: the
+	# console's one lamp plays both orders in turn, not only the first problem's.
+	var console := _view.station_looks().console()
+	var looks := _view.station_looks()
+	var east: Array[int] = [7, 5, 8]
+	var west: Array[int] = [10, 12, 9]
+	_model.fold(&"EngineProblemOpened", _opened(2, [BOARD_WEST], 900))
+	_model.fold(&"BreakerChain", _chain(2, west, 0, -1))
+	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
+	_model.fold(&"BreakerChain", _chain(1, east, 0, -1))
+	var step := maxi(1, Ticks.from_seconds(ShipEngineViews.ORDER_STEP_SECONDS))
+	var pause := ShipEngineViews.ORDER_PAUSE_STEPS
+	var shown: Array[int] = []
+	for i in 2 * (east.size() + west.size() + 2 * pause):
+		_now = i * step
+		_view._process(0.05)
+		shown.append(console.lit())
+	# Problem 1's order, its pause, then problem 2's and its pause, over and over.
+	var expected: Array[int] = []
+	for _cycle in 2:
+		for order: Array[int] in [east, west]:
+			for breaker: int in order:
+				expected.append(looks.lamp_of(breaker))
+			for _p in pause:
+				expected.append(-1)
+	assert_array(shown).is_equal(expected)
+
+
 func test_the_shells_trip_and_the_last_on_ramps_yellow_under_the_beacon() -> void:
 	var looks := _view.station_looks()
 	var east := looks.board_of(BOARD_EAST)
