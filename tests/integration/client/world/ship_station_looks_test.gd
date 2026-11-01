@@ -17,6 +17,7 @@ const BOARD_WEST := 4
 const FIRST_BREAKER := 5
 const SOCKET := 13
 const CHARGER := 14
+const CHARGER_WEST := 15
 
 var _mode: GameMode
 var _model: ClientModel
@@ -47,6 +48,8 @@ func test_each_station_binds_to_its_device() -> void:
 	assert_object(looks.board_of(BOARD_EAST)).is_not_null()
 	assert_object(looks.board_of(BOARD_WEST)).is_not_null()
 	assert_object(looks.charger_of(CHARGER)).is_not_null()
+	assert_object(looks.charger_of(CHARGER_WEST)).is_not_null()
+	assert_object(looks.charger_of(CHARGER)).is_not_same(looks.charger_of(CHARGER_WEST))
 	assert_object(looks.board_of(BOARD_EAST)).is_not_same(looks.board_of(BOARD_WEST))
 	for i in 4:
 		assert_int(looks.board_station_of(FIRST_BREAKER + i)).is_equal(BOARD_EAST)
@@ -79,7 +82,7 @@ func test_each_site_takes_its_wiring_point_by_its_side_in_the_console_s_frame() 
 
 
 func test_the_devices_replace_their_stand_ins_and_the_art_hologram_the_game_s() -> void:
-	for id: int in [SOCKET, CHARGER, BOARD_EAST, BOARD_WEST]:
+	for id: int in [SOCKET, CHARGER, CHARGER_WEST, BOARD_EAST, BOARD_WEST]:
 		assert_object(_view.lamp_of(id)).is_null()
 	for i in 8:
 		assert_object(_view.lamp_of(FIRST_BREAKER + i)).is_null()
@@ -245,6 +248,30 @@ func test_the_charger_shows_the_charge_of_the_crystal_it_holds() -> void:
 	assert_str(charger.state()).is_equal("charged")
 
 
+func test_each_charger_shows_only_the_crystal_it_holds() -> void:
+	var looks := _view.station_looks()
+	var east := looks.charger_of(CHARGER)
+	var west := looks.charger_of(CHARGER_WEST)
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 6000))
+	var fields := _crystal(CHARGER, CrystalProblem.CHARGING, 7)
+	fields["tick"] = 400
+	_model.fold(&"CrystalChanged", fields)
+	_now = 400 - _crystals().charge_ticks() + Ticks.RATE
+	_view._process(0.05)
+	assert_str(east.state()).is_equal("charging")
+	assert_str(west.state()).is_equal("idle")
+	assert_float(west.carrier_rise()).is_equal(0.0)
+	assert_bool(west.pressed()).is_false()
+	fields["charger"] = CHARGER_WEST
+	_model.fold(&"CrystalChanged", fields)
+	_view._process(0.05)
+	assert_str(east.state()).is_equal("idle")
+	assert_float(east.carrier_rise()).is_equal(0.0)
+	assert_bool(east.pressed()).is_false()
+	assert_str(west.state()).is_equal("charging")
+	assert_bool(west.pressed()).is_true()
+
+
 func test_a_level_without_devices_keeps_the_stand_ins() -> void:
 	var bare: Node3D = auto_free(Node3D.new())
 	add_child(bare)
@@ -267,6 +294,7 @@ func _devices() -> Node3D:
 	_add(level, BOARD_KIT, Vector3(6.65, 1.0, -1.0))
 	_add(level, BOARD_KIT, Vector3(-6.65, 1.0, -1.0))
 	_add(level, CHARGER_KIT, Vector3(10.3, 3.2, 3.0))
+	_add(level, CHARGER_KIT, Vector3(-10.3, 3.2, 3.0))
 	return level
 
 
@@ -286,6 +314,7 @@ func _place() -> void:
 		_station(FIRST_BREAKER + i, &"breaker", Vector3(side * (5.8 + 0.5 * (i % 4)), 1.2, -0.2))
 	_station(SOCKET, &"cartridge_socket", Vector3(1.5, 1.2, 2.4))
 	_station(CHARGER, &"cartridge_charger", Vector3(10.4, 1.2, 1.8))
+	_station(CHARGER_WEST, &"cartridge_charger", Vector3(-10.4, 1.2, 1.8))
 
 
 func _station(id: int, kind: StringName, at: Vector3) -> void:
