@@ -404,9 +404,14 @@ class CommittedCopyTest(unittest.TestCase):
         self.assertEqual(ui_sync.verify(ROOT), [])
         lock = ui_sync.read_lock(ROOT)
         assert lock is not None
-        self.assertEqual(lock["tag"], "ui-0.8.0")
-        # #520 imports the card art; since ui-0.8.0 the pack also carries the font licence text, which is not landed (the licence is in docs/credits/comfortaa.md).
-        self.assertEqual(sorted(lock["deferred"]), ["fonts/OFL.txt"], "only the font licence text is deferred")
+        self.assertEqual(lock["tag"], "ui-2.5.4")
+        # #520 imports the card art; since ui-0.8.0 the pack also carries the font licence texts, which are not landed
+        # (since ui-2.0.0 two, #1559: the texts are in docs/credits/licenses/onest/ and unbounded/).
+        self.assertEqual(
+            sorted(lock["deferred"]),
+            ["fonts/OFL-Onest.txt", "fonts/OFL-Unbounded.txt"],
+            "only the font licence texts are deferred",
+        )
         self.assertIn("cards/delivery-1.png", lock["imported"])
         self.assertIn("icons/room/lab.svg", lock["imported"])
 
