@@ -4,7 +4,7 @@ The off-screen windows of `shot`, `playcheck` and `run --offscreen` (tools/runne
 at, yet each one took the foreground and threw the engineer out of the game he was playing on this PC. Godot 4.7.2
 shows its main window in Main::setup2, before any script runs, with ShowWindow(SW_SHOW) and then
 SetForegroundWindow (DisplayServerWindows::show_window; only a window with WINDOW_FLAG_NO_FOCUS from the project's
-display/window/size/no_focus is shown with SW_SHOWNA, and that setting would change the game's own windows). So three
+display/window/size/no_focus is shown with SW_SHOWNA, and that setting would change the game's own windows). So four
 layers, each a no-op off Windows:
 
 - startup(): the process starts with STARTUPINFO.wShowWindow = SW_SHOWNOACTIVATE (never minimized: a minimized
@@ -13,6 +13,13 @@ layers, each a no-op off Windows:
   off-screen windows of shot, playcheck and run --offscreen come from GODOT_GUI_BIN (launch.gui_exe()).
 - tools/offscreen/offscreen.gd place() sets DisplayServer.WINDOW_FLAG_NO_FOCUS once the window is off-screen, so the
   window never activates again (Windows: WS_EX_NOACTIVATE, SWP_NOACTIVATE).
+- Lock (#1515): the keeper calls LockSetForegroundWindow(LSFW_LOCK) for the run, so godot.exe's SetForegroundWindow
+  in show_window fails. Without it a run started from the foreground app's process tree (a terminal the human looks
+  at, the focus test) inherits the right to take the foreground, and SW_SHOWNOACTIVATE does not stop that call: the
+  focus test failed every time, the keeper's hand-back came too late for its 5 ms samples, and Windows sometimes
+  refused it. Windows grants the lock only to a process that may set the foreground itself; one that may not
+  (the engineer playing, the runner behind) has a godot.exe that may not either. The keeper unlocks at the end; the
+  human pressing Alt or clicking another window lifts the lock too.
 - Keeper: records the foreground window before the run and, while it runs, hands the foreground back at once
   whenever a window of the run's process tree took it (AttachThreadInput to the thread that holds it, then
   SetForegroundWindow: a background process may not take the foreground on its own). A window of any other process
@@ -33,6 +40,8 @@ from .common import IS_WINDOWS, say
 
 SW_SHOWNOACTIVATE = 4
 STARTF_USESHOWWINDOW = 0x00000001
+LSFW_LOCK = 1
+LSFW_UNLOCK = 2
 POLL_SECONDS = 0.02
 
 
@@ -56,6 +65,8 @@ class Desktop(Protocol):
     def descendants(self, roots: Iterable[int]) -> set[int]: ...
 
     def give(self, window: int) -> bool: ...
+
+    def lock(self, on: bool) -> bool: ...
 
 
 class Win32Desktop:
@@ -81,6 +92,8 @@ class Win32Desktop:
         user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
         user32.IsGUIThread.restype = wintypes.BOOL
         user32.IsGUIThread.argtypes = [wintypes.BOOL]
+        user32.LockSetForegroundWindow.restype = wintypes.BOOL
+        user32.LockSetForegroundWindow.argtypes = [wintypes.UINT]
         kernel32.GetCurrentThreadId.restype = wintypes.DWORD
         kernel32.GetCurrentThreadId.argtypes = []
         kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
@@ -150,6 +163,12 @@ class Win32Desktop:
             if attached:
                 self._user32.AttachThreadInput(me, holder, False)
 
+    def lock(self, on: bool) -> bool:
+        """LockSetForegroundWindow: while locked, no other process's SetForegroundWindow succeeds (this one's
+        still does). Windows lets only a process that may set the foreground lock it, and lifts the lock itself when
+        the human presses Alt or clicks another window."""
+        return bool(self._user32.LockSetForegroundWindow(LSFW_LOCK if on else LSFW_UNLOCK))
+
 
 def tree(roots: Iterable[int], pairs: Iterable[tuple[int, int]]) -> set[int]:
     """`roots` and their descendants, from (pid, parent pid) pairs."""
@@ -184,6 +203,7 @@ class Keeper:
     _thread: threading.Thread | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _holder: int = 0  # the run's window whose steal is counted and not yet handed back
+    _locked: bool = False  # this keeper holds the foreground lock
     _verdicts: dict[tuple[int, int], bool] = field(default_factory=dict)  # (window, owner pid) -> of the run
 
     def __post_init__(self) -> None:
@@ -246,6 +266,7 @@ class Keeper:
         if self.desktop is not None:
             self.before = self.desktop.foreground()
             if self.before:
+                self._locked = self.desktop.lock(True)
                 self._thread = threading.Thread(target=self._loop, name="focus-keeper", daemon=True)
                 self._thread.start()
         return self
@@ -258,6 +279,9 @@ class Keeper:
                 self.check()
             except OSError:
                 pass
+        if self._locked and self.desktop is not None:
+            self.desktop.lock(False)
+            self._locked = False
         if self.taken:
             missed = self.taken - self.given
             self.out(
