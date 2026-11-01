@@ -257,7 +257,7 @@ func _distance(bot: ScenarioBot, station: int) -> float:
 
 func _console(bot: ScenarioBot) -> int:
 	for station: int in bot.station_kinds:
-		if bot.station_kinds[station] == ScenarioBot.ENGINE_CONSOLE:
+		if bot.station_kinds[station] == ScenarioBot.engine_console():
 			return station
 	return -1
 

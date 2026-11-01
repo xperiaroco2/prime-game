@@ -15,11 +15,11 @@ enum Where { GROUND, HAND, LOCKED, BELT, FLYING }
 const OWN_EVENTS: Array[StringName] = [
 	&"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
 ]
-## The ship's engine's console's station kind (content/tasks/ship_engine.tres), which StationPlaced
-## names to every player.
-const ENGINE_CONSOLE := &"engine_console"
+## The ship's engine's content, whose `start` is its console's station kind (engine_console()).
+const SHIP_ENGINE := "res://content/tasks/ship_engine.tres"
 
 static var _receivable: Dictionary[StringName, PackedStringArray] = {}
+static var _engine_console := &""
 
 var number: int
 ## Its peer id; 0 until it is known (a network bot learns it when it connects).
@@ -195,6 +195,15 @@ func refused(reason: String, next_tick: int) -> void:
 ## it (P12 (a) of the returning-players ADR). Not a secret: a test key.
 static func key_of(bot_number: int) -> String:
 	return ReturnKey.of("bot%d" % bot_number, "bots")
+
+
+## The ship's engine's console's station kind, which StationPlaced names to every player: read
+## from the content (SHIP_ENGINE's `start`), so the bots look for a renamed console kind too.
+static func engine_console() -> StringName:
+	if _engine_console.is_empty():
+		var engine := load(SHIP_ENGINE) as ShipEngine
+		_engine_console = engine.start.id
+	return _engine_console
 
 
 ## Whether its script joins it later (a Join first) instead of at the start. A Join after its own
@@ -535,12 +544,12 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			sprint_available = fields["sprint_available"] as bool
 			drunk = fields.get("drunk", 0) as int
 		&"ButtonPressed":
-			if station_kinds.get(fields["station"] as int, &"") == ENGINE_CONSOLE:
+			if station_kinds.get(fields["station"] as int, &"") == engine_console():
 				engine_started = true
 		&"ZoneProgress":
 			var needed := fields["needed"] as int
 			var charged := fields["ticks"] as int
-			var console: bool = station_kinds.get(fields["station"] as int, &"") == ENGINE_CONSOLE
+			var console: bool = station_kinds.get(fields["station"] as int, &"") == engine_console()
 			if console and needed > 0 and charged >= needed:
 				engine_done = true
 		# A crystal loaded into a charger leaves the hand with no event of its own (Items.lock_at):
