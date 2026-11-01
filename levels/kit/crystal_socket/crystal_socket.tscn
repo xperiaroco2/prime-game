@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://bvrqwkxyheo6q"]
+
+[ext_resource type="PackedScene" uid="uid://umwrc008anlb" path="res://assets/environment/crystal_socket/crystal_socket.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dfokml1flwdev" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col6.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dkqqpsxgcwm3j" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col5.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://4xcs6pliih48" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col0.tres" id="4"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c3cknvx2y3pa8" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col1.tres" id="5"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://bb872fwxwd32w" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col2.tres" id="6"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://cc88i01cvyb2u" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col3.tres" id="7"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dginqvrln8a7r" path="res://levels/kit/crystal_socket/crystal_socket.crystal_socket_col4.tres" id="8"]
+
+[node name="crystal_socket" unique_id=628047920 instance=ExtResource("1")]
+
+[node name="crystal_socket_col6" type="StaticBody3D" parent="." unique_id=962991773]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0537, 1.6279, 0.2015)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col6" unique_id=645733758]
+shape = ExtResource("2")
+
+[node name="crystal_socket_col5" type="StaticBody3D" parent="." unique_id=544163623]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0537, 1.6279, 0.2015)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col5" unique_id=1291567132]
+shape = ExtResource("3")
+
+[node name="crystal_socket_col0" type="StaticBody3D" parent="." unique_id=1342550952]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col0" unique_id=671195643]
+shape = ExtResource("4")
+
+[node name="crystal_socket_col1" type="StaticBody3D" parent="." unique_id=654476094]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col1" unique_id=1196627738]
+shape = ExtResource("5")
+
+[node name="crystal_socket_col2" type="StaticBody3D" parent="." unique_id=1040962180]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col2" unique_id=768985720]
+shape = ExtResource("6")
+
+[node name="crystal_socket_col3" type="StaticBody3D" parent="." unique_id=1225581074]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col3" unique_id=1116175513]
+shape = ExtResource("7")
+
+[node name="crystal_socket_col4" type="StaticBody3D" parent="." unique_id=1466464177]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_socket_col4" unique_id=598308605]
+shape = ExtResource("8")
