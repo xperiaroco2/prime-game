@@ -2,11 +2,13 @@ extends GdUnitTestSuite
 ## The estate's ship is the art ship (#1499): `levels/estate/rooms/ship.tscn` instances the art
 ## package's `levels/ship/ship.tscn` (prime-game-art#335, the lobby's too) with no greybox left,
 ## frees the package's clearing, sky and suns on the client while the host never had their
-## colliders, closes the hull the package leaves open (its skin has no `-col` hints), and puts the
+## colliders, closes the hull the package leaves open (its skin has no `-col` hints), stands its
+## grated floors on convex hulls (their lattice trimeshes cost the physics too much), and puts the
 ## engine's markers and stand-ins on the art's station spots, gill sets and engine pods
 ## (docs/design/estate-map.md §5a). The engine's own contract: estate_engine_test.gd.
 
 const ShipHull := preload("res://tests/fixtures/ship_hull_colliders.gd")
+const ShipFloor := preload("res://tests/fixtures/ship_floor_colliders.gd")
 const SHIP := "res://levels/estate/rooms/ship.tscn"
 const ART := "res://levels/ship/ship.tscn"
 ## The deck over the ship's origin, and the start console package's button over the deck and its
@@ -22,6 +24,12 @@ const ON_ART_M := 0.03
 ## How far in front of its art spot an engine marker may stand (a player's capsule from the wall
 ## at least, within the station's reach at most).
 const IN_FRONT_M := Vector2(0.35, 1.5)
+## A trimesh thinner than this with more triangles than that is a lattice of floor, which costs
+## Jolt's motion queries a hundred times plain floor (tests/fixtures/ship_floor_colliders.gd).
+const THIN_M := 0.05
+const DENSE_TRIANGLES := 500
+## How far the floor test drops its ball.
+const DROP_M := 1.2
 
 var _root: Node3D
 
@@ -102,6 +110,71 @@ func test_the_hull_s_colliders_are_the_art_skin_and_close_the_hull() -> void:
 	query.shape = capsule
 	query.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 0.92, 8.0))
 	assert_array(host.space_state().intersect_shape(query, 1)).is_not_empty()
+
+
+func test_the_floors_are_the_convex_hulls_of_the_art_s_grates_and_discs() -> void:
+	for file: String in ShipFloor.FLOOR_SHAPES:
+		var saved := load(ShipFloor.hull_path(file)) as ConvexPolygonShape3D
+		var kit := load(ShipFloor.KIT + file) as ConcavePolygonShape3D
+		(
+			assert_bool(saved.points == ShipFloor.hull_of(kit))
+			. override_failure_message(
+				(
+					"%s is stale: run tests/fixtures/ship_floor_colliders.gd"
+					% ShipFloor.hull_path(file)
+				)
+			)
+			. is_true()
+		)
+	# No lattice of thin floor triangles is left under the ship, a kit floor of the list or a new one.
+	var dense: Array[String] = []
+	for found: Node in _root.find_children("*", "CollisionShape3D", true, false):
+		var shape := (found as CollisionShape3D).shape
+		var body := found.get_parent() as CollisionObject3D
+		if not shape is ConcavePolygonShape3D or body == null or body.collision_layer & 1 == 0:
+			continue
+		var faces := (shape as ConcavePolygonShape3D).get_faces()
+		var box := AABB(faces[0], Vector3.ZERO)
+		for v: Vector3 in faces:
+			box = box.expand(v)
+		if faces.size() / 3 > DENSE_TRIANGLES and box.size.y < THIN_M:
+			dense.append("%s (%d)" % [_root.get_path_to(found), faces.size() / 3])
+	assert_array(dense).is_empty()
+
+
+func test_a_player_stands_on_the_hulls_where_he_stood_on_the_art_s_floors() -> void:
+	var art_floors := (load(SHIP) as PackedScene).instantiate() as Node3D
+	var swapped := 0
+	for found: Node in art_floors.find_children("*", "CollisionShape3D", true, false):
+		var collision := found as CollisionShape3D
+		if collision.shape != null and collision.shape.resource_path.begins_with(ShipFloor.HULLS):
+			var file := collision.shape.resource_path.get_file()
+			if ShipFloor.FLOOR_SHAPES.has(file):
+				collision.shape = load(ShipFloor.KIT + file) as Shape3D
+				swapped += 1
+	assert_int(swapped).is_greater(40)
+	var hull_world := LevelWorld.from_scene(_root, SHIP)
+	var art_world := LevelWorld.from_scene(art_floors, SHIP)
+	var hulls := hull_world.space_state()
+	var trimeshes := art_world.space_state()
+	art_floors.free()
+	# A ball of a player's capsule's radius dropped over every deck of the ship comes to rest at the
+	# same height on both: the hull fills the lattice's holes and nothing more.
+	var drops := 0
+	var off: Array[String] = []
+	for over: float in [2.3, 3.2, 4.2, 5.8]:
+		for x in range(-26, 27):
+			for z in range(-20, 21):
+				var at := Vector3(x * 0.5, over, z * 0.5)
+				var on_hulls := _rest_height(hulls, at)
+				var on_trimeshes := _rest_height(trimeshes, at)
+				if is_nan(on_hulls) and is_nan(on_trimeshes):
+					continue
+				drops += 1
+				if is_nan(on_hulls) or is_nan(on_trimeshes) or absf(on_hulls - on_trimeshes) > 0.01:
+					off.append("%s: %.3f, art %.3f" % [at, on_hulls, on_trimeshes])
+	assert_int(drops).is_greater(1000)
+	assert_array(off).is_empty()
 
 
 func test_each_gill_set_stands_on_the_art_s_gills() -> void:
@@ -212,3 +285,20 @@ func _assert_near(at: Vector3, art: Vector3, what: String) -> void:
 		. override_failure_message("%s at %s, the art's at %s" % [what, at, art])
 		. is_true()
 	)
+
+
+## Where a ball of a player's capsule's radius dropped from `from` comes to rest, at its bottom:
+## NAN when it starts inside a collider or falls more than DROP_M.
+func _rest_height(space: PhysicsDirectSpaceState3D, from: Vector3) -> float:
+	var ball := SphereShape3D.new()
+	ball.radius = 0.3
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = ball
+	query.transform = Transform3D(Basis.IDENTITY, from)
+	query.motion = Vector3.DOWN * DROP_M
+	if not space.intersect_shape(query, 1).is_empty():
+		return NAN
+	var safe := space.cast_motion(query)[0]
+	if safe >= 1.0:
+		return NAN
+	return from.y - DROP_M * safe - ball.radius

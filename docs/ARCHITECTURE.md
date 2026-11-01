@@ -9072,7 +9072,11 @@ plays it on the estate (#1462, "The estate and the content" below).
   #1451), its sky, suns and clearing saved hidden (the clearing's ground off layer 1) and freed on the client by
   `ship.gd` (`art_free`); `Hull` holds the game's trimesh colliders of the art's skin
   (`ship_hull/skin_{top,belly}_col.tres`, written by `tests/fixtures/ship_hull_colliders.gd`: the package's skin has no
-  `-col` hint), backfaced so nothing thrown inside leaves through the roof. The art root's own `size_m` makes no
+  `-col` hint), backfaced so nothing thrown inside leaves through the roof. The art's grated and inlaid floors stand on
+  convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
+  by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
+  a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
+  within 1 cm. The art root's own `size_m` makes no
   second room inside the lot (`MapData`: a room inside a room is part of it).
   Every place and size is a placeholder, "not a decision".
 - **The client** (#1462, stand-ins until the art track draws it). `ClientEngineBook` (`client/net/`,

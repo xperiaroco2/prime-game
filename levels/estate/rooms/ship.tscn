@@ -7,6 +7,18 @@
 [ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
 [ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/skin_top_col.tres" id="6_skintop"]
 [ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/skin_belly_col.tres" id="7_skinbelly"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/hall_floor_disc.grate_col.tres" id="10_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/hall_floor_disc.trim_col.tres" id="11_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/hall_floor_disc.hub_col.tres" id="12_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/hall_floor_disc.bolts_col.tres" id="13_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/hall_grate.grate_col.tres" id="14_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/throat_floor.grate_col.tres" id="15_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_grate.grate_col.tres" id="16_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_floor_rim.plates_col.tres" id="17_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_floor_disc.disc_col.tres" id="18_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_floor_disc.trim_col.tres" id="19_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_floor_disc.inlay_col.tres" id="20_floor"]
+[ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/cor_grate.grate_col.tres" id="21_floor"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_console"]
 material = ExtResource("3_yellow")
@@ -380,5 +392,146 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.08, 1)
 
 [node name="Button" type="Marker3D" parent="Engine/Hologram" unique_id=1801499104]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.643, -0.6)
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/bolts_col" index="0"]
+shape = ExtResource("13_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/grate_col" index="0"]
+shape = ExtResource("10_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/hub_col" index="0"]
+shape = ExtResource("12_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/trim_col" index="0"]
+shape = ExtResource("11_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/throat_floor_3/grate_col" index="0"]
+shape = ExtResource("15_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_5/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_8/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_11/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_14/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_17/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_20/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_23/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/hall_grate_26/grate_col" index="0"]
+shape = ExtResource("14_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_134/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_148/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_162/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_176/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_190/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_218/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_232/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_246/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_260/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/cor_grate_274/grate_col" index="0"]
+shape = ExtResource("21_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_311/disc_col" index="0"]
+shape = ExtResource("18_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_311/inlay_col" index="0"]
+shape = ExtResource("20_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_311/trim_col" index="0"]
+shape = ExtResource("19_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_rim_312/plates_col" index="0"]
+shape = ExtResource("17_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_314/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_317/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_320/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_323/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_326/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_329/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_332/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_335/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_394/disc_col" index="0"]
+shape = ExtResource("18_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_394/inlay_col" index="0"]
+shape = ExtResource("20_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_disc_394/trim_col" index="0"]
+shape = ExtResource("19_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_floor_rim_395/plates_col" index="0"]
+shape = ExtResource("17_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_397/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_400/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_403/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_406/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_409/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_412/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_415/grate_col" index="0"]
+shape = ExtResource("16_floor")
+
+[node name="CollisionShape3D" parent="Art/Pieces/tip_grate_418/grate_col" index="0"]
+shape = ExtResource("16_floor")
 
 [editable path="Art"]
