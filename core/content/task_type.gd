@@ -127,8 +127,9 @@ func station_kinds() -> Array[StationKind]:
 
 ## The stored properties of this type's script that can hold an object, in property order, read
 ## once per script: get_property_list builds every property's dictionary on each call, 30 to 80
-## us a type, and the client asks station_kinds for each station in reach every physics tick
-## (TargetChoice, #1530: 15 ms a tick on the estate). The values are read on every call.
+## us a type, and the client asks station_kinds for every station every physics tick (TargetChoice's
+## stands_at, #1530: 15 ms a tick on the estate). The values are read on every call. The cache is
+## never cleared: a script hot-reloaded in a debug run keeps its old names until a restart.
 func _object_properties() -> Array[StringName]:
 	var script: Script = get_script() as Script
 	if script != null and _object_names.has(script):
