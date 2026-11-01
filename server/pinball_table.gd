@@ -33,7 +33,8 @@ const BALL_LAYER := 1 << 1
 ## or a loss is always kept (one per ball, so they cannot grow it either).
 const MOST_PENDING := 64
 
-## The scene's problems (read at the first game); a table with any is inert.
+## The scene's problems (read at the first game), each pushed once (push_error) when found; a
+## table with any is inert. HostSession reports them (table_errors).
 var errors := PackedStringArray()
 
 var _scene_path: String
@@ -179,6 +180,48 @@ func spec() -> PinballTableSpec:
 	return _spec
 
 
+## Whether the scene was read (at the first game), well or not: errors says whether it can run.
+func was_read() -> bool:
+	return _built
+
+
+## What does not fit between the scene's targets and `points`, the game's (Pinball.Machine.points:
+## the mode's UsePinball targets): a scene target the game lacks (its first hit would be a table
+## bug, Pinball.report's ctx.error) and a game target the scene lacks (it can never be hit), each a
+## line, by id. Empty before a good read (was_read(), no errors).
+func target_problems(points: Dictionary[StringName, int]) -> PackedStringArray:
+	var found := PackedStringArray()
+	if not _built or not errors.is_empty():
+		return found
+	var in_scene: Dictionary[StringName, bool] = {}
+	for id: StringName in _target_of.values():
+		in_scene[id] = true
+	var ids: Array[StringName] = []
+	ids.assign(in_scene.keys())
+	ids.sort_custom(_by_name)
+	for id: StringName in ids:
+		if not points.has(id):
+			found.append(
+				"the pinball table %s has a target %s the game's targets lack" % [_scene_path, id]
+			)
+	ids.assign(points.keys())
+	ids.sort_custom(_by_name)
+	for id: StringName in ids:
+		if not in_scene.has(id):
+			found.append("the pinball table %s has no target %s of the game's" % [_scene_path, id])
+	return found
+
+
+static func _by_name(a: StringName, b: StringName) -> bool:
+	return String(a) < String(b)
+
+
+## A problem of the scene: kept in errors and pushed once, when it is found.
+func _fail(problem: String) -> void:
+	errors.append(problem)
+	push_error(problem)
+
+
 ## Reads the scene once (the first game): false when it cannot be read (errors says why).
 func _build() -> bool:
 	if _built:
@@ -187,12 +230,12 @@ func _build() -> bool:
 	if _spec == null:
 		_spec = load(SPEC) as PinballTableSpec
 	if _spec == null:
-		errors.append("the pinball table's spec %s cannot be loaded" % SPEC)
+		_fail("the pinball table's spec %s cannot be loaded" % SPEC)
 		return false
 	var packed := load(_scene_path) as PackedScene
 	var root: Node = packed.instantiate() if packed != null else null
 	if root == null:
-		errors.append("the pinball table %s cannot be instanced" % _scene_path)
+		_fail("the pinball table %s cannot be instanced" % _scene_path)
 		return false
 	_world = World3D.new()
 	_space = _world.space
@@ -203,13 +246,11 @@ func _build() -> bool:
 	root.free()
 	for needed: String in ["FlipperLeft", "FlipperRight"]:
 		if not flippers.has(needed):
-			errors.append("the pinball table %s has no %s" % [_scene_path, needed])
+			_fail("the pinball table %s has no %s" % [_scene_path, needed])
 	for needed: String in ["BallStart", "Drain"]:
 		if not markers.has(needed):
-			errors.append("the pinball table %s has no Marker3D %s" % [_scene_path, needed])
+			_fail("the pinball table %s has no Marker3D %s" % [_scene_path, needed])
 	if not errors.is_empty():
-		for problem: String in errors:
-			push_error(problem)
 		return false
 	_flippers = [flippers["FlipperLeft"], flippers["FlipperRight"]]
 	_flippers[1].turn_sign = -1.0

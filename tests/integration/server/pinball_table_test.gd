@@ -6,10 +6,14 @@ extends GdUnitTestSuite
 ## reports nothing; a launch with the flippers idle ends in a BallLost; a held flipper turns up in
 ## two frames and throws a ball resting on it up the table; a touched target scores once per touch;
 ## a ball outside the walls or still is lost; a new game or no game frees the ball; the scene's
-## target ids are the shipped UsePinball's. A quicker spec (a short launch delay and stuck time)
-## keeps the runs short; its physics numbers are the shipped ones.
+## target ids are the shipped UsePinball's, and target_problems names each id it and a game do not
+## share (#1510); a scene missing its parts names each once and stays inert (#1510). A quicker spec
+## (a short launch delay and stuck time) keeps the runs short; its physics numbers are the shipped
+## ones.
 
 const SHIPPED_STATION := "res://content/stations/pinball.tres"
+const BROKEN_SCENE := "res://tests/fixtures/pinball/broken_table.tscn"
+const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
 
 var _played: Pinball.Machine
 var _table: PinballTable
@@ -171,6 +175,50 @@ func test_the_scenes_target_ids_are_the_shipped_ones() -> void:
 	var shipped := _shipped_ids()
 	shipped.sort()
 	assert_array(ids).is_equal(shipped)
+
+
+func test_the_target_problems_name_each_id_the_scene_and_the_game_do_not_share() -> void:
+	var points: Dictionary[StringName, int] = {}
+	for id: StringName in _shipped_ids():
+		points[id] = 1
+	# Not read yet: nothing to compare.
+	assert_bool(_table.was_read()).is_false()
+	assert_array(_table.target_problems({})).is_empty()
+	_table.step(_played, _delta())
+	assert_bool(_table.was_read()).is_true()
+	assert_array(_table.target_problems(points)).is_empty()
+	# A scene target the game lacks (its hit would be a table bug), and a game target the scene
+	# lacks (never hit).
+	var other := points.duplicate()
+	other.erase(_shipped_ids()[0])
+	other[&"no_such_target"] = 1
+	var found := _table.target_problems(other)
+	assert_int(found.size()).is_equal(2)
+	assert_str(found[0]).contains("has a target %s the game's targets lack" % _shipped_ids()[0])
+	assert_str(found[1]).contains("has no target no_such_target of the game's")
+
+
+func test_a_broken_scene_names_each_missing_part_once_and_leaves_the_table_inert() -> void:
+	var broken := PinballTable.new(BROKEN_SCENE, _table.spec())
+	var logged := EngineErrors.new()
+	logged.start()
+	broken.step(_played, _delta())
+	broken.step(_played, _delta())
+	logged.stop()
+	assert_bool(broken.was_read()).is_true()
+	assert_bool(broken.is_active()).is_false()
+	assert_bool(broken.has_ball()).is_false()
+	assert_array(broken.reports()).is_empty()
+	var text := "\n".join(broken.errors)
+	assert_int(broken.errors.size()).is_equal(4)
+	for part: String in ["FlipperLeft", "FlipperRight", "Marker3D BallStart", "Marker3D Drain"]:
+		assert_str(text).contains("has no %s" % part)
+	# Each pushed once, when the scene was read; the second step reads nothing again.
+	var pushed := "\n".join(logged.snapshot())
+	for problem: String in broken.errors:
+		assert_int(pushed.count(problem)).is_equal(1)
+	# A table that cannot run compares no targets.
+	assert_array(broken.target_problems({&"bumper": 1})).is_empty()
 
 
 ## `count` physics frames: each steps the table and takes its reports, which change `_played` as
