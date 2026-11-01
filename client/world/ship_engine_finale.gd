@@ -32,8 +32,8 @@ const FLAME_LIGHT_RANGE_M := 8.0
 ## The show: its lights, their circle's radius and height over the hologram's centre, one turn's
 ## seconds, the pulse's rate and the white flash's seconds (not a decision).
 const SHOW_LIGHTS := 4
-const SHOW_RADIUS_M := 3.0
-const SHOW_HEIGHT_M := 2.5
+const SHOW_RADIUS_M := 2.0
+const SHOW_HEIGHT_M := 0.6
 const TURN_SECONDS := 2.0
 const PULSE_HZ := 4.0
 const FLASH_SECONDS := 0.15
