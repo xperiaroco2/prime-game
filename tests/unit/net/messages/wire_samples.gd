@@ -197,6 +197,7 @@ static func events() -> Dictionary[String, Array]:
 		ShotTakenEvent.new(1, 2, 0, none), ShotTakenEvent.new(0xFFFE, 0xFFFE, 0xFFFF, rows)
 	]
 	found["BoothStepEvent"] = _booth_steps()
+	found["BoothReplayEvent"] = _booth_replays()
 	found["GrillLoadedEvent"] = [
 		GrillLoadedEvent.new(3, 7, 220, 320),
 		GrillLoadedEvent.new(0xFFFE, 0xFFFE, 0xFFFFFFFD, 0xFFFFFFFE),
@@ -278,6 +279,48 @@ static func _booth_steps() -> Array:
 	printed.items = PackedInt32Array([1, 0xFFFE])
 	var stopped := BoothStepEvent.new(3, 8, BoothStepEvent.STOPPED)
 	return [started, empty, flash, printed, stopped]
+
+
+## A running session's replay with no frames and no strips at the id extremes, and a print's with
+## a frame left blank (#1474). The largest (booth_replay_at_maxima) is not a sample: the fuzz test
+## changes every byte of every sample, and its 3890 bytes would take minutes.
+static func _booth_replays() -> Array:
+	var empty := BoothReplayEvent.new(WireField.PEER_MAX, 0xFFFE, 0xFFFF)
+	var rows: Array[Dictionary] = (_booth_steps()[2] as BoothStepEvent).record
+	var none: Array[Dictionary] = []
+	var some := BoothReplayEvent.new(2, 3, 7)
+	some.records = [rows, none]
+	some.items = PackedInt32Array([1, 0xFFFE])
+	return [empty, some]
+
+
+## The largest BoothReplay the wire takes (wire_booth_replay_test's): WireSchema.MAX_BOOTH_FRAMES
+## frames of MAX_PLAYERS rows with the flag extremes, and MAX_PLAYERS strips.
+static func booth_replay_at_maxima() -> BoothReplayEvent:
+	var full := BoothReplayEvent.new(WireField.PEER_MAX, 0xFFFE, 0xFFFF)
+	for frame in WireSchema.MAX_BOOTH_FRAMES:
+		var rows: Array[Dictionary] = []
+		for peer in WireSchema.MAX_PLAYERS:
+			var odd := (peer + frame) % 2 == 1
+			(
+				rows
+				. append(
+					{
+						"peer": WireField.PEER_MAX - peer,
+						"colour": 255 - peer,
+						"position": Vector3(-1000.5, 2.25, 999.75),
+						"facing": Vector3.BACK,
+						"crouched": odd,
+						"sneaking": not odd,
+						"posed": odd,
+						"limp": not odd,
+					}
+				)
+			)
+		full.records.append(rows)
+	for k in WireSchema.MAX_PLAYERS:
+		full.items.append(0xFFFE - k)
+	return full
 
 
 ## Every intent as a client sends it: the args of its MatchCommand, and its seq.

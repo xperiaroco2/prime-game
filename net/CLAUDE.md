@@ -21,7 +21,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   `packet_rejected(peer, reason)` signal per reject. `JoinTarget` (M6-7): what a player typed (a code or
   `address[:port]`) and the transport that joins it. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
-  it), `WireRow` (`fixed_offset`: where a fixed-size field starts, so a caller patches it in place without a byte
+  it; `WireBoothRows` its photo booth rows, #1474), `WireRow` (`fixed_offset`: where a fixed-size field starts, so a caller patches it in place without a byte
   index), `WireField` (a field's wire type, its checks, its write and read; `WireText` its text checks,
   `WireCollection` its lists, maps and settings), `WireMessage` (a name, the fields, `seq`
   and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
