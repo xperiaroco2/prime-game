@@ -5,7 +5,8 @@
 ## each one rests. An item on such a top is out of every player's reach (PickUp's InReach, 2 m from
 ## the feet, and no way up), so none may rest there.
 ##
-## The tops (TOPS): each lot's footprint from docs/design/estate-map.md §3 (EstateDoc) at its
+## The tops (TOPS): each lot's footprint from docs/design/estate-map.md §3 (EstateDoc; the ship's
+## grown to its colliders' outline, _ship_outline) at its
 ## centre, grown by EAVE_M; its height is read from the world, the first floor straight down onto
 ## the lot's centre, so a raised roof is swept at its new height.
 ##
@@ -24,6 +25,8 @@ const TOPS: Array[String] = [
 ]
 ## The gazebo is round (r 3.5, no footprint in §3): its square roof's side (gazebo.tscn's Roof01).
 const GAZEBO_ROOF_M := 7.4
+## The estate's ship piece, whose real outline the ship's top is swept over (_ship_outline).
+const SHIP_PIECE := "res://levels/estate/rooms/ship.tscn"
 ## How far past a footprint a rest still lies on its top: the roof slab's overhang and an item's
 ## radius over its edge.
 const EAVE_M := 0.5
@@ -57,11 +60,15 @@ static func tops(world: HostWorldQuery) -> Dictionary[String, Dictionary]:
 		var size := Vector2(module.size)
 		if module.name == "Gazebo":
 			size = Vector2(GAZEBO_ROOF_M, GAZEBO_ROOF_M)
+		var rect := Rect2(module.centre - size / 2.0, size)
+		if module.name == "Ship":
+			var outline := _ship_outline()
+			rect = rect.merge(Rect2(outline.position + module.centre, outline.size))
 		var top := world.floor_below(Vector3(module.centre.x, 20.0, module.centre.y))
 		if top == WorldQuery.NO_FLOOR:
 			continue
 		found[module.name] = {
-			"rect": Rect2(module.centre - size / 2.0, size),
+			"rect": rect,
 			"y": top.y,
 		}
 	return found
@@ -220,3 +227,46 @@ static func _add_box_tops(into: Array[Dictionary], node: Node, root: Node) -> vo
 			}
 		)
 	)
+
+
+## Every enabled layer-1 shape of `root` that is not a box (a convex hull, a trimesh, a cylinder:
+## box_tops reads boxes only), each its body, its piece (the root's child it is under) and its plan
+## rect (x, z) in `root`'s frame.
+static func other_shapes(root: Node) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for node: Node in root.find_children("*", "CollisionShape3D", true, false):
+		var shape_node := node as CollisionShape3D
+		if shape_node.shape == null or shape_node.shape is BoxShape3D or shape_node.disabled:
+			continue
+		var body := shape_node.get_parent() as StaticBody3D
+		if body == null or body.collision_layer & LevelWorld.WORLD_LAYER == 0:
+			continue
+		var at := LevelWorld.transform_in_scene(shape_node, root)
+		var box := at * shape_node.shape.get_debug_mesh().get_aabb()
+		var piece := body as Node
+		while piece.get_parent() != root and piece.get_parent() != null:
+			piece = piece.get_parent()
+		(
+			found
+			. append(
+				{
+					"piece": String(piece.name),
+					"body": String(root.get_path_to(body)),
+					"plan": Rect2(box.position.x, box.position.z, box.size.x, box.size.z),
+				}
+			)
+		)
+	return found
+
+
+## The plan rect of every enabled layer-1 shape of the estate's ship piece (#1499), in its own
+## frame: the art ship's hull, wings and jaws reach past the doc's §3 rect (26 x 14 m; the art's
+## outline is 26.1 x 22.1, its jaws 1.6 m more), and the roof sweep must cover all of them.
+static func _ship_outline() -> Rect2:
+	var ship := (load(SHIP_PIECE) as PackedScene).instantiate()
+	var outline := Rect2()
+	for other: Dictionary in other_shapes(ship):
+		var plan: Rect2 = other["plan"]
+		outline = outline.merge(plan) if outline.has_area() else plan
+	ship.free()
+	return outline

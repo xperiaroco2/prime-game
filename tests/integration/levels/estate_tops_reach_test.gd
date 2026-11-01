@@ -16,7 +16,8 @@ extends GdUnitTestSuite
 ## - or left to another guard: in a footprint of EstateThrows.TOPS grown by its eave, at any
 ##   height (the roof sweep), or in the House's lot piece, as the roof sweep leaves it out.
 ## Anything else is a top a throw can reach and no player can: red, by body and piece.
-## Not read: a shape that is not a box (the estate has only boxes); a ceiling over a top with a
+## Not read: a shape that is not a box, which must lie in a swept footprint or the House's lot (the
+## art ship's hull and floors, #1499; a test says so); a ceiling over a top with a
 ## gap under it (a throw under it is taken as unbounded, so the check errs red).
 
 const EstateThrows := preload("res://tests/integration/levels/estate_throws.gd")
@@ -39,6 +40,7 @@ var _rules: PlayerRules
 var _throw: ThrowItem
 var _reach_m := 0.0
 var _tops: Array[Dictionary] = []
+var _others: Array[Dictionary] = []
 
 
 func before() -> void:
@@ -60,6 +62,7 @@ func before() -> void:
 			_reach_m = reach
 	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
 	_tops = EstateThrows.box_tops(root)
+	_others = EstateThrows.other_shapes(root)
 	_world = HostWorldQuery.new(_rules.capsule_radius_m)
 	_level = LevelWorld.from_scene(root, EstateDoc.MAP)
 	_world.add_level(_level)
@@ -233,3 +236,19 @@ func _in_a_swept_footprint(swept: Dictionary[String, Dictionary], plan: Vector2)
 		if rect.grow(EstateThrows.EAVE_M).has_point(plan):
 			return true
 	return false
+
+
+## A shape this test does not read (not a box) is left to the roof sweep: it lies whole in a swept
+## footprint grown by its eave, or in the House's lot (#1499: the art ship's hull, wider than the
+## doc's rect, was out of both guards).
+func test_every_shape_that_is_not_a_box_lies_in_a_swept_footprint() -> void:
+	var swept := EstateThrows.tops(_world)
+	var outside: Array[String] = []
+	for other: Dictionary in _others:
+		var plan: Rect2 = other["plan"]
+		if other["piece"] == "House" or _in_a_swept_footprint(swept, plan.position):
+			if other["piece"] == "House" or _in_a_swept_footprint(swept, plan.end):
+				continue
+		outside.append("%s (%s): %s" % [other["body"], other["piece"], plan])
+	assert_array(_others).is_not_empty()
+	assert_array(outside).override_failure_message("\n".join(outside)).is_empty()
