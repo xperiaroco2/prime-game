@@ -217,8 +217,11 @@ func test_a_broken_scene_names_each_missing_part_once_and_leaves_the_table_inert
 	var pushed := "\n".join(logged.snapshot())
 	for problem: String in broken.errors:
 		assert_int(pushed.count(problem)).is_equal(1)
-	# A table that cannot run compares no targets.
+	# A table that cannot run compares no targets: not the scene's one real id, an id it lacks, nor
+	# none (each of which a good table would name).
 	assert_array(broken.target_problems({&"bumper": 1})).is_empty()
+	assert_array(broken.target_problems({&"no_such_target": 1})).is_empty()
+	assert_array(broken.target_problems({})).is_empty()
 
 
 ## `count` physics frames: each steps the table and takes its reports, which change `_played` as

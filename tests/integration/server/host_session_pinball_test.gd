@@ -124,6 +124,8 @@ func test_a_host_with_physics_builds_its_table_and_reads_it_at_the_first_game() 
 	assert_bool(table.is_active()).is_false()
 	assert_array(Array(table.target_ids())).is_empty()
 	var game := _h.session.game
+	var logged := EngineErrors.new()
+	logged.start()
 	_h.own.send_intent(Intents.INTERACT, {"station": FixturePinball.machine_id(game), "item": -1})
 	_h.pump_seconds(0.25)
 	assert_int(Pinball.game(game.state).player).is_equal(OWN)
@@ -147,6 +149,11 @@ func test_a_host_with_physics_builds_its_table_and_reads_it_at_the_first_game() 
 	assert_bool(_h.session.is_running()).is_true()
 	# The real table launches on its own after the spec's delay, and core takes the ball.
 	_h.pump_seconds(table.spec().launch_delay_s + 0.5)
+	logged.stop()
+	# The host took the table's errors once: many steps ran since, and each problem was pushed once.
+	var pushed := "\n".join(logged.snapshot())
+	for problem: String in _h.session.table_errors:
+		assert_int(pushed.count(problem)).is_equal(1)
 	assert_int(_tick_of(Intents.BALL_LAUNCHED)).is_greater(0)
 	assert_bool(Pinball.game(game.state).in_play).is_true()
 	assert_bool(Pinball.game(game.state).ball_placed).is_true()
