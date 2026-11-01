@@ -91,7 +91,8 @@ func test_space_shift_tab_and_esc_keycaps_are_wide_and_a_rebind_decides() -> voi
 	tab.physical_keycode = KEY_TAB
 	controls.bind(&"interact", tab)
 	var narrow := InputEventKey.new()
-	narrow.physical_keycode = KEY_Z
+	# N: Z is the left flipper's in the lobby (#1400, Controls.UNLISTED) and refused for sprint.
+	narrow.physical_keycode = KEY_N
 	controls.bind(&"sprint", narrow)
 	controls.apply()
 	assert_bool(KeyLabel.is_wide_action(&"jump")).is_false()
