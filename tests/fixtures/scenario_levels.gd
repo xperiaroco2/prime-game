@@ -3,8 +3,9 @@ extends RefCounted
 ## default map (BotScenario.played_map(): the mode's first test bench, the greybox, #767) and every
 ## map a scenario of that mode (in SCENARIOS_DIRS) names, but the maps with storeys.
 ## These are the levels the scenarios' fake world, one flat floor at y = 0, must describe truly.
-## The maps with storeys (STOREYED_MAPS, the House, #626) are played by people, and by the scenarios
-## that play their stations (#1197) in a fake world with storeys (world_of(), #1209).
+## The maps with storeys (STOREYED_MAPS: the House, #626, and the estate with the ship's deck,
+## #1498) are played by people, and by the scenarios that play their stations (#1197, #1498) in a
+## fake world with storeys (world_of(), #1209).
 
 const StoreyedWorld := preload("res://tests/fixtures/storeyed_world.gd")
 ## Where the bot scenarios live: the shipped modes' in content/scenarios/, and in
@@ -16,11 +17,13 @@ const SCENARIOS_DIRS: Array[String] = [
 	"res://content/scenarios/", "res://tests/fixtures/scenarios/"
 ]
 const HOUSE := "res://levels/house/house.tscn"
-## The maps a scenario may name that are not flat (#1197): the House (#626), the one map the station
-## tasks play on (TaskType.maps). The scenarios play it in a fake world with its storeys and stairs
+const ESTATE := "res://levels/estate/estate.tscn"
+## The maps a scenario may name that are not flat (#1197): the House (#626), the map the station
+## tasks play on (TaskType.maps), and the estate (#1498), the ship's engine's, whose stations stand
+## on the ship's deck. The scenarios play them in a fake world with their storeys and stairs
 ## (world_of(), #1209): the markers are read where the scene places them, never snapped (GE12), and
-## a bot reaches a station on another storey only by a walk over the stairs.
-const STOREYED_MAPS: Array[String] = [HOUSE]
+## a bot reaches a station on another storey only by a walk over the stairs (the ship's ramp).
+const STOREYED_MAPS: Array[String] = [HOUSE, ESTATE]
 ## The House's storeys the fake world joins (house.tscn's levels): the basement, the ground floor
 ## and the second floor. The attic, which no task uses, is left out.
 const HOUSE_STOREYS: Array[float] = [-3.2, 0.0, 3.2]
@@ -41,14 +44,32 @@ const HOUSE_FLIGHTS: Array[Vector3] = [
 ]
 ## Every flight's width in the fake world: the bots walk up its middle.
 const FLIGHT_WIDTH_M := 1.2
+## The estate's storeys the fake world joins: the ground and the ship's deck (the ship stands at
+## y 0, its deck 1.2 m over it: estate_engine_test's DECK_M, where every engine station stands).
+const ESTATE_STOREYS: Array[float] = [0.0, 1.2]
+## The ship's mouth ramp, the one way aboard (docs/design/estate-map.md §5a, the ship at world
+## (116, 72)): from its foot at (0, -12.6) on the ground up to its hinge at (0, -8.1), the tunnel's
+## open front at the deck's height, 3.3 m wide.
+const ESTATE_FLIGHTS: Array[Vector3] = [Vector3(116, 0, 59.4), Vector3(116, 1.2, 63.9)]
+const ESTATE_RAMP_WIDTH_M := 3.3
 
 
-## The fake world a scenario plays in (ARCHITECTURE §9.7): the House's storeys and stairs on the
-## House (#1209), else one flat floor at y = 0.
+## The fake world a scenario plays in (ARCHITECTURE §9.7): a storeyed map's storeys and stairs
+## (the House, #1209; the estate's ground, deck and ramp, #1498), else one flat floor at y = 0.
 static func world_of(scenario: BotScenario) -> WorldQuery:
-	if scenario != null and scenario.mode != null and scenario.played_map() == HOUSE:
-		return StoreyedWorld.new(HOUSE, HOUSE_STOREYS, HOUSE_FLIGHTS, FLIGHT_WIDTH_M)
+	if scenario == null or scenario.mode == null:
+		return FlatWorldQuery.new()
+	match scenario.played_map():
+		HOUSE:
+			return StoreyedWorld.new(HOUSE, HOUSE_STOREYS, HOUSE_FLIGHTS, FLIGHT_WIDTH_M)
+		ESTATE:
+			return StoreyedWorld.new(ESTATE, ESTATE_STOREYS, ESTATE_FLIGHTS, ESTATE_RAMP_WIDTH_M)
 	return FlatWorldQuery.new()
+
+
+## The storeys of a map in STOREYED_MAPS, as its fake world joins them.
+static func storeys_of(map: String) -> Array[float]:
+	return ESTATE_STOREYS if map == ESTATE else HOUSE_STOREYS
 
 
 ## The paths, the lobby first, each once.
@@ -100,9 +121,9 @@ static func scenario_path(name: String) -> String:
 
 
 ## The mode's levels the runners read without floor snapping (GE12): those no scenario plays and
-## the maps with storeys (the House, #626). Their station markers stay where the scene puts them,
-## since the flat fake finds no floor below its one floor. The scenario's own flat `map` counts as
-## played, even when no scenario file names it.
+## the maps with storeys (the House, #626; the estate, #1498). Their station markers stay where the
+## scene puts them, since the flat fake finds no floor below its one floor. The scenario's own flat
+## `map` counts as played, even when no scenario file names it.
 static func unsnapped(mode: GameMode, map: String = "") -> PackedStringArray:
 	var played := of(mode)
 	if not map.is_empty() and not played.has(map) and not STOREYED_MAPS.has(map):
