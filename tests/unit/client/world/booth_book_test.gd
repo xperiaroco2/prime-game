@@ -158,3 +158,51 @@ func test_the_real_hosts_steps_give_its_records_and_strips() -> void:
 				assert_that(rows[k][key]).is_equal(flash.record[k][key])
 	for id: int in printed[0].items:
 		assert_object(_book.session_of(id)).is_same(session)
+
+
+func _replay(strip: int, records: Array, items: Array[int]) -> void:
+	(
+		_book
+		. fold(
+			&"BoothReplay",
+			{
+				"peer": P3,
+				"station": STATION,
+				"strip": strip,
+				"records": records,
+				"items": PackedInt32Array(items),
+			}
+		)
+	)
+
+
+func test_a_replay_binds_each_strip_to_one_printed_session_that_is_not_fresh() -> void:
+	_replay(5, [[_row(P1)], [_row(P1), _row(P2)], [_row(P2)]], [40, 41])
+	var session := _book.session_of(40)
+	assert_object(session).is_not_null()
+	assert_object(_book.session_of(41)).is_same(session)
+	assert_int(session.state).is_equal(BoothBook.State.PRINTED)
+	assert_int(session.station).is_equal(STATION)
+	assert_int(session.strip).is_equal(5)
+	assert_int(session.frame_count()).is_equal(3)
+	assert_array(session.record_of(1)).is_equal([_row(P1), _row(P2)])
+	assert_object(_book.running_at(STATION)).is_null()
+	assert_bool(_book.take_fresh(40)).is_false()
+	_book.fold(&"ItemVanished", {"item": 40})
+	assert_object(_book.session_of(40)).is_null()
+	assert_object(_book.session_of(41)).is_same(session)
+	_book.fold(&"LoadMatch", {})
+	assert_object(_book.session_of(41)).is_null()
+
+
+func test_a_replay_without_strips_is_the_running_session_the_steps_complete() -> void:
+	_replay(6, [[_row(P1)], [_row(P1), _row(P2)]], [])
+	var running := _book.running_at(STATION)
+	assert_object(running).is_not_null()
+	assert_int(running.state).is_equal(BoothBook.State.RUNNING)
+	assert_int(running.flashes()).is_equal(2)
+	_flash(2, [_row(P2)], 6)
+	_print([50], 6)
+	assert_object(_book.session_of(50)).is_same(running)
+	assert_int(running.frame_count()).is_equal(3)
+	assert_array(running.record_of(0)).is_equal([_row(P1)])

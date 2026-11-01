@@ -103,7 +103,11 @@ extends RefCounted
 ## 53 since #1522 (a player placed on a spawn marker faces its yaw): Welcome (kind 33) gains
 ## `facing` after `spot`, and Correction (kind 56) gains `facing` after `velocity` (Vector3.ZERO:
 ## keep the own look).
-const VERSION := 53
+## 54 since #1474 (a joiner learns the photo booth strips' frames): the joiner-only event
+## BoothReplay (kind 97: peer, station, strip, records, items), one per print whose strips exist and
+## one for the running session's frames, after the StationPlaced replay; the booth's rows move to
+## WireBoothRows (this file's line limit).
+const VERSION := 54
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -144,6 +148,9 @@ const MAX_WELCOME_ITEMS := 96
 ## The stations of one ship engine problem (EngineProblemOpened, #1453): core's
 ## ShipEngine.MAX_PROBLEM_STATIONS, which a unit test pins equal (net/ names no core/ class).
 const MAX_PROBLEM_STATIONS := 8
+## The frames of one photo booth session (BoothReplay's records, #1474): core's
+## StartBooth.MAX_FRAMES, which a unit test pins equal (net/ names no core/ class).
+const MAX_BOOTH_FRAMES := 8
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
 const MAX_TEXT_NUMBERS := 4
@@ -733,45 +740,9 @@ static func _events() -> Array[WireRow]:
 				WireField.maybe("tick", _tick()),
 			]
 		),
-		_booth_step(),
+		WireBoothRows.step(),
+		WireBoothRows.replay(),
 	]
-
-
-## The photo booth's step (#1396): every field always, the ones a step does not use 0 or empty
-## (BoothStepEvent). A record row is the lobby avatar's public look and pose: its peer, colour,
-## position, facing and the crouched, sneaking, posed and limp flags; at most MAX_PLAYERS rows
-## and MAX_PLAYERS strips, so its size is the schema's, not the content's.
-static func _booth_step() -> WireRow:
-	var frame_row := (
-		WireField
-		. record(
-			"",
-			[
-				_peer("peer"),
-				_of("colour", WireField.Type.U8),
-				_vec3("position"),
-				_vec3("facing"),
-				WireField.bits(PackedStringArray(["crouched", "sneaking", "posed", "limp"])),
-			]
-		)
-	)
-	return _down(
-		96,
-		&"BoothStep",
-		529,
-		[
-			_station("station"),
-			_u16("strip"),
-			_of("step", WireField.Type.U8),
-			_of("presser", WireField.Type.U32),
-			_of("frames", WireField.Type.U8),
-			_u16("countdown"),
-			_u16("gap"),
-			_of("frame", WireField.Type.U8),
-			WireField.list("record", frame_row, MAX_PLAYERS),
-			WireField.list("items", _item(""), MAX_PLAYERS, TYPE_PACKED_INT32_ARRAY),
-		]
-	)
 
 
 ## The photo camera's shot (the photo ADR §3.3): the record is the snapshot's avatar row without

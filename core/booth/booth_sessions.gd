@@ -2,9 +2,11 @@ class_name BoothSessions
 extends RefCounted
 ## The photo booth's session (#1396; ARCHITECTURE §9.4.2, §9.5.29): at most one per match, in
 ## MatchState's per-part state (so ResetMatch drops it). StartBooth starts it, BoothTicks advances
-## it on the host's clock, StopBooth (a transition action) ends it with the phase. Its frames are
-## not kept: each FLASH event carries its record, and the session remembers only who was in any
-## frame, so a strip that vanishes frees nothing here.
+## it on the host's clock, StopBooth (a transition action) ends it with the phase. Each FLASH
+## event carries its record, and the session keeps the records too; a print keeps them (Print) while
+## any strip it made still exists, so a joiner learns the strips' frames (#1474, ARCHITECTURE §4.2:
+## replay_to, which JoinRules.hello calls). A print whose last strip vanished is dropped at the
+## next prune (each BoothTicks tick, a print, a replay); ResetMatch drops them all.
 
 ## Its key in MatchState's per-part state (§9.1).
 const PART_KEY := &"booth"
@@ -45,6 +47,7 @@ static func start(ctx: MatchContext, effect: StartBooth) -> void:
 ## downed or limp presser keeps it); a flash due at
 ## this tick fires; after the last one the strips print in the same tick.
 static func advance(ctx: MatchContext) -> void:
+	_prune(ctx.state)
 	var session := running(ctx.state)
 	if session == null:
 		return
@@ -108,6 +111,7 @@ static func _flash(ctx: MatchContext, session: Session, station: StationState) -
 	var flash := BoothStepEvent.new(session.station, session.strip, BoothStepEvent.FLASH)
 	flash.frame = session.frames_done
 	flash.record = rows
+	session.records.append(rows)
 	session.frames_done += 1
 	ctx.emit(flash)
 
@@ -123,6 +127,7 @@ static func _print(ctx: MatchContext, session: Session, station: StationState) -
 		peers.append(peer)
 	peers.sort()
 	var made := PackedInt32Array()
+	var kept := Print.new()
 	for peer: int in peers:
 		var player := session.seen[peer]
 		if not _same_present(ctx.state, player) or not player.is_alive():
@@ -133,12 +138,58 @@ static func _print(ctx: MatchContext, session: Session, station: StationState) -
 		var strip := GiveItem.give_new(as_receiver, session.effect.strip, station.position)
 		if strip != null:
 			made.append(strip.id)
+			kept.strips.append(strip)
+	_prune(ctx.state)
 	if made.is_empty():
 		ctx.emit(BoothStepEvent.new(session.station, session.strip, BoothStepEvent.STOPPED))
 		return
 	var printed := BoothStepEvent.new(session.station, session.strip, BoothStepEvent.PRINTED)
 	printed.items = made
 	ctx.emit(printed)
+	kept.station = session.station
+	kept.strip = session.strip
+	kept.kind = session.effect.strip
+	kept.records = session.records
+	_table(ctx.state).printed.append(kept)
+
+
+## A joiner's replay (#1474, ARCHITECTURE §3.5): one BoothReplay to `joiner` alone per kept print,
+## in print order, with its strips that exist now; then the running session's frames so far, if it
+## took one (empty items), so the joiner's later FLASH and PRINTED complete it. Nothing in a mode
+## whose booth never ran: it makes no booth state.
+static func replay_to(ctx: MatchContext, joiner: int) -> void:
+	if not ctx.state.has_part_state(PART_KEY):
+		return
+	_prune(ctx.state)
+	var table := _table(ctx.state)
+	for kept: Print in table.printed:
+		var replay := BoothReplayEvent.new(joiner, kept.station, kept.strip)
+		replay.records = kept.records.duplicate()
+		replay.items = kept.alive(ctx.state)
+		ctx.emit(replay)
+	var session := table.session
+	if session != null and not session.records.is_empty():
+		var running_now := BoothReplayEvent.new(joiner, session.station, session.strip)
+		# A copy: the session takes more frames after this event is sent.
+		running_now.records = session.records.duplicate()
+		ctx.emit(running_now)
+
+
+## The prints kept now, without a prune (the tests' view of when they are dropped).
+static func kept_prints(state: MatchState) -> int:
+	return _table(state).printed.size() if state.has_part_state(PART_KEY) else 0
+
+
+## Drops every kept print with no strip left.
+static func _prune(state: MatchState) -> void:
+	if not state.has_part_state(PART_KEY):
+		return
+	var table := _table(state)
+	var left: Array[Print] = []
+	for kept: Print in table.printed:
+		if not kept.alive(state).is_empty():
+			left.append(kept)
+	table.printed = left
 
 
 ## Whether `player` is still in the roster as itself (not a later player with its peer id) and
@@ -151,11 +202,37 @@ static func _table(state: MatchState) -> Table:
 	return state.part_state(PART_KEY, func() -> RefCounted: return Table.new()) as Table
 
 
-## The match's booth state: the running session and the next strip id.
+## The match's booth state: the running session, the next strip id and the prints kept.
 class Table:
 	extends RefCounted
 	var session: Session = null
 	var next_strip := 0
+	## The prints with a strip left, in print order.
+	var printed: Array[Print] = []
+
+
+## A finished print's frames, kept while a strip of it exists.
+class Print:
+	extends RefCounted
+	var station := -1
+	## The session id its strips show.
+	var strip := 0
+	## The strip's item kind (StartBooth.strip).
+	var kind: ItemKind
+	## Each frame's record rows (FLASH's), in frame order.
+	var records: Array = []
+	## The strips it made, in PRINTED's order: the instances, not the ids. A strip lives while the
+	## match holds this very ItemState as that kind: a vanished strip's id comes back as a new
+	## ItemState (MatchState.add_item), never as the old strip.
+	var strips: Array[ItemState] = []
+
+	## The ids of its strips that still exist, in PRINTED's order.
+	func alive(state: MatchState) -> PackedInt32Array:
+		var ids := PackedInt32Array()
+		for item: ItemState in strips:
+			if state.items.get(item.id) == item and item.kind == kind:
+				ids.append(item.id)
+		return ids
 
 
 ## One running session.
@@ -170,6 +247,8 @@ class Session:
 	var frames_done := 0
 	## The players in any frame so far, by peer.
 	var seen: Dictionary[int, PlayerState] = {}
+	## Each frame's record rows so far, in frame order (FLASH's).
+	var records: Array = []
 
 	## The tick of the next flash.
 	func next_flash_tick() -> int:

@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 53
+const PROTOCOL_VERSION := 54
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -48,10 +48,11 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## facing its facing (#1522), with a new epoch; the defaults that follow the player count count
 ## it (PlayerCountDefaults, #1492); Welcome (the joiner, with the hall's items, #1404),
 ## PlayerJoined (everyone), a StationPlaced (everyone) for each standing station in id order
-## (_replay_stations: the lobby's tap, #1390; the way a joiner learns the stations) and
-## SettingsChanged (everyone). A name or a key is never a reason to refuse: a bad name falls back,
-## an unusable key is none (P7 (a)). `spec` is the phase's own (its id goes into Welcome, its level
-## decides the spot).
+## (_replay_stations: the lobby's tap, #1390; the way a joiner learns the stations), a BoothReplay
+## (the joiner) for each photo booth print whose strips exist and for the running session's frames
+## (BoothSessions.replay_to, #1474) and SettingsChanged (everyone). A name or a key is never a
+## reason to refuse: a bad name falls back, an unusable key is none (P7 (a)). `spec` is the
+## phase's own (its id goes into Welcome, its level decides the spot).
 static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
@@ -95,6 +96,8 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	ctx.emit(_welcome(ctx, joined, spec.id, facing))
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
 	_replay_stations(ctx)
+	# The booth's strips show frames taken before the join (#1474): the joiner's own copy.
+	BoothSessions.replay_to(ctx, peer)
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
 

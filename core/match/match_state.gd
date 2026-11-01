@@ -268,6 +268,12 @@ func part_state(key: StringName, create: Callable) -> RefCounted:
 	return _part_state[key]
 
 
+## Whether the part class that declares `key` has its state object yet (part_state() makes it): a
+## reader that must not make it, such as a joiner's replay in a mode without that part (#1474).
+func has_part_state(key: StringName) -> bool:
+	return _part_state.has(key)
+
+
 ## The session state object of the part class that declares `key`, made by `create` on first use:
 ## as part_state(), but session state (§3.5) like lobby_name: reset_match() keeps it, so it stays
 ## from match to match while the lobby stays (the pinball's best score, #1398); nothing writes it

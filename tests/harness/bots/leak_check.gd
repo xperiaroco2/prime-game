@@ -67,6 +67,7 @@ const FOR_ONE: Array[StringName] = [
 	&"Correction",
 	&"Rejected",
 	&"Disconnecting",
+	&"BoothReplay",
 ]
 ## The events every player present for a whole match decodes alike (check_tasks). TaskState
 ## (M4-5) is public to the living, the downed and the dead alike: the task screen is everyone's;
