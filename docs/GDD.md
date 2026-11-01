@@ -337,6 +337,36 @@ Open questions, for the engineer (built as today until he answers):
 - A jump while sneaking: does the landing make a sound?
 - Carrying an item while sneaking: any change?
 
+### Movement: the window dive (#1036)
+Taken by the design session on the engineer's standing word of 2026-10-31
+([#507 comment 6547715071](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6547715071)), for him to
+confirm or reverse: [#1036 comment 6549168353](https://github.com/xperiaroco2/prime-game/issues/1036#issuecomment-6549168353);
+the one-liners it was picked from are in prime-game-design `ideas/2026-10-31-house-traversal.md`.
+
+Intent: a party guest leaves through the window, not the door: out the back into the dark, or into the bonfire's
+crowd. It gives the house's busiest room the Lockdown Protocol lesson "go in, do something, leave by another way"
+([#1035 comment 6194597630](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6194597630)), with the
+arcade movement of [#1035 comment 6316401602](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6316401602).
+
+Rules:
+- Press jump facing an open low window within reach: you dive through it and land on your feet on the other side,
+  keeping your speed. Both ways.
+- Anything in the hands, a two-handed item too; crouched too (the jump stands you up first, KD6). Not while knocked
+  down. Everyone dives at the same speed.
+- A dive is seen (the window's curtain flies) and heard (a thump on landing). A window is an opening, so voices pass
+  through it clean (§11, "Voice through walls").
+- The host checks a dive: the player at the window and facing it.
+
+Where (the forest estate's house, [estate-map.md](design/estate-map.md) §5c; it joins the map file with the greybox
+#1158): four low windows in the living room, always open (no glass), a curtain each. Two in the north wall, either
+side of the stair well, onto an unlit strip behind the house (about 6 m to the fence) that joins the outdoor cellar
+door (west) and the garage path (east). Two in the south wall, either side of the door, onto the bonfire side. The
+library's windows stay glass, a view, not a way out; the basement has none. Kept to the ground floor, so the house
+does not become "open from every point" (#1035, 2026-10-15).
+
+Numbers (placeholders, "not a decision"): reach about 1 m, the dive about 0.5 s, the sill about 0.8 m, the opening
+about 1.2 x 1.2 m.
+
 ## 4. Roles
 
 - Which roles exist in the first playable version, and which come later?
