@@ -6697,8 +6697,8 @@ stops being interactive (`PickUp` is rejected) and its circle is shown as done. 
 never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
 (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
 placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
-included, and from the marker's height up to that plus the height, both included (1 mm below the marker
-still counts: float noise between a physics floor and a hand-placed marker): `StationState.contains`, the one
+included, and from the marker's height up to that plus the height, both included (5 mm below the marker
+still counts: float noise between a physics floor and a hand-placed marker, and an art deck's dip, #1534): `StationState.contains`, the one
 cylinder test of a station, which the zone task asks with a player's feet (§9.5.18, #647). The rest position is the one
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (a
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
@@ -9128,9 +9128,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
   within 1 cm. The hall disc's hub and bolt ring (4 and 11 mm over the deck) are turned off (`disabled`): the host
   snaps the console's marker onto the floor under it, and AtStation refuses feet more than
-  `StationState.FLOOR_SLACK_M` (1 mm) under a station's floor, so a marker on a raised plate leaves every player on the
-  deck beside it out of reach (`estate_engine_test`: the deck within 0.6 m of each engine marker is no lower than
-  it). The overrides inside the nested kit pieces carry their `[editable path]`. The roof sweep
+  `StationState.FLOOR_SLACK_M` (5 mm, #1534: the hall deck dips 3.7 mm about 1 m from the breakers and gill
+  buttons) under a station's floor, so a marker on a raised plate leaves every player on the deck beside it out of
+  reach (`estate_engine_test`: the deck 0.6 and 1 m round each engine marker is no lower than it, less the slack). The overrides inside the nested kit pieces carry their `[editable path]`. The roof sweep
   (`estate_throws.gd`) takes the ship's top over its colliders' outline (the hull, wings and jaws pass the §3
   rect), and `estate_tops_reach_test` fails on a non-box shape outside every swept footprint. The art root's own `size_m` makes no
   second room inside the lot (`MapData`: a room inside a room is part of it).

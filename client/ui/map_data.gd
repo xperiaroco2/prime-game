@@ -4,7 +4,7 @@ extends RefCounted
 ## task type, the rooms where its items may lie (the zones). Pure: read once from the level when it
 ## loads, from level data every client has, never from the model: no player, item or circle.
 ##
-## A room is a Node3D of the level with `metadata/size_m` (Vector2i or Vector2, whole metres), the
+## A room is a Node3D of the level with `metadata/size_m` (Vector2i or Vector2, metres), the
 ## level piece conventions (PR #611): its origin is its north-west floor corner (its centre with
 ## `metadata/centred`, an estate lot), its plan rect runs `size_m` along +X and +Z, unrotated;
 ## plan x is X and plan y is Z. A room inside another room is part of it, never a second room (the

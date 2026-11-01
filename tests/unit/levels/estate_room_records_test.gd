@@ -15,7 +15,7 @@ func test_every_lot_with_a_footprint_is_a_room_with_its_record() -> void:
 	var map := _map()
 	var expected: Array[String] = []
 	for module in EstateDoc.modules():
-		if module.size != Vector2i.ZERO:
+		if module.size != Vector2.ZERO:
 			expected.append(EstateDoc.snake(module.name))
 	var got: Array[String] = []
 	for room in _rooms_of(map):
@@ -44,14 +44,20 @@ func test_the_map_screen_draws_each_lot_over_the_doc_s_footprint() -> void:
 	for room: MapData.Room in rooms:
 		by_id[room.id] = room
 	for module in EstateDoc.modules():
-		if module.size == Vector2i.ZERO:
+		if module.size == Vector2.ZERO:
 			continue
 		var id := StringName(EstateDoc.snake(module.name))
 		assert_bool(by_id.has(id)).override_failure_message("no room %s" % id).is_true()
 		if not by_id.has(id):
 			continue
 		var size := Vector2(module.size)
-		assert_that(by_id[id].rect).is_equal(Rect2(module.centre - size / 2.0, size))
+		var rect: Rect2 = by_id[id].rect
+		var expected := Rect2(module.centre - size / 2.0, size)
+		(
+			assert_bool(rect.is_equal_approx(expected))
+			. override_failure_message("%s: %s, the doc says %s" % [id, rect, expected])
+			. is_true()
+		)
 
 
 func test_a_point_on_a_lot_is_in_that_lot_and_the_open_ground_in_none() -> void:
@@ -60,7 +66,7 @@ func test_a_point_on_a_lot_is_in_that_lot_and_the_open_ground_in_none() -> void:
 	data.rooms = MapData.rooms_of(_map())
 	for module in EstateDoc.modules():
 		var room := data.room_at(module.centre)
-		if module.size == Vector2i.ZERO:
+		if module.size == Vector2.ZERO:
 			assert_object(room).override_failure_message("%s is in a room" % module.name).is_null()
 		else:
 			assert_object(room).is_not_null()

@@ -52,16 +52,18 @@ func test_each_module_is_placed_at_its_centre_with_its_footprint() -> void:
 		assert_str(node.scene_file_path).is_equal(
 			EstateDoc.ROOMS + EstateDoc.snake(module.name) + ".tscn"
 		)
-		if module.size != Vector2i.ZERO:
+		if module.size != Vector2.ZERO:
+			# Whole metres as a Vector2i, the art ship's 26.1 x 22.1 as a Vector2 (#1534).
+			var given: Variant = node.get_meta(&"size_m", null)
+			var size := Vector2(given as Vector2i) if given is Vector2i else Vector2.INF
+			if given is Vector2:
+				size = given as Vector2
 			(
-				assert_object(node.get_meta(&"size_m", null))
+				assert_bool(size.is_equal_approx(module.size))
 				. override_failure_message(
-					(
-						"%s: size_m %s, the doc says %s"
-						% [module.name, node.get_meta(&"size_m", null), module.size]
-					)
+					"%s: size_m %s, the doc says %s" % [module.name, given, module.size]
 				)
-				. is_equal(module.size)
+				. is_true()
 			)
 
 

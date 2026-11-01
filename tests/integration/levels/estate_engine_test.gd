@@ -47,6 +47,9 @@ const DECK_M := 1.2
 ## How far round a station marker a player on the deck must stand in its cylinder (the playcheck
 ## presses the console from 0.47 m).
 const NEAR_M := 0.6
+## Farther out, where the art hall deck dips 3 to 4 mm about 1 m from the breakers and the gill
+## buttons (#1534): a player there is still in the cylinder, within StationState.FLOOR_SLACK_M.
+const FAR_M := 1.0
 
 
 func test_the_ship_has_each_engine_marker_part_two_asks_for() -> void:
@@ -186,9 +189,9 @@ func test_the_hologram_point_stands_over_the_console_s_pedestal() -> void:
 ## onto the floor under it, and AtStation refuses feet more than StationState.FLOOR_SLACK_M under
 ## the marker, so a marker on a plate a centimetre over the deck (the art hall disc's hub and bolts,
 ## 1.204 and 1.211) left every player beside the console out of reach. The floor straight under
-## each point of a ring NEAR_M round each marker, where it is that deck (within SPAWN_FLOOR_M), is
-## no lower than the marker. Not checked: farther out the art's hall deck dips 3 to 4 mm about 1 m
-## from the breakers and the gill buttons (#1499's PR, "Needs the engineer").
+## each point of a ring NEAR_M and one FAR_M round each marker, where it is that deck (within
+## SPAWN_FLOOR_M), is no lower than the marker, less FLOOR_SLACK_M (the hall deck's 3 to 4 mm dip,
+## #1534).
 func test_a_player_on_the_deck_round_each_station_stands_in_its_cylinder() -> void:
 	var read := _read()
 	var world := _world(LevelWorld.build(MAP), (load(BASE_MODE) as GameMode).player_rules)
@@ -196,7 +199,7 @@ func test_a_player_on_the_deck_round_each_station_stands_in_its_cylinder() -> vo
 	var checked := 0
 	for tag: StringName in DOC_POINTS:
 		for at: Vector3 in read.layout.positions(tag):
-			for ring: float in [NEAR_M]:
+			for ring: float in [NEAR_M, FAR_M]:
 				for step in 8:
 					var angle := TAU * step / 8.0
 					var point := at + Vector3(cos(angle), 0.0, sin(angle)) * ring

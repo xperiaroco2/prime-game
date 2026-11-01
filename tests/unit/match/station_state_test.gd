@@ -31,7 +31,7 @@ func test_the_cylinder_includes_its_edges_and_nothing_beyond() -> void:
 
 
 ## A zone's cylinder (radius 1.5 m, height 2.5 m) with a player's feet: on the floor counts, within
-## the floor's float slack below it counts, past it (2 mm below) does not; at the height counts,
+## the floor's float slack below it counts, past it (6 mm below) does not; at the height counts,
 ## 1 cm above does not; on the radius counts, 1 cm beyond does not.
 func test_feet_count_on_the_floor_and_up_to_the_height_and_radius() -> void:
 	var kind := StationKind.new()
@@ -48,7 +48,7 @@ func test_feet_count_on_the_floor_and_up_to_the_height_and_radius() -> void:
 	for at: Vector3 in inside:
 		assert_bool(zone.contains(at)).override_failure_message(str(at)).is_true()
 	var outside: Array[Vector3] = [
-		Vector3(-2, 0.498, 6),
+		Vector3(-2, 0.494, 6),
 		Vector3(-2, 3.01, 6),
 		Vector3(-0.49, 0.5, 6),
 		Vector3(-2, 0.5, 4.49),
@@ -57,13 +57,13 @@ func test_feet_count_on_the_floor_and_up_to_the_height_and_radius() -> void:
 		assert_bool(zone.contains(at)).override_failure_message(str(at)).is_false()
 
 
-## The floor's slack is 1 mm: pinned from both sides on a floor at y = 0, 0.1 mm inside and 0.1 mm
-## past it, not at exactly 1 mm, which a Vector3's 32-bit y holds as a hair more than the 64-bit
-## constant (the code review of #647).
-func test_the_floor_slack_is_1_mm() -> void:
+## The floor's slack is 5 mm (#1534): pinned from both sides on a floor at y = 0, 0.1 mm inside
+## and 0.1 mm past it, not at exactly 5 mm, which a Vector3's 32-bit y holds as a hair more than
+## the 64-bit constant (the code review of #647).
+func test_the_floor_slack_is_5_mm() -> void:
 	var kind := StationKind.new()
 	kind.radius_m = 1.5
 	kind.height_m = 2.5
 	var zone := StationState.new(3, kind, Vector3(-2, 0, 6), Color.YELLOW)
-	assert_bool(zone.contains(Vector3(-2, -0.0009, 6))).is_true()
-	assert_bool(zone.contains(Vector3(-2, -0.0011, 6))).is_false()
+	assert_bool(zone.contains(Vector3(-2, -0.0049, 6))).is_true()
+	assert_bool(zone.contains(Vector3(-2, -0.0051, 6))).is_false()

@@ -5,9 +5,10 @@ extends RefCounted
 ## everyone.
 
 ## How far below its floor a point still counts as inside (contains): float noise between a floor
-## the host's physics finds and a hand-placed marker, not a tolerance for a raised marker (§9.6).
-## A placeholder, not a decision.
-const FLOOR_SLACK_M := 0.001
+## the host's physics finds and a hand-placed marker, and a few millimetres of an art deck's dip
+## (the art ship's hall deck sits 3 to 4 mm under its station markers about 1 m out, #1534), not a
+## tolerance for a raised marker (§9.6). A placeholder, not a decision.
+const FLOOR_SLACK_M := 0.005
 
 var id: int
 var kind: StationKind

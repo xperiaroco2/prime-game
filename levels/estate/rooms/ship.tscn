@@ -63,7 +63,7 @@ size = Vector3(0.12, 0.014, 0.01)
 [node name="Ship" type="Node3D" unique_id=777999643]
 script = ExtResource("1_shipgd")
 art_free = Array[NodePath]([NodePath("Art/Environment"), NodePath("Art/Lights/@DirectionalLight3D@3"), NodePath("Art/Lights/@DirectionalLight3D@4"), NodePath("Art/Clearing")])
-metadata/size_m = Vector2i(26, 14)
+metadata/size_m = Vector2(26.1, 22.1)
 metadata/room_id = &"ship"
 metadata/name_key = "room.ship"
 metadata/centred = true
