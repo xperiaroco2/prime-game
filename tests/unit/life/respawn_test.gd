@@ -371,6 +371,28 @@ func test_the_respawned_face_their_marker_and_only_they_learn_it() -> void:
 			assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
 
 
+func test_a_respawn_past_a_taken_marker_faces_the_marker_it_stands_on() -> void:
+	# #1522: with the first respawn marker taken, the draw is from markers 1 and 2, and the facing
+	# is the drawn marker's own, never the one at the draw's place in the free pool.
+	var landed: Dictionary[int, bool] = {}
+	for seed_value: int in [1, 2, 3, 4, 5, 6, 7, 8]:
+		var game := _faced_duel(seed_value)
+		_kill(game)
+		FixtureItemModes.stand(game, P3, FixtureModes.RESPAWNS[0])
+		var seen := FixtureMoves.corrections(game, P2).size()
+		_run_out(game)
+		var at := FixtureModes.RESPAWNS.find(game.state.player(P2).position)
+		assert_int(at).is_between(1, 2)
+		landed[at] = true
+		var facing := FixtureModes.FACINGS[(at + 2) % FixtureModes.FACINGS.size()]
+		assert_vector(game.state.player(P2).facing).is_equal(facing)
+		var corrections := FixtureMoves.corrections(game, P2)
+		assert_int(corrections.size()).is_equal(seen + 1)
+		assert_vector((corrections[seen] as CorrectionEvent).facing).is_equal(facing)
+	# Both free markers were drawn, so the pool's places and the marker indexes both differed.
+	assert_array(landed.keys()).contains_exactly_in_any_order([1, 2])
+
+
 func test_a_respawn_marker_with_no_facing_leaves_the_player_s_own() -> void:
 	var game := _duel()
 	_kill(game)
