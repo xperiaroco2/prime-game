@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
-## Every bot scenario in content/scenarios/ (ARCHITECTURE §9.7), played by the core runner
+## Every bot scenario in content/scenarios/ and tests/fixtures/scenarios/ (those on a fixture mode,
+## #1497; ScenarioLevels.SCENARIOS_DIRS; ARCHITECTURE §9.7), played by the core runner
 ## (tests/harness/, stage 2j) on the mode's real levels: each reaches its expected ends with every
 ## step done, no bot corrected outside a placement, no match error, the §5 invariants on every
 ## bot's stream, and each bot holding exactly its peer's view_of. Then the match is replayed from
 ## its command log (§3.3), which must give the same events to the same recipients. One of the two
 ## places that load content/ (§9.6), so a change there can break a scenario.
 
-const SCENARIOS_DIR := "res://content/scenarios/"
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 
 
 func test_every_scenario_plays_to_its_expected_ends_and_replays() -> void:
@@ -46,6 +47,27 @@ func test_every_scenario_names_events_and_fields_a_bot_receives() -> void:
 			. override_failure_message("%s:\n%s" % [path, "\n".join(scenario.problems(events))])
 			. is_empty()
 		)
+
+
+## A scenario is named by its file name alone (`bots <name>`, ScenarioLevels.scenario_path), so no
+## name is in both folders (#1497), and the fixture folder's scenarios play a fixture mode, never a
+## shipped one (those belong in content/scenarios/).
+func test_each_scenario_name_is_in_one_folder_and_the_fixture_ones_play_a_fixture_mode() -> void:
+	var names: Array[String] = []
+	var fixtures := 0
+	for path: String in _scenario_paths():
+		var file := path.get_file()
+		assert_bool(names.has(file)).override_failure_message(file).is_false()
+		names.append(file)
+		if not path.begins_with(ScenarioLevels.SCENARIOS_DIRS[1]):
+			continue
+		fixtures += 1
+		var scenario := load(path) as BotScenario
+		assert_object(scenario).override_failure_message(path).is_not_null()
+		assert_str(scenario.mode.resource_path).override_failure_message(path).starts_with(
+			"res://tests/fixtures/"
+		)
+	assert_int(fixtures).is_greater(0)
 
 
 ## The catalogue is the wire schema's event rows with their payload's fields, plus `peer` on the
@@ -100,11 +122,6 @@ func _assert_replays(path: String, game: Match) -> void:
 
 func _scenario_paths() -> Array[String]:
 	var found: Array[String] = []
-	var dir := DirAccess.open(SCENARIOS_DIR)
-	if dir == null:
-		return found
-	for file: String in dir.get_files():
-		if file.ends_with(".tres"):
-			found.append(SCENARIOS_DIR.path_join(file))
-	found.sort()
+	for path: String in ScenarioLevels.scenario_paths():
+		found.append(path)
 	return found

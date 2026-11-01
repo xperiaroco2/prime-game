@@ -1,6 +1,7 @@
 extends SceneTree
 ## The bots runner's entry (ARCHITECTURE §4.6, §9.7), started by `tools/run.sh bots`:
-## - `bots [scenario ...]`: every scenario in content/scenarios/ but the measurements
+## - `bots [scenario ...]`: every scenario in content/scenarios/ and tests/fixtures/scenarios/
+##   (those on a fixture mode, #1497: ScenarioLevels.SCENARIOS_DIRS) but the measurements
 ##   (BotScenario.measurement, M5-4's voice_load), or those named, in one headless process
 ##   (BotsRunner, simulated clock);
 ## - `bots <scenario> --instances N`: one scenario over ENet on 127.0.0.1, one process per bot, on
@@ -17,7 +18,7 @@ extends SceneTree
 ## Exits 1 when any scenario failed, or the coverage.
 
 const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
-const SCENARIOS_DIR := "res://content/scenarios/"
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const PORT_ARG := "--port="
 const INSTANCES_ARG := "--instances="
 const TRANSPORT_ARG := "--transport="
@@ -177,16 +178,19 @@ func _report(
 func _paths(names: PackedStringArray) -> PackedStringArray:
 	var found := PackedStringArray()
 	if names.is_empty():
-		for file: String in DirAccess.get_files_at(SCENARIOS_DIR):
-			var path := SCENARIOS_DIR.path_join(file)
-			if file.ends_with(".tres") and not _is_measurement(path):
+		for path: String in ScenarioLevels.scenario_paths():
+			if not _is_measurement(path):
 				found.append(path)
-		found.sort()
 		return found
 	for name: String in names:
-		var path := SCENARIOS_DIR.path_join(name.trim_suffix(".tres") + ".tres")
-		if not ResourceLoader.exists(path):
-			print("BOTS FAILED: no scenario %s (%s)" % [name, path])
+		var path := ScenarioLevels.scenario_path(name)
+		if path.is_empty():
+			print(
+				(
+					"BOTS FAILED: no scenario %s in %s"
+					% [name, ", ".join(ScenarioLevels.SCENARIOS_DIRS)]
+				)
+			)
 			return PackedStringArray()
 		found.append(path)
 	return found
