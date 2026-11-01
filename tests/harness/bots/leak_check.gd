@@ -113,16 +113,10 @@ const TASK_EVENTS: Array[StringName] = [
 ]
 ## The task events no scenario reaches, each with why (check_coverage, #1197): none since the bots
 ## change storey over the House's stairs (#1209, ARCHITECTURE §9.7), which played the nine chains
-## across storeys #1197 listed here. A task event added later that no scenario reaches comes here
-## with its reason, until a scenario plays it.
-const UNREACHED: Dictionary[StringName, String] = {
-	&"EngineProblemOpened": "no scenario plays the estate, the ship's map (#1462)",
-	&"EngineProblemFixed": "no scenario plays the estate, the ship's map (#1462)",
-	&"EngineBlast": "no scenario plays the estate, the ship's map (#1462)",
-	&"GillFlipped": "no scenario plays the estate, the ship's map (#1462)",
-	&"BreakerChain": "no scenario plays the estate, the ship's map (#1462)",
-	&"CrystalChanged": "no scenario plays the estate, the ship's map (#1462)",
-}
+## across storeys #1197 listed here, and play the ship's engine on the estate (#1498), which reached
+## the six engine events #1453 and #1461 listed. A task event added later that no scenario reaches
+## comes here with its reason, until a scenario plays it.
+const UNREACHED: Dictionary[StringName, String] = {}
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
 ## in length like Opus speech at 24 kbit/s (the M5 ADR §4: a mean near 45 B).
