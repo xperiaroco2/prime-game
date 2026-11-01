@@ -771,17 +771,9 @@ func _mend(bot: ScenarioBot, step: StepMendEngine) -> Result:
 		_menders[bot.number] = mender
 		_presses[bot.number] = {}
 	var presses: Dictionary = _presses[bot.number]
-	for seq: int in presses.keys():
-		var reason := bot.rejection_of(seq)
-		var sent: Array = presses[seq]
-		if reason.is_empty():
-			if tick_now - (sent[1] as int) > PRESS_ANSWER_TICKS:
-				presses.erase(seq)
-			continue
-		presses.erase(seq)
-		if reason != StationUsable.UNAVAILABLE and not bot.downed and not bot.dead:
-			return _fail_step(bot, "Rejected (%s) at station %d" % [reason, sent[0]])
-		mender.refused(sent[0] as int)
+	var refusal := mend_answers(bot, mender, presses, tick_now)
+	if not refusal.is_empty():
+		return _fail_step(bot, refusal)
 	var move := mender.decide(bot, _landing_tick(bot))
 	if move.act == EngineMender.Act.WALK:
 		var walk: StepWalkTo = _mend_walks.get(bot.number)
@@ -801,6 +793,28 @@ func _mend(bot: ScenarioBot, step: StepMendEngine) -> Result:
 	if not bot.dead:
 		_stand(bot)
 	return Result.WAITING
+
+
+## Reads the answers to a MendEngine bot's presses (`presses`: seq -> [station, tick sent]) at tick
+## `now`: a press refused, or unanswered for over PRESS_ANSWER_TICKS, leaves `presses`. A Rejected
+## `unavailable`, or any while the bot is down or dead, tells `mender` to look again at its station;
+## any other is the step's failure, returned (else ""). Its state is read when the answer is, as a
+## press sent just before a knockdown lands on a downed presser.
+static func mend_answers(
+	bot: ScenarioBot, mender: EngineMender, presses: Dictionary, now: int
+) -> String:
+	for seq: int in presses.keys():
+		var reason := bot.rejection_of(seq)
+		var sent: Array = presses[seq]
+		if reason.is_empty():
+			if now - (sent[1] as int) > PRESS_ANSWER_TICKS:
+				presses.erase(seq)
+			continue
+		presses.erase(seq)
+		if reason != StationUsable.UNAVAILABLE and not bot.downed and not bot.dead:
+			return "Rejected (%s) at station %d" % [reason, sent[0]]
+		mender.refused(sent[0] as int)
+	return ""
 
 
 ## The mode's ship's engine (its first ShipEngine task type), or null.
