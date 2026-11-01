@@ -23,10 +23,14 @@ extends RefCounted
 ##   the claws open while it is empty, eased over the drawing's 0.25 s and closed over 0.15 s; its
 ##   crystal (#1556) drawn charged, spent, or not while it is out.
 ## - A board: per bound breaker of the open chain, tripped (shell open, lamp dark), the last one on
-##   during its ramp (lamp yellow) or on (green); the beacon while any of its shells is tripped.
+##   during its ramp (lamp yellow) or on (green); the beacon while any of its shells is tripped;
+##   smoke at a tripped shell's core (#1556) once the shell is SMOKE_FROM_OPEN open, its
+##   emitting stopped at once when the breaker is on again (the puffs up fade out).
 ## - A charger: by the phase of the crystal it holds: "charging" (the carrier rising and turning,
 ##   the ring turning, the button in), "charged" (waiting) or "idle"; the crystal it holds (#1556)
-##   drawn spent while loaded, fading to charged over the charge (charge_share), charged waiting.
+##   drawn spent while loaded, fading to charged over the charge (charge_share), charged waiting;
+##   its lightning (ShipChargerZap) while it charges, and a flash of FLASH_SECONDS at a charge's
+##   end, seen as the CHARGING to WAITING edge (flash_left: none for a view built late).
 ## The timings HANDOFF leaves to the game are placeholders, "not a decision".
 
 ## The device scenes a level instances, by what they are.
@@ -45,6 +49,9 @@ const CLAWS_OPEN_SECONDS := 0.25
 const CLAWS_CLOSE_SECONDS := 0.15
 const SHELL_TRIP_SECONDS := 0.25
 const SHELL_CLOSE_SECONDS := 0.4
+## A tripped shell's core smokes once the shell is this far open, so the core is in view (#1556;
+## not a decision); it stops at once when the breaker is on again.
+const SMOKE_FROM_OPEN := 0.6
 ## The charger while charging: the carrier's and the ring's turns a second and the carrier's rise's
 ## seconds from the charge's start ("not a decision").
 const CARRIER_TURNS_PER_SECOND := 0.5
@@ -340,6 +347,7 @@ func _update_boards(now: int, delta: float) -> void:
 			open = target
 		_open[breaker] = open
 		board.set_shell(shell, open)
+		board.set_smoking(shell, tripped.has(breaker) and open >= SMOKE_FROM_OPEN)
 		var shows: int = lamp.get(breaker, ShipBoardLook.GREEN)
 		board.set_lamp(shell, shows)
 		if tripped.has(breaker):

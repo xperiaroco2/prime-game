@@ -6,8 +6,8 @@ extends RefCounted
 ## glTF material names (each core and lamp its own), the four shells, and the beacon's red spot
 ## light. The values: a shell's trip (0 closed .. 1 tripped, TRIP forward and down round its hinge),
 ## a lamp (0 dark, 1 yellow, 2 green), the beacon (the problem) and a core's glow. Values only:
-## ShipStationLooks drives them from the filtered model. The sparks and smoke at a tripped core are
-## the game's and not drawn yet.
+## ShipStationLooks drives them from the filtered model. The smoke at a tripped core (#1556) is the
+## game's: a ShipBoardSmoke emitter at each core's centre (HANDOFF.md).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 const CORE := preload("res://assets/environment/breaker_board/board_core.gdshader")
@@ -37,6 +37,9 @@ const BEACON_ANGLE := 55.0
 const DARK := 0
 const YELLOW := 1
 const GREEN := 2
+## A core's centre in the board's frame where its mesh has none (HANDOFF.md: (u, 0.872, 0.18)).
+const CORE_U: Array[float] = [-0.504, -0.168, 0.168, 0.504]
+const CORE_AT := Vector2(0.872, 0.18)
 
 var _shells: Array[Node3D] = []
 var _cores: Array[ShaderMaterial] = []
@@ -45,6 +48,7 @@ var _open: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _lamp: Array[int] = [-1, -1, -1, -1]
 var _beacon: StandardMaterial3D
 var _beacon_light: SpotLight3D
+var _smoke: ShipBoardSmoke
 var _problem := false
 
 
@@ -99,6 +103,10 @@ static func apply(root: Node3D) -> ShipBoardLook:
 	look._beacon_light.position = Vector3(0.0, 1.37, 0.2)
 	look._beacon_light.rotation = Vector3(deg_to_rad(-25.0), PI, 0.0)
 	root.add_child(look._beacon_light)
+	var centres: Array[Vector3] = []
+	for i: int in parts.size():
+		centres.append(core_centre(parts[i][1] as MeshInstance3D, root, i))
+	look._smoke = ShipBoardSmoke.build(root, centres)
 	for i: int in COLOURS.size():
 		look._open[i] = -1.0
 		look.set_shell(i, 0.0)
@@ -153,6 +161,26 @@ func problem() -> bool:
 ## A core's glow: 1 full (the default), 0 dark.
 func set_core(index: int, glow: float) -> void:
 	_cores[index].set_shader_parameter("glow", maxf(glow, 0.0))
+
+
+## Core `index` smoking (its shell tripped) or not (ShipBoardSmoke).
+func set_smoking(index: int, on: bool) -> void:
+	_smoke.set_smoking(index, on)
+
+
+func smoking(index: int) -> bool:
+	return _smoke.smoking(index)
+
+
+func smoke() -> ShipBoardSmoke:
+	return _smoke
+
+
+## Core `index`'s centre in `root`'s frame: its mesh's box centre, else HANDOFF.md's point.
+static func core_centre(core: MeshInstance3D, root: Node3D, index: int) -> Vector3:
+	if core.mesh == null:
+		return Vector3(CORE_U[index], CORE_AT.x, CORE_AT.y)
+	return ShipStationLooks.relative(core, root) * core.get_aabb().get_center()
 
 
 ## Shell `index`'s node (its hinge), for tests and placement.
