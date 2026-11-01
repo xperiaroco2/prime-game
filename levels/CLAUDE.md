@@ -78,7 +78,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   no rule in `core/`. House's guards (ARCHITECTURE): `house_roof_throw_test.gd` (no throw rests on the roof; a perch
   near it gets columns in `house_throws.gd`) and `house_body_reach_test.gd` (every launch's rest within a raise of a
   spot walked to from the spawn; a new piece goes in its `WALKABLE` or `LOCKED`). Out of reach: the humans' to fix.
-- The MVP's lobby and map: `lobby/lobby.tscn` (the hall greybox, #1354), `greybox/greybox.tscn` (the base mode's paths; M2's, dressed in M4).
+- The MVP's lobby and map: `lobby/lobby.tscn` (the art hall, #1451), `greybox/greybox.tscn` (the base mode's paths; M2's, dressed in M4).
 
 ## The designer's agent never edits engine code
 - Interactables and task stations come from the engine. A level that needs a missing one opens an `engine-request`

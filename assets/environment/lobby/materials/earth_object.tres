@@ -1,0 +1,59 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/lobby/earth_object.gdshader" id="1_anavd"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_clouds_cap.jpg" id="2_pde6s"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_clouds.jpg" id="3_gf2kr"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_day.jpg" id="4_a7sgl"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_night_cap.jpg" id="5_qqj8r"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_night.jpg" id="6_j3y2f"]
+
+[resource]
+render_priority = -1
+shader = ExtResource("1_anavd")
+shader_parameter/night_tex = ExtResource("6_j3y2f")
+shader_parameter/day_tex = ExtResource("4_a7sgl")
+shader_parameter/cloud_tex = ExtResource("3_gf2kr")
+shader_parameter/night_cap_tex = ExtResource("5_qqj8r")
+shader_parameter/cloud_cap_tex = ExtResource("2_pde6s")
+shader_parameter/cap_box = Vector4(-8, 82, -48, 72)
+shader_parameter/cap_fade_deg = 3.0
+shader_parameter/cap_on = 1.0
+shader_parameter/city_gamma = 2.6
+shader_parameter/city_ref = null
+shader_parameter/slant_dim = null
+shader_parameter/cloud_calm = null
+shader_parameter/centre = Vector3(0, -130.82982, 212.01202)
+shader_parameter/radius = 146.9463130731183
+shader_parameter/frame_dir = Vector3(0, 0.52991927, -0.8480481)
+shader_parameter/ref_radius_deg = 48.0
+shader_parameter/subpoint = Vector2(36, 12)
+shader_parameter/roll_deg = 0.0
+shader_parameter/sun_dir = Vector3(0.37879094, -0.07982673, 0.92203313)
+shader_parameter/sun_energy = 1.0
+shader_parameter/lights_rgb = Vector3(1, 0.52, 0.2)
+shader_parameter/lights_energy = 8.0
+shader_parameter/base_energy = 3.0
+shader_parameter/moon_rgb = Vector3(0.35, 0.45, 0.7)
+shader_parameter/moon_energy = 0.2
+shader_parameter/cloud_energy = 0.05
+shader_parameter/rim_rgb = Vector3(0.25, 0.55, 1)
+shader_parameter/rim_energy = 2.4
+shader_parameter/rim_width_deg = 0.22
+shader_parameter/dawn_rgb = Vector3(1, 0.55, 0.25)
+shader_parameter/soft_lod = null
+shader_parameter/light_cap = 2.0
+shader_parameter/halo_energy = 0.08
+shader_parameter/halo_bias = null
+shader_parameter/cloud_city = 0.3
+shader_parameter/cloud_shade = 0.6
+shader_parameter/haze_energy = 0.05
+shader_parameter/haze_pow = 4.0
+shader_parameter/moon_knee = 6.0
+shader_parameter/snow_cut = 0.85
+shader_parameter/snow_lo = null
+shader_parameter/snow_hi = null
+shader_parameter/snow_rgb = null
+shader_parameter/moon_land = null
+shader_parameter/debug_mode = null
+shader_parameter/far_mode = 1.0
+shader_parameter/far_eye = Vector3(0, 1.65, 2.5)

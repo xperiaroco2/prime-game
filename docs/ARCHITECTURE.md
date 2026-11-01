@@ -9086,12 +9086,15 @@ content/
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.46; client data on core/content/tutorial/)
 levels/
-  lobby/lobby.tscn                 the lobby hall (#1354): floor, walls, the skat (closed), bar, photo booth,
-                                   pinball, mirror (each a box), Earth window, sealed door, lobby_player markers,
+  lobby/lobby.tscn                 the lobby (#1354, #1451): `Hall` (the art hall below), bar, photo booth,
+                                   pinball, mirror (each a box), lobby_player markers on the art's spawns,
                                    the `Tap` marker (`spawn_tap`, #1390: the bar's tap, beside the Bar box),
                                    the `PinballSpot` marker (`spawn_pinball`, #1398: the machine, in front of
                                    the Pinball box, a top-level node: the box is #1399's),
                                    the `Booth` marker (`spawn_booth`, #1396: in front of the PhotoBooth box, §9.5.29)
+  lobby/lobby_hall.tscn, lobby_hall.gd   the art lobby hall's level set (#1451, §11.1): hall, docked ship, Earth,
+                                   lights, spawn markers; its script frees the ship's forest and suns on _ready
+  ship/ship.tscn                   the art ship package's ship (#1451; the lobby hall instances it)
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
@@ -9189,16 +9192,23 @@ levels/
   the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. #649 adds 4
   `zone` markers at (−9, 0, 7), (−3, 0, 7), (3, 0, 7) and (9, 0, 7) (placeholders, "not a decision", ZD10 (a)),
   which keep ZE9's distances. The content test checks that fit and that both levels are flat, which the scenarios'
-  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing. #1354 makes the lobby
-  the hall of GDD §3 (the Lobby bullet; `docs/design/m8-match.md` §1) as a greybox of boxes and markers (every
-  size and place a placeholder, "not a decision", for the engineer to set in the editor): a 42 × 42 m `Floor`,
-  four 8 m walls closing a 40 × 40 m hall (x −20..20, z −30..10), and the skat (closed, 26 × 14 m, nobody walks
-  in), the bar, the photo booth, the pinball machine and the mirror, each its own layer-1 box body under the root
-  (origin its north-west floor corner, on the whole-metre grid), with the Earth window and the sealed door as
-  looks on the walls; the markers stay where 2j put them. No lights: the game's own darkness. The lobby's
-  flatness there: `Floor` is its one floor and every other collider stands on it. Tests: `content_modes_test.gd`
-  (that rule); `lobby_hall_test.gd` (each piece a separate box on the grid inside the walls and apart, the walls
-  on the floor, and no collider but the floor near a lobby marker or a walk a scenario takes in the lobby before
+  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing. The lobby is
+  the hall of GDD §3 (the Lobby bullet; `docs/design/m8-match.md` §1): #1354 built it as a greybox of boxes, and
+  #1451 swapped the hall for the art lobby hall's level set (§11.1): `Hall` instances
+  `levels/lobby/lobby_hall.tscn` (the hall, x −20..20, z −30..10 inside its straight walls, the window bowing south
+  to z 16; the docked ship of `levels/ship/ship.tscn`, its plan origin at (0, 0, −14.5), shut; the Earth, the
+  light rig and the art's ten spawn markers). The game's bar, photo booth, pinball machine and mirror stay its own
+  layer-1 box bodies under the root (origin the north-west floor corner, on the whole-metre grid; every place a
+  placeholder, "not a decision"), clear of the art's colliders; the ten `lobby_player` markers stand on the art's
+  spawns (x −9..9 in steps of 2, z 2.5). The lobby's flatness there: a ray down at every lobby marker meets the
+  art floor at y 0 first. The host's LevelWorld never runs `lobby_hall.gd`, so a node the script frees must hold
+  no layer-1 body: the hall takes the ship's clearing ground (an endless WorldBoundary at y 0) off layer 1, else
+  the host has a floor past the window and every floor check passes on it alone.
+  Tests: `content_modes_test.gd` (that rule); `lobby_hall_test.gd` (the art set with the
+  ship docked shut, its script freeing the ship's clearing and second environment in the tree, the player camera's
+  reach, the spawns on the art's markers, each piece a separate box on the grid inside the hall, apart and clear of
+  the art, the host reading the lobby without errors and holding only the colliders the client keeps, the tap, pinball and booth markers clear, and no collider
+  but the floor near a lobby marker or a walk a scenario takes in the lobby before
   it first waits).
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
@@ -9355,8 +9365,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     give their markers only, read into `LevelLayout`s by `server/`'s `MarkerReader`. The §5 invariants are
     checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
     declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
-    error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat lobby hall (one floor, walls and pieces
-    standing on it, kept clear of every walk, #1354) and the marker-only map (§9.6). Only the levels the
+    error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat lobby hall (the art hall's floor at y 0
+    under every lobby marker, its walls, ship and pieces kept clear of every walk, #1354, #1451) and the marker-only map (§9.6). Only the levels the
     scenarios play on must be flat: the mode's lobby, the map a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
     (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House). The
     four-level House (#626), the one map players played until the M8 slice made it a bench (#767, #1496), was played
@@ -9669,6 +9679,11 @@ assets/
   paths its scenes reference, copied as the art ships them (the House's `house_kit/kit_set.gdshader` and
   `kit_set.tres`, `house_props/prop_fine.gdshader` with `prop_fine_high.tres` and `prop_fine_low.tres`, #523);
   never GDScript.
+- An art level set ships its assembled scene too, at the path its HANDOFF names under `levels/` (#1451): the
+  ship package's `levels/ship/ship.tscn` over `environment/ship/`, and the lobby hall package's
+  `levels/lobby/lobby_hall.tscn` over `environment/lobby/`, which instances the ship's scene and carries the
+  package's one script, `levels/lobby/lobby_hall.gd` (it frees the ship's nodes the lobby must not have). The
+  game's `levels/lobby/lobby.tscn` instances the hall and adds its own pieces and markers beside it.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).

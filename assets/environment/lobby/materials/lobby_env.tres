@@ -1,0 +1,60 @@
+[gd_resource type="Environment" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/lobby/earth_sky.gdshader" id="1_n6swn"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_clouds.jpg" id="2_ep3ik"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_day.jpg" id="3_8fh0m"]
+[ext_resource type="Texture2D" path="res://assets/environment/lobby/earth/earth_night.jpg" id="4_cu22p"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3t84l"]
+shader = ExtResource("1_n6swn")
+shader_parameter/night_tex = ExtResource("4_cu22p")
+shader_parameter/day_tex = ExtResource("3_8fh0m")
+shader_parameter/cloud_tex = ExtResource("2_ep3ik")
+shader_parameter/earth_dir = Vector3(0, -0.52991927, 0.8480481)
+shader_parameter/earth_radius_deg = 48.0
+shader_parameter/subpoint = Vector2(36, 12)
+shader_parameter/roll_deg = 0.0
+shader_parameter/sun_dir = Vector3(0.48514786, 0.09232987, 0.86954397)
+shader_parameter/sun_energy = 1.0
+shader_parameter/lights_rgb = Vector3(1, 0.52, 0.2)
+shader_parameter/lights_energy = 8.0
+shader_parameter/base_energy = 3.0
+shader_parameter/moon_rgb = Vector3(0.35, 0.45, 0.7)
+shader_parameter/moon_energy = 0.2
+shader_parameter/cloud_energy = 0.05
+shader_parameter/rim_rgb = Vector3(0.25, 0.55, 1)
+shader_parameter/rim_energy = 2.4
+shader_parameter/rim_width_deg = 0.22
+shader_parameter/dawn_rgb = Vector3(1, 0.55, 0.25)
+shader_parameter/stars_energy = 0.9
+shader_parameter/stars_density = 1.0
+shader_parameter/draw_earth = 0.0
+shader_parameter/cubemap_earth = 1.0
+shader_parameter/neutral_top = Vector3(0.55, 0.56, 0.6)
+shader_parameter/neutral_horizon = Vector3(0.5, 0.5, 0.52)
+shader_parameter/neutral_ground = Vector3(0.35, 0.35, 0.36)
+shader_parameter/neutral_bottom = Vector3(0.25, 0.25, 0.26)
+
+[sub_resource type="Sky" id="Sky_vygvt"]
+sky_material = SubResource("ShaderMaterial_3t84l")
+
+[resource]
+background_mode = 2
+background_color = Color(0.02, 0.035, 0.11, 1)
+sky = SubResource("Sky_vygvt")
+ambient_light_source = 2
+ambient_light_color = Color(0.66, 0.58, 0.5, 1)
+ambient_light_energy = 0.3
+reflected_light_source = 2
+tonemap_mode = 4
+tonemap_exposure = 1.15
+ssr_enabled = true
+ssr_max_steps = 96
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 1.4
+glow_enabled = true
+glow_intensity = 0.5
+glow_hdr_threshold = 1.2
+glow_hdr_scale = 1.5
+glow_hdr_luminance_cap = 6.0

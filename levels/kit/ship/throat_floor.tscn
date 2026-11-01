@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://blm1jcymdo2ix"]
+
+[ext_resource type="PackedScene" uid="uid://7q7s66idfdrp" path="res://assets/environment/ship/throat_floor.glb" id="1"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://8aodytil14vi" path="res://levels/kit/ship/throat_floor.base_col.tres" id="2"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://dsp3psu3vres" path="res://levels/kit/ship/throat_floor.bolts_col.tres" id="3"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c6dew1hulawey" path="res://levels/kit/ship/throat_floor.grate_col.tres" id="4"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cmda4wl0qnjeq" path="res://levels/kit/ship/throat_floor.plates_col.tres" id="5"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cu8airg3p8bup" path="res://levels/kit/ship/throat_floor.rim_col.tres" id="6"]
+
+[node name="throat_floor" unique_id=1465336939 instance=ExtResource("1")]
+
+[node name="base_col" type="StaticBody3D" parent="." unique_id=1101871831]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="base_col" unique_id=2058653485]
+shape = ExtResource("2")
+
+[node name="bolts_col" type="StaticBody3D" parent="." unique_id=1587357731]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="bolts_col" unique_id=1250074575]
+shape = ExtResource("3")
+
+[node name="grate_col" type="StaticBody3D" parent="." unique_id=2109950580]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="grate_col" unique_id=1275664045]
+shape = ExtResource("4")
+
+[node name="plates_col" type="StaticBody3D" parent="." unique_id=2090375256]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="plates_col" unique_id=715587757]
+shape = ExtResource("5")
+
+[node name="rim_col" type="StaticBody3D" parent="." unique_id=1965877798]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="rim_col" unique_id=1921549465]
+shape = ExtResource("6")

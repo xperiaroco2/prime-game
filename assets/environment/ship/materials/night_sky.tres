@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/environment/ship/night_sky.gdshader" id="1_vrhe2"]
+
+[resource]
+shader = ExtResource("1_vrhe2")
+shader_parameter/zenith = null
+shader_parameter/horizon = Color(0.6651851, 0.7977377, 1.0832683, 1)
+shader_parameter/below = null
+shader_parameter/star_density = null
+shader_parameter/star_energy = null
+shader_parameter/moon_color = null
+shader_parameter/moon_size_deg = null
+shader_parameter/moon_energy = null

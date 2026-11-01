@@ -1,32 +1,137 @@
 extends GdUnitTestSuite
-## The lobby hall greybox (#1354; GDD §3 Base mode, the Lobby bullet; docs/design/m8-match.md §1):
-## one walled hall on the lobby's one floor, with the skat (closed), the bar, the photo booth, the
-## pinball machine and the mirror each a separate box the engineer can move in the editor, the
-## Earth window and the sealed door as looks on the walls. Every size and place is a placeholder,
-## "not a decision" (the MVP content ADR): the engineer sets the layout on this scene.
-## The guards: each piece is its own layer-1 box body under the root, on the whole-metre grid,
-## standing on the floor inside the walls, apart from the other pieces; and nothing but the floor
-## stands where the bot scenarios walk in the lobby (their fake world is one flat floor, §9.7,
-## content_modes_test's test_the_scenarios_levels_are_flat): no collider within a capsule and a
-## margin of a lobby marker or of a straight walk a scenario takes before it first waits.
+## The lobby hall (#1451): the art lobby hall's level set (prime-game-art#356, PR art#364, its
+## HANDOFF.md) in place of the greybox hall (#1354), with the game's own pieces beside it (GDD §3
+## Base mode, the Lobby bullet; docs/design/m8-match.md §1). `Hall` instances the art's
+## levels/lobby/lobby_hall.tscn (the hall, the docked ship from the ship package, the Earth, the
+## light rig and the art's ten spawn markers); the game keeps the bar, the photo booth, the pinball
+## machine and the mirror as separate greybox boxes, the ten lobby spawns at the art's markers and
+## the tap, pinball and booth markers. The box places are placeholders, "not a decision" (the MVP
+## content ADR): the engineer sets the layout on this scene.
+## The colliders are checked as the host sees them: LevelWorld (server/level_world.gd) built from
+## the scene, asked with the player's capsule. The guards: the boxes stand inside the hall, apart
+## and clear of the hall's and the ship's colliders; and nothing but the floor stands where the bot
+## scenarios walk in the lobby (their fake world is one flat floor, §9.7, content_modes_test's
+## test_the_scenarios_levels_are_flat): no collider within a capsule and a margin of a lobby marker
+## or of a straight walk a scenario takes before it first waits.
 
 const LOBBY := "res://levels/lobby/lobby.tscn"
+const HALL := "res://levels/lobby/lobby_hall.tscn"
+const SHIP := "res://levels/ship/ship.tscn"
+const PLAYER := "res://client/player/player.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const SCENARIOS_DIR := "res://content/scenarios/"
-## The pieces of the hall, each a node of its own under the root.
-const PIECES: Array[String] = ["Skat", "Bar", "PhotoBooth", "Pinball", "Mirror"]
-const WALLS: Array[String] = ["North", "South", "West", "East"]
-## The level-piece ADR's door opening (levels/CLAUDE.md): 1.4 x 2.15 m.
-const DOOR_SIZE := Vector2(1.4, 2.15)
+## The game's pieces of the hall, each a node of its own under the root.
+const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
+## The hall's floor plan inside its straight walls (x, z), the art's layouts/lobby/hall.toml
+## (x0, x1, zN, zS); the window bows south of it to z 16.
+const INSIDE := Rect2(-20.0, -30.0, 40.0, 40.0)
+## The ship's plan origin in the hall (#1451's positions comment, the engineer's 2026-10-30).
+const SHIP_ORIGIN := Vector3(0.0, 0.0, -14.5)
+## The ten lobby spawns (the same comment): x from -9 to 9 in steps of 2, z 2.5, facing +z.
+const SPAWN_Z := 2.5
+## A collider whose top is no higher stands under the feet: the floor plates and the ring inlay.
+const FLOOR_TOP_M := 0.05
 ## Beyond a bot's capsule radius: room to pass a collider's edge.
 const MARGIN_M := 0.1
 const EPS := 1e-4
 
 var _root: Node3D
+var _mode: GameMode
+
+
+func before() -> void:
+	_mode = load(BASE_MODE) as GameMode
 
 
 func before_test() -> void:
 	_root = auto_free((load(LOBBY) as PackedScene).instantiate()) as Node3D
+
+
+func test_the_hall_is_the_art_lobby_halls_level_set_with_the_ship_docked_shut() -> void:
+	assert_str(_mode.lobby_level).is_equal(LOBBY)
+	var hall := _root.get_node_or_null("Hall") as Node3D
+	assert_object(hall).is_not_null()
+	if hall == null:
+		return
+	assert_str(hall.scene_file_path).is_equal(HALL)
+	assert_bool(hall.transform.is_equal_approx(Transform3D.IDENTITY)).is_true()
+	var ship := hall.get_node_or_null("Ship") as Node3D
+	assert_object(ship).is_not_null()
+	if ship == null:
+		return
+	assert_str(ship.scene_file_path).is_equal(SHIP)
+	assert_vector(ship.position).is_equal_approx(SHIP_ORIGIN, Vector3(EPS, EPS, EPS))
+	# The jaw nose shut (the ship package's HANDOFF: the lobby shows it closed).
+	for jaw: String in ["Nose/jaw_lower", "Nose/jaw_upper"]:
+		var piece := ship.get_node_or_null(jaw) as Node3D
+		assert_object(piece).override_failure_message(jaw).is_not_null()
+		if piece != null:
+			assert_float(piece.rotation.x).override_failure_message(jaw).is_equal_approx(0.0, EPS)
+	# The Earth at infinity and the hall's one environment.
+	assert_object(hall.get_node_or_null("Earth/EarthObject")).is_not_null()
+	assert_object(hall.get_node_or_null("Environment/WorldEnvironment")).is_not_null()
+
+
+## The level script frees the ship package's own clearing, environment and suns on _ready, so the
+## hall has one WorldEnvironment and no forest (the package's HANDOFF).
+func test_in_the_tree_the_ship_keeps_no_clearing_and_the_hall_one_environment() -> void:
+	add_child(_root)
+	# The script frees on _ready, then recaptures the probes a frame later: let it finish.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var ship := _root.get_node("Hall/Ship")
+	assert_object(ship.get_node_or_null("Clearing")).is_null()
+	assert_object(ship.get_node_or_null("Environment")).is_null()
+	var suns := ship.find_children("*", "DirectionalLight3D", true, false)
+	assert_array(suns).is_empty()
+	var environments := _root.find_children("*", "WorldEnvironment", true, false)
+	assert_int(environments.size()).is_equal(1)
+	remove_child(_root)
+
+
+## The player's camera reaches the Earth: its far plane at least the hall's `camera_far_m`.
+func test_the_player_camera_sees_as_far_as_the_hall_needs() -> void:
+	var hall := _root.get_node("Hall")
+	var far_m: float = hall.get_meta(&"camera_far_m", 0.0)
+	assert_float(far_m).is_greater(0.0)
+	# Read from the scene's state: an instanced player would leave its script's nodes behind.
+	var state := (load(PLAYER) as PackedScene).get_state()
+	var default_camera := Camera3D.new()
+	var cameras := 0
+	for node: int in state.get_node_count():
+		if state.get_node_type(node) != &"Camera3D":
+			continue
+		cameras += 1
+		var far := default_camera.far
+		for prop: int in state.get_node_property_count(node):
+			if state.get_node_property_name(node, prop) == &"far":
+				far = state.get_node_property_value(node, prop)
+		assert_float(far).is_greater_equal(far_m)
+	default_camera.free()
+	assert_int(cameras).is_greater(0)
+
+
+func test_the_lobby_spawns_stand_on_the_art_halls_spawn_markers() -> void:
+	var spawns := _markers(&"spawn_lobby_player")
+	var art := _root.get_node("Hall/Markers").get_children()
+	assert_int(spawns.size()).is_equal(10)
+	assert_int(art.size()).is_equal(10)
+	if spawns.size() != art.size():
+		return
+	for i: int in spawns.size():
+		var spawn := LevelWorld.transform_in_scene(spawns[i], _root)
+		var marker := LevelWorld.transform_in_scene(art[i] as Node3D, _root)
+		(
+			assert_bool(spawn.is_equal_approx(marker))
+			. override_failure_message("%s at %s" % [spawns[i].name, spawn])
+			. is_true()
+		)
+		assert_vector(spawn.origin).is_equal_approx(
+			Vector3(-9.0 + 2.0 * i, 0.0, SPAWN_Z), Vector3(EPS, EPS, EPS)
+		)
+		# Facing the window: a marker's forward (-Z) points south (+z).
+		assert_float((-spawn.basis.z).z).is_equal_approx(1.0, EPS)
 
 
 func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
@@ -66,186 +171,173 @@ func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
 		)
 
 
-func test_the_pieces_stand_inside_the_walls_and_apart() -> void:
-	var inside := _inner_rect()
-	assert_bool(inside.has_area()).is_true()
+## Each box inside the hall's straight walls, apart from the others and clear of every collider of
+## the art hall and its ship (the doors' frames, the pilasters, the ship's hull and legs).
+func test_the_pieces_stand_inside_the_hall_apart_and_clear_of_the_art() -> void:
+	var hall := LevelWorld.build(HALL)
+	assert_array(hall.errors).is_empty()
+	assert_int(hall.body_count()).is_greater(100)
 	var placed: Array[AABB] = []
 	for piece_name: String in PIECES:
-		var bounds := _bounds(_shape_of(_root.get_node(piece_name)))
+		var shape := _shape_of(_root.get_node(piece_name))
+		var bounds := _bounds(shape)
 		var footprint := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
-		assert_bool(inside.encloses(footprint)).override_failure_message(piece_name).is_true()
+		assert_bool(INSIDE.encloses(footprint)).override_failure_message(piece_name).is_true()
 		for other: AABB in placed:
 			assert_bool(bounds.intersects(other)).override_failure_message(piece_name).is_false()
 		placed.append(bounds)
-	for marker: Node3D in _markers():
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = shape.shape
+		query.transform = LevelWorld.transform_in_scene(shape, _root).translated(
+			Vector3(0.0, FLOOR_TOP_M, 0.0)
+		)
+		(
+			assert_array(hall.space_state().intersect_shape(query, 1))
+			. override_failure_message(piece_name + " meets the art hall")
+			. is_empty()
+		)
+	for marker: Node3D in _markers(&"spawn_lobby_player"):
 		var at := marker.position
 		(
-			assert_bool(inside.has_point(Vector2(at.x, at.z)))
+			assert_bool(INSIDE.has_point(Vector2(at.x, at.z)))
 			. override_failure_message(marker.name)
 			. is_true()
 		)
 
 
-func test_the_walls_and_the_floor_close_the_hall() -> void:
-	var floor_bounds := _bounds(_shape_of(_root.get_node("Floor")))
-	assert_float(floor_bounds.end.y).is_equal_approx(0.0, EPS)
-	for wall_name: String in WALLS:
-		var wall := _root.get_node_or_null("Walls/" + wall_name) as StaticBody3D
-		assert_object(wall).override_failure_message(wall_name).is_not_null()
-		if wall == null:
-			continue
-		assert_int(wall.collision_layer & 1).is_equal(1)
-		var bounds := _bounds(_shape_of(wall))
-		# On the floor, within its plan, and higher than a player jumps.
-		assert_float(bounds.position.y).override_failure_message(wall_name).is_equal_approx(
-			0.0, EPS
-		)
-		var plan := Rect2(
-			floor_bounds.position.x,
-			floor_bounds.position.z,
-			floor_bounds.size.x,
-			floor_bounds.size.z
-		)
-		var footing := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
-		assert_bool(plan.grow(EPS).encloses(footing)).override_failure_message(wall_name).is_true()
-		assert_float(bounds.size.y).override_failure_message(wall_name).is_greater_equal(3.0)
-	# The walls meet at the corners: the inner rectangle is closed on all four sides.
-	var inside := _inner_rect()
-	for wall_name: String in WALLS:
-		var bounds := _bounds(_shape_of(_root.get_node("Walls/" + wall_name)))
-		var footprint := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
-		if wall_name == "North" or wall_name == "South":
-			(
-				assert_bool(
-					footprint.position.x <= inside.position.x and footprint.end.x >= inside.end.x
-				)
-				. is_true()
-			)
-		else:
-			(
-				assert_bool(
-					footprint.position.y <= inside.position.y and footprint.end.y >= inside.end.y
-				)
-				. is_true()
-			)
-
-
-func test_the_window_and_the_sealed_door_are_looks_on_the_walls() -> void:
-	var window := _root.get_node_or_null("EarthWindow") as MeshInstance3D
-	var door := _root.get_node_or_null("SealedDoor") as MeshInstance3D
-	assert_object(window).is_not_null()
-	assert_object(door).is_not_null()
-	if window == null or door == null:
-		return
-	# Looks only: the wall behind each keeps players in.
-	assert_array(window.find_children("*", "CollisionShape3D", true, false)).is_empty()
-	assert_array(door.find_children("*", "CollisionShape3D", true, false)).is_empty()
-	var door_size := (door.mesh as BoxMesh).size
-	assert_vector(Vector2(maxf(door_size.x, door_size.z), door_size.y)).is_equal_approx(
-		DOOR_SIZE, Vector2(EPS, EPS)
+## The host accepts the lobby: its world reads with no error and holds the hall's colliders.
+func test_the_host_reads_the_lobby_world_without_errors() -> void:
+	var world := LevelWorld.build(LOBBY)
+	assert_array(world.errors).is_empty()
+	assert_int(world.body_count()).is_greater(100)
+	# The floor stands at y 0 under a spawn.
+	var ray := PhysicsRayQueryParameters3D.create(
+		Vector3(0.0, 2.0, SPAWN_Z), Vector3(0, -1, SPAWN_Z)
 	)
-	assert_float(door.transform.origin.y - door_size.y / 2.0).is_equal_approx(0.0, EPS)
-	var inside := _inner_rect()
-	for look: MeshInstance3D in [window, door]:
-		var at := look.transform.origin
-		var half := (look.mesh as BoxMesh).size / 2.0
-		# Against a wall's inner face, within the hall.
-		var on_x := (
-			absf(at.x - half.x - inside.position.x) < EPS
-			or absf(at.x + half.x - inside.end.x) < EPS
-		)
-		var on_z := (
-			absf(at.z - half.z - inside.position.y) < EPS
-			or absf(at.z + half.z - inside.end.y) < EPS
-		)
-		assert_bool(on_x or on_z).override_failure_message(look.name).is_true()
+	var hit := world.space_state().intersect_ray(ray)
+	assert_bool(hit.is_empty()).is_false()
+	if not hit.is_empty():
+		assert_float((hit["position"] as Vector3).y).is_equal_approx(0.0, 0.05)
 
 
-## #1390: the bar's tap is one marker (no box of the greybox moved), inside the walls, clear of
-## every collider by a capsule, with the Bar's edge within the tap's reach.
-func test_the_tap_marker_stands_beside_the_bar_clear_of_every_box() -> void:
-	var taps := _root.find_children("*", "Marker3D", true, false).filter(
-		func(node: Node) -> bool: return node.is_in_group(&"spawn_tap")
-	)
+## The host's world holds only what the client keeps (invariant 7: its sanity checks ask the same
+## colliders the player walks on). The host never runs lobby_hall.gd's _ready, so a body the script
+## frees, such as the ship package's Clearing ground (an endless WorldBoundary at y 0), must not be
+## on layer 1: else the host has a floor past the window and under any hole in the art floor, and
+## every floor check here passes with no art floor at all.
+func test_the_host_world_holds_only_the_colliders_the_client_keeps() -> void:
+	var host := LevelWorld.build(LOBBY)
+	for at: Vector3 in [Vector3(60.0, 0.0, 0.0), Vector3(0.0, 0.0, 40.0), Vector3(-60, 0, -80)]:
+		var ray := PhysicsRayQueryParameters3D.create(
+			at + Vector3.UP * 5.0, at + Vector3.DOWN * 5.0
+		)
+		var hit := host.space_state().intersect_ray(ray)
+		var why := "a floor outside the hall at %s: %s" % [at, hit.get("position")]
+		assert_bool(hit.is_empty()).override_failure_message(why).is_true()
+	add_child(_root)
+	await get_tree().process_frame
+	var kept := LevelWorld.from_scene(_root, LOBBY)
+	assert_int(host.body_count()).is_equal(kept.body_count())
+	remove_child(_root)
+
+
+## #1390: the bar's tap is one marker, inside the walls, clear of every collider by a capsule, with
+## the Bar's edge within the tap's reach.
+func test_the_tap_marker_stands_beside_the_bar_clear_of_every_collider() -> void:
+	var taps := _markers(&"spawn_tap")
 	assert_int(taps.size()).is_equal(1)
-	var tap := taps[0] as Node3D
-	var at := Vector2(tap.position.x, tap.position.z)
-	assert_bool(_inner_rect().has_point(at)).is_true()
-	var mode := load(BASE_MODE) as GameMode
-	var clearance := mode.player_rules.capsule_radius_m + MARGIN_M
-	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
-		if shape.get_parent() == _root.get_node("Floor"):
-			continue
-		var bounds := _bounds(shape as CollisionShape3D)
-		var block := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
-		(
-			assert_bool(block.grow(clearance).has_point(at))
-			. override_failure_message(str(shape.get_parent().name))
-			. is_false()
-		)
-	var bar := _bounds(_shape_of(_root.get_node("Bar")))
-	var nearest := Vector2(
-		clampf(at.x, bar.position.x, bar.end.x), clampf(at.y, bar.position.z, bar.end.z)
-	)
+	var at := Vector2(taps[0].position.x, taps[0].position.z)
+	assert_bool(INSIDE.has_point(at)).is_true()
+	_assert_capsule_clear(LevelWorld.build(LOBBY), at, "the tap")
 	var kind := load("res://content/stations/tap.tres") as StationKind
-	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
+	assert_float(_distance_to_box(at, _shape_of(_root.get_node("Bar")))).is_less_equal(
+		kind.radius_m
+	)
 
 
 ## #1398: the pinball machine is one marker outside the Pinball box (#1399 owns that node), inside
 ## the walls, clear of every collider by a capsule, with the box's edge within the machine's reach.
-func test_the_pinball_marker_stands_before_the_machine_clear_of_every_box() -> void:
-	var spots := _root.find_children("*", "Marker3D", true, false).filter(
-		func(node: Node) -> bool: return node.is_in_group(&"spawn_pinball")
-	)
+func test_the_pinball_marker_stands_before_the_machine_clear_of_every_collider() -> void:
+	var spots := _markers(&"spawn_pinball")
 	assert_int(spots.size()).is_equal(1)
-	var spot := spots[0] as Node3D
-	assert_object(spot.get_parent()).is_same(_root)
-	var at := Vector2(spot.position.x, spot.position.z)
-	assert_bool(_inner_rect().has_point(at)).is_true()
-	var mode := load(BASE_MODE) as GameMode
-	var clearance := mode.player_rules.capsule_radius_m + MARGIN_M
-	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
-		if shape.get_parent() == _root.get_node("Floor"):
-			continue
-		var bounds := _bounds(shape as CollisionShape3D)
-		var block := Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z)
-		(
-			assert_bool(block.grow(clearance).has_point(at))
-			. override_failure_message(str(shape.get_parent().name))
-			. is_false()
-		)
-	var machine := _bounds(_shape_of(_root.get_node("Pinball")))
-	var nearest := Vector2(
-		clampf(at.x, machine.position.x, machine.end.x),
-		clampf(at.y, machine.position.z, machine.end.z)
-	)
+	assert_object(spots[0].get_parent()).is_same(_root)
+	var at := Vector2(spots[0].position.x, spots[0].position.z)
+	assert_bool(INSIDE.has_point(at)).is_true()
+	_assert_capsule_clear(LevelWorld.build(LOBBY), at, "the pinball")
 	var kind := load("res://content/stations/pinball.tres") as StationKind
-	assert_float(at.distance_to(nearest)).is_less_equal(kind.radius_m)
+	var reach := _distance_to_box(at, _shape_of(_root.get_node("Pinball")))
+	assert_float(reach).is_less_equal(kind.radius_m)
 
 
 ## The photo booth's volume (#1396) is the booth station's own cylinder on the Booth marker: the
-## whole cylinder stands clear of every box (the PhotoBooth box stays solid until the engineer
+## whole cylinder stands clear of every collider (the PhotoBooth box stays solid until the engineer
 ## opens it), and right in front of the PhotoBooth box, less than a capsule's width away.
-func test_the_booth_marker_stands_before_the_photo_booth_its_volume_clear_of_every_box() -> void:
-	var booths := _root.find_children("*", "Marker3D", true, false).filter(
-		func(node: Node) -> bool: return node.is_in_group(&"spawn_booth")
-	)
+func test_the_booth_marker_stands_before_the_photo_booth_its_volume_clear() -> void:
+	var booths := _markers(&"spawn_booth")
 	assert_int(booths.size()).is_equal(1)
-	var booth := booths[0] as Node3D
-	var at := Vector2(booth.position.x, booth.position.z)
+	var at := Vector2(booths[0].position.x, booths[0].position.z)
 	var kind := load("res://content/stations/booth.tres") as StationKind
-	var mode := load(BASE_MODE) as GameMode
-	assert_bool(_inner_rect().grow(-kind.radius_m).has_point(at)).is_true()
-	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
-		if shape.get_parent() == _root.get_node("Floor"):
-			continue
-		(
-			assert_float(_distance_to_box(at, shape as CollisionShape3D))
-			. override_failure_message(str(shape.get_parent().name))
-			. is_greater(kind.radius_m)
-		)
+	assert_bool(INSIDE.grow(-kind.radius_m).has_point(at)).is_true()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = kind.radius_m
+	cylinder.height = _mode.player_rules.capsule_height_m
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = cylinder
+	query.transform = Transform3D(
+		Basis.IDENTITY, Vector3(at.x, FLOOR_TOP_M + cylinder.height / 2.0, at.y)
+	)
+	var world := LevelWorld.build(LOBBY)
+	assert_array(world.space_state().intersect_shape(query, 1)).is_empty()
 	var gap := _distance_to_box(at, _shape_of(_root.get_node("PhotoBooth"))) - kind.radius_m
-	assert_float(gap).is_less(2.0 * mode.player_rules.capsule_radius_m)
+	assert_float(gap).is_less(2.0 * _mode.player_rules.capsule_radius_m)
+
+
+func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> void:
+	var world := LevelWorld.build(LOBBY)
+	var starts: Array[Vector2] = []
+	for marker: Node3D in _markers(&"spawn_lobby_player"):
+		starts.append(Vector2(marker.position.x, marker.position.z))
+	assert_int(starts.size()).is_greater(0)
+	for at: Vector2 in starts:
+		_assert_capsule_clear(world, at, "the spawn at %s" % at)
+	var walks := _lobby_walks()
+	# voice_load walks in the lobby: the check is not empty.
+	assert_int(walks.size()).is_greater(0)
+	var query := _capsule_query(Vector2.ZERO)
+	for walk: Array[Vector2] in walks:
+		for start: Vector2 in starts:
+			var from := start
+			for to: Vector2 in walk:
+				query.transform.origin = Vector3(from.x, query.transform.origin.y, from.y)
+				query.motion = Vector3(to.x - from.x, 0.0, to.y - from.y)
+				var free := world.space_state().cast_motion(query)
+				(
+					assert_float(free[0] if free.size() > 0 else 0.0)
+					. override_failure_message("walk %s -> %s meets a collider" % [from, to])
+					. is_equal(1.0)
+				)
+				from = to
+
+
+## The capsule of a bot (its radius and a margin), standing above the floor at `at`, meets nothing.
+func _assert_capsule_clear(world: LevelWorld, at: Vector2, what: String) -> void:
+	(
+		assert_array(world.space_state().intersect_shape(_capsule_query(at), 1))
+		. override_failure_message(what + " is within a capsule of a collider")
+		. is_empty()
+	)
+
+
+func _capsule_query(at: Vector2) -> PhysicsShapeQueryParameters3D:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = _mode.player_rules.capsule_radius_m + MARGIN_M
+	capsule.height = maxf(_mode.player_rules.capsule_height_m, 2.0 * capsule.radius)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(
+		Basis.IDENTITY, Vector3(at.x, FLOOR_TOP_M + capsule.height / 2.0, at.y)
+	)
+	return query
 
 
 ## The distance on the floor plan from `at` to the box of `shape`.
@@ -255,48 +347,6 @@ func _distance_to_box(at: Vector2, shape: CollisionShape3D) -> float:
 		clampf(at.x, box.position.x, box.end.x), clampf(at.y, box.position.z, box.end.z)
 	)
 	return at.distance_to(nearest)
-
-
-func test_nothing_but_the_floor_stands_where_the_bots_walk_in_the_lobby() -> void:
-	var mode := load(BASE_MODE) as GameMode
-	assert_str(mode.lobby_level).is_equal(LOBBY)
-	var clearance := mode.player_rules.capsule_radius_m + MARGIN_M
-	var blocks: Array[Rect2] = []
-	for shape: Node in _root.find_children("*", "CollisionShape3D", true, false):
-		if shape.get_parent() == _root.get_node("Floor"):
-			continue
-		var bounds := _bounds(shape as CollisionShape3D)
-		blocks.append(
-			Rect2(bounds.position.x, bounds.position.z, bounds.size.x, bounds.size.z).grow(
-				clearance
-			)
-		)
-	assert_int(blocks.size()).is_greater(PIECES.size())
-	var starts: Array[Vector2] = []
-	for marker: Node3D in _markers():
-		starts.append(Vector2(marker.position.x, marker.position.z))
-	assert_int(starts.size()).is_greater(0)
-	for at: Vector2 in starts:
-		for block: Rect2 in blocks:
-			(
-				assert_bool(block.has_point(at))
-				. override_failure_message("marker at %s" % at)
-				. is_false()
-			)
-	var walks := _lobby_walks()
-	# voice_load walks in the lobby: the check is not empty.
-	assert_int(walks.size()).is_greater(0)
-	for walk: Array[Vector2] in walks:
-		for start: Vector2 in starts:
-			var from := start
-			for to: Vector2 in walk:
-				for block: Rect2 in blocks:
-					(
-						assert_bool(_crosses(from, to, block))
-						. override_failure_message("walk %s -> %s crosses %s" % [from, to, block])
-						. is_false()
-					)
-				from = to
 
 
 ## Each bot's walks to points in the lobby, in order. A scenario starts in the lobby and stays there
@@ -339,42 +389,11 @@ func _stays_in_lobby(wait: StepWaitFor) -> bool:
 	return wait.event == &"PhaseChanged" and phase in ["lobby", "countdown"]
 
 
-## Whether the segment from `from` to `to` meets `rect` (the slab test).
-func _crosses(from: Vector2, to: Vector2, rect: Rect2) -> bool:
-	var t_in := 0.0
-	var t_out := 1.0
-	var delta := to - from
-	for axis: int in 2:
-		var lo := rect.position[axis]
-		var hi := rect.end[axis]
-		if absf(delta[axis]) < EPS:
-			if from[axis] < lo or from[axis] > hi:
-				return false
-			continue
-		var t0 := (lo - from[axis]) / delta[axis]
-		var t1 := (hi - from[axis]) / delta[axis]
-		t_in = maxf(t_in, minf(t0, t1))
-		t_out = minf(t_out, maxf(t0, t1))
-		if t_in > t_out:
-			return false
-	return true
-
-
-## The hall's floor plan inside the walls (x, z): from the west and north walls' inner faces to the
-## east and south walls'.
-func _inner_rect() -> Rect2:
-	var north := _bounds(_shape_of(_root.get_node("Walls/North")))
-	var south := _bounds(_shape_of(_root.get_node("Walls/South")))
-	var west := _bounds(_shape_of(_root.get_node("Walls/West")))
-	var east := _bounds(_shape_of(_root.get_node("Walls/East")))
-	var from := Vector2(west.end.x, north.end.z)
-	return Rect2(from, Vector2(east.position.x, south.position.z) - from)
-
-
-func _markers() -> Array[Node3D]:
+## The root's markers in group `group`, in scene-tree order.
+func _markers(group: StringName) -> Array[Node3D]:
 	var markers: Array[Node3D] = []
 	for node: Node in _root.find_children("*", "Marker3D", true, false):
-		if node.is_in_group(&"spawn_lobby_player"):
+		if node.is_in_group(group):
 			markers.append(node as Node3D)
 	return markers
 
@@ -385,13 +404,7 @@ func _shape_of(body: Node) -> CollisionShape3D:
 	return shapes[0] as CollisionShape3D
 
 
-## The box collider's bounds in the level's space (the scene is not in a tree: the transforms of
-## its ancestors up to the root, in turn).
+## A box collider's bounds in the level's space (the scene is not in a tree).
 func _bounds(shape: CollisionShape3D) -> AABB:
-	var placed := shape.transform
-	var node := shape.get_parent()
-	while node != _root and node is Node3D:
-		placed = (node as Node3D).transform * placed
-		node = node.get_parent()
 	var size := (shape.shape as BoxShape3D).size
-	return placed * AABB(-size / 2.0, size)
+	return LevelWorld.transform_in_scene(shape, _root) * AABB(-size / 2.0, size)

@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://dd1wa3yox2vxv"]
+
+[ext_resource type="PackedScene" uid="uid://b6hvhfjls55pk" path="res://assets/environment/ship/th_wall_e.glb" id="1"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://bjvpw0xrm8ese" path="res://levels/kit/ship/th_wall_e.back_col.tres" id="2"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://1m5veuu55but" path="res://levels/kit/ship/th_wall_e.band_col.tres" id="3"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://be1s1xews8ugl" path="res://levels/kit/ship/th_wall_e.cove_col.tres" id="4"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://drarlvdsebbgk" path="res://levels/kit/ship/th_wall_e.end_frame_col.tres" id="5"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://c6bx2g6y37fi5" path="res://levels/kit/ship/th_wall_e.fold_line_col.tres" id="6"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://dh3xodlro01bn" path="res://levels/kit/ship/th_wall_e.kick_col.tres" id="7"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://do461cfg3nkua" path="res://levels/kit/ship/th_wall_e.plinth_col.tres" id="8"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://cn4hyuki5bua1" path="res://levels/kit/ship/th_wall_e.plinth_line_col.tres" id="9"]
+
+[node name="th_wall_e" unique_id=1985496764 instance=ExtResource("1")]
+
+[node name="back_col" type="StaticBody3D" parent="." unique_id=694219612]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="back_col" unique_id=516932152]
+shape = ExtResource("2")
+
+[node name="band_col" type="StaticBody3D" parent="." unique_id=397309779]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="band_col" unique_id=1506005529]
+shape = ExtResource("3")
+
+[node name="cove_col" type="StaticBody3D" parent="." unique_id=1507763670]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="cove_col" unique_id=144411987]
+shape = ExtResource("4")
+
+[node name="end_frame_col" type="StaticBody3D" parent="." unique_id=1483221401]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="end_frame_col" unique_id=1445359170]
+shape = ExtResource("5")
+
+[node name="fold_line_col" type="StaticBody3D" parent="." unique_id=168818923]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="fold_line_col" unique_id=1127792958]
+shape = ExtResource("6")
+
+[node name="kick_col" type="StaticBody3D" parent="." unique_id=96511504]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="kick_col" unique_id=1162018111]
+shape = ExtResource("7")
+
+[node name="plinth_col" type="StaticBody3D" parent="." unique_id=623029999]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="plinth_col" unique_id=1153681357]
+shape = ExtResource("8")
+
+[node name="plinth_line_col" type="StaticBody3D" parent="." unique_id=1264371066]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="plinth_line_col" unique_id=1362110588]
+shape = ExtResource("9")

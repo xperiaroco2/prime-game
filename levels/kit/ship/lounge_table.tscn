@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://x0ha1d00ervh"]
+
+[ext_resource type="PackedScene" uid="uid://ce444xicjukf0" path="res://assets/environment/ship/lounge_table.glb" id="1"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://dlc25h4jc3e6a" path="res://levels/kit/ship/lounge_table.drum_col.tres" id="2"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://bv44uwh685tn5" path="res://levels/kit/ship/lounge_table.edge_ring_col.tres" id="3"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://upxa70v6o3jn" path="res://levels/kit/ship/lounge_table.inset_col.tres" id="4"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://baiub5snbmvrt" path="res://levels/kit/ship/lounge_table.plinth_col.tres" id="5"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://vdrly628rh7y" path="res://levels/kit/ship/lounge_table.rings_col.tres" id="6"]
+
+[ext_resource type="ConcavePolygonShape3D" uid="uid://bftu6m6g0vcqe" path="res://levels/kit/ship/lounge_table.top_col.tres" id="7"]
+
+[node name="lounge_table" unique_id=1788689809 instance=ExtResource("1")]
+
+[node name="drum_col" type="StaticBody3D" parent="." unique_id=2048586823]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="drum_col" unique_id=2024214836]
+shape = ExtResource("2")
+
+[node name="edge_ring_col" type="StaticBody3D" parent="." unique_id=1894766406]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="edge_ring_col" unique_id=1810805789]
+shape = ExtResource("3")
+
+[node name="inset_col" type="StaticBody3D" parent="." unique_id=96963574]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="inset_col" unique_id=756551437]
+shape = ExtResource("4")
+
+[node name="plinth_col" type="StaticBody3D" parent="." unique_id=1395073225]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="plinth_col" unique_id=268508952]
+shape = ExtResource("5")
+
+[node name="rings_col" type="StaticBody3D" parent="." unique_id=1484185174]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="rings_col" unique_id=594427339]
+shape = ExtResource("6")
+
+[node name="top_col" type="StaticBody3D" parent="." unique_id=761114450]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="top_col" unique_id=451318310]
+shape = ExtResource("7")

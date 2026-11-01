@@ -179,34 +179,19 @@ func test_the_scenarios_levels_are_flat() -> void:
 	# a floor collider whose top is at y = 0 and covers every marker, and every marker stands on it.
 	# A map with storeys (the House, ScenarioLevels.STOREYED_MAPS) is no level of these: its scenarios
 	# play in the fake world with its storeys (#1209), people play it in the host's world (#626).
-	# The lobby is a hall (#1354): its one floor is `Floor`; its walls and pieces stand on it (none
-	# makes another floor at y = 0 or below), and lobby_hall_test.gd keeps them clear of every lobby
-	# marker and of every walk a scenario takes in the lobby, so the fake world's floor holds there.
-	# A map stays its floor alone.
+	# The lobby is the art lobby hall (#1451), its floor the art meshes' trimesh colliders: as the
+	# host reads it, a ray down at every lobby marker meets the floor at y = 0 first (nothing over a
+	# marker, no floor above or below the fake world's), and lobby_hall_test.gd keeps the markers
+	# and every walk a scenario takes in the lobby clear of the hall's walls and pieces, so the fake
+	# world's floor holds there. A map stays its floor alone.
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in ScenarioLevels.of(mode):
+		if path == mode.lobby_level:
+			_assert_markers_stand_on_the_floor(path, levels[path])
+			continue
 		var root: Node = auto_free((load(path) as PackedScene).instantiate())
 		var shapes := root.find_children("*", "CollisionShape3D", true, false)
-		if path == mode.lobby_level:
-			var floor_node := root.get_node_or_null("Floor")
-			var hall := shapes.filter(func(s: Node) -> bool: return s.get_parent() != floor_node)
-			for piece: Node in hall:
-				var placed := _in_level(piece as CollisionShape3D, root)
-				var box_shape := (piece as CollisionShape3D).shape as BoxShape3D
-				(
-					assert_object(box_shape)
-					. override_failure_message(str(piece.get_path()))
-					. is_not_null()
-				)
-				if box_shape == null:
-					continue
-				var size := box_shape.size
-				var bottom := placed.origin.y - size.y / 2.0
-				assert_float(bottom).override_failure_message(str(piece.get_path())).is_greater(
-					-1e-6
-				)
-			shapes = shapes.filter(func(s: Node) -> bool: return s.get_parent() == floor_node)
 		assert_int(shapes.size()).override_failure_message(path).is_equal(1)
 		if shapes.size() != 1:
 			continue
@@ -231,15 +216,29 @@ func test_the_scenarios_levels_are_flat() -> void:
 				)
 
 
-## A shape's place in its level's space: the level is not in a tree, so its ancestors' transforms
-## up to `root`, in turn (an unrotated box: the bottom is its centre's y less half its height).
-func _in_level(shape: CollisionShape3D, root: Node) -> Transform3D:
-	var placed := shape.transform
-	var node := shape.get_parent()
-	while node != root and node is Node3D:
-		placed = (node as Node3D).transform * placed
-		node = node.get_parent()
-	return placed
+## Every marker of `layout` stands on the floor of the level at `path` as the host reads it: a ray
+## down from two metres above it (a player's height) meets a collider first at y = 0 (the art
+## floor's top, within 5 cm), one it starts inside included.
+func _assert_markers_stand_on_the_floor(path: String, layout: LevelLayout) -> void:
+	var world := LevelWorld.build(path)
+	assert_array(world.errors).override_failure_message(path).is_empty()
+	var count := 0
+	for tag: StringName in layout.tags():
+		for at: Vector3 in layout.positions(tag):
+			count += 1
+			assert_float(at.y).is_equal_approx(0.0, 1e-6)
+			var ray := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 2.0, at + Vector3.DOWN)
+			ray.hit_from_inside = true
+			var hit := world.space_state().intersect_ray(ray)
+			var why := "%s: %s at %s" % [path, tag, at]
+			assert_bool(hit.is_empty()).override_failure_message(why).is_false()
+			if not hit.is_empty():
+				(
+					assert_float((hit["position"] as Vector3).y)
+					. override_failure_message(why)
+					. is_equal_approx(0.0, 0.05)
+				)
+	assert_int(count).override_failure_message(path).is_greater(10)
 
 
 func test_a_match_of_the_base_mode_starts_in_the_lobby() -> void:
