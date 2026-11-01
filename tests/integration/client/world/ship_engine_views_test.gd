@@ -3,7 +3,9 @@ extends GdUnitTestSuite
 ## driven from a ClientModel folded from the engine's events, the base mode's engine and a host
 ## tick the test sets: the console's stage strips, a red lamp over each station of an open problem,
 ## the breakers' lamps and the mimic board, where alone the order plays, the gill sets' slits and
-## white bar, a charger's lamp and the blast. And ShipEngineClient offers no breaker board.
+## white bar, a charger's lamp and the blast; the hologram made readable (#1500, GDD §8): the call,
+## the turbines' spin, a point and a line per site station, the blink, the flash, the countdown and
+## the ring; the gills' steam and mist. And ShipEngineClient offers no breaker board.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const CONSOLE := 1
