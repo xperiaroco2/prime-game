@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 
 const ShipHull := preload("res://tests/fixtures/ship_hull_colliders.gd")
 const ShipFloor := preload("res://tests/fixtures/ship_floor_colliders.gd")
+const Check := preload("res://tools/assets/asset_check.gd")
 const SHIP := "res://levels/estate/rooms/ship.tscn"
 const ART := "res://levels/ship/ship.tscn"
 ## The deck over the ship's origin, and the start console package's button over the deck and its
@@ -89,6 +90,8 @@ func test_the_client_frees_the_clearing_sky_and_suns_and_keeps_the_host_s_collid
 
 
 func test_the_hull_s_colliders_are_the_art_skin_and_close_the_hull() -> void:
+	if _art_is_a_pointer():
+		return
 	var art := _root.get_node(^"Art") as Node3D
 	for stem: String in ShipHull.STEMS:
 		var saved := load(ShipHull.shape_path(stem)) as ConcavePolygonShape3D
@@ -193,6 +196,8 @@ func test_a_player_stands_on_the_hulls_where_he_stood_on_the_art_s_floors() -> v
 
 
 func test_each_gill_set_stands_on_the_art_s_gills() -> void:
+	if _art_is_a_pointer():
+		return
 	add_child(_root)
 	var sets := _root.get_node(^"Engine").find_children("Gills*", "Node3D", false, false)
 	assert_int(sets.size()).is_equal(2)
@@ -337,3 +342,21 @@ func _rest_height(space: PhysicsDirectSpaceState3D, from: Vector3) -> float:
 	if safe >= 1.0:
 		return NAN
 	return from.y - DROP_M * safe - ball.radius
+
+
+## Whether the art ship's meshes are Git LFS pointers (CI checks out no LFS content and imports a
+## stand-in for each GLB, the LFS ADR's amendment, #515): a test of the art's geometry then says
+## it skips, as deck_glyphs_test does, and checks the pointer.
+func _art_is_a_pointer() -> bool:
+	var glb := ""
+	for line: String in FileAccess.get_file_as_string(ART).split("\n"):
+		if line.begins_with("[ext_resource") and line.contains('.glb"'):
+			glb = line.get_slice('path="', 1).get_slice('"', 0)
+			break
+	if glb.is_empty() or not Check.is_lfs_pointer(glb):
+		return false
+	print(
+		"skip: %s is a Git LFS pointer (no LFS content here): the art's geometry is unchecked" % glb
+	)
+	assert_bool(FileAccess.get_file_as_string(glb).contains("oid sha256:")).is_true()
+	return true
