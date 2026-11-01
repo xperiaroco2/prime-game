@@ -145,6 +145,7 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 	var layouts := _layouts_for(_base_mode())
 	for map: String in ScenarioLevels.STOREYED_MAPS:
 		var layout: LevelLayout = layouts[map]
+		assert_array(ScenarioLevels.storeys_of(map)).override_failure_message(map).is_not_empty()
 		for storey: float in ScenarioLevels.storeys_of(map):
 			var on_it := 0
 			for tag: StringName in layout.tags():
@@ -157,6 +158,10 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.HOUSE)).is_equal(
 		ScenarioLevels.HOUSE_STOREYS
 	)
+	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.ESTATE)).is_equal(
+		ScenarioLevels.ESTATE_STOREYS
+	)
+	assert_array(ScenarioLevels.storeys_of("res://levels/no_such_map.tscn")).is_empty()
 	for file: String in ScenarioLevels.scenario_paths():
 		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:

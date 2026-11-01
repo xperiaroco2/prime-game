@@ -67,9 +67,16 @@ static func world_of(scenario: BotScenario) -> WorldQuery:
 	return FlatWorldQuery.new()
 
 
-## The storeys of a map in STOREYED_MAPS, as its fake world joins them.
+## The storeys of a map in STOREYED_MAPS, as its fake world joins them; none for any other map (a
+## storeyed map added without its storeys here fails content_modes_test's per-storey check).
 static func storeys_of(map: String) -> Array[float]:
-	return ESTATE_STOREYS if map == ESTATE else HOUSE_STOREYS
+	match map:
+		HOUSE:
+			return HOUSE_STOREYS
+		ESTATE:
+			return ESTATE_STOREYS
+	var none: Array[float] = []
+	return none
 
 
 ## The paths, the lobby first, each once.
