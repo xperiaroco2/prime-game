@@ -2268,7 +2268,9 @@ class EnetStepTest(unittest.TestCase):
         # #639: the old scenario keeps its three bots; a leave and a return needs a fourth for the bot that joins.
         self.assertEqual((verify.BOTS_ENET_INSTANCES, verify.BOTS_RETURN_INSTANCES), (3, 4))
         for scenario, _instances in verify.BOTS_NETWORK_RUNS:
-            self.assertTrue((ROOT / "content" / "scenarios" / f"{scenario}.tres").is_file())
+            # #1497: a scenario that hits in the Round lives with the melee fixture, in tests/fixtures/scenarios/.
+            folders = (ROOT / "content" / "scenarios", ROOT / "tests" / "fixtures" / "scenarios")
+            self.assertTrue(any((folder / f"{scenario}.tres").is_file() for folder in folders), scenario)
 
     def test_a_red_first_network_bots_run_still_plays_the_second_and_fails_the_step(self) -> None:
         for codes, expected in (([1, 0], 1), ([0, 2], 2), ([1, 2], 1), ([0, 0], 0)):
