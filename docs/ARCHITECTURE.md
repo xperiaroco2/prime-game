@@ -3815,7 +3815,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   `metadata/room_id` (a StringName) and its name `metadata/name_key` (a copy deck key with English and Ukrainian
   text, never the words) beside the outline's `size_m`; no sign and no door-plate position (the engineer, on #306:
   no wall signs). A room without them still draws, its id its node name in snake_case and its key `room.<id>`; a
-  room repeating an id is left out. Every House room carries its record on its own scene's root (`levels/house/rooms/`,
+  room repeating an id is left out, and so is a room inside another room (part of it: the estate ship lot's art scene
+  declares its own size, #1499). Every House room carries its record on its own scene's root (`levels/house/rooms/`,
   the id its file name, the key the deck's `room.<id>`, ui-0.6.0); the tutorial room's is #715's; each estate lot with a footprint carries one on
   its piece's root, centred (#1374: house, summer_kitchen, pantry, greenhouse, garage, ship, fallen_trunk; the keys
   `room.house`, `room.summer_kitchen`, `room.ship`, `room.fallen_trunk` await the deck, so the screen names those lots by their ids
@@ -3835,7 +3836,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   turn; the privacy test: models that differ in other players, items and circles draw the same screen, node by
   node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"; a room
   named by its record's key, else its id, #306), `map_data_test.gd` (rooms by the metadata through parents, the
-  record's id and name key and their fallbacks, zones from markers only, placement as the reader's, no
+  record's id and name key and their fallbacks, a room inside a room no second room, zones from markers only,
+  placement as the reader's, no
   rooms, the greybox's rooms have an area,
   the board's fit), `tests/unit/levels/house_room_records_test.gd` (#306: every House room has a record, its id
   unique and its scene's file name, its name key with English and Ukrainian text, read by `MapData` as it stands;
@@ -9059,9 +9061,19 @@ plays it on the estate (#1462, "The estate and the content" below).
   apart), four cartridge sockets and two chargers, each on the deck in front of its device's point in
   `docs/design/estate-map.md` §5a (the breakers' places are not in the doc), and the two `engine_aboard` corners (the
   hull's inside from the tunnel's mouth to the vault hatch, deck to roof: the ground under the wings and the ramp are
-  out). `Engine/Gills01`, `Gills02` (group `engine_gills`) are the gill sets' stand-ins on the throat wall: five slits
-  each with an `Open` and a `Shut` box, a `Light` box per slit (the white bar) and the round `Button`;
-  `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.4 m over the deck above the console's pedestal.
+  out). `Engine/Gills01`, `Gills02` (group `engine_gills`) are the gill sets on the art's throat walls (GDD §8's
+  throat; #1499): five slits each at the art's slit (`Slit<k>`, its `Open` empty: the art's slit glows open, its
+  `Shut` a red plate), a `Light` bar per slit (the white bar) and the `Button` at the art's dome; `Engine/Devices`
+  yellow stand-in boxes for the console, the sockets, the boards and the chargers (the art's station packages are not
+  in the game yet); `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.457 m over the deck above the
+  console's pedestal (the start console package's hall disc), its `Turbine1`..`Turbine3` at the art's three nozzle
+  pods at the mimic board's scale and its `Button` at the console package's button.
+  The piece is the art ship (#1499): `Art` instances the ship package's `levels/ship/ship.tscn` (the lobby's import,
+  #1451), its sky, suns and clearing saved hidden (the clearing's ground off layer 1) and freed on the client by
+  `ship.gd` (`art_free`); `Hull` holds the game's trimesh colliders of the art's skin
+  (`ship_hull/skin_{top,belly}_col.tres`, written by `tests/fixtures/ship_hull_colliders.gd`: the package's skin has no
+  `-col` hint), backfaced so nothing thrown inside leaves through the roof. The art root's own `size_m` makes no
+  second room inside the lot (`MapData`: a room inside a room is part of it).
   Every place and size is a placeholder, "not a decision".
 - **The client** (#1462, stand-ins until the art track draws it). `ClientEngineBook` (`client/net/`,
   `ClientModel.engine`) folds the engine's public events as listed above (open problems, the last `BreakerChain`,
@@ -9079,13 +9091,15 @@ plays it on the estate (#1462, "The estate and the content" below).
   cloud of mist when all five open fix it (edges seen frame to frame, none on a blast); and the blast (once per
   `EngineBlast`; a view built again plays none of these), an orange sphere from the console. Its child
   `ShipEngineHologram` (#1500, GDD §8 "The spin-up, made readable") draws round the hologram's centre the call while
-  the engine is off (never pressed, its bar empty and still, no problem open: two stand-in turbines pulse orange with
+  the engine is off (never pressed, its bar empty and still, no problem open: the turbines pulse orange with
   the host tick and the start button glows; the beep is #1501's), the turbines spinning once started and slower while
   a problem is open, a ring of segments round its disc filled by the strips' bar, a point (one look for every kind)
-  and a line of light to the nearer turbine per site station at the mimic board's scale (blinking red with its line
+  and a line of light to the nearest turbine per site station at the mimic board's scale (blinking red with its line
   dark while a problem holds it, the one that blows first fastest; fixed, the line flashes back; a blast flashes
-  none) and a countdown, digits only, to the nearest problem's deadline. Its sounds (the call, the order's beeps,
-  the wail, the zap, the blast, the roar) are §4.7.64's. `ShipEngineClient` never offers E
+  none) and a countdown, digits only, to the nearest problem's deadline. The turbines and the button stand where the
+  level's hologram point has its `Turbine<n>` and `Button` children (#1499; without them two stand-ins either side of
+  the centre and the button under it, toward the console). Its sounds (the call, the order's beeps, the wail, the zap,
+  the blast, the roar) are §4.7.64's. `ShipEngineClient` never offers E
   on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
 
@@ -9112,9 +9126,12 @@ blast from a hand and a charger, the reasons, the check); `tests/unit/items/item
 The estate and the client: `tests/integration/levels/estate_engine_test.gd` (each marker part 2 asks for, each board
 the nearest of four breakers, every station in the aboard box and the ground beside it out, each marker in front of
 its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
+`tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
+frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
+slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
-point, the red lamps,
+point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
 turbines' spin, the points and lines, the blink and the flash, the nearest blinking fastest, the countdown, the ring,
@@ -9310,7 +9327,8 @@ levels/
   base mode accepts, the starts and respawns on the skat's clearing), `tests/unit/levels/estate_room_records_test.gd`,
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
   `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped),
-  `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27); the
+  `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27),
+  `tests/integration/levels/estate_ship_test.gd` (the art ship piece, #1499); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
@@ -9846,7 +9864,9 @@ assets/
   ship package's `levels/ship/ship.tscn` over `environment/ship/`, and the lobby hall package's
   `levels/lobby/lobby_hall.tscn` over `environment/lobby/`, which instances the ship's scene and carries the
   package's one script, `levels/lobby/lobby_hall.gd` (it frees the ship's nodes the lobby must not have). The
-  game's `levels/lobby/lobby.tscn` instances the hall and adds its own pieces and markers beside it.
+  game's `levels/lobby/lobby.tscn` instances the hall and adds its own pieces and markers beside it; the estate's
+  ship lot `levels/estate/rooms/ship.tscn` instances the ship's scene too, its own `ship.gd` freeing the clearing, sky
+  and suns (#1499), never a second import.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/toy_pack/fonts/` (#520, #1045).
