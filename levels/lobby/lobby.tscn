@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bcg1h5y3n86jg"]
 
 [ext_resource type="PackedScene" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
+[ext_resource type="Script" path="res://levels/lobby/lobby_render.gd" id="2_render"]
 [ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
 [ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
@@ -37,6 +38,9 @@ size = Vector3(0.2, 2.5, 2)
 [node name="Lobby" type="Node3D" unique_id=1140489342]
 
 [node name="Hall" parent="." unique_id=1451145101 instance=ExtResource("1_hall")]
+
+[node name="ShipOccluder" type="OccluderInstance3D" parent="." unique_id=1523000001]
+script = ExtResource("2_render")
 
 [node name="Bar" type="StaticBody3D" parent="." unique_id=800906334]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)

@@ -9255,6 +9255,8 @@ levels/
                                    the `Booth` marker (`spawn_booth`, #1396: in front of the PhotoBooth box, §9.5.29)
   lobby/lobby_hall.tscn, lobby_hall.gd   the art lobby hall's level set (#1451, §11.1): hall, docked ship, Earth,
                                    lights, spawn markers; its script frees the ship's forest and suns on _ready
+  lobby/lobby_render.gd            the lobby's `ShipOccluder` (#1523): the art's shadow atlas and occlusion culling on the
+                                   viewport while the lobby is in the tree, an occluder from the ship's hull
   ship/ship.tscn                   the art ship package's ship (#1451; the lobby hall instances it)
   greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
                                    round_player, package, knife, circle, respawn and zone markers
@@ -9377,6 +9379,13 @@ levels/
   the art, the host reading the lobby without errors and holding only the colliders the client keeps, the tap, pinball and booth markers clear, and no collider
   but the floor near a lobby marker or a walk a scenario takes in the lobby before
   it first waits); `lobby_view_test.gd` (the lobby lit in the tree, and the open view from every lobby spawn); `game_level_test.gd` (GameLevel loads the lobby again after a round).
+  The lobby's render settings (#1523, `levels/lobby/lobby_render.gd` on `ShipOccluder`, after `Hall`): while the
+  lobby is in the tree its viewport has the art HANDOFF's positional shadow atlas (4096, all four quadrants
+  subdivided 4) and occlusion culling on, and gets its own settings back as the lobby leaves, so no match map changes
+  (the project setting stays off). The occluder is built on _ready from the docked ship's opaque hull (`skin_*`) and
+  its shut nose, so the ship's interior is drawn only where a window shows it (from the spawn facing the ship, 855
+  visible draw calls to 201); most of the hall's calls left are the shadow passes of the ship's interior lights.
+  Test: `lobby_render_test.gd`.
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
