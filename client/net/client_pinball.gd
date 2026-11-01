@@ -50,6 +50,12 @@ func fold_snapshot(fields: Dictionary) -> void:
 	ball = fields["ball"] if ball_shown else Vector3.ZERO
 
 
+## The game's serial (`game`) for a client/ reader: the boundary guard (client_boundary_test, E18)
+## reads any `.game` member as HostSession's, so client/world asks through this call.
+func game_serial() -> int:
+	return game
+
+
 ## Forgets the game and the ball, not the best (ClientModel.clear_match: LoadMatch, entering the
 ## lobby).
 func clear_match() -> void:

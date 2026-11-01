@@ -68,8 +68,8 @@ func _process(_delta: float) -> void:
 func on_snapshot(_tick: int, _avatars: Dictionary) -> void:
 	if model == null:
 		return
-	if model.pinball.game != _game:
-		_game = model.pinball.game
+	if model.pinball.game_serial() != _game:
+		_game = model.pinball.game_serial()
 		track.clear()
 	track.add(model.pinball.ball_tick, model.pinball.ball_shown, model.pinball.ball)
 

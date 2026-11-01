@@ -37,14 +37,19 @@ func _ready() -> void:
 	_member(OWN, OWN_NAME, 0)
 	_member(OWNER, OWNER_NAME, OWNER_COLOUR)
 	var pinball := _model.pinball
-	pinball.game = 1
-	pinball.player = OWN if stage == "close_up" else OWNER
-	pinball.left = true
-	pinball.in_play = true
-	pinball.score = 1250
-	pinball.balls_left = 2
-	pinball.best = 4800
-	pinball.best_name = OWNER_NAME
+	# The state as the wire folds it: a client/ file never sets `.game` (client_boundary_test).
+	var state := {
+		"game": 1,
+		"player": OWN if stage == "close_up" else OWNER,
+		"left": true,
+		"right": false,
+		"in_play": true,
+		"score": 1250,
+		"balls_left": 2,
+		"best": 4800,
+		"best_name": OWNER_NAME,
+	}
+	pinball.fold(&"PinballState", state)
 	_views.model = _model
 	_views.drawn_at = func() -> float: return float(RENDER_TICK)
 	add_child(_views)
