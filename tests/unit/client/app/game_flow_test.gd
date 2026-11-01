@@ -138,3 +138,36 @@ func test_in_round_holds_only_while_the_round_plays() -> void:
 	# A win ends the round at once, while the clock's end_tick still lies ahead.
 	model.fold(&"MatchEnded", {"side": &"crew"})
 	assert_bool(GameFlow.in_round(model)).is_false()
+
+
+func test_the_clock_stops_when_every_task_is_done() -> void:
+	# The round lingers on a stopped clock once the win is decided at the engine's last stage
+	# (GDD §3, #1502): the clock holds at the tick of the bar's last ZoneProgress.
+	var model := ClientModel.new(load(MODE) as GameMode)
+	model.stations[5] = ClientModel.Station.new()
+	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": 2000})
+	model.fold(&"TaskProgress", {"done": 0, "total": 1})
+	model.fold(&"ZoneProgress", _bar(5, 300, 600, 400))
+	assert_int(GameFlow.clock_left(model, 400)).is_equal(80)
+	model.fold(&"ZoneProgress", _bar(5, 600, 600, 600))
+	assert_int(GameFlow.clock_left(model, 620)).is_equal(69)
+	model.fold(&"TaskProgress", {"done": 1, "total": 1})
+	assert_int(GameFlow.clock_left(model, 620)).is_equal(70)
+	assert_int(GameFlow.clock_left(model, 680)).is_equal(70)
+	# Before the stop the clock is as it was.
+	assert_int(GameFlow.clock_left(model, 500)).is_equal(75)
+	# The next phase's own countdown runs.
+	model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 740})
+	model.fold(&"TaskProgress", {"done": 0, "total": 0})
+	assert_int(GameFlow.clock_left(model, 680)).is_equal(3)
+
+
+func test_no_tasks_never_stop_the_clock() -> void:
+	var model := ClientModel.new(load(MODE) as GameMode)
+	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": 2000})
+	model.fold(&"TaskProgress", {"done": 0, "total": 0})
+	assert_int(GameFlow.clock_left(model, 1000)).is_equal(50)
+
+
+func _bar(station: int, ticks: int, needed: int, at: int) -> Dictionary:
+	return {"station": station, "ticks": ticks, "needed": needed, "counting": false, "tick": at}

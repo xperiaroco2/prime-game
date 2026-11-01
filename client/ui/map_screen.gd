@@ -368,7 +368,7 @@ static func counter_text(row: Row) -> String:
 
 ## "Time: 4:31" in the language now, or empty before the match clock runs.
 static func time_text(model: ClientModel, host_tick: float) -> String:
-	var left := GameFlow.seconds_left(model.end_tick, floori(host_tick))
+	var left := GameFlow.clock_left(model, floori(host_tick))
 	if left < 0:
 		return ""
 	var clock := "%d:%02d" % [floori(left / 60.0), left % 60]
