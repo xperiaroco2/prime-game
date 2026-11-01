@@ -27,8 +27,8 @@
       "duration_s": [0.02, 0.6]
     },
     "task": {
-      "about": "a task station's sounds: a step done, the task done or failed",
-      "globs": ["task*", "station*", "delivery*"],
+      "about": "a task station's sounds: a step done, the task done or failed, the ship engine's (#1501)",
+      "globs": ["task*", "station*", "delivery*", "engine*"],
       "rms_dbfs": [-30.0, -10.0],
       "duration_s": [0.1, 3.0]
     }

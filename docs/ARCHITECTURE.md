@@ -4339,7 +4339,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
   (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
   one `docs/credits/` entry per pack; and the project's own `prime_task_feedback/` (`task_success.wav`,
-  `task_error.wav`, mono WAV through LFS, §4.7.60), whose CI stand-in is a silent WAV. The packs ship only Ogg, most of it
+  `task_error.wav`, mono WAV through LFS, §4.7.60) and `prime_engine/` (the ship engine's six, §4.7.64), whose CI
+  stand-in is a silent WAV. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -5310,7 +5311,8 @@ and P1 (the same kalimba falling a minor third), the project's own synthesis in 
 (`docs/credits/prime_task_feedback.md`).
 - **The ids.** `SfxSet.TASK_SUCCESS` (`task_success.wav`) and `SfxSet.TASK_ERROR` (`task_error.wav`), one file each,
   through the same randomizer as every id (§4.7.43's pitch and volume placeholders). A ship station that lands later
-  plays them through the same two ids.
+  plays them through the same two ids; the engine's done console plays `TASK_SUCCESS` with its roar on top
+  (§4.7.64).
 - **When.** `SoundChooser` picks success whenever a task or one of its subtasks is done, error on a miss by the
   task's own rules, each at the station of the event that tells it, the burnt patty's where it lies (every one
   reaches everyone):
@@ -5472,6 +5474,55 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   display in view), `pinball_views_test.gd` (the markers, the feed, `LoadMatch`, the `shot` previews
   `client/dev/pinball_close_up_preview.tscn` and `pinball_table_preview.tscn` build); `controls_test.gd`,
   `input_actions_test.gd`, `lobby_hall_test.gd` (the markers) and `item_world_children_test.gd`.
+
+#### 4.7.64 The ship engine's sounds (#1501)
+No new event, row or rule: the client plays the engine's sounds (GDD §8 "The ship's engine") from what its own
+`ClientModel` already holds (`ClientEngineBook`, the console's `ZoneProgress`, the public `KnockedDown`) and its copy
+of the mode, never `core/` state (§9.5.27's client).
+- **The files.** `assets/audio/prime_engine/` (`engine_call`, `engine_beep`, `engine_wail`, `engine_zap`,
+  `engine_blast`, `engine_roar`, mono WAV through LFS, one each), the project's own synthesis like
+  `prime_task_feedback/` (`tools/sfx/engine_synth.gd`, rendered by `tools/sfx/render_engine_sounds.gd`, seeded noise:
+  the same bytes every render; `docs/credits/prime_engine.md`). Placeholders, "not a decision": the engineer picks by
+  ear on `tools\run.cmd sfx-check assets/audio/prime_engine --page` (the task category takes `engine*`) and in game.
+- **The ids.** `SfxSet.ENGINE_CALL`, `ENGINE_BEEP`, `ENGINE_WAIL`, `ENGINE_ZAP`, `ENGINE_BLAST`, `ENGINE_ROAR`,
+  through the same randomizer as every id (§4.7.43).
+- **When and where.** `ShipEngineSounds` (`client/audio/`) says which are due each frame, as edges seen from the
+  last frame (seeded at the view's first frame: a view built again, a new level or a late join, plays no old problem,
+  blast or finish), and only in the play phase (`SoundChooser.in_play`) or the frame it ends in (the engine's last
+  stage can end the round in the same tick: its done `ZoneProgress` and `PhaseChanged(end)` fold before one frame,
+  and the roar and `finished` must not be lost there):
+  - the call: while the hologram calls (`ShipEngineHologram.called()`, the engine off), at each peak of its turbines'
+    pulse (`PULSE_SECONDS`), at the hologram's centre;
+  - the beep: at each lamp of an open breakers problem's order as the mimic board lights it (`ShipEngineViews`'
+    `ORDER_STEP_SECONDS` steps, none in its pause), at the hologram's centre; every order steps on the same clock, so
+    two open at once beep once a lamp, not twice on top;
+  - the wail: once at each station of a problem as it opens (a new id in the book), not looping while it stays open;
+  - the blast: a new `EngineBlast` (the book's count), at the console;
+  - the roar: the console's bar full (its done `ZoneProgress`), at the console, on top of §4.7.60's `TASK_SUCCESS`
+    there;
+  - the zap: no event names a short circuit (it is the presser's `KnockedDown` alone, §9.5.27), so
+    `ShipEngineSounds.zap_at` takes a `KnockedDown` in play whose body lies within the reach of a tripped breaker of
+    an open breakers problem not yet on (its kind's `radius_m` plus `ZAP_SLACK_M`, at most `ZAP_RISE_M` above its
+    floor) and zaps at that breaker; any other knockdown is silent here. The known limit: a hit that downs a player
+    within that reach also zaps (a public `BreakerShorted` event would settle it: a protocol change left to the
+    engineer).
+- **How.** `ShipEngineViews` hands each cue out as its signal `sound_due` (the pseudo-event `ShipEngineSounds.EVENT`,
+  fields `id` and `position`); `ItemWorld` connects any task view's `sound_due` to `WorldSounds.on_event`, so each plays
+  as every world sound (§4.7.43, §4.7.60): a one-shot on the Effects bus, cut at its range from the ears (its
+  `max_distance` the same) and muffled behind the level. `SoundChooser.Sound.range_m` (0: the caller's hearing range)
+  lets the blast and the roar carry `ShipEngineSounds.FAR_RANGE_M` (40 m, through the ship and over the party), every
+  other engine sound `SoundChooser.HEARING_RANGE_M`. A wider range is only for a sound at a fixed public place from an
+  event everyone gets, never for one whose place tells where a player is or acts (`Swung`, `ItemPlaced`,
+  `KnockedDown`): the M4 ADR's single hearing range (§3 item 10) exists to cut those. Every cue tells only public
+  places and states and names no player, so everyone in range hears the same. The roar's frame also fires
+  `ShipEngineViews.finished(at)`: the hook for the finish's flame and light show (#1502).
+- **Tests.** `tests/unit/client/audio/ship_engine_sounds_test.gd` (the seeded first frame, the call's pulse, the
+  wails, the order's beeps and its pause, two orders' one beep, the blast and the roar once and far, a finish before
+  the first frame, the play phase only, the roar of the engine that ends the round, the zap and any other knockdown
+  on this deck or another), `tests/unit/client/world/engine_sounds_test.gd` (each cue's id and place, the ranges, the
+  zap through `SoundChooser`, `WorldSounds` on the files with the range, `ItemWorld`'s connection),
+  `ship_engine_views_test.gd` (the cues and `finished`, also in the frame the round ends), `sfx_set_test.gd` (the six
+  files exist) and `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -9033,7 +9084,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   a problem is open, a ring of segments round its disc filled by the strips' bar, a point (one look for every kind)
   and a line of light to the nearer turbine per site station at the mimic board's scale (blinking red with its line
   dark while a problem holds it, the one that blows first fastest; fixed, the line flashes back; a blast flashes
-  none) and a countdown, digits only, to the nearest problem's deadline. `ShipEngineClient` never offers E
+  none) and a countdown, digits only, to the nearest problem's deadline. Its sounds (the call, the order's beeps,
+  the wail, the zap, the blast, the roar) are §4.7.64's. `ShipEngineClient` never offers E
   on a breaker board (no use of one is taken: its breakers are). The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
 

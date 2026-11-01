@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## SfxSet (#525): every sound id's files exist and load (in CI the LFS stand-in), each from a pack
 ## with its docs/credits/ entry, each id is one AudioStreamRandomizer of them with a small random
 ## pitch and volume, every surface has its five footsteps, the task's success and error are the
-## engineer's U2 and P1 (#1341), and an id whose files do not load has no stream (nothing plays).
+## engineer's U2 and P1 (#1341), the engine's six its own synthesis (#1501), and an id whose files
+## do not load has no stream (nothing plays). A missing file fails the first test.
 
 
 func test_every_file_of_every_id_exists_and_loads() -> void:
@@ -15,10 +16,12 @@ func test_every_file_of_every_id_exists_and_loads() -> void:
 			var pack := path.get_base_dir().get_file()
 			var credits := "res://docs/credits/%s.md" % pack
 			assert_bool(FileAccess.file_exists(credits)).override_failure_message(credits).is_true()
+			# The file itself, not only its import: a deleted file's import still loads (#1501).
+			assert_bool(FileAccess.file_exists(path)).override_failure_message(path).is_true()
 			assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
-			# Kenney's packs ship Ogg; the project's own task sounds are WAV (§4.7.43).
+			# Kenney's packs ship Ogg; the project's own task and engine sounds are WAV (§4.7.43).
 			var stream := load(path)
-			if pack == "prime_task_feedback":
+			if pack in ["prime_task_feedback", "prime_engine"]:
 				assert_object(stream as AudioStreamWAV).override_failure_message(path).is_not_null()
 			else:
 				assert_str(pack).starts_with("kenney_")
@@ -38,6 +41,22 @@ func test_the_task_success_and_error_are_the_engineer_s_two_files() -> void:
 	assert_that(Array(error)).is_equal(["res://assets/audio/prime_task_feedback/task_error.wav"])
 	assert_bool(SfxSet.ids().has(SfxSet.TASK_SUCCESS)).is_true()
 	assert_bool(SfxSet.ids().has(SfxSet.TASK_ERROR)).is_true()
+
+
+func test_the_engine_s_six_sounds_are_its_own_synthesis() -> void:
+	var expected: Dictionary[StringName, String] = {
+		SfxSet.ENGINE_CALL: "engine_call",
+		SfxSet.ENGINE_BEEP: "engine_beep",
+		SfxSet.ENGINE_WAIL: "engine_wail",
+		SfxSet.ENGINE_ZAP: "engine_zap",
+		SfxSet.ENGINE_BLAST: "engine_blast",
+		SfxSet.ENGINE_ROAR: "engine_roar",
+	}
+	for id: StringName in expected:
+		assert_bool(SfxSet.ids().has(id)).override_failure_message(String(id)).is_true()
+		assert_that(Array(SfxSet.paths_for(id))).is_equal(
+			["res://assets/audio/prime_engine/%s.wav" % expected[id]]
+		)
 
 
 func test_each_id_is_one_randomizer_of_its_files() -> void:

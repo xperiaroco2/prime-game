@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## the breakers' lamps and the mimic board, where alone the order plays, the gill sets' slits and
 ## white bar, a charger's lamp and the blast; the hologram made readable (#1500, GDD §8): the call,
 ## the turbines' spin, a point and a line per site station, the blink, the flash, the countdown and
-## the ring; the gills' steam and mist. And ShipEngineClient offers no breaker board.
+## the ring; the gills' steam and mist; its sounds' cues and the roar's finish (#1501). And
+## ShipEngineClient offers no breaker board.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const CONSOLE := 1
@@ -596,6 +597,69 @@ func test_a_view_built_again_or_a_blast_plays_no_steam_or_mist() -> void:
 	_view._process(0.0)
 	assert_int(_view.steam().size()).is_equal(0)
 	assert_int(_view.mist().size()).is_equal(0)
+
+
+func test_the_engine_s_sounds_go_out_as_cues_and_the_roar_with_finished() -> void:
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
+	_place()
+	var cues: Array[Dictionary] = []
+	var finishes: Array[Vector3] = []
+	_view.sound_due.connect(
+		func(event_name: StringName, fields: Dictionary) -> void:
+			assert_str(String(event_name)).is_equal(String(ShipEngineSounds.EVENT))
+			cues.append(fields)
+	)
+	_view.finished.connect(func(at: Vector3) -> void: finishes.append(at))
+	_view._process(0.0)
+	assert_array(cues).is_empty()
+	_model.fold(&"EngineProblemOpened", _opened(1, [SOCKET], 600))
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(1)
+	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_WAIL))
+	assert_that(cues[0]["position"]).is_equal(_model.stations[SOCKET].position)
+	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	var needed := 600
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": needed, "needed": needed, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(2)
+	assert_str(str(cues[1]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
+	var console_up := _model.stations[CONSOLE].position + Vector3.UP
+	assert_that(finishes).is_equal([console_up] as Array[Vector3])
+	# A view built again (a new level) plays no old finish.
+	_view.level = _level()
+	_view._process(0.0)
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(2)
+	assert_int(finishes.size()).is_equal(1)
+
+
+func test_the_engine_that_ends_the_round_still_roars_and_finishes() -> void:
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
+	_place()
+	var cues: Array[Dictionary] = []
+	var finishes: Array[Vector3] = []
+	_view.sound_due.connect(
+		func(_event_name: StringName, fields: Dictionary) -> void: cues.append(fields)
+	)
+	_view.finished.connect(func(at: Vector3) -> void: finishes.append(at))
+	_view._process(0.0)
+	# The last stage ends the round in the same tick: its ZoneProgress and PhaseChanged(end) fold
+	# before one frame.
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 600, "needed": 600, "counting": false, "tick": 0}
+	)
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"end", 1000).to_dict())
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(1)
+	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
+	var console_up := _model.stations[CONSOLE].position + Vector3.UP
+	assert_that(finishes).is_equal([console_up] as Array[Vector3])
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(1)
 
 
 func _colour(part: MeshInstance3D) -> Color:

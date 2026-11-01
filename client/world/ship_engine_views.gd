@@ -25,9 +25,17 @@ extends Node3D
 ## - the hologram made readable (ShipEngineHologram, #1500): the call while the engine is off, the
 ##   turbines' spin, the ring of the bar round its disc, a point and a line of light per site
 ##   station and the countdown to the nearest problem's deadline;
-## - a blast: an orange sphere swelling from the console and fading (EngineBlast).
+## - a blast: an orange sphere swelling from the console and fading (EngineBlast);
+## - the engine's sounds (#1501, ShipEngineSounds): each cue due this frame goes out as
+##   `sound_due` (ItemWorld hands it to WorldSounds), and the roar's with `finished`.
 ## Every part is depth-tested and tells only public places and states; none names a player. The
 ## looks and sizes are placeholders, "not a decision".
+
+## An engine sound due now (ShipEngineSounds.EVENT and its cue), for WorldSounds.on_event.
+signal sound_due(event_name: StringName, fields: Dictionary)
+## The engine finished in play (the roar's moment, at the console): the hook for the finish's
+## flame and light show (#1502).
+signal finished(at: Vector3)
 
 ## How far a gill set's Button may lie from its gill button's use spot, in metres.
 const BIND_TOLERANCE_M := 1.5
@@ -95,6 +103,9 @@ var _blast_left := 0.0
 var _blasts_seen := 0
 var _materials: Dictionary[Color, StandardMaterial3D] = {}
 var _hologram: ShipEngineHologram
+var _centre := Vector3.ZERO
+## The engine's sounds' edges, seeded anew with each build.
+var _sounds := ShipEngineSounds.new()
 ## The gills' puffs and clouds, under one node of their own, each with its seconds left.
 var _vapour: Node3D
 var _steam: Dictionary[MeshInstance3D, float] = {}
@@ -158,6 +169,7 @@ func clear() -> void:
 	_blast_left = 0.0
 	_blasts_seen = 0
 	_hologram = null
+	_sounds = ShipEngineSounds.new()
 	_vapour = null
 	_steam.clear()
 	_mist.clear()
@@ -184,6 +196,10 @@ func _process(delta: float) -> void:
 	var blasted := model.engine.blasts != _blasts_seen
 	var share := _draw_strips(type, now)
 	_hologram.update(now, share, delta, blasted)
+	for cue: Dictionary in _sounds.due(model, _console, _centre, now, _hologram.called()):
+		sound_due.emit(ShipEngineSounds.EVENT, cue)
+		if cue["id"] == SfxSet.ENGINE_ROAR:
+			finished.emit(cue["position"] as Vector3)
 	_draw_lamps(type, now)
 	_draw_gills(type, now, blasted)
 	_draw_vapour(delta)
@@ -222,6 +238,7 @@ func _ids_of(kind: StationKind) -> Array[int]:
 
 func _build(type: ShipEngine) -> void:
 	var centre := _hologram_centre()
+	_centre = centre
 	_build_strips(_stages(type))
 	var sites: Array[int] = []
 	for kind: ProblemKind in type.kinds:
