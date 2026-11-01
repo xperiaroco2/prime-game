@@ -140,7 +140,7 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	assert_vector(help.custom_minimum_size).is_equal(Vector2(42, 42))
 	assert_int(help.focus_mode).is_equal(Control.FOCUS_ALL)
 	assert_int(help.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
-	# Board: raised at its rect; Rooms inside its 4 px border is the rooms' 1088x896.
+	# Board: raised at its rect; Rooms inside its 6 px margins (ui-2.x) is the rooms' 1084x892.
 	assert_object(screen.board_raised.face).is_same(screen.board)
 	assert_vector(screen.board_raised.position).is_equal(Vector2(744, 88))
 	assert_vector(screen.board_raised.size).is_equal(Vector2(1096, 904))
@@ -158,8 +158,8 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	assert_int(icon.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_int(icon.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
 	assert_int(icon.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
-	# Drawn in ink (#2a1f33), the room names' colour.
-	assert_str(icon.self_modulate.to_html(false)).is_equal("2a1f33")
+	# Drawn in the room names' colour (the pack's ToyMapRoomText, #ece8f7 since ui-2.x).
+	assert_str(icon.self_modulate.to_html(false)).is_equal("ece8f7")
 	var label := room.get_node("V/Name") as Label
 	_expect(label, "Name", "ToyMapRoomText")
 	assert_vector(label.custom_minimum_size).is_equal(Vector2(120, 0))
@@ -399,9 +399,9 @@ func test_the_rooms_by_name_and_the_own_pin_at_the_own_place_and_heading() -> vo
 	)
 	assert_vector(centre).is_equal_approx(expected, Vector2.ONE * 0.01)
 	assert_float(screen.pin.rotation).is_equal_approx(PI / 4.0 + Preview.FAKE_OWN_HEADING, 0.0001)
-	assert_vector(screen.pin.size).is_equal(Vector2(28, 28))
+	assert_vector(screen.pin.size).is_equal(Vector2(42, 42))
 	# "You are here" 8 px right of the pin's rect, 3 px above its top; it does not turn.
-	assert_vector(screen.here.position).is_equal(screen.pin.position + Vector2(28 + 8, -3))
+	assert_vector(screen.here.position).is_equal(screen.pin.position + Vector2(42 + 8, -3))
 	assert_float(screen.here.rotation).is_equal(0.0)
 
 
