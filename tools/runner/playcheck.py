@@ -57,7 +57,9 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          field reads as ""
     wait shown <field> on|off            whether the field's Control is visible in the tree (hand.item: an item in
                                          the first-person hand)
-    frames <n>                           n rendered frames, 1 to MAX_FRAMES
+    frames <n>                           n rendered frames, 1 to MAX_FRAMES (their time changes with the frame rate)
+    seconds <s>                          s seconds of the window's clock (0 < s <= MAX_TIMEOUT), whatever the frame
+                                         rate: how long a held walk lasts (#1530)
     press <action>                       the action's key pressed, released the next frame
                                          (Input.parse_input_event); keys only, never a mouse button
     hold <action> / release <action>     Input.action_press until the release (each hold needs one)
@@ -365,6 +367,8 @@ class _Parser:
         if verb == "wait":
             made = self.wait(args)
             made.setdefault("timeout_s", options.get("timeout_s"))
+        elif verb == "seconds" and len(args) == 1:
+            made = {"seconds": self.seconds(args[0], "seconds")}
         elif verb == "frames" and len(args) == 1:
             made = {"count": self.number(args[0], "frames", 1, MAX_FRAMES)}
         elif verb in ACTIONS and len(args) == 1:
@@ -382,10 +386,10 @@ class _Parser:
             made = {"label": " ".join(args)}
         elif verb == "aim":
             made = self.aim(args)
-        elif verb in ("frames", "shot", *ACTIONS):
+        elif verb in ("frames", "seconds", "shot", *ACTIONS):
             raise self.fail(f"`{verb}` takes one word")
         else:
-            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, aim, shot)")
+            raise self.fail(f"unknown step `{verb}` (wait, frames, seconds, press, hold, release, button, aim, shot)")
         self.scenario.steps[self.window].append(Step(self.line, text, verb, made))
 
     def wait(self, args: list[str]) -> dict[str, object]:

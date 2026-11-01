@@ -239,6 +239,10 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 2\nwindow 1\nframes 2 timeout=5", 4, "only a wait takes timeout="),
             ("players 2\nwindows 2\nwindow 1\nframes 0", 4, "frames must be a whole number from 1 to 600"),
             ("players 2\nwindows 2\nwindow 1\nframes", 4, "`frames` takes one word"),
+            ("players 2\nwindows 2\nwindow 1\nseconds 0", 4, "seconds must be seconds above 0"),
+            ("players 2\nwindows 2\nwindow 1\nseconds 601", 4, "at most 600"),
+            ("players 2\nwindows 2\nwindow 1\nseconds", 4, "`seconds` takes one word"),
+            ("players 2\nwindows 2\nwindow 1\nseconds 1 timeout=5", 4, "only a wait takes timeout="),
             ("players 2\nwindows 2\nwindow 1\npress Ready", 4, "an input action looks like ui_cancel"),
             ("players 2\nwindows 2\nwindow 1\nshot A-B", 4, "a shot's name is [a-z0-9_]"),
             ("players 2\nwindows 2\nwindow 1\nhold give_up\nshot a", 4, "holds give_up and never releases it"),
@@ -304,6 +308,11 @@ class ParserTest(unittest.TestCase):
         # The button's text goes under "label": the step's "text" is its line.
         button = {"line": 8, "text": "button Back to lobby", "do": "button", "label": "Back to lobby"}
         self.assertEqual(first[4].plan(), button)
+
+    def test_seconds_becomes_its_plan_entry_in_seconds_not_frames(self) -> None:
+        steps = "window 1\nhold move_back\nseconds 0.4   # a step back\nrelease move_back\nshot a"
+        first = scenario(with_header(steps)).steps[1]
+        self.assertEqual(first[1].plan(), {"line": 5, "text": "seconds 0.4", "do": "seconds", "seconds": 0.4})
 
     def test_aim_item_and_aim_off_become_their_plan_entries_in_pairs(self) -> None:
         steps = "window 1\naim item knife   # the nearest\nframes 5\naim off\naim item package\naim off\nshot a"
