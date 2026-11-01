@@ -118,7 +118,7 @@ BOTS_RETURN_SCENARIO = "leave_and_return_keep_the_number"
 BOTS_RETURN_INSTANCES = 4
 # (scenario, instances) in the order bots-enet and bots-webrtc play them.
 BOTS_NETWORK_RUNS = ((BOTS_ENET_SCENARIO, BOTS_ENET_INSTANCES), (BOTS_RETURN_SCENARIO, BOTS_RETURN_INSTANCES))
-# The chaos bots (#188): one seed, the short match, three runs in one process over the loopback (about 6 s).
+# The chaos bots (#188): one seed, the short match, three loopback runs in one process (about 26 s on CI, #1545).
 CHAOS_SEED = 188001
 
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
