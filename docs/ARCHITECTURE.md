@@ -9271,8 +9271,10 @@ halved per broken point, the values it holds), `tests/integration/client/world/s
 station bound to its device, the breakers to shells by rank, a breaker's console lamp in its shell's colour, the
 wiring points by side, no stand-ins under the devices and the art hologram, the live layers, the host's clock and
 the call on the beep's tick, the press, the blink, fixed and none at a blast, the order lamp a step at a time, the
-shells, lamps and beacon, the socket's crystal and claws, the charger's charge, a bare level keeping the stand-ins)
-and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
+shells, lamps and beacon, the socket's crystal and claws, the charger's charge, a bare level keeping the stand-ins),
+`tests/integration/client/world/ship_station_looks_ship_test.gd` (in the estate ship at its markers: every station
+a device of its own, each board's four breakers its four shells and lamps of their colour, each site its own wiring
+point by its side and end) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
