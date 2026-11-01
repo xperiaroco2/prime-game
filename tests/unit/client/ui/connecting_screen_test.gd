@@ -30,14 +30,14 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	var nodes: Array = [
 		["Night", "Panel", &"ToyBackdropNight", Vector2.ZERO],
 		["Connecting", "VBoxContainer", &"ToyColumnTwentyFour", Vector2(768, 0)],
-		["Connecting/SpinnerBox", "Control", &"", Vector2(90, 90)],
-		["Connecting/SpinnerBox/Spinner", "Panel", &"ToySpinner", Vector2(90, 90)],
+		["Connecting/SpinnerBox", "Control", &"", Vector2(135, 135)],
+		["Connecting/SpinnerBox/Spinner", "Panel", &"ToySpinner", Vector2(135, 135)],
 		["Connecting/Texts", "VBoxContainer", &"ToyColumnEight", Vector2.ZERO],
 		["Connecting/Texts/Title", "Label", &"ToyTitleOnDark", Vector2(768, 0)],
 		["Connecting/Texts/Step", "Label", &"ToyTextOnDark", Vector2.ZERO],
 		["Connecting/CodeRow", "HBoxContainer", &"ToyRowEight", Vector2.ZERO],
 		["Connecting/CodeRow/Label", "Label", &"ToyTextMutedOnDark", Vector2.ZERO],
-		["Connecting/CodeRow/Code", "PanelContainer", &"ToyKeyOnDark", Vector2(36, 0)],
+		["Connecting/CodeRow/Code", "PanelContainer", &"ToyKeyOnDark", Vector2(42, 0)],
 		["Connecting/CodeRow/Code/Text", "Label", &"ToyKeyText", Vector2.ZERO],
 		["Connecting/Elapsed", "Label", &"ToyTextMutedOnDark", Vector2.ZERO],
 		["Connecting/CancelRaised/Cancel", "Button", &"ToyButtonSecondary", Vector2.ZERO],
@@ -96,11 +96,12 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	assert_int(_screen.code_row.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_int(_screen.code_key.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_int(_screen.cancel.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	# No base under a raised face since ui-2.0.0 (the pack: no button has a base layer, #1559).
 	for raised: ToyRaised in [_screen.cancel, _screen.primary, _screen.back_solo]:
-		assert_bool(raised.base.visible).is_true()
+		assert_bool(raised.base.visible).is_false()
 		assert_object(raised.face.get_node(^"ToyPress")).is_not_null()
-	assert_str(String(_screen.primary.base.theme_type_variation)).is_equal("ToyBasePrimaryOnDark")
-	assert_str(String(_screen.cancel.base.theme_type_variation)).is_equal("ToyBaseRaisedOnDark")
+	assert_str(String(_screen.primary.base.theme_type_variation)).is_empty()
+	assert_str(String(_screen.cancel.base.theme_type_variation)).is_empty()
 	assert_object(_screen.back_ghost.get_node(^"ToyPress")).is_not_null()
 	assert_int(_screen.title_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
 	assert_float(_screen.bar.max_value).is_equal(100.0)
@@ -396,11 +397,11 @@ func test_a_sort_of_the_column_does_not_reset_the_spinner_s_turn() -> void:
 
 func test_the_keycap_and_the_spinner_take_their_size_from_the_theme_also_large() -> void:
 	await _frames(1)
-	assert_that(_screen.code_key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_that(_screen.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
 	_screen.theme = GameUi.THEME_LARGE
 	await _frames(1)
-	assert_that(_screen.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
-	assert_that(_screen.spinner.custom_minimum_size).is_equal(Vector2(90, 90))
+	assert_that(_screen.code_key.custom_minimum_size).is_equal(Vector2(50, 0))
+	assert_that(_screen.spinner.custom_minimum_size).is_equal(Vector2(135, 135))
 
 
 func test_every_key_the_screen_names_is_in_the_deck() -> void:

@@ -42,25 +42,25 @@ func test_toggle_is_a_flat_toggle() -> void:
 
 func test_sized_reads_the_size_constants() -> void:
 	var slot := _panel(&"ToySlot")
-	assert_that(UiParts.sized(slot).custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_that(UiParts.sized(slot).custom_minimum_size).is_equal(Vector2(132, 132))
 	var wide_slot := _panel(&"ToySlot")
-	assert_that(UiParts.sized(wide_slot, true).custom_minimum_size).is_equal(Vector2(180, 88))
+	assert_that(UiParts.sized(wide_slot, true).custom_minimum_size).is_equal(Vector2(270, 132))
 	var key := Button.new()
 	key.theme_type_variation = &"ToyKeyButton"
 	_stage.add_child(key)
 	UiParts.sized(key)
-	assert_float(key.custom_minimum_size.x).is_equal(36.0)
+	assert_float(key.custom_minimum_size.x).is_equal(42.0)
 	var wide_key := Button.new()
 	wide_key.theme_type_variation = &"ToyKeyButton"
 	_stage.add_child(wide_key)
 	UiParts.sized(wide_key, true)
-	assert_float(wide_key.custom_minimum_size.x).is_equal(96.0)
+	assert_float(wide_key.custom_minimum_size.x).is_equal(144.0)
 	# Large text widens a plain keycap; the size follows the theme change.
 	_stage.theme = GameUi.THEME_LARGE
-	assert_float(UiParts.size_of(key).x).is_equal(42.0)
+	assert_float(UiParts.size_of(key).x).is_equal(50.0)
 	await get_tree().process_frame
-	assert_float(key.custom_minimum_size.x).is_equal(42.0)
-	assert_that(slot.custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_float(key.custom_minimum_size.x).is_equal(50.0)
+	assert_that(slot.custom_minimum_size).is_equal(Vector2(132, 132))
 
 
 func test_sized_waits_for_the_tree() -> void:
@@ -70,7 +70,7 @@ func test_sized_waits_for_the_tree() -> void:
 	assert_that(slot.custom_minimum_size).is_equal(Vector2.ZERO)
 	_stage.add_child(slot)
 	await get_tree().process_frame
-	assert_that(slot.custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_that(slot.custom_minimum_size).is_equal(Vector2(132, 132))
 
 
 func test_scroll_uses_the_toy_scroll_bar() -> void:

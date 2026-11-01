@@ -102,11 +102,11 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 	assert_vector(screen.downed.custom_minimum_size).is_equal(Vector2(688, 0))
 	assert_vector(screen.title_label.custom_minimum_size).is_equal(Vector2(600, 0))
 	assert_int(screen.title_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
-	assert_vector(screen.bleed.custom_minimum_size).is_equal(Vector2(600, 16))
+	assert_vector(screen.bleed.custom_minimum_size).is_equal(Vector2(600, 24))
 	assert_vector(screen.bleed.fill.custom_minimum_size).is_equal(Vector2(0, 10))
 	assert_vector(screen.raise_bar.custom_minimum_size).is_equal(Vector2(600, 16))
 	assert_vector(screen.raise_pad.custom_minimum_size).is_equal(Vector2(0, 4))
-	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(42, 0))
 	assert_vector(screen.hold_bar.custom_minimum_size).is_equal(Vector2(360, 10))
 	assert_int(screen.hold_bar.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	var pad := screen.get_node("GiveUp/V/Pad") as Control
@@ -292,21 +292,21 @@ func test_a_wide_key_widens_the_keycap_on_both_themes() -> void:
 	var holder := screen.get_parent() as Control
 	var view := _downed_view()
 	screen.show_hud(view.hud(0.0))
-	assert_float(screen.key.custom_minimum_size.x).is_equal(36.0)
+	assert_float(screen.key.custom_minimum_size.x).is_equal(42.0)
 	_bind_give_up(KEY_SPACE)
 	screen.show_hud(view.hud(0.0))
-	assert_float(screen.key.custom_minimum_size.x).is_equal(96.0)
+	assert_float(screen.key.custom_minimum_size.x).is_equal(144.0)
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_float(screen.key.custom_minimum_size.x).is_equal(96.0)
+	assert_float(screen.key.custom_minimum_size.x).is_equal(144.0)
 	_bind_give_up(KEY_K)
 	screen.show_hud(view.hud(0.0))
-	assert_float(screen.key.custom_minimum_size.x).is_equal(42.0)
+	assert_float(screen.key.custom_minimum_size.x).is_equal(50.0)
 	holder.theme = GameUi.THEME
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_float(screen.key.custom_minimum_size.x).is_equal(36.0)
+	assert_float(screen.key.custom_minimum_size.x).is_equal(42.0)
 
 
 func test_large_text_widens_the_keycap_and_keeps_every_plate_on_screen() -> void:
@@ -316,7 +316,7 @@ func test_large_text_widens_the_keycap_and_keeps_every_plate_on_screen() -> void
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(50, 0))
 	var raised := LifeHud.Shown.new()
 	raised.state = LifeHud.State.RAISE
 	raised.raiser = "Олександра-Вікторія"
@@ -327,7 +327,7 @@ func test_large_text_widens_the_keycap_and_keeps_every_plate_on_screen() -> void
 	holder.theme = GameUi.THEME
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(42, 0))
 
 
 func test_the_ui_shows_it_in_the_round_only_with_the_shared_theme() -> void:

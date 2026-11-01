@@ -43,7 +43,7 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 		["V", "VBoxContainer", &"ToyColumnThirtyTwo", ["YourRole", "RoleRaised", "Text"]],
 		["V/YourRole", "Label", &"ToyTextMutedOnDark", []],
 		["V/RoleRaised", "MarginContainer", &"", ["Base", "Role"]],
-		["V/RoleRaised/Base", "Panel", &"ToyBaseTitle", []],
+		["V/RoleRaised/Base", "Panel", &"", []],  # No base since ui-2.0.0 (#1559).
 		["V/RoleRaised/Role", "Label", &"ToyTitlePlate", []],
 		["V/Text", "VBoxContainer", &"ToyColumnSixteen", ["Goal", "Team"]],
 		["V/Text/Goal", "Label", &"ToyTextOnDark", []],
@@ -94,7 +94,7 @@ func test_it_names_only_the_packs_variations() -> void:
 	for control: Control in screen.find_children("*", "Control", true, false):
 		if not control.theme_type_variation.is_empty():
 			used.append(control.theme_type_variation)
-	assert_int(used.size()).is_equal(8)
+	assert_int(used.size()).is_equal(7)
 	for variation: String in used:
 		assert_bool(variations.has(variation)).override_failure_message(variation).is_true()
 

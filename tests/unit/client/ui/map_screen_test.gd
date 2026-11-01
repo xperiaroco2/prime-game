@@ -120,7 +120,7 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	assert_object(screen.tasks_raised.face).is_same(screen.tasks_panel)
 	assert_vector(screen.tasks_raised.position).is_equal(Vector2(80, 88))
 	assert_float(screen.tasks_raised.size.x).is_equal(608.0)
-	assert_str(String(screen.tasks_raised.base.theme_type_variation)).is_equal("ToyBasePanel")
+	assert_str(String(screen.tasks_raised.base.theme_type_variation)).is_empty()
 	_expect(screen.tasks_panel, "Tasks", "ToyPanelMenu")
 	_expect(screen.tasks_panel.get_node("V"), "V", "ToyColumnTwentyFour")
 	_expect(screen.tasks_panel.get_node("V/Title"), "Title", "ToyTitleOnLight")

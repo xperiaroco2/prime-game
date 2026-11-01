@@ -62,7 +62,7 @@ func test_bare_fields_take_toy_field() -> void:
 
 
 func test_bare_spin_boxes_take_toy_spin_box() -> void:
-	var metrics: Dictionary = (Builder.load_mapping()["font"] as Dictionary)["metrics"]
+	var families: Dictionary = (Builder.load_mapping()["font"] as Dictionary)["families"]
 	for theme: Theme in [GameUi.THEME, GameUi.THEME_LARGE]:
 		var spin := SpinBox.new()
 		_holder(theme).add_child(spin)
@@ -81,20 +81,23 @@ func test_bare_spin_boxes_take_toy_spin_box() -> void:
 			theme.get_color(&"up_icon_modulate", &"ToySpinBox")
 		)
 		# Each arrow is (the spin box's height - the separation) / 2 (spin_box.cpp, 4.7.2), and
-		# the height is its field's: the field's content margins and one line of Comfortaa.
-		# CI imports a stand-in font (#520), so the line comes from the committed metrics, and the
-		# margins from the field's StyleBox (the font does not enter them).
+		# the height is its field's: the field's content margins and one line of its family's font
+		# (#1559: Onest or Unbounded). CI imports a stand-in font (#520), so the line comes from the
+		# family's committed metrics, and the margins from the field's StyleBox.
 		var field := spin.get_line_edit()
+		var metrics := _metrics_of(field.get_theme_font(&"font"), families)
+		assert_dict(metrics).is_not_empty()
 		var size := field.get_theme_font_size(&"font_size")
 		var height := spin.get_combined_minimum_size().y
 		assert_float(height).is_equal(field.get_combined_minimum_size().y)
 		var margins := field.get_theme_stylebox(&"normal").get_minimum_size().y
-		assert_float(margins).is_equal(24.0)
+		# The pack's ToySpinField: 16 px above and below (ui-2.5.4), its spin box's separation 3.
+		assert_float(margins).is_equal(32.0)
 		var per_unit := float(size) / float(metrics["size"] as int)
 		var line := ceilf(per_unit * (metrics["ascent"] as int))
 		line += ceilf(per_unit * (metrics["descent"] as int))
 		var separation := spin.get_theme_constant(&"buttons_vertical_separation")
-		assert_int(separation).is_equal(2)
+		assert_int(separation).is_equal(3)
 		var arrow := floori((margins + line - separation) / 2.0)
 		assert_int(arrow).is_greater_equal(ARROW_HEIGHT)
 
@@ -140,10 +143,11 @@ func test_bare_sliders_and_scroll_bars_take_toy_looks() -> void:
 		assert_object(slider.get_theme_stylebox(item)).is_same(
 			theme.get_stylebox(item, &"ToySlider")
 		)
-	# The pack's grabbers (#520), the knob at its import size.
+	# The pack's grabbers (#520), the knob at its import size: the pack's `size` x `svg_scale`
+	# (ui-2.5.4: 21 x 42 at 1).
 	for item: StringName in [&"grabber", &"grabber_highlight", &"grabber_disabled"]:
 		assert_object(slider.get_theme_icon(item)).is_same(theme.get_icon(item, &"ToySlider"))
-	assert_object(slider.get_theme_icon(&"grabber").get_size()).is_equal(Vector2(28, 28))
+	assert_object(slider.get_theme_icon(&"grabber").get_size()).is_equal(Vector2(21, 42))
 	var scroll := ScrollContainer.new()
 	holder.add_child(scroll)
 	assert_int(scroll.get_theme_constant(&"scrollbar_h_separation")).is_equal(
@@ -287,6 +291,17 @@ static func classes(source: String) -> PackedStringArray:
 		if ClassDB.class_exists(cls) and ClassDB.is_parent_class(cls, "Control"):
 			found.append(cls)
 	return found
+
+
+## The committed metrics of the family whose file is `font`'s base font; {} when none is.
+func _metrics_of(font: Font, families: Dictionary) -> Dictionary:
+	var variation := font as FontVariation
+	var path := variation.base_font.resource_path if variation != null else font.resource_path
+	for family: String in families:
+		var spec: Dictionary = families[family]
+		if str(spec["file"]) == path:
+			return spec["metrics"]
+	return {}
 
 
 func _holder(theme: Theme) -> Control:

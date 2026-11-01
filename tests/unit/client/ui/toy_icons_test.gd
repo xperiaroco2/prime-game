@@ -5,11 +5,11 @@ extends GdUnitTestSuite
 
 
 func test_the_huds_icons_are_read_at_the_packs_drawn_size() -> void:
-	# [icon, svg_scale, drawn px] from the pinned pack (ui-0.4.0) `assets` list.
+	# [icon, svg_scale, drawn px] from the pinned pack (ui-2.5.4) `assets` list.
 	var rows: Array[Array] = [
-		[&"mic", 1.17, 28],
-		[&"mic-off", 1.17, 28],
-		[&"item", 2.0, 48],
+		[&"mic", 1.75, 42],
+		[&"mic-off", 1.75, 42],
+		[&"item", 1.0, 24],
 		[&"knife", 1.0, 48],
 	]
 	for row: Array in rows:

@@ -1,17 +1,17 @@
 extends GdUnitTestSuite
-## The game's font draws every character of the copy deck (#549, #208 part c; ARCHITECTURE
+## The game's fonts draw every character of the copy deck (#549, #208 part c; ARCHITECTURE
 ## §4.7.48): each character of both columns (en, uk) of client/i18n/strings.csv, placeholders
-## (`{count}`) and line breaks left out, is in the character map of the real Comfortaa file
-## (assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf, #684), read from the file itself with
-## FreeType (FontFile.load_dynamic_font, has_char), never Godot's imported copy.
+## (`{count}`) and line breaks left out, is in the character map of each family's real file (since
+## ui-2.0.0 Onest and Unbounded, tools/theme/mapping.json font.families, #1559; #684), read from the
+## file itself with FreeType (FontFile.load_dynamic_font, has_char), never Godot's imported copy.
 ##
 ## A checkout without Git LFS content (CI, §4.7.21) has a pointer file there and imports a stand-in
-## font in its place, which says nothing of Comfortaa's glyphs: there the check prints a `skip` line
-## naming the pointer and checks only the pointer; it runs on every machine with the font (`git lfs
-## pull`), as the local `test` does.
+## font in its place, which says nothing of the family's glyphs: there the check prints a `skip`
+## line naming the pointer and checks only the pointer; it runs on every machine with the fonts
+## (`git lfs pull`), as the local `test` does.
 
 const Check := preload("res://tools/assets/asset_check.gd")
-const FONT := "res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf"
+const Builder := preload("res://tools/theme/theme_builder.gd")
 const DECK := "res://client/i18n/strings.csv"
 const PLACEHOLDER := "\\{[^}]*\\}"
 ## The deck's columns the game shows.
@@ -27,17 +27,24 @@ func test_the_font_has_every_character_of_both_columns() -> void:
 			. override_failure_message("no deck column " + column)
 			. is_true()
 		)
-	if Check.is_lfs_pointer(FONT):
-		print(
-			"skip: %s is a Git LFS pointer (no LFS content here): its glyphs are unchecked" % FONT
-		)
-		assert_bool(FileAccess.get_file_as_string(FONT).contains("oid sha256:")).is_true()
-		return
-	var font := real_font(FONT)
-	assert_str(font.font_name).is_equal("Comfortaa")
 	var characters := deck_characters(deck_rows(DECK))
 	assert_int(characters.size()).is_greater(60)
-	assert_array(missing(font, characters)).is_empty()
+	var files := family_files()
+	assert_int(files.size()).is_equal(2)
+	for family: String in files:
+		var path: String = files[family]
+		if Check.is_lfs_pointer(path):
+			print(
+				(
+					"skip: %s is a Git LFS pointer (no LFS content here): its glyphs are unchecked"
+					% path
+				)
+			)
+			assert_bool(FileAccess.get_file_as_string(path).contains("oid sha256:")).is_true()
+			continue
+		var font := real_font(path)
+		assert_str(font.font_name).is_equal(family)
+		assert_array(missing(font, characters)).override_failure_message(family).is_empty()
 
 
 func test_the_deck_characters_cover_both_columns_without_placeholders() -> void:
@@ -69,10 +76,20 @@ func test_a_missing_glyph_is_named() -> void:
 	var named := missing(font, ["A".unicode_at(0), private_use])
 	assert_array(named).has_size(1)
 	assert_str(named[0]).starts_with("U+E000 ")
-	# The real font, where it is here, lacks it too: the check can fail.
-	if not Check.is_lfs_pointer(FONT):
-		assert_array(missing(real_font(FONT), [private_use])).has_size(1)
-		assert_array(missing(real_font(FONT), ["Ї".unicode_at(0)])).is_empty()
+	# The real fonts, where they are here, lack it too: the check can fail.
+	for path: String in family_files().values():
+		if not Check.is_lfs_pointer(path):
+			assert_array(missing(real_font(path), [private_use])).has_size(1)
+			assert_array(missing(real_font(path), ["Ї".unicode_at(0)])).is_empty()
+
+
+## Each font family's file (family -> res:// path) from the theme mapping.
+static func family_files() -> Dictionary:
+	var files := {}
+	var families: Dictionary = (Builder.load_mapping()["font"] as Dictionary)["families"]
+	for family: String in families:
+		files[family] = str((families[family] as Dictionary)["file"])
+	return files
 
 
 ## The font file at `path`, loaded from its own bytes (not Godot's import).
