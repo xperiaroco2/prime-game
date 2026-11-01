@@ -9,7 +9,8 @@ extends Node3D
 ## (PhotoViewfinder, #786) and its scenes and items (PhotoViews, #787) and the shots' pictures
 ## (PhotoPictures, #787) and the hand-over key and its target (HandOverUse, #1411) and the world
 ## toggles' parts (ToggleViews, #1295) and the photo booth's sessions (BoothBook), its lamp,
-## countdown, flash and print (BoothViews) and its strips' pictures (StripPictures, #1397),
+## countdown, flash and print (BoothViews) and its strips' pictures (StripPictures, #1397) and
+## the lobby's pinball (PinballViews, #1400: the table, the display, the close-up, the keys),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
 ## (`hud_local`): the predicted stamina and the item under the crosshair.
@@ -39,6 +40,7 @@ const _ORDER: Array[StringName] = [
 	&"PhotoViews",
 	&"PhotoPictures",
 	&"BoothViews",
+	&"PinballViews",
 	&"StripPictures",
 	&"ShipEngineViews",
 ]
@@ -68,6 +70,8 @@ var pictures := PhotoPictures.new()
 ## what the players see of them, and the strips' pictures from the records.
 var booth := BoothBook.new()
 var booth_views := BoothViews.new()
+## The lobby's pinball (#1400): the table, the display, the seated player's close-up and keys.
+var pinball := PinballViews.new()
 var strips := StripPictures.new()
 
 var _model: ClientModel
@@ -98,6 +102,7 @@ func _init() -> void:
 		viewfinder,
 		pictures,
 		booth_views,
+		pinball,
 		strips,
 	]:
 		add_child(each)
@@ -161,6 +166,11 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	strips.avatars = views
 	booth_views.model = _model
 	booth_views.host_tick = views.host_tick
+	pinball.model = _model
+	pinball.keys.model = _model
+	pinball.close_up.model = _model
+	pinball.drawn_at = views.drawn_at
+	pinball.keys.send = client.send_intent
 	hums.model = _model
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
@@ -177,6 +187,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	flashes.model = _model
 	flashes.lens_m = lens_m
 	client.event_received.connect(on_event)
+	client.snapshot_received.connect(pinball.on_snapshot)
 
 
 ## The local player, once welcomed.
@@ -186,6 +197,7 @@ func set_player(player: PlayerController) -> void:
 	interactions.player = player
 	hand_over.player = player
 	viewfinder.player = player
+	pinball.close_up.player = player
 	sounds.player = player
 
 
@@ -215,6 +227,7 @@ func reset() -> void:
 	flashes.clear()
 	flashes.model = null
 	viewfinder.clear()
+	pinball.clear()
 	interactions.setup(null, _mode)
 	interactions.player = null
 	hand_over.setup(null, _mode)
@@ -223,6 +236,14 @@ func reset() -> void:
 	sounds.player = null
 	_model = null
 	_player = null
+
+
+## The camera the living see through instead of the own eye (LifeView's `view_camera`): the photo
+## viewfinder's lens while it is up (#786), else the pinball close-up's while the seat's view is
+## up (#1400), else null (the eye).
+func live_camera() -> Camera3D:
+	var lens := viewfinder.live_camera()
+	return lens if lens != null else pinball.close_up.live_camera()
 
 
 ## What the HUD shows besides the model, at the estimated host tick `tick` (negative: the views'
@@ -269,6 +290,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	flashes.on_event(event_name, fields)
 	pictures.on_event(event_name, fields)
 	viewfinder.on_event(event_name, fields)
+	pinball.on_event(event_name, fields)
 	if event_name == &"ItemThrown":
 		return
 	if event_name == &"ItemPlaced" and fields.get("cause", &"") == Items.THROWN:
@@ -280,6 +302,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 ## CookingViews Cooking's, ToggleViews the world toggles' parts (#1295).
 func set_level(level: Node) -> void:
 	toggles.level = level
+	pinball.level = level
 	for view: Node3D in task_views.values():
 		if &"level" in view:
 			view.set(&"level", level)

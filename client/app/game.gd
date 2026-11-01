@@ -648,7 +648,7 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items
-	_life.view_camera = _items.viewfinder.live_camera
+	_life.view_camera = _items.live_camera
 	_setup_voice()
 
 
