@@ -37,11 +37,11 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_twenty_three_actions_of_settings_controls_each_with_its_phases() -> void:
+func test_there_are_the_twenty_five_actions_of_settings_controls_each_with_its_phases() -> void:
 	# #488's rule 5: 16 rows, the crouch's (#951), the throw's (#851), the sneak's (#1009) and the
-	# three places' (#1218) and the item's own action (#1446), 23;
+	# three places' (#1218), the item's own action (#1446) and the two flippers (#1400), 25;
 	# rule 6: the implementer defines the phase of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(23)
+	assert_int(Controls.ACTIONS.size()).is_equal(25)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -52,7 +52,7 @@ func test_there_are_the_twenty_three_actions_of_settings_controls_each_with_its_
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_twenty_three_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_twenty_five_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -71,6 +71,8 @@ func test_the_twenty_three_actions_have_the_issues_deck_keys_and_defaults() -> v
 		[&"place_2", &"control.place_2", KEY_2],
 		[&"place_3", &"control.place_3", KEY_3],
 		[&"swap", &"control.swap", KEY_X],
+		[&"flipper_left", &"control.flipper_left", KEY_Z],
+		[&"flipper_right", &"control.flipper_right", KEY_SLASH],
 		[&"throw", &"control.throw", KEY_G],
 		[&"map", &"control.map", KEY_M],
 		[&"give_up", &"control.give_up", KEY_F],
@@ -326,7 +328,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 23 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 25 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()

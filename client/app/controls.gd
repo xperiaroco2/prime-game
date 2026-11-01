@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 23 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 25 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -70,6 +70,8 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"place_2": &"control.place_2",
 	&"place_3": &"control.place_3",
 	&"swap": &"control.swap",
+	&"flipper_left": &"control.flipper_left",
+	&"flipper_right": &"control.flipper_right",
 	&"throw": &"control.throw",
 	&"map": &"control.map",
 	&"give_up": &"control.give_up",
@@ -84,7 +86,8 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 ## the Lobby takes none); the round reads the item keys and the raise while living
 ## (ItemInteractions, LifeView), the look alone while downed (it holds still: PlayerController),
 ## the give-up while downed and the spectate buttons while dead (LifeView), and the map on any
-## life (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule
+## life (Game, #253); the flippers in the lobby, while the own player holds the pinball's seat
+## (PinballKeys, #1400). Talk sends while the own life is living, in the lobby too, whose VoiceRule
 ## hears (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
@@ -103,6 +106,8 @@ const PHASES: Dictionary[StringName, int] = {
 	&"place_2": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"place_3": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"swap": ControlContext.LOBBY | ControlContext.ALIVE,
+	&"flipper_left": ControlContext.LOBBY,
+	&"flipper_right": ControlContext.LOBBY,
 	&"throw": ControlContext.ALIVE,
 	&"map": ControlContext.ALIVE | ControlContext.DOWNED | ControlContext.DEAD,
 	&"give_up": ControlContext.DOWNED,
