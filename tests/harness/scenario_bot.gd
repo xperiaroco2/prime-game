@@ -15,6 +15,9 @@ enum Where { GROUND, HAND, LOCKED, BELT, FLYING }
 const OWN_EVENTS: Array[StringName] = [
 	&"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
 ]
+## The ship's engine's console's station kind (content/tasks/ship_engine.tres), which StationPlaced
+## names to every player.
+const ENGINE_CONSOLE := &"engine_console"
 
 static var _receivable: Dictionary[StringName, PackedStringArray] = {}
 
@@ -102,6 +105,14 @@ var items: Dictionary[int, Dictionary] = {}
 ## Station id -> position, and station id -> its StationKind id, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
 var station_kinds: Dictionary[int, StringName] = {}
+## The ship's engine as its client folds it (ClientEngineBook, #1498): the open problems, the
+## breaker chains, the gill slits and the crystals, from the engine's public events alone, as a
+## player's client keeps it (MendEngine reads it).
+var engine := ClientEngineBook.new()
+## The engine's console was pressed (its ButtonPressed), and its bar is full (the console's
+## ZoneProgress at its `needed`): the engine is done.
+var engine_started := false
+var engine_done := false
 ## Peer -> where the bot last saw that player: PlayerJoined, Welcome, PlayersPlaced, snapshots.
 var seen: Dictionary[int, Vector3] = {}
 ## Peer -> that player's drunk value in the bot's last snapshot that showed it (#1390).
@@ -270,6 +281,7 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 				downed = false
 				_correction_due = true
 		_:
+			engine.fold(event_name, fields)
 			_learn(event_name, fields)
 	return ""
 
@@ -441,6 +453,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.clear()
 			stations.clear()
 			station_kinds.clear()
+			_forget_engine()
 			_clear_places()
 			downed = false
 			dead = false
@@ -518,6 +531,30 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 		&"SelfStatus":
 			sprint_available = fields["sprint_available"] as bool
 			drunk = fields.get("drunk", 0) as int
+		&"ButtonPressed":
+			if station_kinds.get(fields["station"] as int, &"") == ENGINE_CONSOLE:
+				engine_started = true
+		&"ZoneProgress":
+			var needed := fields["needed"] as int
+			var charged := fields["ticks"] as int
+			var console: bool = station_kinds.get(fields["station"] as int, &"") == ENGINE_CONSOLE
+			if console and needed > 0 and charged >= needed:
+				engine_done = true
+		# A crystal loaded into a charger leaves the hand with no event of its own (Items.lock_at):
+		# CrystalChanged naming a charger says it is locked there.
+		&"CrystalChanged":
+			var item := fields["item"] as int
+			if fields["charger"] as int >= 0 and item >= 0:
+				_let_go(item)
+				if items.has(item):
+					items[item]["where"] = Where.LOCKED
+
+
+## The engine as nothing told it yet: a new match or a new connection.
+func _forget_engine() -> void:
+	engine = ClientEngineBook.new()
+	engine_started = false
+	engine_done = false
 
 
 ## The hall's items as a Welcome lists them (#1404), in place of any known before: each row's
@@ -589,6 +626,7 @@ func _new_connection(new_peer: int) -> void:
 	items.clear()
 	stations.clear()
 	station_kinds.clear()
+	_forget_engine()
 	seen.clear()
 	_next_seq = 1
 	_client_tick = 0
