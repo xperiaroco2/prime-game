@@ -10,8 +10,14 @@ extends GdUnitTestSuite
 ## fit) from the ground at the four sides of the ship's outline grown by WALK_BOX_M, WALK_STEP_M
 ## apart, each move a step or a jump up (PlayerRules' jump, with the headroom for it) or any drop.
 ## The throwers: one walked floor per THROWER_CELL_M cell and THROWER_BAND_M band, at least
-## THROWER_LOWEST_M up (the ground round the ship is the wing sweep's). From each, the roof sweep's
-## fan (HouseThrows) is flown as FlightTicks flies it, with the Throw rule's ThrowItem numbers.
+## THROWER_LOWEST_M up; and from the ground (below THROWER_LOWEST_M: the walked ground by and under
+## the ship and the roof sweep's spots on its rings, EstateThrows.spots), one per GROUND_CELL_M
+## cell, whose rests count only in the hull: under its roof (the ray up from them meets the ship:
+## the wing sweep has those under open sky) and THROWER_LOWEST_M or more up (the ground under the
+## belly, a crawl space no player enters, still holds an item out of reach: #1560). From each (its
+## standing eye, or its crouched one where a player only crouches, _stands_up), the roof sweep's
+## fan (HouseThrows) is flown as FlightTicks flies it, with the Throw rule's ThrowItem numbers,
+## toward the outline only (a rest lies on its throw's plan path, _towards).
 ## Each rest inside the outline, off the ship's top, must pass the PickUp rule as it is (#507's
 ## answer: InSight and the jump included) from a walked floor: InReach (reach_m) from the feet
 ## lifted by up to the jump, the headroom allowing, and InSight from the standing or the crouched
@@ -35,6 +41,15 @@ const WALK_BAND_M := 0.5
 const THROWER_CELL_M := 2.0
 const THROWER_BAND_M := 0.5
 const THROWER_LOWEST_M := 0.4
+## The ground's throwers are thinned coarser: its floors are flat, so a cell's fan rests much as
+## its neighbours' (about 14 s at 2 m against 6 at 3 m).
+const GROUND_CELL_M := 3.0
+## A rest's ray up this long, for whether it lies under the hull's roof.
+const SKY_M := 30.0
+## A throw's plan path, for whether it can rest inside the outline: longer than any throw's reach,
+## sampled this finely.
+const PLAN_M := 40.0
+const PLAN_STEP_M := 0.1
 ## The buckets of the walked feet, for the feet near a rest.
 const BUCKET_M := 1.0
 ## Rests closer than this share a pick-up check.
@@ -61,6 +76,7 @@ var _ship := Rect2()
 var _walked: Dictionary[Vector3i, Vector3] = {}
 var _feet: Dictionary[Vector2i, Array] = {}
 var _throwers: Array[Vector3] = []
+var _ground_throwers: Array[Vector3] = []
 
 
 func before() -> void:
@@ -86,7 +102,18 @@ func before() -> void:
 	if tops.has(SHIP):
 		_ship = tops[SHIP]["rect"]
 	_walk()
-	_throwers = _thinned()
+	var high: Array[Vector3] = []
+	var ground: Array[Vector3] = []
+	for at: Vector3 in _walked.values():
+		if at.y < THROWER_LOWEST_M:
+			ground.append(at)
+		else:
+			high.append(at)
+	for at: Vector3 in EstateThrows.spots(_world, _rules.eye_height_m).get(SHIP, []):
+		if at.y < THROWER_LOWEST_M:
+			ground.append(at)
+	_throwers = _thinned(high, THROWER_CELL_M)
+	_ground_throwers = _thinned(ground, GROUND_CELL_M)
 
 
 func after() -> void:
@@ -96,6 +123,8 @@ func after() -> void:
 	_throw = null
 	_walked.clear()
 	_feet.clear()
+	_throwers.clear()
+	_ground_throwers.clear()
 
 
 func test_the_numbers_the_ship_and_the_walk_are_read() -> void:
@@ -104,6 +133,7 @@ func test_the_numbers_the_ship_and_the_walk_are_read() -> void:
 	assert_float(_reach_m).is_greater(0.0)
 	assert_bool(_ship.has_area()).is_true()
 	assert_bool(_throwers.is_empty()).is_false()
+	assert_bool(_ground_throwers.is_empty()).is_false()
 
 
 func test_the_walk_reaches_the_hall_and_both_lens_rooms() -> void:
@@ -118,6 +148,14 @@ func test_the_walk_reaches_the_hall_and_both_lens_rooms() -> void:
 
 func test_no_throw_inside_the_hull_rests_out_of_reach() -> void:
 	var red := _red_rests(_level, _world, _throwers)
+	assert_array(red).override_failure_message("\n".join(red.slice(0, 40))).is_empty()
+
+
+func test_no_throw_from_the_ground_rests_out_of_reach_under_the_hull_s_roof() -> void:
+	# The ground by and under the ship throws into the mouth, the throat and onto the jaw's flanks
+	# from below; its rests under open sky are the wing sweep's, and those on the ground under the
+	# belly are #1560's.
+	var red := _red_rests(_level, _world, _ground_throwers, true)
 	assert_array(red).override_failure_message("\n".join(red.slice(0, 40))).is_empty()
 
 
@@ -149,9 +187,10 @@ func _world_of_level(level: LevelWorld) -> HostWorldQuery:
 
 
 ## The rests out of reach inside the outline, a line each (one per RED_CELL_M cell), of the fan
-## of throws from `throwers`.
+## of throws from `throwers`; with `under_roof`, only those in the hull: under its roof
+## (_under_roof) and THROWER_LOWEST_M or more up.
 func _red_rests(
-	level: LevelWorld, world: HostWorldQuery, throwers: Array[Vector3]
+	level: LevelWorld, world: HostWorldQuery, throwers: Array[Vector3], under_roof := false
 ) -> Array[String]:
 	var red: Array[String] = []
 	var tops := EstateThrows.tops(world)
@@ -161,10 +200,12 @@ func _red_rests(
 	var checked: Dictionary[Vector3i, bool] = {}
 	var reported: Dictionary[Vector3i, bool] = {}
 	for feet: Vector3 in throwers:
-		var eye := _eye(world, feet, false)
+		var eye := _eye(world, feet, not _stands_up(world, feet))
 		var fallback := world.floor_below(Items.lifted(feet))
 		for yaw_deg in range(0, 360, HouseThrows.YAW_STEP_DEG):
 			var yaw := deg_to_rad(yaw_deg)
+			if not _towards(outline, feet, yaw):
+				continue
 			for pitch_deg in range(0, HouseThrows.PITCH_TOP_DEG + 1, HouseThrows.PITCH_STEP_DEG):
 				var pitch := deg_to_rad(pitch_deg)
 				var facing := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch))
@@ -174,6 +215,8 @@ func _red_rests(
 				if not outline.has_point(Vector2(rest.x, rest.z)):
 					continue
 				if EstateThrows.on_a_top(tops, rest) != "":
+					continue
+				if under_roof and (rest.y < THROWER_LOWEST_M or not _under_roof(world, rest)):
 					continue
 				var key := Vector3i((rest / REST_GRID_M).floor())
 				if checked.has(key):
@@ -186,6 +229,25 @@ func _red_rests(
 						"%s, thrown from %s at yaw %d, pitch %d" % [rest, feet, yaw_deg, pitch_deg]
 					)
 	return red
+
+
+## Whether a throw from `feet` at `yaw` can rest inside `outline`: its plan path (a straight line,
+## the rest on it) meets the outline within PLAN_M, sampled every PLAN_STEP_M.
+func _towards(outline: Rect2, feet: Vector3, yaw: float) -> bool:
+	var at := Vector2(feet.x, feet.z)
+	var way := Vector2(sin(yaw), cos(yaw)) * PLAN_STEP_M
+	for step in range(ceili(PLAN_M / PLAN_STEP_M) + 1):
+		if outline.has_point(at + way * step):
+			return true
+	return false
+
+
+## Whether `rest` lies under the hull's roof: the ray up from it, one way or the other, meets the
+## ship (the inverse of the wing sweep's _in_scope).
+func _under_roof(world: HostWorldQuery, rest: Vector3) -> bool:
+	var from := Items.lifted(rest)
+	var up := from + Vector3.UP * SKY_M
+	return not (world.line_of_sight(from, up) and world.line_of_sight(up, from))
 
 
 ## Whether a walked floor picks up an item resting at `rest` under the PickUp rule: within the
@@ -207,6 +269,15 @@ func _picked(level: LevelWorld, world: HostWorldQuery, rest: Vector3) -> bool:
 					if world.line_of_sight(_eye(world, feet, crouched), target):
 						return true
 	return false
+
+
+## Whether a player stands up at `feet`: the standing capsule's height is clear over them (both
+## ways: a ray misses a shape it starts in). Under a lower ceiling (the nose's belly over the
+## ground) a player only crouches, so it throws and looks from the crouched eye.
+func _stands_up(world: HostWorldQuery, feet: Vector3) -> bool:
+	var from := Items.lifted(feet)
+	var head := from + Vector3.UP * _rules.capsule_height_m
+	return world.line_of_sight(from, head) and world.line_of_sight(head, from)
 
 
 ## Items.eye_of at `feet`: the floor stood on raised by the standing or the crouched eye.
@@ -289,19 +360,15 @@ func _crouched_fits(at: Vector3) -> bool:
 	return _level.space_state().intersect_shape(query, 1).is_empty()
 
 
-## The throwers: of the walked floors at least THROWER_LOWEST_M up, the one nearest the middle of
-## each THROWER_CELL_M cell in each THROWER_BAND_M band.
-func _thinned() -> Array[Vector3]:
+## The throwers of `floors`: the one nearest the middle of each `size_m` cell in each
+## THROWER_BAND_M band.
+func _thinned(floors: Array[Vector3], size_m: float) -> Array[Vector3]:
 	var by_cell: Dictionary[Vector3i, Vector3] = {}
-	for at: Vector3 in _walked.values():
-		if at.y < THROWER_LOWEST_M:
-			continue
+	for at: Vector3 in floors:
 		var cell := Vector3i(
-			floori(at.x / THROWER_CELL_M),
-			floori(at.y / THROWER_BAND_M),
-			floori(at.z / THROWER_CELL_M)
+			floori(at.x / size_m), floori(at.y / THROWER_BAND_M), floori(at.z / size_m)
 		)
-		var middle := (Vector2(cell.x, cell.z) + Vector2(0.5, 0.5)) * THROWER_CELL_M
+		var middle := (Vector2(cell.x, cell.z) + Vector2(0.5, 0.5)) * size_m
 		if (
 			not by_cell.has(cell)
 			or (
