@@ -9242,7 +9242,7 @@ its §5a device, on the deck and clear, each gill set by a gill button, the holo
 `tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
 slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot, the
-finish's three nozzles out of the stern),
+finish's three nozzles out of the stern, each pod with its `pod_bell` for the flame, #1552),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals,
 a new match) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
