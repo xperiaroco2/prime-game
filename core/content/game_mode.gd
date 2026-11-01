@@ -123,6 +123,38 @@ func default_id_sets() -> Dictionary[StringName, PackedStringArray]:
 	return values
 
 
+## The ids of the settings some part of the mode names in a `*_setting` property (the parts
+## ModeCheck walks): a declared setting outside them changes nothing in a match, so the lobby hides
+## its row and the presets that change it (the base mode's `knives` in the M8 slice, #1525).
+func read_settings() -> Array[StringName]:
+	var found: Array[StringName] = []
+	_collect_read(self, found, {})
+	return found
+
+
+static func _collect_read(value: Variant, found: Array[StringName], seen: Dictionary) -> void:
+	if value is Array:
+		for item: Variant in value as Array:
+			_collect_read(item, found, seen)
+		return
+	if value is Script or not (value is Resource) or seen.has(value):
+		return
+	var resource: Resource = value
+	seen[resource] = true
+	for property: Dictionary in resource.get_property_list():
+		var name: String = property["name"]
+		var usage: int = property["usage"]
+		if usage & PROPERTY_USAGE_STORAGE == 0 or name == "script":
+			continue
+		var child: Variant = resource.get(name)
+		if name.ends_with("_setting") and (child is StringName or child is String):
+			var id := StringName(str(child))
+			if not id.is_empty() and not found.has(id):
+				found.append(id)
+		else:
+			_collect_read(child, found, seen)
+
+
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if min_players < 1 or min_players > max_players:

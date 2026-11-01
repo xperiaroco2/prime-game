@@ -4290,10 +4290,10 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `own_peer` and the roster's names (per-peer filtering decides what the model holds). The HUD's role chip hides
   while the map is open (`Hud.role_hidden`, the engineer on #652).
 - Lobby (`LobbyPanel`, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
-  No knives, the own preset and Save your own; the values are placeholders, "not a decision"), a 784 px
+  No knives, the own preset and Save your own; a card changing a setting the mode lacks or no part reads has none, #1525; the values are placeholders, "not a decision"), a 784 px
   `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
   arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
-  allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
+  allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides, and so does one no part of the mode reads, `GameMode.read_settings()`: the base mode's `knives` in the M8 slice, #1525) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
   the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
   ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. A card takes a
@@ -7351,7 +7351,8 @@ none is not built and is not usable in data. Which task or PR built a part is in
   number (`MatchState.settings`), or a set of the mode's task type ids (`MatchState.id_sets`, empty by default, no
   numbers; the host's bans, `banned_task_types`, #79). A part lists its properties that hold a set
   (`ContentPart.set_settings`); the mode check refuses any other `_setting` property that names a set, so a part that
-  reads a number never reads a set as 0. A transition action checks the settings together through
+  reads a number never reads a set as 0. `GameMode.read_settings()` lists the settings some part names; a declared
+  setting outside it changes nothing in a match, and the lobby hides it (#1525). A transition action checks the settings together through
   `RuleEffect.settings_problem`, which `ChangeSettings` asks before applying any (§4.1). So the knife's numbers sit in
   the knife's own rule (§9.5), and a second weapon is a second item kind with its own numbers.
 - **A default that follows the player count** (#1492). A whole-number `SettingSpec` may carry
@@ -7930,7 +7931,7 @@ that no rule handles, so every intent a phase accepts comes with its rule (the L
 [#507](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184), GDD §3 "The M8 slice", item 2):
 Round takes no `Use`, so neither the fist, the crystal nor a held item hits there, and the Loading row places no
 knife; the Lobby and the Countdown keep their hits and the limp (#1439), Round its `PickUp`, `PutDown`, `Throw`,
-`Interact` and `UseSecondary`. The `knives` setting stays and places nothing in this mode.
+`Interact` and `UseSecondary`. The `knives` setting stays and places nothing in this mode; no part reads it, so the lobby hides its row and the No knives card (#1525).
 Each map's lobby, guide and loading card list its own task type alone (DE16, §4.7.36, §4.7.42). The zone task's code,
 its tests and the House's zones stay while the mode plays no zone task (the engineer's
 [answer on #842](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513): "only from the mode,
