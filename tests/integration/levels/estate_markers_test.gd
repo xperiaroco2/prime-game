@@ -27,6 +27,8 @@ const RAMP_CLEARING_M := 10.5
 const RAMP_LANE_HALF_M := 2.05
 ## How far apart any two start or respawn markers stand at least, so nobody spawns in another.
 const MARKERS_APART_M := 1.2
+## How far a round start's or a respawn's facing may turn off the ramp's foot (#1534).
+const FACING_DEG := 1.0
 
 
 func test_the_markers_read_without_errors_in_the_host_s_world() -> void:
@@ -175,6 +177,30 @@ func test_each_circle_reads_where_it_stands_on_a_flat_floor() -> void:
 				)
 				. is_less_equal(SPAWN_FLOOR_M)
 			)
+
+
+## Each round start and respawn marker faces the ship's ramp (#1534; the yaw is game data, #1522):
+## its forward (-Z), made level, points at the ramp's foot within FACING_DEG. The yaws are
+## placeholders, "not a decision", as the markers' places.
+func test_each_round_and_respawn_marker_faces_the_ramp_s_foot() -> void:
+	var root: Node3D = (load(MAP) as PackedScene).instantiate()
+	add_child(root)
+	var checked := 0
+	for tag: StringName in [&"spawn_round_player", &"spawn_respawn"]:
+		for node: Node in get_tree().get_nodes_in_group(tag):
+			var marker := node as Node3D
+			var forward := -marker.global_basis.z
+			var at := Vector2(marker.global_position.x, marker.global_position.z)
+			var off := rad_to_deg(Vector2(forward.x, forward.z).angle_to(RAMP_FOOT - at))
+			checked += 1
+			(
+				assert_float(absf(off))
+				. override_failure_message("%s at %s is %s deg off the ramp" % [tag, at, off])
+				. is_less(FACING_DEG)
+			)
+	assert_int(checked).is_greater(10)
+	remove_child(root)
+	root.free()
 
 
 func _base_mode() -> GameMode:

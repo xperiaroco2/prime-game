@@ -35,10 +35,10 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   `spawn_part_bin_<n>`, `spawn_part_picture`, `spawn_order_board`, `spawn_herb_board`, `spawn_grill`, `spawn_place`,
   `spawn_herb_bed`; `spawn_film`, `spawn_photo`; the cooking boxes' `spawn_box_bun_white`/`_sesame`/`_dark`,
   `spawn_box_patty_light`/`_red`/`_deep_red`; the estate's ship engine: §9.5.27; its toggles: §9.6). A marker in two is a load error.
-  The host reads them in scene-tree order. Bot scenarios snap station markers only on the levels they play (the lobby,
+  The host reads them in scene-tree order; a placed player faces its yaw (#1522). Bot scenarios snap station markers only on the levels they play (the lobby,
   the first map, any a scenario names: `tests/fixtures/scenario_levels.gd`, ARCHITECTURE §9.7), on a flat fake (floor
   y = 0): there no station marker (`circle` or `zone`, #681) below it and no two of different tags at one (x, z).
-  Other maps (House, estate) are read as placed (GE12, #798): a station marker may stand off y = 0 there.
+  Other maps are read as placed (GE12, #798): a station marker may stand off y = 0 there.
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -78,7 +78,7 @@ task stations. Read `docs/GDD.md` and `docs/ARCHITECTURE.md`'s content API (its 
   no rule in `core/`. House's guards (ARCHITECTURE): `house_roof_throw_test.gd` (no throw rests on the roof; a perch
   near it gets columns in `house_throws.gd`) and `house_body_reach_test.gd` (every launch's rest within a raise of a
   spot walked to from the spawn; a new piece goes in its `WALKABLE` or `LOCKED`). Out of reach: the humans' to fix.
-- The MVP's lobby and map: `lobby/lobby.tscn` (the art hall, #1451), `greybox/greybox.tscn` (the base mode's paths; M2's, dressed in M4).
+- The MVP's lobby and map: `lobby/lobby.tscn` (the art hall), `greybox/greybox.tscn` (the base mode's paths).
 
 ## The designer's agent never edits engine code
 - Interactables and task stations come from the engine. A level that needs a missing one opens an `engine-request`
