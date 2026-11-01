@@ -260,8 +260,8 @@ static func other_shapes(root: Node) -> Array[Dictionary]:
 
 
 ## The plan rect of every enabled layer-1 shape of the estate's ship piece (#1499), in its own
-## frame: the art ship's hull, wings and jaws reach past the doc's §3 rect (26 x 14 m; the art's
-## outline is 26.1 x 22.1, its jaws 1.6 m more), and the roof sweep must cover all of them.
+## frame: the art ship's hull, wings and jaws reach past the doc's §3 rect (26.1 x 22.1 m, the art's
+## outline, #1534; its jaws 1.6 m more), and the roof sweep must cover all of them.
 static func _ship_outline() -> Rect2:
 	var ship := (load(SHIP_PIECE) as PackedScene).instantiate()
 	var outline := Rect2()

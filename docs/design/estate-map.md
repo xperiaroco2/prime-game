@@ -54,7 +54,7 @@ garage's driveway at y 11. North and west: forest.
 | Garage | 101.4, 11 | 10 x 8, the long side east-west (§5d) | 10 | 0 |
 | Gazebo (photo) | 114.9, 34 | r 3.5, open | 8 | 0 |
 | Well | 24.9, 72 | r 1.2 | 7 | 0 |
-| Ship (a manta, §5a) | 116, 72 | 26 wide x 14 deep, its mouth ramp facing north | 16 | 0 and its interior |
+| Ship (a manta, §5a) | 116, 72 | 26.1 wide x 22.1 deep (the art ship's outline, #1534), its mouth ramp facing north | 16 | 0 and its interior |
 | Fallen trunk | 86, 79.5 | 12 x 3, east-west, walkable inside | | 0 |
 | Gate | 67.5, 90 | 4 wide | | 0 |
 

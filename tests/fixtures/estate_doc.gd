@@ -14,13 +14,13 @@ class Module:
 	var name: String
 	## Its centre in plan metres (x east, y south).
 	var centre: Vector2
-	## Its footprint in whole metres when the doc gives one as "W x D" or "W wide x D deep";
-	## zero when it is round or only a width.
-	var size: Vector2i
+	## Its footprint in metres when the doc gives one as "W x D" or "W wide x D deep" (the ship's
+	## 26.1 x 22.1, #1534); zero when it is round or only a width.
+	var size: Vector2
 	## Its clearing's radius; 0 when the doc gives none.
 	var radius: float
 
-	func _init(row_name: String, at: Vector2, dims: Vector2i, clearing: float) -> void:
+	func _init(row_name: String, at: Vector2, dims: Vector2, clearing: float) -> void:
 		name = row_name
 		centre = at
 		size = dims
@@ -33,17 +33,17 @@ static func modules() -> Array[Module]:
 	var row := RegEx.create_from_string(
 		"^\\| ([^|]+?) \\| (-?[\\d.]+), (-?[\\d.]+) \\| ([^|]*?) \\| *([\\d.]*) *\\| [^|]*\\|$"
 	)
-	var size := RegEx.create_from_string("^(\\d+)(?: wide)? x (\\d+)\\b")
+	var size := RegEx.create_from_string("^([\\d.]+)(?: wide)? x ([\\d.]+)\\b")
 	for line in _section_3():
 		var m := row.search(line)
 		if m == null:
 			continue
 		var name := m.get_string(1).get_slice(" (", 0)
 		var at := Vector2(float(m.get_string(2)), float(m.get_string(3)))
-		var dims := Vector2i.ZERO
+		var dims := Vector2.ZERO
 		var s := size.search(m.get_string(4))
 		if s != null:
-			dims = Vector2i(int(s.get_string(1)), int(s.get_string(2)))
+			dims = Vector2(float(s.get_string(1)), float(s.get_string(2)))
 		var radius := float(m.get_string(5)) if not m.get_string(5).is_empty() else 0.0
 		out.append(Module.new(name, at, dims, radius))
 	return out
