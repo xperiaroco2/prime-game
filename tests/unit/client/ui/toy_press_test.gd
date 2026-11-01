@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## visibility, the tween started only on a changed target, reduced motion, the raised toggle that
 ## stays on, that a container's sort and a theme swap leave the visual offset alone, and the
 ## click of a press (UiSounds, #525): on the UI bus, none on hover, release or toggle, kept past
-## its button.
+## its button. Since ui-2.0.0 the pack's faces neither move nor have a base (#1559): the suite reads
+## ui-0.8.0's depths and bases from FixtureToyRaised.
 
 var _stage: Control
 
@@ -12,12 +13,14 @@ var _stage: Control
 func before_test() -> void:
 	UiPrefs.reduced_motion = true
 	_free_clicker()
+	FixtureToyRaised.install()
 	_stage = auto_free(Control.new())
-	_stage.theme = GameUi.THEME
+	_stage.theme = FixtureToyRaised.themed(GameUi.THEME)
 	add_child(_stage)
 
 
 func after_test() -> void:
+	FixtureToyRaised.uninstall()
 	UiPrefs.reset()
 	_free_clicker()
 
@@ -135,7 +138,7 @@ func test_a_sort_and_a_theme_swap_leave_the_offset_alone() -> void:
 	await get_tree().process_frame
 	assert_float(face.offset_transform_position.y).is_equal(4.0)
 	assert_that(face.get_rect()).is_equal(rect)
-	_stage.theme = GameUi.THEME_LARGE
+	_stage.theme = FixtureToyRaised.themed(GameUi.THEME_LARGE)
 	await get_tree().process_frame
 	assert_float(face.offset_transform_position.y).is_equal(4.0)
 	# The base stays where the layout put it: only the face moves.
@@ -187,6 +190,15 @@ func test_a_button_outside_the_tree_clicks_nothing() -> void:
 	_press(raised).on_button_down()
 	assert_int(UiSounds.clicks).is_equal(before)
 	assert_object(UiSounds.player_in(get_tree())).is_null()
+
+
+func test_the_live_pack_presses_flat() -> void:
+	_stage.theme = GameUi.THEME
+	var press := _press(_raised(&"ToyButtonPrimary"))
+	press.on_mouse_entered()
+	assert_int(press.target_offset()).is_equal(0)
+	press.on_button_down()
+	assert_int(press.target_offset()).is_equal(0)
 
 
 func _raised(variation: StringName) -> ToyRaised:
