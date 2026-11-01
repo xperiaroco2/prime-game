@@ -5571,7 +5571,8 @@ of the mode, never `core/` state (§9.5.27's client).
     pulse (`PULSE_SECONDS`), at the hologram's centre;
   - the beep: at each lamp of an open breakers problem's order as the mimic board lights it (`ShipEngineViews`'
     `ORDER_STEP_SECONDS` steps, none in its pause), at the hologram's centre; every order steps on the same clock, so
-    two open at once beep once a lamp, not twice on top;
+    two open at once beep once a lamp, not twice on top (the art console's one lamp plays two orders in turn, #1550:
+    for two of the same length its lamps land on these beeps, for unequal ones some beeps fall in its pause);
   - the wail: once at each station of a problem as it opens (a new id in the book), not looping while it stays open;
   - the blast: a new `EngineBlast` (the book's count), at the console;
   - the roar: the console's bar full (its done `ZoneProgress`), at the console, on top of §4.7.60's `TASK_SUCCESS`
@@ -9129,7 +9130,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   `GillFlipped`s since the problem opened (all shut at the open), its bar = `bar_slit` from the opening tick; the
   breakers' order and lamps = the problem's last `BreakerChain` (the first `next` on, the last one's yellow and green
   from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console (its
-  mimic board, or the art console's order lamps), GDD §8: remembered or read out, so no lamp, marker or HUD line at the boards shows it); a socket's crystal,
+  mimic board, or the art console's order lamps), GDD §8: remembered or read out, so no lamp, marker or HUD line
+  at the boards shows it); a socket's crystal,
   a charger's phase and its fill = the problem's last `CrystalChanged`.
 - **The estate and the content** (#1462, provisional under the MVP content ADR). `content/tasks/ship_engine.tres`
   (the console kind `engine_console`, the three kinds above, `stage_problems` 2, 4, 6, `stage_seconds` 30 (the GDD's
@@ -9212,10 +9214,13 @@ plays it on the estate (#1462, "The estate and the content" below).
   package's look script, on the live layers: the scripts' layer 20 is `PhotoLayers.PHOTO`) from the model and the
   host tick, alike on every peer: the console's clock (the host tick's), its bar (the `ZoneProgress` share), the
   call while `ShipEngineHologram.called()` with the stand-in's period, its onset on the call beep's tick, the fans
-  (each broken wiring point halving them, the art's rule), a wiring point per site station by its side (and a
-  socket's front or back) in the console's own frame (off while calling, broken while held, blinking as the
-  stand-in, fixed on its release but not at a blast; a point with no station reads as the rest), the countdown and
-  the order lamp of the breaker the order plays on, on its board's wing in its shell's colour; a socket charged
+  (each broken wiring point halving them, the art's rule; only their angle is not the host tick's: it runs on from
+  the bind, so a view built later turns them as fast at another angle), a wiring point per site station by its
+  side (and a socket's front or back) in the console's own frame (off while calling, broken while held, blinking
+  as the stand-in, fixed on its release but not at a blast; a point with no station reads as the rest), the
+  countdown and the order lamp of the breaker the order plays on, on its board's wing in its shell's colour (two
+  chains can be open at once, one per board: on the one lamp their orders take turns by problem id, each with its
+  pause, `ShipEngineViews.order_turn`, where the mimic board plays them side by side); a socket charged
   with no problem, empty while its crystal is out (`Crystal.item`), else spent, its claws open while empty; a
   board's shells tripped (open, lamp dark), the last one on yellow through its ramp, else green, its beacon while
   a shell is tripped; a charger idle, charging (the carrier rising and turning, the ring turning, the button in)
@@ -9270,11 +9275,13 @@ every surface of its device on the live layers, refuses another device, the call
 halved per broken point, the values it holds), `tests/integration/client/world/ship_station_looks_test.gd` (each
 station bound to its device, the breakers to shells by rank, a breaker's console lamp in its shell's colour, the
 wiring points by side, no stand-ins under the devices and the art hologram, the live layers, the host's clock and
-the call on the beep's tick, the press, the blink, fixed and none at a blast, the order lamp a step at a time, the
-shells, lamps and beacon, the socket's crystal and claws, the charger's charge, a bare level keeping the stand-ins),
-`tests/integration/client/world/ship_station_looks_ship_test.gd` (in the estate ship at its markers: every station
-a device of its own, each board's four breakers its four shells and lamps of their colour, each site its own wiring
-point by its side and end) and `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
+the call on the beep's tick, the press, the blink, fixed and none at a blast, the nearest deadline fast and a later
+one slow, the order lamp a step at a time, two open orders in turn, the strips back for any stage count but three,
+the shells, lamps and beacon, the socket's crystal and claws, the charger's charge, two chargers each showing only
+its own crystal, a bare level keeping the stand-ins), `tests/integration/client/world/ship_station_looks_ship_test.gd`
+(in the estate ship at its markers: every station a device of its own, each board's four breakers its four shells
+and lamps of their colour, each site its own wiring point by its side and end) and
+`tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
 slits and bar, the blast, no board offered; the call and its end for a client that never saw the press, the
