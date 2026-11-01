@@ -82,7 +82,7 @@ func build() -> bool:
 		field = box if first else field.merge(box)
 		first = false
 		if sign_of != 0.0:
-			_add_flipper(owner_body, mesh)
+			_add_flipper(owner_body, shape, mesh, source)
 		else:
 			mesh.transform = at
 			add_child(mesh)
@@ -127,22 +127,28 @@ func rest() -> void:
 	show_ball(null)
 
 
-func _add_flipper(body: Node3D, mesh: MeshInstance3D) -> void:
-	var pivot := Node3D.new()
-	pivot.name = body.name
-	pivot.transform = body.transform
-	mesh.transform = (body.get_node(^"Shape") as Node3D).transform
-	mesh.name = "Mesh"
-	pivot.add_child(mesh)
-	add_child(pivot)
+## One pivot per flipper body, at the body's place in the scene (nested or not), with a mesh per
+## shape under it: a body with two shapes turns both.
+func _add_flipper(
+	body: Node3D, shape: CollisionShape3D, mesh: MeshInstance3D, source: Node3D
+) -> void:
 	# FLIPPERS' order, whatever the scene's.
 	var index := FLIPPERS.keys().find(body.name)
 	while _pivots.size() <= index:
 		_pivots.append(null)
 		_rest.append(Transform3D.IDENTITY)
 		_angles.append(0.0)
-	_pivots[index] = pivot
-	_rest[index] = body.transform
+	var pivot := _pivots[index]
+	if pivot == null:
+		pivot = Node3D.new()
+		pivot.name = body.name
+		_rest[index] = _in_scene(body, source)
+		pivot.transform = _rest[index]
+		add_child(pivot)
+		_pivots[index] = pivot
+	mesh.transform = _in_scene(shape, body)
+	mesh.name = "Mesh"
+	pivot.add_child(mesh)
 
 
 ## The playfield under the shapes' footprint, its top at the table's floor.
