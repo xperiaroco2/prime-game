@@ -33,6 +33,9 @@ func _ready() -> void:
 ## its capture again.
 func _recapture() -> void:
 	await get_tree().process_frame
+	# the level left the tree during the frame (a scene change): nothing to recapture
+	if not is_inside_tree():
+		return
 	var probes: Array[Node] = find_children("*", "ReflectionProbe", true, false)
 	for probe: Node in probes:
 		var parent: Node = probe.get_parent()
