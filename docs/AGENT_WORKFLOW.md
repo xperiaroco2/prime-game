@@ -1378,7 +1378,7 @@ windows ("запусти хост і двох клієнтів") gets the comman
 
 ### 11.9 `bots [scenario ...]` [applied] (#102; `docs/ARCHITECTURE.md` §4.6, §9.7)
 Plays every bot scenario in
-`content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
+`content/scenarios/` and `tests/fixtures/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
 over the loopback on a simulated clock (60 steps per simulated second), and asserts the information-leak test (§5
 there) for every bot, a lurker and a refused bot. `--instances N` (N > 1) plays one
 scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the real clock; `--seconds`
