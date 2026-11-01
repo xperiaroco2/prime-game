@@ -41,6 +41,12 @@ func end_tick() -> int:
 	return -1
 
 
+## The ticks a win decided at a finale waits before its `won` (Match, §3.4, #1502): 0, no
+## linger, by default. RoundPhase reads its data's `linger_seconds`.
+func linger_ticks() -> int:
+	return 0
+
+
 func enter(_ctx: MatchContext) -> void:
 	pass
 

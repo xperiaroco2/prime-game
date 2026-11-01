@@ -48,6 +48,9 @@ static func subtask_done(ctx: MatchContext, task: MatchTask, detail: Variant) ->
 	ctx.emit(state_of(task))
 	var counted := progress(ctx.state)
 	ctx.emit(TaskProgressEvent.new(counted.x, counted.y))
+	# Before the fact, whose win check reads it (Match._check_wins: the win lingers, §3.4).
+	if task.type.has_finale() and task.state.is_done():
+		ctx.state.finale_tick = ctx.tick
 	var fact := Fact.new(Facts.SUBTASK_DONE)
 	fact.task = task.id
 	fact.detail = detail

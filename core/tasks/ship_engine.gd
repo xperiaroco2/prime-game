@@ -140,6 +140,11 @@ func knocks_down() -> bool:
 	return true
 
 
+## The last stage's pass is the finish (GDD §8): the round lingers for it (§3.4, #1502).
+func has_finale() -> bool:
+	return true
+
+
 ## One stage's host ticks: `stage_seconds` by the one rounding rule, at least 1.
 func stage_ticks() -> int:
 	return maxi(1, Ticks.from_seconds(stage_seconds))
