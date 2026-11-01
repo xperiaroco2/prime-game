@@ -446,9 +446,10 @@ later. Anyone may use it; it does not touch the neighbours' anger. Numbers are p
 - How does a task look in first-person 3D?
 
 **The base mode's task list** (`content/modes/base_mode.tres` and the task types' `maps`; #1088, after the M7 task
-chains #676): the mode lists six task types. On the House, the map players always play, it deals Delivery (#683),
-the Generator (#800), Photography (#784), Cooking (#775) and Repairing the car (#810). On the greybox, a test bench
-only, it deals the colour-matched Delivery alone. The lobby's `tasks` is 5 (1 to 5), the number of different task
+chains #676): the mode lists six task types. In the M8 slice (§3, #1496) players play the forest estate only, and it
+deals the ship's engine alone (Delivery is off the estate). The House, now a bench map, deals Delivery (#683), the
+Generator (#800), Photography (#784), Cooking (#775) and Repairing the car (#810). On the greybox, a test bench only,
+it deals the colour-matched Delivery alone. The lobby's `tasks` is 1 (1 to 5), the number of different task
 types a match deals, drawn at random from the map's types; the host may ban types with `banned_task_types`. The zone
 task is not in the mode's list (see below).
 
@@ -683,7 +684,8 @@ the place where it belongs. Every item takes both hands."
 
 **Where it plays.** On the House only (the engineer's DD9 (c), comment 6100696677, through
 [#767](https://github.com/xperiaroco2/prime-game/issues/767): the flat greybox becomes a test bench only, and players
-always play the House). The greybox keeps today's colour-matched Delivery (a package to the circle of its colour) as
+always play the House; since the M8 slice the House is a bench map and players play the estate, which deals no
+Delivery, §3, #1496). The greybox keeps today's colour-matched Delivery (a package to the circle of its colour) as
 far as its bot scenarios and the information-leak test need it, and gets no drop-offs. Bots do not play the House
 ([ARCHITECTURE](ARCHITECTURE.md) §9.7), so Delivery by meaning is tested without bots: unit tests, integration tests
 on the House and a test over the wire codec.
@@ -1046,9 +1048,10 @@ back, switch it on, and return to press the button again.
   differs. Either side may switch any active switch on or off and press the button, and play the other's
   part.
 
-**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match. The flat
-greybox is a test bench only, for the bot scenarios and the information-leak test, and players always play the House
-([#767](https://github.com/xperiaroco2/prime-game/issues/767)), so no new mechanic goes on the greybox: it gets no
+**Where it plays.** On the House only, the map being built for the chains, in the base mode; since the M8 slice the
+House is a bench map and players play the estate (§3, #1496), so no player match deals it. The flat greybox is a test
+bench only, for the bot scenarios and the information-leak test (before the slice players always played the House,
+[#767](https://github.com/xperiaroco2/prime-game/issues/767)), so no new mechanic goes on the greybox: it gets no
 generator and none of the House's chains, and the zone task leaves it too, its zones and their three bot scenarios
 gone (the engineer, 2026-10-10, the ADR's GD13 (b):
 [PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117) and
@@ -1156,8 +1159,9 @@ V4): a knocked-out player and a dead player can do nothing. The host's own playe
 #1341); none while a fit runs.
 
 **Where it plays.** On the House only, in the base mode: the one map its data lists. Never on the flat greybox, which
-is a test bench only (#767: players always play the House). Bots do not play the House, so car repair is tested by
-integration tests on the House and over the real wire, not by bot scenarios. Every House match deals it.
+is a test bench only. Bots do not play the House, so car repair is tested by integration tests on the House and over
+the real wire, not by bot scenarios. Every House match deals it; since the M8 slice the House is a bench map and
+players play the estate (§3, #1496), so no player match deals it.
 
 **Name and description** (drafted by the agents, approved by the engineer as drafted): "Repair the car"; "Take the
 part shown on the garage wall from the shelf in storage, then fit it under the car while someone holds the lift.";
@@ -1249,16 +1253,18 @@ in the security room ([estate-map](design/estate-map.md) §5c):
 [#1035 comment 6297325577](https://github.com/xperiaroco2/prime-game/issues/1035#issuecomment-6297325577)): a country
 estate in a pine forest on the edge of a small town, 135 x 90 m, separate buildings in clearings joined by two loops of
 paths, no dead ends, at night. It is built for the MVP's task set (§8); its sizes are a working draft for a box
-greybox. Until that greybox exists, the House below is what the game plays.
+greybox. Since the M8 slice (§3, #1496) the estate is the base mode's only player map: the lobby offers no other and
+every match starts on it, near the ship.
 
 The first map is [House](design/house-map.md) (decided by the engineer on 2026-10-08, #591): a country house with a
 yard on an 80 x 60 m plot, for 4 to 10 players, on four levels (basement, ground floor with the yard, second floor,
 attic and roof), laid out for the five task chains. Its sizes and positions are a working draft until a greybox
 playtest.
 
-Players always play the House: the lobby offers no other map and every match starts on it. The flat greybox stays a
-test bench only, for the bot scenarios and the information-leak test (the engineer's option (a) on
-[#767](https://github.com/xperiaroco2/prime-game/issues/767)).
+Until the M8 slice players always played the House (the engineer's option (a) on
+[#767](https://github.com/xperiaroco2/prime-game/issues/767)); now it is a bench map, like the flat greybox, for the
+bot scenarios and the integration tests, and is parked until after M8. The flat greybox stays a test bench only, for
+the bot scenarios and the information-leak test.
 
 - How many maps in all, and do later maps keep the same scale and player count?
 
