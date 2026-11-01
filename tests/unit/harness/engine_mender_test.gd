@@ -39,6 +39,8 @@ const KINDS: Dictionary[int, StringName] = {
 ## A gill problem's timer (10 s) and one bar step (0.6 s), in host ticks.
 const GILL_TICKS := 200
 const STEP := 12
+## Half a bar step, a step's middle.
+const HALF_STEP := 6
 ## A breaker's ramp (1 s) and green (5 s), in host ticks.
 const RAMP := 20
 const GREEN := 100
@@ -89,13 +91,13 @@ func test_gills_press_mid_step_on_a_shut_slit_once_a_step() -> void:
 	bot.position = AT[BUTTON]
 	# A step's edge: wait; its middle on shut slit 0: press, once.
 	_is_wait(mender.decide(bot, opened + 1))
-	_is_press(mender.decide(bot, opened + STEP / 2), BUTTON)
-	_is_wait(mender.decide(bot, opened + STEP / 2 + 1))
+	_is_press(mender.decide(bot, opened + HALF_STEP), BUTTON)
+	_is_wait(mender.decide(bot, opened + HALF_STEP + 1))
 	# Slit 1 is open already: its step passes.
 	_receive(bot, &"GillFlipped", {"station": BUTTON, "slit": 1, "open": true})
-	_is_wait(mender.decide(bot, opened + STEP + STEP / 2))
+	_is_wait(mender.decide(bot, opened + STEP + HALF_STEP))
 	# Slit 2 is shut: pressed.
-	_is_press(mender.decide(bot, opened + 2 * STEP + STEP / 2), BUTTON)
+	_is_press(mender.decide(bot, opened + 2 * STEP + HALF_STEP), BUTTON)
 
 
 func test_a_bot_leaves_the_problems_of_another_share_alone() -> void:
