@@ -4,18 +4,26 @@ extends Node3D
 ## ARCHITECTURE §9.5.27 "For part 3's client", §4.7.59): everything from the own ClientModel (its
 ## ClientEngineBook and the console's ZoneProgress), the estimated host tick and the client's own
 ## copy of the mode; nothing is predicted. While the engine is dealt (its console placed):
+## - the level's art devices (the console, sockets, breaker boards, chargers; #1550,
+##   ShipStationLooks), each bound to its station, show its state. Where one is bound, the
+##   stand-ins below for it give way: no lamp over its station (nor over a breaker on a bound
+##   board), and with the art console no mimic board, no stand-in hologram (ShipEngineHologram
+##   stays as the state reader) and no strips while the bar has the art's three stages. The art
+##   console's one order lamp then plays the open orders in turn (order_turn);
 ## - the console's hologram at the level's point for it (a Node3D in group `engine_hologram`, over
 ##   the console itself, which its use spot faces), else above its use spot: a stage strip per
 ##   stage (the engine's TaskState total), each filling with its share of the bar (ZoneViews.fill
 ##   of the console's ZoneProgress),
 ##   and the mimic board, a lamp per breaker at its place in the ship scaled down round the
-##   console: red while tripped, green once on, and the open chain's order played on it one lamp
-##   at a time, white (GDD §8: read it out or remember it). It is the only place the order shows;
+##   console: red while tripped, green once on, and each open chain's order played on it one lamp
+##   at a time, white (GDD §8: read it out or remember it). With no art console it is the only
+##   place the order shows;
 ## - a red alarm lamp over each station an open problem holds (EngineProblemOpened until its
-##   EngineProblemFixed or a blast);
-## - a lamp over each breaker: red while tripped, yellow then green for the last one on (its ramp,
-##   then its window, from BreakerChain's `since`), green for those before it; never the order;
-## - a lamp over each charger: yellow while charging, green with a charged crystal waiting;
+##   EngineProblemFixed or a blast) that no art device draws;
+## - a lamp over each unbound breaker: red while tripped, yellow then green for the last one on
+##   (its ramp, then its window, from BreakerChain's `since`), green for those before it; never
+##   the order;
+## - a lamp over each unbound charger: yellow while charging, green with a charged crystal waiting;
 ## - the level's gill sets (group `engine_gills`, each bound to the nearest gill button within
 ##   BIND_TOLERANCE_M): a slit shows `Open` or `Shut` (all open with no problem), and the white bar
 ##   `Light<n>` over the slit GillsProblem.BAR puts it at from the problem's opening tick;
