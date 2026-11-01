@@ -262,6 +262,7 @@ func attach(client: ClientSession) -> void:
 	session = client
 	client.event_received.connect(_on_session_event)
 	client.claim_sent.connect(_on_claim_sent)
+	client.faced.connect(face)
 	client.corrected.connect(_on_corrected)
 	_follow_claims()
 
@@ -291,9 +292,9 @@ func look(yaw: float, pitch: float) -> void:
 
 
 ## Levels the head (pitch 0) and keeps the body's yaw, as the own Respawned and the own placement
-## have it (the engineer's answers on #191: straight ahead, as at the round's start, the respawn
-## marker's facing never reaching the client; and on #240). The session's next MoveClaim carries
-## the level facing at once: it may go out in the same session step as the respawn's or the
+## have it (the engineer's answers on #191: straight ahead, as at the round's start; and on #240);
+## a marker with a facing then turns the body to it (face, #1522). The session's next MoveClaim
+## carries the level facing at once: it may go out in the same session step as the respawn's or the
 ## placement's Correction, before this body's next physics step.
 func look_level() -> void:
 	_head.rotation.x = 0.0
@@ -301,6 +302,17 @@ func look_level() -> void:
 	_stop_drunk()
 	if session != null:
 		session.set_facing(look_vector())
+
+
+## Turns the body to `facing`'s yaw and levels the head (look_level), for a placement on a marker
+## with a facing (ClientSession.faced, and Game for a joiner's Welcome; #1522). The dead turn too:
+## End -> Lobby places a player who died in the round. A zero or vertical `facing` does nothing.
+## The body is a child of the unturned world, so its own yaw is the world's.
+func face(facing: Vector3) -> void:
+	if Vector2(facing.x, facing.z).length_squared() < 1e-8:
+		return
+	rotation.y = atan2(-facing.x, -facing.z)
+	look_level()
 
 
 ## Switches the body to `value`'s: the living collide with the level and the movers (the car
@@ -539,7 +551,8 @@ func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 
 ## Whether the event puts the own player somewhere anew, looking level: its Respawned (#191), or a
 ## PlayersPlaced that names it (End -> Lobby and a new match's deal, the engineer's answer on #240:
-## every placement, the lobby's and a new round's, starts level). Each comes right before the
+## every placement, the lobby's and a new round's, starts level; a marker's facing turns it after,
+## #1522). Each comes right before the
 ## Correction that moves it.
 func _places_level(event_name: StringName, fields: Dictionary) -> bool:
 	var own := session.model.own_peer

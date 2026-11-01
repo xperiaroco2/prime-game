@@ -34,6 +34,11 @@ signal welcomed(own_peer: int)
 signal event_received(event_name: StringName, fields: Dictionary)
 ## The host placed this client (Correction): the mover adopts the position and velocity.
 signal corrected(position: Vector3, velocity: Vector3)
+## The host placed this client on a marker with a facing (a Correction's non-zero `facing`, #1522):
+## its look turns to it, level. Emitted just before that Correction's `corrected`, and only for a
+## placement: a refused claim's, a knockdown's or a revive's Correction has none, and the look
+## stays the player's own. Welcome's facing is welcome_facing (no player exists yet).
+signal faced(facing: Vector3)
 ## A map the host asked for was loaded: its owner instantiates it now, before LoadAck goes out.
 signal map_loaded(path: String, scene: PackedScene)
 ## One frame of a VoiceBatch (M5-4b), in the batch's order: the speaker, the stream's seq (u16,
@@ -105,6 +110,9 @@ var corrections := 0
 ## The Corrections that came with a placement, a knockdown, a respawn or a revive of this client
 ## (PLACING_EVENTS): the host moved it; nothing it claimed was refused.
 var placements := 0
+## Welcome's facing (#1522): the joiner's lobby marker's, Vector3.ZERO for none. Game turns the
+## joiner's look to it once its player is in the world, never later.
+var welcome_facing := Vector3.ZERO
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -291,7 +299,8 @@ func set_motion(
 
 
 ## What the next MoveClaim says as the facing, when the mover turned outside its physics step
-## (a respawn looks level, #191); the rest of set_motion's report stays.
+## (a respawn looks level, #191; a placement turns to its marker's facing, #1522); the rest of
+## set_motion's report stays.
 func set_facing(facing: Vector3) -> void:
 	_facing = facing
 
@@ -416,9 +425,14 @@ func _on_event(event_name: StringName, fields: Dictionary) -> void:
 			view.peer = model.own_peer
 			_fresh = true
 			_adopt(fields["spot"] as Vector3, Vector3.ZERO)
+			welcome_facing = fields.get("facing", Vector3.ZERO)
+			_face(welcome_facing)
 			welcomed.emit(model.own_peer)
 		&"Correction":
 			_adopt(fields["position"] as Vector3, fields["velocity"] as Vector3)
+			var facing: Vector3 = fields.get("facing", Vector3.ZERO)
+			if _face(facing):
+				faced.emit(facing)
 			corrected.emit(_position, _velocity)
 		&"LoadMatch":
 			_start_load(fields["match_id"] as int, fields["map"] as String)
@@ -452,6 +466,15 @@ func _note_placement(event_name: StringName, fields: Dictionary) -> void:
 		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
 	elif fields["peer"] as int == model.own_peer:
 		_placement_due = true
+
+
+## The host's facing for this client (#1522): the next claims say it until the mover turns.
+## Whether there was one (Vector3.ZERO: none, the look stays).
+func _face(facing: Vector3) -> bool:
+	if facing == Vector3.ZERO:
+		return false
+	_facing = facing
+	return true
 
 
 ## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it,
