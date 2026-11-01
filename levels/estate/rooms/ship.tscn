@@ -395,12 +395,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.643, -0.6)
 
 [node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/bolts_col" index="0"]
 shape = ExtResource("13_floor")
+disabled = true
 
 [node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/grate_col" index="0"]
 shape = ExtResource("10_floor")
 
 [node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/hub_col" index="0"]
 shape = ExtResource("12_floor")
+disabled = true
 
 [node name="CollisionShape3D" parent="Art/Pieces/hall_floor_disc_1/trim_col" index="0"]
 shape = ExtResource("11_floor")

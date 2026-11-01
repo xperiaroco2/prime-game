@@ -44,6 +44,9 @@ const COUNTS: Dictionary[StringName, int] = {
 const SPOT_REACH_M := 1.5
 ## The deck's height over the ship's origin (the ship stands on legs, §5a).
 const DECK_M := 1.2
+## How far round a station marker a player on the deck must stand in its cylinder (the playcheck
+## presses the console from 0.47 m).
+const NEAR_M := 0.6
 
 
 func test_the_ship_has_each_engine_marker_part_two_asks_for() -> void:
@@ -177,6 +180,34 @@ func test_the_hologram_point_stands_over_the_console_s_pedestal() -> void:
 	assert_float(at.y - DECK_M).is_greater(0.6)
 	assert_float(at.y - DECK_M).is_less(3.2)
 	remove_child(root)
+
+
+## A player on the deck round a station stands in its cylinder (#1499): the host snaps each marker
+## onto the floor under it, and AtStation refuses feet more than StationState.FLOOR_SLACK_M under
+## the marker, so a marker on a plate a centimetre over the deck (the art hall disc's hub and bolts,
+## 1.204 and 1.211) left every player beside the console out of reach. The floor straight under
+## each point of a ring NEAR_M round each marker, where it is that deck (within SPAWN_FLOOR_M), is
+## no lower than the marker. Not checked: farther out the art's hall deck dips 3 to 4 mm about 1 m
+## from the breakers and the gill buttons (#1499's PR, "Needs the engineer").
+func test_a_player_on_the_deck_round_each_station_stands_in_its_cylinder() -> void:
+	var read := _read()
+	var world := _world(LevelWorld.build(MAP), (load(BASE_MODE) as GameMode).player_rules)
+	var low: Array[String] = []
+	var checked := 0
+	for tag: StringName in DOC_POINTS:
+		for at: Vector3 in read.layout.positions(tag):
+			for ring: float in [NEAR_M]:
+				for step in 8:
+					var angle := TAU * step / 8.0
+					var point := at + Vector3(cos(angle), 0.0, sin(angle)) * ring
+					var under := world.floor_below(point + Vector3.UP * 0.1)
+					if under == WorldQuery.NO_FLOOR or absf(under.y - at.y) > SPAWN_FLOOR_M:
+						continue
+					checked += 1
+					if under.y - at.y < -StationState.FLOOR_SLACK_M:
+						low.append("the %s marker at %s, the deck at %s" % [tag, at, under])
+	assert_int(checked).is_greater(50)
+	assert_array(low).is_empty()
 
 
 func _ship_origin() -> Vector3:

@@ -28,8 +28,12 @@ const IN_FRONT_M := Vector2(0.35, 1.5)
 ## Jolt's motion queries a hundred times plain floor (tests/fixtures/ship_floor_colliders.gd).
 const THIN_M := 0.05
 const DENSE_TRIANGLES := 500
-## How far the floor test drops its ball.
+## How far the floor test drops its ball, and the ball's radius (a capsule's lower cap; smaller
+## than a player's 0.4 m circle, so it finds gaps the player rides over too).
 const DROP_M := 1.2
+const BALL_M := 0.3
+## The floor plates the ship turns off to level a station's use spot with the deck (#1499).
+const LEVELLED_PLATES := 2
 
 var _root: Node3D
 
@@ -151,14 +155,17 @@ func test_a_player_stands_on_the_hulls_where_he_stood_on_the_art_s_floors() -> v
 			var file := collision.shape.resource_path.get_file()
 			if ShipFloor.FLOOR_SHAPES.has(file):
 				collision.shape = load(ShipFloor.KIT + file) as Shape3D
+				collision.disabled = false
 				swapped += 1
 	assert_int(swapped).is_greater(40)
+	var levelled := _levelled_plates()
+	assert_array(levelled.keys()).has_size(LEVELLED_PLATES)
 	var hull_world := LevelWorld.from_scene(_root, SHIP)
 	var art_world := LevelWorld.from_scene(art_floors, SHIP)
 	var hulls := hull_world.space_state()
 	var trimeshes := art_world.space_state()
 	art_floors.free()
-	# A ball of a player's capsule's radius dropped over every deck of the ship comes to rest at the
+	# A ball (BALL_M) dropped over every deck of the ship comes to rest at the
 	# same height on both: the hull fills the lattice's holes and nothing more.
 	var drops := 0
 	var off: Array[String] = []
@@ -171,6 +178,14 @@ func test_a_player_stands_on_the_hulls_where_he_stood_on_the_art_s_floors() -> v
 				if is_nan(on_hulls) and is_nan(on_trimeshes):
 					continue
 				drops += 1
+				# Over a plate levelled with the deck, the deck may lie lower, by the plate at most.
+				var lower := 0.0
+				for plate: Rect2 in levelled:
+					if plate.grow(BALL_M).has_point(Vector2(at.x, at.z)):
+						lower = maxf(lower, levelled[plate] as float)
+				var below := on_trimeshes - on_hulls if not is_nan(on_hulls + on_trimeshes) else 0.0
+				if lower > 0.0 and below > 0.0 and below <= lower + 0.01:
+					continue
 				if is_nan(on_hulls) or is_nan(on_trimeshes) or absf(on_hulls - on_trimeshes) > 0.01:
 					off.append("%s: %.3f, art %.3f" % [at, on_hulls, on_trimeshes])
 	assert_int(drops).is_greater(1000)
@@ -289,9 +304,29 @@ func _assert_near(at: Vector3, art: Vector3, what: String) -> void:
 
 ## Where a ball of a player's capsule's radius dropped from `from` comes to rest, at its bottom:
 ## NAN when it starts inside a collider or falls more than DROP_M.
+## The floor plates the estate's ship turns off (#1499: the hall disc's hub and bolts, 1.204 and
+## 1.211 under the console's use spot, which the host snaps its marker onto, so a player on the
+## deck beside it stood under the station's floor), each its plan rect in the ship's frame and how
+## far its top stands over the deck.
+func _levelled_plates() -> Dictionary[Rect2, float]:
+	var found: Dictionary[Rect2, float] = {}
+	for node: Node in _root.find_children("*", "CollisionShape3D", true, false):
+		var collision := node as CollisionShape3D
+		if not collision.disabled or not collision.shape is ConvexPolygonShape3D:
+			continue
+		var at := LevelWorld.transform_in_scene(collision, _root)
+		var points := (collision.shape as ConvexPolygonShape3D).points
+		var box := AABB(at * points[0], Vector3.ZERO)
+		for point: Vector3 in points:
+			box = box.expand(at * point)
+		found[Rect2(box.position.x, box.position.z, box.size.x, box.size.z)] = box.end.y - DECK_M
+	return found
+
+
+## Where a ball of BALL_M dropped from `from` comes to rest (its lowest point), NAN for none.
 func _rest_height(space: PhysicsDirectSpaceState3D, from: Vector3) -> float:
 	var ball := SphereShape3D.new()
-	ball.radius = 0.3
+	ball.radius = BALL_M
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = ball
 	query.transform = Transform3D(Basis.IDENTITY, from)
