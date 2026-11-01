@@ -269,6 +269,36 @@ func test_the_pinball_marker_stands_before_the_machine_clear_of_every_collider()
 	assert_float(reach).is_less_equal(kind.radius_m)
 
 
+## #1400: the pinball's client places (placeholders the engineer moves): the table's mount on the
+## machine's top, the seated player's close-up camera and the display, one marker each under the
+## Pinball node in PinballViews' groups, none in a spawn group.
+func test_the_pinball_s_view_markers_sit_on_the_machine_once_each() -> void:
+	var machine := _root.get_node("Pinball")
+	for group: StringName in [
+		PinballViews.TABLE_GROUP, PinballViews.CLOSE_UP_GROUP, PinballViews.DISPLAY_GROUP
+	]:
+		var found := _root.find_children("*", "Marker3D", true, false).filter(
+			func(node: Node) -> bool: return node.is_in_group(group)
+		)
+		assert_int(found.size()).override_failure_message(String(group)).is_equal(1)
+		var marker := found[0] as Node3D
+		assert_object(marker.get_parent()).is_same(machine)
+		for each: StringName in marker.get_groups():
+			assert_bool(String(each).begins_with("spawn_")).is_false()
+	var box := _bounds(_shape_of(machine))
+	var mount := (machine as Node3D).transform * (machine.get_node("TableMount") as Node3D).position
+	# On the box's top, its middle over the box.
+	assert_float(mount.y).is_greater_equal(box.end.y)
+	(
+		assert_bool(
+			Rect2(box.position.x, box.position.z, box.size.x, box.size.z).has_point(
+				Vector2(mount.x, mount.z)
+			)
+		)
+		. is_true()
+	)
+
+
 ## The photo booth's volume (#1396) is the booth station's own cylinder on the Booth marker: the
 ## whole cylinder stands clear of every collider (the PhotoBooth box stays solid until the engineer
 ## opens it), and right in front of the PhotoBooth box, less than a capsule's width away.

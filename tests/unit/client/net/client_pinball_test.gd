@@ -17,6 +17,8 @@ func test_a_pinball_state_is_folded_and_clear_match_keeps_only_the_best() -> voi
 	state.best_name = "Діма"
 	model.fold(&"PinballState", state.to_dict())
 	assert_int(model.pinball.game).is_equal(2)
+	# client/world reads the serial through game_serial() (the E18 guard forbids `.game` there).
+	assert_int(model.pinball.game_serial()).is_equal(2)
 	assert_int(model.pinball.player).is_equal(3)
 	assert_bool(model.pinball.left).is_true()
 	assert_bool(model.pinball.right).is_false()

@@ -20,6 +20,8 @@ const ACTIONS: Array[StringName] = [
 	&"spectate_next",
 	&"spectate_previous",
 	&"swap",
+	&"flipper_left",
+	&"flipper_right",
 	&"map",
 	&"ready",
 	&"voice_talk",

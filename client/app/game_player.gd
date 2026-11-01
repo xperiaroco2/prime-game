@@ -37,6 +37,10 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	# decides whether it offers one (HandOverUse.can_hand).
 	items.hand_over.reads_device_input = game.device_input
 	items.hand_over.listening = listening and hands
+	# The flippers count on the lobby screen alone; under the Esc menu PinballKeys sends the
+	# release (#1400: no stuck flipper), while the seat and its close-up stay up.
+	items.pinball.keys.reads_device_input = game.device_input
+	items.pinball.keys.listening = listening and now == GameFlow.Screen.LOBBY
 	if not listening:
 		# Nothing reads the keys now: W held when Esc opened must not keep walking.
 		player.release_keys()

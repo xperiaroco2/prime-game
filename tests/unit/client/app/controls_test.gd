@@ -164,8 +164,17 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
 	# The three places (#1218) are Settings rows since ui-2.5.1 (#1421) and the item's own action on
-	# the right button (#1438) since ui-2.5.3 (#1446): UNLISTED is empty.
-	assert_dict(Controls.UNLISTED).is_empty()
+	# the right button (#1438) since ui-2.5.3 (#1446): UNLISTED holds only the pinball's flippers
+	# (#1400, the lobby's), until the deck has their rows.
+	(
+		assert_dict(Controls.UNLISTED)
+		. is_equal(
+			{
+				&"flipper_left": Controls.ControlContext.LOBBY,
+				&"flipper_right": Controls.ControlContext.LOBBY,
+			}
+		)
+	)
 	for place: StringName in [&"place_1", &"place_2", &"place_3"]:
 		assert_bool(Controls.ACTIONS.has(place)).override_failure_message(place).is_true()
 		# They draw in the lobby too (#1408: the Lobby takes Draw).
@@ -314,6 +323,20 @@ func test_use_on_the_right_button_clashes_with_the_items_own_action_which_is_a_r
 	assert_int(saved.read()).is_equal(OK)
 	assert_bool(saved.is_default(&"use")).is_false()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_a_lobby_action_on_a_flipper_key_is_refused_while_the_flippers_are_unlisted() -> void:
+	# #1400: the flippers act on Z and Slash in the lobby (PinballKeys) but are no Settings row
+	# until the deck has `control.flipper_*` (#150): a lobby action there would do both on one
+	# press, so it is refused; a round-only action (the throw) may take Z.
+	var controls := Controls.new()
+	assert_bool(Controls.ACTIONS.has(&"flipper_left")).is_false()
+	assert_array(Controls.unlisted_on(&"jump", _press(KEY_Z))).contains_exactly([&"flipper_left"])
+	assert_bool(controls.bind(&"jump", _press(KEY_Z))).is_false()
+	assert_bool(controls.bind(&"ready", _press(KEY_SLASH))).is_false()
+	assert_bool(controls.is_default(&"jump")).is_true()
+	assert_array(Controls.unlisted_on(&"throw", _press(KEY_Z))).is_empty()
+	assert_bool(controls.bind(&"throw", _press(KEY_Z))).is_true()
 
 
 func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
