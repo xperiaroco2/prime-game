@@ -5444,7 +5444,7 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   focus; when one stops, the next step sends the release (no stuck flipper). At most one intent per `SEND_GAP_MSEC`
   60 ms (16 a second, under `PeerBudget`'s 20): a change inside the gap waits for its end and is never dropped (a tap
   inside one gap sends both edges, a gap apart; more changes merge into the newest). Reconcile: when `PinballState`
-  still differs from the last state sent `RECONCILE_MSEC` 250 ms after the last send and nothing waits, it goes again.
+  still differs from the last state sent `RECONCILE_MSEC` 500 ms (above a slow round trip, so an in-flight state is not sent twice) after the last send and nothing waits, it goes again.
 - **The display.** `PinballDisplay`: three `Label3D` lines on the display marker: the best and its owner's name, and
   while a game is on the score and the balls left, re-texted only on a change (or the language). The owner's name is in
   the owner's roster body colour, found by name (`PinballState` carries the name, not a peer): only a name exactly one

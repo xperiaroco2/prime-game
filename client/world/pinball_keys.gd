@@ -17,13 +17,14 @@ extends Node
 ##   (§7.1.22), so when the host's PinballState still differs from the last state sent
 ##   RECONCILE_MSEC after the last send and nothing waits, that state goes again.
 
-## The flipper actions (project.godot, Controls.ACTIONS).
+## The flipper actions (project.godot; Controls.UNLISTED until their Settings rows).
 const LEFT := &"flipper_left"
 const RIGHT := &"flipper_right"
 ## The least time between two intents, in milliseconds (not a decision: 16 a second at most).
 const SEND_GAP_MSEC := 60
-## How long the host's state may differ from the last state sent before it goes again, ms.
-const RECONCILE_MSEC := 250
+## How long the host's state may differ from the last state sent before it goes again, ms: the
+## plan's 500, above a slow round trip (WebRTC, M6), so an in-flight state is not sent twice.
+const RECONCILE_MSEC := 500
 
 ## Sends one intent: (intent: StringName, args: Dictionary) -> int (ClientSession.send_intent).
 var send := Callable()
