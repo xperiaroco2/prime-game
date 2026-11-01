@@ -121,7 +121,7 @@ func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> vo
 	assert_str(mode.default_map()).is_equal(ESTATE)
 	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
 	assert_bool(ScenarioLevels.of(mode).has(HOUSE)).is_false()
-	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE])
+	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE, ESTATE])
 	for file: String in ScenarioLevels.scenario_paths():
 		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:
@@ -137,16 +137,31 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 	# #1209: the scenarios on a map with storeys (the House) play in a fake world with its storeys
 	# and stairs (ScenarioLevels.world_of); some marker of the map stands on each of those storeys,
 	# so each is one of the map's. A flat map's scenarios play on one floor at y = 0, the level's
-	# floor (test_the_scenarios_levels_are_flat).
-	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([ScenarioLevels.HOUSE])
-	var layout := _layouts_for(_base_mode())[ScenarioLevels.HOUSE]
-	for storey: float in ScenarioLevels.HOUSE_STOREYS:
-		var on_it := 0
-		for tag: StringName in layout.tags():
-			for at: Vector3 in layout.positions(tag):
-				if is_equal_approx(at.y, storey):
-					on_it += 1
-		assert_int(on_it).override_failure_message("storey %s" % storey).is_greater(0)
+	# floor (test_the_scenarios_levels_are_flat). The estate joins them with the ship's deck (#1498):
+	# a station marker on the deck must stand on the fake's deck, else no bot reaches it.
+	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly(
+		[ScenarioLevels.HOUSE, ScenarioLevels.ESTATE]
+	)
+	var layouts := _layouts_for(_base_mode())
+	for map: String in ScenarioLevels.STOREYED_MAPS:
+		var layout: LevelLayout = layouts[map]
+		assert_array(ScenarioLevels.storeys_of(map)).override_failure_message(map).is_not_empty()
+		for storey: float in ScenarioLevels.storeys_of(map):
+			var on_it := 0
+			for tag: StringName in layout.tags():
+				for at: Vector3 in layout.positions(tag):
+					if is_equal_approx(at.y, storey):
+						on_it += 1
+			assert_int(on_it).override_failure_message("%s storey %s" % [map, storey]).is_greater(0)
+	for at: Vector3 in layouts[ScenarioLevels.ESTATE].positions(&"engine_console"):
+		assert_float(at.y).is_equal_approx(ScenarioLevels.ESTATE_STOREYS[1], 0.02)
+	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.HOUSE)).is_equal(
+		ScenarioLevels.HOUSE_STOREYS
+	)
+	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.ESTATE)).is_equal(
+		ScenarioLevels.ESTATE_STOREYS
+	)
+	assert_array(ScenarioLevels.storeys_of("res://levels/no_such_map.tscn")).is_empty()
 	for file: String in ScenarioLevels.scenario_paths():
 		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:

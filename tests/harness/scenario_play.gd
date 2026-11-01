@@ -33,6 +33,8 @@ const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target", "giver"]
 ## WebRTC signalling's; or a Rejected Hello's). Anything else fails it at once.
 const RETRIED: Array[StringName] = [ClientSession.CONNECT_FAILED, RejectReasons.JOINS_CLOSED]
 const RETRY_S := 0.5
+## How long a MendEngine press waits for a Rejected before it counts as taken (2 s).
+const PRESS_ANSWER_TICKS := 40
 
 var scenario: BotScenario
 var bots: Array[ScenarioBot] = []
@@ -46,6 +48,12 @@ var tick_now := 0
 ## The fake world the host's match asks and the bots walk on (ScenarioLevels.world_of): one flat
 ## floor, or the House's storeys and stairs (#1209). A runner hands it to its match.
 var world: WorldQuery
+
+## Bot number -> its MendEngine step's mender, the walk it reuses, and its presses still unanswered
+## (seq -> [station, tick sent]).
+var _menders: Dictionary[int, EngineMender] = {}
+var _mend_walks: Dictionary[int, StepWalkTo] = {}
+var _presses: Dictionary[int, Dictionary] = {}
 
 
 func _init(bot_scenario: BotScenario, bot_peers: ScenarioPeers) -> void:
@@ -147,7 +155,8 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 		if bot.gone:
 			# Its Leave: a Join that follows starts a new connection, on the next tick.
 			break
-	if not bot.gone and not bot.dead and not bot.current_step() is StepWalkTo:
+	var walks := bot.current_step() is StepWalkTo or bot.current_step() is StepMendEngine
+	if not bot.gone and not bot.dead and not walks:
 		_stand(bot)
 
 
@@ -236,6 +245,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 	elif step is StepTalk:
 		bot.talking = (step as StepTalk).talking
 		result = Result.DONE
+	elif step is StepMendEngine:
+		result = _mend(bot, step as StepMendEngine)
 	else:
 		result = _check(bot, step, elapsed)
 	return result
@@ -743,6 +754,77 @@ func _draw(bot: ScenarioBot, step: StepDraw) -> Result:
 	return _intent_result(bot, step, _done_by(bot, &"Swapped", {"place": step.place}))
 
 
+## Mends the ship's engine with the bot's EngineMender (#1498): walks or presses what it picks, or
+## stands. Its presses are Interacts, as many as the engine needs, each answered or not: a Rejected
+## `unavailable` (the problem closed or the breaker went on before the press landed) or any while
+## the bot is down only tells the mender to look again; any other fails the step. Done when the
+## engine is done (the console's full bar) or a MatchEnded arrives.
+func _mend(bot: ScenarioBot, step: StepMendEngine) -> Result:
+	if bot.engine_done or _received(bot, bot.step_cursor, MATCH_ENDED, {}):
+		return Result.DONE
+	var mender: EngineMender = _menders.get(bot.number)
+	if mender == null or mender.step != step:
+		var engine := _ship_engine()
+		if engine == null:
+			return _fail_step(bot, "the mode has no ship's engine to mend")
+		mender = EngineMender.new(step, engine.kinds)
+		_menders[bot.number] = mender
+		_presses[bot.number] = {}
+	var presses: Dictionary = _presses[bot.number]
+	var refusal := mend_answers(bot, mender, presses, tick_now)
+	if not refusal.is_empty():
+		return _fail_step(bot, refusal)
+	var move := mender.decide(bot, _landing_tick(bot))
+	if move.act == EngineMender.Act.WALK:
+		var walk: StepWalkTo = _mend_walks.get(bot.number)
+		if walk == null:
+			walk = StepWalkTo.new()
+			walk.target = ScenarioTarget.new()
+			walk.sprint = true
+			walk.stop_m = 0.0
+			_mend_walks[bot.number] = walk
+		walk.target.point = move.to
+		if _walk(bot, walk) == Result.FAILED:
+			return Result.FAILED
+		return Result.WAITING
+	if move.act == EngineMender.Act.PRESS:
+		_send(bot, Intents.INTERACT, {"station": move.station, "item": -1})
+		presses[bot.sent_seq] = [move.station, tick_now]
+	if not bot.dead:
+		_stand(bot)
+	return Result.WAITING
+
+
+## Reads the answers to a MendEngine bot's presses (`presses`: seq -> [station, tick sent]) at tick
+## `now`: a press refused, or unanswered for over PRESS_ANSWER_TICKS, leaves `presses`. A Rejected
+## `unavailable`, or any while the bot is down or dead, tells `mender` to look again at its station;
+## any other is the step's failure, returned (else ""). Its state is read when the answer is, as a
+## press sent just before a knockdown lands on a downed presser.
+static func mend_answers(
+	bot: ScenarioBot, mender: EngineMender, presses: Dictionary, now: int
+) -> String:
+	for seq: int in presses.keys():
+		var reason := bot.rejection_of(seq)
+		var sent: Array = presses[seq]
+		if reason.is_empty():
+			if now - (sent[1] as int) > PRESS_ANSWER_TICKS:
+				presses.erase(seq)
+			continue
+		presses.erase(seq)
+		if reason != StationUsable.UNAVAILABLE and not bot.downed and not bot.dead:
+			return "Rejected (%s) at station %d" % [reason, sent[0]]
+		mender.refused(sent[0] as int)
+	return ""
+
+
+## The mode's ship's engine (its first ShipEngine task type), or null.
+func _ship_engine() -> ShipEngine:
+	for task_type: TaskType in scenario.mode.task_types:
+		if task_type is ShipEngine:
+			return task_type as ShipEngine
+	return null
+
+
 ## The horizontal unit direction from the bot to `target`; zero when it stands on it; INF when it
 ## cannot know the target.
 func _facing(bot: ScenarioBot, target: ScenarioTarget) -> Vector3:
@@ -894,3 +976,11 @@ func _answer_load(_bot: ScenarioBot, _match_id: int, _skip: bool) -> void:
 ## The bot is not walking this tick: it stands still.
 func _stand(_bot: ScenarioBot) -> void:
 	pass
+
+
+## The host tick an intent the bot sends now lands on (MendEngine's timing: the gills' bar, a
+## breaker's green): the core runner applies a tick's commands before ticking it, so this tick. The
+## network runners take the same: their intent lands on this tick or the next, within the mender's
+## margins (half a bar step, GREEN_MARGIN_TICKS).
+func _landing_tick(_bot: ScenarioBot) -> int:
+	return tick_now

@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 ## respawn to the skat's ramp (#1374, #1492).
 
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const RADIUS := 0.4
 const HEIGHT := 1.8
@@ -435,6 +436,24 @@ func test_each_round_and_respawn_marker_walks_to_the_ramp_s_foot() -> void:
 		_walk("from %s straight" % node.name, [at, SHIP_ROUTE_START], 0.0)
 		spawns += 1
 	assert_int(spawns).is_greater(0)
+
+
+func test_the_scenarios_fake_ramp_lies_on_the_ship_s_ramp() -> void:
+	# #1498: the bot scenarios on the estate walk aboard over ScenarioLevels' fake ramp (its foot
+	# on the ground, its hinge at the deck's height, the floor rising evenly between). Its ends and
+	# its middle stand on the real ramp, along its lane's middle and both its edges.
+	var ends := ScenarioLevels.ESTATE_FLIGHTS
+	var across := Vector3(ScenarioLevels.ESTATE_RAMP_WIDTH_M / 2.0 - RADIUS, 0, 0)
+	for t: float in [0.0, 0.5, 1.0]:
+		var on := ends[0].lerp(ends[1], t)
+		for side: Vector3 in [Vector3.ZERO, across, -across]:
+			var at := on + side
+			var real := _drop(at.x, at.z, at.y + 1.0)
+			(
+				assert_float(real)
+				. override_failure_message("the ramp at %s: %s" % [at, real])
+				. is_equal_approx(at.y, 0.1)
+			)
 
 
 func test_each_crossing_carries_a_walk_over_the_creek() -> void:

@@ -189,7 +189,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepInteract.new(),
 		StepDraw.new(),
 		StepExpectDrunk.new(),
-		StepHandOver.new()
+		StepHandOver.new(),
+		StepMendEngine.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -219,7 +220,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Interact",
 			&"Draw",
 			&"ExpectDrunk",
-			&"HandOver"
+			&"HandOver",
+			&"MendEngine"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -243,6 +245,30 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepHandOver.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
+
+
+func test_a_mend_engine_step_takes_a_share_of_at_least_one_bot() -> void:
+	# #1498: it sends its intents as it goes, none expected refused.
+	var mend := StepMendEngine.new()
+	assert_bool(mend.sends_intent()).is_false()
+	assert_array(Array(mend.problems())).is_empty()
+	mend.share = 2
+	mend.of = 3
+	assert_array(Array(mend.problems())).is_empty()
+	mend.share = 3
+	assert_array(Array(mend.problems())).is_equal(["a MendEngine's share is 0 to of - 1"])
+	mend.share = -1
+	assert_array(Array(mend.problems())).is_equal(["a MendEngine's share is 0 to of - 1"])
+	mend.share = 0
+	mend.of = 0
+	assert_array(Array(mend.problems())).is_equal(
+		["a MendEngine shares the problems among at least one bot: of >= 1"]
+	)
+	mend.of = 1
+	mend.expect_rejected = &"unavailable"
+	assert_array(Array(mend.problems())).is_equal(
+		["expect_rejected on a step that sends no intent"]
+	)
 
 
 func test_a_raise_step_targets_a_bot() -> void:
