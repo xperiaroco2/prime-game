@@ -2019,7 +2019,7 @@ tick (that suite: no scenario moves a body, KE12, a limp one included: their wor
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
-`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots,
 the melee fixture's default draw (the shipped base mode with the Round's strike and the knives, §9.5.1, #1497), one package, since #804 (from #649 to #804 also one zone on the greybox); bot 4
 walks to `ChaosScenario.STAND_AT`, where that zone stood, and freezes, bot 1 then knocks it down, bot 2 delivers and
 bot 3 first pours and drinks a mug at the lobby's tap (#1390: `ExpectDrunk` of its own value), then draws its second place and then its first, two accepted `Draw`s (#1377), and waits for the end) carries two chaos peers that are never peer 1: a
