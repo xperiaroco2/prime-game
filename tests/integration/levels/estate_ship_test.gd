@@ -300,17 +300,17 @@ func test_each_station_package_stands_on_its_art_station_spot() -> void:
 	add_child(_root)
 	# Each device under Engine/Devices is its art package (#1535), set as the package's HANDOFF
 	# "Placement" says: its origin on the spot, its +Z the spot's normal, the breaker board 0.07 m
-	# out of the wall along it.
-	var devices := {
-		"StartConsole01": ["Console", START_CONSOLE],
-		"CartridgeSocket01": ["SocketW", CRYSTAL_SOCKET],
-		"CartridgeSocket02": ["SocketFW", CRYSTAL_SOCKET],
-		"CartridgeSocket03": ["SocketE", CRYSTAL_SOCKET],
-		"CartridgeSocket04": ["SocketFE", CRYSTAL_SOCKET],
-		"BreakerBoard01": ["BreakerW", BREAKER_BOARD],
-		"BreakerBoard02": ["BreakerE", BREAKER_BOARD],
-		"Charger01": ["RenewerW", CRYSTAL_CHARGER],
-		"Charger02": ["RenewerE", CRYSTAL_CHARGER],
+	# out of the wall along it. Each device: its art spot under Art/Stations, its package scene.
+	var devices: Dictionary[String, PackedStringArray] = {
+		"StartConsole01": PackedStringArray(["Console", START_CONSOLE]),
+		"CartridgeSocket01": PackedStringArray(["SocketW", CRYSTAL_SOCKET]),
+		"CartridgeSocket02": PackedStringArray(["SocketFW", CRYSTAL_SOCKET]),
+		"CartridgeSocket03": PackedStringArray(["SocketE", CRYSTAL_SOCKET]),
+		"CartridgeSocket04": PackedStringArray(["SocketFE", CRYSTAL_SOCKET]),
+		"BreakerBoard01": PackedStringArray(["BreakerW", BREAKER_BOARD]),
+		"BreakerBoard02": PackedStringArray(["BreakerE", BREAKER_BOARD]),
+		"Charger01": PackedStringArray(["RenewerW", CRYSTAL_CHARGER]),
+		"Charger02": PackedStringArray(["RenewerE", CRYSTAL_CHARGER]),
 	}
 	var names: Array[String] = []
 	for child: Node in _root.get_node(^"Engine/Devices").get_children():
@@ -318,8 +318,8 @@ func test_each_station_package_stands_on_its_art_station_spot() -> void:
 	assert_array(names).contains_exactly_in_any_order(devices.keys())
 	for device_name: String in devices:
 		var device := _root.get_node("Engine/Devices/" + device_name) as Node3D
-		var spot := _root.get_node("Art/Stations/" + str(devices[device_name][0])) as Node3D
-		var package := str(devices[device_name][1])
+		var spot := _root.get_node("Art/Stations/" + devices[device_name][0]) as Node3D
+		var package: String = devices[device_name][1]
 		assert_str(device.scene_file_path).override_failure_message(device_name).is_equal(package)
 		assert_str(str(spot.get_meta("package"))).is_equal(package.get_file().get_basename())
 		var normal := spot.global_transform.basis.z
