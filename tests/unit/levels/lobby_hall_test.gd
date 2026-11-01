@@ -220,6 +220,27 @@ func test_the_host_reads_the_lobby_world_without_errors() -> void:
 		assert_float((hit["position"] as Vector3).y).is_equal_approx(0.0, 0.05)
 
 
+## The host's world holds only what the client keeps (invariant 7: its sanity checks ask the same
+## colliders the player walks on). The host never runs lobby_hall.gd's _ready, so a body the script
+## frees, such as the ship package's Clearing ground (an endless WorldBoundary at y 0), must not be
+## on layer 1: else the host has a floor past the window and under any hole in the art floor, and
+## every floor check here passes with no art floor at all.
+func test_the_host_world_holds_only_the_colliders_the_client_keeps() -> void:
+	var host := LevelWorld.build(LOBBY)
+	for at: Vector3 in [Vector3(60.0, 0.0, 0.0), Vector3(0.0, 0.0, 40.0), Vector3(-60, 0, -80)]:
+		var ray := PhysicsRayQueryParameters3D.create(
+			at + Vector3.UP * 5.0, at + Vector3.DOWN * 5.0
+		)
+		var hit := host.space_state().intersect_ray(ray)
+		var why := "a floor outside the hall at %s: %s" % [at, hit.get("position")]
+		assert_bool(hit.is_empty()).override_failure_message(why).is_true()
+	add_child(_root)
+	await get_tree().process_frame
+	var kept := LevelWorld.from_scene(_root, LOBBY)
+	assert_int(host.body_count()).is_equal(kept.body_count())
+	remove_child(_root)
+
+
 ## #1390: the bar's tap is one marker, inside the walls, clear of every collider by a capsule, with
 ## the Bar's edge within the tap's reach.
 func test_the_tap_marker_stands_beside_the_bar_clear_of_every_collider() -> void:

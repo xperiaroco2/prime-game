@@ -6983,6 +6983,9 @@ light_energy = 0.0
 visible = false
 light_energy = 0.0
 
+[node name="Ground" parent="Ship/Clearing" parent_id_path=PackedInt32Array(1198407506, 369450085) index="2" unique_id=1803442160]
+collision_layer = 0
+
 [node name="jaw_lower" parent="Ship/Nose" parent_id_path=PackedInt32Array(1198407506, 170865207) index="0" unique_id=96310084]
 transform = Transform3D(1, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, 0, 1.2, -8.1)
 
