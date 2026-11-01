@@ -203,6 +203,10 @@ func test_any_other_knockdown_zaps_nowhere() -> void:
 	assert_object(ShipEngineSounds.zap_at(_knocked(GILLS_AT), _model, _mode)).is_null()
 	var near := _model.stations[FIRST_BREAKER + 3].position
 	assert_object(ShipEngineSounds.zap_at(_knocked(near), _model, null)).is_null()
+	# Straight above or below a tripped breaker, on another deck: no presser of it.
+	var rise := Vector3.UP * (ShipEngineSounds.ZAP_RISE_M + 1.0)
+	assert_object(ShipEngineSounds.zap_at(_knocked(near + rise), _model, _mode)).is_null()
+	assert_object(ShipEngineSounds.zap_at(_knocked(near - rise), _model, _mode)).is_null()
 	# A blast takes every problem away before its knockdowns arrive.
 	_model.fold(&"EngineBlast", {"stage": 1})
 	assert_object(ShipEngineSounds.zap_at(_knocked(near), _model, _mode)).is_null()
