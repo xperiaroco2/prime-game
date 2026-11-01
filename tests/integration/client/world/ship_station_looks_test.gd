@@ -179,6 +179,24 @@ func test_the_order_lights_the_console_lamp_of_its_breaker_a_step_at_a_time() ->
 	assert_int(console.lit()).is_equal(-1)
 
 
+func test_the_nearest_deadline_blinks_fast_and_a_later_one_slow() -> void:
+	var console := _view.station_looks().console()
+	_model.fold(&"ButtonPressed", {"station": CONSOLE})
+	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD_EAST], 900))
+	_model.fold(&"EngineProblemOpened", _opened(2, [SOCKET], 600))
+	_now = 10
+	_view._process(0.05)
+	var fast := 1.0 / (2.0 * ShipEngineHologram.BLINK_FAST_SECONDS)
+	var slow := 1.0 / (2.0 * ShipEngineHologram.BLINK_SLOW_SECONDS)
+	assert_str(console.station_state("breaker_e")).is_equal("broken")
+	assert_float(console.station_blink("socket_e")).is_equal_approx(fast, 1e-5)
+	assert_float(console.station_blink("breaker_e")).is_equal_approx(slow, 1e-5)
+	_model.fold(&"EngineProblemFixed", {"problem": 2})
+	_now = 11
+	_view._process(0.05)
+	assert_float(console.station_blink("breaker_e")).is_equal_approx(fast, 1e-5)
+
+
 func test_the_shells_trip_and_the_last_on_ramps_yellow_under_the_beacon() -> void:
 	var looks := _view.station_looks()
 	var east := looks.board_of(BOARD_EAST)
