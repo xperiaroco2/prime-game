@@ -1,16 +1,17 @@
 class_name ShipEngineHologram
 extends Node3D
 ## The engine console's hologram made readable (#1500; GDD §8 "The spin-up, made readable",
-## ARCHITECTURE §9.5.27 "The client"), as stand-ins until the art ship (#1499) draws it: a child of
+## ARCHITECTURE §9.5.27 "The client"), as stand-ins over the art ship (#1499): a child of
 ## ShipEngineViews, built with the engine's console, drawn from the own ClientModel (the console's
 ## Station and its ClientEngineBook), the bar's share the strips show and the estimated host tick;
-## nothing is predicted. Round the hologram's centre:
-## - the call: while the engine is off (never pressed, its bar empty and still, no problem), the two
+## nothing is predicted. Round the hologram's centre, its turbines and start button at the level's
+## places for them (the art ship's engine pods scaled like the mimic board, its console's button):
+## - the call: while the engine is off (never pressed, its bar empty and still, no problem), the
 ##   turbines pulse orange and the start button under the hologram glows; the beep is #1501's;
 ## - the charge: started, the turbines spin, slower while a problem is open; the same bar the stage
 ##   strips fill runs as a ring of segments round the hologram's central disc;
 ## - the wiring: every site station (the sockets, the boards, the gill sets) is a point at its place
-##   in the ship, scaled down like the mimic board, with a line of light to the nearer turbine; a
+##   in the ship, scaled down like the mimic board, with a line of light to the nearest turbine; a
 ##   station an open problem holds blinks red, its line dark, the problem that blows first blinking
 ##   fastest; fixed (not blasted away), its line flashes back. Every point looks the same: it shows
 ##   where, not what;
@@ -19,7 +20,8 @@ extends Node3D
 ## Every part is depth-tested and tells only public places and states; none names a player. The
 ## looks, sizes and timings are placeholders, "not a decision" (#1500's Taste).
 
-## The turbines: their offset left and right of the centre, the size of a blade, their spin.
+## The turbines: their stand-ins' offset left and right of the centre (a level without turbine
+## places, #1499), the size of a blade, their spin.
 const TURBINE_OFFSET_M := 0.15
 const TURBINE_BLADE := Vector3(0.22, 0.03, 0.05)
 const SPIN_RAD_PER_SECOND := 6.0
@@ -27,7 +29,8 @@ const SPIN_RAD_PER_SECOND := 6.0
 const SLOW_FACTOR := 0.25
 ## One pulse of the call, dim to orange and back.
 const PULSE_SECONDS := 1.5
-## The start button: its size, how far under the centre and toward the console's use spot.
+## The start button: its size and, for its stand-in (a level without a button place, #1499), how
+## far under the centre and toward the console's use spot.
 const BUTTON := Vector3(0.12, 0.04, 0.12)
 const BUTTON_DROP_M := 0.5
 const BUTTON_TOWARD_M := 0.3
@@ -79,17 +82,31 @@ var _materials: Dictionary[Color, StandardMaterial3D] = {}
 
 
 ## Builds the hologram round `centre` for console station `console` and the site stations `sites`;
-## a site an open problem already holds is taken as held (a view built late flashes nothing).
-func setup(model: ClientModel, console: int, centre: Vector3, sites: Array[int]) -> void:
+## a site an open problem already holds is taken as held (a view built late flashes nothing). The
+## level's places bind the turbines (`turbines`, one blade at each) and the start button
+## (`button_at`) to the art ship's (#1499); without them the stand-ins stand round the centre.
+func setup(
+	model: ClientModel,
+	console: int,
+	centre: Vector3,
+	sites: Array[int],
+	turbines: Array[Vector3] = [],
+	button_at := Vector3.INF,
+) -> void:
 	_model = model
 	_console = console
 	_centre = centre
 	var spot := model.stations[console].position
 	_turbine_look.emission_enabled = true
-	for side: float in [-1.0, 1.0]:
+	var places: Array[Vector3] = []
+	places.append_array(turbines)
+	if places.is_empty():
+		for side: float in [-1.0, 1.0]:
+			places.append(centre + Vector3(side * TURBINE_OFFSET_M, POINT_LIFT_M, 0.0))
+	for at: Vector3 in places:
 		var blade := _box(TURBINE_BLADE, ORANGE)
 		blade.material_override = _turbine_look
-		blade.position = centre + Vector3(side * TURBINE_OFFSET_M, POINT_LIFT_M, 0.0)
+		blade.position = at
 		_turbines.append(blade)
 	var toward := Vector3(spot.x - centre.x, 0.0, spot.z - centre.z)
 	if toward.length() > BUTTON_DIRECTION_MIN_M:
@@ -98,6 +115,8 @@ func setup(model: ClientModel, console: int, centre: Vector3, sites: Array[int])
 		toward = Vector3.ZERO
 	_button = _box(BUTTON, ORANGE)
 	_button.position = centre + Vector3.DOWN * BUTTON_DROP_M + toward
+	if button_at != Vector3.INF:
+		_button.position = button_at
 	_build_disc()
 	for site: int in sites:
 		_build_site(site)
@@ -157,9 +176,23 @@ func turbine_speed() -> float:
 	return SPIN_RAD_PER_SECOND
 
 
-## Turbine `index` (0 or 1), or null.
+## Turbine `index` (0 up, in the order of the places it was given, else west then east), or null.
 func turbine(index: int) -> MeshInstance3D:
 	return _turbines[index] if index < _turbines.size() else null
+
+
+## The turbine whose blade a site's line at `from` runs to: the nearest across the floor (its
+## height left out), on a tie the one further east, so a stand-in pair takes each site's side.
+func nearest_turbine(from: Vector3) -> Vector3:
+	var best := Vector3.INF
+	var best_m := INF
+	for blade: MeshInstance3D in _turbines:
+		var at := blade.position
+		var m := Vector2(at.x - from.x, at.z - from.z).length()
+		if m < best_m - 1e-6 or (absf(m - best_m) <= 1e-6 and at.x > best.x):
+			best = at
+			best_m = m
+	return best
 
 
 ## The start button's stand-in.
@@ -222,8 +255,7 @@ func _build_site(site: int) -> void:
 	var lift := Vector3.UP * POINT_LIFT_M
 	point.position = _centre + Vector3(at.x, 0.0, at.z) * ShipEngineViews.MIMIC_SCALE + lift
 	_points[site] = point
-	var side := 1.0 if at.x >= 0.0 else -1.0
-	var to := _centre + Vector3(side * TURBINE_OFFSET_M, POINT_LIFT_M, 0.0)
+	var to := nearest_turbine(point.position)
 	if point.position.distance_to(to) >= LINE_MIN_M:
 		var line := _box(Vector3(LINE_M, LINE_M, 1.0), LINE)
 		_lines[site] = line

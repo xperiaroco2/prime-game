@@ -350,6 +350,48 @@ func test_the_start_button_sits_under_the_centre_toward_the_use_spot() -> void:
 	)
 
 
+func test_the_turbines_and_the_button_stand_at_the_level_s_places_under_the_point() -> void:
+	# #1499: the art ship's pods and its console's button, as the estate's ship places them.
+	_place()
+	var level := _level()
+	var point := Node3D.new()
+	point.add_to_group(&"engine_hologram", true)
+	level.add_child(point)
+	point.global_position = Vector3(0.0, 2.6, 0.6)
+	var places: Dictionary[String, Vector3] = {
+		"Turbine3": Vector3(0.3, 0.08, 1.0),
+		"Turbine1": Vector3(-0.3, 0.08, 1.0),
+		"Turbine2": Vector3(0.0, 0.135, 1.0),
+		"Button": Vector3(0.0, -0.643, -0.6),
+	}
+	for part: String in places:
+		var place := Marker3D.new()
+		place.name = part
+		place.position = places[part]
+		point.add_child(place)
+	_view.level = level
+	_view._process(0.0)
+	var hologram := _view.hologram()
+	# One blade at each place, in the places' name order; the button at its own.
+	for i in 3:
+		var at: Vector3 = point.global_position + places["Turbine%d" % (i + 1)]
+		assert_vector(hologram.turbine(i).global_position).is_equal_approx(at, Vector3.ONE * 1e-4)
+	assert_object(hologram.turbine(3)).is_null()
+	assert_vector(hologram.button().global_position).is_equal_approx(
+		point.global_position + places["Button"], Vector3.ONE * 1e-4
+	)
+	# A site's line runs from its point to the nearest blade across the floor.
+	var from := hologram.point_of(SOCKET).position
+	var line := hologram.line_of(SOCKET)
+	var to := 2.0 * line.position - from
+	var nearest := INF
+	for i in 3:
+		var blade := hologram.turbine(i).position
+		nearest = minf(nearest, Vector2(blade.x - from.x, blade.z - from.z).length())
+	assert_float(Vector2(to.x - from.x, to.z - from.z).length()).is_equal_approx(nearest, 1e-4)
+	assert_vector(to).is_equal_approx(hologram.nearest_turbine(from), Vector3.ONE * 1e-4)
+
+
 func test_the_turbines_spin_once_started_and_slower_while_a_problem_is_open() -> void:
 	_place()
 	_model.fold(&"ButtonPressed", {"station": CONSOLE})
