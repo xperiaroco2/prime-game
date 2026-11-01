@@ -5,8 +5,9 @@ extends RefCounted
 ## mode's number settings, each at its default unless the preset names it, and no task type banned.
 ## A default that follows the player count (SettingSpec.defaults_by_players, #1492) is the one for
 ## the players present, so a card leaves such a setting as the lobby derived it.
-## The values are placeholders ("not a decision", #491's "Needs the engineer"): Quick is a 5 minute
-## match, No knives has no knives; everything else is the mode's default.
+## The values are placeholders ("not a decision", #491's "Needs the engineer"): Quick is a 3
+## minute match (3 since the base mode's default round became 5, the M8 slice, #1496), No knives
+## has no knives; everything else is the mode's default.
 ## The card shown pressed is derived from the model, never remembered: equal values are that
 ## preset, anything else none ("Custom" for a player), so a guest reads it too and any other change
 ## deselects every card.
@@ -19,7 +20,7 @@ const OWN := &"own"
 ## The cards in their order, with what each changes from the mode's defaults (placeholders).
 const CHANGES: Dictionary[StringName, Dictionary] = {
 	STANDARD: {},
-	QUICK: {&"match_duration": 5},
+	QUICK: {&"match_duration": 3},
 	NO_KNIVES: {&"knives": 0},
 }
 ## Each card's name key; the own one is preset.custom.

@@ -2962,13 +2962,14 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
   `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s: `esc_lobby_preview.tscn` and
   `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
-- #767 (the engineer's option (a)): players always play the House. `GameMode.bench_maps` marks the maps of
+- #767 (the engineer's option (a)): players always play one map, since the M8 slice (#1496, the engineer's word
+  on #507) the forest estate (the House until then). `GameMode.bench_maps` marks the maps of
   `maps` that are test benches only (the base mode's: the flat greybox, for the bot scenarios and the leak test,
-  §9.7, and the forest estate, #1374); `player_maps()` is the rest and `default_map()` its first, where every match starts (`Match`), so the
-  picker lists the House alone. The host still accepts a bench in `ChangeSettings` (the bots ask for it, and the
+  §9.7, and the House, parked for its bot scenarios and tests since #1496); `player_maps()` is the rest and `default_map()` its first, where every match starts (`Match`), so the
+  picker lists the estate alone. The host still accepts a bench in `ChangeSettings` (the bots ask for it, and the
   host cannot tell a bot from a person); the mode check refuses a bench not in `maps` and a mode whose every map
-  is a bench. Tests: `game_mode_maps_test.gd`, `screens_test.gd` (the shipped lobby offers the House alone),
-  `content_modes_test.gd` and `game_map_choice_test.gd` (a human match loads the House on both machines).
+  is a bench. Tests: `game_mode_maps_test.gd`, `screens_test.gd` (the shipped lobby offers the estate alone),
+  `content_modes_test.gd` and `game_map_choice_test.gd` (a human match loads the estate on both machines).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
@@ -3279,7 +3280,7 @@ no key to press) uses the hand item and takes the viewfinder's shot (`house_phot
 game's pointer too (`LifeView.mouse_captured`, `pointer.captured`, #1117), but `spectate_next` and
 `spectate_previous` are the mouse buttons alone and no playcheck step drives them (`spectate.txt` watches its one
 target), so cycling stays with the playtest.
-Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
+Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the estate, the default since the M8 slice (#1496), unless a script names a bench: the greybox for flat ground, #767, or the House, `house_photo.txt`) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
@@ -3988,10 +3989,10 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   `map_screen_test.gd` (the card over the map, Dim2, focus, Close, the map hiding closes it),
   `game_ui_overlays_test.gd` (Esc and the map key close only the card, then Esc closes the map),
   `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
-  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
-  shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
-  finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
-  type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
+  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (on the House with tasks
+  5, its five types dealt, as the estate deals the engine alone since #1496: a host's first loading shows the card
+  and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task finished in the round
+  completes its type for the next loading, seen failing without `GameHowto.follow`; a banned type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
   card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
 
@@ -7707,7 +7708,7 @@ names the facts that do.
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count and the session part state (the pinball's best, #1398) (§3.5); everyone un-ready; the settings and shortfalls for the players still present (`FitCheck`), as a leave in the lobby sends them (#737). Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player; then `SettingsChanged` (everyone), the player-count defaults re-derived first (§9.1) | `core/match/reset_match.gd`, with the resent shortfalls (`tests/unit/match/reset_match_test.gd`) |
 | `Drink` | the actor drinks the mug in its hand (#1390, §7.1.20): `drunk` rises by `amount` (clamped at `PlayerRules.drunk_max`), the item becomes `empty_kind` (`Items.change_kind`: `ItemChanged`, everyone) after `GiveItem.make_room` for that capped kind, and an upward crossing of `drunk_too_much_at` raises the fact `drunk_too_much`. Its check: `empty_kind` one-handed and capped, `amount` above 0, the mode's `drunk_max` set; `DrunkCheck` refuses a phase that accepts the trigger of a rule with a Drink in the mode (`UseSecondary` for the mug since #1438) and lists no `DrunkTicks` | `empty_kind`, `amount` | `ItemChanged` (everyone), `ItemVanished` from make_room; raises `drunk_too_much` | `core/drunk/drink.gd` (`tests/unit/drunk/drink_test.gd`) |
 | `ClearStations` | removes every station of the match and numbers the next one 1 again (`MatchState.clear_stations`, #1390): the base mode's `Countdown, countdown_done → Loading` row after `ClearItems`, so the hall's tap never reaches the map. Refused (a rule error) once a task is dealt. Clients forget their stations at `LoadMatch` | none | nothing | `core/placement/clear_stations.gd` (`tests/unit/placement/station_ticks_test.gd`) |
-| `PlaceToggles` | places the map's world toggles (#1295), after `DealTasks` in the `Loading → Pregame` row (the world and the layout are the map's by then): first `WorldQuery.reset_toggles()` (a host level world outlives a match), then for each kind in list order a station, off, on every marker of its `spawn_tag` in the level's marker order, its `index` the marker's ordinal (§4.5.9's level contract), its colour the kind's first palette colour, else white. A level with no marker of a kind places none of it: no error and no demand. `Stations.kinds_in` lists its kinds after `StationTicks`' (`Stations.toggle_kinds`), so ModeCheck checks their rules and spawn tags and the client offers and never draws them (§4.7.61). `ClearStations` takes them at the next Countdown. A joiner in Lobby or Countdown learns an open toggle from `JoinRules.hello`'s replay (`StationPlaced`, then `SwitchChanged`), so a mode may place toggles in a row into either. Its check: `kinds` not empty, none null, repeated or `display`, each with a `ToggleStation` rule. The base mode's row places the estate's eight kinds (#1459, `content/stations/`: the bookcase, the wine rack and their `_inside` kinds, key `bookcase`; the manhole and `manhole_inside`, key `manhole`; `fixed_camera`; `light_breaker`, no key), each rule `AtStation`, `StationInSight` and a `Cooldown` (key `toggle`), its numbers and prompt placeholders, "not a decision"; the greybox and House have no toggle marker | `kinds` | `StationPlaced` (everyone), in station-id order | `core/placement/place_toggles.gd` (`tests/unit/placement/place_toggles_test.gd` on `FixtureToggles`) |
+| `PlaceToggles` | places the map's world toggles (#1295), after `DealTasks` in the `Loading → Pregame` row (the world and the layout are the map's by then): first `WorldQuery.reset_toggles()` (a host level world outlives a match), then for each kind in list order a station, off, on every marker of its `spawn_tag` in the level's marker order, its `index` the marker's ordinal (§4.5.9's level contract), its colour the kind's first palette colour, else white. A level with no marker of a kind places none of it: no error and no demand. `Stations.kinds_in` lists its kinds after `StationTicks`' (`Stations.toggle_kinds`), so ModeCheck checks their rules and spawn tags and the client offers and never draws them (§4.7.61). `ClearStations` takes them at the next Countdown. A joiner in Lobby or Countdown learns an open toggle from `JoinRules.hello`'s replay (`StationPlaced`, then `SwitchChanged`), so a mode may place toggles in a row into either. Its check: `kinds` not empty, none null, repeated or `display`, each with a `ToggleStation` rule. The base mode's row placed the estate's eight kinds (#1459, `content/stations/`: the bookcase, the wine rack and their `_inside` kinds, key `bookcase`; the manhole and `manhole_inside`, key `manhole`; `fixed_camera`; `light_breaker`, no key), each rule `AtStation`, `StationInSight` and a `Cooldown` (key `toggle`), its numbers and prompt placeholders, "not a decision", until the M8 slice took `PlaceToggles` off its row (#1496: no toggle on the estate), so no shipped mode places a toggle; `estate_toggles_test.gd` places them on a copy of the base mode; the greybox and House have no toggle marker | `kinds` | `StationPlaced` (everyone), in station-id order | `core/placement/place_toggles.gd` (`tests/unit/placement/place_toggles_test.gd` on `FixtureToggles`) |
 | `ClearItems` | removes every item of the match, in ascending item id, as `VanishTicks` does (`Items.vanish`: out of any hand or belt, a two-handed item too, out of `MatchState`, its id queued for reuse); the base mode's `Countdown, countdown_done → Loading` row (#1388), so nothing held, stashed or put down in the lobby's hall reaches Pregame or Round. Items only: a station that holds an item keeps its own reference, so a lobby thing that locks an item on a station clears its own state at the same row | none | `ItemVanished` (everyone), per item | `core/items/clear_items.gd` |
 | `EndLimps` | everyone limp gets up where its body lies, in ascending peer order (`LifeRules.get_up`, #1393, §7.1.21): the base mode's `Countdown, countdown_done → Loading` row, so no limp and no host body outlasts the lobby level (a hit's limp gets up at full health). With `restore_health`, then every living player below full health is back at full (`LifeRules.restore_health`, its `SelfStatus` touched; #1439) | `restore_health` (default false; the base mode true) | `StopBody` (server), `Correction` (the player) | `core/life/end_limps.gd` (`tests/unit/life/limp_test.gd`, `lobby_hit_test.gd`) |
 | `EndOffers` | every open offer ends (`Offers.end_all`, #1434): the base mode's `Countdown, countdown_done → Loading` and the Round's rows out, so no offer outlasts its phase | none | `OfferEnded` (everyone) | `core/items/end_offers.gd` |
@@ -7821,8 +7822,8 @@ Settings:
   a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
-  of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 5 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the House's Delivery, Generator, photo task, Cooking and car repair; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
+  of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 5 min (1 to 60; 10 until the M8 slice, #1496);
+  `tasks` 1 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the estate's one ship's engine, the default since the M8 slice (#1496, the answer on #507; 5 until then); the House's Delivery, Generator, photo task, Cooking and car repair, which its bot scenarios and tests set `tasks` 5 for; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
   a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays five types since #810 (four since #775, three since #784, two since #800): banning any but all of them leaves the rest, and banning all five (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
   decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `car_parts`, car repair's subtasks (the parts to fit), 2 (1 to 3, the car repair ADR's RD2, a placeholder, "not a decision"; its label "Parts to fit", RD12; #810); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal; until the host names it, it follows the players present, §9.1: 1 at 1 to 5 players, 2 at 6 to 8, 3 at 9 and 10, the M8 slice, GDD §3, #1492); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
@@ -7920,11 +7921,11 @@ so the copy deck's `task.delivery` and the how-to card follow the Delivery playe
 moved unchanged but for its id and `maps` to `content/tasks/colour_delivery.tres` (id `colour_delivery`, display
 name "Delivery"; `ContentNames` names it by the deck's `task.delivery`, its `TASK_EXCEPTIONS`; a copy of the how-to
 card in `content/howto/tasks/colour_delivery.tres`). It stays the flat greybox's, a test bench only (#767), for the bot
-scenarios and the leak test (the ADR's DD9 (c)), and plays the estate test bench too until it has its own (#1374); the class `Delivery` keeps its name and code.
+scenarios and the leak test (the ADR's DD9 (c)), and no longer plays the estate, whose one task is the ship's engine (the M8 slice, #1496); the class `Delivery` keeps its name and code.
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
 when its package rests inside its own circle, however it got there (§7.1.14). Nobody owns the task: any living player
 delivers any package.
-Maps (`TaskType.maps`, #803, every task type's): the greybox (#828; before it none listed, so every map) and the estate test bench (#1374).
+Maps (`TaskType.maps`, #803, every task type's): the greybox (#828; before it none listed, so every map); the estate (#1374) until the M8 slice (#1496).
 Settings: `package`: the Package item kind; `circle`: a station kind (spawn tag `circle`, radius 1 m (0.2 to 10;
 game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeholder, "not a decision"), a colour
 palette: 10 distinct colours, provisional, one per package at the most `packages` allows); `subtasks_setting`:
@@ -9084,7 +9085,7 @@ levels/
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with its players' and items' markers
-  estate/estate.tscn               the forest estate's box greybox (#1158): a test bench of base_mode's maps
+  estate/estate.tscn               the forest estate's box greybox (#1158): base_mode's player map (#1496)
                                    (#1374); it only places its pieces
   estate/rooms/*.tscn              one box piece per lot (house, bonfire, summer_kitchen, pantry, greenhouse, garage,
                                    gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees and
@@ -9123,11 +9124,11 @@ levels/
   §2.3). Boxes only: layer-1 `StaticBody3D` boxes with `levels/kit/`'s role materials on the 1 m grid, stairs as
   ramps; the house's links of §5 with the bookcase stair and the chimney (down only); §6's stations, §5c's six
   cameras and each lot's door openings as markers (`StationMarkers`, `CameraMarkers`, `Doors`), no station scene.
-  The base mode plays it as a test bench (#1374, beside the greybox in `bench_maps`, so the picker still lists the
-  House alone, #767): its map-wide `Markers` piece holds the round spawns and the respawns (together on the
-  skat's clearing before the ramp's foot, the M8 slice, estate-map.md §5a, #1492), knives and the greybox Delivery by colours' packages and circles (`colour_delivery`
-  lists the estate, its stand-in task until the estate's own) and the ship's `Engine` the ship's engine's markers and
-  gill stand-ins (#1462, §9.5.27), and its `Toggles` the world toggles' markers (#1459, §4.5.9): the library's
+  The base mode's one player map and default since the M8 slice (#1496; a test bench from #1374, beside the greybox
+  in `bench_maps`, until then; the House the bench now, #767): its map-wide `Markers` piece holds the round spawns and the respawns
+  (together on the skat's clearing before the ramp's foot, estate-map.md §5a, #1492), knives and the greybox Delivery by colours' packages and circles (`colour_delivery` listed
+  the estate as its stand-in task until the M8 slice made the ship's engine its one task, #1496) and the ship's `Engine` the ship's engine's markers and
+  gill stand-ins (#1462, §9.5.27), and its `Toggles` the world toggles' markers (#1459, §4.5.9; no mode places them since the M8 slice, #1496): the library's
   bookcase and the cellar's wine rack (one toggle, key `bookcase`, a marker inside the secret stair at each end),
   the four sewer covers (the cellar, the bonfire, the well, the ship; a marker above and one on the ramp below each),
   the six cameras (§5c's `CameraMarkers` made movers that turn to the wall) and the security room's light breaker
@@ -9157,7 +9158,8 @@ levels/
   house's levels, the chimney's drop, each crossing carries a walk, the creek blocks elsewhere, each hidden passage
   both ways, the ducts too low upright, each hole's fall in reach, each start and respawn walks to the ramp's foot),
   `tests/integration/levels/estate_markers_test.gd` (the markers on the floor in the host's world, each circle where it
-  is placed, on flat floor, the layout the base mode accepts, the starts and respawns on the skat's clearing), `tests/unit/levels/estate_room_records_test.gd`,
+  is placed, on flat floor, at Delivery by colours' radius though it no longer plays the estate, #1496; the layout the
+  base mode accepts, the starts and respawns on the skat's clearing), `tests/unit/levels/estate_room_records_test.gd`,
   `tests/integration/levels/estate_roof_throw_test.gd` (the tops, spots and fan: `estate_throws.gd`) and
   `tests/integration/levels/estate_tops_reach_test.gd` (every other flat top, covered ones skipped),
   `tests/integration/levels/estate_engine_test.gd` (the ship's engine markers, §9.5.27); the
@@ -9346,7 +9348,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     standing on it, kept clear of every walk, #1354) and the marker-only map (§9.6). Only the levels the
     scenarios play on must be flat: the mode's lobby, the map a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
     (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House). The
-    four-level House (#626), the one map players play (#767), is played by people in the host's real world, and since
+    four-level House (#626), the one map players played until the M8 slice made it a bench (#767, #1496), was played
+    by people in the host's real world, and since
     #1197 by bot scenarios (below); the runners
     read its markers, and those of every map no scenario plays, where the scene puts them, none snapped to a floor (`MarkerReader.read_levels`'s `unsnapped`,
     `ScenarioLevels.unsnapped`; GE12, #798): a station marker (a delivery

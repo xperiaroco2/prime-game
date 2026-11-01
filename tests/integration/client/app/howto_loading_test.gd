@@ -3,10 +3,13 @@ extends GdUnitTestSuite
 ## simulated clock, as map_input_test.gd. Its first loading shows Delivery's card instead of the
 ## players and the tip and counts it; a player who saw it twice, or who completed Delivery, gets
 ## the tip; a task finished in the round completes its type, so the next loading shows the tip
-## (Game._process follows the model); a banned type shows no card. The completion's rule itself
-## (the task's counter at its total) is HowtoProgress.follow's, howto_progress_test.gd.
+## (Game._process follows the model); a banned type shows no card. Each plays on the House with
+## tasks 5, its five types dealt (since #1496 the estate, the default map, deals the engine alone).
+## The completion's rule itself (the task's counter at its total) is HowtoProgress.follow's,
+## howto_progress_test.gd.
 
 const GAME := preload("res://client/app/game.tscn")
+const HOUSE := "res://levels/house/house.tscn"
 const PORT := 7425
 const STEP_USEC := 250000
 const MAX_FRAMES := 900
@@ -101,6 +104,7 @@ func test_a_banned_task_type_shows_no_card() -> void:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 3)])
 	game.howto = HowtoProgress.new()
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.LOBBY)).is_true()
+	await _on_the_house(game)
 	# With every type banned the lobby cannot start: the card is picked from the dealable types.
 	var model := game.client().model
 	model.id_sets[&"banned_task_types"] = PackedStringArray(
@@ -119,11 +123,22 @@ func _round_game(port: int, progress: HowtoProgress) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
 	game.howto = progress
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.LOBBY)).is_true()
+	await _on_the_house(game)
 	game.set_ready(true)
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.ROUND)).is_true()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	return game
+
+
+## The host picks the House and tasks 5, so its five types are dealt (the estate deals the engine
+## alone, #1496), and waits until its own lobby shows both.
+func _on_the_house(game: Game) -> void:
+	game.change_map(HOUSE)
+	game.change_setting(&"tasks", 5)
+	var model := game.client().model
+	var picked := func() -> bool: return model.map == HOUSE and model.settings.get(&"tasks", 0) == 5
+	assert_bool(await _until(picked)).is_true()
 
 
 func _game(args: Array[String]) -> Game:

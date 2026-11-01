@@ -2,9 +2,12 @@ extends GdUnitTestSuite
 ## The Esc menu's Guide (GuidePanel, #254; prime-game-ui's s5 `guide` at ui-0.4.0): the basics and
 ## every task type of the mode with its card, one chip each in one ButtonGroup, the selected chip's
 ## card on the right with 160x120 art and the chip's title, in both languages; and the Esc menu's
-## Guide tab shows it in every screen.
+## Guide tab shows it in every screen. The lists read the House, a bench map since the M8 slice
+## (#1496), whose five task types have a card each; the shipped default, the estate, shows its one
+## ship's engine.
 
 const MODE := "res://content/modes/base_mode.tres"
+const HOUSE := "res://levels/house/house.tscn"
 const Preview := preload("res://client/dev/screen_preview.gd")
 
 const S := GameFlow.Screen
@@ -110,6 +113,20 @@ func test_the_words_are_in_both_languages() -> void:
 	await get_tree().process_frame
 
 
+func test_the_default_map_lists_the_ship_s_engine_alone_and_selects_it() -> void:
+	# The M8 slice (#1496): the estate, the shipped mode's default map, plays the ship's engine
+	# alone (Delivery by colours is off it), so its one chip is the engine's, selected first.
+	var guide := _guide("")
+	var tasks: Array[StringName] = []
+	for id: StringName in guide.chips:
+		if not [&"moving", &"voice", &"downed"].has(id):
+			tasks.append(id)
+	assert_array(tasks).is_equal([&"engine"])
+	assert_str(String(guide.selected)).is_equal("engine")
+	assert_bool(guide.tasks_label.visible).is_true()
+	await get_tree().process_frame
+
+
 func test_no_mode_lists_the_basics_only() -> void:
 	var guide: GuidePanel = auto_free(GuidePanel.new())
 	assert_array(guide.chips.keys()).is_equal([&"moving", &"voice", &"downed"])
@@ -179,9 +196,10 @@ func test_the_esc_menus_guide_tab_shows_it() -> void:
 	await get_tree().process_frame
 
 
-func _guide() -> GuidePanel:
+## The guide of the shipped mode on `map` (empty: the mode's default, the estate).
+func _guide(map := HOUSE) -> GuidePanel:
 	var guide: GuidePanel = auto_free(GuidePanel.new())
 	guide.theme = GameUi.THEME
 	add_child(guide)
-	guide.set_mode(_mode)
+	guide.set_mode(_mode, map)
 	return guide

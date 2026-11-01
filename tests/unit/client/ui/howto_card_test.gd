@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 ## languages, Close on the map's card).
 
 const MODE := "res://content/modes/base_mode.tres"
+const HOUSE := "res://levels/house/house.tscn"
 const Preview := preload("res://client/dev/screen_preview.gd")
 
 var _mode: GameMode
@@ -43,8 +44,9 @@ func test_a_card_needs_three_to_four_frames_each_a_picture_or_words() -> void:
 
 func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 	var model := Preview.fake_model(_mode, true)
-	# The House deals Delivery, the Generator (#800), the photo task (#784), Cooking (#775) and car
-	# repair (#810).
+	# The House (a bench map since the M8 slice, #1496, picked here) deals Delivery, the Generator
+	# (#800), the photo task (#784), Cooking (#775) and car repair (#810).
+	model.map = HOUSE
 	assert_array(HowtoCards.dealable(_mode, model)).is_equal(
 		[&"delivery", &"generator", &"photo", &"cooking", &"car_repair"]
 	)
@@ -56,9 +58,8 @@ func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 		["delivery", "generator", "photo", "cooking", "car_repair"]
 	)
 	assert_array(HowtoCards.dealable(_mode, model)).is_empty()
-	assert_array(HowtoCards.dealable(_mode, null)).is_equal(
-		[&"delivery", &"generator", &"photo", &"cooking", &"car_repair"]
-	)
+	# No model: the mode's default map, the estate, deals the ship's engine alone (#1496).
+	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"engine"])
 
 
 func test_the_dealable_types_of_a_mode_with_zones_leave_out_the_banned_ones() -> void:
@@ -88,6 +89,7 @@ func test_the_dealable_types_are_the_lobbys_maps_types() -> void:
 
 func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
+	model.map = HOUSE
 	# Another set setting (say a later "banned roles") that happens to name a task type.
 	model.id_sets[&"some_other_set"] = PackedStringArray(["delivery"])
 	assert_array(HowtoCards.dealable(_mode, model)).is_equal(

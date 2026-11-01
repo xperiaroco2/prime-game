@@ -129,15 +129,6 @@
 [ext_resource type="Resource" path="res://content/tasks/ship_engine.tres" id="189_ship_engine"]
 [ext_resource type="Resource" path="res://content/items/crystal_spent.tres" id="190_crystal_spent"]
 [ext_resource type="Resource" path="res://content/items/crystal_charged.tres" id="191_crystal_charged"]
-[ext_resource type="Script" path="res://core/placement/place_toggles.gd" id="189_place_toggles"]
-[ext_resource type="Script" path="res://core/content/station_kind.gd" id="190_station_kind"]
-[ext_resource type="Resource" path="res://content/stations/bookcase.tres" id="191_bookcase"]
-[ext_resource type="Resource" path="res://content/stations/wine_rack.tres" id="192_wine_rack"]
-[ext_resource type="Resource" path="res://content/stations/bookcase_inside.tres" id="193_bookcase_inside"]
-[ext_resource type="Resource" path="res://content/stations/wine_rack_inside.tres" id="194_wine_rack_inside"]
-[ext_resource type="Resource" path="res://content/stations/manhole.tres" id="195_manhole"]
-[ext_resource type="Resource" path="res://content/stations/manhole_inside.tres" id="196_manhole_inside"]
-[ext_resource type="Resource" path="res://content/stations/fixed_camera.tres" id="197_fixed_camera"]
 [ext_resource type="Resource" path="res://content/stations/pinball.tres" id="210_pinball"]
 [ext_resource type="Script" uid="uid://dy3xi1hmsgbyy" path="res://core/pinball/pinball_ticks.gd" id="211_pinball_ticks"]
 [ext_resource type="Script" uid="uid://dppk72upxnkh1" path="res://core/pinball/end_pinball.gd" id="212_end_pinball"]
@@ -147,7 +138,6 @@
 [ext_resource type="Script" path="res://core/booth/stop_booth.gd" id="199_stop_booth"]
 [ext_resource type="Resource" path="res://content/stations/booth.tres" id="200_booth"]
 [ext_resource type="Resource" path="res://content/items/strip.tres" id="201_strip"]
-[ext_resource type="Resource" path="res://content/stations/light_breaker.tres" id="198_light_breaker"]
 [ext_resource type="Script" uid="uid://dksgpuwd17pse" path="res://core/content/voice_effect.gd" id="199_voice_effect"]
 [ext_resource type="Script" uid="uid://dauwyiiix1ait" path="res://core/movement/wheel_pose_in_range.gd" id="215_wheel_pose_in_range"]
 [ext_resource type="Script" uid="uid://bru74xg11bruh" path="res://core/movement/posed.gd" id="216_posed"]
@@ -853,7 +843,7 @@ drunk_point_s = 1.0
 script = ExtResource("2_setting")
 id = &"match_duration"
 display_name = "Match duration (minutes)"
-default_value = 10
+default_value = 5
 min_value = 1
 max_value = 60
 
@@ -861,7 +851,7 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 5
+default_value = 1
 min_value = 1
 max_value = 5
 
@@ -990,10 +980,6 @@ tasks_setting = &"tasks"
 banned_setting = &"banned_task_types"
 rng_purpose = &"task_types"
 
-[sub_resource type="Resource" id="Place_toggles"]
-script = ExtResource("189_place_toggles")
-kinds = Array[ExtResource("190_station_kind")]([ExtResource("191_bookcase"), ExtResource("192_wine_rack"), ExtResource("193_bookcase_inside"), ExtResource("194_wine_rack_inside"), ExtResource("195_manhole"), ExtResource("196_manhole_inside"), ExtResource("197_fixed_camera"), ExtResource("198_light_breaker")])
-
 [sub_resource type="Resource" id="Spawn_knives"]
 script = ExtResource("59_spawn_items")
 kind = ExtResource("59_knife")
@@ -1009,7 +995,7 @@ script = ExtResource("7_row")
 from = &"loading"
 outcome = &"all_loaded"
 to = &"pregame"
-actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Place_toggles"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
+actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
 
 [sub_resource type="Resource" id="Start_clock"]
 script = ExtResource("64_start_clock")
@@ -1057,7 +1043,7 @@ roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_
 item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife"), ExtResource("121_wine"), ExtResource("122_oil"), ExtResource("123_gnome"), ExtResource("124_parasol"), ExtResource("126_bun_white"), ExtResource("127_bun_sesame"), ExtResource("128_bun_dark"), ExtResource("129_patty_light_raw"), ExtResource("130_patty_red_raw"), ExtResource("131_patty_deep_red_raw"), ExtResource("132_patty_light"), ExtResource("133_patty_red"), ExtResource("134_patty_deep_red"), ExtResource("135_patty_burnt"), ExtResource("136_basil"), ExtResource("137_dill"), ExtResource("138_rosemary"), ExtResource("139_chives"), ExtResource("140_mint"), ExtResource("141_box_bun_white"), ExtResource("142_box_bun_sesame"), ExtResource("143_box_bun_dark"), ExtResource("144_box_patty_light"), ExtResource("145_box_patty_red"), ExtResource("146_box_patty_deep_red"), ExtResource("147_burger"), ExtResource("126_film"), ExtResource("127_photo"), ExtResource("149_car_part_green"), ExtResource("150_car_part_blue"), ExtResource("151_car_part_yellow"), ExtResource("175_mug"), ExtResource("176_mug_empty"), ExtResource("190_crystal_spent"), ExtResource("191_crystal_charged"), ExtResource("201_strip")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn", "res://levels/estate/estate.tscn")
-bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
+bench_maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw"), SubResource("Rule_draw"), SubResource("HandOver_rule"), SubResource("Rule_take_offer"), SubResource("Rule_cancel_offer"), SubResource("Rule_pose"), SubResource("Rule_wheel_pose"), SubResource("Rule_use"), SubResource("Rule_flippers")])
 reactions = Array[ExtResource("1_o02jd")]([SubResource("Limp_rule")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("120_colour_delivery"), ExtResource("125_generator"), ExtResource("128_photo_task"), ExtResource("147_cooking"), ExtResource("152_car_repair"), ExtResource("189_ship_engine")])

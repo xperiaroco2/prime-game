@@ -294,7 +294,7 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 		)
 	)
 	welcome.settings = mode.default_settings()
-	welcome.map = MAP
+	welcome.map = mode.default_map()
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
 	# Three players of the base mode's four at least: one more to start (#548's host text).
@@ -312,7 +312,7 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 			{
 				"settings": mode.default_settings(),
 				"id_sets": mode.default_id_sets(),
-				"map": MAP,
+				"map": mode.default_map(),
 				"shortfalls": shortfalls,
 				"lobby_name": "",
 			}

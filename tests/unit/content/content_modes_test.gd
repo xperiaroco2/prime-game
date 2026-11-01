@@ -18,7 +18,7 @@ const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const SCENARIOS_DIR := "res://content/scenarios/"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 const HOUSE := "res://levels/house/house.tscn"
-## The estate (#1374): a test bench too, until the engineer puts it in the lobby's picker.
+## The estate (#1374): the map players play, the M8 slice's (#1496).
 const ESTATE := "res://levels/estate/estate.tscn"
 
 
@@ -107,18 +107,19 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 	)
 
 
-func test_players_always_play_the_house_and_the_greybox_is_a_test_bench() -> void:
+func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> void:
 	# #767 (the engineer's option (a)): the flat greybox stays one of the base mode's maps for the
-	# bot scenarios and the information-leak test, as its test bench; the lobby offers the House
-	# alone, every match starts on it, and every base-mode scenario plays the greybox (§9.7), but
-	# those that play the House's stations one storey at a time (#1197, the engineer's answer on
-	# the issue): the House is no flat level the fake world must describe.
+	# bot scenarios and the information-leak test, as its test bench; the lobby offers the estate
+	# alone (the M8 slice, #1496), every match starts on it, and every base-mode scenario plays the
+	# greybox (§9.7), but those that play the House's stations one storey at a time (#1197, the
+	# engineer's answer on the issue): the House is no flat level the fake world must describe.
 	var mode := _base_mode()
-	# The estate (#1374) is a bench after the greybox, so the scenarios' default stays the greybox.
-	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX, ESTATE])
+	# The House is parked as a bench after the greybox (#1496), so the scenarios' default stays the
+	# greybox and the House's scenarios still play it.
+	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX, HOUSE])
 	assert_str(mode.bench_maps[0]).is_equal(GREYBOX)
-	assert_array(Array(mode.player_maps())).contains_exactly([HOUSE])
-	assert_str(mode.default_map()).is_equal(HOUSE)
+	assert_array(Array(mode.player_maps())).contains_exactly([ESTATE])
+	assert_str(mode.default_map()).is_equal(ESTATE)
 	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
 	assert_bool(ScenarioLevels.of(mode).has(HOUSE)).is_false()
 	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE])
@@ -276,12 +277,12 @@ func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 	assert_str((row.actions[1] as PlacePlayers).tag).is_equal("lobby_player")
 
 
-func test_the_deal_runs_roles_tasks_toggles_knives_then_placement() -> void:
+func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	var mode := _base_mode()
 	var row := mode.find_transition(&"loading", &"all_loaded")
 	# The deal runs before the pregame, so its screen has the role (#213); the clock waits for it.
 	assert_str(row.to).is_equal("pregame")
-	assert_int(row.actions.size()).is_equal(5)
+	assert_int(row.actions.size()).is_equal(4)
 	var roles := row.actions[0] as DealRoles
 	assert_object(roles).is_not_null()
 	assert_int(roles.quotas.size()).is_equal(1)
@@ -295,34 +296,15 @@ func test_the_deal_runs_roles_tasks_toggles_knives_then_placement() -> void:
 	assert_str(tasks.tasks_setting).is_equal("tasks")
 	assert_str(tasks.banned_setting).is_equal("banned_task_types")
 	assert_str(tasks.rng_purpose).is_equal("task_types")
-	var toggles := row.actions[2] as PlaceToggles
-	assert_object(toggles).is_not_null()
-	# The world toggles after DealTasks (#1459): the estate's secret stair, manholes, cameras and
-	# light breaker.
-	var toggle_ids: Array[StringName] = []
-	for kind: StationKind in toggles.kinds:
-		toggle_ids.append(kind.id)
-	(
-		assert_array(toggle_ids)
-		. contains_exactly(
-			[
-				&"bookcase",
-				&"wine_rack",
-				&"bookcase_inside",
-				&"wine_rack_inside",
-				&"manhole",
-				&"manhole_inside",
-				&"fixed_camera",
-				&"light_breaker",
-			]
-		)
-	)
-	var knives := row.actions[3] as SpawnItems
+	# The M8 slice places no world toggle (#1496): the House's toggles are off the estate; their
+	# markers' contract stays in estate_toggles_test.gd, on a mode that places them.
+	assert_array(Stations.toggle_kinds(mode)).is_empty()
+	var knives := row.actions[2] as SpawnItems
 	assert_object(knives).is_not_null()
 	assert_str(knives.kind.id).is_equal("knife")
 	assert_str(knives.count_setting).is_equal("knives")
 	assert_str(knives.rng_purpose).is_equal("knives")
-	var place := row.actions[4] as PlacePlayers
+	var place := row.actions[3] as PlacePlayers
 	assert_object(place).is_not_null()
 	assert_str(place.tag).is_equal("round_player")
 
@@ -770,7 +752,8 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	var game := _base_round(mode, peers)
 	# The pregame's end tick: the step that entered the round.
 	var start := game.ticked_through()
-	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
+	# The default 5-minute round, the M8 slice's (#1496).
+	assert_int(game.state.clock_ticks_left).is_equal(5 * 60 * Ticks.RATE)
 	var crew := FixtureDealModes.players_of(game, &"crew")
 	assert_int(crew.size()).is_equal(3)
 	var task := FixtureDeliveryModes.task_of(game)

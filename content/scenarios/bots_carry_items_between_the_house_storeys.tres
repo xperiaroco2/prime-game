@@ -687,6 +687,9 @@ mode = ExtResource("1_obhkj")
 map = "res://levels/house/house.tscn"
 session_seed = 120900000001
 bots = 4
+settings = Dictionary[StringName, int]({
+&"tasks": 5
+})
 forced_roles = Dictionary[int, StringName]({
 4: &"dissident"
 })

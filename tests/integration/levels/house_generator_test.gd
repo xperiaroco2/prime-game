@@ -7,8 +7,8 @@ extends GdUnitTestSuite
 ## invariants, every task event, SwitchChanged and ButtonPressed among them, reaching every present
 ## player and no one else; no seed, no return key, the voice and the snapshots). The match is the
 ## shipped base mode on the House, set up as a scenario's setup would be: forced roles, then
-## ChangeSettings with the `switches` setting and the map; it deals Delivery, the Generator, the
-## photo task, Cooking and car repair.
+## ChangeSettings with the `switches` setting, `tasks` at TASKS and the map; it deals Delivery, the
+## Generator, the photo task, Cooking and car repair.
 ## - The five markers read without errors, and the deal places a station on each of them.
 ## - With four active switches a player on each use spot uses its station (AtStation and
 ##   StationInSight pass), a dissident among them, and the button starts the charge.
@@ -31,6 +31,9 @@ const BOTS := 3
 const DISSIDENT := 1
 const CREW := 2
 const OTHER_CREW := 3
+## The tasks setting every start sends: all five types the House plays (the mode deals 1 by
+## default since #1496, the estate's engine alone).
+const TASKS := 5
 ## Switch A's use spot (house-map §6: storage, plan (16, 32) on level -1) and the darkroom's floor
 ## beyond the storage's south wall, 3 m from it (plan (16, 35)).
 const SWITCH_A := Vector3(16.0, -3.2, 32.0)
@@ -196,7 +199,8 @@ func test_with_two_switches_the_markers_the_deal_left_hold_no_station() -> void:
 
 ## Starts `mode` (the shipped base mode when null) on the House in the host's world with BOTS
 ## players (bot 1 the dissident, the rest crew), sends the scenario setup's ForceRoles and
-## ChangeSettings (`settings` and the House) and plays it into the round. Every call is checked.
+## ChangeSettings (`settings`, `tasks` at TASKS unless `settings` names it, and the House) and plays
+## it into the round. Every call is checked.
 func _start(settings: Dictionary[StringName, int], mode: GameMode = null) -> void:
 	_problems = PackedStringArray()
 	_seqs = {}
@@ -207,7 +211,10 @@ func _start(settings: Dictionary[StringName, int], mode: GameMode = null) -> voi
 	scenario.session_seed = SEED
 	scenario.bots = BOTS
 	scenario.map = HOUSE
-	scenario.settings = settings
+	var sent: Dictionary[StringName, int] = settings.duplicate()
+	if not sent.has(&"tasks"):
+		sent[&"tasks"] = TASKS
+	scenario.settings = sent
 	scenario.forced_roles = {DISSIDENT: &"dissident", CREW: &"crew", OTHER_CREW: &"crew"}
 	_peers = ScenarioPeers.core(BOTS)
 	_world = HostWorldQuery.for_mode(mode)

@@ -20,5 +20,5 @@ circle = SubResource("StationKind_circle")
 id = &"colour_delivery"
 display_name = "Delivery"
 description = "Carry each package to the circle of its colour. Packages take both hands."
-maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/estate/estate.tscn")
+maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 subtasks_setting = &"packages"

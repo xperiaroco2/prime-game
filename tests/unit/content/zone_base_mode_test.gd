@@ -134,7 +134,8 @@ func test_a_whole_match_with_the_zone_to_the_end_and_back_to_the_lobby_twice() -
 	var game := _house_round(mode, peers)
 	# The pregame's end tick: the step that entered the round.
 	var start := game.ticked_through()
-	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
+	# The shipped mode's 5-minute round (the M8 slice, #1496).
+	assert_int(game.state.clock_ticks_left).is_equal(5 * 60 * Ticks.RATE)
 	var crew := FixtureDealModes.players_of(game, &"crew")
 	assert_int(crew.size()).is_equal(3)
 	var zone := FixtureZoneModes.zone_of(game, 0)
@@ -204,7 +205,7 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 	assert_str(game.phase_id()).is_equal("round")
 	assert_str(game.state.winner).is_empty()
 	assert_array(game.view_of(LONE).events_named(&"MatchEnded")).is_empty()
-	assert_int(game.state.clock_ticks_left).is_equal(9 * 60 * Ticks.RATE)
+	assert_int(game.state.clock_ticks_left).is_equal(4 * 60 * Ticks.RATE)
 	# The engineer delivers every item alone: one task of two is done, the round goes on.
 	assert_object(_task_of_type(game, &"delivery")).is_same(FixtureMeaningModes.task_of(game))
 	for index in 6:
@@ -228,7 +229,7 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	# The fixture reads the shipped base mode when it loads: only the task types, the `tasks`,
 	# `zones`, the Generator's `switches` and the photo task's `photos` settings and the Interact
-	# accepts of Round (#800, #784), the Lobby and the Countdown (#1388) differ.
+	# accepts of Round (#800, #784), the Lobby and the Countdown (#1388) and the maps differ.
 	var base := _base_mode()
 	var mode := FixtureBaseModeWithZones.mode()
 	assert_array(ModeCheck.run(mode).errors).is_empty()
@@ -250,7 +251,17 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	assert_object(mode.find_setting(&"photos")).is_null()
 	assert_array(mode.transitions).is_equal(base.transitions)
 	assert_array(mode.actions).is_equal(base.actions)
-	assert_array(mode.maps).is_equal(base.maps)
+	# The maps differ too (#1496): the shipped mode's without the estate, the House its one player
+	# map and default, the greybox its bench.
+	var maps: Array[String] = []
+	for path: String in base.maps:
+		if path != ESTATE:
+			maps.append(path)
+	assert_array(Array(mode.maps)).is_equal(maps)
+	assert_bool(base.maps.has(ESTATE)).is_true()
+	assert_array(Array(mode.bench_maps)).is_equal([GREYBOX])
+	assert_array(Array(mode.player_maps())).is_equal([HOUSE])
+	assert_str(mode.default_map()).is_equal(HOUSE)
 	var ids: Array[StringName] = []
 	for type: TaskType in mode.task_types:
 		ids.append(type.id)

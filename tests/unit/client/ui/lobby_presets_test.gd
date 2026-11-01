@@ -22,7 +22,7 @@ func test_a_preset_is_the_modes_defaults_with_its_own_changes_and_no_ban() -> vo
 			assert_array(Array(standard[spec.id] as PackedStringArray)).is_empty()
 	(
 		assert_int(LobbyPresets.values_of(LobbyPresets.QUICK, _mode)[&"match_duration"] as int)
-		. is_equal(5)
+		. is_equal(3)
 	)
 	assert_int(LobbyPresets.values_of(LobbyPresets.NO_KNIVES, _mode)[&"knives"] as int).is_equal(0)
 
@@ -69,7 +69,7 @@ func test_a_card_leaves_a_default_that_follows_the_player_count() -> void:
 	panel.cards[LobbyPresets.QUICK].pressed.emit()
 	assert_int(many.size()).is_equal(1)
 	assert_bool(many[0].has(&"dissidents")).is_false()
-	assert_int(many[0][&"match_duration"] as int).is_equal(5)
+	assert_int(many[0][&"match_duration"] as int).is_equal(3)
 
 
 func test_a_card_sends_every_change_in_one_change_settings() -> void:

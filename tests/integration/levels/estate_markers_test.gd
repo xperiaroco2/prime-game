@@ -11,6 +11,8 @@ extends GdUnitTestSuite
 const HouseMarkers := preload("res://tests/integration/levels/house_markers_test.gd")
 const MAP := "res://levels/estate/estate.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+## The task type whose package and circle markers the estate holds (#1374).
+const COLOUR_DELIVERY := &"colour_delivery"
 ## How far a marker may stand off the floor under it: float noise, no step.
 const SPAWN_FLOOR_M := 0.02
 ## The foot of the skat's mouth ramp (docs/design/estate-map.md §5a: the ship at (116, 72), the
@@ -172,9 +174,12 @@ func _estate_mode() -> GameMode:
 	return mode
 
 
+## The circle of Delivery by colours, whose packages and circles the estate's markers still hold:
+## it listed the estate as its stand-in task until the M8 slice (#1496), and its markers stay
+## checked for the engineer to place or drop.
 func _circle_kind(mode: GameMode) -> StationKind:
 	for type: TaskType in mode.task_types:
-		if type is Delivery and (type as Delivery).maps.has(MAP):
+		if type is Delivery and type.id == COLOUR_DELIVERY:
 			return (type as Delivery).circle
 	return null
 

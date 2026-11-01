@@ -70,7 +70,8 @@ func test_the_lone_engineer_s_round_plays_and_ends_when_every_package_is_deliver
 	assert_str(game.phase_id()).is_equal("round")
 	assert_str(game.state.winner).is_empty()
 	assert_array(game.view_of(LONE).events_named(&"MatchEnded")).is_empty()
-	assert_int(game.state.clock_ticks_left).is_equal(9 * 60 * Ticks.RATE)
+	# The default 5-minute round (the M8 slice, #1496), a minute of it gone.
+	assert_int(game.state.clock_ticks_left).is_equal(4 * 60 * Ticks.RATE)
 	# The engineer delivers every package alone: the crew wins.
 	var task := FixtureDeliveryModes.task_of(game)
 	for index in 6:
