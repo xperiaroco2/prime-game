@@ -1,10 +1,10 @@
 """`bots`: the bot scenarios through the network layers, and the information-leak test (docs/ARCHITECTURE.md §4.6).
 
-`bots [scenario ...]` plays every scenario in content/scenarios/ (or those named) in one headless process over the
-loopback, on a simulated clock; `bots <scenario> --instances N` plays one over ENet on 127.0.0.1 on a free port, one
-process per bot, on the real clock (E12); with `--transport webrtc` over WebRTC instead (M6-6: the host serves
-LanSignalling on that port, free for TCP too; the fault shim is on, and the leak test adds its order check). Both run
-tests/harness/bots/bots_main.gd through `run`, so a failed
+`bots [scenario ...]` plays every scenario in content/scenarios/ and tests/fixtures/scenarios/ (or those named) in one
+headless process over the loopback, on a simulated clock; `bots <scenario> --instances N` plays one over ENet on
+127.0.0.1 on a free port, one process per bot, on the real clock (E12); with `--transport webrtc` over WebRTC
+instead (M6-6: the host serves LanSignalling on that port, free for TCP too; the fault shim is on, and the leak test
+adds its order check). Both run tests/harness/bots/bots_main.gd through `run`, so a failed
 scenario, a non-zero exit, a timeout or an engine error line fails the command. Each run starts with an empty
 tools/out/bots/<scenario>/, where the bots write their view files (and, over ENet, their peer ids) and a failed
 scenario its command log.
@@ -66,11 +66,14 @@ def user_args(
 
 
 def check_args(scenarios: list[str], instances: int, transport: str = "enet") -> None:
-    """Scenario names are file names in content/scenarios/; --instances N needs exactly one; a transport is a
-    network's, and needs --instances."""
+    """Scenario names are file names in content/scenarios/ or tests/fixtures/scenarios/; --instances N needs
+    exactly one; a transport is a network's, and needs --instances."""
     for name in scenarios:
         if not NAME_RE.fullmatch(name.removesuffix(".tres")):
-            raise Failure(f"{name}: give a scenario's file name in content/scenarios/, such as refusals")
+            raise Failure(
+                f"{name}: give a scenario's file name in content/scenarios/ or tests/fixtures/scenarios/, "
+                "such as refusals"
+            )
     if instances < 1 or instances > launch.MAX_INSTANCES:
         raise Failure(f"--instances must be between 1 and {launch.MAX_INSTANCES}")
     if instances > 1 and len(scenarios) != 1:

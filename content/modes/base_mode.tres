@@ -41,7 +41,6 @@
 [ext_resource type="Resource" uid="uid://btlnkq13phq6m" path="res://content/roles/dissident.tres" id="59_dissident"]
 [ext_resource type="Resource" uid="uid://5wj7w4i0l5o2" path="res://content/items/knife.tres" id="59_knife"]
 [ext_resource type="Script" uid="uid://court8wt13yrh" path="res://core/content/role_quota.gd" id="59_quota"]
-[ext_resource type="Script" uid="uid://dfhwf7ayo4do4" path="res://core/deal/spawn_items.gd" id="59_spawn_items"]
 [ext_resource type="Script" uid="uid://b22qafiubcc4u" path="res://core/win/end_match.gd" id="64_end_match"]
 [ext_resource type="Resource" uid="uid://cyir8k7pvdeo3" path="res://content/win_conditions/every_task_done.tres" id="64_every_task_done"]
 [ext_resource type="Resource" uid="uid://bxesfl00mde6e" path="res://content/win_conditions/no_crew_present.tres" id="64_no_crew_present"]
@@ -552,11 +551,6 @@ script = ExtResource("6_accept")
 intent = &"PutDown"
 from = 4
 
-[sub_resource type="Resource" id="Accept_round_use"]
-script = ExtResource("6_accept")
-intent = &"Use"
-from = 4
-
 [sub_resource type="Resource" id="Accept_round_raise"]
 script = ExtResource("6_accept")
 intent = &"Raise"
@@ -779,7 +773,7 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("WheelPose_accept")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("WheelPose_accept")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round"), SubResource("Offer_ticks")])
 checks_wins = true
 clock_runs = true
@@ -980,12 +974,6 @@ tasks_setting = &"tasks"
 banned_setting = &"banned_task_types"
 rng_purpose = &"task_types"
 
-[sub_resource type="Resource" id="Spawn_knives"]
-script = ExtResource("59_spawn_items")
-kind = ExtResource("59_knife")
-count_setting = &"knives"
-rng_purpose = &"knives"
-
 [sub_resource type="Resource" id="Place_round_player"]
 script = ExtResource("8_place")
 tag = &"round_player"
@@ -995,7 +983,7 @@ script = ExtResource("7_row")
 from = &"loading"
 outcome = &"all_loaded"
 to = &"pregame"
-actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
+actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Place_round_player")])
 
 [sub_resource type="Resource" id="Start_clock"]
 script = ExtResource("64_start_clock")

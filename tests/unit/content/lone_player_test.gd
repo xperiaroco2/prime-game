@@ -58,12 +58,12 @@ func test_the_lone_engineer_s_round_plays_and_ends_when_every_package_is_deliver
 	var game := _lone_in_pregame(mode, _layouts_for(mode), 7, 1)
 	FixtureModes.run_ticks(game, 3 * Ticks.RATE + 1)
 	assert_str(game.phase_id()).is_equal("round")
-	# Delivery dealt its one shared task: 6 packages for 6 circles (the default `packages`), and
-	# the 2 knives lie on the map.
+	# Delivery dealt its one shared task: 6 packages for 6 circles (the default `packages`); no
+	# knife lies on the map (the M8 slice places none, #1497).
 	assert_int(game.state.tasks.size()).is_equal(1)
 	assert_int(game.state.stations.size()).is_equal(6)
 	assert_int(FixtureDealModes.items_of(game, &"package").size()).is_equal(6)
-	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(2)
+	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(0)
 	# A minute of the round alone: the crew is present, no package is delivered and the clock
 	# runs, so no win condition fires.
 	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)

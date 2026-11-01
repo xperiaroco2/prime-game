@@ -1,13 +1,20 @@
 extends RefCounted
 ## The levels of a mode that the bot scenarios play on (ARCHITECTURE §9.7): its lobby, a scenario's
 ## default map (BotScenario.played_map(): the mode's first test bench, the greybox, #767) and every
-## map a scenario in content/scenarios/ of that mode names, but the maps with storeys.
+## map a scenario of that mode (in SCENARIOS_DIRS) names, but the maps with storeys.
 ## These are the levels the scenarios' fake world, one flat floor at y = 0, must describe truly.
 ## The maps with storeys (STOREYED_MAPS, the House, #626) are played by people, and by the scenarios
 ## that play their stations (#1197) in a fake world with storeys (world_of(), #1209).
 
 const StoreyedWorld := preload("res://tests/fixtures/storeyed_world.gd")
-const SCENARIOS_DIR := "res://content/scenarios/"
+## Where the bot scenarios live: the shipped modes' in content/scenarios/, and in
+## tests/fixtures/scenarios/ those on a fixture mode, which shipped content must not name (the
+## export leaves tests/ out): the knockdown scenarios on FixtureBaseModeWithMelee since the M8
+## slice took the hitting out of the base mode's Round (#1497). `bots`, the scenario suite and the
+## content tests read both (scenario_paths()).
+const SCENARIOS_DIRS: Array[String] = [
+	"res://content/scenarios/", "res://tests/fixtures/scenarios/"
+]
 const HOUSE := "res://levels/house/house.tscn"
 ## The maps a scenario may name that are not flat (#1197): the House (#626), the one map the station
 ## tasks play on (TaskType.maps). The scenarios play it in a fake world with its storeys and stairs
@@ -53,13 +60,11 @@ static func of(mode: GameMode) -> PackedStringArray:
 	unnamed.mode = mode
 	if not unnamed.played_map().is_empty():
 		paths.append(unnamed.played_map())
-	for file in DirAccess.get_files_at(SCENARIOS_DIR):
-		if not file.ends_with(".tres"):
-			continue
-		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
+	for path: String in scenario_paths():
+		var scenario := load(path) as BotScenario
 		if scenario == null or scenario.mode == null:
 			# A broken scenario would hide the map it names from the flatness check: say so.
-			push_error("%s: not a scenario with a mode" % file)
+			push_error("%s: not a scenario with a mode" % path)
 			continue
 		if scenario.mode.resource_path != mode.resource_path or scenario.map.is_empty():
 			continue
@@ -68,6 +73,30 @@ static func of(mode: GameMode) -> PackedStringArray:
 		if not paths.has(scenario.map):
 			paths.append(scenario.map)
 	return paths
+
+
+## Every bot scenario file in SCENARIOS_DIRS (measurements included), sorted by path.
+static func scenario_paths() -> PackedStringArray:
+	var found := PackedStringArray()
+	for folder: String in SCENARIOS_DIRS:
+		if not DirAccess.dir_exists_absolute(folder):
+			continue
+		for file: String in DirAccess.get_files_at(folder):
+			if file.ends_with(".tres"):
+				found.append(folder.path_join(file))
+	found.sort()
+	return found
+
+
+## The path of the scenario named `name` (its file name, with or without `.tres`): the first of
+## SCENARIOS_DIRS that holds it, else "".
+static func scenario_path(name: String) -> String:
+	var file := name.trim_suffix(".tres") + ".tres"
+	for folder: String in SCENARIOS_DIRS:
+		var path := folder.path_join(file)
+		if ResourceLoader.exists(path):
+			return path
+	return ""
 
 
 ## The mode's levels the runners read without floor snapping (GE12): those no scenario plays and

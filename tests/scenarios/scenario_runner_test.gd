@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
-const KILLS_THE_CREW := "res://content/scenarios/dissident_kills_the_crew.tres"
+const KILLS_THE_CREW := "res://tests/fixtures/scenarios/dissident_kills_the_crew.tres"
 
 
 func test_a_target_the_bot_cannot_know_fails() -> void:

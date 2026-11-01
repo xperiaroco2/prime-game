@@ -19,7 +19,7 @@ const HALL := "res://levels/lobby/lobby_hall.tscn"
 const SHIP := "res://levels/ship/ship.tscn"
 const PLAYER := "res://client/player/player.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
-const SCENARIOS_DIR := "res://content/scenarios/"
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## The game's pieces of the hall, each a node of its own under the root.
 const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
 ## The hall's floor plan inside its straight walls (x, z), the art's layouts/lobby/hall.toml
@@ -385,10 +385,8 @@ func _distance_to_box(at: Vector2, shape: CollisionShape3D) -> float:
 ## stay in the lobby is one walk.
 func _lobby_walks() -> Array[Array]:
 	var walks: Array[Array] = []
-	for file: String in DirAccess.get_files_at(SCENARIOS_DIR):
-		if not file.ends_with(".tres"):
-			continue
-		var scenario := load(SCENARIOS_DIR + file) as BotScenario
+	for file: String in ScenarioLevels.scenario_paths():
+		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null or scenario.mode.lobby_level != LOBBY:
 			continue
 		for bot: int in range(1, scenario.scripts.size() + 1):

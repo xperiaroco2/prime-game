@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="FixtureBaseModeWithMelee" format=3]
+
+[ext_resource type="Script" path="res://tests/fixtures/combat/base_mode_with_melee.gd" id="1_mode"]
+
+[resource]
+script = ExtResource("1_mode")

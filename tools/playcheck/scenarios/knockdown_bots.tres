@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="BotScenario" format=3]
 
-[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Resource" path="res://tests/fixtures/combat/base_mode_with_melee.tres" id="1_mode"]
 [ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scenario"]
 [ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
 [ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]

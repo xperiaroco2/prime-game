@@ -137,6 +137,8 @@ func test_a_floor_item_beyond_the_reach_gets_no_hint() -> void:
 
 
 func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
+	# A Round that takes Use: the melee fixture's (the base mode before the M8 slice, #1497).
+	_keys.setup(_harness.session, FixtureBaseModeWithMelee.mode())
 	assert_int(_keys.put_down()).is_equal(-1)
 	# An empty hand sends Use too, for the mode's fallback hit (#1437); the item's own action
 	# needs an item.
@@ -168,7 +170,14 @@ func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 
 
 func test_the_left_button_sends_use_with_an_empty_hand_where_the_phase_takes_it() -> void:
-	# The mode's fallback hit (#1437): the host answers an empty hand's Use, so the key sends it.
+	# The shipped base mode's Round takes no Use (the M8 slice, #1497): the key sends nothing.
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)
+	assert_int(_keys.use()).is_equal(-1)
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.USE)).is_empty()
+	# The mode's fallback hit (#1437) where the Round takes Use (the melee fixture, the base mode
+	# before #1497): the host answers an empty hand's Use, so the key sends it.
+	_keys.setup(_harness.session, FixtureBaseModeWithMelee.mode())
 	await _look_at(Vector3(0, 1.0, -3))
 	var facing := _player.look_vector()
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)

@@ -15,7 +15,7 @@ const LONE := 1
 func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 	# The fixture's data from the lobby into the round, 4 players at the default settings
 	# (1 dissident; 2 tasks: the House's Delivery by meaning's 6 items on its 4 drop-offs (#828)
-	# and Hold the zone's 1 zone; 2 knives).
+	# and Hold the zone's 1 zone; no knife: the shipped mode places none since the M8 slice, #1497).
 	var mode := FixtureBaseModeWithZones.mode()
 	var world := _house_world(mode)
 	var layouts := _house_layouts(mode, world)
@@ -67,18 +67,18 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 		assert_bool(Array(map.positions(item.kind.spawn_tag)).has(item.position)).is_true()
 		assert_bool(taken.has(item.position)).is_false()
 		taken[item.position] = id
-	assert_int(kinds.get(&"knife", 0)).is_equal(2)
+	assert_int(kinds.get(&"knife", 0)).is_equal(0)
 	var routed := 0
 	for kind: StringName in [&"wine", &"oil", &"gnome", &"parasol"]:
 		assert_int(kinds.get(kind, 0)).override_failure_message(kind).is_greater_equal(1)
 		routed += kinds.get(kind, 0)
 	assert_int(routed).is_equal(6)
-	assert_int(kinds.size()).is_equal(5)
+	assert_int(kinds.size()).is_equal(4)
 	for peer: int in peers:
 		var view := game.view_of(peer)
 		# The lobby's tap (StationTicks, #1390) and pinball (#1398), then the deal's 5 stations.
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(7)
-		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
+		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(6)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 7}
 		)
@@ -92,7 +92,8 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
 	# The lobby's tap and pinball first (#1390, #1398), then the row's order: roles, Delivery's
-	# deal, the zone's, the knives, then placement.
+	# deal, the zone's, then placement (the knives, placed before it until the M8 slice, are the
+	# melee fixture's, content_modes_test).
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]
@@ -117,7 +118,6 @@ func test_entering_the_round_runs_the_whole_deal_with_the_zone() -> void:
 				"ItemSpawned(routed)",
 				"StationPlaced",
 				"TaskProgress",
-				"ItemSpawned(knife)",
 				"PlayersPlaced",
 			]
 		)
@@ -193,12 +193,12 @@ func test_the_lone_engineer_s_round_with_the_zone_ends_when_every_task_is_done()
 	FixtureModes.run_ticks(game, 3 * Ticks.RATE + 1)
 	assert_str(game.phase_id()).is_equal("round")
 	# The House's Delivery by meaning dealt its shared task: 6 items (the default `packages`) on
-	# its 4 drop-offs (#828); the zone task its one zone (the default `zones`, #649); and the 2
-	# knives lie on the map.
+	# its 4 drop-offs (#828); the zone task its one zone (the default `zones`, #649); and no knife
+	# lies on the map (the M8 slice places none, #1497).
 	assert_int(game.state.tasks.size()).is_equal(2)
 	assert_int(game.state.stations.size()).is_equal(5)
 	assert_int(FixtureMeaningModes.state_of(game).items.size()).is_equal(6)
-	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(2)
+	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(0)
 	# A minute of the round alone: the crew is present, no package is delivered and the clock
 	# runs, so no win condition fires.
 	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)

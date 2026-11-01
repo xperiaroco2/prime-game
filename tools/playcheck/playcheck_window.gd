@@ -273,6 +273,14 @@ func _initialize() -> void:
 	if plan.is_empty():
 		return
 	_game = (load(GAME_SCENE) as PackedScene).instantiate() as Game
+	# The scenario's `mode` header (#1497: a test fixture mode); "" keeps Game.MODE_PATH.
+	var mode_path := str(plan.get("mode", ""))
+	if mode_path != "":
+		_game.mode = load(mode_path) as GameMode
+		if _game.mode == null:
+			_game.free()
+			_quit_failed("mode: '%s' is no GameMode" % mode_path)
+			return
 	_game.read_command_line = false
 	_game.launch_args = game_args
 	_game.pointer = RememberedPointer.new()

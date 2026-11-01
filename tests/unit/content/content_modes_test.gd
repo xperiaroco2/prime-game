@@ -15,7 +15,6 @@ extends GdUnitTestSuite
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
-const SCENARIOS_DIR := "res://content/scenarios/"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 const HOUSE := "res://levels/house/house.tscn"
 ## The estate (#1374): the map players play, the M8 slice's (#1496).
@@ -123,12 +122,12 @@ func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> vo
 	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
 	assert_bool(ScenarioLevels.of(mode).has(HOUSE)).is_false()
 	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE])
-	for file in DirAccess.get_files_at(SCENARIOS_DIR):
-		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
+	for file: String in ScenarioLevels.scenario_paths():
+		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:
 			continue
 		if (
-			scenario.mode.resource_path == BASE_MODE
+			[BASE_MODE, FixtureBaseModeWithMelee.PATH].has(scenario.mode.resource_path)
 			and not ScenarioLevels.STOREYED_MAPS.has(scenario.played_map())
 		):
 			assert_str(scenario.played_map()).override_failure_message(file).is_equal(GREYBOX)
@@ -148,8 +147,8 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 				if is_equal_approx(at.y, storey):
 					on_it += 1
 		assert_int(on_it).override_failure_message("storey %s" % storey).is_greater(0)
-	for file in DirAccess.get_files_at(SCENARIOS_DIR):
-		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
+	for file: String in ScenarioLevels.scenario_paths():
+		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:
 			continue
 		var world := ScenarioLevels.world_of(scenario)
@@ -276,12 +275,13 @@ func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 	assert_str((row.actions[1] as PlacePlayers).tag).is_equal("lobby_player")
 
 
-func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
+func test_the_deal_runs_roles_tasks_then_placement_and_the_melee_fixture_knives_too() -> void:
 	var mode := _base_mode()
 	var row := mode.find_transition(&"loading", &"all_loaded")
 	# The deal runs before the pregame, so its screen has the role (#213); the clock waits for it.
 	assert_str(row.to).is_equal("pregame")
-	assert_int(row.actions.size()).is_equal(4)
+	# The M8 slice places no knife (#1497): roles, tasks, placement.
+	assert_int(row.actions.size()).is_equal(3)
 	var roles := row.actions[0] as DealRoles
 	assert_object(roles).is_not_null()
 	assert_int(roles.quotas.size()).is_equal(1)
@@ -298,14 +298,21 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	# The M8 slice places no world toggle (#1496): the House's toggles are off the estate; their
 	# markers' contract stays in estate_toggles_test.gd, on a mode that places them.
 	assert_array(Stations.toggle_kinds(mode)).is_empty()
-	var knives := row.actions[2] as SpawnItems
+	var place := row.actions[2] as PlacePlayers
+	assert_object(place).is_not_null()
+	assert_str(place.tag).is_equal("round_player")
+	# The melee fixture (the base mode before #1497) places the knives between the deal and the
+	# placement, where the shipped mode had them; the rest is the shipped row's own.
+	var melee := FixtureBaseModeWithMelee.mode().find_transition(&"loading", &"all_loaded")
+	assert_int(melee.actions.size()).is_equal(4)
+	assert_object(melee.actions[0]).is_same(row.actions[0])
+	assert_object(melee.actions[1]).is_same(row.actions[1])
+	var knives := melee.actions[2] as SpawnItems
 	assert_object(knives).is_not_null()
 	assert_str(knives.kind.id).is_equal("knife")
 	assert_str(knives.count_setting).is_equal("knives")
 	assert_str(knives.rng_purpose).is_equal("knives")
-	var place := row.actions[3] as PlacePlayers
-	assert_object(place).is_not_null()
-	assert_str(place.tag).is_equal("round_player")
+	assert_object(melee.actions[3]).is_same(place)
 
 
 func test_the_pregame_is_silent_frozen_for_3_s_then_starts_the_clock() -> void:
@@ -421,18 +428,22 @@ func test_the_base_mode_accepts_pose_in_round_from_the_living_only_at_a_chair() 
 		assert_bool(status.posed).is_false()
 
 
-func test_the_base_mode_round_accepts_both_uses_from_the_living_only() -> void:
+func test_the_base_mode_round_accepts_the_secondary_use_and_the_melee_fixture_both() -> void:
 	var mode := _base_mode()
 	var in_round := mode.find_phase(&"round")
-	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	# The M8 slice has no strike in the Round (#1497); the melee fixture keeps it, from the living.
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(0)
+	var melee := FixtureBaseModeWithMelee.mode()
+	assert_int(melee.find_phase(&"round").senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.USE_SECONDARY)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
 	# MoveClaim from the living and the downed (the downed claims its look only, KE4).
 	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
 	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
-	# The knife from the base mode's own data: a living player strikes, and the downed cannot.
-	var game := _base_round(mode, [1, 2, 3, 4])
+	# The knife in the melee fixture (the base mode's own data, its Round taking Use): a living
+	# player strikes, and the downed cannot.
+	var game := _base_round(melee, [1, 2, 3, 4])
 	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
 	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
 	var knife := FixtureItemModes.lay(game, &"knife", Vector3(0, 0, 100))
@@ -498,8 +509,9 @@ func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
 	assert_float(effect.seconds).is_equal(3.0)
 	assert_int(effect.revive_health).is_equal(50)
 	assert_float((raise.conditions[2] as TargetInReach).reach_m).is_equal(2.0)
-	# Played from the base mode's own data: knocked down, raised for 3 s, standing with 50.
-	var game := _base_round(mode, [1, 2, 3])
+	# Played from the base mode's own data, knocked down with the knife in the melee fixture (the
+	# base mode with the Round's strike, #1497): raised for 3 s, standing with 50.
+	var game := _base_round(FixtureBaseModeWithMelee.mode(), [1, 2, 3])
 	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
 	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
 	FixtureItemModes.stand(game, 3, Vector3(1.5, 0, 101))
@@ -522,19 +534,31 @@ func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
 	assert_array(FixtureModes.rejections(game, 3)).is_empty()
 
 
-func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
-	var mode := _base_mode()
-	var demands := Demands.new(mode)
-	for action: RuleEffect in mode.find_transition(&"loading", &"all_loaded").actions:
-		action.add_demands(mode.default_settings(), 10, demands)
-	assert_int(demands.markers.get(&"knife", 0)).is_equal(2)
-	assert_int(demands.markers.get(&"round_player", 0)).is_equal(10)
+func test_the_deal_demands_knife_markers_at_the_default_settings_in_the_melee_fixture() -> void:
+	# The M8 slice places no knife (#1497); the melee fixture places the setting's 2.
+	var expected: Dictionary[String, int] = {BASE_MODE: 0, FixtureBaseModeWithMelee.PATH: 2}
+	for path: String in expected:
+		var mode := load(path) as GameMode
+		var demands := Demands.new(mode)
+		for action: RuleEffect in mode.find_transition(&"loading", &"all_loaded").actions:
+			action.add_demands(mode.default_settings(), 10, demands)
+		var knife_markers: int = demands.markers.get(&"knife", 0)
+		assert_int(knife_markers).override_failure_message(path).is_equal(expected[path])
+		assert_int(demands.markers.get(&"round_player", 0)).is_equal(10)
 
 
 func test_entering_the_round_runs_the_whole_deal() -> void:
 	# The base mode's own data from the lobby into the round, 4 players at the default settings
-	# (1 dissident, 1 task, 6 packages, 2 knives).
-	var mode := _base_mode()
+	# (1 dissident, 1 task, 6 packages, no knife: the M8 slice places none, #1497).
+	_enter_the_round_and_check_the_deal(_base_mode(), 0)
+
+
+func test_entering_the_melee_fixture_s_round_runs_the_whole_deal_with_its_knives() -> void:
+	# The melee fixture (the base mode before #1497): the same deal, then the setting's 2 knives.
+	_enter_the_round_and_check_the_deal(FixtureBaseModeWithMelee.mode(), 2)
+
+
+func _enter_the_round_and_check_the_deal(mode: GameMode, knives: int) -> void:
 	var layouts := _layouts_for(mode)
 	# On the flat fake world the test bench plays, the greybox (#767).
 	var map := layouts[GREYBOX]
@@ -569,7 +593,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		var teammates := game.view_of(peer).events_named(&"Teammates").size()
 		assert_int(teammates).is_equal(1 if role == &"dissident" else 0)
 	assert_int(dissidents.size()).is_equal(1)
-	# Delivery drawn by DealTasks: one shared task, 6 circles and 6 packages; then 2 knives.
+	# Delivery drawn by DealTasks: one shared task, 6 circles and 6 packages; then the knives.
 	assert_int(game.state.tasks.size()).is_equal(1)
 	assert_int(game.state.stations.size()).is_equal(6)
 	var kinds: Dictionary[StringName, int] = {}
@@ -580,12 +604,15 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_bool(Array(map.positions(item.kind.spawn_tag)).has(item.position)).is_true()
 		assert_bool(taken.has(item.position)).is_false()
 		taken[item.position] = id
-	assert_dict(kinds).is_equal({&"package": 6, &"knife": 2})
+	var expected_kinds: Dictionary[StringName, int] = {&"package": 6}
+	if knives > 0:
+		expected_kinds[&"knife"] = knives
+	assert_dict(kinds).is_equal(expected_kinds)
 	for peer: int in peers:
 		var view := game.view_of(peer)
 		# The lobby's tap (StationTicks, #1390) and pinball (#1398), then Delivery's 6 circles.
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(8)
-		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
+		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(6 + knives)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 6}
 		)
@@ -599,7 +626,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
 	# The lobby's tap and pinball first (#1390, #1398), then the row's order: roles, Delivery's
-	# deal, the knives, then placement.
+	# deal, the knives (where the mode places any), then placement.
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]
@@ -613,20 +640,17 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 			step += "(%s)" % (emitted.event as ItemSpawnedEvent).kind
 		if order.is_empty() or order.back() != step:
 			order.append(step)
-	(
-		assert_array(order)
-		. is_equal(
-			[
-				"StationPlaced",
-				"RoleAssigned",
-				"StationPlaced",
-				"ItemSpawned(package)",
-				"TaskProgress",
-				"ItemSpawned(knife)",
-				"PlayersPlaced",
-			]
-		)
-	)
+	var expected_order: Array[String] = [
+		"StationPlaced",
+		"RoleAssigned",
+		"StationPlaced",
+		"ItemSpawned(package)",
+		"TaskProgress",
+	]
+	if knives > 0:
+		expected_order.append("ItemSpawned(knife)")
+	expected_order.append("PlayersPlaced")
+	assert_array(order).is_equal(expected_order)
 
 
 func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:

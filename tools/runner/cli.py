@@ -243,12 +243,16 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
-        description="Bot scenarios (content/scenarios/) through the host and client sessions, and the "
-        "information-leak test. --instances N (N > 1): one scenario over ENet, a process per bot (over WebRTC "
+        description="Bot scenarios (content/scenarios/, tests/fixtures/scenarios/) through the host and client "
+        "sessions, and the information-leak test. --instances N (N > 1): one scenario over ENet, a process per bot (over WebRTC "
         "with --transport webrtc). --chaos: the chaos bots, a hostile and a malformed peer against the host (no "
         "--seed: a random one, printed; --enet or --transport webrtc: over the network).",
     )
-    p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
+    p.add_argument(
+        "scenarios",
+        nargs="*",
+        help="scenario file names in content/scenarios/ or tests/fixtures/scenarios/ (default: every one)",
+    )
     p.add_argument(
         "--instances", type=int, default=1, help="over the network, one process per bot: one scenario of N bots"
     )
