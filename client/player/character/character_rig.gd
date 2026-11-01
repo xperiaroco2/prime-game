@@ -269,7 +269,8 @@ func _slot_node(slot: StringName) -> AnimationRootNode:
 	space.sync_mode = AnimationNodeBlendSpace2D.SYNC_MODE_CYCLIC_MUTABLE
 	for point: Dictionary in points:
 		var at := Locomotion.blend_position(deg_to_rad(point["heading_deg"] as float))
-		space.add_blend_point(_clip_node(point["clip"] as StringName), at)
+		var clip := point["clip"] as StringName
+		space.add_blend_point(_clip_node(clip), at, -1, clip)
 	_spaces.append(slot)
 	return space
 
