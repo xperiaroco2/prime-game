@@ -1,0 +1,42 @@
+[gd_scene format=3 uid="uid://c6skw7tyfyvl3"]
+
+[ext_resource type="PackedScene" uid="uid://7qol12tblfen" path="res://assets/environment/crystal_charger/crystal_charger.glb" id="1"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://omm8f4ea3wl8" path="res://levels/kit/crystal_charger/crystal_charger.crystal_charger_col0.tres" id="2"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://dnm0tpr0g827i" path="res://levels/kit/crystal_charger/crystal_charger.crystal_charger_col1.tres" id="3"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://c6de5ktvs2jql" path="res://levels/kit/crystal_charger/crystal_charger.crystal_charger_col2.tres" id="4"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://do7718d72jq6j" path="res://levels/kit/crystal_charger/crystal_charger.track_ring_col0.tres" id="5"]
+
+[ext_resource type="ConvexPolygonShape3D" uid="uid://57u7lglonw65" path="res://levels/kit/crystal_charger/crystal_charger.track_ring_col1.tres" id="6"]
+
+[node name="crystal_charger" unique_id=672208099 instance=ExtResource("1")]
+
+[node name="crystal_charger_col0" type="StaticBody3D" parent="." unique_id=133039644]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_charger_col0" unique_id=524345761]
+shape = ExtResource("2")
+
+[node name="crystal_charger_col1" type="StaticBody3D" parent="." unique_id=1894332042]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_charger_col1" unique_id=1880250176]
+shape = ExtResource("3")
+
+[node name="crystal_charger_col2" type="StaticBody3D" parent="." unique_id=1776314160]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="crystal_charger_col2" unique_id=445942306]
+shape = ExtResource("4")
+
+[node name="track_ring_col0" type="StaticBody3D" parent="." unique_id=1220501688]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.94, 0.38)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="track_ring_col0" unique_id=855156674]
+shape = ExtResource("5")
+
+[node name="track_ring_col1" type="StaticBody3D" parent="." unique_id=1069043758]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.94, 0.38)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="track_ring_col1" unique_id=1571426595]
+shape = ExtResource("6")

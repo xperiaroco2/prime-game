@@ -4,8 +4,9 @@ extends GdUnitTestSuite
 ## frees the package's clearing, sky and suns on the client while the host never had their
 ## colliders, closes the hull the package leaves open (its skin has no `-col` hints), stands its
 ## grated floors on convex hulls (their lattice trimeshes cost the physics too much), and puts the
-## engine's markers and stand-ins on the art's station spots, gill sets and engine pods
-## (docs/design/estate-map.md §5a). The engine's own contract: estate_engine_test.gd.
+## engine's markers on the art's station spots, gill sets and engine pods, and the station
+## packages (#1535) on those spots (docs/design/estate-map.md §5a). The engine's own contract:
+## estate_engine_test.gd.
 
 const ShipHull := preload("res://tests/fixtures/ship_hull_colliders.gd")
 const ShipFloor := preload("res://tests/fixtures/ship_floor_colliders.gd")
@@ -17,10 +18,19 @@ const ART := "res://levels/ship/ship.tscn"
 const DECK_M := 1.2
 const BUTTON_OVER_DECK_M := 0.814
 const PEDESTAL_M := 0.6
+## The station packages (#1535): the console's GLB (no hint collider, so no wrapper) and the
+## other three's `colliders` wrappers; the console's height, the collider its HANDOFF asks for,
+## and how far out of the wall's face the breaker board's HANDOFF stands it.
+const START_CONSOLE := "res://assets/environment/start_console/start_console.glb"
+const CRYSTAL_SOCKET := "res://levels/kit/crystal_socket/crystal_socket.tscn"
+const BREAKER_BOARD := "res://levels/kit/breaker_board/breaker_board.tscn"
+const CRYSTAL_CHARGER := "res://levels/kit/crystal_charger/crystal_charger.tscn"
+const CONSOLE_TALL_M := 1.1
+const BOARD_OUT_M := 0.07
 ## The parts of the estate's piece beside the art: the engine, the hull's colliders, the map's
 ## label and the door marker.
 const OWN_PARTS: Array[String] = ["Art", "Hull", "Engine", "Name", "Doors"]
-## How near a stand-in or a place stands to the art part it binds to.
+## How near a gill part or a place stands to the art part it binds to.
 const ON_ART_M := 0.03
 ## How far in front of its art spot an engine marker may stand (a player's capsule from the wall
 ## at least, within the station's reach at most).
@@ -284,6 +294,56 @@ func test_each_engine_marker_stands_in_front_of_its_art_station_spot() -> void:
 			. is_true()
 		)
 		assert_float(absf(off.y)).override_failure_message(where).is_less(0.01)
+
+
+func test_each_station_package_stands_on_its_art_station_spot() -> void:
+	add_child(_root)
+	# Each device under Engine/Devices is its art package (#1535), set as the package's HANDOFF
+	# "Placement" says: its origin on the spot, its +Z the spot's normal, the breaker board 0.07 m
+	# out of the wall along it. Each device: its art spot under Art/Stations, its package scene.
+	var devices: Dictionary[String, PackedStringArray] = {
+		"StartConsole01": PackedStringArray(["Console", START_CONSOLE]),
+		"CartridgeSocket01": PackedStringArray(["SocketW", CRYSTAL_SOCKET]),
+		"CartridgeSocket02": PackedStringArray(["SocketFW", CRYSTAL_SOCKET]),
+		"CartridgeSocket03": PackedStringArray(["SocketE", CRYSTAL_SOCKET]),
+		"CartridgeSocket04": PackedStringArray(["SocketFE", CRYSTAL_SOCKET]),
+		"BreakerBoard01": PackedStringArray(["BreakerW", BREAKER_BOARD]),
+		"BreakerBoard02": PackedStringArray(["BreakerE", BREAKER_BOARD]),
+		"Charger01": PackedStringArray(["RenewerW", CRYSTAL_CHARGER]),
+		"Charger02": PackedStringArray(["RenewerE", CRYSTAL_CHARGER]),
+	}
+	var names: Array[String] = []
+	for child: Node in _root.get_node(^"Engine/Devices").get_children():
+		names.append(str(child.name))
+	assert_array(names).contains_exactly_in_any_order(devices.keys())
+	for device_name: String in devices:
+		var device := _root.get_node("Engine/Devices/" + device_name) as Node3D
+		var spot := _root.get_node("Art/Stations/" + devices[device_name][0]) as Node3D
+		var package: String = devices[device_name][1]
+		assert_str(device.scene_file_path).override_failure_message(device_name).is_equal(package)
+		assert_str(str(spot.get_meta("package"))).is_equal(package.get_file().get_basename())
+		var normal := spot.global_transform.basis.z
+		var out := BOARD_OUT_M if package == BREAKER_BOARD else 0.0
+		var expected := Transform3D(spot.global_basis, spot.global_position + normal * out)
+		(
+			assert_bool(device.global_transform.is_equal_approx(expected))
+			. override_failure_message(
+				"%s at %s, its spot's %s" % [device_name, device.global_transform, expected]
+			)
+			. is_true()
+		)
+	# No stand-in box is left among the devices.
+	for found: Node in _root.get_node(^"Engine/Devices").find_children("*", "MeshInstance3D"):
+		assert_object((found as MeshInstance3D).mesh).is_not_instanceof(BoxMesh)
+	# The console's package has no hint collider: the game's cylinder of its HANDOFF, on layer 1.
+	var console := _root.get_node(^"Engine/Devices/StartConsole01")
+	var body := console.get_node(^"Collision") as StaticBody3D
+	assert_int(body.collision_layer).is_equal(1)
+	var collision := body.get_node(^"CollisionShape3D") as CollisionShape3D
+	var cylinder := collision.shape as CylinderShape3D
+	assert_float(cylinder.radius).is_equal_approx(PEDESTAL_M, 0.001)
+	assert_float(cylinder.height).is_equal_approx(CONSOLE_TALL_M, 0.001)
+	assert_float(collision.position.y).is_equal_approx(CONSOLE_TALL_M / 2.0, 0.001)
 
 
 func _art_piece(prefix: String) -> Node3D:
