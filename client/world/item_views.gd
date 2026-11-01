@@ -170,8 +170,10 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		# flight at a phase change stays hidden until its ItemPlaced.
 		view.show_look(false)
 		return
-	if item.fitted:
-		# Fitted to a car (PartFitted): locked at the car, drawn nowhere (RE12, #811).
+	var seated := item.holder == ClientModel.NO_HOLDER and model.engine.in_charger(view.item_id)
+	if item.fitted or seated:
+		# Fitted to a car (PartFitted): locked at the car, drawn nowhere (RE12, #811); a crystal
+		# in a charger: the charger's look draws it (ShipStationLooks, #1556).
 		view.show_look(false)
 		return
 	if item.holder == ClientModel.NO_HOLDER:
