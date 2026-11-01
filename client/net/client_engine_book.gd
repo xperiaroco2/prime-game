@@ -23,12 +23,14 @@ class Problem:
 
 ## A socket's crystal as its last CrystalChanged told it: the charger holding it (-1 none), that
 ## charger's phase (CrystalProblem's EMPTY, LOADED, CHARGING or WAITING) and the host tick a charge
-## ends on (-1 when not charging).
+## ends on (-1 when not charging), and its item while it is out of the socket (-1 while the socket
+## holds it: a view tells a pulled crystal from a spent one by it, #1550).
 class Crystal:
 	extends RefCounted
 	var charger := -1
 	var phase := 0
 	var tick := -1
+	var item := -1
 
 
 ## The open problems by id.
@@ -81,6 +83,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 			crystal.charger = fields["charger"]
 			crystal.phase = fields["phase"]
 			crystal.tick = fields["tick"]
+			crystal.item = fields["item"]
 			crystals[fields["station"] as int] = crystal
 
 

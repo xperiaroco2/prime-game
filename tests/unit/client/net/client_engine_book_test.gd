@@ -64,6 +64,14 @@ func test_a_socket_s_crystal_is_its_last_change() -> void:
 	assert_int(crystal.tick).is_equal(-1)
 
 
+func test_a_socket_s_crystal_keeps_its_item_while_it_is_out() -> void:
+	var model := ClientModel.new(FixtureBaseMode.mode())
+	model.fold(&"CrystalChanged", _crystal(20, -1, CrystalProblem.EMPTY, 7, -1))
+	assert_int(model.engine.crystals[20].item).is_equal(7)
+	model.fold(&"CrystalChanged", _crystal(20, -1, CrystalProblem.EMPTY, -1, -1))
+	assert_int(model.engine.crystals[20].item).is_equal(-1)
+
+
 func test_a_new_match_forgets_the_engine() -> void:
 	var model := ClientModel.new(FixtureBaseMode.mode())
 	model.fold(&"EngineProblemOpened", _opened(1, [4], 300))

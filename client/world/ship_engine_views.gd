@@ -4,18 +4,26 @@ extends Node3D
 ## ARCHITECTURE §9.5.27 "For part 3's client", §4.7.59): everything from the own ClientModel (its
 ## ClientEngineBook and the console's ZoneProgress), the estimated host tick and the client's own
 ## copy of the mode; nothing is predicted. While the engine is dealt (its console placed):
+## - the level's art devices (the console, sockets, breaker boards, chargers; #1550,
+##   ShipStationLooks), each bound to its station, show its state. Where one is bound, the
+##   stand-ins below for it give way: no lamp over its station (nor over a breaker on a bound
+##   board), and with the art console no mimic board, no stand-in hologram (ShipEngineHologram
+##   stays as the state reader) and no strips while the bar has the art's three stages. The art
+##   console's one order lamp then plays the open orders in turn (order_turn);
 ## - the console's hologram at the level's point for it (a Node3D in group `engine_hologram`, over
 ##   the console itself, which its use spot faces), else above its use spot: a stage strip per
 ##   stage (the engine's TaskState total), each filling with its share of the bar (ZoneViews.fill
 ##   of the console's ZoneProgress),
 ##   and the mimic board, a lamp per breaker at its place in the ship scaled down round the
-##   console: red while tripped, green once on, and the open chain's order played on it one lamp
-##   at a time, white (GDD §8: read it out or remember it). It is the only place the order shows;
+##   console: red while tripped, green once on, and each open chain's order played on it one lamp
+##   at a time, white (GDD §8: read it out or remember it). With no art console it is the only
+##   place the order shows;
 ## - a red alarm lamp over each station an open problem holds (EngineProblemOpened until its
-##   EngineProblemFixed or a blast);
-## - a lamp over each breaker: red while tripped, yellow then green for the last one on (its ramp,
-##   then its window, from BreakerChain's `since`), green for those before it; never the order;
-## - a lamp over each charger: yellow while charging, green with a charged crystal waiting;
+##   EngineProblemFixed or a blast) that no art device draws;
+## - a lamp over each unbound breaker: red while tripped, yellow then green for the last one on
+##   (its ramp, then its window, from BreakerChain's `since`), green for those before it; never
+##   the order;
+## - a lamp over each unbound charger: yellow while charging, green with a charged crystal waiting;
 ## - the level's gill sets (group `engine_gills`, each bound to the nearest gill button within
 ##   BIND_TOLERANCE_M): a slit shows `Open` or `Shut` (all open with no problem), and the white bar
 ##   `Light<n>` over the slit GillsProblem.BAR puts it at from the problem's opening tick;
@@ -119,11 +127,18 @@ var _mist: Dictionary[MeshInstance3D, float] = {}
 ## Per bound gill button's station: its open slits and whether a problem held it last frame.
 var _was_open: Dictionary[int, int] = {}
 var _was_held: Dictionary[int, bool] = {}
+## The station devices' looks (#1550), bound with the engine; null before.
+var _looks: ShipStationLooks
 
 
 ## The hologram made readable, or null before the console is placed.
 func hologram() -> ShipEngineHologram:
 	return _hologram
+
+
+## The station devices' looks, or null before the console is placed.
+func station_looks() -> ShipStationLooks:
+	return _looks
 
 
 ## The puffs of steam showing now.
@@ -175,6 +190,7 @@ func clear() -> void:
 	_blast_left = 0.0
 	_blasts_seen = 0
 	_hologram = null
+	_looks = null
 	_finale = null
 	_sounds = ShipEngineSounds.new()
 	_vapour = null
@@ -203,6 +219,7 @@ func _process(delta: float) -> void:
 	var blasted := model.engine.blasts != _blasts_seen
 	var share := _draw_strips(type, now)
 	_hologram.update(now, share, delta, blasted)
+	_looks.update(now, delta, _hologram, share, _order_lit(now), blasted)
 	for cue: Dictionary in _sounds.due(model, _console, _centre, now, _hologram.called()):
 		sound_due.emit(ShipEngineSounds.EVENT, cue)
 		if cue["id"] == SfxSet.ENGINE_ROAR:
@@ -249,17 +266,24 @@ func _ids_of(kind: StationKind) -> Array[int]:
 func _build(type: ShipEngine) -> void:
 	var centre := _hologram_centre()
 	_centre = centre
-	_build_strips(_stages(type))
+	# The devices first: a station whose device shows it draws no stand-in, and the art console
+	# replaces the mimic board, the strips (while they are its three) and the hologram's look.
+	_looks = ShipStationLooks.new()
+	_looks.bind(model, type, level if is_instance_valid(level) else null, _console)
+	var art := _looks.console() != null
+	_build_strips(_strip_count(type))
 	var sites: Array[int] = []
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
-			_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
+			if not _looks.has_art(site):
+				_lamps[site] = _box(Vector3.ONE * LAMP_M, RED, model.stations[site].position)
 			if not sites.has(site):
 				sites.append(site)
 		for fixture: StationKind in kind.fixtures:
 			for id: int in _ids_of(fixture):
-				_lamps[id] = _box(Vector3.ONE * LAMP_M, DARK, model.stations[id].position)
-				if kind is BreakersProblem:
+				if not _looks.has_art(id):
+					_lamps[id] = _box(Vector3.ONE * LAMP_M, DARK, model.stations[id].position)
+				if kind is BreakersProblem and not art:
 					var at := model.stations[id].position - model.stations[_console].position
 					var lamp := _box(Vector3.ONE * MIMIC_LAMP_M, DARK)
 					lamp.position = centre + Vector3(at.x, 0.0, at.z) * MIMIC_SCALE
@@ -270,6 +294,8 @@ func _build(type: ShipEngine) -> void:
 	add_child(_finale)
 	var point := _hologram_point()
 	_hologram.setup(model, _console, centre, sites, _turbine_places(point), _button_place(point))
+	# The state readers stay (called(), nearest_deadline()); the art console draws them.
+	_hologram.visible = not art
 	_vapour = Node3D.new()
 	add_child(_vapour)
 	_blasts_seen = model.engine.blasts
@@ -282,6 +308,14 @@ func _stages(type: ShipEngine) -> int:
 		if task.type == type.id and task.total > 0:
 			return task.total
 	return maxi(1, type.stage_problems.size())
+
+
+## The stand-in strips to draw: none while the art console's three show the stages.
+func _strip_count(type: ShipEngine) -> int:
+	var stages := _stages(type)
+	if _looks != null and _looks.console() != null and stages == ShipConsoleLook.STRIPS:
+		return 0
+	return stages
 
 
 ## A strip per stage side by side over the hologram's centre, drawn anew when the count changes.
@@ -372,8 +406,8 @@ func _material(colour: Color) -> StandardMaterial3D:
 
 ## Fills the strips with the bar at host tick `now` and gives its share (0 to 1).
 func _draw_strips(type: ShipEngine, now: int) -> float:
-	if _stages(type) != _fills.size():
-		_build_strips(_stages(type))
+	if _strip_count(type) != _fills.size():
+		_build_strips(_strip_count(type))
 	var console: ClientModel.Station = model.stations.get(_console)
 	var share := ZoneViews.fill(console, now) if console != null else 0.0
 	var strips := _fills.size()
@@ -393,7 +427,9 @@ func _draw_lamps(type: ShipEngine, now: int) -> void:
 		_light(lamp, DARK)
 	for kind: ProblemKind in type.kinds:
 		for site: int in _ids_of(kind.site):
-			_lamps[site].visible = model.engine.problem_at(site) != null
+			var alarm: MeshInstance3D = _lamps.get(site)
+			if alarm != null:
+				alarm.visible = model.engine.problem_at(site) != null
 		if kind is BreakersProblem:
 			_draw_breakers(kind as BreakersProblem, now)
 	for socket: int in model.engine.crystals:
@@ -426,11 +462,55 @@ func _draw_breakers(kind: BreakersProblem, now: int) -> void:
 		if order.is_empty():
 			continue
 		# The order, played on the mimic board alone: one lamp a step, then a pause.
-		var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
-		@warning_ignore("integer_division")
-		var step := (maxi(now, 0) / step_ticks) % (order.size() + ORDER_PAUSE_STEPS)
-		if step < order.size() and _mimic.has(order[step]):
+		var step := order_step(order.size(), now)
+		if step >= 0 and _mimic.has(order[step]):
 			_light(_mimic[order[step]], WHITE)
+
+
+## The step of an order of `size` breakers that plays at host tick `now` (one a step, then a
+## pause), or -1 in the pause.
+static func order_step(size: int, now: int) -> int:
+	if size <= 0:
+		return -1
+	var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
+	@warning_ignore("integer_division")
+	var step := (maxi(now, 0) / step_ticks) % (size + ORDER_PAUSE_STEPS)
+	return step if step < size else -1
+
+
+## The breaker station the art console's one order lamp lights at host tick `now`, or -1. Two
+## chains can be open at once (one per board): their orders take turns, by problem id, each played
+## with its own pause after it, so none waits on the other's fix.
+func _order_lit(now: int) -> int:
+	var orders: Array[PackedInt32Array] = []
+	var ids: Array[int] = []
+	ids.assign(model.engine.problems.keys())
+	ids.sort()
+	for id: int in ids:
+		var problem: ClientEngineBook.Problem = model.engine.problems[id]
+		if not problem.breakers.is_empty():
+			orders.append(problem.breakers)
+	return order_turn(orders, now)
+
+
+## The breaker of `orders` that plays at host tick `now` when they take turns on one lamp (each
+## order a step a breaker, then ORDER_PAUSE_STEPS, then the next order), or -1 in a pause.
+static func order_turn(orders: Array[PackedInt32Array], now: int) -> int:
+	var cycle := 0
+	for order: PackedInt32Array in orders:
+		cycle += order.size() + ORDER_PAUSE_STEPS
+	if cycle == 0:
+		return -1
+	var step_ticks := maxi(1, Ticks.from_seconds(ORDER_STEP_SECONDS))
+	@warning_ignore("integer_division")
+	var step := (maxi(now, 0) / step_ticks) % cycle
+	for order: PackedInt32Array in orders:
+		if step < order.size():
+			return order[step]
+		step -= order.size() + ORDER_PAUSE_STEPS
+		if step < 0:
+			return -1
+	return -1
 
 
 func _light(lamp: MeshInstance3D, colour: Color) -> void:
