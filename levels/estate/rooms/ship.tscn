@@ -2,7 +2,10 @@
 
 [ext_resource type="Script" path="res://levels/estate/rooms/ship.gd" id="1_shipgd"]
 [ext_resource type="PackedScene" path="res://levels/ship/ship.tscn" id="2_artship"]
-[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
+[ext_resource type="PackedScene" path="res://assets/environment/start_console/start_console.glb" id="3_console"]
+[ext_resource type="PackedScene" path="res://levels/kit/crystal_socket/crystal_socket.tscn" id="4_socket"]
+[ext_resource type="PackedScene" path="res://levels/kit/breaker_board/breaker_board.tscn" id="5_board"]
+[ext_resource type="PackedScene" path="res://levels/kit/crystal_charger/crystal_charger.tscn" id="8_charger"]
 [ext_resource type="Material" path="res://levels/kit/greybox_station_red.tres" id="4_red"]
 [ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
 [ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/skin_top_col.tres" id="6_skintop"]
@@ -20,21 +23,9 @@
 [ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/tip_floor_disc.inlay_col.tres" id="20_floor"]
 [ext_resource type="Shape3D" path="res://levels/estate/rooms/ship_hull/cor_grate.grate_col.tres" id="21_floor"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_console"]
-material = ExtResource("3_yellow")
-size = Vector3(1.2, 0.8, 1.2)
-
-[sub_resource type="BoxMesh" id="BoxMesh_socket"]
-material = ExtResource("3_yellow")
-size = Vector3(0.3, 0.3, 0.15)
-
-[sub_resource type="BoxMesh" id="BoxMesh_board"]
-material = ExtResource("3_yellow")
-size = Vector3(0.6, 0.8, 0.1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_charger"]
-material = ExtResource("3_yellow")
-size = Vector3(0.6, 1, 0.6)
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_console"]
+height = 1.1
+radius = 0.6
 
 [sub_resource type="BoxMesh" id="BoxMesh_gill_shut1"]
 material = ExtResource("4_red")
@@ -277,41 +268,38 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.86, 2.35, 0.0186)
 
 [node name="Devices" type="Node3D" parent="Engine" unique_id=1109525699]
 
-[node name="StartConsole01" type="MeshInstance3D" parent="Engine/Devices" unique_id=639067400]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 1.6, 0.6)
-mesh = SubResource("BoxMesh_console")
+[node name="StartConsole01" parent="Engine/Devices" unique_id=639067400 instance=ExtResource("3_console")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 1.2, 0.6)
 
-[node name="CartridgeSocket01" type="MeshInstance3D" parent="Engine/Devices" unique_id=1654188712]
-transform = Transform3D(-0.8899263, 0, 0.45610428, 0, 1, 0, -0.45610428, 0, -0.8899263, -1.765792, 2.4, 3.045256)
-mesh = SubResource("BoxMesh_socket")
+[node name="Collision" type="StaticBody3D" parent="Engine/Devices/StartConsole01" unique_id=1735020611]
 
-[node name="CartridgeSocket02" type="MeshInstance3D" parent="Engine/Devices" unique_id=1659931641]
-transform = Transform3D(0.49612564, 0, 0.8682507, 0, 1, 0, -0.8682507, 0, 0.49612564, -3.360981, 2.4, -2.320591)
-mesh = SubResource("BoxMesh_socket")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Engine/Devices/StartConsole01/Collision" unique_id=1735020612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+shape = SubResource("CylinderShape3D_console")
 
-[node name="CartridgeSocket03" type="MeshInstance3D" parent="Engine/Devices" unique_id=1060896216]
-transform = Transform3D(-0.8899263, 0, -0.45610428, 0, 1, 0, 0.45610428, 0, -0.8899263, 1.765792, 2.4, 3.045256)
-mesh = SubResource("BoxMesh_socket")
+[node name="CartridgeSocket01" parent="Engine/Devices" unique_id=1654188712 instance=ExtResource("4_socket")]
+transform = Transform3D(-0.8899263, 0, 0.45610428, 0, 1, 0, -0.45610428, 0, -0.8899263, -1.8, 1.2, 3.112)
 
-[node name="CartridgeSocket04" type="MeshInstance3D" parent="Engine/Devices" unique_id=1322025637]
-transform = Transform3D(0.49612564, 0, -0.8682507, 0, 1, 0, 0.8682507, 0, 0.49612564, 3.360981, 2.4, -2.320591)
-mesh = SubResource("BoxMesh_socket")
+[node name="CartridgeSocket02" parent="Engine/Devices" unique_id=1659931641 instance=ExtResource("4_socket")]
+transform = Transform3D(0.49612564, 0, 0.8682507, 0, 1, 0, -0.8682507, 0, 0.49612564, -3.4261, 1.2, -2.3578)
 
-[node name="BreakerBoard01" type="MeshInstance3D" parent="Engine/Devices" unique_id=1273590880]
-transform = Transform3D(0.988594, 0, 0.15060519, 0, 1, 0, -0.15060519, 0, 0.988594, -6.65627, 2.7, -0.85247)
-mesh = SubResource("BoxMesh_board")
+[node name="CartridgeSocket03" parent="Engine/Devices" unique_id=1060896216 instance=ExtResource("4_socket")]
+transform = Transform3D(-0.8899263, 0, -0.45610428, 0, 1, 0, 0.45610428, 0, -0.8899263, 1.8, 1.2, 3.112)
 
-[node name="BreakerBoard02" type="MeshInstance3D" parent="Engine/Devices" unique_id=1044694686]
-transform = Transform3D(0.988594, 0, -0.15060519, 0, 1, 0, 0.15060519, 0, 0.988594, 6.65627, 2.7, -0.85247)
-mesh = SubResource("BoxMesh_board")
+[node name="CartridgeSocket04" parent="Engine/Devices" unique_id=1322025637 instance=ExtResource("4_socket")]
+transform = Transform3D(0.49612564, 0, -0.8682507, 0, 1, 0, 0.8682507, 0, 0.49612564, 3.4261, 1.2, -2.3578)
 
-[node name="Charger01" type="MeshInstance3D" parent="Engine/Devices" unique_id=1921862350]
-transform = Transform3D(-0.9936054, 0, -0.112908505, 0, 1, 0, 0.112908505, 0, -0.9936054, -10.302473, 1.7, 2.938818)
-mesh = SubResource("BoxMesh_charger")
+[node name="BreakerBoard01" parent="Engine/Devices" unique_id=1273590880 instance=ExtResource("5_board")]
+transform = Transform3D(0.988594, 0, 0.15060519, 0, 1, 0, -0.15060519, 0, 0.988594, -6.6532578, 1.2, -0.8326984)
 
-[node name="Charger02" type="MeshInstance3D" parent="Engine/Devices" unique_id=1679786887]
-transform = Transform3D(-0.9936054, 0, 0.112908505, 0, 1, 0, -0.112908505, 0, -0.9936054, 10.302473, 1.7, 2.938818)
-mesh = SubResource("BoxMesh_charger")
+[node name="BreakerBoard02" parent="Engine/Devices" unique_id=1044694686 instance=ExtResource("5_board")]
+transform = Transform3D(0.988594, 0, -0.15060519, 0, 1, 0, 0.15060519, 0, 0.988594, 6.6532578, 1.2, -0.8326984)
+
+[node name="Charger01" parent="Engine/Devices" unique_id=1921862350 instance=ExtResource("8_charger")]
+transform = Transform3D(-0.9936054, 0, -0.112908505, 0, 1, 0, 0.112908505, 0, -0.9936054, -10.2686, 1.2, 3.2369)
+
+[node name="Charger02" parent="Engine/Devices" unique_id=1679786887 instance=ExtResource("8_charger")]
+transform = Transform3D(-0.9936054, 0, 0.112908505, 0, 1, 0, -0.112908505, 0, -0.9936054, 10.2686, 1.2, 3.2369)
 
 [node name="Markers" type="Node3D" parent="Engine" unique_id=1227546381]
 

@@ -9143,8 +9143,16 @@ plays it on the estate (#1462, "The estate and the content" below).
   out). `Engine/Gills01`, `Gills02` (group `engine_gills`) are the gill sets on the art's throat walls (GDD §8's
   throat; #1499): five slits each at the art's slit (`Slit<k>`, its `Open` empty: the art's slit glows open, its
   `Shut` a red plate), a `Light` bar per slit (the white bar) and the `Button` at the art's dome; `Engine/Devices`
-  yellow stand-in boxes for the console, the sockets, the boards and the chargers (the art's station packages are not
-  in the game yet); `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.457 m over the deck above the
+  the art's station packages (#1535, prime-game-art#263, `assets/environment/<id>/` with `docs/credits/<id>.md`):
+  the start console's GLB (`StartConsole01`; it carries no hint collider, so its HANDOFF's 0.6 m by 1.1 m cylinder
+  is the scene's own `Collision` on layer 1), and the `colliders` wrappers of the crystal socket
+  (`CartridgeSocket01`..`04`), the breaker board (`BreakerBoard01`, `02`) and the crystal charger (`Charger01`,
+  `02`), their convex hint colliders on layer 1. Each stands on its `Art/Stations` spot as its HANDOFF's
+  "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's panels):
+  `estate_ship_test` holds them there and `estate_engine_test` each marker's player clear of them. They show the
+  GLBs' plain-PBR fallback: the packages' look scripts (`apply()` and the states: the console's spin-up, a socket's
+  lamp, a board's shells, a charger's carrier), which an asset may not carry (§11.1), are not in the game;
+  `Engine/Hologram` (group `engine_hologram`) the hologram's point, 1.457 m over the deck above the
   console's pedestal (the start console package's hall disc), its `Turbine1`..`Turbine3` at the art's three nozzle
   pods at the mimic board's scale and its `Button` at the console package's button.
   The piece is the art ship (#1499): `Art` instances the ship package's `levels/ship/ship.tscn` (the lobby's import,
