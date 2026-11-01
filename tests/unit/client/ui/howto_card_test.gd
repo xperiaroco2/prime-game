@@ -89,6 +89,7 @@ func test_the_dealable_types_are_the_lobbys_maps_types() -> void:
 
 func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
+	model.map = HOUSE
 	# Another set setting (say a later "banned roles") that happens to name a task type.
 	model.id_sets[&"some_other_set"] = PackedStringArray(["delivery"])
 	assert_array(HowtoCards.dealable(_mode, model)).is_equal(
