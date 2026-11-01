@@ -9122,7 +9122,11 @@ plays it on the estate (#1462, "The estate and the content" below).
   from `since` with the client's copy of the ramp and green seconds; the order is drawn only on the console (its
   mimic board, or the art console's order lamps), GDD §8: remembered or read out, so no lamp, marker or HUD line
   at the boards shows it); a socket's crystal,
-  a charger's phase and its fill = the problem's last `CrystalChanged`.
+  a charger's phase and its fill = the problem's last `CrystalChanged`. The host's load locks the crystal at the
+  charger without an item event, so the fold of a `CrystalChanged` naming a charger and the item
+  (`ClientEngineBook._lay_in_charger`, #1556) takes the item out of the loader's hand: no holder, locked, at the
+  charger station's position; `ItemViews` hides an item `ClientEngineBook.in_charger` names (the charger draws its
+  crystal), and the take's `ItemPickedUp` hands it on as any pickup.
 - **The estate and the content** (#1462, provisional under the MVP content ADR). `content/tasks/ship_engine.tres`
   (the console kind `engine_console`, the three kinds above, `stage_problems` 2, 4, 6, `stage_seconds` 30 (the GDD's
   placeholder, the engineer's to set), `maps` the estate alone) is a task type of the base mode, which also lists the
@@ -9227,6 +9231,27 @@ plays it on the estate (#1462, "The estate and the content" below).
   the hologram (`ShipEngineHologram` stays as the state readers and the look where no console is bound, hidden),
   and it replaces the mimic board and, while the bar has its three stages, the strips. The timings the packages
   leave open (the shells' and the carrier's) are placeholders, not a decision.
+  **The stations' extras** (#1556), what the packages' HANDOFFs leave to the game. The crystal: `ShipCrystalLook`
+  (the port of the energy_crystal package's `crystal.gd`, its GLB and shaders under
+  `assets/environment/energy_crystal/`) seated on a socket's and a charger's `crystal_anchor`; a socket draws it
+  charged with no problem, spent while one holds it, none while it is out; a charger draws the one it holds, spent
+  while loaded, its charge rising over the charge (`ShipStationLooks.charge_share` of the end tick and the client's
+  copy of `charge_seconds`), charged while waiting, its light softened (the art charger's `SEATED_OMNI_*`). The
+  stations stay on the live layers: the art keeps them on its layer 20 so the crystal's own light skips them, but
+  the game's layer 20 is `PhotoLayers.PHOTO`, and the art ship's lights reach only layer 1, so the seated crystal's
+  light leaves `PhotoLayers.GROUND` out of its cull mask instead (it lights the hull round it, not the station). The
+  lightning: `ShipChargerZap` (the port of the art's `godot/charger/zap.gd` without the lens alcove's conduit
+  pulses, a level piece), jagged ribbons (`ShipZapBolts`, `ship/charger_arc.gdshader`) from the inner prongs'
+  electrodes into the crystal and its sparks, turning with the ring, only while charging with a charge strictly
+  between 0 and 1, seeded per charger (`ShipChargerLook.ZAP_SEED` plus the station id); and a flash of
+  `FLASH_SECONDS` at a charge's end, on the CHARGING to WAITING edge the view itself sees
+  (`ShipStationLooks.flash_left`: a view built while a charger already waits plays none; any phase but WAITING ends
+  it). A board: `ShipBoardSmoke` at each core's centre (the core mesh's box centre, HANDOFF's (u, 0.872, 0.18)):
+  smoke only (one `CPUParticles3D`; GDD §8: the breakers "pop out and smoke", no sparks), on once a tripped shell is
+  `SMOKE_FROM_OPEN` open (the core in view) and its emitting off at once when its breaker is on again, the puffs
+  fading out. Each length, rate, size and colour the HANDOFFs leave open is a provisional placeholder (#507).
+  Their `shot`s: `client/dev/ship_stations_preview_<view>.tscn` (`board`, `socket`, `socket_spent`, `charger`,
+  `flash`) in the estate's ship room, every station at its marker.
   The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
   **The finish** (GDD §8): the last stage passing has no ceremony of its own, no mesh, light or sound (the
@@ -9260,7 +9285,7 @@ its §5a device, on the deck and clear, each gill set by a gill button, the holo
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
 slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals
-and their items, a new match), the three suites of the station looks (a test of the art's nodes prints "skip" and
+and their items, a new match), the four suites of the station looks (a test of the art's nodes prints "skip" and
 checks the pointer where the packages' GLBs are Git LFS pointers, as on CI: `ship_device_art.gd`, the LFS ADR's
 amendment; so they run in full only in a checkout with the LFS content):
 `tests/integration/client/world/ship_device_looks_test.gd` (each ported look covers
@@ -9273,7 +9298,16 @@ one slow, the order lamp a step at a time, two open orders in turn, the strips b
 the shells, lamps and beacon, the socket's crystal and claws, the charger's charge, two chargers each showing only
 its own crystal, a bare level keeping the stand-ins), `tests/integration/client/world/ship_station_looks_ship_test.gd`
 (in the estate ship at its markers: every station a device of its own, each board's four breakers its four shells
-and lamps of their colour, each site its own wiring point by its side and end) and
+and lamps of their colour, each site its own wiring point by its side and end),
+`tests/integration/client/world/ship_station_extras_test.gd` (#1556: the crystal lit by its charge, the socket's
+crystal charged, spent or none while out, the charger's by its phase and charge, the arcs while charging and one
+flash at the end, none after a blast or for a late view, a tripped core smoking once its shell is open and
+stopping when it is on, at once for a late view; it checks the energy crystal's GLB too), the plain-rig suites CI
+runs in full, `tests/unit/client/world/ship_charger_zap_test.gd` (the lightning's gating, its ends on the
+electrodes and the crystal, the ring's turn, the spark cap, the determinism, the flash's edge) and
+`tests/unit/client/world/ship_board_smoke_test.gd` (an emitter per core holding only the smoke, one core on, off at once
+with the puffs outliving it, the live layers), `item_views_test.gd`'s crystal in a charger (out of the loader's
+hand, its item view hidden) and
 `tests/integration/client/world/ship_engine_views_test.gd` (nothing before the deal, the hologram's
 point, the turbines and the button at the level's places with each line to the nearest, the red lamps,
 the order on the mimic board and never at the boards, the breaker and charger lamps, the stage strips, the gills'
@@ -10047,7 +10081,10 @@ assets/
   and the shaders a package's look script loads, copied as data next to its asset for the client's port of that
   script (the ship's stations, #1550: `start_console/console_signal.gdshader` and `console_holo.gdshader`,
   `crystal_socket/socket_bay.gdshader`, `breaker_board/board_core.gdshader`; their `*_metal` shaders are the same
-  file as `ship/console_metal.gdshader`, used from there); never GDScript.
+  file as `ship/console_metal.gdshader`, used from there; the energy crystal's, #1556:
+  `energy_crystal/crystal_shell.gdshader`, `crystal_core.gdshader` and `crystal_metal.gdshader`, its own metal; and
+  the ship set's `ship/charger_arc.gdshader`, which the charger's lightning draws with);
+  never GDScript.
 - An art level set ships its assembled scene too, at the path its HANDOFF names under `levels/` (#1451): the
   ship package's `levels/ship/ship.tscn` over `environment/ship/`, and the lobby hall package's
   `levels/lobby/lobby_hall.tscn` over `environment/lobby/`, which instances the ship's scene and carries the
