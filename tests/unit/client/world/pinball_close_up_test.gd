@@ -141,6 +141,27 @@ func test_a_whole_seat_never_moves_the_controller_s_head() -> void:
 	assert_bool(_player.get_camera().global_transform.is_equal_approx(head)).is_true()
 
 
+func test_item_world_gives_life_view_the_close_up_lens_while_seated() -> void:
+	# ItemWorld.live_camera is LifeView's view_camera (Game._start_client): with no viewfinder up
+	# the seated player's lens is the camera the living see through (LifeView makes it current and
+	# raises no one through it), and the eye again once the seat's view is down.
+	var world := ItemWorld.new()
+	var close_up := world.pinball.close_up
+	close_up.model = _model
+	close_up.player = _player
+	close_up.marker = _marker
+	close_up.set_process(false)
+	_viewport.add_child(world)
+	assert_object(world.viewfinder.live_camera()).is_null()
+	assert_object(world.live_camera()).is_null()
+	_model.pinball.player = OWN
+	close_up.step(PinballCloseUp.EASE_S / 2.0)
+	assert_object(world.live_camera()).is_same(close_up.camera)
+	_model.pinball.player = -1
+	close_up.step(PinballCloseUp.EASE_S * 2.0)
+	assert_object(world.live_camera()).is_null()
+
+
 func test_in_the_hall_the_table_fills_the_close_up_s_view() -> void:
 	var level := (load(LOBBY) as PackedScene).instantiate()
 	_viewport.add_child(level)
