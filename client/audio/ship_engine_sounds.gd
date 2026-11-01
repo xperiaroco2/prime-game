@@ -16,8 +16,11 @@ extends RefCounted
 ## - the zap: zap_at(), from a KnockedDown (no event names a short circuit, BreakerChain's: it is
 ##   the presser's KnockedDown alone): a player downed within reach of a tripped breaker still off.
 ## Edges only, seeded at the first frame: a view built again (a new level, a late join) plays no old
-## problem, blast or finish. Outside the play phase (SoundChooser.in_play) nothing is due. Every
-## sound, range and place is a placeholder, "not a decision".
+## problem, blast or finish. Outside the play phase (SoundChooser.in_play) nothing is due, but the
+## frame play ends in still sounds its edges: the engine's last stage can end the round in the
+## same tick (its ZoneProgress and PhaseChanged(end) fold before one frame), and its roar must not
+## be lost.
+## Every sound, range and place is a placeholder, "not a decision".
 
 ## The pseudo-event a cue travels as (`id`: an SfxSet id, `position`: where it plays).
 const EVENT := &"EngineSound"
@@ -39,6 +42,8 @@ var _problems: Dictionary[int, bool] = {}
 var _steps: Dictionary[int, int] = {}
 var _blasts := 0
 var _done := false
+## Whether the last frame was in play: the frame a round ends in still sounds.
+var _was_in_play := false
 
 
 ## The range a sound `id` carries.
@@ -78,8 +83,10 @@ func due(
 			cues.append(cue(SfxSet.ENGINE_CALL, centre))
 		_pulse = pulse
 	_pulse_seen = calling
-	if first or not SoundChooser.in_play(model):
+	var playing := SoundChooser.in_play(model)
+	if first or not (playing or _was_in_play):
 		cues.clear()
+	_was_in_play = playing
 	return cues
 
 

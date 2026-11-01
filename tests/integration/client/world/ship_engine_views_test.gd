@@ -636,6 +636,32 @@ func test_the_engine_s_sounds_go_out_as_cues_and_the_roar_with_finished() -> voi
 	assert_int(finishes.size()).is_equal(1)
 
 
+func test_the_engine_that_ends_the_round_still_roars_and_finishes() -> void:
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
+	_place()
+	var cues: Array[Dictionary] = []
+	var finishes: Array[Vector3] = []
+	_view.sound_due.connect(
+		func(_event_name: StringName, fields: Dictionary) -> void: cues.append(fields)
+	)
+	_view.finished.connect(func(at: Vector3) -> void: finishes.append(at))
+	_view._process(0.0)
+	# The last stage ends the round in the same tick: its ZoneProgress and PhaseChanged(end) fold
+	# before one frame.
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 600, "needed": 600, "counting": false, "tick": 0}
+	)
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"end", 1000).to_dict())
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(1)
+	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
+	var console_up := _model.stations[CONSOLE].position + Vector3.UP
+	assert_that(finishes).is_equal([console_up] as Array[Vector3])
+	_view._process(0.0)
+	assert_int(cues.size()).is_equal(1)
+
+
 func _colour(part: MeshInstance3D) -> Color:
 	return ShipEngineViews.colour_of(part)
 

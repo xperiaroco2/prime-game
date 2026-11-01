@@ -149,6 +149,20 @@ func test_nothing_sounds_outside_the_play_phase() -> void:
 		assert_array(_due(true)).is_empty()
 
 
+func test_the_engine_that_ends_the_round_still_roars_in_that_frame() -> void:
+	_due(false)
+	# The last stage ends the round in the same tick: both fold before one frame.
+	_zone(600, 600)
+	_phase(&"end")
+	var cues := _due(false)
+	assert_int(cues.size()).is_equal(1)
+	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
+	# The next frames are outside play: silent.
+	_model.fold(&"EngineBlast", {"stage": 1})
+	assert_array(_due(false)).is_empty()
+	assert_array(_due(false)).is_empty()
+
+
 func test_a_knockdown_by_a_tripped_breaker_still_off_zaps_there() -> void:
 	_model.fold(&"EngineProblemOpened", _opened(1, [BOARD]))
 	_model.fold(&"BreakerChain", _chain(1, [FIRST_BREAKER, FIRST_BREAKER + 3], 1))
