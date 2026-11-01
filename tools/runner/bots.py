@@ -14,7 +14,7 @@ scenario its command log.
 process over the loopback on the simulated clock (with `--enet` or `--transport enet`, over ENet on 127.0.0.1 on a free
 port; with `--transport webrtc`, over WebRTC there, paced to the real clock, the fault shim on). Without `--seed` the
 seed is random and printed first, so a night run that fails names the seed that replays it. The runner kills a run
-after 60 s per seed over the loopback, 120 s over a network (#508: above the scenario's 90 s time limit).
+after 150 s per seed over the loopback (#1545), 120 s over a network (#508: above the scenario's 90 s time limit).
 """
 
 from __future__ import annotations
@@ -43,8 +43,11 @@ NAME_RE = re.compile(r"[a-z0-9_]+")
 # shared name made the later run overwrite the earlier one's logs (#1171).
 RUN_LOGS = LOGS / "run"
 CHAOS_TARGET = "tests/harness/chaos/chaos_main.gd"
-# Per seed over the loopback: three runs of about 2 s each (the long match about 3 s).
-CHAOS_SECONDS_PER_SEED = 60
+# Per seed over the loopback: three runs of one match, 2337 frames for every seed (the long match 2937). On
+# 2026-11-01 (#1545) a seed took 25.7 s on CI (the short match; the long one about 20 s a seed there in its own job)
+# and on the engineer's machine 53.8 s and 56.7 s for two seeds, the long match 63.2 s, so the old 60 s killed a
+# passing seed there under a little load. The timeout leaves more than twice the longest of them.
+CHAOS_SECONDS_PER_SEED = 150
 # Per seed over ENet or WebRTC: one run, over WebRTC paced to the real clock (about 16 s). Above ChaosScenario's 90 s
 # time limit (with Godot's start and the report after it), so a seed that stalls fails with the scenario's reason, not
 # at the kill with none (#508).
@@ -140,7 +143,7 @@ def chaos_args(
 
 
 def chaos_seconds_per_seed(transport: str | None) -> int:
-    """The runner's kill per chaos seed: 60 s over the loopback (`transport` None), 120 s over a network."""
+    """The runner's kill per chaos seed: 150 s over the loopback (`transport` None), 120 s over a network."""
     return CHAOS_SECONDS_PER_SEED if transport is None else CHAOS_NETWORK_SECONDS_PER_SEED
 
 

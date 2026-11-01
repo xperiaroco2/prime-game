@@ -126,8 +126,9 @@ class ChaosTest(unittest.TestCase):
             ],
         )
 
-    def test_the_kill_per_seed_is_60_s_over_the_loopback_and_120_s_over_a_network(self) -> None:
+    def test_the_kill_per_seed_is_150_s_over_the_loopback_and_120_s_over_a_network(self) -> None:
         # #508: over WebRTC a seed is paced to the real clock, and ChaosScenario's 90 s time limit must report first.
+        # #1545: over the loopback a seed took up to 63 s on the engineer's machine; 150 s is more than twice that.
         with (
             mock.patch.object(bots.launch, "main", return_value=0) as run,
             mock.patch.object(verify, "free_udp_port", return_value=23997),
@@ -138,7 +139,7 @@ class ChaosTest(unittest.TestCase):
                 bots.chaos(seed=3, seconds=45, **options)
         self.assertEqual(
             [call.kwargs["seconds"] for call in run.call_args_list],
-            [60, 180, 45, 120, 360, 45, 120, 360, 45, 120, 360, 45],
+            [150, 450, 45, 120, 360, 45, 120, 360, 45, 120, 360, 45],
         )
 
     def test_the_network_kill_leaves_the_scenario_time_limit_room_to_report(self) -> None:
