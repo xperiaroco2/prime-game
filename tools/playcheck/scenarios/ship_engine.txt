@@ -3,17 +3,23 @@
 # the skat's clearing (its start markers, #1492) up the ship's ramp into its hall (`to_ship`: the
 # estate_walk_test's walks, found by trial), until the HUD names the console under the crosshair,
 # then steps back: the console's hologram over its pedestal, its three empty stage strips and the
-# mimic board (shot). It walks to the nearest gill set (shot: its slits), looks back at the
-# hologram (shot) and walks to the nearest breaker (shot: no lamp or mark there shows the breakers'
-# order). Back at the console, E starts the engine; the first problem opens: a red lamp over its station
-# (shot); nobody mends it, so its own deadline (its kind's `seconds`) runs out and the engine blasts (shot).
+# mimic board (shot). It walks to the east gill set (shot: its slits), looks back at the hologram
+# (shot) and walks east along the hall's axis to the nearest breaker (`to_breakers`, shot: no lamp
+# or mark there shows the breakers' order). Back at the console, E starts the engine; the first
+# problem opens: a red lamp over its station (shot); nobody mends it, so its own deadline (its
+# kind's `seconds`) runs out and the engine blasts (shot).
 # The waypoints are x,z in metres on the estate's ground: a point before the ramp's foot, which
 # every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
-# both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall").
+# both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); east of the console, on the
+# walk "ship, hall to the east lens room".
+# Each step back lasts until the HUD no longer names the station (#1530): a count of frames walks
+# a distance that depends on the frame rate (40 frames were 6 m at 7 fps, 0.2 m at 190).
 players 1
 windows 1
 map res://levels/estate/estate.tscn
 route to_ship 116,58.5 116,64 116,71.6
+route east 117.4,70.6
+route to_breakers 118,71.8
 
 window 1
 wait phase lobby
@@ -32,19 +38,21 @@ wait text hud.aim has Engine console timeout=120
 release move_forward
 # A step back, still facing the console, so the hologram over it is in the shot.
 hold move_back
-frames 40
+wait text hud.aim lacks Engine console timeout=30
+frames 20
 release move_back
 frames 30
 shot console
 aim off
-# Before the engine runs (an open problem unmended past its deadline blasts the ship): the nearest
+# Before the engine runs (an open problem unmended past its deadline blasts the ship): the east
 # gill set, then a step back so the slits over the low button are in the shot.
-aim station gill_button
+aim station gill_button via east
 hold move_forward
 wait text hud.aim has Gill button timeout=30
 release move_forward
 hold move_back
-frames 40
+wait text hud.aim lacks Gill button timeout=30
+frames 20
 release move_back
 frames 30
 aim off
@@ -53,13 +61,14 @@ aim station engine_console
 frames 40
 shot console_from_the_gills
 aim off
-# The nearest breaker, then a step back so its board's wall is in the shot.
-aim station breaker
+# The nearest breaker east of the console, then a step back so its board's wall is in the shot.
+aim station breaker via to_breakers
 hold move_forward
 wait text hud.aim has Breaker timeout=30
 release move_forward
 hold move_back
-frames 40
+wait text hud.aim lacks Breaker timeout=30
+frames 20
 release move_back
 frames 30
 shot breakers
@@ -74,7 +83,8 @@ wait event ButtonPressed
 wait event EngineProblemOpened timeout=60
 aim station engine_console
 hold move_back
-frames 15
+wait text hud.aim lacks Engine console timeout=30
+frames 20
 release move_back
 frames 30
 shot problem_open
