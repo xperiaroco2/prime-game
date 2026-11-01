@@ -3,7 +3,9 @@ extends Node3D
 ## Plays the world sounds (ARCHITECTURE §4.7, §4.7.43; the M4 ADR's D9, E33 (a); M4-8; #525): for
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
-## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
+## the Effects bus (D15), with `max_distance` the same range, freed when it ends. A sound that
+## carries farther (SoundChooser.Sound.range_m: the ship engine's blast and roar, §4.7.64, #1501)
+## is cut at, and fades to, its own range; the engine's cues come from ShipEngineViews' sound_due.
 ## As it starts, one ray from the ears to the sound's aim (SoundChooser's SWING_AIM_M, ITEM_AIM_M
 ## or THROW_AIM_M above it) against the world layer of the client's own level (the M5 ADR §1.6,
 ## E42 (a), D13 (a); M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the
