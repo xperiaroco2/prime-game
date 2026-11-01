@@ -3510,20 +3510,20 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
 #### 4.7.28 Give-up on F and the controls the player rebinds (#211)
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
   reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
-- `client/app/Controls`: the 25 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, `throw` after `swap`, #851, `use_secondary` after `use`, #1446, and `place_1` to `place_3` after `put_down`, #1218, and `flipper_left` and `flipper_right` after `swap`, #1400) in order with their `control.*` deck
+- `client/app/Controls`: the 23 rebindable actions of Settings › Controls (#488's 16, `crouch` and `sneak` after `jump`, #951, #1009, `throw` after `swap`, #851, `use_secondary` after `use`, #1446, and `place_1` to `place_3` after `put_down`, #1218) in order with their `control.*` deck
   keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
   living, `interact`, `use`, `put_down`, `swap` and the places' 1, 2, 3 in the lobby too (#1408:
   `GamePlayer.apply_flags` lets `ItemInteractions` listen there, the Lobby accepting the hand intents and the Draw,
   #1388; `throw` and the raise stay the
-  round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` and the flippers (Z and Slash, provisional, #1400) the lobby, the spectate
+  round's), the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
   buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
   check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
-  act on their `project.godot` key but have no Settings row yet, with their phases, and is empty now (`use_secondary`, the right button, #1438, the lobby and the living: the item's own action, the mug's drink, left it for a row in #1446 with `control.use_secondary`, so `use` on the right button warns as a clash; `throw`, G, #645, alive, left it
+  act on their `project.godot` key but have no Settings row yet, with their phases: now the pinball's flippers `flipper_left` (Z) and `flipper_right` (Slash), provisional, the lobby, read by `PinballKeys` while the own player is seated (#1400, §4.7.63), until the deck has `control.flipper_*` (asked on #150; a row would show the raw key). Earlier ones left it (`use_secondary`, the right button, #1438, the lobby and the living: the item's own action, the mug's drink, left it for a row in #1446 with `control.use_secondary`, so `use` on the right button warns as a clash; `throw`, G, #645, alive, left it
   for a row in #851; `crouch`, Ctrl, #791, in #951; `sneak`, the left Alt, #990, in #1009; the places, 1 to 3, #1218, in #1421). `bind()` refuses a binding that would put an action of such a phase on
   that key (`unlisted_on()`; one press must never do both), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
@@ -5438,7 +5438,7 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   or the own life no longer living; the eye is made current again only if the lens still was, so it never steals the
   downed or the spectate camera. `ItemWorld.live_camera()` (the viewfinder's lens, else the close-up's) is
   `LifeView.view_camera`. The Esc menu opens over it and changes nothing there.
-- **The keys.** `PinballKeys`: the held state of the Settings rows `flipper_left` and `flipper_right` (§4.7.28) goes
+- **The keys.** `PinballKeys`: the held state of the actions `flipper_left` (Z) and `flipper_right` (Slash) (`Controls.UNLISTED` until the deck has their Settings rows, §4.7.28) goes
   as one `Flippers(left, right)` intent on each change, only while the own player is seated. A key counts only while
   `listening` (`GamePlayer.apply_flags`: no Esc menu, the lobby screen), `reads_device_input` and the window has the
   focus; when one stops, the next step sends the release (no stuck flipper). At most one intent per `SEND_GAP_MSEC`

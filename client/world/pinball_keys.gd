@@ -1,8 +1,9 @@
 class_name PinballKeys
 extends Node
 ## The seated player's flipper keys (#1400; ARCHITECTURE §4.7.63, §7.1.22): the held state of
-## `flipper_left` and `flipper_right` (Settings rows, §4.7.28) goes to the host as one
-## `Flippers(left, right)` intent on each change, and only while the own player holds the seat
+## `flipper_left` and `flipper_right` (`Controls.UNLISTED`; Settings rows once the deck has them,
+## §4.7.28) goes to the host as one `Flippers(left, right)` intent on each change, and only while
+## the own player holds the seat
 ## (ClientPinball.player). Nothing is predicted: the table view turns the flippers from the host's
 ## PinballState, which everyone gets.
 ##

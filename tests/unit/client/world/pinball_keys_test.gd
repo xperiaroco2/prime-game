@@ -116,11 +116,19 @@ func test_a_new_seat_starts_from_the_host_s_state() -> void:
 	assert_array(_sent).is_empty()
 
 
-func test_the_physics_step_reads_the_rebindable_actions() -> void:
+func test_the_physics_step_reads_the_lobby_actions_controls_keeps_free() -> void:
+	# No Settings row until the deck has `control.flipper_*` (#150): Controls.UNLISTED keeps Z and
+	# Slash for them in the lobby, so no lobby action is bound onto a flipper.
 	assert_bool(InputMap.has_action(PinballKeys.LEFT)).is_true()
 	assert_bool(InputMap.has_action(PinballKeys.RIGHT)).is_true()
-	assert_bool(Controls.ACTIONS.has(PinballKeys.LEFT)).is_true()
-	assert_bool(Controls.ACTIONS.has(PinballKeys.RIGHT)).is_true()
+	(
+		assert_bool(Controls.UNLISTED.get(PinballKeys.LEFT, 0) == Controls.ControlContext.LOBBY)
+		. is_true()
+	)
+	(
+		assert_bool(Controls.UNLISTED.get(PinballKeys.RIGHT, 0) == Controls.ControlContext.LOBBY)
+		. is_true()
+	)
 
 
 func test_a_rebound_key_is_the_one_the_physics_step_reads() -> void:

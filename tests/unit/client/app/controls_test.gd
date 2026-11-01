@@ -37,11 +37,11 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 		assert_bool(controls.is_default(action)).is_true()
 
 
-func test_there_are_the_twenty_five_actions_of_settings_controls_each_with_its_phases() -> void:
+func test_there_are_the_twenty_three_actions_of_settings_controls_each_with_its_phases() -> void:
 	# #488's rule 5: 16 rows, the crouch's (#951), the throw's (#851), the sneak's (#1009) and the
-	# three places' (#1218), the item's own action (#1446) and the two flippers (#1400), 25;
+	# three places' (#1218) and the item's own action (#1446), 23;
 	# rule 6: the implementer defines the phase of each action.
-	assert_int(Controls.ACTIONS.size()).is_equal(25)
+	assert_int(Controls.ACTIONS.size()).is_equal(23)
 	assert_array(Controls.PHASES.keys()).contains_exactly(Controls.ACTIONS.keys())
 	for action: StringName in Controls.ACTIONS:
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
@@ -52,7 +52,7 @@ func test_there_are_the_twenty_five_actions_of_settings_controls_each_with_its_p
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
-func test_the_twenty_five_actions_have_the_issues_deck_keys_and_defaults() -> void:
+func test_the_twenty_three_actions_have_the_issues_deck_keys_and_defaults() -> void:
 	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
 	var table: Array[Array] = [
 		[&"move_forward", &"control.forward", KEY_W],
@@ -71,8 +71,6 @@ func test_the_twenty_five_actions_have_the_issues_deck_keys_and_defaults() -> vo
 		[&"place_2", &"control.place_2", KEY_2],
 		[&"place_3", &"control.place_3", KEY_3],
 		[&"swap", &"control.swap", KEY_X],
-		[&"flipper_left", &"control.flipper_left", KEY_Z],
-		[&"flipper_right", &"control.flipper_right", KEY_SLASH],
 		[&"throw", &"control.throw", KEY_G],
 		[&"map", &"control.map", KEY_M],
 		[&"give_up", &"control.give_up", KEY_F],
@@ -166,8 +164,17 @@ func test_the_sneak_is_a_row_on_the_left_alt_that_rebinds_and_clashes_where_it_a
 	var sneak_contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.ALIVE
 	assert_int(Controls.PHASES[&"sneak"]).is_equal(sneak_contexts)
 	# The three places (#1218) are Settings rows since ui-2.5.1 (#1421) and the item's own action on
-	# the right button (#1438) since ui-2.5.3 (#1446): UNLISTED is empty.
-	assert_dict(Controls.UNLISTED).is_empty()
+	# the right button (#1438) since ui-2.5.3 (#1446): UNLISTED holds only the pinball's flippers
+	# (#1400, the lobby's), until the deck has their rows.
+	(
+		assert_dict(Controls.UNLISTED)
+		. is_equal(
+			{
+				&"flipper_left": Controls.ControlContext.LOBBY,
+				&"flipper_right": Controls.ControlContext.LOBBY,
+			}
+		)
+	)
 	for place: StringName in [&"place_1", &"place_2", &"place_3"]:
 		assert_bool(Controls.ACTIONS.has(place)).override_failure_message(place).is_true()
 		# They draw in the lobby too (#1408: the Lobby takes Draw).
@@ -318,6 +325,20 @@ func test_use_on_the_right_button_clashes_with_the_items_own_action_which_is_a_r
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
+func test_a_lobby_action_on_a_flipper_key_is_refused_while_the_flippers_are_unlisted() -> void:
+	# #1400: the flippers act on Z and Slash in the lobby (PinballKeys) but are no Settings row
+	# until the deck has `control.flipper_*` (#150): a lobby action there would do both on one
+	# press, so it is refused; a round-only action (the throw) may take Z.
+	var controls := Controls.new()
+	assert_bool(Controls.ACTIONS.has(&"flipper_left")).is_false()
+	assert_array(Controls.unlisted_on(&"jump", _press(KEY_Z))).contains_exactly([&"flipper_left"])
+	assert_bool(controls.bind(&"jump", _press(KEY_Z))).is_false()
+	assert_bool(controls.bind(&"ready", _press(KEY_SLASH))).is_false()
+	assert_bool(controls.is_default(&"jump")).is_true()
+	assert_array(Controls.unlisted_on(&"throw", _press(KEY_Z))).is_empty()
+	assert_bool(controls.bind(&"throw", _press(KEY_Z))).is_true()
+
+
 func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	var controls := Controls.new()
 	var shifted := _press(KEY_K)
@@ -328,7 +349,7 @@ func test_a_binding_is_a_bare_physical_key_or_mouse_button() -> void:
 	assert_int(bound.physical_keycode).is_equal(KEY_K)
 	assert_int(bound.keycode).is_equal(KEY_NONE)
 	assert_bool(bound.shift_pressed or bound.pressed).is_false()
-	# Esc is fixed, a joypad is out of scope, and only the 25 actions rebind.
+	# Esc is fixed, a joypad is out of scope, and only the 23 actions rebind.
 	assert_bool(controls.bind(&"jump", _press(KEY_ESCAPE))).is_false()
 	assert_bool(controls.bind(&"jump", InputEventJoypadButton.new())).is_false()
 	assert_bool(controls.bind(&"debug_overlay", _press(KEY_K))).is_false()
