@@ -7,7 +7,8 @@ extends RefCounted
 ## A room is a Node3D of the level with `metadata/size_m` (Vector2i or Vector2, whole metres), the
 ## level piece conventions (PR #611): its origin is its north-west floor corner (its centre with
 ## `metadata/centred`, an estate lot), its plan rect runs `size_m` along +X and +Z, unrotated;
-## plan x is X and plan y is Z.
+## plan x is X and plan y is Z. A room inside another room is part of it, never a second room (the
+## estate's ship lot instances the art's ship scene, whose root declares its own size, #1499).
 ##
 ## The room record (#306) is that node: its id `metadata/room_id` and its name `metadata/name_key`,
 ## a copy deck key with English and Ukrainian text, beside the outline's `size_m`. A room without
@@ -86,11 +87,14 @@ static func from_level(level: Node, mode: GameMode) -> MapData:
 static func rooms_of(level: Node) -> Array[Room]:
 	var found: Array[Room] = []
 	var taken: Array[StringName] = []
+	var outer: Array[Node3D] = []
 	var nodes: Array[Node] = [level]
 	nodes.append_array(level.find_children("*", "Node3D", true, false))
 	for node: Node in nodes:
 		var room := node as Node3D
 		if room == null or not room.has_meta(SIZE_KEY):
+			continue
+		if outer.any(func(around: Node3D) -> bool: return around.is_ancestor_of(room)):
 			continue
 		var given: Variant = room.get_meta(SIZE_KEY)
 		var size := Vector2.ZERO
@@ -100,6 +104,7 @@ static func rooms_of(level: Node) -> Array[Room]:
 			size = given as Vector2
 		else:
 			continue
+		outer.append(room)
 		var id := StringName(str(room.get_meta(ID_KEY, String(room.name).to_snake_case())))
 		if taken.has(id):
 			push_warning("MapData: the room %s repeats the id %s, left out" % [room.get_path(), id])

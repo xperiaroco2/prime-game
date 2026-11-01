@@ -122,6 +122,20 @@ func test_a_room_repeating_an_id_is_left_out() -> void:
 	assert_that(rooms[0].rect).is_equal(Rect2(0, 0, 4, 4))
 
 
+func test_a_room_inside_a_room_is_part_of_it_not_a_second_room() -> void:
+	# The estate's ship lot instances the art's ship scene, whose root declares its own size (#1499):
+	# the outer room, the level's record, is the one room there.
+	var level: Node3D = auto_free(Node3D.new())
+	var lot := _room(level, "Ship", Vector3(10, 0, 0), Vector2i(26, 14))
+	_room(lot, "Art", Vector3.ZERO, Vector2(26.11, 22.1))
+	_room(level, "Garage", Vector3(40, 0, 0), Vector2i(4, 4))
+	var rooms := MapData.rooms_of(level)
+	assert_int(rooms.size()).is_equal(2)
+	assert_str(String(rooms[0].id)).is_equal("ship")
+	assert_that(rooms[0].rect).is_equal(Rect2(10, 0, 26, 14))
+	assert_str(String(rooms[1].id)).is_equal("garage")
+
+
 func test_a_marker_is_placed_as_the_hosts_reader_places_it() -> void:
 	# A level root off the origin counts; a top_level holder is placed by its own transform alone
 	# (LevelWorld.transform_in_scene); a marker in two spawn groups is the reader's load error.

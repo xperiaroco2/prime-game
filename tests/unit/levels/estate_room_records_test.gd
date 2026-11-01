@@ -101,10 +101,14 @@ func _map() -> Node3D:
 	return auto_free((load(EstateDoc.MAP) as PackedScene).instantiate()) as Node3D
 
 
-## The map's rooms: the nodes that declare `size_m`, in tree order.
+## The map's rooms: the nodes that declare `size_m`, in tree order, none inside another room
+## (MapData's rule: the ship lot's art scene declares its own size, #1499).
 func _rooms_of(map: Node3D) -> Array[Node3D]:
 	var rooms: Array[Node3D] = []
 	for node in map.find_children("*", "Node3D", true, false):
-		if node.has_meta(MapData.SIZE_KEY):
-			rooms.append(node as Node3D)
+		if not node.has_meta(MapData.SIZE_KEY):
+			continue
+		if rooms.any(func(around: Node3D) -> bool: return around.is_ancestor_of(node)):
+			continue
+		rooms.append(node as Node3D)
 	return rooms
