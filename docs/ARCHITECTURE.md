@@ -1764,7 +1764,9 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   (2026-10-03). #1197's two House scenarios add about 10 s to the one-process run (19 scenarios: 130 s on a busy
   machine, 2026-10-21), and #1209's `bots_carry_items_between_the_house_storeys` about 20 s (64 s simulated; the
   20 scenarios: 133.5 s on a busy machine, 2026-10-21), which ends, after a run of every scenario, with the task events' coverage
-  (`BOTS coverage: passed`, §4.6.4.1).
+  (`BOTS coverage: passed`, §4.6.4.1). #1498's two estate engine scenarios play the real 5-minute clock and add
+  about 66 s (28 scenarios: about 240 s on the engineer's machine, 2026-11-01), so the one-process limit
+  (`ONE_PROCESS_SECONDS` in `tools/runner/bots.py`) went from 300 s to 600 s.
 - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
   session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
   file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s

@@ -30,8 +30,10 @@ from .common import LOGS, OUT, Failure, say
 
 TARGET = "tests/harness/bots/bots_main.gd"
 BOTS_OUT = OUT / "bots"
-# Every scenario in one process: about 8 s on the engineer's machine (#102); the timeout leaves room for slow CI.
-ONE_PROCESS_SECONDS = 300
+# Every scenario in one process. It was about 8 s on the engineer's machine (#102); since #1498 the estate's two engine
+# scenarios play the real 5-minute clock (about 173 s and 308 s of match time), and the whole run took about 240 s
+# there (CI runs about 2.3 times faster). The timeout leaves more than twice that for a slow or busy machine.
+ONE_PROCESS_SECONDS = 600
 # Over ENet or WebRTC the scenarios run on the real clock: their own length plus joining and the host's wait for the
 # files.
 ENET_SECONDS = 180
