@@ -2485,7 +2485,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | a phase with no level (the tutorial's `gather`, #601, §4.7.44) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the map and tasks screen on M (§4.7.33); in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
-| End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
+| End | post game screen (#498, §4.7.31): black, how the round ended ("Great party!", "Time's up"), the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
@@ -3766,7 +3766,7 @@ a head over a wall and a player beyond 10 m without one).
 #### 4.7.31 The post game screen (#498)
 `EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
 `docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
-(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title` (`end.title`), the winner line,
+(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title`, the winner line,
 `Result` (ToyColumnEight) holding `Reason`, the 8 px `Gap` and `Back`. Pack variations only, no override.
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
   mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
@@ -3779,6 +3779,9 @@ a head over a wall and a player beyond 10 m without one).
   line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
   model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
   countdown, so the next End starts without the last round's.
+- **The title.** How the round ended, by the same reason id (`TITLE_KEYS`, the deck's keys since ui-2.5.1 and the
+  handoff at ui-2.5.4, #1559): `end.title.party` for `every_task_done`, `end.title.time_up` for `time_up`; any other
+  id keeps `end.title` ("End of the round"). The handoff's band and hero title around it are #1319's.
 - **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
   (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
@@ -3791,7 +3794,7 @@ a head over a wall and a player beyond 10 m without one).
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
-without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
+without a role; a side with no key; each reason, its title, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
 client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657, started as a new playback each End: not `playing`, which the 0.12 s file loses on the headless driver's mixing thread under load, #948),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
 `--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
