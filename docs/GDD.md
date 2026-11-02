@@ -146,7 +146,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   (dissidents).
 - **End:** a black screen that names only the winning side; the game is frozen and nobody hears anybody. The host
   returns everyone to the lobby. When the engine's last stage passes, the round first lingers about 4 s (provisional)
-  so everyone sees the finish (§8: the roar, the flame, the light show); the win is decided at the last stage, the
+  so everyone hears the finish (§8: the ship's roar; no show); the win is decided at the last stage, the
   timer stops there, and the players keep moving and talking until End (#1502).
 
 The base mode has no meetings and no votes.
@@ -601,8 +601,8 @@ the expert knows every fix by heart.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
   aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
   drops one stage (the bar loses that third); a fail on stage 1 restarts stage 1.
-- **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
-  task is done.
+- **The end:** the last stage passed, the ship roars, then the End. The task is done. No show: no flame, no light
+  show, no flash (the engineer, 2026-11-02, #507 c6573053399).
 - **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, reading out a
   wrong order at the console (the friend at the board is knocked down: raise them, "I mixed it up", or run away
   laughing), switching a wrong breaker on purpose, letting a timer run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
