@@ -4,7 +4,8 @@
   last PR of the tooling track the engineer merges by hand under the old rule; the launch budget amended 2026-10-05
   (the weekly budget ADR's N1 (b), below); the designer's PRs and the content area amended 2026-10-08 (#518), and
   the content area's gate the same day (#563, its section); the decision tiers amended 2026-10-29 (#1380: only
-  taste questions are asked, every technical choice takes the recommendation; the last section)
+  taste questions are asked, every technical choice takes the recommendation); nothing new and visible without his yes,
+  amended 2026-11-02 (#1565; the last section)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
@@ -179,3 +180,14 @@ the human questions of taste. The decision tiers now read:
 - A technical "Needs the engineer" item in a PR is answered with that standing word: its line ends "Answered:
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6495904155 (the recommendation, option <x>)",
   added with `gh pr edit --body-file`, and the choice goes into the report. A taste item still waits for his answer.
+
+## Amendment 2026-11-02: nothing new and visible without his yes (#1565)
+
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573070345
+
+After an unrequested finish effect (#1502, PR #1544, removed in #1563) his word narrows the taste tier: details and
+numbers inside something he approved or the GDD names explicitly are still taken by the recommendation, but anything
+new and visible (an effect, a prop, a look, a UI element, an animation) that the GDD and his words do not name is
+never built without his yes; the rest is built, that part left out or the plainest existing placeholder kept, and it
+is listed in the report with a picture, options and a recommendation. The wording and cases:
+[the intervention](../interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md).
