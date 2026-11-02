@@ -138,9 +138,9 @@ class GameView:
 		var hud := ui.hud
 		match field:
 			"hud.health":
-				found = ["%.2f" % hud.health.fill.value, hud.health_box.is_visible_in_tree()]
+				found = ["%.2f" % hud.health.fraction, hud.health_box.is_visible_in_tree()]
 			"hud.stamina":
-				found = ["%.2f" % hud.stamina.fill.value, hud.stamina_box.is_visible_in_tree()]
+				found = ["%.2f" % hud.stamina.fraction, hud.stamina_box.is_visible_in_tree()]
 			"hud.mic":
 				found = ["on" if hud.shows_mic_on() else "off", hud.mic.is_visible_in_tree()]
 			"hud.hand":

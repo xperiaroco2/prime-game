@@ -16,10 +16,11 @@ extends RefCounted
 ## microphone shows; dead (spectating, #168) nothing of the HUD shows (no time, role, bars, slots or
 ## mic), so nothing of the watched player's either (the M4 ADR's §3 item 2): its name is LifeHud's.
 
-## The UI pack's icon of each item kind (ToyIcons); a kind with none shows its name instead.
+## The UI pack's icon of an item kind whose line icon is not `item-<kind>` (ToyIcons; the handoff
+## s07 draws the item line icons, `icons/item-*.svg`); a kind with neither shows its name alone.
 const ITEM_ICONS: Dictionary[StringName, StringName] = {
 	&"package": &"item",
-	&"knife": &"knife",
+	&"knife": &"item-knife",
 }
 ## The rescuer's cue: the deck has no raise sentence (ui-0.4.0, ui-0.5.0), so this is a stopgap,
 ## the nearest key with `{key}`, the tutorial's raise step ("Hold {key} next to them"). 6B on
@@ -41,6 +42,9 @@ const SIT_CUE := "hud.sit"
 const ZAP_NOTICE_KEY := "hud.quest_item_area"
 const ZAP_NOTICE_EN := "Quest items can't leave the quest's area"
 const ZAP_NOTICE_UK := "Квестові предмети не можна виносити із зони завдання"
+## The roster's own and dead rows (the handoff s07).
+const ROSTER_SELF := "hud.roster.self"
+const ROSTER_DEAD := "hud.roster.dead"
 
 
 ## What the HUD knows besides the model and the mode.
@@ -95,6 +99,22 @@ class Slot:
 		return item.is_empty()
 
 
+## One row of the roster (#1570, the handoff s07's Roster): a player of the round by its name and
+## body colour, public to every player; `tag` is the own role's key on the own row and the
+## teammates' rows of a role whose players know each other (the own Teammates knowledge, the
+## same as the plates' mark, §4.7.29), else "".
+class Row:
+	extends RefCounted
+	var peer := 0
+	var name := ""
+	var colour := Color.WHITE
+	## The own row (first, hud.roster.self).
+	var own := false
+	## Dead as the public events say (hud.roster.dead).
+	var dead := false
+	var tag := ""
+
+
 ## The HUD's state; a default one shows nothing.
 class Shown:
 	extends RefCounted
@@ -102,6 +122,19 @@ class Shown:
 	var time := ""
 	## The own role's deck key (or display name); "" hides the chip.
 	var role := ""
+	## The role's tile takes the danger outline (ToyStickerAlert): the own role's players know each
+	## other (the handoff's `human`, the hidden side), else ToySticker.
+	var role_alert := false
+	## The roster's rows, the own first; empty hides the roster.
+	var roster: Array[Row] = []
+	## The neighbours' anger, 0 to 1; negative hides the meter and its divider (the game's modes
+	## have no anger yet, #1312: nothing sets it but a test or a preview).
+	var anger := -1.0
+	## The siren is on (the anger rises or is full).
+	var siren := false
+	## The cops' countdown as m:ss while the cops' minute runs; "" for none. It hides the round
+	## timer (one clock, the engineer 2026-10-22) and shows the danger edge and banner.
+	var cops := ""
 	## The vitals' column shows (the own player in the round, not spectating): the microphone and,
 	## when `bars`, health and stamina (not while downed).
 	var vitals := false
@@ -162,6 +195,8 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	if left >= 0:
 		shown.time = clock_text(left)
 	shown.role = role_key(model, mode)
+	shown.role_alert = role_alert(model, mode)
+	shown.roster = roster_of(model, mode)
 	shown.vitals = true
 	shown.bars = true
 	shown.health = health_of(model, mode)
@@ -248,6 +283,43 @@ static func role_key(model: ClientModel, mode: GameMode) -> String:
 	return ContentNames.role(model.role, mode)
 
 
+## Whether the own role's tile takes the danger outline: its players know each other (the mode's
+## GameRole.knows_teammates; the handoff draws it for the hidden side, the humans).
+static func role_alert(model: ClientModel, mode: GameMode) -> bool:
+	if model.role.is_empty() or mode == null:
+		return false
+	var found := mode.find_role(model.role)
+	return found != null and found.knows_teammates
+
+
+## The roster's rows (the handoff s07): every player of the session in its order with the own row
+## first, a player who left gone; names and colours are public, `dead` comes from the public
+## events and `tag` from the own Teammates knowledge alone (never another role's).
+static func roster_of(model: ClientModel, mode: GameMode) -> Array[Row]:
+	var rows: Array[Row] = []
+	var known: PackedInt32Array = model.teammates.get(model.role, PackedInt32Array())
+	var tag := role_key(model, mode) if not known.is_empty() else ""
+	var peers: Array[int] = []
+	if model.roster.has(model.own_peer):
+		peers.append(model.own_peer)
+	for peer: int in model.roster:
+		if peer != model.own_peer:
+			peers.append(peer)
+	for peer in peers:
+		var life := model.life_of(peer)
+		if life == ClientModel.Life.LEFT:
+			continue
+		var row := Row.new()
+		row.peer = peer
+		row.name = model.roster[peer].name
+		row.colour = BodyColours.of(model.colour_of(peer))
+		row.own = peer == model.own_peer
+		row.dead = life == ClientModel.Life.DEAD
+		row.tag = tag if row.own or known.has(peer) else ""
+		rows.append(row)
+	return rows
+
+
 ## The own health as a fraction of the mode's; full before the first SelfStatus.
 static func health_of(model: ClientModel, mode: GameMode) -> float:
 	var most := mode.player_rules.health * Ticks.THOUSANDTHS
@@ -273,6 +345,26 @@ static func slot_of(model: ClientModel, mode: GameMode, item_id: int) -> Slot:
 		return slot
 	var kind := mode.find_item_kind(item.kind)
 	slot.item = ContentNames.item(item.kind, mode)
-	slot.icon = ITEM_ICONS.get(item.kind, &"")
+	# A kind the mode does not know has no icon: its id alone shows.
+	slot.icon = icon_of(item.kind) if kind != null else &""
 	slot.two_handed = kind != null and kind.is_two_handed()
 	return slot
+
+
+## The pack icon of item kind `kind`: ITEM_ICONS', else the pack's `item-<kind>` where the game
+## imported one, else &"" (the slot shows the name alone).
+static func icon_of(kind: StringName) -> StringName:
+	if ITEM_ICONS.has(kind):
+		return ITEM_ICONS[kind]
+	var line_icon := StringName("item-%s" % kind)
+	return line_icon if ResourceLoader.exists(ToyIcons.IMPORTED % line_icon) else &""
+
+
+## A roster row's name as drawn, translated: the own through hud.roster.self, a dead player's
+## through hud.roster.dead, else the bare name (data).
+static func roster_name(row: Row) -> String:
+	if row.own:
+		return String(TranslationServer.translate(ROSTER_SELF)).format({"name": row.name})
+	if row.dead:
+		return String(TranslationServer.translate(ROSTER_DEAD)).format({"name": row.name})
+	return row.name

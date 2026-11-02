@@ -38,7 +38,7 @@ func test_the_hud_shows_the_own_time_role_vitals_and_slots() -> void:
 	assert_str(shown.hand.icon).is_equal("item")
 	assert_bool(shown.hand.two_handed).is_true()
 	assert_str(shown.belt.item).is_equal("item.knife")
-	assert_str(shown.belt.icon).is_equal("knife")
+	assert_str(shown.belt.icon).is_equal("item-knife")
 	assert_bool(shown.belt.two_handed).is_false()
 	assert_str(shown.aim).is_empty()
 	assert_float(shown.raising).is_negative()
