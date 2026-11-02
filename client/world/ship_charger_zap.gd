@@ -189,8 +189,8 @@ func step(delta: float, charging: bool, charge: float, flash: float) -> void:
 	if _flashing and not _flashed:
 		_flashed = true
 		for k: int in SPARK_BURST:
-			var ends := _arc_ends(k % _locals.size())
-			_spark(ends[1], (ends[0] - ends[1]).normalized(), 1.4)
+			var pair := _arc_ends(k % _locals.size())
+			_spark(pair[1], (pair[0] - pair[1]).normalized(), 1.4)
 		for k: int in GLINT_BURST:
 			_glint()
 	if not _flashing:
@@ -247,12 +247,12 @@ func _reroll() -> void:
 		a.flicker = _rng.randf_range(0.55, 1.0)
 		if not a.on:
 			continue
-		var ends := _arc_ends(i)
-		var out: Vector3 = (ends[0] - ends[1]).normalized()
+		var pair := _arc_ends(i)
+		var out: Vector3 = (pair[0] - pair[1]).normalized()
 		for k: int in _rng.randi_range(SPARKS_HIT[0], SPARKS_HIT[1]):
-			_spark(ends[1], out, 1.0)
+			_spark(pair[1], out, 1.0)
 		if _rng.randf() < SPARK_ELECTRODE:
-			_spark(ends[0], -out, 0.7)
+			_spark(pair[0], -out, 0.7)
 	for k: int in _rng.randi_range(GLINTS[0], GLINTS[1]) * (3 if _flashing else 1):
 		_glint()
 	_halos.clear()
@@ -368,14 +368,14 @@ func _draw_arc(i: int, strips: Array[ShipZapBolts.Strip], flash: float, ramp: fl
 	var a := _arcs[i]
 	var l := _lights[i]
 	var kind: int = i % ELECTRODES.size()
-	var ends := _arc_ends(i)
-	_ends.append(ends)
+	var pair := _arc_ends(i)
+	_ends.append(pair)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = a.seed_of
 	var w: float = HALF_WIDTH[kind] * (FLASH_WIDTH if _flashing else 1.0)
-	var main := ShipZapBolts.bolt(rng, ends[0], ends[1], 4, ROUGH)
+	var main := ShipZapBolts.bolt(rng, pair[0], pair[1], 4, ROUGH)
 	strips.append(ShipZapBolts.Strip.new(main, w, 1.0, 1.0))
-	var along: Vector3 = ends[1] - ends[0]
+	var along: Vector3 = pair[1] - pair[0]
 	for b: int in FLASH_BRANCHES if _flashing else rng.randi_range(0, 2):
 		var j: int = rng.randi_range(int(main.size() * 0.2), int(main.size() * 0.75))
 		var from: Vector3 = main[j]
@@ -386,11 +386,11 @@ func _draw_arc(i: int, strips: Array[ShipZapBolts.Strip], flash: float, ramp: fl
 		)
 		var branch := ShipZapBolts.bolt(rng, from, to, 3, ROUGH * 1.3)
 		strips.append(ShipZapBolts.Strip.new(branch, w * BRANCH_WIDTH, 0.85, 0.0))
-	strips.append(ShipZapBolts.Strip.new(_wrap(rng, ends[0]), w * 0.8, 1.0, 0.25))
+	strips.append(ShipZapBolts.Strip.new(_wrap(rng, pair[0]), w * 0.8, 1.0, 0.25))
 	if kind == 0 and (_flashing or rng.randf() < CRAWL_CHANCE):
 		strips.append(ShipZapBolts.Strip.new(_crawl(rng), w * 0.6, 0.9, 0.9))
-	var out: Vector3 = (ends[0] - ends[1]).normalized()
-	l.position = ends[1] + out * 0.015
+	var out: Vector3 = (pair[0] - pair[1]).normalized()
+	l.position = pair[1] + out * 0.015
 	l.omni_range = lerpf(LIGHT_RANGE, FLASH_RANGE, flash) if _flashing else LIGHT_RANGE
 	l.light_energy = (
 		FLASH_ENERGY * flash if _flashing else LIGHT_ENERGY[kind] * a.flicker * minf(ramp, 1.0)
@@ -405,7 +405,7 @@ func _draw_halo(h: Halo, strips: Array[ShipZapBolts.Strip]) -> void:
 	var frng := RandomNumberGenerator.new()
 	frng.seed = h.seed_of + 1
 	if _flashing or frng.randf() < 0.6:
-		var from: Vector3 = loop[loop.size() / 2 + frng.randi_range(-3, 3)]
+		var from: Vector3 = loop[floori(loop.size() / 2.0) + frng.randi_range(-3, 3)]
 		var out := Vector3(from.x - _centre.x, 0.0, from.z - _centre.z).normalized()
 		var to: Vector3 = (
 			from
@@ -474,11 +474,11 @@ func _halo(h: Halo) -> PackedVector3Array:
 ## turn apart.
 func _crawl(rng: RandomNumberGenerator) -> PackedVector3Array:
 	var ct := ShipStationLooks.relative(_crystal, _root)
-	var ends := PackedVector3Array()
+	var pair := PackedVector3Array()
 	var a: float = rng.randf_range(0.0, TAU)
 	for k: int in 2:
 		var h: float = rng.randf_range(_profile.lo + 0.02, _profile.hi - 0.02)
 		var r: float = _profile.radius(h) * 1.03
-		ends.append(ct * Vector3(cos(a) * r, h, sin(a) * r))
+		pair.append(ct * Vector3(cos(a) * r, h, sin(a) * r))
 		a += rng.randf_range(0.8, 1.8)
-	return ShipZapBolts.bolt(rng, ends[0], ends[1], 3, ROUGH)
+	return ShipZapBolts.bolt(rng, pair[0], pair[1], 3, ROUGH)

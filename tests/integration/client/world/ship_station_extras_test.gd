@@ -132,7 +132,7 @@ func test_the_charger_arcs_while_it_charges_and_flashes_once_at_its_end() -> voi
 	var ticks := Rig.crystals(_mode).charge_ticks()
 	var ends := 400
 	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.CHARGING, 7, ends))
-	_now = ends - ticks / 2
+	_now = ends - floori(ticks / 2.0)
 	_view._process(0.05)
 	assert_bool(zap.arcing()).is_true()
 	assert_bool(zap.flashing()).is_false()
