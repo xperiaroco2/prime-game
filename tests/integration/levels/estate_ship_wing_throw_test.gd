@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## every player's reach (#1543, follow-up of #1534; the throwing ADR, TD5 (a)): the hull's low wing
 ## edges, 2 to 3 m over the ground, are under a throw's arc from the ground beside them, and no
 ## player stands on them (no way up). The ship's top is the roof sweep's
-## (estate_roof_throw_test.gd); the rests inside the hull are #1551's: it widens _in_scope and
-## _skin (the topmost floor of a column, off the ship's top) to the floors under the roof.
+## (estate_roof_throw_test.gd); the throws from the floors walked in and by the hull, under its
+## roof or not, are the hull sweep's (estate_ship_hull_throw_test.gd, #1551: the PickUp rule as
+## it is, InSight and the jump included).
 ## From every spot of the roof sweep round and under the ship (EstateThrows.spots: the ground on two
 ## rings round its outline, the deck and the ground under it), the roof sweep's fan of throws is
 ## flown as FlightTicks flies it (HouseThrows.rest_of), with the Throw rule's own ThrowItem numbers
@@ -303,8 +304,7 @@ func _yaws(eye: Vector3, skin: Array[Vector3]) -> Array[int]:
 
 
 ## Whether `rest` is this sweep's: under open sky (the ray up from it, both ways, meets nothing).
-## #1551 sweeps the hull's inside: it widens this and _skin, whose cells (the topmost floor of a
-## column, off the ship's top) decide which yaws are flown.
+## The rests under the hull's roof are the hull sweep's (estate_ship_hull_throw_test.gd, #1551).
 func _in_scope(world: HostWorldQuery, rest: Vector3) -> bool:
 	var from := Items.lifted(rest)
 	var up := from + Vector3.UP * SKY_M
