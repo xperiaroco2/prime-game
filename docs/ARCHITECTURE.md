@@ -5285,7 +5285,8 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
 - **The layers.** `PhotoLayers`: `LIVE_AVATAR` (visual layer 19) for what moves live (the remote bodies, a downed
   player's live ragdoll, the first-person hands, a carried item's view), `PHOTO` (layer 20) for the pictures'
   puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`), a picture's camera `PHOTO_VIEW` (all
-  but `LIVE_AVATAR`). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
+  but `LIVE_AVATAR`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
+  (§9.5.27). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
   in both, as they move only by events.
 - **The looks and the views.** `PhotoLooks` builds the film's and the photo's look (a card whose +Y face holds the
   picture slot); `PhotoViews` binds the camera, printer and board scenes of `levels/stations/` by their kinds'
@@ -9237,9 +9238,11 @@ plays it on the estate (#1462, "The estate and the content" below).
   charged with no problem, spent while one holds it, none while it is out; a charger draws the one it holds, spent
   while loaded, its charge rising over the charge (`ShipStationLooks.charge_share` of the end tick and the client's
   copy of `charge_seconds`), charged while waiting, its light softened (the art charger's `SEATED_OMNI_*`). The
-  stations stay on the live layers: the art keeps them on its layer 20 so the crystal's own light skips them, but
-  the game's layer 20 is `PhotoLayers.PHOTO`, and the art ship's lights reach only layer 1, so the seated crystal's
-  light leaves `PhotoLayers.GROUND` out of its cull mask instead (it lights the hull round it, not the station). The
+  art keeps the socket and the charger on its layer 20 so the crystal's own light skips them, but the game's layer
+  20 is `PhotoLayers.PHOTO` (no live camera draws it), so their meshes sit on `PhotoLayers.STATION` (visual layer
+  18, in both views) and the seated crystal's light leaves `STATION` out of its cull mask: it lights the hull round
+  it, not the station. The ship's inside lights reach layer 1 alone, so `ShipStationLooks.bind` first adds
+  `STATION` to every level light that reaches `GROUND` (`light_stations`). The
   lightning: `ShipChargerZap` (the port of the art's `godot/charger/zap.gd` without the lens alcove's conduit
   pulses, a level piece), jagged ribbons (`ShipZapBolts`, `ship/charger_arc.gdshader`) from the inner prongs'
   electrodes into the crystal and its sparks, turning with the ring, only while charging with a charge strictly

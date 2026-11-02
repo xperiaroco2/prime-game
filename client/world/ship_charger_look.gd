@@ -8,10 +8,9 @@ extends RefCounted
 ## "charged". The crystal (a ShipCrystalLook, #1556) sits on the carrier's `crystal_anchor` with the
 ## package's softer seated light, shown and charged by set_crystal(); the lightning into it (a
 ## ShipChargerZap under the root, zap(), #1556) is stepped by its caller. Values only:
-## ShipStationLooks drives them from the filtered model. Left out: the render layer 20 the art gives
-## the meshes
-## (PhotoLayers.PHOTO here, which every live camera skips); the crystal's own light skips the
-## meshes' layer instead (ShipCrystalLook.seat).
+## ShipStationLooks drives them from the filtered model. The meshes sit on PhotoLayers.STATION, not
+## the art's render layer 20 (that is PhotoLayers.PHOTO here, which every live camera skips), so
+## the crystal's own light skips them (ShipCrystalLook.seat).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 
@@ -77,6 +76,7 @@ static func apply(root: Node3D, zap_seed := ZAP_SEED) -> ShipChargerLook:
 		if mesh.mesh == null:
 			continue
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mesh.layers = PhotoLayers.STATION
 		for i: int in mesh.mesh.get_surface_count():
 			var src: Material = mesh.mesh.surface_get_material(i)
 			var key: String = src.resource_name if src != null else ""

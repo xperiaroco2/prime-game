@@ -91,15 +91,15 @@ func omni() -> OmniLight3D:
 
 
 ## Parents the crystal to `anchor` with no offset (the packages' anchors put its tip on their
-## collar). Its own light skips the station layer (GROUND: the station's meshes, so its light
-## never burns their bronze white, as the art's layer 20 does; the level's lights still reach
-## them); `softened` gives it a charger's softer seated light.
+## collar). Its own light skips PhotoLayers.STATION, the socket's and charger's meshes, so it
+## never burns their bronze white, as the art's layer 20 does, and still lights the hull (GROUND)
+## round it; `softened` gives it a charger's softer seated light.
 func seat(anchor: Node3D, softened: bool) -> void:
 	if _node.get_parent() != null:
 		_node.get_parent().remove_child(_node)
 	anchor.add_child(_node)
 	_node.transform = Transform3D.IDENTITY
-	_omni.light_cull_mask = _omni.light_cull_mask & ~PhotoLayers.GROUND
+	_omni.light_cull_mask = _omni.light_cull_mask & ~PhotoLayers.STATION
 	if softened:
 		_omni.omni_range = SEATED_OMNI_RANGE
 		_omni.light_color = SEATED_OMNI_COLOUR

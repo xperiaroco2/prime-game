@@ -7,8 +7,8 @@ extends RefCounted
 ## glow: "charged" (lamp off, bay lit), "spent" and "empty" (lamp lit red, bay dark); the claws open
 ## 0..1 round their hinges. Values only: ShipStationLooks drives them from the filtered model.
 ## The crystal (a ShipCrystalLook, #1556) sits on `crystal_anchor`, shown and charged by
-## set_crystal(). Left out: the render layer 20 the art gives the meshes (it is PhotoLayers.PHOTO
-## here, which every live camera skips); the crystal's own light skips the meshes' layer instead
+## set_crystal(). The meshes sit on PhotoLayers.STATION, not the art's render layer 20 (that is
+## PhotoLayers.PHOTO here, which every live camera skips), so the crystal's own light skips them
 ## (ShipCrystalLook.seat).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
@@ -67,6 +67,7 @@ static func apply(root: Node3D) -> ShipSocketLook:
 		if mesh.mesh == null or mesh.get_parent() is CollisionObject3D:
 			continue
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mesh.layers = PhotoLayers.STATION
 		for i: int in mesh.mesh.get_surface_count():
 			var src: Material = mesh.mesh.surface_get_material(i)
 			var key: String = src.resource_name if src != null else ""
