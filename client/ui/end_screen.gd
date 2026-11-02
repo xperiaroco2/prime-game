@@ -14,7 +14,7 @@ signal outro_began
 
 ## The fade of Night when End starts (the handoff's 0.4 s); a cut under UiPrefs.reduced_motion.
 const FADE_SECONDS := 0.4
-## The deck's keys (§4.7.26).
+# The deck's keys (§4.7.26).
 ## The title for a reason with no key of its own (the deck's plain "End of the round").
 const TITLE_KEY := "end.title"
 const BACK_KEY := "end.back_to_lobby"
