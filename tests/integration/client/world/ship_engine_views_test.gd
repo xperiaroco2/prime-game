@@ -664,6 +664,44 @@ func test_the_engine_s_sounds_go_out_as_cues() -> void:
 	assert_int(cues.size()).is_equal(1)
 
 
+func test_the_last_stage_passing_adds_no_mesh_light_or_sound() -> void:
+	# No flame, light show, flash or roar (#1563): the round ends like any win.
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
+	_place()
+	_view._process(0.0)
+	var parts_before := _drawn_parts()
+	var cues: Array[Dictionary] = []
+	_view.sound_due.connect(
+		func(_event_name: StringName, fields: Dictionary) -> void: cues.append(fields)
+	)
+	_model.fold(
+		&"ZoneProgress",
+		{"station": CONSOLE, "ticks": 600, "needed": 600, "counting": false, "tick": 0}
+	)
+	_view._process(0.0)
+	assert_array(cues).is_empty()
+	assert_array(_drawn_parts()).is_equal(parts_before)
+	for i in 50:
+		_view._process(0.1)
+	assert_array(_drawn_parts()).is_equal(parts_before)
+	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"end", 1000).to_dict())
+	_view._process(0.0)
+	assert_array(cues).is_empty()
+	assert_array(_drawn_parts()).is_equal(parts_before)
+
+
+## Every MeshInstance3D and Light3D under the view (their instance ids): a finish with a flame,
+## a flash or a light show would add some.
+func _drawn_parts() -> Array[int]:
+	var found: Array[int] = []
+	for node: Node in _view.find_children("*", "MeshInstance3D", true, false):
+		found.append(node.get_instance_id())
+	for node: Node in _view.find_children("*", "Light3D", true, false):
+		found.append(node.get_instance_id())
+	found.sort()
+	return found
+
+
 func _colour(part: MeshInstance3D) -> Color:
 	return ShipEngineViews.colour_of(part)
 
@@ -746,41 +784,3 @@ func _chain(problem: int, order: Array[int], next: int, since: int) -> Dictionar
 
 func _crystal(charger: int, phase: int) -> Dictionary:
 	return {"station": SOCKET, "charger": charger, "phase": phase, "item": 7, "tick": -1}
-
-
-func test_the_last_stage_passing_adds_no_mesh_light_or_sound() -> void:
-	# No flame, light show, flash or roar (#1563): the round ends like any win.
-	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 1000).to_dict())
-	_place()
-	_view._process(0.0)
-	var before := _drawn_parts()
-	var cues: Array[Dictionary] = []
-	_view.sound_due.connect(
-		func(_event_name: StringName, fields: Dictionary) -> void: cues.append(fields)
-	)
-	_model.fold(
-		&"ZoneProgress",
-		{"station": CONSOLE, "ticks": 600, "needed": 600, "counting": false, "tick": 0}
-	)
-	_view._process(0.0)
-	assert_array(cues).is_empty()
-	assert_array(_drawn_parts()).is_equal(before)
-	for i in 50:
-		_view._process(0.1)
-	assert_array(_drawn_parts()).is_equal(before)
-	_model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"end", 1000).to_dict())
-	_view._process(0.0)
-	assert_array(cues).is_empty()
-	assert_array(_drawn_parts()).is_equal(before)
-
-
-## Every MeshInstance3D and Light3D under the view (their instance ids): a finish with a flame,
-## a flash or a light show would add some.
-func _drawn_parts() -> Array[int]:
-	var found: Array[int] = []
-	for node: Node in _view.find_children("*", "MeshInstance3D", true, false):
-		found.append(node.get_instance_id())
-	for node: Node in _view.find_children("*", "Light3D", true, false):
-		found.append(node.get_instance_id())
-	found.sort()
-	return found
