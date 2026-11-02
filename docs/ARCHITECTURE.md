@@ -9471,7 +9471,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   is the scene's own `Collision` on layer 1), and the `colliders` wrappers of the crystal socket
   (`CartridgeSocket01`..`04`), the breaker board (`BreakerBoard01`, `02`) and the crystal charger (`Charger01`,
   `02`), their convex hint colliders on layer 1. Each stands on its `Art/Stations` spot as its HANDOFF's
-  "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's panels):
+  "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's plain panel; the
+  ship package v9 stands the console's spot at the hall's centre and each board's at its `mount_h_m`, 0.333 m over the
+  deck, #1573):
   `estate_ship_test` holds them there and `estate_engine_test` each marker's player clear of them. An asset carries
   no look script (§11.1): the client ports them (`ShipStationLooks`, "The client" below; #1550) and drives their
   states (the console's spin-up and hologram, a socket's lamp and claws, a board's shells, a charger's carrier);
@@ -9622,7 +9624,8 @@ the nearest of four breakers, every station in the aboard box and the ground bes
 its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
 `tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
-slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
+slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot and
+on the deck, a board's spot the package's `mount_h_m` over it),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals
 and their items, a new match), the four suites of the station looks (a test of the art's nodes prints "skip" and
 checks the pointer where the packages' GLBs are Git LFS pointers, as on CI: `ship_device_art.gd`, the LFS ADR's
