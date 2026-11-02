@@ -29,26 +29,27 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	# [path, class, variation] of every node the handoff adds to the HUD.
 	var nodes: Array[Array] = [
 		["Downed", "PanelContainer", &"ToyPlate"],
-		["Downed/V", "VBoxContainer", &"ToyColumnEight"],
-		["Downed/V/Title", "Label", &"ToyTitleOnDark"],
-		["Downed/V/Bleed", "PanelContainer", &"ToyBarTrack"],
-		["Downed/V/Bleed/Fill", "ProgressBar", &"ToyBarHealth"],
-		["Downed/V/Left", "Label", &"ToyTextMutedOnDark"],
+		["Downed/V", "VBoxContainer", &"ToyColumnTwelve"],
+		["Downed/V/Title", "Label", &"ToyPlateTitle"],
+		["Downed/V/Bleed", "ProgressBar", &"ToyBarReturnCalm"],
+		["Downed/V/Left", "Label", &"ToyPlateTextMuted"],
 		["Downed/V/Raise", "ProgressBar", &"ToyBarProgress"],
 		["Downed/V/Pad", "Control", &""],
 		["GiveUp", "PanelContainer", &"ToyPlate"],
-		["GiveUp/V", "VBoxContainer", &"ToyColumnEight"],
-		["GiveUp/V/Line", "HBoxContainer", &"ToyRowFour"],
-		["GiveUp/V/Line/Before", "Label", &"ToyTextOnDark"],
+		["GiveUp/V", "VBoxContainer", &"ToyColumnTwelve"],
+		["GiveUp/V/Line", "HBoxContainer", &"ToyRowEight"],
+		["GiveUp/V/Line/Before", "Label", &"ToyPlateText"],
 		["GiveUp/V/Line/Key", "PanelContainer", &"ToyKeyOnDark"],
 		["GiveUp/V/Line/Key/Text", "Label", &"ToyKeyText"],
-		["GiveUp/V/Line/After", "Label", &"ToyTextOnDark"],
+		["GiveUp/V/Line/After", "Label", &"ToyPlateText"],
 		["GiveUp/V/Hold", "ProgressBar", &"ToyBarProgress"],
 		["GiveUp/V/Pad", "Control", &""],
 		["Spectate", "PanelContainer", &"ToyPlate"],
 		["Spectate/V", "VBoxContainer", &"ToyColumnFour"],
-		["Spectate/V/Respawn", "Label", &"ToyTextMutedOnDark"],
-		["Spectate/V/Watching", "Label", &"ToyTitleOnDark"],
+		["Spectate/V/Return", "HBoxContainer", &"ToyRowSixteen"],
+		["Spectate/V/Return/Label", "Label", &"ToyHudCaption"],
+		["Spectate/V/Return/Time", "Label", &"ToyTimer"],
+		["Spectate/V/Watching", "Label", &"ToyPlateText"],
 		["Protect", "PanelContainer", &"ToyChipLight"],
 		["Protect/Text", "Label", &"ToyChipLightText"],
 	]
@@ -70,7 +71,7 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 			. override_failure_message(label.name)
 			. is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 		)
-	for bar: ProgressBar in [screen.bleed.fill, screen.raise_bar, screen.hold_bar]:
+	for bar: ProgressBar in [screen.bleed, screen.raise_bar, screen.hold_bar]:
 		assert_float(bar.max_value).is_equal(1.0)
 		assert_bool(bar.show_percentage).is_false()
 
@@ -82,10 +83,10 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 	var end := Control.GROW_DIRECTION_END
 	# [node, anchors (left, top, right, bottom), offsets, grow h, grow v]
 	var placed: Array[Array] = [
-		[screen.downed, Vector4(0.5, 0, 0.5, 0), Vector4(0, 152, 0, 152), both, end],
-		[screen.give_up, Vector4(0.5, 1, 0.5, 1), Vector4(0, -128, 0, -128), both, begin],
-		[screen.spectate, Vector4(0.5, 0, 0.5, 0), Vector4(0, 40, 0, 40), both, end],
-		[screen.protect, Vector4(0.5, 0, 0.5, 0), Vector4(0, 144, 0, 144), both, end],
+		[screen.downed, Vector4(0.5, 0, 0.5, 0), Vector4(0, 228, 0, 228), both, end],
+		[screen.give_up, Vector4(0.5, 1, 0.5, 1), Vector4(0, -192, 0, -192), both, begin],
+		[screen.spectate, Vector4(0.5, 0, 0.5, 0), Vector4(0, 36, 0, 36), both, end],
+		[screen.protect, Vector4(0.5, 0, 0.5, 0), Vector4(0, 165, 0, 165), both, end],
 	]
 	for row: Array in placed:
 		var node: Control = row[0]
@@ -99,28 +100,25 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 		assert_vector(offsets).override_failure_message(node.name).is_equal(row[2])
 		assert_int(node.grow_horizontal).is_equal(row[3])
 		assert_int(node.grow_vertical).is_equal(row[4])
-	assert_vector(screen.downed.custom_minimum_size).is_equal(Vector2(688, 0))
-	assert_vector(screen.title_label.custom_minimum_size).is_equal(Vector2(600, 0))
+	assert_vector(screen.downed.custom_minimum_size).is_equal(Vector2(900, 0))
+	assert_vector(screen.title_label.custom_minimum_size).is_equal(Vector2(810, 0))
 	assert_int(screen.title_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
-	assert_vector(screen.bleed.custom_minimum_size).is_equal(Vector2(600, 24))
-	assert_vector(screen.bleed.fill.custom_minimum_size).is_equal(Vector2(0, 10))
-	assert_vector(screen.raise_bar.custom_minimum_size).is_equal(Vector2(600, 16))
-	assert_vector(screen.raise_pad.custom_minimum_size).is_equal(Vector2(0, 4))
+	assert_vector(screen.bleed.custom_minimum_size).is_equal(Vector2(810, 24))
+	assert_vector(screen.raise_bar.custom_minimum_size).is_equal(Vector2(810, 24))
+	assert_vector(screen.raise_pad.custom_minimum_size).is_equal(Vector2(0, 6))
 	assert_vector(screen.key.custom_minimum_size).is_equal(Vector2(42, 0))
-	assert_vector(screen.hold_bar.custom_minimum_size).is_equal(Vector2(360, 10))
+	assert_vector(screen.hold_bar.custom_minimum_size).is_equal(Vector2(540, 24))
 	assert_int(screen.hold_bar.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	var pad := screen.get_node("GiveUp/V/Pad") as Control
-	assert_vector(pad.custom_minimum_size).is_equal(Vector2(0, 4))
+	assert_vector(pad.custom_minimum_size).is_equal(Vector2(0, 6))
 	var line := screen.get_node("GiveUp/V/Line") as HBoxContainer
 	assert_int(line.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
+	# The dead's Return row: "Back in" and the time, centred as one (the handoff's DeadTop).
+	assert_int(screen.respawn_row.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
 	for piece: Label in [screen.before_label, screen.after_label]:
 		assert_int(piece.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	for centred: Label in [
-		screen.title_label,
-		screen.left_label,
-		screen.key_label,
-		screen.respawn_label,
-		screen.watching_label
+		screen.title_label, screen.left_label, screen.key_label, screen.watching_label
 	]:
 		assert_int(centred.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -156,11 +154,16 @@ func test_down_shows_the_bleed_out_and_the_give_up_line() -> void:
 	assert_bool(screen.raise_pad.visible).is_false()
 	assert_str(screen.title_label.text).is_equal("You're down")
 	assert_str(screen.left_label.text).is_equal("0:07 left")
-	assert_float(screen.bleed.fill.value).is_equal_approx(0.7, 1e-4)
-	# Coloured with the health ramp as the HUD's health: 0.7 is stop 14.
-	assert_object(screen.bleed.fill.self_modulate).is_equal(
-		GameUi.THEME.get_color(&"ramp_stop_14", &"ToyBarHealth")
-	)
+	assert_float(screen.bleed.value).is_equal_approx(0.7, 1e-4)
+	# Calm above health's alarm line (0.3), the danger fill under it, calm again when raised back.
+	assert_str(screen.bleed.theme_type_variation).is_equal("ToyBarReturnCalm")
+	var low := _down()
+	low.bleed = 0.29
+	screen.show_hud(low)
+	assert_str(screen.bleed.theme_type_variation).is_equal("ToyBarReturnAlarm")
+	low.bleed = 0.3
+	screen.show_hud(low)
+	assert_str(screen.bleed.theme_type_variation).is_equal("ToyBarReturnCalm")
 	assert_str(screen.before_label.text).is_equal("Hold")
 	assert_str(screen.key_label.text).is_equal("F")
 	assert_str(screen.after_label.text).is_equal("to give up")
@@ -210,13 +213,20 @@ func test_dead_shows_the_spectate_plate_only() -> void:
 	assert_bool(screen.spectate.visible).is_true()
 	for hidden: Control in [screen.downed, screen.give_up, screen.protect]:
 		assert_bool(hidden.visible).override_failure_message(hidden.name).is_false()
-	assert_str(screen.respawn_label.text).is_equal("Back in 0:24")
+	assert_str(screen.back_in_label.text).is_equal("Back in")
+	assert_str(screen.respawn_label.text).is_equal("0:24")
 	assert_str(screen.watching_label.text).is_equal("Watching: Olena")
 	# Nobody to watch: the time alone.
 	dead.watching = ""
 	screen.show_hud(dead)
 	assert_bool(screen.watching_label.visible).is_false()
-	assert_bool(screen.respawn_label.visible).is_true()
+	assert_bool(screen.respawn_row.visible).is_true()
+	# No respawn running: the Return row hides, the watched name stays.
+	dead.respawn = ""
+	dead.watching = "Olena"
+	screen.show_hud(dead)
+	assert_bool(screen.respawn_row.visible).is_false()
+	assert_bool(screen.watching_label.visible).is_true()
 
 
 func test_back_counts_the_protection_down_then_hides_it() -> void:
@@ -249,7 +259,8 @@ func test_ukrainian_puts_the_key_at_the_end_and_a_switch_rewrites_every_text() -
 	dead.respawn = "0:24"
 	dead.watching = "Олена"
 	screen.show_hud(dead)
-	assert_str(screen.respawn_label.text).is_equal("Повернення через 0:24")
+	assert_str(screen.back_in_label.text).is_equal("Повернення через")
+	assert_str(screen.respawn_label.text).is_equal("0:24")
 	assert_str(screen.watching_label.text).is_equal("Дивишся: Олена")
 	var back := LifeHud.Shown.new()
 	back.protected = 2

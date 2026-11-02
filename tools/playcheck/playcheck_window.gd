@@ -159,7 +159,7 @@ class GameView:
 				found = ["", hud.cross.is_visible_in_tree()]
 			"life.bleed":
 				var bleed := ui.life.bleed
-				found = ["%.2f" % bleed.fill.value, bleed.is_visible_in_tree()]
+				found = ["%.2f" % bleed.value, bleed.is_visible_in_tree()]
 			"life.raise":
 				found = ["%.2f" % ui.life.raise_bar.value, ui.life.raise_bar.is_visible_in_tree()]
 			"life.hold":

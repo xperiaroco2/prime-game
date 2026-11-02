@@ -1,55 +1,63 @@
 class_name LifeScreen
 extends Control
-## The downed, dead and respawn screen in the Toy style (#497; ARCHITECTURE §4.7.41): the UI
-## handoff's plates, node for node (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`), drawing
+## The downed, dead and respawn screen in the Toy style (#497, #1570; ARCHITECTURE §4.7.41): the UI
+## handoff's plates, node for node (prime-game-ui `ui-2.5.4` `docs/handoff/s09-downed.md`), drawing
 ## what LifeHud says, on the round's HUD (Hud, #489), which hides and returns its own nodes from
 ## HudText. Px at the 1920x1080 base (#287):
-## - `Downed` (top centre, 152 px down, 688 px wide): the title, the bleed-out bar coloured with
-##   the health ramp (ToyBar) and the time left; while raised, "<name> is raising you" and the
-##   raise's bar in place of the bar and the time.
-## - `GiveUp` (bottom centre): the deck's sentence in pieces around the keycap of the give-up key
-##   bound now, and the hold's bar, empty at rest so the plate never changes size; hidden while
-##   raised.
-## - `Spectate` (top centre, while dead): the time to respawn and whom the player watches.
-## - `Protect` (24 px under the HUD's timer): the respawn's protection, 3, 2, 1, then hidden.
+## - `Downed` (top centre, 228 px down, 900 px wide): the title, the bleed-out bar
+##   (ToyBarReturnCalm, ToyBarReturnAlarm under health's alarm line 0.3) and the time left; while
+##   raised, "<name> is raising you" and the raise's bar in place of the bar and the time.
+## - `GiveUp` (bottom centre, 192 px up): the deck's sentence in pieces around the keycap of the
+##   give-up key bound now, and the hold's bar, empty at rest so the plate never changes size;
+##   hidden while raised.
+## - `Spectate` (top centre, 36 px down, while dead): the game's plate (the handoff draws a dead's
+##   room the game has not, #1570) in the handoff's DeadTop tile: "Back in" and the time to respawn
+##   as the tile's Return row, then whom the player watches.
+## - `Protect` (165 px down, 39 px under the anger meter): the respawn's protection, 3, 2, 1, then
+##   hidden.
 ## Styled only through the shared theme's variations (no override; the keycap's `min_width`, or
 ## `wide_min_width` for a wide key such as Space, read into `custom_minimum_size` as UiParts.sized
 ## does, again after the large-text swap and a rebind); every node
-## ignores the mouse and takes no focus. Texts with data are set from code (`auto_translate_mode`
-## DISABLED) and written again on NOTIFICATION_TRANSLATION_CHANGED (#208). It reads nothing itself:
-## the game feeds it.
+## ignores the mouse and takes no focus. Texts are set from code (`auto_translate_mode` DISABLED)
+## and written again on NOTIFICATION_TRANSLATION_CHANGED (#208). It reads nothing itself: the game
+## feeds it.
 
 ## The plates' places and the fixed sizes the handoff gives (px; layout, not style).
-const DOWNED_TOP := 152
-const DOWNED_WIDTH := 688
-const GIVE_UP_BOTTOM := -128
-const SPECTATE_TOP := 40
-const PROTECT_TOP := 144
-const LINE_WIDTH := 600
-const FILL_HEIGHT := 10
-const HOLD_BAR := Vector2(360, 10)
-const RAISE_BAR := Vector2(600, 16)
+const DOWNED_TOP := 228
+const DOWNED_WIDTH := 900
+const GIVE_UP_BOTTOM := -192
+const SPECTATE_TOP := 36
+const PROTECT_TOP := 165
+const LINE_WIDTH := 810
+const LINE_BAR := Vector2(LINE_WIDTH, 24)
+const HOLD_BAR := Vector2(540, 24)
 ## The spacer under a bar that ends a plate (the handoff's `Pad`).
-const PAD := Vector2(0, 4)
+const PAD := Vector2(0, 6)
+## The bleed-out bar's variations: calm, and alarm under health's alarm line.
+const BLEED_CALM := &"ToyBarReturnCalm"
+const BLEED_ALARM := &"ToyBarReturnAlarm"
+const BLEED_ALARM_LINE := 0.3
 
 var downed := PanelContainer.new()
-var title_label := UiParts.styled_label("", &"ToyTitleOnDark")
-var bleed := ToyBar.new(ToyBar.HEALTH)
-var left_label := UiParts.styled_label("", &"ToyTextMutedOnDark")
+var title_label := UiParts.styled_label("", &"ToyPlateTitle")
+var bleed := ProgressBar.new()
+var left_label := UiParts.styled_label("", &"ToyPlateTextMuted")
 var raise_bar := ProgressBar.new()
 var raise_pad := Control.new()
 var give_up := PanelContainer.new()
-var before_label := UiParts.styled_label("", &"ToyTextOnDark")
+var before_label := UiParts.styled_label("", &"ToyPlateText")
 var key := PanelContainer.new()
 var key_label := UiParts.styled_label("", &"ToyKeyText")
-var after_label := UiParts.styled_label("", &"ToyTextOnDark")
+var after_label := UiParts.styled_label("", &"ToyPlateText")
 var hold_bar := ProgressBar.new()
 var spectate := PanelContainer.new()
-var respawn_label := UiParts.styled_label("", &"ToyTextMutedOnDark")
-var watching_label := UiParts.styled_label("", &"ToyTitleOnDark")
+## The DeadTop tile's Return row: "Back in" and the time to respawn.
+var respawn_row := HBoxContainer.new()
+var back_in_label := UiParts.styled_label("", &"ToyHudCaption")
+var respawn_label := UiParts.styled_label("", &"ToyTimer")
+var watching_label := UiParts.styled_label("", &"ToyPlateText")
 var protect := PanelContainer.new()
 var protect_label := UiParts.styled_label("", &"ToyChipLightText")
-
 ## The last state shown (a translation change writes its texts again).
 var _shown := LifeHud.Shown.new()
 ## Whether the keycap has the wide size (the bound give_up key's, ARCHITECTURE §4.7.30 rule 7).
@@ -69,6 +77,7 @@ func _init() -> void:
 		before_label,
 		key_label,
 		after_label,
+		back_in_label,
 		respawn_label,
 		watching_label,
 		protect_label,
@@ -90,7 +99,9 @@ func show_hud(shown: LifeHud.Shown) -> void:
 	downed.visible = down or raised
 	bleed.visible = down
 	left_label.visible = down
-	bleed.set_fraction(shown.bleed)
+	bleed.value = shown.bleed
+	var alarm := down and shown.bleed < BLEED_ALARM_LINE
+	bleed.theme_type_variation = BLEED_ALARM if alarm else BLEED_CALM
 	raise_bar.visible = raised
 	raise_pad.visible = raised
 	raise_bar.value = shown.raise
@@ -101,7 +112,7 @@ func show_hud(shown: LifeHud.Shown) -> void:
 		_size_key()
 	hold_bar.value = shown.give_up
 	spectate.visible = shown.state == LifeHud.State.DEAD
-	respawn_label.visible = not shown.respawn.is_empty()
+	respawn_row.visible = not shown.respawn.is_empty()
 	watching_label.visible = not shown.watching.is_empty()
 	protect.visible = shown.protected > 0
 	_write()
@@ -139,7 +150,8 @@ func _write() -> void:
 	before_label.visible = not pieces[0].is_empty()
 	after_label.text = pieces[1]
 	after_label.visible = not pieces[1].is_empty()
-	respawn_label.text = tr("dead.respawn_in").format({"time": _shown.respawn})
+	back_in_label.text = tr("dead.back_in")
+	respawn_label.text = _shown.respawn
 	watching_label.text = tr("dead.watching").format({"name": _shown.watching})
 	protect_label.text = tr("respawn.protected").format({"count": str(_shown.protected)})
 
@@ -150,23 +162,21 @@ func _build_downed() -> void:
 	downed.custom_minimum_size = Vector2(DOWNED_WIDTH, 0)
 	var top := Vector2(0, DOWNED_TOP)
 	_pin(downed, Control.PRESET_CENTER_TOP, top, GROW_DIRECTION_BOTH, GROW_DIRECTION_END)
-	var column := _column(downed, &"ToyColumnEight")
+	var column := _column(downed, &"ToyColumnTwelve")
 	title_label.name = "Title"
 	title_label.custom_minimum_size = Vector2(LINE_WIDTH, 0)
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(title_label)
 	bleed.name = "Bleed"
-	# ToyBarTrack gives the height only: the length is the handoff's (UiParts.sized keeps it).
-	bleed.custom_minimum_size = Vector2(LINE_WIDTH, 0)
-	bleed.fill.name = "Fill"
-	bleed.fill.custom_minimum_size = Vector2(0, FILL_HEIGHT)
-	column.add_child(bleed)
+	bleed.custom_minimum_size = LINE_BAR
+	column.add_child(_bar(bleed))
+	bleed.theme_type_variation = BLEED_CALM
 	left_label.name = "Left"
 	left_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(left_label)
 	raise_bar.name = "Raise"
-	raise_bar.custom_minimum_size = RAISE_BAR
+	raise_bar.custom_minimum_size = LINE_BAR
 	column.add_child(_bar(raise_bar))
 	raise_pad.name = "Pad"
 	raise_pad.custom_minimum_size = PAD
@@ -178,10 +188,10 @@ func _build_give_up() -> void:
 	give_up.theme_type_variation = &"ToyPlate"
 	var bottom := Vector2(0, GIVE_UP_BOTTOM)
 	_pin(give_up, Control.PRESET_CENTER_BOTTOM, bottom, GROW_DIRECTION_BOTH, GROW_DIRECTION_BEGIN)
-	var column := _column(give_up, &"ToyColumnEight")
+	var column := _column(give_up, &"ToyColumnTwelve")
 	var line := HBoxContainer.new()
 	line.name = "Line"
-	line.theme_type_variation = &"ToyRowFour"
+	line.theme_type_variation = &"ToyRowEight"
 	line.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(line)
 	before_label.name = "Before"
@@ -215,9 +225,16 @@ func _build_spectate() -> void:
 	var top := Vector2(0, SPECTATE_TOP)
 	_pin(spectate, Control.PRESET_CENTER_TOP, top, GROW_DIRECTION_BOTH, GROW_DIRECTION_END)
 	var column := _column(spectate, &"ToyColumnFour")
-	respawn_label.name = "Respawn"
-	respawn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(respawn_label)
+	respawn_row.name = "Return"
+	respawn_row.theme_type_variation = &"ToyRowSixteen"
+	respawn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(respawn_row)
+	back_in_label.name = "Label"
+	back_in_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	respawn_row.add_child(back_in_label)
+	respawn_label.name = "Time"
+	respawn_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	respawn_row.add_child(respawn_label)
 	watching_label.name = "Watching"
 	watching_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(watching_label)
