@@ -75,6 +75,17 @@ func test_off_stops_the_emitting_and_the_puffs_outlive_it() -> void:
 	assert_bool(puffs.one_shot).is_false()
 
 
+func test_the_puffs_grow_as_they_rise() -> void:
+	var smoke := ShipBoardSmoke.build(_root, CENTRES)
+	var puffs := smoke.emitter(0).get_node("CoreSmoke") as CPUParticles3D
+	var grow := puffs.scale_amount_curve
+	assert_float(grow.sample(1.0)).is_greater(grow.sample(0.0))
+	# A billboard keeps the scale only with keep_scale, else the curve does nothing.
+	var look := (puffs.mesh as QuadMesh).material as StandardMaterial3D
+	assert_int(look.billboard_mode).is_equal(BaseMaterial3D.BILLBOARD_PARTICLES)
+	assert_bool(look.billboard_keep_scale).is_true()
+
+
 func test_every_node_stays_on_the_live_cameras_layers() -> void:
 	var smoke := ShipBoardSmoke.build(_root, CENTRES)
 	smoke.set_smoking(0, true)
