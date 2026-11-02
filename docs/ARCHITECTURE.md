@@ -4332,7 +4332,7 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   Enter and closes only the card with Esc.
 
 #### 4.7.41 The downed, dead and respawn screen in the Toy style (#497)
-The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
+The handoff s09 (prime-game-ui `ui-2.5.4` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
 `LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
@@ -4347,16 +4347,21 @@ at a time, so a second Raise would be `busy`), so it offers what E does: the bas
 so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
 (both are on E); the hand-over's cue (#1411, §4.7.10: `HudText.hand_over_cue`, the deck's `hud.hand_over` "Press {key} to hand it over") takes the same place after it; the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
 - **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
-  (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
-  a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
-  ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
-  up) > `V` ToyColumnEight > `Line` ToyRowFour (centred) > `Before`, `Key` ToyKeyOnDark > `Text` ToyKeyText,
-  `After`, then `Hold` ToyBarProgress (360 x 10) and `Pad`; `Spectate` ToyPlate (top centre, 40 px down) > `V`
-  ToyColumnFour > `Respawn` ToyTextMutedOnDark and `Watching` ToyTitleOnDark; `Protect` ToyChipLight (top centre,
-  144 px down: 24 px under the timer plate) > `Text` ToyChipLightText. Every root sits at a point and takes its
-  minimum size; the keycap's `min_width` (36, 42 at large text) is read by `UiParts.sized` again after the
+  (top centre, 228 px down, 900 px) > `V` ToyColumnTwelve > `Title` ToyPlateTitle (810 px, word-wrapped), `Bleed`
+  a ProgressBar (810 x 24) ToyBarReturnCalm, ToyBarReturnAlarm under health's alarm line 0.3 while down, `Left`
+  ToyPlateTextMuted, `Raise` ToyBarProgress (810 x 24) and `Pad` (0 x 6); `GiveUp` ToyPlate (bottom centre, 192 px
+  up) > `V` ToyColumnTwelve > `Line` ToyRowEight (centred) > `Before` ToyPlateText, `Key` ToyKeyOnDark > `Text`
+  ToyKeyText, `After` ToyPlateText, then `Hold` ToyBarProgress (540 x 24) and `Pad` (0 x 6); `Spectate` ToyPlate
+  (top centre, 36 px down: the handoff's `DeadTop` tile) > `V` ToyColumnFour > `Return` ToyRowSixteen (centred) >
+  `Label` ToyHudCaption and `Time` ToyTimer, then `Watching` ToyPlateText; `Protect` ToyChipLight (top centre,
+  165 px down: 39 px under the anger meter) > `Text` ToyChipLightText. Every root sits at a point and takes its
+  minimum size; the keycap's `min_width` (42, 50 at large text) is read by `UiParts.sized` again after the
   large-text swap. Every Control ignores the mouse and takes no focus. The four roots sit under one full-rect
   `LifeScreen` Control beside `Hud`, not beside its nodes (one class owns s09; the places are the handoff's).
+  The handoff's `dead-room` (the dead wait 30 s in a dead's room: `Room` ToyKicker `dead.room.title`, the mic on,
+  `Others` ToyChipPlate `dead.also_here`, `Capsule` ToySticker `dead.capsule_note`) is not built: the game has no
+  dead's room, the dead spectate a living player and nobody hears them (§6, #1032), so `Spectate` keeps the game's
+  watched name under the tile's Return row, the mic stays off and neither chip shows (#1570, for the engineer).
 - **What it shows** (`client/life/LifeHud`, pure, from the own `ClientModel`, the own `LifeCountdowns` at the
   estimated host tick and `LifeView`'s own state; `LifeView.hud()` reads the give-up binding each frame):
   `down`: `downed.title`, the bleed-out bar (`LifeCountdowns.knockdown_fraction()`: the time left over the mode's
@@ -4367,8 +4372,8 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   again on every theme change); the hold bar fills over
   `LifeView.GIVE_UP_HOLD_S` and stays shown, empty, at rest (`down-holding`). `raise` (a raiser in the model):
   `downed.raised_by` with the raiser's name, the raise's progress (the raiser's HUD bar's value, §4.7.37) in place
-  of the bar and the time, no GiveUp; when the raise stops the bleed-out returns. `dead` (or gone): `dead.respawn_in`
-  (m:ss) and `dead.watching` with `LifeView.target()`'s roster name (hidden with no target); the HUD shows nothing
+  of the bar and the time, no GiveUp; when the raise stops the bleed-out returns. `dead` (or gone): `dead.back_in`
+  and the time to respawn (m:ss, `Time`; the row hidden with none running) and `dead.watching` with `LifeView.target()`'s roster name (hidden with no target); the HUD shows nothing
   (§4.7.37), no key (the tutorial teaches the spectate keys) and nothing of the target's. `back`: the HUD returns;
   `respawn.protected` counts the respawn's invulnerability (`LifeCountdowns.protection_left_s()`, the mode's 3 s:
   3, 2, 1 rounded up), and only a respawn's: a raise's invulnerability shows no chip. Never who knocked the player
@@ -4378,9 +4383,9 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   drawn), `life.hold`, `life.respawn`, `life.watching` and `life.protected` replace `life.lines`, `life.bar` and
   `hud.spectating`; the `spectate` scenario waits on them.
 - Tests: `tests/unit/client/ui/life_screen_test.gd` (the tree, anchors, offsets, grow directions and minimum sizes;
-  no mouse or focus; every state in English and Ukrainian and a language switch; the bleed fill's ramp stop; the
-  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; Space's 96 px wide keycap on both themes and K's
-  36 and 42 px after it; 36 and 42 px at large
+  no mouse or focus; every state in English and Ukrainian and a language switch; the bleed bar's calm and alarm variations at the 0.3 line; the
+  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; Space's 144 px wide keycap on both themes and K's
+  42 and 50 px after it; 42 and 50 px at large
   text with every plate on the screen; the `Ui` shows it in the round only), `tests/unit/client/life/life_hud_test.gd`
   (each state's data, the m:ss rounding, the raise stopping, the protection after a respawn and not a raise, the
   sentence's pieces), `life_countdowns_test.gd` (`knockdown_fraction`, `protection_left_s`), `hud_test.gd` and
