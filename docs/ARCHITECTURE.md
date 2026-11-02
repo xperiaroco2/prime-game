@@ -9287,7 +9287,7 @@ slits, the turbines and the button at the art's pods and button, each marker in 
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals
 and their items, a new match), the four suites of the station looks (a test of the art's nodes prints "skip" and
 checks the pointer where the packages' GLBs are Git LFS pointers, as on CI: `ship_device_art.gd`, the LFS ADR's
-amendment; so they run in full only in a checkout with the LFS content):
+amendment; so they run in full only in a checkout with the LFS content and in the nightly `lfs` job):
 `tests/integration/client/world/ship_device_looks_test.gd` (each ported look covers
 every surface of its device on the live layers, refuses another device, the call's onset every period, the fans
 halved per broken point, the values it holds), `tests/integration/client/world/ship_station_looks_test.gd` (each
