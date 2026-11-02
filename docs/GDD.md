@@ -33,6 +33,10 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Never boring** (the engineer, 2026-10-15, #1076). A player never waits long and never loses interest: a mistake
   costs a short time out of play, then he is back in it. Fast and arcade, full of crazy moments; never the hour-long
   sit of Mafia.
+- **No ceremonies; a task done is done** (the engineer, 2026-11-02,
+  [#507 c6573108317](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573108317)). Players race the
+  clock: they finish a task and run to the next one. Nothing makes them stop to watch or listen: no show, no roar, no
+  linger when a task is done.
 - **Randomness is part of the fun** (#1076). Lucky breaks and funny fails make the stories, and randomness always
   leaves a chance to react: a random respawn may land you next to everyone, then a few seconds of invulnerability let
   you run, a chase starts and you may find a weapon on the way and fight back, so it is fun even if they get you.
@@ -145,9 +149,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   done (the Engineers, id `crew`), every engineer has left the match (dissidents), time up with a task left
   (dissidents).
 - **End:** a black screen that names only the winning side; the game is frozen and nobody hears anybody. The host
-  returns everyone to the lobby. When the engine's last stage passes, the round first lingers about 4 s (provisional)
-  so everyone sees the finish (§8: the roar, the flame, the light show); the win is decided at the last stage, the
-  timer stops there, and the players keep moving and talking until End (#1502).
+  returns everyone to the lobby.
 
 The base mode has no meetings and no votes.
 
@@ -601,8 +603,8 @@ the expert knows every fix by heart.
 - **A fail:** a problem whose timer runs out fails the stage. A blast through the whole ship knocks down everyone
   aboard: raised by someone (a team may leave one player outside for that), or dead and respawned in 30 s. The engine
   drops one stage (the bar loses that third); a fail on stage 1 restarts stage 1.
-- **The end:** the last stage passed, the ship roars, flame bursts from its nozzles, a light show over the party. The
-  task is done.
+- **The end:** the last stage passed, the task is done (no roar, no show: the engineer, 2026-11-02, #507
+  c6573108317).
 - **The humans' spoils:** being slow, letting go outside the band, claiming a problem and not going, reading out a
   wrong order at the console (the friend at the board is knocked down: raise them, "I mixed it up", or run away
   laughing), switching a wrong breaker on purpose, letting a timer run out on purpose (the blast names nobody, and the whole crew then knows whom to suspect: the engineer's "fun
