@@ -4,6 +4,6 @@
 
 [node name="HudPreview" type="Node3D" unique_id=1442379633]
 script = ExtResource("1_preview")
-state = "pack"
+state = "carry"
 language = "uk"
 large_text = true
