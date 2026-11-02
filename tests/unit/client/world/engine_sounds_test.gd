@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The ship engine's sounds through SoundChooser and WorldSounds (#1501; ARCHITECTURE §4.7.64):
 ## ShipEngineViews' cue (ShipEngineSounds.EVENT) plays its own id at its place, cut at the hearing
-## range, the blast and the roar at their farther one; a KnockedDown in play by a tripped breaker
+## range, the blast at its farther one; a KnockedDown in play by a tripped breaker
 ## still off is its zap there, any other knockdown silent; WorldSounds plays each on its SfxSet file
 ## on the Effects bus with its range as max_distance; ItemWorld hands ShipEngineViews' cues to its
 ## WorldSounds.
@@ -26,11 +26,7 @@ func before_test() -> void:
 
 func test_each_cue_plays_its_id_where_it_says() -> void:
 	for id: StringName in [
-		SfxSet.ENGINE_CALL,
-		SfxSet.ENGINE_BEEP,
-		SfxSet.ENGINE_WAIL,
-		SfxSet.ENGINE_BLAST,
-		SfxSet.ENGINE_ROAR
+		SfxSet.ENGINE_CALL, SfxSet.ENGINE_BEEP, SfxSet.ENGINE_WAIL, SfxSet.ENGINE_BLAST
 	]:
 		var sound := _choose(ShipEngineSounds.EVENT, ShipEngineSounds.cue(id, AT), Vector3.ZERO)
 		assert_object(sound).is_not_null()
@@ -38,9 +34,9 @@ func test_each_cue_plays_its_id_where_it_says() -> void:
 		assert_that(sound.position).is_equal(AT)
 
 
-func test_the_blast_and_the_roar_carry_farther_than_the_rest() -> void:
+func test_the_blast_carries_farther_than_the_rest() -> void:
 	var far := Vector3(SoundChooser.HEARING_RANGE_M + 5.0, 1.0, 1.0)
-	for id: StringName in [SfxSet.ENGINE_BLAST, SfxSet.ENGINE_ROAR]:
+	for id: StringName in [SfxSet.ENGINE_BLAST]:
 		(
 			assert_object(_choose(ShipEngineSounds.EVENT, ShipEngineSounds.cue(id, AT), far))
 			. is_not_null()
@@ -84,11 +80,7 @@ func test_world_sounds_plays_each_engine_file_on_effects_with_its_range() -> voi
 	sounds.model = _model
 	sounds.listener = func() -> Variant: return Vector3.ZERO
 	var ids: Array[StringName] = [
-		SfxSet.ENGINE_CALL,
-		SfxSet.ENGINE_BEEP,
-		SfxSet.ENGINE_WAIL,
-		SfxSet.ENGINE_BLAST,
-		SfxSet.ENGINE_ROAR
+		SfxSet.ENGINE_CALL, SfxSet.ENGINE_BEEP, SfxSet.ENGINE_WAIL, SfxSet.ENGINE_BLAST
 	]
 	for id: StringName in ids:
 		sounds.on_event(ShipEngineSounds.EVENT, ShipEngineSounds.cue(id, AT))

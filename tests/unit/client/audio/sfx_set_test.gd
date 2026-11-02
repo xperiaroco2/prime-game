@@ -43,14 +43,13 @@ func test_the_task_success_and_error_are_the_engineer_s_two_files() -> void:
 	assert_bool(SfxSet.ids().has(SfxSet.TASK_ERROR)).is_true()
 
 
-func test_the_engine_s_six_sounds_are_its_own_synthesis() -> void:
+func test_the_engine_s_five_sounds_are_its_own_synthesis() -> void:
 	var expected: Dictionary[StringName, String] = {
 		SfxSet.ENGINE_CALL: "engine_call",
 		SfxSet.ENGINE_BEEP: "engine_beep",
 		SfxSet.ENGINE_WAIL: "engine_wail",
 		SfxSet.ENGINE_ZAP: "engine_zap",
 		SfxSet.ENGINE_BLAST: "engine_blast",
-		SfxSet.ENGINE_ROAR: "engine_roar",
 	}
 	for id: StringName in expected:
 		assert_bool(SfxSet.ids().has(id)).override_failure_message(String(id)).is_true()

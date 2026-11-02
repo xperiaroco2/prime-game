@@ -273,7 +273,7 @@ not import. Each file's "what" is in its folder's `LICENCES.json`.
 - **AI generated:** false (sums of sines and seeded noise in code; no generative model)
 - **Public repo OK:** true (own work)
 
-Six WAV files, mono 44.1 kHz 16-bit, each with its mean taken out and scaled to its peak. Placeholders for the
+Five WAV files, mono 44.1 kHz 16-bit, each with its mean taken out and scaled to its peak. Placeholders for the
 engineer to pick by ear (`tools\run.cmd sfx-check assets/audio/prime_engine --page`), "not a decision"; the final
 sounds come from the audio track (#1333). GDD §8 "The ship's engine" says when each plays.
 - `engine_call.wav` (0.35 s, peak 0.45, SHA-256 `87e01dff5fa33e3b50e44c0b3f9e39b545e5d4d3b9f509e2ce4e73bdb4252feb`):
@@ -286,11 +286,9 @@ sounds come from the audio track (#1333). GDD §8 "The ship's engine" says when 
   a short circuit, crackling noise in 4 ms bursts over a clipped buzz falling from 110 Hz to 70 Hz.
 - `engine_blast.wav` (2.0 s, peak 0.8, SHA-256 `30e8487c324f69be1ed631ad5e94fde152d64735bacef8be3a39b06905c93126`):
   a fail's blast, a thump falling from 55 Hz to 35 Hz under noise whose low-pass closes from 3 kHz to 200 Hz.
-- `engine_roar.wav` (2.8 s, peak 0.8, SHA-256 `a958e226569274058c7d2a52ae2404e3303a944e8b2eafaff7f61e446c607f57`):
-  the finish, a turbine's sawtooth spinning up from 70 Hz to 190 Hz in a rumble whose low-pass opens to 2.5 kHz.
 
-`SfxSet` (`client/audio/`) plays them: `ENGINE_CALL`, `ENGINE_BEEP`, `ENGINE_WAIL`, `ENGINE_ZAP`, `ENGINE_BLAST` and
-`ENGINE_ROAR` (#1501, ARCHITECTURE §4.7.64).
+`SfxSet` (`client/audio/`) plays them: `ENGINE_CALL`, `ENGINE_BEEP`, `ENGINE_WAIL`, `ENGINE_ZAP` and `ENGINE_BLAST`
+(#1501, ARCHITECTURE §4.7.64). The finish's `engine_roar.wav` was removed on the engineer's word (#1563).
 
 ## The lobby hall (prime-game-art)
 

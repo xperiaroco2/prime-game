@@ -420,20 +420,3 @@ func _art_is_a_pointer() -> bool:
 	)
 	assert_bool(FileAccess.get_file_as_string(glb).contains("oid sha256:")).is_true()
 	return true
-
-
-func test_the_engine_s_finish_flames_from_the_art_s_three_nozzles_out_of_the_stern() -> void:
-	add_child(_root)
-	var mouths := ShipEngineFinale.nozzles_of(_root)
-	assert_int(mouths.size()).is_equal(3)
-	# Each pod keeps its bell (the art ship package v8 too, #1552), so the flame starts at the bell's
-	# mouth, not at the far end of the pod's housing.
-	for pod: Node in _root.find_children("nozzle_pod_*", "Node3D", true, false):
-		var bell: Node = pod.find_child("pod_bell", true, false)
-		assert_object(bell).override_failure_message("%s has no pod_bell" % pod.name).is_not_null()
-	var centre := (_root.get_node(^"Engine/Hologram") as Node3D).global_position
-	for mouth: Transform3D in mouths:
-		# Out of the hull: away from the hall, beyond the pod's own bell.
-		var out := Vector3(mouth.origin.x - centre.x, 0.0, mouth.origin.z - centre.z).normalized()
-		assert_float(mouth.basis.z.dot(out)).is_greater(0.5)
-		assert_float(mouth.origin.z).is_greater(9.6)

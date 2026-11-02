@@ -2,9 +2,9 @@ extends GdUnitTestSuite
 ## ShipEngineSounds (#1501; GDD §8; ARCHITECTURE §4.7.64), on a ClientModel folded from the
 ## engine's public events and the base mode: each engine event maps to its sound at its place
 ## (the call at each pulse while the ship calls, a beep at each lamp of the order, a wail at each
-## station of a new problem, the blast and the roar at the console, heard farther), edges only
-## (nothing at the first frame, nothing twice) and nothing outside the play phase; a KnockedDown
-## zaps only by a tripped breaker still off.
+## station of a new problem, the blast at the console, heard farther), edges only (nothing at the
+## first frame, nothing twice) and nothing outside the play phase; the last stage passing sounds
+## nothing of its own (#1563); a KnockedDown zaps only by a tripped breaker still off.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const CONSOLE := 1
@@ -132,28 +132,21 @@ func test_a_blast_sounds_once_at_the_console_and_carries_far() -> void:
 	)
 
 
-func test_the_bar_full_roars_once_at_the_console_and_carries_far() -> void:
-	_due(false)
-	_zone(300, 600)
-	assert_array(_due(false)).is_empty()
-	_zone(600, 600)
-	var cues := _due(false)
-	assert_int(cues.size()).is_equal(1)
-	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
-	assert_object(cues[0]["position"]).is_equal(CONSOLE_AT + Vector3.UP)
-	assert_array(_due(false)).is_empty()
-	assert_float(ShipEngineSounds.range_of(SfxSet.ENGINE_ROAR)).is_greater(
-		SoundChooser.HEARING_RANGE_M
-	)
+func test_the_rest_carry_the_hearing_range() -> void:
 	for id: StringName in [
 		SfxSet.ENGINE_CALL, SfxSet.ENGINE_BEEP, SfxSet.ENGINE_WAIL, SfxSet.ENGINE_ZAP
 	]:
 		assert_float(ShipEngineSounds.range_of(id)).is_equal(SoundChooser.HEARING_RANGE_M)
 
 
-func test_an_engine_done_before_the_first_frame_never_roars() -> void:
+func test_the_last_stage_passing_sounds_nothing() -> void:
+	# No roar (#1563): the bar filling and full, and the round ending in the same tick, are silent.
+	_due(false)
+	_zone(300, 600)
+	assert_array(_due(false)).is_empty()
 	_zone(600, 600)
 	assert_array(_due(false)).is_empty()
+	_phase(&"end")
 	assert_array(_due(false)).is_empty()
 
 
@@ -168,15 +161,9 @@ func test_nothing_sounds_outside_the_play_phase() -> void:
 		assert_array(_due(true)).is_empty()
 
 
-func test_the_engine_that_ends_the_round_still_roars_in_that_frame() -> void:
+func test_nothing_sounds_once_the_round_ended() -> void:
 	_due(false)
-	# The last stage ends the round in the same tick: both fold before one frame.
-	_zone(600, 600)
 	_phase(&"end")
-	var cues := _due(false)
-	assert_int(cues.size()).is_equal(1)
-	assert_str(str(cues[0]["id"])).is_equal(String(SfxSet.ENGINE_ROAR))
-	# The next frames are outside play: silent.
 	_model.fold(&"EngineBlast", {"stage": 1})
 	assert_array(_due(false)).is_empty()
 	assert_array(_due(false)).is_empty()
