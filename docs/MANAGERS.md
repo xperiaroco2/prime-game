@@ -53,6 +53,11 @@ do not carry it; the design repo's skill reads it at its start.
   plan-issue comment with the option taken, so he can reverse it; a technical "Needs the engineer" item in a PR gets
   the standing word's "Answered:" line of the trust ADR's last amendment (`gh pr edit --body-file`)
   ([intervention](interventions/2026-10-29-engineer-asks-only-taste.md); the trust ADR's tiers, amended 2026-10-29).
+- Nothing new and visible (an effect, a prop, a look, a UI element, an animation) that the GDD and his words do not
+  name explicitly is built without his yes: build the rest, leave it out or keep the plainest placeholder, and put it
+  to him with a picture, options and a recommendation. Numbers and details inside what he approved still take your
+  recommendation ([intervention](interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md), his word
+  [#507](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573070345); it replaces "Taken for you").
 - The label `For you:` (or `Для вас:`) on a line of its own, then numbered items at the line's start; the same block
   goes, in English, into the plan-issue comment's notes, where the director's `inbox` reads it (AGENT_WORKFLOW §7.2).
 - Each item gives a direct link to what he must open (the PR, the issue, the comment) or the ready command itself: one

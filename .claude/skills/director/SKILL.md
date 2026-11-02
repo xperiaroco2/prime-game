@@ -72,6 +72,13 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
   his: how the humans work, a new dependency (its ADR), anything destructive, anything costing money beyond a
   track's weekly budget, and the gate's exceptions.
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
+- **Nothing new and visible without his yes** (his word of 2026-11-02,
+  [#507 comment 6573070345](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573070345), replacing
+  "Taken for you"): numbers and details inside something he approved or the GDD names still take a session's
+  recommendation; a new effect, prop, look, UI element or animation the GDD and his words do not name explicitly is
+  built by no one: it goes to him with a picture, options and a recommendation, and a GDD line without a look is no
+  yes for one ([the rule](../../../docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md)).
+<!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 - **Your writes:** the inbox issue's body (`gh issue edit <inbox> --body-file <file>`), its comments (the night
   report, your handover), relay comments ([digest.md](digest.md)), `send_message`, the sub-sessions you clear,
   start, rename and archive ([shift-change.md](shift-change.md)), and the merges he asks for (below). Files only in

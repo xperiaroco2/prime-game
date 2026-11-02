@@ -13,6 +13,10 @@ every call).
   how the humans work, a new dependency (its ADR), anything destructive, anything costing money, the gate's
   exceptions.
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
+- Nothing new and visible (an effect, a prop, a look, a UI element, an animation) that the GDD and his words do not
+  name explicitly is built without his yes: build the rest and show him a picture with options and a recommendation.
+  Details inside what he approved take your recommendation.
+<!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 - Voice dictation: infer the meaning, read the file name back before editing, ask a question only if a misreading
   changes what gets built; read back a design answer with two readings (AGENT_WORKFLOW §13).
 <!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
@@ -45,4 +49,5 @@ Add a row per real misrecognition you resolved, in this table (not in root `CLAU
 | "старілка" | "тарілка" (the plate: "старілка не може прийняти сиру котлету", #682 CD8) |
 | "кішки" | "кишки" (guts: "не буде там кішки, розчленьонка" = no guts, no dismemberment, #1076) |
 | "лігаві" | "легаві" (slang for the cops: "завітали лігаві" = the cops dropped in, #1090) |
+| "РФ" | "рев" (the roar, 2026-11-02) |
 | "топ-кін ефіцієнції" | "token efficiency" (the meta track's name: "AI продуктивіті топ-кін ефіцієнції" = AI productivity and token efficiency, #170 and #302) |

@@ -96,6 +96,11 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
   (code, engine, netcode, tooling, meta, docs, process) is never asked: take the recommendation, list it in your
   report.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
+- Nothing new and visible (an effect, a prop, a look, a UI element, an animation) that the GDD and the engineer's words
+  do not name explicitly is built without his yes: build the rest, leave it out or keep the plainest placeholder, and
+  list it in the report with a picture, options and a recommendation; details inside what he approved take the
+  recommendation.
+<!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - A new permission ask or deny rule: first "can an agent work alone overnight?" (routine work must not prompt,
   AGENT_WORKFLOW §8.1).

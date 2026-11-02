@@ -518,7 +518,8 @@ task itself. It was the **secretary** (#485) until his word of 2026-10-29 ~00:30
   sub-session asks it to merge (his standing word, that ADR's amendment of 2026-10-29). Only taste questions go to
   him: a sub-session's technical question gets his standing word back, "take your recommended option", and the
   choice goes into the shift report. It never launches a workflow, closes, creates an issue or decides a taste
-  question; it never answers a permission card (they are the human's by design). Its only
+  question; nothing new and visible is built without his yes
+  ([intervention](interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md)); it never answers a permission card (they are the human's by design). Its only
   writes: the inbox issue's body and comments, relay comments, `send_message`, its sub-sessions (`clear_session`,
   `start_session`, `set_session_effort`, `set_session_title`, `archive_session`, with `set_pinned` and
   `set_remote_control` before a clear or an archive), and those merges.
