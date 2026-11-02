@@ -129,6 +129,11 @@ func test_a_crystal_in_a_charger_is_the_charger_s_to_draw_until_it_is_taken() ->
 	assert_int(_model.hand_item(OTHER)).is_equal(1)
 	assert_bool(_model.items[1].locked).is_false()
 	assert_bool(_items.view_of(1).is_look_shown()).is_true()
+	# Put down on the floor (the last CrystalChanged still names it, with no charger): the floor's
+	# item view draws it, not the charger.
+	_model.fold(&"ItemPlaced", {"item": 1, "position": Vector3(2, 0, 0), "cause": &"put_down"})
+	await _drawn()
+	assert_bool(_items.view_of(1).is_look_shown()).is_true()
 
 
 func test_an_item_of_a_player_with_no_body_drawn_is_hidden() -> void:
