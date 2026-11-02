@@ -16,7 +16,7 @@ const SPAWN_FLOOR_M := 0.02
 ## The devices' points in estate-map §5a ("Positions inside, as built"), from the ship's centre
 ## (x east, y south: the scene's +z). A breaker hangs on its board.
 const DOC_POINTS: Dictionary[StringName, Array] = {
-	&"engine_console": [Vector2(0.0, 0.6)],
+	&"engine_console": [Vector2(0.0, -0.4)],
 	&"gill_button": [Vector2(-2.856, -3.433), Vector2(2.856, -3.433)],
 	&"breaker_board": [Vector2(-6.664, -0.902), Vector2(6.664, -0.902)],
 	&"breaker": [Vector2(-6.664, -0.902), Vector2(6.664, -0.902)],

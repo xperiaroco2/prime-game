@@ -126,25 +126,25 @@ metadata/name_key = "room.ship"
 metadata/centred = true
 metadata/art_package = "prime-game-art#335"
 
-[node name="Art" parent="." unique_id=209281549 instance=ExtResource("2_artship")]
+[node name="Art" parent="." unique_id=1039466180 instance=ExtResource("2_artship")]
 
-[node name="Environment" parent="Art" index="0" unique_id=1166030503]
+[node name="Environment" parent="Art" index="0" unique_id=461367519]
 process_mode = 4
 visible = false
 
-[node name="@DirectionalLight3D@3" parent="Art/Lights" parent_id_path=PackedInt32Array(209281549, 690481228) index="0" unique_id=1210169335]
+[node name="@DirectionalLight3D@3" parent="Art/Lights" parent_id_path=PackedInt32Array(1039466180, 507894975) index="0" unique_id=1469433068]
 process_mode = 4
 visible = false
 
-[node name="@DirectionalLight3D@4" parent="Art/Lights" parent_id_path=PackedInt32Array(209281549, 690481228) index="1" unique_id=88800050]
+[node name="@DirectionalLight3D@4" parent="Art/Lights" parent_id_path=PackedInt32Array(1039466180, 507894975) index="1" unique_id=1108887144]
 process_mode = 4
 visible = false
 
-[node name="Clearing" parent="Art" index="4" unique_id=240526477]
+[node name="Clearing" parent="Art" index="4" unique_id=1815922664]
 process_mode = 4
 visible = false
 
-[node name="Ground" parent="Art/Clearing" parent_id_path=PackedInt32Array(209281549, 240526477) index="2" unique_id=620171806]
+[node name="Ground" parent="Art/Clearing" parent_id_path=PackedInt32Array(1039466180, 1815922664) index="2" unique_id=1961746506]
 collision_layer = 0
 
 [node name="Hull" type="StaticBody3D" parent="." unique_id=1499000101]
@@ -416,7 +416,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.86, 2.35, 0.0186)
 [node name="Devices" type="Node3D" parent="Engine" unique_id=1109525699]
 
 [node name="StartConsole01" parent="Engine/Devices" unique_id=639067400 instance=ExtResource("3_console")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 1.2, 0.6)
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 1.2, -0.4)
 
 [node name="Collision" type="StaticBody3D" parent="Engine/Devices/StartConsole01" unique_id=1735020611]
 
@@ -437,10 +437,10 @@ transform = Transform3D(-0.8899263, 0, -0.45610428, 0, 1, 0, 0.45610428, 0, -0.8
 transform = Transform3D(0.49612564, 0, -0.8682507, 0, 1, 0, 0.8682507, 0, 0.49612564, 3.4261, 1.2, -2.3578)
 
 [node name="BreakerBoard01" parent="Engine/Devices" unique_id=1273590880 instance=ExtResource("5_board")]
-transform = Transform3D(0.988594, 0, 0.15060519, 0, 1, 0, -0.15060519, 0, 0.988594, -6.6532578, 1.2, -0.8326984)
+transform = Transform3D(0.988594, 0, 0.15060519, 0, 1, 0, -0.15060519, 0, 0.988594, -6.6532578, 1.533, -0.8326984)
 
 [node name="BreakerBoard02" parent="Engine/Devices" unique_id=1044694686 instance=ExtResource("5_board")]
-transform = Transform3D(0.988594, 0, -0.15060519, 0, 1, 0, 0.15060519, 0, 0.988594, 6.6532578, 1.2, -0.8326984)
+transform = Transform3D(0.988594, 0, -0.15060519, 0, 1, 0, 0.15060519, 0, 0.988594, 6.6532578, 1.533, -0.8326984)
 
 [node name="Charger01" parent="Engine/Devices" unique_id=1921862350 instance=ExtResource("8_charger")]
 transform = Transform3D(-0.9936054, 0, -0.112908505, 0, 1, 0, 0.112908505, 0, -0.9936054, -10.2686, 1.2, 3.2369)
@@ -451,7 +451,7 @@ transform = Transform3D(-0.9936054, 0, 0.112908505, 0, 1, 0, -0.112908505, 0, -0
 [node name="Markers" type="Node3D" parent="Engine" unique_id=1227546381]
 
 [node name="EngineConsole01" type="Marker3D" parent="Engine/Markers" unique_id=1537160659 groups=["spawn_engine_console"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -0.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1.4)
 
 [node name="GillButton01" type="Marker3D" parent="Engine/Markers" unique_id=1934005966 groups=["spawn_gill_button"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9472, 1.2, -3.1527)
@@ -514,16 +514,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.6, 1, -8.1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.6, 4.6, 3.6)
 
 [node name="Hologram" type="Marker3D" parent="Engine" unique_id=1462071425 groups=["engine_hologram"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.657, 0.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.657, -0.4)
 
 [node name="Turbine1" type="Marker3D" parent="Engine/Hologram" unique_id=1801499101]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.08, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.08, 1.1)
 
 [node name="Turbine2" type="Marker3D" parent="Engine/Hologram" unique_id=1801499102]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.135, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.135, 1.1)
 
 [node name="Turbine3" type="Marker3D" parent="Engine/Hologram" unique_id=1801499103]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.08, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.08, 1.1)
 
 [node name="Button" type="Marker3D" parent="Engine/Hologram" unique_id=1801499104]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.643, -0.6)

@@ -85,10 +85,22 @@ const WALKS := {
 	[
 		Vector3(116, 0, 57.5),
 		Vector3(116, 0, 64),
-		Vector3(116, 1.2, 70.4),
+		Vector3(116, 1.2, 69.4),
 	],
-	"ship, hall to the east lens room": [Vector3(116, 1.2, 70.4), Vector3(126.5, 1.2, 73.2)],
-	"ship, hall to the west lens room": [Vector3(116, 1.2, 70.4), Vector3(105.5, 1.2, 73.2)],
+	"ship, hall to the east lens room":
+	[
+		Vector3(116, 1.2, 69.4),
+		Vector3(117.6, 1.2, 69.6),
+		Vector3(119, 1.2, 71.1),
+		Vector3(126.5, 1.2, 73.2),
+	],
+	"ship, hall to the west lens room":
+	[
+		Vector3(116, 1.2, 69.4),
+		Vector3(114.4, 1.2, 69.6),
+		Vector3(113, 1.2, 71.1),
+		Vector3(105.5, 1.2, 73.2),
+	],
 	"house, stairs down to the laboratory":
 	[
 		Vector3(69.4, 0, 14),

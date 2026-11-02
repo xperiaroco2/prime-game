@@ -18,9 +18,9 @@
 players 1
 windows 1
 map res://levels/estate/estate.tscn
-route to_ship 116,58.5 116,64 116,70.4
-route east 117.4,70.6
-route to_breakers 118,71.8
+route to_ship 116,58.5 116,64 116,69.4
+route east 117.4,69.6
+route to_breakers 119,71.1
 
 window 1
 wait phase lobby
