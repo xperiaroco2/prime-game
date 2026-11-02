@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The ship engine's placeholder synthesis (#1501, tools/sfx/engine_synth.gd): each of the six
+## The ship engine's placeholder synthesis (#1501, tools/sfx/engine_synth.gd): each of the five
 ## sounds renders the same samples every time, scaled to its peak with no DC offset, starting at
 ## once and as long as sfx-check's task band allows; its WAV is mono 44.1 kHz 16-bit PCM; and
 ## each has its rendered file in assets/audio/prime_engine/ (in CI an LFS pointer, which is still

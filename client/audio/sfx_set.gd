@@ -37,8 +37,6 @@ const ENGINE_WAIL := &"engine_wail"
 const ENGINE_ZAP := &"engine_zap"
 ## A problem's timer ran out: the blast through the ship.
 const ENGINE_BLAST := &"engine_blast"
-## The last stage passed: the ship roars.
-const ENGINE_ROAR := &"engine_roar"
 ## A UI press (UiSounds).
 const UI_CLICK := &"ui_click"
 ## The one sound of both outcomes when End starts (EndScreen.outro_began, #657).
@@ -64,7 +62,6 @@ const FILES: Dictionary[StringName, Array] = {
 	ENGINE_WAIL: [ENGINE + "engine_wail.wav"],
 	ENGINE_ZAP: [ENGINE + "engine_zap.wav"],
 	ENGINE_BLAST: [ENGINE + "engine_blast.wav"],
-	ENGINE_ROAR: [ENGINE + "engine_roar.wav"],
 }
 ## The variants of a footstep on each surface: footstep_<surface>_000 to _004 (Impact Sounds).
 const FOOTSTEP_VARIANTS := 5

@@ -7,19 +7,18 @@ extends RefCounted
 ## for the engineer to pick by ear on sfx-check's listening page, "not a decision".
 
 const RATE := 44100
-## The six sounds by file name (without `.wav`), in GDD §8's order.
+## The five sounds by file name (without `.wav`), in GDD §8's order.
 const NAMES: Array[StringName] = [
-	&"engine_call", &"engine_beep", &"engine_wail", &"engine_zap", &"engine_blast", &"engine_roar"
+	&"engine_call", &"engine_beep", &"engine_wail", &"engine_zap", &"engine_blast"
 ]
 ## Each sound's peak after the scaling: the beep held and the wail long, so lower (sfx-check's RMS
-## band), the call soft, the zap, the blast and the roar full.
+## band), the call soft, the zap and the blast full.
 const PEAKS: Dictionary[StringName, float] = {
 	&"engine_call": 0.45,
 	&"engine_beep": 0.25,
 	&"engine_wail": 0.6,
 	&"engine_zap": 0.8,
 	&"engine_blast": 0.8,
-	&"engine_roar": 0.8,
 }
 ## The noise's seed: the same every render.
 const SEED := 1501
@@ -39,8 +38,6 @@ static func samples(sound_name: StringName) -> PackedFloat32Array:
 			raw = zap()
 		&"engine_blast":
 			raw = blast()
-		&"engine_roar":
-			raw = roar()
 		_:
 			return raw
 	return scaled(raw, PEAKS[sound_name])
@@ -128,29 +125,6 @@ static func blast() -> PackedFloat32Array:
 		var thump := sin(phase) * exp(-t / 0.4)
 		var level := _attack(t, 0.003) * exp(-t / 0.6)
 		out[i] = level * (2.2 * low + 0.9 * thump)
-	return out
-
-
-## The finish: the ship's roar, a turbine spinning up (a sawtooth of six harmonics rising from
-## 70 Hz to 190 Hz) inside a rumble of noise whose low-pass opens from 300 Hz to 2.5 kHz,
-## swelling over 0.9 s, then held and fading out in its last 0.7 s, 2.8 s in all.
-static func roar() -> PackedFloat32Array:
-	var length := 2.8
-	var out := _silence(length)
-	var noise := _Noise.new(SEED + 3)
-	var low := 0.0
-	var phase := 0.0
-	for i in out.size():
-		var t := float(i) / RATE
-		var spin := minf(1.0, t / 1.6)
-		phase += TAU * (70.0 + 120.0 * spin) / RATE
-		var tone := 0.0
-		for h in range(1, 7):
-			tone += sin(phase * h) / h
-		low += _alpha(300.0 + 2200.0 * spin) * (noise.next() - low)
-		var level := minf(0.1 + 0.9 * minf(1.0, t / 0.9), _attack(length - t, 0.7))
-		level *= _attack(t, 0.01)
-		out[i] = level * (0.45 * tone + 1.6 * low)
 	return out
 
 
