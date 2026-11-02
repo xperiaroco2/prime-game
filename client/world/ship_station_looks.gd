@@ -100,6 +100,7 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 			var what: StringName = DEVICES.get(node.scene_file_path, &"")
 			if what != &"":
 				found[what].append(node)
+		light_stations(level)
 	var console_at := _nearest(found[&"console"], console_id)
 	if console_at != null:
 		_console = ShipConsoleLook.apply(console_at, ShipEngineHologram.PULSE_SECONDS)
@@ -142,6 +143,17 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 			var board_side := _slot_of(_board_of[breaker])
 			var wing := 4 if board_side.ends_with("_e") else 0
 			_lamp[breaker] = wing + _shell[breaker]
+
+
+## Adds PhotoLayers.STATION to every light under `level` that reaches GROUND, so the sockets' and
+## chargers' meshes on it stay lit as the rest of the level (the ship's inside lights reach GROUND
+## alone). bind() runs it before it puts the looks on, so a seated crystal's light keeps skipping
+## STATION.
+static func light_stations(level: Node) -> void:
+	for node: Node in level.find_children("*", "Light3D", true, false):
+		var light := node as Light3D
+		if light.light_cull_mask & PhotoLayers.GROUND != 0:
+			light.light_cull_mask |= PhotoLayers.STATION
 
 
 ## Sets every look at host tick `now`: `share` the console's bar, `hologram` the engine's state

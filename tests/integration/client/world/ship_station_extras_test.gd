@@ -64,8 +64,7 @@ func test_the_socket_draws_its_crystal_charged_spent_or_not_while_it_is_out() ->
 	assert_object(crystal).is_not_null()
 	assert_str(String(crystal.node().get_parent().name)).is_equal("crystal_anchor")
 	assert_bool(crystal.node().transform.is_equal_approx(Transform3D.IDENTITY)).is_true()
-	# The crystal's light skips the stations' own layer (the art's layer 20 trick).
-	assert_int(crystal.omni().light_cull_mask & PhotoLayers.GROUND).is_equal(0)
+	_assert_lights_the_hull_not_the_station(crystal)
 	assert_bool(crystal.shown()).is_true()
 	assert_float(crystal.charge()).is_equal(1.0)
 	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.SOCKET], 600))
@@ -91,7 +90,7 @@ func test_the_charger_draws_the_crystal_it_holds_with_its_charge() -> void:
 	assert_object(crystal).is_not_null()
 	assert_bool(crystal.shown()).is_false()
 	assert_float(crystal.omni().omni_range).is_equal_approx(ShipCrystalLook.SEATED_OMNI_RANGE, 1e-5)
-	assert_int(crystal.omni().light_cull_mask & PhotoLayers.GROUND).is_equal(0)
+	_assert_lights_the_hull_not_the_station(crystal)
 	_model.fold(&"EngineProblemOpened", Rig.opened(1, [Rig.SOCKET], 6000))
 	_model.fold(&"CrystalChanged", Rig.crystal(Rig.CHARGER, CrystalProblem.LOADED, 7))
 	_view._process(0.05)
@@ -243,6 +242,36 @@ func test_a_view_built_late_shows_a_tripped_core_smoking_at_once() -> void:
 	var looks := late.station_looks()
 	assert_bool(looks.board_of(Rig.BOARD_EAST).smoking(looks.shell_of(8))).is_true()
 	assert_bool(looks.board_of(Rig.BOARD_EAST).smoking(looks.shell_of(7))).is_false()
+
+
+## The art's layer 20 trick on the live layers: the seated crystal's light reaches the hull
+## (GROUND) and skips its station's meshes (STATION), which the level's inside light still reaches;
+## the crystal's own meshes stay on GROUND.
+func _assert_lights_the_hull_not_the_station(crystal: ShipCrystalLook) -> void:
+	var mask := crystal.omni().light_cull_mask
+	assert_int(mask & PhotoLayers.GROUND).is_not_equal(0)
+	assert_int(mask & PhotoLayers.STATION).is_equal(0)
+	var station := crystal.node().get_parent()
+	while station.get_parent() != _view.level:
+		station = station.get_parent()
+	var meshes := 0
+	for m: Node in station.find_children("*", "MeshInstance3D", true, false):
+		var mesh := m as MeshInstance3D
+		# The station's own meshes: not the crystal's, the collision shapes' or the code-built
+		# lightning's (no owner).
+		if (
+			crystal.node().is_ancestor_of(mesh)
+			or mesh.get_parent() is CollisionObject3D
+			or mesh.owner == null
+		):
+			continue
+		assert_int(mesh.layers).is_equal(PhotoLayers.STATION)
+		meshes += 1
+	assert_int(meshes).is_greater(0)
+	for m: Node in crystal.node().find_children("*", "MeshInstance3D", true, false):
+		assert_int((m as MeshInstance3D).layers).is_equal(PhotoLayers.GROUND)
+	var lamp := _view.level.find_child(Rig.INSIDE_LAMP, false, false) as Light3D
+	assert_int(lamp.light_cull_mask & PhotoLayers.STATION).is_not_equal(0)
 
 
 ## Whether the packages' art is missing here (CI: LFS pointers); the test then skips.

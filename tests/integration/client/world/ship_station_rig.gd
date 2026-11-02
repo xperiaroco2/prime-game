@@ -7,6 +7,7 @@ const CONSOLE_GLB := preload("res://assets/environment/start_console/start_conso
 const SOCKET_KIT := preload("res://levels/kit/crystal_socket/crystal_socket.tscn")
 const BOARD_KIT := preload("res://levels/kit/breaker_board/breaker_board.tscn")
 const CHARGER_KIT := preload("res://levels/kit/crystal_charger/crystal_charger.tscn")
+const INSIDE_LAMP := "InsideLamp"
 const CONSOLE := 1
 const GILLS := 2
 const BOARD_EAST := 3
@@ -30,6 +31,11 @@ static func devices(suite: GdUnitTestSuite) -> Node3D:
 	_add(level, BOARD_KIT, Vector3(-6.65, 1.0, -1.0))
 	_add(level, CHARGER_KIT, Vector3(10.3, 3.2, 3.0))
 	_add(level, CHARGER_KIT, Vector3(-10.3, 3.2, 3.0))
+	# An inside light as the ship's: it reaches GROUND alone.
+	var lamp := OmniLight3D.new()
+	lamp.name = INSIDE_LAMP
+	lamp.light_cull_mask = PhotoLayers.GROUND
+	level.add_child(lamp)
 	return level
 
 
