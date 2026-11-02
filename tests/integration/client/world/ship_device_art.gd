@@ -12,8 +12,9 @@ const GLBS: Array[String] = [
 	"res://assets/environment/breaker_board/breaker_board.glb",
 	"res://assets/environment/crystal_charger/crystal_charger.glb",
 ]
-## The energy crystal's GLB (#1556): the extras' suite needs it too. Without it the devices draw no
-## crystal (ShipCrystalLook.apply is null) and no lightning, so the suites of #1550 run without it.
+## The energy crystal's GLB (#1556): the extras' suite needs it too, and the nightly lfs job pulls
+## it as well. Without it the devices draw no crystal (ShipCrystalLook.apply is null) and no
+## lightning, so the suites of #1550 run without it.
 const CRYSTAL_GLB := "res://assets/environment/energy_crystal/energy_crystal.glb"
 
 
