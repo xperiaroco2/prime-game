@@ -53,8 +53,8 @@ extends RefCounted
 ##   charge done at the deal (a package that spawned in its circle, a generator dealt with no
 ##   switch) is no one's success: those two play only in play (in_play()).
 ## - the ship's engine (#1501, ARCHITECTURE §4.7.64): ShipEngineViews' cues (ShipEngineSounds.EVENT:
-##   the call, the order's beeps, a problem's wails, the blast and the roar, each at its own place,
-##   the blast and the roar heard within ShipEngineSounds.FAR_RANGE_M), and a KnockedDown in play
+##   the call, the order's beeps, a problem's wails and the blast, each at its own place, the
+##   blast heard within ShipEngineSounds.FAR_RANGE_M), and a KnockedDown in play
 ##   by a tripped breaker still off its zap there (ShipEngineSounds.zap_at); any other knockdown is
 ##   silent here.
 
@@ -120,7 +120,7 @@ const ZONE_AIM_M := PANEL_AIM_M
 
 
 ## One sound to play: where it plays, where the occlusion ray aims (`lift` above it) and, for one
-## that carries farther than the hearing range (the engine's blast and roar), how far (0: the
+## that carries farther than the hearing range (the engine's blast), how far (0: the
 ## caller's hearing range). A wider range only for a sound at a fixed public place from an event
 ## everyone gets, never one whose place tells where a player is or acts (Swung, ItemPlaced,
 ## KnockedDown): the M4 ADR's single hearing range (§3 item 10) cuts those (ARCHITECTURE §4.7.64).
