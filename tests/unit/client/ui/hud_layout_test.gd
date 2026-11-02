@@ -111,15 +111,15 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 		assert_int(node.grow_horizontal).is_equal(row[3])
 		assert_int(node.grow_vertical).is_equal(row[4])
 	assert_vector(hud.time_label.custom_minimum_size).is_equal(Vector2(140, 0))
-	assert_vector(hud.cross.custom_minimum_size).is_equal(Vector2(8, 8))
+	assert_vector(hud.cross.custom_minimum_size).is_equal(Vector2(12, 12))
 	assert_vector(hud.health_box.custom_minimum_size).is_equal(Vector2(320, 0))
-	assert_vector(hud.health.custom_minimum_size).is_equal(Vector2(320, 16))
+	assert_vector(hud.health.custom_minimum_size).is_equal(Vector2(320, 24))
 	assert_vector(hud.health.fill.custom_minimum_size).is_equal(Vector2(0, 10))
-	assert_vector(hud.stamina.custom_minimum_size).is_equal(Vector2(320, 16))
-	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(46, 46))
+	assert_vector(hud.stamina.custom_minimum_size).is_equal(Vector2(320, 24))
+	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(75, 75))
 	assert_vector(hud.mic_icon.custom_minimum_size).is_equal(Vector2(28, 28))
-	assert_vector(hud.hand.custom_minimum_size).is_equal(Vector2(88, 88))
-	assert_vector(hud.belt.custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_vector(hud.hand.custom_minimum_size).is_equal(Vector2(132, 132))
+	assert_vector(hud.belt.custom_minimum_size).is_equal(Vector2(132, 132))
 	assert_vector(hud.raising_bar.custom_minimum_size).is_equal(Vector2(240, 10))
 	assert_int(hud.mic.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_BEGIN)
 	var cap := hud.get_node("Vitals/Health/Cap") as Control
@@ -200,14 +200,14 @@ func test_pack_widens_the_hand_with_its_icon_and_name() -> void:
 	assert_float(hand.item_label.custom_minimum_size.x).is_equal(106.0)
 	assert_bool(hand.item_label.clip_text).is_true()
 	assert_int(hand.item_label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
-	assert_vector(hand.custom_minimum_size).is_equal(Vector2(180, 88))
+	assert_vector(hand.custom_minimum_size).is_equal(Vector2(270, 132))
 	# The hand slot's width is its minimum: a long name is cut, never widening it.
 	hand.item_label.text = "A very long name of some package"
 	await get_tree().process_frame
-	assert_float(hand.size.x).is_equal(180.0)
-	# Empty again: back to 88.
+	assert_float(hand.size.x).is_equal(270.0)
+	# Empty again: back to 132.
 	hud.show_hud(_state(&"empty"))
-	assert_vector(hand.custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_vector(hand.custom_minimum_size).is_equal(Vector2(132, 132))
 
 
 func test_a_two_handed_name_wraps_onto_two_lines_and_a_short_one_stays_on_one() -> void:
@@ -232,11 +232,11 @@ func test_a_two_handed_name_wraps_onto_two_lines_and_a_short_one_stays_on_one() 
 		assert_float(label.get_combined_minimum_size().y).is_equal(two_lines)
 		assert_float(label.size.x).override_failure_message(name_text).is_equal(106.0)
 		assert_float(label.size.y).override_failure_message(name_text).is_equal(two_lines)
-		assert_float(hand.size.x).override_failure_message(name_text).is_equal(180.0)
+		assert_float(hand.size.x).override_failure_message(name_text).is_equal(270.0)
 	# More than two lines' worth: the label is two lines tall, the slot as wide as before.
 	await _show_item(hand, "Garden gnome with a very long hat")
 	assert_float(label.size.y).is_equal(two_lines)
-	assert_float(hand.size.x).is_equal(180.0)
+	assert_float(hand.size.x).is_equal(270.0)
 	# A short name again: back to one line.
 	await _show_item(hand, "Package")
 	assert_float(label.size.y).is_equal(one_line)
@@ -266,7 +266,7 @@ func test_mate_shows_the_knife_icon_alone_on_the_belt_and_the_dissident_role() -
 	assert_object(hud.belt.icon.self_modulate).is_equal(
 		GameUi.THEME.get_color(&"font_color", &"ToyTextOnDark")
 	)
-	assert_vector(hud.belt.custom_minimum_size).is_equal(Vector2(88, 88))
+	assert_vector(hud.belt.custom_minimum_size).is_equal(Vector2(132, 132))
 
 
 func test_raising_replaces_aim_and_the_map_hides_the_middle() -> void:
@@ -389,8 +389,8 @@ func test_large_text_keeps_the_sizes_and_shrinks_back() -> void:
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(hud.hand.custom_minimum_size).is_equal(Vector2(180, 88))
-	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(46, 46))
+	assert_vector(hud.hand.custom_minimum_size).is_equal(Vector2(270, 132))
+	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(75, 75))
 	holder.theme = GameUi.THEME
 	await get_tree().process_frame
 	await get_tree().process_frame

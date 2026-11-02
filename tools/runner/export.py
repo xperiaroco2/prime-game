@@ -59,7 +59,7 @@ TEMPLATES = (
 SHIPPED_ADDONS = ("twovoip", "webrtc_native")
 UNSHIPPED_ADDONS = ("gdUnit4",)
 BUNDLED_LICENSES = "docs/credits/licenses"
-BUNDLED = ("comfortaa", "godot", "opus", "rnnoise", "speexdsp")
+BUNDLED = ("godot", "onest", "opus", "rnnoise", "speexdsp", "unbounded")
 NOTICES = (
     "CREDITS.md",
     "licenses/twovoip/LICENSE",
@@ -70,7 +70,8 @@ NOTICES = (
     "licenses/webrtc_native/LICENSE.plog",
     "licenses/webrtc_native/LICENSE.usrsctp",
     "licenses/webrtc_native/LICENSE.webrtc-native",
-    "licenses/comfortaa/OFL.txt",
+    "licenses/onest/OFL.txt",
+    "licenses/unbounded/OFL.txt",
     "licenses/godot/COPYRIGHT.txt",
     "licenses/godot/LICENSE.txt",
     "licenses/opus/COPYING",

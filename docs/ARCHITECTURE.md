@@ -2485,7 +2485,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | a phase with no level (the tutorial's `gather`, #601, §4.7.44) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the map and tasks screen on M (§4.7.33); in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
-| End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
+| End | post game screen (#498, §4.7.31): black, how the round ended ("Great party!", "Time's up"), the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
@@ -3444,7 +3444,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
   → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
   `uid://c8behqt7jtcn8` kept with `ResourceSaver.set_uid`, a headless save writes none) and `game_theme_large.tres`.
-  Both are generated, never edited by hand. Pinned at `ui-0.8.0` (since #1020; `ui-0.4.0` before).
+  Both are generated, never edited by hand. Pinned at `ui-2.5.4` (since #1559; `ui-0.8.0` since #1020, `ui-0.4.0` before).
 - `tools/theme/mapping.json` is the engine knowledge, data: pack states to Godot StyleBox names
   (`hover-pressed` → `hover_pressed`), the 19 fields to `StyleBoxFlat` properties, per-state `font-color` to the
   `font_*_color` items, `items` (kebab-case to the Godot item), `label` to `font_size`, `press.*`, `size.*` and
@@ -3461,12 +3461,14 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   `<Variation>_<item>`, so a regenerated file differs only where a value did. `build_theme.gd` also stops when the
   pack differs from its lock or the project's UI base is not the pack's `reference` (1920x1080, #287), which the
   tests also hold.
-- What it writes: the pack's live type variations (118 at `ui-0.4.0`, 122 at `ui-0.8.0`; ToyChipNew, ToyChipNewText and
-  ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
+- What it writes: the pack's live type variations (118 at `ui-0.4.0`, 122 at `ui-0.8.0`, 182 at `ui-2.5.4`;
+  the deprecated ones are skipped but those `mapping.deprecated_in_use` names: ToyBarHealth, ToyBarStamina and
+  ToyBarTrack, which the HUD's `ToyBar` uses until #1319, #1559); since #576 also the base types under their engine class's name, the
   engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); the pack's textures as icons and, once its file is
   in the project (since #684), the font (§4.7.34). Each theme also carries
   the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
-  is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
+  is a whole theme that differs only in font sizes and the keycaps' `min_width` (50, from `modes.textSize.large`;
+  42 in the default since ui-2.x):
   `GameUi.set_large_text` swaps to it.
 - Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
   HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudHint → ToyHudCaption (not
@@ -3570,8 +3572,9 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   read it for the connecting spinner and the fades. Settings > Accessibility sets both and `UserSettings` saves
   them (`large_text`, `reduced_motion`; #491, §4.7.42).
 - **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
-  1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
-  `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
+  1920x1080 in six pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
+  `showcase_1.tscn` to `showcase_5.tscn` (the fifth and sixth: ui-2.x's bands, plates, bars, pips, roster,
+  stickers and mutation cards, #1559). A Button row has each state Godot can force: hover through a per-cell theme
   that draws the hover StyleBox (Godot cannot force a hover) plus the hover offset, held, disabled, focus drawn over
   the face, selected and selected + hover; then a live cell. `showcase_interactive.tscn` (page chips, large text,
   reduced motion, a live health slider) is for a human, in a window:
@@ -3583,11 +3586,11 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   bool after `reset()`), `toy_raised_test.gd`, `toy_toggle_test.gd` (every pair, a ButtonGroup, no
   partner, a companion, `sync()`), `toy_bar_test.gd` (step(0.22) = 4, (0.8) = 16, (1.0) = 20, (0.23) = 5 against a
   floor, the clamps; all 21 stops in both themes; the fill's colour), `toy_slider_test.gd`, `ui_parts_test.gd`
-  (the large keycap's 42 after a theme swap), `large_text_test.gd`; `theme_test.gd` also reads the builders'
+  (the large keycap's 50 after a theme swap), `large_text_test.gd`; `theme_test.gd` also reads the builders'
   variation names (seen failing on a planted `EscTabb`); `tests/unit/tools/theme_builder_test.gd` (the hints, three
   planted hint problems, a changed hint seen by the stale test); `theme_showcase_test.gd` (the pages show every live
   variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
-  large text, the page). The look: the four shots in the PR.
+  large text, the page). The look: the six shots in the PR.
 
 #### 4.7.28 Give-up on F and the controls the player rebinds (#211)
 - `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
@@ -3747,7 +3750,7 @@ a head over a wall and a player beyond 10 m without one).
   the debug overlay's panel corners; the spinner's and the end screen's animation).
 - Tests: `tests/unit/client/ui/base_controls_test.gd` (live controls under both themes: a bare LineEdit takes
   ToyField's StyleBoxes, size and colour and a SpinBox's field ToySpinField's, a SpinBox ToySpinBox's arrow boxes,
-  icons and items with each arrow at least 24 px high (the line from the committed Comfortaa metrics, as CI imports
+  icons and items with each arrow at least 24 px high (the line from the committed Onest metrics, as CI imports
   a stand-in font), an OptionButton and its list ToyDropdown's and ToyDropdownList's, an HSlider and a
   ScrollContainer's bar ToySlider's and ToyScrollBar's, a Button, a CheckBox and an OptionButton each their own Toy
   look and a Toy variation still winning; bare text takes the default size and spacing the greybox one; large text
@@ -3766,12 +3769,12 @@ a head over a wall and a player beyond 10 m without one).
 #### 4.7.31 The post game screen (#498)
 `EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
 `docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
-(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title` (`end.title`), the winner line,
+(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title`, the winner line,
 `Result` (ToyColumnEight) holding `Reason`, the 8 px `Gap` and `Back`. Pack variations only, no override.
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
   mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
   (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
-  (`WinnerRaised`, a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
+  (`WinnerRaised`, a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
   other line says who won, and no role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
@@ -3779,6 +3782,9 @@ a head over a wall and a player beyond 10 m without one).
   line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
   model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
   countdown, so the next End starts without the last round's.
+- **The title.** How the round ended, by the same reason id (`TITLE_KEYS`, the deck's keys since ui-2.5.1 and the
+  handoff at ui-2.5.4, #1559): `end.title.party` for `every_task_done`, `end.title.time_up` for `time_up`; any other
+  id keeps `end.title` ("End of the round"). The handoff's band and hero title around it are #1319's.
 - **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
   (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
@@ -3791,7 +3797,7 @@ a head over a wall and a player beyond 10 m without one).
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
-without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
+without a role; a side with no key; each reason, its title, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
 client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657, started as a new playback each End: not `playing`, which the 0.12 s file loses on the headless driver's mixing thread under load, #948),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
 `--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
@@ -3926,10 +3932,13 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
   icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`; at `ui-0.8.0` (#1020) 23 icons with the CheckBox
   and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the font hook's
-  file since #1045: the theme loads it, `assets/ui/comfortaa/` is gone) in `assets/ui/toy_pack/`, a folder Godot
+  file since #1045: the theme loads it, `assets/ui/comfortaa/` is gone; at `ui-2.5.4` (#1559) 41 icons with the
+  item, slot, siren and pointer ones, 8 pictograms, the 8 cards and the Onest and Unbounded TTFs instead of
+  Comfortaa) in `assets/ui/toy_pack/`, a folder Godot
   imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
   LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
-  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
+  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1; at `ui-2.5.4`, #1559: `item` 1,
+  `mic` and `mic-off` 1.75, `lock` and `teammate-mark` 1.25, `swatch-disc` 2.31, `check` 1.13);
   `ui-sync` writes it into Godot's own file, so a re-sync keeps the uid. Credits: `docs/credits/prime_game_ui_pack.md`
   from the pack's `LICENCES.json` (own work).
 - **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
@@ -3941,22 +3950,27 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
   §4.7.40); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
-- **The font hook.** `mapping.font.file` is `res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (the pack's copy since #1045;
-  `assets/ui/comfortaa/comfortaa.ttf` before), added in #684 (google/fonts'
-  variable `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; a Git LFS file; proposed on prime-game-ui#44).
-  `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's `fontWeight`
-  on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`), sets it as the
-  `font` of each variation with a label, and type.body's weight (`Comfortaa_wght_600`) as the theme's default font;
-  the base types copy it. The committed themes carry both. A checkout without the file builds themes with no font, so
-  Godot's default draws. With the font, each Label variation also gets the `line_spacing` that makes its line its
-  label token's `lineHeight` tall (#685): `fontSizePx` × `lineHeight`, half rounded up, less Godot's line height
-  of the font at that size (its ascent plus descent, each rounded up to a pixel; 22 px: a 28 px line over 26, so
-  2). The ascent and descent are `mapping.font.metrics` (881 and 234 at size 1000), measured once from the real
-  TTF and committed, never read from the loaded file: CI imports a stand-in font (§4.7.21, `lfs`'s TTF and OTF
-  stand-in) whose metrics differ, so a build there writes the same theme. The test checks the metrics and every
-  Label variation's line against the real font only where it is present (its `font_name` is Comfortaa). The bare
-  Label keeps #287's greybox 5. The credits entry `docs/credits/comfortaa.md` is complete; the OFL text ships as
-  `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`).
+- **The font hook.** Since `ui-2.0.0` (pinned in #1559) the pack draws its text in two families, each one variable
+  TTF (`wght`, with Cyrillic, Git LFS files) that `ui-sync` lands in `assets/ui/toy_pack/fonts/`:
+  `mapping.font.families` names each family's `file` and its `metrics`. Onest draws the text and numbers, Unbounded
+  the display titles (Comfortaa, the font of #684 and #1045, left with `ui-0.8.0`). `build_theme.gd` makes one
+  `FontVariation` per family and weight the pack's labels use (each label token's `fontFamily`, and its `fontWeight`
+  on the `wght` axis; at `ui-2.5.4` the sub-resources `Onest_wght_500`, `Onest_wght_700` and `Unbounded_wght_700`),
+  sets it as the `font` of each variation with a label, and type.body's (`Onest_wght_500`) as the theme's default
+  font; the base types copy it. `check_pack` refuses a label or default token in a family the mapping lacks. The
+  committed themes carry all three. A checkout without a family's file builds themes with no font, so Godot's
+  default draws. With the fonts, each Label variation also gets the `line_spacing` that makes its line its label
+  token's `lineHeight` tall (#685): `fontSizePx` × `lineHeight`, half rounded up, less Godot's line height of its
+  family at that size (its ascent plus descent, each rounded up to a pixel; Onest 22 px: a 28 px line under 22 + 7,
+  so -1). The ascent and descent are the family's `metrics` (Onest 970 and 305, Unbounded 995 and 245 at size
+  1000), measured once from the real TTF with Godot 4.7.2 and committed, never read from the loaded file: CI imports
+  a stand-in font (§4.7.21, `lfs`'s TTF and OTF stand-in) whose metrics differ, so a build there writes the same
+  theme. The test checks the metrics and every Label variation's line against the real fonts only where they are
+  present (each `font_name` is its family's). The bare Label keeps #287's greybox 5. A label variation's `uppercase`
+  (ui-2.x) is `Label.uppercase`, no theme item: the builder ignores it and a screen that uses one sets it. The
+  credits entries `docs/credits/onest.md` and `unbounded.md` are complete; the OFL texts ship as
+  `licenses/onest/OFL.txt` and `licenses/unbounded/OFL.txt` (`docs/credits/licenses/README.md`); the pack's own
+  copies are deferred in the lock, as `ui-sync` does.
 - Tests: `tools/runner/tests/test_ui_sync.py` (the imported copy, its scales and a re-sync that keeps Godot's
   `.import`, an asset the pack lists but does not ship, each problem verify names: a missing, changed or extra file,
   an LFS pointer by its oid, a wrong or missing scale, an asset not imported; the committed copy);
@@ -4120,7 +4134,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   drawn (the greybox "Raising <name>" is gone).
 - **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
   An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the
-  pack's `assets` list gives: `item` 2, `knife` 1, `mic` and `mic-off` 1.17), which an export packs. Only an icon
+  pack's `assets` list gives: `item` 1, `knife` 1, `mic` and `mic-off` 1.75 at `ui-2.5.4`), which an export packs. Only an icon
   with no imported copy (one a newer pin lists before `ui-sync` imports it) falls back to the pinned, `.gdignore`d
   copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
@@ -4203,7 +4217,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
 `PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
 prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
 for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
-(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER) > `Role`
+(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER) > `Role`
 ToyTitlePlate, and `Text` (ToyColumnSixteen) > `Goal` (ToyTextOnDark) and `Team` (ToyTextMutedOnDark), both 1152 px
 wide, wrapped. Pack variations only, no override.
 - **What it shows** (from the own `ClientModel` and the own mode only): the own role as its deck key
@@ -4246,13 +4260,13 @@ frozen halfway through its fade over the round's HUD), their `_uk` twins (`prega
 #### 4.7.40 The map and tasks screen in the Toy style (#490)
 The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
 engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
-- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
-  ToyBasePanel; its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
+- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised, no base since ui-2.0.0;
+  its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
   with `Title`, `Rows` (ToyColumnEight) and `Time`; a row `<Type>` (ToySettingRow, 64 tall) holds `H` (ToyRowTwelve):
   `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton, the handoff's fixed 42x42,
   not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard raised, its wrapper at
-  744, 88, 1096x904) holds `Rooms`, 1088x896 inside the 4 px border (`MapScreen.ROOMS_SIZE`, the size MapData fits
-  the rooms to): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
+  744, 88, 1096x904) holds `Rooms`, 1084x892 inside the board's 6 px content margins (`MapScreen.ROOMS_SIZE`, the
+  size MapData fits the rooms to; #1559): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
   `room/<id>` pictogram through `ToyIcons`, 48x48, its `self_modulate` the ink of ToyMapRoomText's `font_color`,
   #2a1f33, set again on a theme change; hidden for a room id the pack draws none for) and `Name` (ToyMapRoomText, 120
   wide at least, wrapped); then `Zone<Type>Tag` (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and
@@ -4748,7 +4762,7 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `task.switches` (§9.5.19) and the photo task as `room.photo_zone` (§9.5.22, #784); the photo task's Film and Photo
   show their display names until the deck has `item.film` and `item.photo`.
 - **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
-  `assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
+  `assets/ui/toy_pack/fonts/Onest-VariableFont_wght.ttf` and `Unbounded-VariableFont_wght.ttf` from their own bytes (`FontFile.load_dynamic_font`, FreeType's character map
   through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
   (placeholders and line breaks left out) it lacks. In a checkout without LFS content (CI, §4.7.21) the file is a
   pointer and the import a stand-in font: the test prints a `skip:` line naming it and checks only that it is a
@@ -10076,8 +10090,8 @@ assets/
   ship lot `levels/estate/rooms/ship.tscn` instances the ship's scene too, its own `ship.gd` freeing the clearing, sky
   and suns (#1499), never a second import.
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
-  `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
-  to `ui/toy_pack/fonts/` (#520, #1045).
+  `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The pack's fonts
+  (Onest and Unbounded since #1559) go to `ui/toy_pack/fonts/` (#520, #1045).
 - The sounds are three sets, one per Kenney pack (#525, §4.7.43): `audio/kenney_impact_sounds/` (the footsteps),
   `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
   file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one

@@ -51,12 +51,15 @@ static func base_problem(pack: Dictionary, width: int, height: int) -> String:
 	)
 
 
-## The variations the theme gets: every pack variation except the deprecated ones, sorted.
-static func generated_names(pack: Dictionary) -> PackedStringArray:
+## The variations the theme gets: every pack variation except the deprecated ones, sorted, but a
+## deprecated one a screen still uses (mapping.deprecated_in_use, #1559) is written until its
+## screen moves on.
+static func generated_names(pack: Dictionary, mapping: Dictionary = {}) -> PackedStringArray:
 	var names := PackedStringArray()
 	var variations: Dictionary = _dict(pack, "variations")
+	var in_use := _array(_dict(mapping, "deprecated_in_use"), "names")
 	for name: String in variations:
-		if not _dict(variations, name).has("deprecated"):
+		if not _dict(variations, name).has("deprecated") or in_use.has(name):
 			names.append(name)
 	names.sort()
 	return names
@@ -70,11 +73,13 @@ static func base_type_names(mapping: Dictionary) -> PackedStringArray:
 	return names
 
 
-static func deprecated_names(pack: Dictionary) -> PackedStringArray:
+## The deprecated variations the theme skips (all but mapping.deprecated_in_use), sorted.
+static func deprecated_names(pack: Dictionary, mapping: Dictionary = {}) -> PackedStringArray:
 	var names := PackedStringArray()
 	var variations: Dictionary = _dict(pack, "variations")
+	var in_use := _array(_dict(mapping, "deprecated_in_use"), "names")
 	for name: String in variations:
-		if _dict(variations, name).has("deprecated"):
+		if _dict(variations, name).has("deprecated") and not in_use.has(name):
 			names.append(name)
 	names.sort()
 	return names
@@ -163,9 +168,25 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 			if not problem.is_empty():
 				problems.append("variation %s: token %s %s" % [name, key, problem])
 		problems.append_array(_ramp_problems(pack, variation, owned[name] as Array))
+	for name: String in _array(_dict(mapping, "deprecated_in_use"), "names"):
+		if not _dict(variations, name).has("deprecated"):
+			problems.append("deprecated_in_use %s: not a deprecated pack variation" % name)
+	var default_key := str(_dict(mapping, "font").get("default", ""))
+	var default_problem := _family_problem(mapping, _dict(tokens, default_key))
+	if not default_problem.is_empty():
+		problems.append("font: the default token %s %s" % [default_key, default_problem])
 	problems.append_array(_legacy_problems(pack, mapping))
 	problems.append_array(_base_type_problems(pack, mapping))
 	return problems
+
+
+## Why a typography token's fontFamily has no font in mapping.font.families (#1559: since ui-2.0.0
+## the pack draws in two families), or empty.
+static func _family_problem(mapping: Dictionary, record: Dictionary) -> String:
+	var family := str(record.get("fontFamily", ""))
+	if _dict(_dict(mapping, "font"), "families").has(family):
+		return ""
+	return "has the font family %s, which is not in mapping.font.families" % family
 
 
 ## Each variation's tokens: pack token keys under the variation's prefix, by variation name.
@@ -197,16 +218,21 @@ static func tokens_by_variation(pack: Dictionary) -> Dictionary:
 ## and the kept ones, and the default font size. Deterministic: the same pack, mapping and font
 ## give the same file.
 static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> Theme:
-	return build_with_font(pack, mapping, text_size, base_font(mapping))
+	return build_with_fonts(pack, mapping, text_size, base_fonts(mapping))
 
 
-## The font file mapping.font names, or null while it is not in the project: the engineer adds
-## the TTF by hand (#520), and until then the theme has no font, so Godot's default font draws.
-static func base_font(mapping: Dictionary) -> Font:
-	var file: Variant = _dict(mapping, "font").get("file")
-	if not file is String or not ResourceLoader.exists(str(file)):
-		return null
-	return load(str(file)) as Font
+## The font of each family mapping.font.families names (ui-2.0.0: Onest and Unbounded, #1559), by
+## family, or empty while one of the files is not in the project: then the theme has no font, so
+## Godot's default font draws (#520).
+static func base_fonts(mapping: Dictionary) -> Dictionary:
+	var fonts := {}
+	var families: Dictionary = _dict(_dict(mapping, "font"), "families")
+	for family: String in families:
+		var file: Variant = _dict(families, family).get("file")
+		if not file is String or not ResourceLoader.exists(str(file)):
+			return {}
+		fonts[family] = load(str(file)) as Font
+	return fonts
 
 
 ## The res:// path of a pack texture (a path under the pack, `icons/slider-knob.svg`): its imported
@@ -215,9 +241,10 @@ static func texture_path(mapping: Dictionary, pack_path: String) -> String:
 	return str(_dict(mapping, "textures").get("folder", "")) + pack_path
 
 
-## build() with `font` as the base font (null: no font items); the tests pass a stand-in.
-static func build_with_font(
-	pack: Dictionary, mapping: Dictionary, text_size: String, font: Font
+## build() with `fonts` as the base font of each family (empty: no font items); the tests pass
+## stand-ins.
+static func build_with_fonts(
+	pack: Dictionary, mapping: Dictionary, text_size: String, fonts: Dictionary
 ) -> Theme:
 	var theme := Theme.new()
 	var variations: Dictionary = _dict(pack, "variations")
@@ -225,7 +252,7 @@ static func build_with_font(
 	var owned := tokens_by_variation(pack)
 	var empty := StyleBoxEmpty.new()
 	empty.resource_scene_unique_id = EMPTY_ID
-	for name in generated_names(pack):
+	for name in generated_names(pack, mapping):
 		var variation: Dictionary = _dict(variations, name)
 		var cls := str(variation.get("class", ""))
 		var spec: Dictionary = _dict(classes, cls)
@@ -241,8 +268,8 @@ static func build_with_font(
 		for key: String in owned[name]:
 			_apply_token(theme, pack, mapping, name, spec, key, text_size)
 		_add_icons(theme, mapping, name, _dict(variation, "textures"))
-	if font != null:
-		_add_fonts(theme, pack, mapping, font, text_size)
+	if not fonts.is_empty():
+		_add_fonts(theme, pack, mapping, fonts, text_size)
 	_add_base_types(theme, mapping)
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
@@ -395,7 +422,9 @@ static func _token_problem(
 			return "has type %s, which the %s item %s cannot take" % [type, item.get("kind"), tail]
 		return ""
 	if head == "label":
-		return "" if spec.has("label") and type == "typography" else "label is not mapped"
+		if not spec.has("label") or type != "typography":
+			return "label is not mapped"
+		return _family_problem(mapping, record)
 	if head in ["press", "size", "motion"]:
 		if head == "motion":
 			return (
@@ -733,22 +762,24 @@ static func _add_icons(
 		theme.set_icon(key.replace("-", "_"), name, load(path) as Texture2D)
 
 
-## The font (#520): one FontVariation of `font` per weight the labels use, on the variable font's
-## `axis` (Comfortaa ships one file, wght 300 to 700), as the `item` of each variation with a label
-## and, at the weight of the mapping's `default` token, the theme's default font. Each is one
-## sub-resource, `<family>_<axis>_<weight>`. A class whose spec names a `line_height` item (Label's
-## line_spacing) also gets the spacing that meets its label token's lineHeight (#685).
+## The fonts (#520, #1559): one FontVariation of a family's font per weight its labels use, on the
+## variable font's `axis` (each family ships one file), as the `item` of each variation with a
+## label (its label token's fontFamily and fontWeight) and, at the family and weight of the
+## mapping's `default` token, the theme's default font. Each is one sub-resource,
+## `<family>_<axis>_<weight>`. A class whose spec names a `line_height` item (Label's line_spacing)
+## also gets the spacing that meets its label token's lineHeight with its family's metrics (#685).
 static func _add_fonts(
-	theme: Theme, pack: Dictionary, mapping: Dictionary, font: Font, text_size: String
+	theme: Theme, pack: Dictionary, mapping: Dictionary, fonts: Dictionary, text_size: String
 ) -> void:
 	var spec: Dictionary = _dict(mapping, "font")
+	var families: Dictionary = _dict(spec, "families")
 	var item := str(spec.get("item", "font"))
 	var tokens: Dictionary = _dict(pack, "tokens")
 	var variations: Dictionary = _dict(pack, "variations")
 	var classes: Dictionary = _dict(mapping, "classes")
 	var owned := tokens_by_variation(pack)
-	var by_weight := {}
-	for name in generated_names(pack):
+	var made := {}
+	for name in generated_names(pack, mapping):
 		var variation: Dictionary = _dict(variations, name)
 		var key := "%s.label" % variation.get("prefix")
 		var cls: Dictionary = _dict(classes, str(variation.get("class", "")))
@@ -756,23 +787,23 @@ static func _add_fonts(
 			continue
 		if not (owned[name] as Array).has(key):
 			continue
-		var weight := _int(_dict(tokens, key).get("fontWeight", 0))
-		theme.set_font(item, name, _weighted(by_weight, font, spec, weight))
+		var family := str(_dict(tokens, key).get("fontFamily", ""))
+		theme.set_font(item, name, _weighted(made, fonts, spec, _dict(tokens, key)))
 		if cls.has("line_height"):
-			var spacing := line_spacing(spec, _record(pack, key, text_size))
+			var spacing := line_spacing(_dict(families, family), _record(pack, key, text_size))
 			theme.set_constant(str(cls["line_height"]), name, spacing)
-	var default_weight := _int(_dict(tokens, str(spec.get("default", ""))).get("fontWeight", 0))
-	theme.default_font = _weighted(by_weight, font, spec, default_weight)
+	var default_record := _dict(tokens, str(spec.get("default", "")))
+	theme.default_font = _weighted(made, fonts, spec, default_record)
 
 
 ## The Label line_spacing that makes a line as tall as a typography token's lineHeight (#685): the
 ## line box (fontSizePx x lineHeight, half rounded up) less the font's own line height at that size,
 ## which Godot 4.7.2 takes as its ascent plus its descent, each rounded up to a whole pixel. The
-## ascent and descent are mapping.font.metrics, measured once from the real TTF (at `size`) and
-## committed: CI imports a stand-in font whose metrics differ (§4.7.21), so the builder never reads
-## them from the loaded file, and a build there writes the same theme.
-static func line_spacing(font_spec: Dictionary, record: Dictionary) -> int:
-	var metrics: Dictionary = _dict(font_spec, "metrics")
+## ascent and descent are the family's `metrics` (mapping.font.families), measured once from the
+## real TTF (at `size`) and committed: CI imports a stand-in font whose metrics differ (§4.7.21), so
+## the builder never reads them from the loaded file, and a build there writes the same theme.
+static func line_spacing(family_spec: Dictionary, record: Dictionary) -> int:
+	var metrics: Dictionary = _dict(family_spec, "metrics")
 	var per := maxi(_int(metrics.get("size", 0)), 1)
 	var size := _int(record.get("fontSizePx", 0))
 	var ascent := _ceil_div(size * _int(metrics.get("ascent", 0)), per)
@@ -786,19 +817,23 @@ static func _ceil_div(top: int, bottom: int) -> int:
 	return (top + bottom - 1) / bottom
 
 
-## The FontVariation of `font` at `weight`, made once per theme.
+## The FontVariation of a typography token's fontFamily font at its fontWeight, made once per
+## theme.
 static func _weighted(
-	by_weight: Dictionary, font: Font, spec: Dictionary, weight: int
+	made: Dictionary, fonts: Dictionary, spec: Dictionary, record: Dictionary
 ) -> FontVariation:
-	if not by_weight.has(weight):
-		var axis := str(spec.get("axis", "wght"))
+	var family := str(record.get("fontFamily", ""))
+	var weight := _int(record.get("fontWeight", 0))
+	var axis := str(spec.get("axis", "wght"))
+	var id := "%s_%s_%d" % [family, axis, weight]
+	if not made.has(id):
 		var variation := FontVariation.new()
-		variation.base_font = font
+		variation.base_font = fonts.get(family) as Font
 		var tag := TextServerManager.get_primary_interface().name_to_tag(axis)
 		variation.variation_opentype = {tag: weight}
-		variation.resource_scene_unique_id = "%s_%s_%d" % [spec.get("family"), axis, weight]
-		by_weight[weight] = variation
-	return by_weight[weight] as FontVariation
+		variation.resource_scene_unique_id = id
+		made[id] = variation
+	return made[id] as FontVariation
 
 
 ## Each base type (#576) under its engine class's name: every item its `from` variation holds, the

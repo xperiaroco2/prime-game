@@ -113,14 +113,14 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	var label := _menu.name_row.get_node(^"NameLabel") as Label
 	assert_int(label.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	for panel: ToyRaised in [_menu.code_panel, _menu.direct_panel, _menu.settings_panel]:
-		assert_str(String(panel.base.theme_type_variation)).is_equal("ToyBasePanel")
+		assert_str(String(panel.base.theme_type_variation)).is_empty()
 	for panel: ToyRaised in [_menu.code_panel, _menu.direct_panel]:
 		assert_int(panel.size_flags_vertical).is_equal(Control.SIZE_SHRINK_BEGIN)
 	for join: ToyRaised in [_menu.code_join, _menu.direct_join]:
 		assert_int(join.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
-		assert_str(String(join.base.theme_type_variation)).is_equal("ToyBasePrimaryOnLight")
+		assert_str(String(join.base.theme_type_variation)).is_empty()
 		assert_object(join.face.get_node(^"ToyPress")).is_not_null()
-	assert_str(String(_menu.direct_host.base.theme_type_variation)).is_equal("ToyBaseRaisedOnLight")
+	assert_str(String(_menu.direct_host.base.theme_type_variation)).is_empty()
 	assert_object(_menu.code_back.get_node(^"ToyPress")).is_not_null()
 	assert_object(_menu.direct_back.get_node(^"ToyPress")).is_not_null()
 	# The data texts are never translated; the logo is the working title.

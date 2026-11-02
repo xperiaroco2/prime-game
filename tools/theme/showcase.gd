@@ -6,8 +6,8 @@ extends Control
 ## held (the `pressed` look and `press_held`); disabled (the base unplugged); focus (the `focus`
 ## StyleBox drawn over the face, as Godot draws it for keyboard focus); selected and selected +
 ## hover for a toggle pair; and a live cell (real ToyPress and ToyToggle). The slider knobs, the
-## dropdown arrow and the radios are the pack's (theme icons, #520); the font is Godot's default
-## until the Comfortaa TTF lands (#520).
+## dropdown arrow and the radios are the pack's (theme icons, #520); the fonts are the pack's Onest
+## and Unbounded (#1559).
 ##   tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080      page 0 (showcase_<n>.tscn)
 ##   tools\run.cmd run tools/theme/showcase_interactive.tscn --seconds 3600   a window, for a human
 ## A dev tool, not a screen, so it lives under tools/ (prime-game-ui spec §19.6).
@@ -165,6 +165,78 @@ const PAGES: Array[Dictionary] = [
 			],
 		],
 	},
+	{
+		"title": "Bands, plates, segments, tabs (ui-2.x)",
+		"sections":
+		[
+			[
+				"Bands and alert surfaces",
+				DARK,
+				[
+					"ToyBand",
+					"ToyBandAlert",
+					"ToyBackdropAlert",
+					"ToyBackdropFullScreen",
+					"ToyScreenEdgeAlert"
+				],
+			],
+			[
+				"Plates",
+				DARK,
+				[
+					"ToyPlateBanner",
+					"ToyPlateGoal",
+					"ToyPlateNotice",
+					"ToyPlateResult",
+					"ToyPlateTextMuted",
+					"ToyPlateCountdown",
+				],
+			],
+			["Segments", LIGHT, ["ToySegmentStart", "ToySegmentEnd"]],
+			["Tab strip", LIGHT, ["ToyTabStrip"]],
+		],
+	},
+	{
+		"title": "Bars, pips, slots, roster, stickers, cards (ui-2.x)",
+		"sections":
+		[
+			[
+				"Anger and return bars, pips, timer",
+				DARK,
+				[
+					"ToyBarAngerCalm@0.4",
+					"ToyBarAngerAlarm@0.85",
+					"ToyBarReturnCalm@0.6",
+					"ToyBarReturnAlarm@0.15",
+					"ToyPip",
+					"ToyPipHealth",
+					"ToyPipStamina",
+					"ToyPipAlarm",
+					"ToyTimerBare",
+					"ToyTileDivider",
+				],
+			],
+			["Hand, belt, slot tag", DARK, ["ToySlotHand", "ToySlotBelt", "ToySlotTag"]],
+			["Roster", DARK, ["ToyRoster", "ToyRosterDot", "ToyRosterTag", "ToyRosterTagHost"]],
+			[
+				"Stickers and kicker",
+				DARK,
+				["ToySticker", "ToyStickerAlert", "ToyStickerHighlight", "ToyKicker"]
+			],
+			["Mutation cards", LIGHT, ["ToyMutationCard", "ToyMutationCardPointed"]],
+			["Mutate", LIGHT, ["ToyButtonMutate"]],
+			[
+				"Balance plate and alert text",
+				LIGHT,
+				[
+					"ToyPlateBalance",
+					"ToyTitleMachine",
+					"ToyTextAlertOnLight",
+					"ToyDisplayAlertOnLight"
+				],
+			],
+		],
+	},
 ]
 const BUTTON_STATES: Array[String] = ["normal", "hover", "held", "disabled", "focus"]
 const TOGGLE_STATES: Array[String] = ["selected", "selected + hover"]
@@ -189,6 +261,8 @@ const TEXTS: Dictionary[String, String] = {
 	"ToySlotTextEmpty": "Empty",
 }
 const LABEL_ON: Dictionary[String, Array] = {
+	"ToyBand": ["ToyTitleHero"],
+	"ToyBandAlert": ["ToyTitleHeroAlert", "ToyTextOnDanger"],
 	"ToyBarLabel": ["ToyHudCaption"],
 	"ToyChipAlert": ["ToyChipAlertText"],
 	"ToyChipLight": ["ToyChipLightText"],
@@ -200,14 +274,30 @@ const LABEL_ON: Dictionary[String, Array] = {
 	"ToyKeyQuiet": ["ToyKeyQuietText"],
 	"ToyKeyRound": ["ToyKeyText"],
 	"ToyKeyRoundQuiet": ["ToyKeyQuietText"],
+	"ToyMutationCard": ["ToyMutationCardName", "ToyMutationCardText", "ToyMutationCardCost"],
+	"ToyMutationCardPointed": ["ToyMutationCardNameOff", "ToyMutationCardCostOff"],
 	"ToyNamePlate": ["ToyNamePlateText"],
 	"ToyPanelHowto": ["ToyHowtoNote"],
 	"ToyPlate": ["ToyPlateText"],
 	"ToyPlateAlert": ["ToyPlateText"],
+	"ToyPlateBalance": ["ToyPlateTimer"],
+	"ToyPlateBanner": ["ToyPlateAlertTitle", "ToyPlateAlertText", "ToyPlateAlertCountdown"],
+	"ToyPlateGoal": ["ToyPlateGoalText"],
 	"ToyPlateNight": ["ToyPlateText"],
+	"ToyPlateNotice": ["ToyPlateHeading"],
+	"ToyPlateResult": ["ToyPlateTitle"],
+	"ToyRoster": ["ToyRosterName", "ToyRosterNameSelf", "ToyRosterNameDead"],
+	"ToyRosterTag": ["ToyRosterTagText"],
+	"ToyRosterTagHost": ["ToyRosterTagHostText"],
 	"ToySettingRow": ["ToySettingRowText", "ToySettingRowValue"],
 	"ToySlot": ["ToySlotText", "ToySlotTextEmpty"],
 	"ToySlotActive": ["ToySlotText", "ToySlotTextEmpty"],
+	"ToySlotBelt": ["ToySlotTagText"],
+	"ToySlotHand": ["ToySlotTagText"],
+	"ToySlotTag": ["ToySlotTagText"],
+	"ToySticker": ["ToyStickerText"],
+	"ToyStickerAlert": ["ToyStickerText"],
+	"ToyStickerHighlight": ["ToyStickerTextLarge"],
 }
 const BUTTON_TEXTS: Dictionary[String, String] = {
 	"ToyKeyButton": "E",
@@ -568,13 +658,15 @@ func _inset(control: Control, plate: StringName) -> MarginContainer:
 
 func _label_text(variation: StringName) -> String:
 	match variation:
-		&"ToyTimer":
+		&"ToyTimer", &"ToyTimerBare":
 			return "03:12"
+		&"ToyPlateCountdown":
+			return "3"
 		&"ToyLogo":
 			return "PrimeGame"
 		&"ToyTitlePlate":
 			return "Engineer"
-		&"ToyDisplayOnLight":
+		&"ToyDisplayOnLight", &"ToyDisplayAlertOnLight":
 			return "12"
 	return str(variation).trim_prefix("Toy")
 

@@ -2,15 +2,31 @@ extends GdUnitTestSuite
 ## ToyRaised and ToyHints (#289): the base Panel first and ignoring the mouse, then the face; the
 ## base's variation from the generated theme's hints for the screen's context; panels and the
 ## title plate raised with no press; the base following a later variation; the wrapper taking the
-## face's minimum size.
+## face's minimum size. Since ui-2.0.0 the pack has no base (#1559): the live hints name none, and
+## the other tests read ui-0.8.0's bases from FixtureToyRaised.
 
 var _stage: Control
 
 
 func before_test() -> void:
+	FixtureToyRaised.install()
 	_stage = auto_free(Control.new())
 	_stage.theme = GameUi.THEME
 	add_child(_stage)
+
+
+func after_test() -> void:
+	FixtureToyRaised.uninstall()
+
+
+func test_the_live_pack_has_no_base() -> void:
+	FixtureToyRaised.uninstall()
+	var hints: Dictionary = ToyHints.THEME.get_meta(ToyHints.META, {})
+	assert_dict(hints.get("bases", {}) as Dictionary).is_empty()
+	var raised := UiParts.button("Go", Callable(), &"ToyButtonPrimary")
+	_stage.add_child(raised)
+	assert_str(str(raised.base.theme_type_variation)).is_empty()
+	assert_bool(raised.base.visible).is_false()
 
 
 func test_the_base_comes_first_and_ignores_the_mouse() -> void:

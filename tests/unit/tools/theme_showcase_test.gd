@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## The Godot showcase (#289, tools/theme/showcase.gd): its pages together show every live pack
-## variation (the abstract ToyButton aside) and no deprecated one, built in the default and the
+## variation (the abstract ToyButton aside; a deprecated one a screen still uses,
+## mapping.deprecated_in_use, is live) and no other deprecated one, built in the default and the
 ## large-text theme; the interactive scene's switches work. How it looks is the shots' job.
 
 const Builder := preload("res://tools/theme/theme_builder.gd")
@@ -10,6 +11,8 @@ const PAGES: Array[String] = [
 	"res://tools/theme/showcase_1.tscn",
 	"res://tools/theme/showcase_2.tscn",
 	"res://tools/theme/showcase_3.tscn",
+	"res://tools/theme/showcase_4.tscn",
+	"res://tools/theme/showcase_5.tscn",
 ]
 
 
@@ -19,7 +22,8 @@ func after_test() -> void:
 
 func test_the_pages_show_every_live_variation() -> void:
 	assert_int(PAGES.size()).is_equal(Showcase.PAGES.size())
-	var pack := Builder.load_pack(Builder.load_mapping())
+	var mapping := Builder.load_mapping()
+	var pack := Builder.load_pack(mapping)
 	var shown: Dictionary[String, bool] = {}
 	for large: bool in [false, true]:
 		for path in PAGES:
@@ -31,14 +35,14 @@ func test_the_pages_show_every_live_variation() -> void:
 			shown.merge(Showcase.variations_under(page))
 			page.free()
 	var missing := PackedStringArray()
-	for variation in Builder.generated_names(pack):
+	for variation in Builder.generated_names(pack, mapping):
 		var abstract: Variant = ((pack["variations"] as Dictionary)[variation] as Dictionary).get(
 			"abstract"
 		)
 		if abstract != true and not shown.has(variation):
 			missing.append(variation)
 	assert_array(missing).is_empty()
-	for variation in Builder.deprecated_names(pack):
+	for variation in Builder.deprecated_names(pack, mapping):
 		assert_bool(shown.has(variation)).override_failure_message(variation).is_false()
 
 

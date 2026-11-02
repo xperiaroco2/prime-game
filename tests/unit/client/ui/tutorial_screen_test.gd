@@ -57,7 +57,7 @@ func test_the_invite_is_the_handoffs_tree_with_start_focused() -> void:
 	var box := screen.box
 	assert_str(String(box.face.name)).is_equal("Box")
 	assert_str(String(box.face.theme_type_variation)).is_equal("ToyPanelDialog")
-	assert_str(String(box.base.theme_type_variation)).is_equal("ToyBasePanel")
+	assert_str(String(box.base.theme_type_variation)).is_empty()
 	assert_vector(box.custom_minimum_size).is_equal(Vector2(688, 0))
 	_assert_pinned(box, Control.PRESET_CENTER, Vector2.ZERO)
 	assert_int(box.grow_vertical).is_equal(Control.GROW_DIRECTION_BOTH)
@@ -76,7 +76,7 @@ func test_the_invite_is_the_handoffs_tree_with_start_focused() -> void:
 	_assert_node(screen.start_button, "Start", "Button", &"ToyButtonPrimary")
 	assert_str(screen.start_button.text).is_equal("tutorial.invite.start")
 	var start_raised := screen.start_button.get_parent() as ToyRaised
-	assert_str(String(start_raised.base.theme_type_variation)).is_equal("ToyBasePrimaryOnLight")
+	assert_str(String(start_raised.base.theme_type_variation)).is_empty()
 	_assert_node(screen.skip_button, "Skip", "Button", &"ToyButtonGhostOnLight")
 	assert_str(screen.skip_button.text).is_equal("tutorial.invite.skip")
 	# Focus starts on Start; the chips and Skip take focus too.
@@ -135,7 +135,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	assert_int(lead.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	var key := screen.how.get_node("Key") as PanelContainer
 	_assert_node(key, "Key", "PanelContainer", &"ToyKeyOnDark")
-	assert_vector(key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector(key.custom_minimum_size).is_equal(Vector2(42, 0))
 	var text := key.get_node("Text") as Label
 	_assert_node(text, "Text", "Label", &"ToyKeyText")
 	assert_str(text.text).is_equal(KeyLabel.of_action(&"interact"))
@@ -215,7 +215,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 	for key: Node in keys.get_children():
 		names.append(String(key.name))
 		_assert_node(key, String(key.name), "PanelContainer", &"ToyKeyOnDark")
-		assert_vector((key as Control).custom_minimum_size).is_equal(Vector2(36, 0))
+		assert_vector((key as Control).custom_minimum_size).is_equal(Vector2(42, 0))
 	assert_array(names).contains_exactly(["Forward", "Left", "Backward", "Right"])
 	var forward := keys.get_node("Forward/Text") as Label
 	assert_str(forward.text).is_equal(KeyLabel.of_action(&"move_forward"))
@@ -229,7 +229,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 		_assert_node(row, group, "HBoxContainer", &"ToyRowEight")
 		var key := row.get_node("Key") as PanelContainer
 		# Shift and Space take the wide size.
-		assert_vector(key.custom_minimum_size).is_equal(Vector2(96, 0))
+		assert_vector(key.custom_minimum_size).is_equal(Vector2(144, 0))
 		assert_str((row.get_node("Label") as Label).text).is_equal("control." + group.to_lower())
 	assert_str((screen.how.get_node("Jump/Key/Text") as Label).text).is_equal("Space")
 	# The crouch key (#902, LD4 (b)): the row lists it after Jump. Ctrl is no wide key. Its label is
@@ -238,7 +238,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 	_assert_node(crouch, "Crouch", "HBoxContainer", &"ToyRowEight")
 	assert_int(crouch.get_index()).is_equal(screen.how.get_node("Jump").get_index() + 1)
 	assert_str((crouch.get_node("Key/Text") as Label).text).is_equal("Ctrl")
-	assert_vector((crouch.get_node("Key") as Control).custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector((crouch.get_node("Key") as Control).custom_minimum_size).is_equal(Vector2(42, 0))
 	assert_str((crouch.get_node("Label") as Label).text).is_equal("control.crouch")
 	(
 		assert_str(screen.how_text())
@@ -276,7 +276,7 @@ func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -
 	assert_str(screen.title_label.text).is_equal("tutorial.step.howto.title")
 	var key := screen.how.get_node("Key") as PanelContainer
 	_assert_node(key, "Key", "PanelContainer", &"ToyKeyRound")
-	assert_vector(key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector(key.custom_minimum_size).is_equal(Vector2(42, 0))
 	assert_str((key.get_node("Text") as Label).text).is_equal("?")
 	assert_str((screen.how.get_node("After") as Label).text).is_equal("next to a task")
 	assert_str(screen.how_text()).is_equal("Press ? next to a task")
@@ -310,7 +310,7 @@ func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -
 	# Lesson 9's Esc is a wide keycap.
 	_show(screen, 9, 1, 8)
 	await get_tree().process_frame
-	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(96, 0))
+	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(144, 0))
 	# None current (lesson 8 waiting for the respawn): no step, the list stays.
 	_show(screen, 0, 0, 7)
 	assert_bool(screen.step.visible).is_false()
@@ -331,7 +331,7 @@ func test_the_keycaps_follow_a_rebind_and_the_list_its_map_key() -> void:
 	_show(screen, 2, 1, 1)
 	await get_tree().process_frame
 	assert_str(screen.how_text()).is_equal("Aim at the package and press Space")
-	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(96, 0))
+	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(144, 0))
 
 
 func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen() -> void:
@@ -345,7 +345,7 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(50, 0))
 	# Every lesson and step at large text in Ukrainian: inside the screen, the two plates apart.
 	var lessons := (load(LESSONS) as TutorialLessons).lessons
 	for lesson in range(1, lessons.size() + 1):

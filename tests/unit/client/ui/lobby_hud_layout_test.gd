@@ -119,10 +119,10 @@ func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
 		assert_vector(offsets).override_failure_message(node.name).is_equal(row[2])
 		assert_int(node.grow_horizontal).is_equal(row[3])
 		assert_int(node.grow_vertical).is_equal(row[4])
-	assert_vector(hud.cross.custom_minimum_size).is_equal(Vector2(8, 8))
+	assert_vector(hud.cross.custom_minimum_size).is_equal(Vector2(12, 12))
 	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(400, 0))
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(36, 0))
-	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(46, 46))
+	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(75, 75))
 	assert_vector(hud.mic_icon.custom_minimum_size).is_equal(Vector2(28, 28))
 	var shrink_center := Control.SIZE_SHRINK_CENTER
 	var caption := hud.get_node("Players/V/Info/CodeRow/Label") as Control
@@ -277,12 +277,12 @@ func test_large_text_widens_the_code_key_and_back() -> void:
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(50, 0))
 	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(400, 0))
 	holder.theme = GameUi.THEME
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(36, 0))
+	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
 
 
 func test_the_voice_hint_shows_only_with_a_text() -> void:

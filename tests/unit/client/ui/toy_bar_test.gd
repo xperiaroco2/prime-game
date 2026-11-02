@@ -40,7 +40,7 @@ func test_the_health_fill_takes_its_stops_colour() -> void:
 	assert_float(bar.custom_minimum_size.x).is_equal(200.0)
 	assert_bool(bar.fill.show_percentage).is_false()
 	assert_str(str(bar.theme_type_variation)).is_equal("ToyBarTrack")
-	assert_float(bar.custom_minimum_size.y).is_equal(16.0)
+	assert_float(bar.custom_minimum_size.y).is_equal(24.0)
 	for each: Array in [[0.22, "ramp_stop_04"], [0.8, "ramp_stop_16"], [1.0, "ramp_stop_20"]]:
 		var hp: float = each[0]
 		var stop: StringName = each[1]

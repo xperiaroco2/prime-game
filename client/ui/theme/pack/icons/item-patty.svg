@@ -1,0 +1,7 @@
+<!-- generated from pages/components/icons/item-patty.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "patty": the round-3 line icon pages/glow-bars/icons/line-patty.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 28C8 23 19 20 32 20C45 20 56 23 56 28Q52 32 47 31.5Q43 34.5 38 33.5Q33 36 28 34Q23 35.5 19 32.5Q13 33 8 28Z"/><path d="M8 28V38C8 44 19 48 32 48C45 48 56 44 56 38V28"/><path d="M21 26q2-2.5 4 0"/><path d="M37 25.5q2-2.5 4 0"/></g>
+</svg>

@@ -13,7 +13,32 @@ const Builder := preload("res://tools/theme/theme_builder.gd")
 const THEME_UID := "uid://c8behqt7jtcn8"
 const SCRATCH := "user://theme_builder_test.tres"
 const REGENERATE := "tools\\run.cmd run tools/theme/build_theme.gd --headless"
-const DEPRECATED: Array[String] = ["ToyChipNew", "ToyChipNewText", "ToyHowtoCaption"]
+## The pack's deprecated variations at ui-2.5.4 the theme skips (all but mapping.deprecated_in_use).
+const DEPRECATED: Array[String] = [
+	"ToyBarAnger",
+	"ToyBarAngerTrack",
+	"ToyBarHealthAlarm",
+	"ToyBarHealthCalm",
+	"ToyBarStaminaAlarm",
+	"ToyBarStaminaCalm",
+	"ToyBaseCard",
+	"ToyBasePanel",
+	"ToyBasePrimaryOnDark",
+	"ToyBasePrimaryOnLight",
+	"ToyBaseRaisedOnDark",
+	"ToyBaseRaisedOnLight",
+	"ToyBaseTitle",
+	"ToyButtonDangerOnMint",
+	"ToyButtonPrimaryOnMint",
+	"ToyChipNew",
+	"ToyChipNewText",
+	"ToyHowtoCaption",
+	"ToyPlateCount",
+	"ToyPlateHead",
+	"ToyPlateHeadText",
+]
+## Deprecated since ui-2.0.0 but still the HUD's ToyBar (client/ui/toy_bar.gd) until #1319.
+const IN_USE: Array[String] = ["ToyBarHealth", "ToyBarStamina", "ToyBarTrack"]
 
 var _mapping: Dictionary
 var _pack: Dictionary
@@ -27,11 +52,16 @@ func before() -> void:
 func test_every_pack_variation_is_mapped() -> void:
 	assert_bool(_pack.is_empty()).override_failure_message("no pinned pack").is_false()
 	assert_array(Builder.check_pack(_pack, _mapping)).is_empty()
-	var generated := Builder.generated_names(_pack)
+	var generated := Builder.generated_names(_pack, _mapping)
 	assert_int(generated.size() + DEPRECATED.size()).is_equal(
 		(_pack["variations"] as Dictionary).size()
 	)
-	assert_array(Array(Builder.deprecated_names(_pack))).contains_exactly(DEPRECATED)
+	assert_array(Array(Builder.deprecated_names(_pack, _mapping))).contains_exactly(DEPRECATED)
+	assert_array(Array(Builder.deprecated_names(_pack))).contains_exactly_in_any_order(
+		DEPRECATED + IN_USE
+	)
+	for type_name in IN_USE:
+		assert_bool(generated.has(type_name)).override_failure_message(type_name).is_true()
 	var theme := _committed("default")
 	for type_name in generated:
 		(
@@ -373,28 +403,28 @@ func test_the_uids_are_kept() -> void:
 func test_values_match_the_pack() -> void:
 	var theme := _committed("default")
 	var normal := theme.get_stylebox(&"normal", &"ToyButtonPrimary") as StyleBoxFlat
-	assert_object(normal.bg_color).is_equal(Color(1, 0.7608, 0.2275, 1))
-	assert_int(normal.border_width_bottom).is_equal(3)
-	assert_int(normal.corner_radius_top_left).is_equal(18)
-	assert_float(normal.content_margin_left).is_equal(22.0)
-	assert_float(normal.content_margin_top).is_equal(12.0)
+	assert_object(normal.bg_color).is_equal(Color(0.4353, 0.949, 0.7059, 1))
+	assert_int(normal.border_width_bottom).is_equal(5)
+	assert_int(normal.corner_radius_top_left).is_equal(9)
+	assert_float(normal.content_margin_left).is_equal(21.0)
+	assert_float(normal.content_margin_top).is_equal(14.0)
 	var focus := theme.get_stylebox(&"focus", &"ToyButtonPrimary") as StyleBoxFlat
 	assert_bool(focus.draw_center).is_false()
-	assert_float(focus.expand_margin_left).is_equal(-3.0)
-	assert_int(theme.get_constant(&"width", &"ToySlot")).is_equal(88)
-	assert_int(theme.get_constant(&"shadow_offset_y", &"ToyLogo")).is_equal(6)
-	assert_object(theme.get_color(&"font_shadow_color", &"ToyLogo")).is_equal(
-		Color(1, 0.5176, 0.4, 1)
-	)
+	assert_float(focus.expand_margin_left).is_equal(6.0)
+	assert_int(theme.get_constant(&"width", &"ToySlot")).is_equal(132)
+	# Since ui-2.0.0 the logo has no hard shadow: the pack's zero offset and clear colour (#1559).
+	assert_int(theme.get_constant(&"shadow_offset_y", &"ToyLogo")).is_equal(0)
+	assert_object(theme.get_color(&"font_shadow_color", &"ToyLogo")).is_equal(Color(0, 0, 0, 0))
 	assert_object(theme.get_stylebox(&"normal", &"ToyTextOnDark")).is_instanceof(StyleBoxEmpty)
 	assert_object(theme.get_stylebox(&"background", &"ToyBarHealth")).is_instanceof(StyleBoxEmpty)
-	assert_object(theme.get_color(&"icon_on", &"ToyMic")).is_equal(Color(1, 0.9569, 0.8863, 1))
+	assert_object(theme.get_color(&"icon_on", &"ToyMic")).is_equal(Color(0.9255, 0.9098, 0.9686, 1))
 	assert_int(theme.get_constant(&"modulate_arrow", &"ToyDropdown")).is_equal(1)
 	assert_object(theme.get_color(&"font_uneditable_color", &"ToyField")).is_not_null()
 	# The pack's textures are theme icons (#520), loaded from the imported copy at its import scale.
 	var knob := theme.get_icon(&"grabber", &"ToySlider")
 	assert_str(knob.resource_path).is_equal("res://assets/ui/toy_pack/icons/slider-knob.svg")
-	assert_object(knob.get_size()).is_equal(Vector2(28, 28))
+	# ui-2.x's knob is a 21 x 42 pill (svg_scale 1).
+	assert_object(knob.get_size()).is_equal(Vector2(21, 42))
 	assert_object(theme.get_icon(&"grabber_highlight", &"ToySlider")).is_same(knob)
 	assert_str(theme.get_icon(&"grabber_disabled", &"ToySlider").resource_path).ends_with(
 		"/slider-knob-disabled.svg"
@@ -429,17 +459,18 @@ func test_values_match_the_pack() -> void:
 			]
 		)
 	)
-	# The CheckBox and SpinBox icons (#1020), at svg_scale 1: the box 28 px, the chevrons 18 px.
+	# The CheckBox and SpinBox icons (#1020), at svg_scale 1: at ui-2.5.4 the box 42 px, the
+	# chevrons 27 px.
 	var box := theme.get_icon(&"unchecked_disabled", &"ToyCheckBox")
 	assert_str(box.resource_path).ends_with("/checkbox-unchecked-disabled.svg")
-	assert_object(box.get_size()).is_equal(Vector2(28, 28))
+	assert_object(box.get_size()).is_equal(Vector2(42, 42))
 	var up := theme.get_icon(&"up_pressed", &"ToySpinBox")
 	assert_str(up.resource_path).ends_with("/spin-up.svg")
-	assert_object(up.get_size()).is_equal(Vector2(18, 18))
+	assert_object(up.get_size()).is_equal(Vector2(27, 27))
 	assert_str(theme.get_icon(&"down_disabled", &"ToySpinBox").resource_path).ends_with(
 		"/spin-down.svg"
 	)
-	assert_int(theme.get_constant(&"buttons_width", &"ToySpinBox")).is_equal(34)
+	assert_int(theme.get_constant(&"buttons_width", &"ToySpinBox")).is_equal(51)
 	assert_int(theme.get_constant(&"h_separation", &"ToyCheckBox")).is_equal(12)
 
 
@@ -449,13 +480,14 @@ func test_the_press_motion_and_the_ramp() -> void:
 	assert_int(theme.get_constant(&"press_duration_reduced_ms", &"ToyButton")).is_equal(0)
 	assert_int(theme.get_constant(&"press_trans", &"ToyButton")).is_equal(Tween.TRANS_SINE)
 	assert_int(theme.get_constant(&"press_ease", &"ToyButton")).is_equal(Tween.EASE_OUT)
-	assert_int(theme.get_constant(&"press_depth", &"ToyButtonPrimary")).is_equal(6)
+	# Since ui-2.0.0 a button does not sink (button.common.press.depth 0, #1559).
+	assert_int(theme.get_constant(&"press_depth", &"ToyButtonPrimary")).is_equal(0)
 	var button: Button = auto_free(Button.new())
 	button.theme = theme
 	button.theme_type_variation = &"ToyButtonPrimary"
 	add_child(button)
 	assert_int(button.get_theme_constant(&"press_duration_ms")).is_equal(70)
-	assert_int(button.get_theme_constant(&"press_depth")).is_equal(6)
+	assert_int(button.get_theme_constant(&"press_depth")).is_equal(0)
 	var tokens := _tokens(_pack)
 	for index in 21:
 		var item := "ramp_stop_%02d" % index
@@ -468,12 +500,12 @@ func test_the_press_motion_and_the_ramp() -> void:
 func test_the_large_theme_differs_only_in_text_sizes() -> void:
 	var normal := _committed("default")
 	var large := _committed("large")
-	assert_int(normal.get_font_size(&"font_size", &"ToyButtonPrimary")).is_equal(24)
-	assert_int(large.get_font_size(&"font_size", &"ToyButtonPrimary")).is_equal(30)
-	assert_int(normal.get_constant(&"min_width", &"ToyKeyOnDark")).is_equal(36)
-	assert_int(large.get_constant(&"min_width", &"ToyKeyOnDark")).is_equal(42)
-	assert_int(large.get_constant(&"wide_min_width", &"ToyKeyButton")).is_equal(96)
-	assert_int(large.get_font_size(&"font_size", &"ToyLogo")).is_equal(64)
+	assert_int(normal.get_font_size(&"font_size", &"ToyButtonPrimary")).is_equal(22)
+	assert_int(large.get_font_size(&"font_size", &"ToyButtonPrimary")).is_equal(28)
+	assert_int(normal.get_constant(&"min_width", &"ToyKeyOnDark")).is_equal(42)
+	assert_int(large.get_constant(&"min_width", &"ToyKeyOnDark")).is_equal(50)
+	assert_int(large.get_constant(&"wide_min_width", &"ToyKeyButton")).is_equal(144)
+	assert_int(large.get_font_size(&"font_size", &"ToyLogo")).is_equal(78)
 	assert_array(Array(large.get_type_list())).contains_exactly_in_any_order(
 		Array(normal.get_type_list())
 	)
@@ -502,27 +534,8 @@ func test_the_hints_are_in_both_themes() -> void:
 	var hints := Builder.hints(_pack)
 	var bases: Dictionary = hints["bases"]
 	var toggles: Dictionary = hints["toggles"]
-	(
-		assert_array(bases.keys())
-		. contains_exactly(
-			[
-				"ToyButtonDanger",
-				"ToyButtonPrimary",
-				"ToyButtonSecondary",
-				"ToyMapBoard",
-				"ToyPanelDialog",
-				"ToyPanelHowto",
-				"ToyPanelMenu",
-				"ToyPresetCard",
-				"ToyPresetCardSelected",
-				"ToyTitlePlate",
-			]
-		)
-	)
-	assert_dict(bases["ToyButtonPrimary"]).is_equal(
-		{"dark": "ToyBasePrimaryOnDark", "light": "ToyBasePrimaryOnLight"}
-	)
-	assert_dict(bases["ToyPresetCard"]).is_equal({"any": "ToyBaseCard"})
+	# Since ui-2.0.0 the plain tile has no hard shadow, so no variation has a base (#1559).
+	assert_dict(bases).is_empty()
 	(
 		assert_dict(toggles)
 		. is_equal(
@@ -531,6 +544,8 @@ func test_the_hints_are_in_both_themes() -> void:
 				"ToyChipToggleOnLight": "ToyChipToggleOnLightSelected",
 				"ToyPresetCard": "ToyPresetCardSelected",
 				"ToyRadio": "ToyRadioSelected",
+				"ToySegmentEnd": "ToySegmentEndSelected",
+				"ToySegmentStart": "ToySegmentStartSelected",
 				"ToyTab": "ToyTabSelected",
 			}
 		)
@@ -601,19 +616,21 @@ func test_the_base_must_be_the_packs_reference() -> void:
 	assert_str(Builder.base_problem(_pack, width, height)).is_empty()
 
 
-func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() -> void:
-	var font: Dictionary = _mapping["font"]
-	assert_str(str(font["family"])).is_equal("Comfortaa")
-	assert_str(str(font["file"])).is_equal(
-		"res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf"
-	)
+func test_the_committed_themes_have_the_fonts_only_once_they_are_in_the_project() -> void:
+	var families: Dictionary = (_mapping["font"] as Dictionary)["families"]
+	# Since ui-2.0.0 the pack draws in two families (#1559), each the pack's own TTF.
+	assert_array(families.keys()).contains_exactly_in_any_order(["Onest", "Unbounded"])
+	for family: String in families:
+		assert_str(str((families[family] as Dictionary)["file"])).is_equal(
+			"res://assets/ui/toy_pack/fonts/%s-VariableFont_wght.ttf" % family
+		)
+	var present := Builder.base_fonts(_mapping)
 	for key: String in ["default", "large"]:
 		var theme := _committed(key)
 		# The pack's font.size.theme-default (#1020; test_base_types_share_the_toy_looks).
 		assert_int(theme.default_font_size).is_equal(27 if key == "default" else 34)
-		if not ResourceLoader.exists(str(font["file"])):
-			# The engineer adds the TTF by hand (#520): until then no font, Godot's default draws.
-			assert_object(Builder.base_font(_mapping)).is_null()
+		if present.is_empty():
+			# A checkout without the files: no font, Godot's default draws.
 			assert_object(theme.default_font).is_null()
 			for type_name in theme.get_type_list():
 				(
@@ -624,81 +641,140 @@ func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() ->
 			continue
 		var default_font := theme.default_font as FontVariation
 		assert_object(default_font).is_not_null()
-		assert_str(default_font.base_font.resource_path).is_equal(str(font["file"]))
+		assert_str(default_font.base_font.resource_path).is_equal(
+			str((families["Onest"] as Dictionary)["file"])
+		)
+		var logo := theme.get_font(&"font", &"ToyLogo") as FontVariation
+		assert_str(logo.base_font.resource_path).is_equal(
+			str((families["Unbounded"] as Dictionary)["file"])
+		)
 
 
-func test_the_font_becomes_a_variation_per_label_weight() -> void:
-	var stand_in := ThemeDB.fallback_font
+func test_the_font_becomes_a_variation_per_label_family_and_weight() -> void:
+	var onest := ThemeDB.fallback_font
+	var unbounded := FontVariation.new()
+	unbounded.base_font = ThemeDB.fallback_font
+	var stand_ins := {"Onest": onest, "Unbounded": unbounded}
 	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
 	# The OpenType tag itself, not only what the builder's own call returns (#520 review): a text
 	# server that cannot map the name would give both sides the same wrong key.
 	assert_int(wght).is_equal(0x77676874)
 	for text_size: String in ["default", "large"]:
-		var theme := Builder.build_with_font(_pack, _mapping, text_size, stand_in)
+		var theme := Builder.build_with_fonts(_pack, _mapping, text_size, stand_ins)
 		var body := theme.default_font as FontVariation
-		# The default font is type.body's weight, 600 (SemiBold); bold labels take 700.
-		assert_object(body.base_font).is_same(stand_in)
-		assert_object(body.variation_opentype).is_equal({wght: 600})
+		# The default font is type.body's: Onest Medium 500; bold labels take 700, titles Unbounded.
+		assert_object(body.base_font).is_same(onest)
+		assert_object(body.variation_opentype).is_equal({wght: 500})
 		var bold := theme.get_font(&"font", &"ToyButtonPrimary") as FontVariation
 		assert_object(bold.variation_opentype).is_equal({wght: 700})
+		var logo := theme.get_font(&"font", &"ToyLogo") as FontVariation
+		assert_object(logo.base_font).is_same(unbounded)
+		assert_object(logo.variation_opentype).is_equal({wght: 700})
 		assert_object(theme.get_font(&"font", &"ToyTextOnDark")).is_not_null()
-		# One object per weight, shared by every label of that weight and by the base types.
-		var weights := {}
+		# One object per family and weight, shared by every label of it and by the base types.
+		var made := {}
 		for type_name in theme.get_type_list():
 			for item in theme.get_font_list(type_name):
 				var variation := theme.get_font(item, type_name) as FontVariation
-				weights[variation.resource_scene_unique_id] = variation
-				assert_object(variation.base_font).is_same(stand_in)
-		assert_array(weights.keys()).contains_exactly_in_any_order(
-			["Comfortaa_wght_600", "Comfortaa_wght_700"]
+				made[variation.resource_scene_unique_id] = variation
+				assert_bool(stand_ins.values().has(variation.base_font)).is_true()
+		assert_array(made.keys()).contains_exactly_in_any_order(
+			["Onest_wght_500", "Onest_wght_700", "Unbounded_wght_700"]
 		)
 		assert_object(theme.get_font(&"font", &"LineEdit")).is_same(
 			theme.get_font(&"font", &"ToyField")
 		)
-		# Every variation with a label gets the font of its label token's weight.
+		# Every variation with a label gets the font of its label token's family and weight.
 		var tokens := _tokens(_pack)
 		var owned := Builder.tokens_by_variation(_pack)
-		for variation_name in Builder.generated_names(_pack):
+		for variation_name in Builder.generated_names(_pack, _mapping):
 			var variation := _variation(_pack, variation_name)
 			var key := "%s.label" % variation["prefix"]
 			if not (owned[variation_name] as Array).has(key):
 				continue
-			var want: int = (tokens[key] as Dictionary)["fontWeight"]
+			var record: Dictionary = tokens[key]
 			var got := theme.get_font(&"font", variation_name) as FontVariation
 			(
 				assert_object(got.variation_opentype)
 				. override_failure_message("%s: %s" % [variation_name, got.variation_opentype])
-				. is_equal({wght: want})
+				. is_equal({wght: record["fontWeight"] as int})
 			)
-	# Without the file, the build writes no font at all.
-	var none := Builder.build_with_font(_pack, _mapping, "default", null)
+			(
+				assert_object(got.base_font)
+				. override_failure_message("%s: %s" % [variation_name, record["fontFamily"]])
+				. is_same(stand_ins[record["fontFamily"]])
+			)
+	# Without the files, the build writes no font at all.
+	var none := Builder.build_with_fonts(_pack, _mapping, "default", {})
 	assert_object(none.default_font).is_null()
 	assert_array(Array(none.get_font_list(&"ToyButtonPrimary"))).is_empty()
 
 
-## Each Label variation's line is its label token's lineHeight tall with Comfortaa (#685): the
-## spacing comes from the committed metrics, so a build with CI's stand-in font writes the same
-## value; where the real font is in the project, its own heights must give that line.
+## A deprecated_in_use name that is not a deprecated pack variation stops the build (#1559): the
+## pack's next major release removes them, and the screens must move first.
+func test_check_pack_names_a_kept_variation_that_is_not_deprecated() -> void:
+	var mapping := _mapping.duplicate(true)
+	((mapping["deprecated_in_use"] as Dictionary)["names"] as Array).append("ToyPlate")
+	((mapping["deprecated_in_use"] as Dictionary)["names"] as Array).append("ToyGone")
+	var problems := Builder.check_pack(_pack, mapping)
+	(
+		assert_array(Array(problems))
+		. contains(
+			[
+				"deprecated_in_use ToyPlate: not a deprecated pack variation",
+				"deprecated_in_use ToyGone: not a deprecated pack variation",
+			]
+		)
+	)
+
+
+## A label in a family the mapping has no font for stops the build (#1559), and so does a default
+## token in one.
+func test_check_pack_names_a_font_family_the_mapping_lacks() -> void:
+	var pack := _pack.duplicate(true)
+	((pack["tokens"] as Dictionary)["text.on-dark.label"] as Dictionary)["fontFamily"] = "Comic"
+	var mapping := _mapping.duplicate(true)
+	(mapping["font"] as Dictionary)["default"] = "title.plate.label"
+	((mapping["font"] as Dictionary)["families"] as Dictionary).erase("Unbounded")
+	var problems := "\n".join(Builder.check_pack(pack, mapping))
+	assert_str(problems).contains(
+		"variation ToyTextOnDark: token text.on-dark.label has the font family Comic, which is not"
+	)
+	assert_str(problems).contains(
+		"font: the default token title.plate.label has the font family Unbounded, which is not"
+	)
+
+
+## Each Label variation's line is its label token's lineHeight tall with its family's font (#685):
+## the spacing comes from the committed metrics, so a build with CI's stand-in font writes the
+## same value; where the real fonts are in the project, their own heights must give that line.
 func test_label_line_spacing_meets_the_token_line_height() -> void:
 	var stand_in := ThemeDB.fallback_font
-	# Spot values: 22 px x 1.25 = 27.5, so a 28 px line over Comfortaa's 26 px; 36 px: 45 over 41.
+	var stand_ins := {"Onest": stand_in, "Unbounded": stand_in}
+	# Spot values (#1559): ui-2.x's line heights are the fonts' own (Onest 22 px x 1.275 = 28.05,
+	# a 28 px line, under Godot's ascent 22 plus descent 7, each rounded up), so the spacing is the
+	# rounding: -1, or 0 where the line rounds the other way.
 	var spots := {
-		"default": {&"ToyTextOnDark": 2, &"ToyTitleOnDark": 4, &"ToyTitlePlate": 12},
-		"large": {&"ToyTextOnDark": 3, &"ToyTitleOnDark": 5},
+		"default": {&"ToyTextOnDark": -1, &"ToyTitleOnDark": 0, &"ToyTitlePlate": -1},
+		"large": {&"ToyTextOnDark": -1, &"ToyTitleOnDark": -1},
 	}
-	var real := Builder.base_font(_mapping)
-	var is_real := real != null and (real as FontFile).font_name == "Comfortaa"
+	var families: Dictionary = (_mapping["font"] as Dictionary)["families"]
+	var real := Builder.base_fonts(_mapping)
+	var is_real := not real.is_empty()
+	for family: String in real:
+		is_real = is_real and (real[family] as FontFile).font_name == family
 	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
 	if is_real:
-		# The committed metrics are the real font's (measured at size 1000).
-		var metrics: Dictionary = (_mapping["font"] as Dictionary)["metrics"]
-		var at: int = metrics["size"]
-		var ascent: float = metrics["ascent"]
-		var descent: float = metrics["descent"]
-		assert_float(real.get_ascent(at)).is_equal(ascent)
-		assert_float(real.get_descent(at)).is_equal(descent)
+		# The committed metrics are each real font's (measured at size 1000).
+		for family: String in families:
+			var metrics: Dictionary = (families[family] as Dictionary)["metrics"]
+			var at: int = metrics["size"]
+			var ascent: float = metrics["ascent"]
+			var descent: float = metrics["descent"]
+			assert_float((real[family] as Font).get_ascent(at)).is_equal(ascent)
+			assert_float((real[family] as Font).get_descent(at)).is_equal(descent)
 	for text_size: String in spots:
-		var theme := Builder.build_with_font(_pack, _mapping, text_size, stand_in)
+		var theme := Builder.build_with_fonts(_pack, _mapping, text_size, stand_ins)
 		var spot: Dictionary = spots[text_size]
 		for type_name: StringName in spot:
 			assert_int(theme.get_constant(&"line_spacing", type_name)).is_equal(spot[type_name])
@@ -706,7 +782,7 @@ func test_label_line_spacing_meets_the_token_line_height() -> void:
 		var large: Dictionary = ((_pack["modes"] as Dictionary)["textSize"] as Dictionary)["large"]
 		var owned := Builder.tokens_by_variation(_pack)
 		var checked := 0
-		for variation_name in Builder.generated_names(_pack):
+		for variation_name in Builder.generated_names(_pack, _mapping):
 			var key := "%s.label" % _variation(_pack, variation_name)["prefix"]
 			if _engine_class(theme, variation_name) != "Label":
 				continue
@@ -723,17 +799,29 @@ func test_label_line_spacing_meets_the_token_line_height() -> void:
 			var spacing := theme.get_constant(&"line_spacing", variation_name)
 			if is_real:
 				var face := FontVariation.new()
-				face.base_font = real
+				face.base_font = real[record["fontFamily"]]
 				face.variation_opentype = {wght: weight}
 				(
 					assert_int(roundi(face.get_height(size)) + spacing)
 					. override_failure_message("%s %s at %d" % [text_size, variation_name, size])
 					. is_equal(line)
 				)
-			assert_int(spacing).is_between(0, line)
+			# Exactly the line less its family's committed ascent and descent at that size, each
+			# rounded up (#1559: since ui-2.x the line heights are the fonts' own, so the spacing is
+			# the rounding and may be below 0, which the bound 0 to the line held before).
+			var metrics: Dictionary = (families[record["fontFamily"]] as Dictionary)["metrics"]
+			var per: int = metrics["size"]
+			var up_ascent := ceili(size * (metrics["ascent"] as int) / float(per))
+			var up_descent := ceili(size * (metrics["descent"] as int) / float(per))
+			(
+				assert_int(spacing)
+				. override_failure_message("%s %s" % [text_size, variation_name])
+				. is_equal(line - up_ascent - up_descent)
+			)
+			assert_int(spacing).is_less(line)
 		assert_int(checked).is_greater(20)
 	# No font in the project: no spacing either, so Godot's default font keeps the base Label's.
-	var none := Builder.build_with_font(_pack, _mapping, "default", null)
+	var none := Builder.build_with_fonts(_pack, _mapping, "default", {})
 	assert_bool(none.has_constant(&"line_spacing", &"ToyTextOnDark")).is_false()
 
 

@@ -2,9 +2,10 @@ class_name EndScreen
 extends Control
 ## The post game screen (ARCHITECTURE §4.7.31, §3.2): the black outro of about 3 s, built node for
 ## node as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-0.4.0, #498).
-## Night fades in when End starts; on it `V`: "End of the round", the winning team (on the title
-## plate when the own team won, plain text when it lost), why the round ended, and the seconds
-## until everyone is back in the lobby (#212). The same for every player: no names, no roles, no
+## Night fades in when End starts; on it `V`: how the round ended ("Great party!", "Time's up", or
+## "End of the round" for a reason with no title), the winning team (on the title plate when the
+## own team won, plain text when it lost), why the round ended, and the seconds until everyone is
+## back in the lobby (#212). The same for every player: no names, no roles, no
 ## button, no input, no word about voice (#213).
 
 ## Emitted each time End starts, for the one sound of both outcomes (the handoff: one sound for a
@@ -13,7 +14,8 @@ signal outro_began
 
 ## The fade of Night when End starts (the handoff's 0.4 s); a cut under UiPrefs.reduced_motion.
 const FADE_SECONDS := 0.4
-## The deck's keys (§4.7.26).
+# The deck's keys (§4.7.26).
+## The title for a reason with no key of its own (the deck's plain "End of the round").
 const TITLE_KEY := "end.title"
 const BACK_KEY := "end.back_to_lobby"
 ## The winning side's line, by the side's id in the mode (the base mode's `crew` and
@@ -28,6 +30,13 @@ const SIDE_KEYS: Dictionary[StringName, String] = {
 const REASON_KEYS: Dictionary[StringName, String] = {
 	&"every_task_done": "end.reason.all_tasks",
 	&"time_up": "end.reason.time_up",
+}
+## How the round ended, by the host's reason id, drawn above the reason (prime-game-ui
+## s10-post-game.md at ui-2.5.4: the party's title for all tasks done, the time's for time up;
+## #1559): any other id keeps TITLE_KEY.
+const TITLE_KEYS: Dictionary[StringName, String] = {
+	&"every_task_done": "end.title.party",
+	&"time_up": "end.title.time_up",
 }
 
 ## The opaque black (P2), faded in when End starts.
@@ -204,8 +213,10 @@ func _show_winner(side: StringName, won: bool) -> void:
 	loser_label.visible = not won and not key.is_empty()
 
 
-## The texts built from a key with data: the reason and the countdown, in the current language.
+## The texts built from a key with data: the reason and the countdown, in the current language;
+## and the title the reason picks (a plain key, it translates itself).
 func _retext() -> void:
+	title_label.text = TITLE_KEYS.get(reason, TITLE_KEY)
 	var reason_key: String = REASON_KEYS.get(reason, "")
 	reason_label.visible = not reason_key.is_empty()
 	# Without the line the Result box would still count as a child and add a gap of its own.

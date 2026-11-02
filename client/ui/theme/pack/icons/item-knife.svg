@@ -1,0 +1,9 @@
+<!-- generated from pages/components/icons/item-knife.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "knife": the round-3 line icon pages/glow-bars/icons/line-knife.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins; the source transform rotate(45 32 32) translate(32 32) scale(1.08) translate(-32 -31.5) as one matrix. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g transform="matrix(0.7637 0.7637 -0.7637 0.7637 31.6182 -16.4934)">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M27 37V14C27 7 31 3 37 2C37 10 37 20 37 37Z"/><path d="M24 37H40"/><path d="M28 37V58Q28 61 31 61H33Q36 61 36 58V37"/></g>
+</g>
+</svg>

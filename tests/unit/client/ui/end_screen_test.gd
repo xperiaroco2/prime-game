@@ -40,7 +40,7 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 		["V", "VBoxContainer", &"ToyColumnThirtyTwo", []],
 		["V/Title", "Label", &"ToyTextMutedOnDark", []],
 		["V/WinnerRaised", "MarginContainer", &"", ["Base", "Winner"]],
-		["V/WinnerRaised/Base", "Panel", &"ToyBaseTitle", []],
+		["V/WinnerRaised/Base", "Panel", &"", []],  # No base since ui-2.0.0 (#1559).
 		["V/WinnerRaised/Winner", "Label", &"ToyTitlePlate", []],
 		["V/WinnerLoss", "Label", &"ToyTextOnDark", []],
 		["V/Result", "VBoxContainer", &"ToyColumnEight", ["Reason"]],
@@ -102,7 +102,7 @@ func test_it_names_only_the_packs_variations() -> void:
 	for control: Control in screen.find_children("*", "Control", true, false):
 		if not control.theme_type_variation.is_empty():
 			used.append(control.theme_type_variation)
-	assert_int(used.size()).is_equal(9)
+	assert_int(used.size()).is_equal(8)
 	for variation: String in used:
 		assert_bool(variations.has(variation)).override_failure_message(variation).is_true()
 
@@ -152,15 +152,18 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	assert_bool(screen.reason_label.visible).is_true()
 	assert_bool(screen.result.visible).is_true()
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
+	assert_str(screen.title_label.text).is_equal("end.title.party")
 	screen.show_reason(&"every_task_done", 65)
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 1:05.")
 	screen.show_reason(&"time_up", -1)
 	assert_str(screen.reason_label.text).is_equal("The tasks aren't done.")
+	assert_str(screen.title_label.text).is_equal("end.title.time_up")
 	for unknown: StringName in [&"no_crew_present", &""]:
 		screen.show_reason(unknown, 461)
 		assert_bool(screen.reason_label.visible).is_false()
 		assert_bool(screen.result.visible).is_false()
 		assert_str(screen.reason_label.text).is_empty()
+		assert_str(screen.title_label.text).is_equal("end.title")
 
 
 ## The reason comes with MatchEnded through the model (#548): the condition's id and its time.
@@ -223,7 +226,7 @@ func test_the_texts_from_code_follow_a_language_switch() -> void:
 	assert_str(screen.reason_label.text).is_equal("Усі задачі виконано за 7:41.")
 	assert_str(screen.countdown_label.text).is_equal("Повернення в лобі через 3…")
 	# The plain keys translate themselves.
-	assert_str(screen.title_label.atr(screen.title_label.text)).is_equal("Кінець раунду")
+	assert_str(screen.title_label.atr(screen.title_label.text)).is_equal("Вечірка вдалася!")
 	assert_str(screen.winner_label.atr(screen.winner_label.text)).is_equal("Перемогли Інженери")
 	TranslationServer.set_locale("en")
 	assert_str(screen.countdown_label.text).is_equal("Back to the lobby in 3…")
@@ -278,6 +281,7 @@ func test_the_next_end_starts_without_the_last_rounds_reason_or_countdown() -> v
 	assert_bool(screen.result.visible).is_false()
 	assert_str(screen.reason_label.text).is_empty()
 	assert_bool(screen.countdown_label.visible).is_false()
+	assert_str(screen.title_label.text).is_equal("end.title")
 
 
 func test_a_parent_hidden_and_shown_again_is_not_a_new_end() -> void:

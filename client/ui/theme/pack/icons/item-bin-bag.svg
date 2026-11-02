@@ -1,0 +1,7 @@
+<!-- generated from pages/components/icons/item-bin-bag.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "bin-bag": the round-3 line icon pages/glow-bars/icons/line-bin-bag.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M25 23C12 28 8 38 9 46C10 53 17 56 23 54C27 57.5 37 57.5 41 54C47 56 54 53 55 46C56 38 52 28 39 23"/><path d="M26 22L19 10C25 10 30 13 32 17C34 13 39 10 45 10L38 22"/><path d="M28 27L26 33"/><path d="M36 27L38 33"/><path d="M24 23H40"/></g>
+</svg>

@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://cf0fpdkn2vkx4"
-path="res://.godot/imported/Comfortaa-VariableFont_wght.ttf-1bd34ba1495a9fdce4101344ba01cf90.fontdata"
+uid="uid://cso4bnaonqgur"
+path="res://.godot/imported/Onest-VariableFont_wght.ttf-d7c948ce854078d6e4bf85880b5ce353.fontdata"
 
 [deps]
 
-source_file="res://assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf"
-dest_files=["res://.godot/imported/Comfortaa-VariableFont_wght.ttf-1bd34ba1495a9fdce4101344ba01cf90.fontdata"]
+source_file="res://assets/ui/toy_pack/fonts/Onest-VariableFont_wght.ttf"
+dest_files=["res://.godot/imported/Onest-VariableFont_wght.ttf-d7c948ce854078d6e4bf85880b5ce353.fontdata"]
 
 [params]
 

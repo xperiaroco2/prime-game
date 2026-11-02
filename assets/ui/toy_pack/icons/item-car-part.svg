@@ -1,0 +1,7 @@
+<!-- generated from pages/components/icons/item-car-part.svg by tools/tokens/build.js: currentColor written as #ffffff, for Godot's tint -->
+<!-- own work, prime-game-ui, licence: own work -->
+<!-- Item icon "car-part": the round-3 line icon pages/glow-bars/icons/line-car-part.svg
+     drawn since ui-2.0.0 as the line alone in #ffffff (the plain tile's line icons; the game tints the white copy): 4-unit line, round caps and joins. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+<g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M28 11V7Q28 4 31 4H33Q36 4 36 7V11"/><path d="M25 32V15Q25 11 29 11H35Q39 11 39 15V32"/><path d="M20 32H44Q46 32 46 34V40Q46 42 44 42H20Q18 42 18 40V34Q18 32 20 32Z"/><path d="M27 32V42M37 32V42"/><path d="M23 42V52H41V42"/><path d="M23 47H41"/><path d="M38 52V61H30"/><path d="M32 52V55"/><path d="M25 18H39"/><path d="M25 25H39"/></g>
+</svg>

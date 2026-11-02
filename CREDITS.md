@@ -5,28 +5,6 @@
 Third-party assets and code in this repository, with their authors, sources and licenses. Each section comes from
 one file in [docs/credits/](docs/credits/) (docs/AGENT_WORKFLOW.md §10).
 
-## Comfortaa
-
-- **Files:** `assets/ui/toy_pack/fonts/**`, `client/ui/theme/pack/fonts/**` (the UI pack's copy, which ui-sync lands
-  from the pinned pack since #1020, ui-0.8.0, with its LICENCES.json; the theme loads the first; #1045 dropped the
-  older hand-added copy under assets/ui/comfortaa, the same file byte for byte)
-- **Author:** The Comfortaa Project Authors (the source repository google/fonts' `ofl/comfortaa/METADATA.pb` names:
-  https://github.com/alexeiva/comfortaa)
-- **Source:** https://github.com/google/fonts/tree/main/ofl/comfortaa (one variable file, `Comfortaa[wght].ttf`,
-  `wght` 300 to 700, with Cyrillic; proposed on prime-game-ui#44 at google/fonts commit `db64f6b`), downloaded by the
-  engineer on 2026-10-10 and first saved as `assets/ui/comfortaa/comfortaa.ttf`, now
-  `assets/ui/toy_pack/fonts/Comfortaa-VariableFont_wght.ttf` (201,756 bytes; SHA-256
-  `0fc3f45dc48b614db9c39181502544b37217ecbf8bee2fb35886992bc96c5bd3`)
-- **License:** SIL Open Font License 1.1 (https://openfontlicense.org/), Reserved Font Name "Comfortaa"; shipped
-  unmodified; the license text is `docs/credits/licenses/comfortaa/OFL.txt` (https://github.com/google/fonts/blob/main/ofl/comfortaa/OFL.txt),
-  which a build carries as `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`)
-- **AI generated:** false
-- **Public repo OK:** true (OFL 1.1)
-
-The game's UI font (prime-game-ui `docs/ui-decisions.md` § Type; the engineer's yes on prime-game-ui#44, 2026-10-07),
-added by hand (#520, #684). The theme builder (`tools/theme/mapping.json` `font`) makes one `FontVariation` of the file
-per weight the pack's labels use, SemiBold 600 and Bold 700, and the 600 one the theme's default font.
-
 ## GdUnit4
 
 - **Files:** `addons/gdUnit4/**`
@@ -216,6 +194,25 @@ pack's name, then ours): `knifeSlice.ogg` `swing_1.ogg`, `knifeSlice2.ogg` `swin
 `put_down_1.ogg`, `bookPlace1.ogg` `put_down_2.ogg`, `bookPlace3.ogg` `put_down_3.ogg`. No door sound: the game has
 no door (#525). Played by `SfxSet` (`client/audio/`); the engineer's verdicts go to `assets/audio/sfx-verdicts.json`.
 
+## Onest
+
+- **Files:** `assets/ui/toy_pack/fonts/Onest-VariableFont_wght.ttf` (the UI pack's font, which ui-sync lands from the
+  pinned pack's assets list since #1559 (ui-2.5.4); the theme loads it)
+- **Author:** The Onest Project Authors (https://github.com/simpals/onest)
+- **Source:** https://github.com/google/fonts/blob/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/onest/Onest%5Bwght%5D.ttf (google/fonts' variable `Onest[wght].ttf`, `wght` 100 to 900, with Cyrillic, unmodified,
+  renamed by the UI track), through the UI pack https://github.com/xperiaroco2/prime-game-ui/tree/ui-2.5.4/dist/pack
+  (`fonts/Onest-VariableFont_wght.ttf`, 193,056 bytes; SHA-256 `966c5c29b4755da84b6854d5c21dd4eaa2420225d0e9874de602de176d4a9f31`; its record in the pack's `fonts/LICENCES.json`)
+- **License:** SIL Open Font License 1.1 (https://openfontlicense.org/); shipped unmodified; the license text is
+  `docs/credits/licenses/onest/OFL.txt` (https://github.com/google/fonts/blob/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/onest/OFL.txt, byte for byte the pack's `fonts/OFL-Onest.txt`), which a build carries
+  as `licenses/onest/OFL.txt` (`docs/credits/licenses/README.md`)
+- **AI generated:** false
+- **Public repo OK:** true (OFL 1.1)
+
+The game's text and number font (the UI track's choice since `ui-2.0.0`, which replaced Comfortaa; the engineer approved the pack at
+`ui-2.5.4`: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6561300899). The theme builder
+(`tools/theme/mapping.json` `font.families`) makes one `FontVariation` of the file per weight the pack's labels in this
+family use, Medium 500 and Bold 700, and the 500 one is the theme's default font.
+
 ## prime-game-audio: the success and error sounds of every task
 
 - **Files:** `assets/audio/prime_task_feedback/*`
@@ -244,11 +241,12 @@ Every task plays them through `SfxSet` (`client/audio/`): `TASK_SUCCESS` and `TA
 ## prime-game-ui: the UI pack's icons and Delivery cards
 
 - **Files:** `assets/ui/toy_pack/icons/**`, `assets/ui/toy_pack/cards/**`, `client/ui/theme/pack/icons/**`,
-  `client/ui/theme/pack/cards/**` (the art folders only: the pack's fonts folder holds Comfortaa, a third party's,
-  credited in its own entry, comfortaa.md)
+  `client/ui/theme/pack/cards/**` (the art folders only: the pack's fonts folder holds Onest and Unbounded, third
+  parties', credited in their own entries, onest.md and unbounded.md)
 - **Author:** prime-game-ui, the project's UI track (https://github.com/xperiaroco2/prime-game-ui)
-- **Source:** https://github.com/xperiaroco2/prime-game-ui/tree/ui-0.8.0/dist/pack (tag `ui-0.8.0`, commit
-  `903cfeda69283b9048ccdf25b5d9407f67fca4c9`, since #1020; `ui-0.4.0` before; each file's SHA-256 in
+- **Source:** https://github.com/xperiaroco2/prime-game-ui/tree/ui-2.5.4/dist/pack (tag `ui-2.5.4`, commit
+  `64438ffb0a3734a73879497ca90cf53e111889e4`, since #1559; `ui-0.8.0` from #1020, `ui-0.4.0` before; each file's
+  SHA-256 in
   `client/ui/theme/pack.lock.json`, copied by `tools\run.cmd ui-sync`)
 - **License:** own work of the project: every entry of the pack's `icons/LICENCES.json`, `icons/room/LICENCES.json`
   and `cards/LICENCES.json` reads `"licence": "own work", "author": "prime-game-ui"` (the UI track's answer on
@@ -257,7 +255,8 @@ Every task plays them through `SfxSet` (`client/audio/`): `TASK_SUCCESS` and `TA
   those SVGs; no image generator; to be confirmed by the engineer, #520)
 - **Public repo OK:** true (own work; prime-game-ui#44, item 3)
 
-The 23 icons of `icons/` (the CheckBox and SpinBox ones since `ui-0.7.0`, #1020), the 8 room pictograms of
+The 41 icons of `icons/` (the CheckBox and SpinBox ones since `ui-0.7.0`, #1020; the 12 item icons and the slot,
+siren, plus and minus ones since `ui-2.x`, #1559), the 8 room pictograms of
 `icons/room/` (for the map board) and the Delivery how-to cards `cards/delivery-1..4.png` and
 `cards/delivery-meaning-1..4.png` (for the how-to card, #254), imported by Godot from `assets/ui/toy_pack/` at the import
 scale the pack's `assets` list gives (#520); the pinned copy under `client/ui/theme/pack/` (#288) is text Godot does
@@ -442,6 +441,25 @@ The Opus voice codec, behind `voice/`'s `VoiceCodec` (`TwoVoipCodec` reaches it 
 Committed: the `.gdextension` and its `.uid` as shipped and the Windows libraries only (E35 (a)); the addon's helper
 scripts are left out (untyped, they fail the warnings policy). CI and the night jobs on Linux delete the extension
 before running Godot (`.github/workflows/ci.yml`, `nightly.yml`). Part of an exported game on Windows.
+
+## Unbounded
+
+- **Files:** `assets/ui/toy_pack/fonts/Unbounded-VariableFont_wght.ttf` (the UI pack's font, which ui-sync lands from the
+  pinned pack's assets list since #1559 (ui-2.5.4); the theme loads it)
+- **Author:** The Unbounded Project Authors (https://github.com/googlefonts/unbounded)
+- **Source:** https://github.com/google/fonts/blob/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/unbounded/Unbounded%5Bwght%5D.ttf (google/fonts' variable `Unbounded[wght].ttf`, `wght` 200 to 900, with Cyrillic, unmodified,
+  renamed by the UI track), through the UI pack https://github.com/xperiaroco2/prime-game-ui/tree/ui-2.5.4/dist/pack
+  (`fonts/Unbounded-VariableFont_wght.ttf`, 778,272 bytes; SHA-256 `323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f`; its record in the pack's `fonts/LICENCES.json`)
+- **License:** SIL Open Font License 1.1 (https://openfontlicense.org/); shipped unmodified; the license text is
+  `docs/credits/licenses/unbounded/OFL.txt` (https://github.com/google/fonts/blob/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/unbounded/OFL.txt, byte for byte the pack's `fonts/OFL-Unbounded.txt`), which a build carries
+  as `licenses/unbounded/OFL.txt` (`docs/credits/licenses/README.md`)
+- **AI generated:** false
+- **Public repo OK:** true (OFL 1.1)
+
+The game's display font: the loud titles, the logo and the tiles' kickers (the UI track's choice since `ui-2.0.0`, which replaced Comfortaa; the engineer approved the pack at
+`ui-2.5.4`: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6561300899). The theme builder
+(`tools/theme/mapping.json` `font.families`) makes one `FontVariation` of the file per weight the pack's labels in this
+family use, Bold 700.
 
 ## webrtc-native
 

@@ -116,7 +116,7 @@ func test_the_card_is_drawn_node_for_node() -> void:
 	var face := HowtoCardView.face_of(made)
 	assert_str(face.name).is_equal("Card")
 	assert_str(String(face.theme_type_variation)).is_equal("ToyPanelHowto")
-	assert_str(String(made.base.theme_type_variation)).is_equal("ToyBasePanel")
+	assert_str(String(made.base.theme_type_variation)).is_empty()
 	assert_str(String((face.get_node(^"V") as Control).theme_type_variation)).is_equal(
 		"ToyColumnSixteen"
 	)

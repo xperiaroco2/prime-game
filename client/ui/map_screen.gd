@@ -28,8 +28,9 @@ signal howto_requested(task_type: StringName)
 ## top and right edges (it grows down to its content), and the raised board's rect.
 const TASKS_OFFSETS := Vector3(80, 88, 688)
 const BOARD_RECT := Rect2(744, 88, 1096, 904)
-## `Rooms` inside the board's border: the room rects and the pin are placed for this size.
-const ROOMS_SIZE := Vector2(1088, 896)
+## `Rooms` inside the board's border: the room rects and the pin are placed for this size. The
+## board's rect less the pack's ToyMapBoard content margins (6 px since ui-2.x, #1559).
+const ROOMS_SIZE := Vector2(1084, 892)
 ## A task row's height and its «?»'s size (the handoff's minimum sizes; 42 keeps the «?» round
 ## at large text, where the glyph makes it 42 tall).
 const ROW_HEIGHT := 64.0
