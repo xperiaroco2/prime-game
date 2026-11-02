@@ -37,6 +37,8 @@ func test_an_emitter_sits_at_each_core_and_all_are_quiet_at_first() -> void:
 func test_a_tripped_core_has_only_smoke() -> void:
 	var smoke := ShipBoardSmoke.build(_root, CENTRES)
 	for i: int in 4:
+		smoke.set_smoking(i, true)
+	for i: int in 4:
 		var at := smoke.emitter(i)
 		var kids := at.find_children("*", "", true, false)
 		assert_int(kids.size()).is_equal(1)
@@ -68,6 +70,9 @@ func test_off_stops_the_emitting_and_the_puffs_outlive_it() -> void:
 	assert_object(puffs).is_not_null()
 	assert_bool(puffs.emitting).is_false()
 	assert_object(puffs.get_parent()).is_same(smoke.emitter(0))
+	# They live on after the stop.
+	assert_float(puffs.lifetime).is_greater(1.0)
+	assert_bool(puffs.one_shot).is_false()
 
 
 func test_every_node_stays_on_the_live_cameras_layers() -> void:
