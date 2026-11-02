@@ -3774,7 +3774,7 @@ a head over a wall and a player beyond 10 m without one).
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
   mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
   (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
-  (`WinnerRaised`, a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
+  (`WinnerRaised`, a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
   other line says who won, and no role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
@@ -3933,11 +3933,12 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`; at `ui-0.8.0` (#1020) 23 icons with the CheckBox
   and SpinBox ones, the 8 pictograms, `cards/delivery-meaning-1..4.png` and the Comfortaa TTF, the font hook's
   file since #1045: the theme loads it, `assets/ui/comfortaa/` is gone; at `ui-2.5.4` (#1559) 41 icons with the
-  item, slot, siren and pointer ones, 9 pictograms, the 8 cards and the Onest and Unbounded TTFs instead of
+  item, slot, siren and pointer ones, 8 pictograms, the 8 cards and the Onest and Unbounded TTFs instead of
   Comfortaa) in `assets/ui/toy_pack/`, a folder Godot
   imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
   LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
-  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
+  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1; at `ui-2.5.4`, #1559: `item` 1,
+  `mic` and `mic-off` 1.75, `lock` and `teammate-mark` 1.25, `swatch-disc` 2.31, `check` 1.13);
   `ui-sync` writes it into Godot's own file, so a re-sync keeps the uid. Credits: `docs/credits/prime_game_ui_pack.md`
   from the pack's `LICENCES.json` (own work).
 - **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
@@ -4133,7 +4134,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   drawn (the greybox "Raising <name>" is gone).
 - **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
   An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the
-  pack's `assets` list gives: `item` 2, `knife` 1, `mic` and `mic-off` 1.17), which an export packs. Only an icon
+  pack's `assets` list gives: `item` 1, `knife` 1, `mic` and `mic-off` 1.75 at `ui-2.5.4`), which an export packs. Only an icon
   with no imported copy (one a newer pin lists before `ui-sync` imports it) falls back to the pinned, `.gdignore`d
   copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
@@ -4216,7 +4217,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
 `PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
 prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
 for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
-(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER) > `Role`
+(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER) > `Role`
 ToyTitlePlate, and `Text` (ToyColumnSixteen) > `Goal` (ToyTextOnDark) and `Team` (ToyTextMutedOnDark), both 1152 px
 wide, wrapped. Pack variations only, no override.
 - **What it shows** (from the own `ClientModel` and the own mode only): the own role as its deck key
@@ -4259,13 +4260,13 @@ frozen halfway through its fade over the round's HUD), their `_uk` twins (`prega
 #### 4.7.40 The map and tasks screen in the Toy style (#490)
 The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
 engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
-- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
-  ToyBasePanel; its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
+- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised, no base since ui-2.0.0;
+  its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
   with `Title`, `Rows` (ToyColumnEight) and `Time`; a row `<Type>` (ToySettingRow, 64 tall) holds `H` (ToyRowTwelve):
   `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton, the handoff's fixed 42x42,
   not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard raised, its wrapper at
-  744, 88, 1096x904) holds `Rooms`, 1088x896 inside the 4 px border (`MapScreen.ROOMS_SIZE`, the size MapData fits
-  the rooms to): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
+  744, 88, 1096x904) holds `Rooms`, 1084x892 inside the board's 6 px content margins (`MapScreen.ROOMS_SIZE`, the
+  size MapData fits the rooms to; #1559): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
   `room/<id>` pictogram through `ToyIcons`, 48x48, its `self_modulate` the ink of ToyMapRoomText's `font_color`,
   #2a1f33, set again on a theme change; hidden for a room id the pack draws none for) and `Name` (ToyMapRoomText, 120
   wide at least, wrapped); then `Zone<Type>Tag` (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and
