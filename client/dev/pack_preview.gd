@@ -5,8 +5,8 @@ extends Control
 ## `icons/` at its import scale, the base slider and dropdown with the pack's grabber and arrow,
 ## and a plate with the teammate mark; under them the four Delivery cards (the s08 how-to
 ## frames, 320x240, untinted). Both columns read the copy deck at once (each label's text from its
-## language's Translation, not the game's locale). Until the Comfortaa TTF lands (#520) the text is
-## Godot's default font. Dev only: nothing here reaches the game.
+## language's Translation, not the game's locale), in the theme's fonts (Onest and Unbounded since
+## ui-2.0.0, #1559). Dev only: nothing here reaches the game.
 
 const ART := "res://assets/ui/toy_pack/"
 const ROOMS: Array[String] = [
