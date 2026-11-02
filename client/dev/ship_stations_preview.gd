@@ -105,7 +105,7 @@ func _charger(camera: Camera3D, looks: ShipStationLooks, mode: GameMode) -> void
 		"charger": charger_id,
 		"phase": CrystalProblem.CHARGING,
 		"item": ITEM,
-		"tick": NOW + ticks / 2,
+		"tick": NOW + floori(ticks / 2.0),
 	}
 	_model.fold(&"CrystalChanged", charging)
 	_run(1.0)

@@ -110,8 +110,8 @@ func seat(anchor: Node3D, softened: bool) -> void:
 
 
 ## The crystal's state: 1 charged, 0 spent, values between fade.
-func set_charge(charge: float) -> void:
-	var c := clampf(charge, 0.0, 1.0)
+func set_charge(to: float) -> void:
+	var c := clampf(to, 0.0, 1.0)
 	if c == _charge:
 		return
 	_charge = c
