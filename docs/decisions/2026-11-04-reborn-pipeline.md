@@ -35,21 +35,30 @@ and took taste for him. Each cost a build and then a rework:
 2. **A feature card before code.** A feature starts as an issue from the `feature-card` template: what the player
    sees and does, a picture, the numbers, and what is **not** in it. The engineer approves the card; agents build only
    what it says. Anything new, visible or not on the card, is a new card for him, never added quietly.
-3. **One line of work.** One session runs the current release, with two or three tasks in flight at most. Art and UI
-   are tasks inside the release, not tracks of their own. No night shifts by default; the director's shifts and the
-   tracks are paused. Parallel sessions only on the engineer's word for that piece of work.
-4. **Taste is only the engineer's.** Revoked: the standing word of 2026-10-31 for taste questions. No taste question
-   is "taken for him": art, visuals, game and level design wait for his answer, batched once a week with pictures. A
-   technical choice still takes the recommendation without a question (the
+3. **One release at a time, a few lanes, fewer sessions** (amended by the engineer the same day, #1580: "one line"
+   never meant one agent doing everything in turn). Every session works for the current release only, nothing ahead
+   of it. Inside it at most three lanes run in parallel, each its own session or workflow, built from approved cards
+   only, and **never two lanes of one kind** (code, art, level and UI): two art sessions block each other. One
+   coordinator session per release is the only one that talks to the engineer. No night shifts by default; the
+   director's shifts and the old tracks are paused. Three lanes is the ceiling, not the norm: two when the week's
+   limit runs short.
+4. **Taste is only the engineer's, settled at a sit-down.** Revoked: the standing word of 2026-10-31 for taste
+   questions; no taste question is "taken for him". A release starts with **one sit-down**: the coordinator brings
+   every card and every open question of the release in one batch, with pictures, and he answers them all; then the
+   lanes work without asking him during the day. A taste question that comes up later never blocks a lane: the lane
+   keeps the plainest placeholder and the question waits for the next sit-down. A technical choice still takes the
+   recommendation without a question (the
    [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tiers).
-5. **Shown before merge.** A PR that changes what a player sees or hears carries `shot` screenshots or a clip and a
-   list "what changed on screen"; it merges on the engineer's yes.
+5. **Shown before merge, in batches.** A PR that changes what a player sees or hears carries `shot` screenshots or a
+   clip and a list "what changed on screen"; the coordinator gathers them for a review sit-down, and they merge on his
+   yes there, not one by one through the day.
 6. **The process is frozen.** No new process rule, ADR, skill or tool unless something actually broke; meta work stays
    at about 5% of a week. Docs shrink when touched; they do not grow.
 7. **The budget.** The subscription is Max (5x Pro a week, with a 5-hour limit); Ultra (10x Pro a week, no 5-hour
    limit) only for a push the engineer asks for. The spend is read once a week.
-8. **The rhythm.** A 15-minute weekly review with the engineer (done, next, the taste batch) and a short retrospective
-   at the end of each release.
+8. **The rhythm.** The sit-down at a release's start; a review sit-down every two or three days, or when the lanes run
+   out of approved cards (the visible PRs, the questions that waited, the next cards); a short retrospective at the end
+   of each release.
 
 ## Consequences
 - Slower by the calendar, cheaper by the token: less rework, no cross-track coordination, less process.
