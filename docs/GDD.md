@@ -174,13 +174,28 @@ the options in prime-game-design `ideas/2026-10-31-m8-slice.md`):
 1. **The timer: 5 minutes.** A clean team needs about 2.5 to 3.5 minutes for the engine, which cannot go faster with
    more people, so the humans need about two failed problems to run the clock out. Not picked: 10 or 7 minutes.
 2. **The humans' levers: the engine's own deniable spoils only** (§8's list): no hitting, neither the fist of melee
-   with anything (#1436) nor the knife. Not picked: the fist; the knife.
+   with anything (#1436) nor the knife. Not picked: the fist; the knife. **Reversed** by the engineer on 2026-11-04
+   (the M8 release, below): he meant the crystal is the only item, not that nobody hits.
 3. **The default number of humans:** 4 or 5 players 1, 6 to 8 players 2, 9 or 10 players 3 (research round 2,
    m8-match §2); the host can change it. Not picked: always 1; no default.
 4. **Where everyone appears:** on the ship's clearing, in a loose crowd before the open jaw ramp; the respawn (30 s,
    3 s of invulnerability) there too. Not picked: in the hall round the console; at random round the ship.
 
 The numbers are placeholders until the slice is played.
+
+### The M8 release (2026-11-04)
+The engineer's word in the meta session's chat (#1578; [the Reborn ADR](decisions/2026-11-04-reborn-pipeline.md),
+`docs/ROADMAP.md` "Releases"): M8 is a small but finished version of the game, nothing cut short. It is the slice
+above with:
+- **Aliens only** for M8 to M12: the host sets 0 humans; the humans' levers come in a block of their own later.
+- **The lobby finished:** the bar, the pinball, changing the character; the photo booth waits for M9.
+- **The first-person hand,** as in first-person shooters: you see your hand, it moves as you run, press a button and
+  hit, every moment made to look good.
+- **Hits:** the fist and the ship's crystal, by "Melee: any item hits" below (the fist 5 to the front, 10 to the
+  back; the crystal a two-handed item's 20 and 40). No other weapon: making these two look and sound good is enough
+  work.
+- **Death and the return:** the dead's room (m8-match §3: the lobby station's hall without the skat) is in M8, with
+  the return. The dead see each other as their own characters made see-through, a placeholder until a better ghost.
 
 ### The knockdown (#728)
 Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
@@ -497,6 +512,11 @@ resource with competing uses (prime-game-design `ideas/NOTEBOOK.md`). Its rules 
   ([#1033 c6288900379](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288900379)).
 
 ### Car tuning (2026-10-20)
+**Parked, the last task to build** (the engineer, 2026-11-04, #1578): the concept stays (everything is paint, and
+paint is made from flowers), but in a race against the clock nobody makes an honest mistake picking a plain colour, so
+a human's wrong colour would not hide among them. **The finishing show is dropped** ("no ceremonies", §1). Open,
+not decided: mixing flowers for a shade (a gradient); whether the tools stay; whether a mini-game joins.
+
 A makeover show by aliens (the engineer's concept,
 [#1033 c6287031697](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6287031697) and
 [c6288572652](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6288572652)): a relaxed task of
