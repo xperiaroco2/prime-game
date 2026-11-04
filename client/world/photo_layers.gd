@@ -9,10 +9,15 @@ extends RefCounted
 ##   knocked-down player's live ragdoll, items carried by a player, the first-person and spectate
 ##   hand items. The picture leaves them out and draws the record's puppets instead;
 ## - PHOTO: the record's puppets, which only the picture's camera sees.
+## STATION (#1556) is no photo layer: both views draw it. It holds the ship's crystal sockets' and
+## chargers' meshes, so a seated crystal's own light can skip them and still light the hull round
+## it (ShipCrystalLook.seat); ShipStationLooks adds it to every level light that reaches GROUND.
 ## Every live Camera3D (the first-person camera, the knocked-down and spectate cameras, the
 ## viewfinder's lens) sets `cull_mask = LIVE_VIEW`; the picture's camera sets PHOTO_VIEW.
 
 const GROUND := 1
+## Visual layer 18 (the lobby uses layer 11, the ship's hull skin layer 2).
+const STATION := 1 << 17
 ## Visual layer 19.
 const LIVE_AVATAR := 1 << 18
 ## Visual layer 20.

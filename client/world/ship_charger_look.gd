@@ -5,15 +5,20 @@ extends RefCounted
 ## steel, cyan, amber and lens materials on an imported crystal_charger.glb by its glTF material
 ## names, its soft cyan glow, and the moving parts: the carrier (up RISE and round its Y axis), the
 ## track ring (round its Y axis) and the button (pressed TRAVEL in). The states: "idle", "charging",
-## "charged". Values only: ShipStationLooks drives them from the filtered model. Left out: the
-## render layer 20 the art gives the meshes (PhotoLayers.PHOTO here, which every live camera skips)
-## and seat_crystal (no crystal model is drawn on a charger); the lightning is the game's, not yet.
+## "charged". The crystal (a ShipCrystalLook, #1556) sits on the carrier's `crystal_anchor` with the
+## package's softer seated light, shown and charged by set_crystal(); the lightning into it (a
+## ShipChargerZap under the root, zap(), #1556) is stepped by its caller. Values only:
+## ShipStationLooks drives them from the filtered model. The meshes sit on PhotoLayers.STATION, not
+## the art's render layer 20 (that is PhotoLayers.PHOTO here, which every live camera skips), so
+## the crystal's own light skips them (ShipCrystalLook.seat).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 
 ## The carrier's travel up and the button's in, metres.
 const RISE := 0.06
 const TRAVEL := 0.01
+## The lightning's generator seed (the art's); ShipStationLooks adds the station id.
+const ZAP_SEED := 263
 const CYAN := Color(0.0, 0.45, 1.0)
 const AMBER := Color(1.0, 0.42, 0.0)
 ## Per state: the cyan's, the amber's and the lens's energy, and the glow light's.
@@ -50,11 +55,13 @@ var _rise := 0.0
 var _turn := 0.0
 var _ring_turn := 0.0
 var _pressed := false
+var _crystal: ShipCrystalLook
+var _zap: ShipChargerZap
 
 
 ## Puts the charger's materials on every surface under `root`; null when it has no carrier (not a
 ## charger).
-static func apply(root: Node3D) -> ShipChargerLook:
+static func apply(root: Node3D, zap_seed := ZAP_SEED) -> ShipChargerLook:
 	var look := ShipChargerLook.new()
 	look._carrier = root.find_child("carrier", true, false) as Node3D
 	if look._carrier == null:
@@ -69,6 +76,7 @@ static func apply(root: Node3D) -> ShipChargerLook:
 		if mesh.mesh == null:
 			continue
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mesh.layers = PhotoLayers.STATION
 		for i: int in mesh.mesh.get_surface_count():
 			var src: Material = mesh.mesh.surface_get_material(i)
 			var key: String = src.resource_name if src != null else ""
@@ -84,8 +92,35 @@ static func apply(root: Node3D) -> ShipChargerLook:
 	look._glow.shadow_enabled = false
 	look._glow.position = Vector3(0.0, 1.13, 0.38)
 	root.add_child(look._glow)
+	var anchor := look._carrier.find_child("crystal_anchor", true, false) as Node3D
+	if anchor != null:
+		look._crystal = ShipCrystalLook.apply()
+		if look._crystal != null:
+			look._crystal.seat(anchor, true)
+			look._crystal.set_shown(false)
+			if look._ring != null:
+				look._zap = ShipChargerZap.bind(root, look._ring, look._crystal.node(), zap_seed)
 	look.set_state("idle")
 	return look
+
+
+## The crystal on the carrier: drawn or not, and its charge (0 spent, 1 charged). Nothing with no
+## crystal model (CI's Git LFS stand-in).
+func set_crystal(shown: bool, charge: float) -> void:
+	if _crystal == null:
+		return
+	_crystal.set_shown(shown)
+	_crystal.set_charge(charge)
+
+
+## The crystal's look, or null with no crystal model.
+func crystal() -> ShipCrystalLook:
+	return _crystal
+
+
+## The lightning into the crystal (ShipChargerZap), or null with no crystal model or ring.
+func zap() -> ShipChargerZap:
+	return _zap
 
 
 ## "idle" (no crystal or not charging), "charging" or "charged"; out of "charging" the carrier

@@ -5,18 +5,26 @@ extends RefCounted
 ## the art's nodes then prints that it skips and checks the pointer, as estate_ship_test does.
 
 const Check := preload("res://tools/assets/asset_check.gd")
+## The four devices' GLBs: what the suites of #1550 load (the nightly lfs job pulls these).
 const GLBS: Array[String] = [
 	"res://assets/environment/start_console/start_console.glb",
 	"res://assets/environment/crystal_socket/crystal_socket.glb",
 	"res://assets/environment/breaker_board/breaker_board.glb",
 	"res://assets/environment/crystal_charger/crystal_charger.glb",
 ]
+## The energy crystal's GLB (#1556): the extras' suite needs it too, and the nightly lfs job pulls
+## it as well. Without it the devices draw no crystal (ShipCrystalLook.apply is null) and no
+## lightning, so the suites of #1550 run without it.
+const CRYSTAL_GLB := "res://assets/environment/energy_crystal/energy_crystal.glb"
 
 
 ## True (after printing the skip and checking the pointer in `suite`) when a package's GLB is a
-## Git LFS pointer here.
-static func missing(suite: GdUnitTestSuite) -> bool:
-	for glb: String in GLBS:
+## Git LFS pointer here; `crystal` checks the energy crystal's too.
+static func missing(suite: GdUnitTestSuite, crystal := false) -> bool:
+	var glbs := GLBS.duplicate()
+	if crystal:
+		glbs.append(CRYSTAL_GLB)
+	for glb: String in glbs:
 		if Check.is_lfs_pointer(glb):
 			var why := "the station looks on the art are unchecked"
 			print("skip: %s is a Git LFS pointer (no LFS content here): %s" % [glb, why])
