@@ -17,6 +17,8 @@ every call).
   name explicitly is built without his yes: build the rest and show him a picture with options and a recommendation.
   Details inside what he approved take your recommendation.
 <!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
+- No standing word takes a taste question for him: the 2026-10-31 "take the recommendations" is revoked (the Reborn
+  ADR, rule 4). Taste waits for his answer, batched once a week with pictures.
 - Voice dictation: infer the meaning, read the file name back before editing, ask a question only if a misreading
   changes what gets built; read back a design answer with two readings (AGENT_WORKFLOW §13).
 <!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->

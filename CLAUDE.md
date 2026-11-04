@@ -100,6 +100,9 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
   do not name explicitly is built without his yes: build the rest, leave it out or keep the plainest placeholder, and
   list it in the report with a picture, options and a recommendation; details inside what he approved take the
   recommendation.
+- **Reborn** (`docs/decisions/2026-11-04-reborn-pipeline.md`, it wins over older process docs): milestones are
+  releases (`docs/ROADMAP.md`); a feature card he approved before code; one line of work, no parallel tracks or night
+  shifts without his word; no taste question taken for him; a visible change shown before merge; the process frozen.
 <!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - A new permission ask or deny rule: first "can an agent work alone overnight?" (routine work must not prompt,
