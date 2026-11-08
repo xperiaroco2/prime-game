@@ -69,7 +69,8 @@ const EARLY_MS := 50
 const LATE_MS := 1000
 ## Poses in the backlog: more than one ENet service reads, few enough for a default socket receive
 ## buffer to hold them all. On Linux that is net.core.rmem_default (208 KB), which some container
-## kernels fill at 256 small datagrams: doctor warns then and tools/cloud/setup.sh raises it (#159).
+## kernels fill at 256 small datagrams (a CI runner at 221, #1566): doctor warns then, and
+## tools/cloud/setup.sh and CI's setup action raise it (#159).
 const BACKLOG_POSES := EnetTransport.ENET_RECEIVES_PER_SERVICE + 64
 ## Loopback delivery is fast but not synchronous: wait this long before the host takes the backlog.
 const BACKLOG_SETTLE_MS := 200

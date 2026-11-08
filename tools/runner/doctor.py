@@ -43,7 +43,8 @@ HOOKS_PATH = ".claude/githooks"
 # test_doctor checks this against the two GDScript constants.
 STALL_BACKLOG_DATAGRAMS = 256 + 64
 UDP_PROBE_BYTES = 32
-# Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
+# Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh and CI's setup action
+# (.github/actions/setup-toolchain, #1566) raise the default to it.
 RMEM_DEFAULT_FIX = 425984
 # Windows libraries only (the M5 voice ADR §2): CI deletes both, tools/cloud/setup.sh leaves both out of a cloud clone.
 TWOVOIP_EXTENSION = "addons/twovoip/twovoip.gdextension"
@@ -379,7 +380,7 @@ class Doctor:
         warn(
             f"a default UDP socket on 127.0.0.1 holds only {held} of the stall step's {STALL_BACKLOG_DATAGRAMS} "
             f"datagrams, so verify's stall step will fail; raise the default: "
-            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh does it)"
+            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh and CI's setup action do it)"
         )
 
     def api_dump(self) -> None:
