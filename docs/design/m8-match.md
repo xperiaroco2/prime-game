@@ -40,8 +40,8 @@
 ## 3. Death and respawn
 
 - **In the M8 slice** (GDD §3, "The M8 slice"; #1492): everyone spawns and respawns on the ship's clearing, in a
-  loose crowd before the open jaw ramp; the wait is 30 s, then 3 s of invulnerability. The points across the map, the
-  dead's room, the body and the drone below are the full match's, after the slice (#1489).
+  loose crowd before the open jaw ramp; the wait is 30 s, then 3 s of invulnerability. The points across the map are the
+  full match's, after the slice; the dead's room, the body and the drone below are in M8 (#1489).
 - **Death costs time, not the match** (#1032): about 5 or 6 respawn points across the map (the full match, after the
   slice); to farm an outed human the aliens would have to split up and guard every point, time they do not spend on
   tasks.
