@@ -20,11 +20,17 @@ extends RefCounted
 ##   deadline; the order lamp of the breaker the order plays on now (its wing and its shell's
 ##   colour, so the lamp's colour is the shell's).
 ## - A socket: "charged" with no problem, "empty" while its crystal is out (an item), else "spent";
-##   the claws open while it is empty, eased over the drawing's 0.25 s and closed over 0.15 s.
+##   the claws open while it is empty, eased over the drawing's 0.25 s and closed over 0.15 s; its
+##   crystal (#1556) drawn charged, spent, or not while it is out.
 ## - A board: per bound breaker of the open chain, tripped (shell open, lamp dark), the last one on
-##   during its ramp (lamp yellow) or on (green); the beacon while any of its shells is tripped.
+##   during its ramp (lamp yellow) or on (green); the beacon while any of its shells is tripped;
+##   smoke at a tripped shell's core (#1556) once the shell is SMOKE_FROM_OPEN open, its
+##   emitting stopped at once when the breaker is on again (the puffs up fade out).
 ## - A charger: by the phase of the crystal it holds: "charging" (the carrier rising and turning,
-##   the ring turning, the button in), "charged" (waiting) or "idle".
+##   the ring turning, the button in), "charged" (waiting) or "idle"; the crystal it holds (#1556)
+##   drawn spent while loaded, fading to charged over the charge (charge_share), charged waiting;
+##   its lightning (ShipChargerZap) while it charges, and a flash of FLASH_SECONDS at a charge's
+##   end, seen as the CHARGING to WAITING edge (flash_left: none for a view built late).
 ## The timings HANDOFF leaves to the game are placeholders, "not a decision".
 
 ## The device scenes a level instances, by what they are.
@@ -43,11 +49,16 @@ const CLAWS_OPEN_SECONDS := 0.25
 const CLAWS_CLOSE_SECONDS := 0.15
 const SHELL_TRIP_SECONDS := 0.25
 const SHELL_CLOSE_SECONDS := 0.4
+## A tripped shell's core smokes once the shell is this far open, so the core is in view (#1556;
+## not a decision); it stops at once when the breaker is on again.
+const SMOKE_FROM_OPEN := 0.6
 ## The charger while charging: the carrier's and the ring's turns a second and the carrier's rise's
 ## seconds from the charge's start ("not a decision").
 const CARRIER_TURNS_PER_SECOND := 0.5
 const RING_TURNS_PER_SECOND := -0.25
 const CARRIER_RISE_SECONDS := 0.5
+## The flash at the end of a charge (#1556; the art leaves its length to the game: not a decision).
+const FLASH_SECONDS := 0.6
 
 var _model: ClientModel
 var _console_id := -1
@@ -69,6 +80,9 @@ var _site_what: Dictionary[int, String] = {}
 var _held: Dictionary[int, bool] = {}
 var _claws: Dictionary[int, float] = {}
 var _open: Dictionary[int, float] = {}
+## Per charger: the phase of the crystal it held last frame (-1 none) and the flash left (s).
+var _phase: Dictionary[int, int] = {}
+var _flash_left: Dictionary[int, float] = {}
 var _breakers: BreakersProblem
 var _crystals: CrystalProblem
 var _fresh := true
@@ -86,6 +100,7 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 			var what: StringName = DEVICES.get(node.scene_file_path, &"")
 			if what != &"":
 				found[what].append(node)
+		light_stations(level)
 	var console_at := _nearest(found[&"console"], console_id)
 	if console_at != null:
 		_console = ShipConsoleLook.apply(console_at, ShipEngineHologram.PULSE_SECONDS)
@@ -108,7 +123,11 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 			for fixture: StationKind in kind.fixtures:
 				for id: int in _ids_of(fixture):
 					var node := _take(found[&"charger"], id)
-					var charger := ShipChargerLook.apply(node) if node != null else null
+					var charger := (
+						ShipChargerLook.apply(node, ShipChargerLook.ZAP_SEED + id)
+						if node != null
+						else null
+					)
 					if charger != null:
 						_chargers[id] = charger
 		elif kind is BreakersProblem:
@@ -124,6 +143,17 @@ func bind(model: ClientModel, type: ShipEngine, level: Node, console_id: int) ->
 			var board_side := _slot_of(_board_of[breaker])
 			var wing := 4 if board_side.ends_with("_e") else 0
 			_lamp[breaker] = wing + _shell[breaker]
+
+
+## Adds PhotoLayers.STATION to every light under `level` that reaches GROUND, so the sockets' and
+## chargers' meshes on it stay lit as the rest of the level (the ship's inside lights reach GROUND
+## alone). bind() runs it before it puts the looks on, so a seated crystal's light keeps skipping
+## STATION.
+static func light_stations(level: Node) -> void:
+	for node: Node in level.find_children("*", "Light3D", true, false):
+		var light := node as Light3D
+		if light.light_cull_mask & PhotoLayers.GROUND != 0:
+			light.light_cull_mask |= PhotoLayers.STATION
 
 
 ## Sets every look at host tick `now`: `share` the console's bar, `hologram` the engine's state
@@ -143,7 +173,7 @@ func update(
 		_update_socket(id, delta)
 	_update_boards(now, delta)
 	for id: int in _chargers:
-		_update_charger(id, now)
+		_update_charger(id, now, delta)
 	for site: int in _slot:
 		_held[site] = _model.engine.problem_at(site) != null
 	_fresh = false
@@ -167,6 +197,11 @@ func board_of(id: int) -> ShipBoardLook:
 ## The charger station `id`'s look, or null.
 func charger_of(id: int) -> ShipChargerLook:
 	return _chargers.get(id)
+
+
+## The flash left at charger `id` as a share (1 at its start, 0 none).
+func flash_of(id: int) -> float:
+	return (_flash_left.get(id, 0.0) as float) / FLASH_SECONDS
 
 
 ## The shell (ShipBoardLook.COLOURS' index) breaker station `id` is bound to, or -1.
@@ -202,6 +237,26 @@ static func site_slot(what: String, local: Vector3) -> String:
 	if what == "socket":
 		return "socket_" + ("f" if local.z > 0.0 else "") + side
 	return what + "_" + side
+
+
+## How far a charge ending on host tick `ends` and lasting `ticks` is at host tick `now`: 0 at its
+## start, 1 at its end (#1556: the charger's crystal fades from spent to charged over it).
+static func charge_share(now: int, ends: int, ticks: int) -> float:
+	if ticks <= 0:
+		return 1.0
+	return clampf(float(now - (ends - ticks)) / float(ticks), 0.0, 1.0)
+
+
+## The flash a charger shows this frame (s left), its crystal's phase `before` (last frame) and
+## `phase` now (-1 none), `left` the flash left: FLASH_SECONDS on the edge from CHARGING to WAITING,
+## none on a `fresh` view's first frame (a view built late plays no old edge), anything but WAITING
+## ends it.
+static func flash_left(before: int, phase: int, fresh: bool, left: float) -> float:
+	if phase != CrystalProblem.WAITING:
+		return 0.0
+	if not fresh and before == CrystalProblem.CHARGING:
+		return FLASH_SECONDS
+	return left
 
 
 ## `node`'s transform relative to its ancestor `root` (no tree needed).
@@ -263,6 +318,7 @@ func _update_socket(id: int, delta: float) -> void:
 	if _model.engine.problem_at(id) != null:
 		state = "empty" if crystal != null and crystal.item >= 0 else "spent"
 	look.set_state(state)
+	look.set_crystal(state != "empty", 1.0 if state == "charged" else 0.0)
 	var target := 1.0 if state == "empty" else 0.0
 	var claws: float = _claws.get(id, target)
 	if not _fresh:
@@ -303,6 +359,7 @@ func _update_boards(now: int, delta: float) -> void:
 			open = target
 		_open[breaker] = open
 		board.set_shell(shell, open)
+		board.set_smoking(shell, tripped.has(breaker) and open >= SMOKE_FROM_OPEN)
 		var shows: int = lamp.get(breaker, ShipBoardLook.GREEN)
 		board.set_lamp(shell, shows)
 		if tripped.has(breaker):
@@ -311,27 +368,45 @@ func _update_boards(now: int, delta: float) -> void:
 		_boards[id].set_problem(alarm.has(id))
 
 
-func _update_charger(id: int, now: int) -> void:
+func _update_charger(id: int, now: int, delta: float) -> void:
 	var look := _chargers[id]
 	var held: ClientEngineBook.Crystal = null
 	for socket: int in _model.engine.crystals:
 		var crystal: ClientEngineBook.Crystal = _model.engine.crystals[socket]
 		if crystal.charger == id:
 			held = crystal
+	var phase := held.phase if held != null else -1
+	var charge := 0.0
 	if held == null or held.phase == CrystalProblem.LOADED or held.phase == CrystalProblem.EMPTY:
 		look.set_state("idle")
+		look.set_crystal(held != null and held.phase == CrystalProblem.LOADED, 0.0)
 	elif held.phase == CrystalProblem.WAITING:
 		look.set_state("charged")
+		look.set_crystal(true, 1.0)
+		charge = 1.0
 	else:
 		look.set_state("charging")
 		var ticks := _crystals.charge_ticks() if _crystals != null else 0
 		var seconds := maxf(0.0, float(now - (held.tick - ticks))) / Ticks.RATE
+		charge = charge_share(now, held.tick, ticks)
+		look.set_crystal(true, charge)
 		look.set_carrier(
 			clampf(seconds / CARRIER_RISE_SECONDS, 0.0, 1.0),
 			fposmod(TAU * CARRIER_TURNS_PER_SECOND * seconds, TAU)
 		)
 		look.set_ring(fposmod(TAU * RING_TURNS_PER_SECOND * seconds, TAU))
 		look.set_pressed(true)
+	_step_zap(id, look, phase, charge, delta)
+
+
+## The charger's lightning: arcs while it charges, the flash (flash_left) at the end of a charge.
+func _step_zap(id: int, look: ShipChargerLook, phase: int, charge: float, delta: float) -> void:
+	var before: int = _phase.get(id, phase)
+	_phase[id] = phase
+	var left := flash_left(before, phase, _fresh, _flash_left.get(id, 0.0) as float)
+	if look.zap() != null:
+		look.zap().step(delta, look.state() == "charging", charge, left / FLASH_SECONDS)
+	_flash_left[id] = maxf(0.0, left - delta)
 
 
 ## Binds each board station to its device, and each breaker to its board and shell.

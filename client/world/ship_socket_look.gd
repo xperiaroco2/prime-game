@@ -6,8 +6,10 @@ extends RefCounted
 ## red problem lamp's light at the dome, and the claws. One state drives the lamp and the bay's
 ## glow: "charged" (lamp off, bay lit), "spent" and "empty" (lamp lit red, bay dark); the claws open
 ## 0..1 round their hinges. Values only: ShipStationLooks drives them from the filtered model.
-## Left out: the render layer 20 the art gives the meshes (it is PhotoLayers.PHOTO here, which every
-## live camera skips) and seat_crystal (no crystal model is drawn in a socket).
+## The crystal (a ShipCrystalLook, #1556) sits on `crystal_anchor`, shown and charged by
+## set_crystal(). The meshes sit on PhotoLayers.STATION, not the art's render layer 20 (that is
+## PhotoLayers.PHOTO here, which every live camera skips), so the crystal's own light skips them
+## (ShipCrystalLook.seat).
 
 const METAL := preload("res://assets/environment/ship/console_metal.gdshader")
 const BAY := preload("res://assets/environment/crystal_socket/socket_bay.gdshader")
@@ -51,6 +53,7 @@ var _claw_r: Node3D
 var _claw_l: Node3D
 var _state := ""
 var _claws := -1.0
+var _crystal: ShipCrystalLook
 
 
 ## Puts the socket's materials on every surface under `root`; null when none is the socket's.
@@ -64,6 +67,7 @@ static func apply(root: Node3D) -> ShipSocketLook:
 		if mesh.mesh == null or mesh.get_parent() is CollisionObject3D:
 			continue
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mesh.layers = PhotoLayers.STATION
 		for i: int in mesh.mesh.get_surface_count():
 			var src: Material = mesh.mesh.surface_get_material(i)
 			var key: String = src.resource_name if src != null else ""
@@ -91,6 +95,9 @@ static func apply(root: Node3D) -> ShipSocketLook:
 	var anchor := root.find_child("crystal_anchor", true, false) as Node3D
 	if anchor != null:
 		look._bay.set_shader_parameter("centre", anchor.position + Vector3(0.0, 0.1745, 0.0))
+		look._crystal = ShipCrystalLook.apply()
+		if look._crystal != null:
+			look._crystal.seat(anchor, false)
 	look._claw_r = root.find_child("claw_r", true, false) as Node3D
 	look._claw_l = root.find_child("claw_l", true, false) as Node3D
 	look.set_claws(0.0)
@@ -113,6 +120,20 @@ func set_claws(open01: float) -> void:
 
 func claws() -> float:
 	return _claws
+
+
+## The crystal in the bay: drawn or not, and its charge (1 charged, 0 spent). Nothing with no
+## crystal model (CI's Git LFS stand-in).
+func set_crystal(shown: bool, charge: float) -> void:
+	if _crystal == null:
+		return
+	_crystal.set_shown(shown)
+	_crystal.set_charge(charge)
+
+
+## The crystal's look, or null with no crystal model.
+func crystal() -> ShipCrystalLook:
+	return _crystal
 
 
 ## "charged" (a charged crystal in it: the lamp off, the bay lit), "spent" (a spent one: the lamp

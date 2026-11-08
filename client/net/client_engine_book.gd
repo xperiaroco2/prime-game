@@ -47,8 +47,10 @@ var slits: Dictionary[int, int] = {}
 var crystals: Dictionary[int, Crystal] = {}
 
 
-## Folds `event_name` if it is one of the engine's; every other event is left alone.
-func fold(event_name: StringName, fields: Dictionary) -> void:
+## Folds `event_name` if it is one of the engine's; every other event is left alone. `model`, the
+## ClientModel folding it (none for a bot's own book), gets a loaded crystal's item laid at its
+## charger (_lay_in_charger).
+func fold(event_name: StringName, fields: Dictionary, model: ClientModel = null) -> void:
 	match event_name:
 		&"EngineProblemOpened":
 			var problem := Problem.new()
@@ -85,6 +87,38 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 			crystal.tick = fields["tick"]
 			crystal.item = fields["item"]
 			crystals[fields["station"] as int] = crystal
+			if model != null:
+				_lay_in_charger(model, fields)
+
+
+## A crystal loaded into a charger (CrystalChanged naming a charger and the crystal's item, #1556):
+## the host locks it at the charger (Items.lock_at) and sends no ItemPlaced, so it leaves the
+## loader's hand here and lies at the charger, locked, until the take's ItemPickedUp. The charger's
+## look draws it (in_charger), no item view.
+static func _lay_in_charger(model: ClientModel, fields: Dictionary) -> void:
+	var charger: int = fields["charger"]
+	var item: ClientModel.Item = model.items.get(fields["item"] as int)
+	if charger < 0 or item == null:
+		return
+	item.holder = ClientModel.NO_HOLDER
+	item.belted = false
+	item.carry_place = -1
+	item.flying = false
+	item.locked = true
+	var station: ClientModel.Station = model.stations.get(charger)
+	if station != null:
+		item.position = station.position
+
+
+## Whether item `item` is a crystal some charger holds (its CrystalChanged names a charger): the
+## charger's look draws it, so no item view does (#1556).
+func in_charger(item: int) -> bool:
+	if item < 0:
+		return false
+	for crystal: Crystal in crystals.values():
+		if crystal.item == item and crystal.charger >= 0:
+			return true
+	return false
 
 
 ## The open problem holding `station`, or null.
