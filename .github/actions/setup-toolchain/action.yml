@@ -64,3 +64,13 @@ runs:
     - name: Install gdtoolkit
       shell: bash
       run: python -m pip install --disable-pip-version-check "gdtoolkit==$GDTOOLKIT_PIN"
+
+    # The stall step's backlog (tests/integration/net/enet_stall.gd) is 320 small datagrams in one UDP socket; a
+    # runner whose kernel charges more per datagram held 221 in the 208 KB default and failed it (#1566, #159).
+    # The value is tools/runner/doctor.py's RMEM_DEFAULT_FIX, as tools/cloud/setup.sh raises it; doctor checks it.
+    - name: Raise the default UDP receive buffer
+      shell: bash
+      run: |
+        if [ "$(cat /proc/sys/net/core/rmem_default)" -lt 425984 ]; then
+          sudo sysctl -w net.core.rmem_default=425984
+        fi

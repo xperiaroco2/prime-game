@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, design_only, gdunit, verify
+from runner import cli, design_only, doctor, gdunit, verify
 from runner.common import git_bash
 
 try:
@@ -103,6 +103,14 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertLess(pins, node[0])
         settings = {"node-version": "${{ env.NODE_PIN }}", "package-manager-cache": False}
         self.assertEqual(steps[node[0]]["with"], settings)
+
+    def test_the_setup_action_raises_the_udp_receive_buffer_for_the_stall_backlog(self) -> None:
+        # #1566: a runner whose default UDP buffer held 221 of the 320 datagrams failed the stall step's backlog check
+        # (its own doctor warned so); the action raises the default as tools/cloud/setup.sh does (#159).
+        steps = load(ROOT / SETUP / "action.yml")["runs"]["steps"]
+        raise_step = [step for step in steps if "net.core.rmem_default" in step.get("run", "")]
+        self.assertEqual(len(raise_step), 1)
+        self.assertIn(f"sudo sysctl -w net.core.rmem_default={doctor.RMEM_DEFAULT_FIX}", raise_step[0]["run"])
 
     def test_ci_keeps_its_triggers_and_runs_verify_after_the_shared_setup(self) -> None:
         data = load(GITHUB / "workflows" / "ci.yml")
