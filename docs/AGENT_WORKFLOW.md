@@ -2107,7 +2107,7 @@ CODEOWNERS since #85).
   earlier night of its half (else CI's `test-<n>` save, #980, else any), to balance the shards (a suite CI times at
   fixed fps alone counts its seconds there x `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variables and runs every suite in one
   process per run, as before, so the job's options check (`test --repeat`) did not change. A shard's limit is 600 s, or
-  1.5 x its expected seconds when longer, at most 900 s (`gdunit.shard_timeout`, #970): when a half outgrows two
+  1.5 x its expected seconds when longer, at most 1140 s (`gdunit.shard_timeout`, #970, #1577): when a half outgrows two
   shards, raise the job's count. Only a green job saves its times (the cache's post step).
   Each run's report goes to `tools/out/gdunit-runs/run-<i>/` (the shards' merged `results.xml`) and its log to
   `tools/out/logs/test-run<i>.log` (sharded: also `test-run<i>-shard<j>.log`);
