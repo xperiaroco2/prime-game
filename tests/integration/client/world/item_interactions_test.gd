@@ -195,6 +195,28 @@ func test_the_left_button_sends_use_with_an_empty_hand_where_the_phase_takes_it(
 	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
 
 
+func test_the_left_button_sends_use_with_an_item_in_the_hand_only_where_the_phase_takes_it(
+) -> void:
+	# The shipped base mode's Round takes no Use (the M8 slice, #1497): an item in the hand sends
+	# nothing either, where the host would only answer Rejected(not_accepted) (#1526).
+	_spawn(5, Vector3(0, 0, -1))
+	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 5})
+	assert_int(_model.hand_item(_model.own_peer)).is_equal(5)
+	assert_int(_keys.use()).is_equal(-1)
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.USE)).is_empty()
+	# Where the Round takes Use (the melee fixture), the same hand sends it.
+	_keys.setup(_harness.session, FixtureBaseModeWithMelee.mode())
+	assert_int(_keys.use()).is_greater(0)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
+	# A phase of the melee fixture that takes no Use (its pregame): nothing more is sent.
+	_model.phase = &"pregame"
+	assert_int(_keys.use()).is_equal(-1)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
+
+
 func test_the_throw_key_sends_throw_right_after_the_claims_twin() -> void:
 	# A mode copy with a Throw rule (the throw fixture mode; the base mode gets its rule in 37f).
 	_keys.setup(_harness.session, FixtureThrowModes.basic())

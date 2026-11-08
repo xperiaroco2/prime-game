@@ -10,8 +10,9 @@ extends Node3D
 ## - in the viewfinder: E or the keys no longer listening close it, the left mouse button sends
 ##   the shot, Interact(camera, item -1), while its film has frames left; no other item key acts;
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
-## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item (a photo
-##   too: it hits by the mode's fallback, #1444); the click that captures the mouse is not a use;
+## - the left mouse button (`use`) sends Use(facing), in a phase that takes Use from the living
+##   (#1526), with an item in the hand or none (a photo too: it hits by the mode's fallback,
+##   #1437, #1444); the click that captures the mouse is not a use;
 ## - the right mouse button (`use_secondary`) sends UseSecondary(facing), the item's own action
 ##   (the mug's drink, #1438), the same way; with a photo in the hand it holds the photo up close or
 ##   back and sends nothing (#787, #1444); the dead's right button cycles the spectate target;
@@ -344,16 +345,14 @@ func put_down() -> int:
 
 
 ## The left mouse button: Use(facing), with an item in the own hand or none: the host answers by
-## the hand item's own Use rule, else the mode's fallback hit (#1437). An empty hand sends only in
-## a phase that takes Use from the living. A photo in the hand hits too, by the fallback (#1444);
+## the hand item's own Use rule, else the mode's fallback hit (#1437). It sends only in a phase
+## that takes Use from the living (#1526). A photo in the hand hits too, by the fallback (#1444);
 ## its close-up is on the right button (use_secondary).
 func use() -> int:
-	if not _acts():
+	# A phase that takes no Use from the living (the shipped Round, #1497) would only answer
+	# Rejected(not_accepted), whatever the hand holds (#1526).
+	if not _acts() or not _phase_takes(Intents.USE):
 		return -1
-	var hand_id := model.hand_item(model.own_peer)
-	if hand_id < 0:
-		if not _phase_takes(Intents.USE):
-			return -1
 	return session.send_intent(Intents.USE, {"facing": player.look_vector()})
 
 
