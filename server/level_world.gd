@@ -177,7 +177,7 @@ func _read(node: Node, root: Node) -> void:
 		var moving := node as PhysicsBody3D
 		if (moving.collision_layer & WORLD_LAYER) != 0:
 			_fail(_unread(node, root, "a %s on layer 1" % moving.get_class()))
-	for child: Node in node.get_children():
+	for child: Node in LevelScenes.children_read(node):
 		_read(child, root)
 
 
