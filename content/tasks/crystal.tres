@@ -77,3 +77,6 @@ fixtures = Array[ExtResource("2_station")]([SubResource("StationKind_cartridge_c
 spent = ExtResource("11_spent")
 charged = ExtResource("12_charged")
 charge_seconds = 10.0
+zap_damage = 1
+zap_flash_seconds = 0.4
+zap_notice_seconds = 3.0

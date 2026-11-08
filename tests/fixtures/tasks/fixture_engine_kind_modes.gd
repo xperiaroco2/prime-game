@@ -26,6 +26,10 @@ const CRYSTAL_SECONDS := 30.0
 const CRYSTAL_TICKS := 600
 const CHARGE_SECONDS := 1.0
 const CHARGE_TICKS := 20
+## The zap of a crystal carried past the box (#1585): the content's numbers.
+const ZAP_DAMAGE := 1
+const ZAP_FLASH_SECONDS := 0.4
+const ZAP_NOTICE_SECONDS := 3.0
 const GILL_BUTTONS: Array[Vector3] = [Vector3(4, 0, 17), Vector3(8, 0, 17)]
 const BOARDS: Array[Vector3] = [Vector3(4, 0, 22), Vector3(22, 0, 22)]
 const BREAKERS: Array[Vector3] = [
@@ -93,6 +97,9 @@ static func crystal() -> CrystalProblem:
 	made.fixtures = [two_handed_kind(&"cartridge_charger")]
 	made.seconds = CRYSTAL_SECONDS
 	made.charge_seconds = CHARGE_SECONDS
+	made.zap_damage = ZAP_DAMAGE
+	made.zap_flash_seconds = ZAP_FLASH_SECONDS
+	made.zap_notice_seconds = ZAP_NOTICE_SECONDS
 	return made
 
 

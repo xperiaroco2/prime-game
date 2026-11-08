@@ -107,7 +107,9 @@ extends RefCounted
 ## BoothReplay (kind 97: peer, station, strip, records, items), one per print whose strips exist and
 ## one for the running session's frames, after the StationPlaced replay; the booth's rows move to
 ## WireBoothRows (this file's line limit).
-const VERSION := 54
+## 55 since #1585 (the ship's emergency mode): the event ShipZapped (kind 98: peer), only to
+## the carrier the ship zapped as the crystal passed the aboard box's edge.
+const VERSION := 55
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -695,6 +697,7 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(90, &"EngineProblemFixed", 2, [_u16("problem")]),
 		_down(91, &"EngineBlast", 2, [_u16("stage")]),
+		_down(98, &"ShipZapped", 4, [_peer("peer")]),
 		_down(
 			92,
 			&"GillFlipped",

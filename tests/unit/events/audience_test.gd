@@ -104,6 +104,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),
+		ShipZappedEvent.new(P1),
 		DiedEvent.new(P1, Vector3.ZERO),
 	]
 	for event: MatchEvent in events:
