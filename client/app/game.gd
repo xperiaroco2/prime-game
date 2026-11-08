@@ -119,6 +119,10 @@ var _player: PlayerController
 ## The level under World and its kind (GameLevel).
 var _levels := GameLevel.new()
 var _bodies := BodyViews.new()
+## The print of a respawn: the drone and the growing avatar (#1489).
+var _prints := PrintViews.new()
+## Which side of a map with the dead's hall this client draws (#1489).
+var _hall := HallVisibility.new()
 var _life := LifeView.new()
 var _items := ItemWorld.new()
 var _voices := VoiceViews.new()
@@ -164,6 +168,7 @@ func _ready() -> void:
 	ui.map_closed.connect(_on_map_closed)
 	GameHowto.setup(self)
 	_world.add_child(_bodies)
+	_world.add_child(_prints)
 	_world.add_child(_life)
 	_world.add_child(_items)
 	_levels.setup(_world, _items, ui)
@@ -516,6 +521,7 @@ func voice_control() -> VoiceControl:
 
 
 func _process(delta: float) -> void:
+	_sync_hall()
 	_check_runner()
 	if _room != null:
 		_room.poll()
@@ -640,6 +646,8 @@ func _start_client(transport: NetTransport, key := "") -> void:
 	_buffer = SnapshotBuffer.new()
 	_client.snapshot_received.connect(_on_snapshot)
 	_client.event_received.connect(_avatars.on_event)
+	_client.event_received.connect(_prints.on_event)
+	_prints.avatars = _avatars
 	_avatars.model = _client.model
 	_avatars.buffer = _buffer
 	_avatars.rules = mode.player_rules
@@ -688,6 +696,13 @@ func _on_corrected(position: Vector3, velocity: Vector3) -> void:
 func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 	_levels.swap(scene.instantiate(), PhaseSpec.Level.MAP)
 	ui.set_map_data(MapData.from_level(_levels.node, mode))
+
+
+## Which side of the level this client draws: every frame, as the level or the own life changes.
+func _sync_hall() -> void:
+	if _client == null:
+		return
+	_hall.sync(_levels.node, _client.model.waits_in_hall(), get_viewport().get_camera_3d())
 
 
 ## Every event, in the session's physics step: the level of a new phase, the own life, and the
@@ -741,6 +756,7 @@ func _end_session(reason: StringName, detail := "") -> void:
 	_life.reset()
 	_bodies.model = null
 	_bodies.clear()
+	_prints.clear()
 	_items.reset()
 	_voices.reset()
 	_sender.reset()

@@ -73,7 +73,7 @@ const MAX_JUMPS := 0xFFFF
 ## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
 ## and sends a Correction adds its event here.
 const PLACING_EVENTS: Array[StringName] = [
-	&"PlayersPlaced", &"KnockedDown", &"Revived", &"Respawned"
+	&"PlayersPlaced", &"KnockedDown", &"Revived", &"Respawned", &"PrintStarted"
 ]
 ## Horizontal travel in one claim that counts as moving, for stamina: the host's
 ## `MovementRule.MOVE_EPSILON`.
@@ -577,6 +577,8 @@ func _claims_accepted() -> bool:
 	if spec == null:
 		return false
 	var life := model.life_of(model.own_peer)
+	if life == ClientModel.Life.DEAD:
+		return model.waits_in_hall()
 	if life != ClientModel.Life.ALIVE and life != ClientModel.Life.DOWNED:
 		return false
 	var mine: int = AcceptSpec.From.PLAYER

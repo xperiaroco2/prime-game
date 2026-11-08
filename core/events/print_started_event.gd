@@ -30,4 +30,4 @@ func audience() -> Audience:
 
 
 func to_dict() -> Dictionary:
-	return {"peer": peer, "position": position, "print_s": print_s}
+	return {"peer": peer, "position": position, "print_ms": roundi(print_s * 1000.0)}

@@ -73,6 +73,7 @@ static func sync_life(game: Game) -> void:
 	var own_life := model.body_life_of(model.own_peer)
 	if player.life != own_life:
 		player.life = own_life
+	player.walks_only = model.waits_in_hall()
 
 
 ## Puts `player` at `position` through teleport(), so the step-up check measures from there and

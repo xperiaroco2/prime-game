@@ -14,7 +14,7 @@ extends RefCounted
 
 ## A player's life as the public events tell it (E25): the client's own words for core/'s life
 ## states, so no client/ file names a core/ state class (client/CLAUDE.md).
-enum Life { ALIVE, DOWNED, DEAD, LEFT }
+enum Life { ALIVE, DOWNED, DEAD, LEFT, PRINTING }
 
 ## An item's holder when nobody holds it (no peer id is 0).
 const NO_HOLDER := 0
@@ -372,8 +372,20 @@ func is_sneaking(peer: int) -> bool:
 	return avatar.get("sneaking", false)
 
 
-## life_of(), but DOWNED while the newest snapshot shows `peer` limp (avatar flag, §7.1.21, KE5).
+## Whether the own player waits dead in the dead's hall (#1489): the phase's allowlist lets the
+## dead claim a move. Its body walks there as a living one's (body_life_of), its hud stays dead.
+func waits_in_hall() -> bool:
+	if life_of(own_peer) != Life.DEAD:
+		return false
+	var spec := phase_spec()
+	return spec != null and (spec.senders_of(Intents.MOVE_CLAIM) & AcceptSpec.From.DEAD) != 0
+
+
+## life_of(), but DOWNED while the newest snapshot shows `peer` limp (avatar flag, §7.1.21, KE5),
+## and ALIVE for the own body of a dead player walking the hall (#1489).
 func body_life_of(peer: int) -> Life:
+	if peer == own_peer and waits_in_hall():
+		return Life.ALIVE
 	var limp: bool = (avatars.get(peer, {}) as Dictionary).get("limp", false)
 	return Life.DOWNED if limp and life_of(peer) == Life.ALIVE else life_of(peer)
 
@@ -567,7 +579,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 				ClientShotBook.record(shots, film_pictures, fields)
 			ClientShotBook.prune(shots, film_pictures, items)
 		&"PhotoPrinted", &"PhotoHung":
-			_fold_photo(event_name, fields)
+			ClientShotBook.fold_photo(items, stations, film_pictures, event_name, fields)
 			ClientShotBook.prune(shots, film_pictures, items)
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
@@ -625,7 +637,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			sprint_available = fields["sprint_available"]
 			drunk = fields.get("drunk", 0)
 			posed = fields.get("posed", false)
-		&"KnockedDown", &"Died", &"Respawned":
+		&"KnockedDown", &"Died", &"PrintStarted", &"Respawned":
 			_fold_life(event_name, fields)
 		&"OfferMade", &"OfferEnded":
 			_fold_offer(event_name, fields)
@@ -912,6 +924,9 @@ func _fold_life(event_name: StringName, fields: Dictionary) -> void:
 	var peer: int = fields["peer"]
 	if event_name == &"KnockedDown":
 		lives[peer] = Life.DOWNED
+	elif event_name == &"PrintStarted":
+		lives[peer] = Life.PRINTING
+		bodies.erase(peer)
 	elif event_name == &"Respawned":
 		lives.erase(peer)
 		bodies.erase(peer)
@@ -967,34 +982,3 @@ func _enter(next: StringName) -> void:
 	var in_lobby := after != null and after.level == PhaseSpec.Level.LOBBY
 	if in_lobby and (before == null or before.level != PhaseSpec.Level.LOBBY):
 		clear_match()
-
-
-## A printed photo shows its shot (PhotoPrinted), which leaves its film's list; a hung photo
-## (PhotoHung) leaves the hand or belt for the board's next free slot: locked there when counted,
-## else lying on it for a PickUp to take down. The host sends no ItemPlaced for a hang.
-func _fold_photo(event_name: StringName, fields: Dictionary) -> void:
-	var photo: Item = items.get(fields["item"] as int)
-	if event_name == &"PhotoPrinted":
-		var shot_id: int = fields["shot"]
-		ClientShotBook.unlist(film_pictures, shot_id)
-		if photo != null:
-			photo.shot = shot_id
-		return
-	var board: Station = stations.get(fields["station"] as int)
-	if photo == null:
-		return
-	photo.holder = NO_HOLDER
-	photo.belted = false
-	photo.carry_place = -1
-	photo.flying = false
-	photo.on_station = fields["station"]
-	photo.locked = fields["counted"]
-	if board == null:
-		return
-	photo.position = board.position
-	# The lowest free slot (a photo taken down), else a new one: counted photos never move.
-	var slot := board.hung.find(-1)
-	if slot < 0:
-		board.hung.append(fields["item"] as int)
-	else:
-		board.hung[slot] = fields["item"]

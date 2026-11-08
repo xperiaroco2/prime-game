@@ -30,7 +30,7 @@ func test_the_print_starts_at_the_deadline_the_body_goes_and_no_respawned_yet() 
 		var started := FixtureCombatModes.received(game, peer, &"PrintStarted")
 		assert_array(started).has_size(1)
 		assert_dict(started[0].to_dict()).is_equal(
-			{"peer": P2, "position": dead.position, "print_s": FixtureHallModes.PRINT_S}
+			{"peer": P2, "position": dead.position, "print_ms": 2000}
 		)
 		assert_array(FixtureCombatModes.received(game, peer, &"Respawned")).is_empty()
 	assert_array(FixtureItemModes.names_after(game, P2, own_seen)).is_equal(

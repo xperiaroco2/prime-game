@@ -40,6 +40,43 @@ static func unlist(film_pictures: Dictionary[int, PackedInt32Array], shot_id: in
 			film_pictures[film_id] = listed
 
 
+## A printed photo shows its shot (PhotoPrinted), which leaves its film's list; a hung photo
+## (PhotoHung) leaves the hand or belt for the board's next free slot: locked there when counted,
+## else lying on it for a PickUp to take down. The host sends no ItemPlaced for a hang.
+static func fold_photo(
+	items: Dictionary[int, ClientModel.Item],
+	stations: Dictionary[int, ClientModel.Station],
+	film_pictures: Dictionary[int, PackedInt32Array],
+	event_name: StringName,
+	fields: Dictionary
+) -> void:
+	var photo: ClientModel.Item = items.get(fields["item"] as int)
+	if event_name == &"PhotoPrinted":
+		var shot_id: int = fields["shot"]
+		unlist(film_pictures, shot_id)
+		if photo != null:
+			photo.shot = shot_id
+		return
+	var board: ClientModel.Station = stations.get(fields["station"] as int)
+	if photo == null:
+		return
+	photo.holder = ClientModel.NO_HOLDER
+	photo.belted = false
+	photo.carry_place = -1
+	photo.flying = false
+	photo.on_station = fields["station"]
+	photo.locked = fields["counted"]
+	if board == null:
+		return
+	photo.position = board.position
+	# The lowest free slot (a photo taken down), else a new one: counted photos never move.
+	var slot := board.hung.find(-1)
+	if slot < 0:
+		board.hung.append(fields["item"] as int)
+	else:
+		board.hung[slot] = fields["item"]
+
+
 ## Drops every shot no film lists and no photo shows (the host's PhotoTask._prune, mirrored).
 static func prune(
 	shots: Dictionary[int, ClientModel.Shot],

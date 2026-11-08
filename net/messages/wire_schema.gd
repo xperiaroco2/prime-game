@@ -593,6 +593,7 @@ static func _events() -> Array[WireRow]:
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
 		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
+		_down(92, &"PrintStarted", 18, [_peer("peer"), _vec3("position"), _u16("print_ms")]),
 		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
 		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
 		_down(63, &"Revived", 4, [_peer("peer")]),

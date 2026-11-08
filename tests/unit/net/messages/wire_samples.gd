@@ -101,6 +101,7 @@ static func events() -> Dictionary[String, Array]:
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
 	found["RespawnedEvent"] = [RespawnedEvent.new(0x7FFFFFFF, Vector3(20, 0, -22))]
+	found["PrintStartedEvent"] = [PrintStartedEvent.new(0x7FFFFFFF, Vector3(20, 0, -2), 2.0)]
 	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
 	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
 	found["RevivedEvent"] = [RevivedEvent.new(2)]
