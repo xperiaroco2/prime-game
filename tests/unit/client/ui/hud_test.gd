@@ -384,3 +384,23 @@ func _arm_player2(model: ClientModel) -> void:
 	model.fold(&"ItemSpawned", {"item": 21, "kind": &"knife", "position": Vector3(2, 0, 1)})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 20})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 21, "belted": 20, "place": 1})
+
+
+func test_the_ships_zap_shows_its_notice_only_while_it_is_up() -> void:
+	var model := _round_model()
+	var local := HudText.Local.new()
+	assert_str(HudText.of(model, _mode, NOW, local).notice).is_empty()
+	local.zap_notice = true
+	var was := TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+	assert_str(HudText.of(model, _mode, NOW, local).notice).is_equal(HudText.ZAP_NOTICE_EN)
+	TranslationServer.set_locale(was)
+
+
+func test_the_zap_notice_follows_the_language() -> void:
+	var was := TranslationServer.get_locale()
+	TranslationServer.set_locale("uk")
+	assert_str(HudText.zap_notice_text()).is_equal(HudText.ZAP_NOTICE_UK)
+	TranslationServer.set_locale("en")
+	assert_str(HudText.zap_notice_text()).is_equal(HudText.ZAP_NOTICE_EN)
+	TranslationServer.set_locale(was)

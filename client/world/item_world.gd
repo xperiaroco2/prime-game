@@ -52,6 +52,8 @@ var interactions := ItemInteractions.new()
 ## The hand-over key (#1411): after the item keys, whose targets win over it.
 var hand_over := HandOverUse.new()
 var sounds := WorldSounds.new()
+## The ship zap's flash, shake and notice on the own screen (#1585).
+var zap := ShipZapScreen.new()
 var flashes := PhotoFlashes.new()
 ## The Generator's station scenes (its TaskClient's view): station_of_hit asks it first.
 var stations := task_views.get(Generator) as StationViews
@@ -108,6 +110,7 @@ func _init() -> void:
 		add_child(each)
 	for view: Node3D in task_views.values():
 		add_child(view)
+	add_child(zap)
 	var at := 0
 	for child_name: StringName in _ORDER:
 		var child := get_node_or_null(NodePath(child_name))
@@ -188,6 +191,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	# A photo camera's lens stands the eye height above its marker, as PhotoTask's.
 	var lens_m := game_mode.player_rules.eye_height_m if game_mode.player_rules != null else 0.0
 	sounds.lens_m = lens_m
+	zap.set_mode(game_mode)
 	flashes.model = _model
 	flashes.lens_m = lens_m
 	client.event_received.connect(on_event)
@@ -198,6 +202,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 func set_player(player: PlayerController) -> void:
 	_player = player
 	items.player = player
+	zap.player = player
 	interactions.player = player
 	hand_over.player = player
 	viewfinder.player = player
@@ -261,6 +266,7 @@ func hud_local(tick: float = -1.0, raise: float = -1.0) -> HudText.Local:
 	local.aim = interactions.target()
 	local.aim_station = interactions.station_target()
 	local.viewing = viewfinder.active()
+	local.zap_notice = zap.notice_showing()
 	local.raising = maxf(raise, fit_shown(tick))
 	return local
 
@@ -292,6 +298,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	items.on_event(event_name, fields)
 	booth_views.on_event(event_name, fields)
 	flashes.on_event(event_name, fields)
+	zap.on_event(event_name, fields)
 	pictures.on_event(event_name, fields)
 	viewfinder.on_event(event_name, fields)
 	pinball.on_event(event_name, fields)

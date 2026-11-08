@@ -15,6 +15,8 @@ extends Node3D
 ## - `raised`: the teammate raising the player, 0.6 of the way;
 ## - `dead`: spectating the teammate, 6 s after the death (back in 0:24);
 ## - `back`: respawned this tick, empty hands, stamina full: the protection chip counts 3.
+## And the ship's zap (#1585): `zapped`: the carrier's blue flash at its peak over the notice;
+## `noticed`: the notice alone, after the flash.
 ## The samples are the handoff's: 07:22 left, health 0.8, stamina 0.9, the microphone on. Dev only:
 ## nothing here reaches the game.
 
@@ -41,7 +43,9 @@ const TICK_USEC := 50000
 	"holding",
 	"raised",
 	"dead",
-	"back"
+	"back",
+	"zapped",
+	"noticed"
 )
 var state := "empty"
 ## The language of the words (Languages.ENGLISH or UKRAINIAN) and the large-text theme (#289).
@@ -83,6 +87,13 @@ func _ready() -> void:
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_model, mode, NOW, _local())
 	ui.life.show_hud(_life(mode))
+	if state == "zapped":
+		# The real flash, held at its peak (no _process) so a shot shows its strongest frame.
+		var zap := ShipZapScreen.new()
+		add_child(zap)
+		zap.set_mode(mode)
+		zap.on_event(&"ShipZapped", {})
+		zap.set_process(false)
 
 
 ## The fake round of `state`, seen by Player1 (peer 1).
@@ -128,6 +139,7 @@ func _local() -> HudText.Local:
 		local.raise_key = KeyLabel.of_action(&"interact")
 	if state == "raising":
 		local.raising = 0.6
+	local.zap_notice = state in ["zapped", "noticed"]
 	return local
 
 

@@ -25,6 +25,7 @@ const CHILDREN: Array[Array] = [
 	[&"PinballViews", "PinballViews"],
 	[&"StripPictures", "StripPictures"],
 	[&"ShipEngineViews", "ShipEngineViews"],
+	[&"ShipZapScreen", "ShipZapScreen"],
 ]
 
 
