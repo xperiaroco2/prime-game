@@ -6,24 +6,26 @@ extends ContentPart
 
 ## Who may send it; a sender matching any set flag is accepted. 8 was the ghosts' bit: it is never
 ## reused, so a mode written for ghosts is refused by the mode check (PhaseSpec) instead of
-## silently accepting someone else. The dead send no intents as players: Match accepts none from
-## them under PLAYER, LIVING or DOWNED; HOST still accepts the host's own player dead (its session
-## controls, such as ReturnToLobby on the end screen). A flag for the dead is added only when a mode
-## needs one.
+## silently accepting someone else. Match accepts nothing from the dead under PLAYER, LIVING or
+## DOWNED; HOST still accepts the host's own player dead (its session controls, such as
+## ReturnToLobby on the end screen). DEAD (#1489) is the only flag for the dead: a row with it
+## accepts the intent from a dead player in the hall (PlayerState.in_hall), and from no dead player
+## anywhere else.
 enum From {
 	NEWCOMER = 1,  ## a connected peer whose Hello was not accepted yet
 	PLAYER = 2,  ## any player but the dead
 	LIVING = 4,  ## a living player
 	HOST = 16,  ## the host's own player, peer 1
 	DOWNED = 32,  ## a downed player
+	DEAD = 64,  ## a dead player waiting in the dead's hall
 }
 
 ## Every flag of From: a `from` with another bit names no sender.
-const ALL_FROM := From.NEWCOMER | From.PLAYER | From.LIVING | From.HOST | From.DOWNED
+const ALL_FROM := From.NEWCOMER | From.PLAYER | From.LIVING | From.HOST | From.DOWNED | From.DEAD
 
 ## An intent name (Intents).
 @export var intent: StringName
-@export_flags("Newcomer:1", "Player:2", "Living:4", "Host:16", "Downed:32") var from := 0
+@export_flags("Newcomer:1", "Player:2", "Living:4", "Host:16", "Downed:32", "Dead:64") var from := 0
 
 
 static func of(intent_name: StringName, senders: int) -> AcceptSpec:

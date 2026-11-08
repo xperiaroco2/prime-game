@@ -21,6 +21,11 @@ extends RuleEffect
 
 func run(ctx: MatchContext) -> void:
 	var peer := ctx.fact.player if ctx.fact != null else ctx.actor
+	var who := ctx.state.player(peer)
+	if who != null and who.in_hall:
+		# The bar serves the dead too (#1489), and a dead body has no limp to fall into: they stay
+		# drunk until the print sobers them.
+		return
 	LifeRules.go_limp(ctx, peer, limp_s)
 
 

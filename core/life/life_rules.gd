@@ -367,11 +367,14 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3, facing := Vector3
 	if rules == null:
 		ctx.error("respawn: the mode has no PlayerRules")
 		return
-	if not back.carried_items().is_empty():
+	if back.in_hall:
+		Items.drop_carried(ctx, peer, Items.DEATH)
+	elif not back.carried_items().is_empty():
 		# The death dropped them (die); a full place is a rule error, and its item drops here.
 		ctx.error("respawn: player %d still carries items %s" % [peer, back.carried_items()])
 		Items.drop_carried(ctx, peer, Items.DEATH)
 	ctx.state.bodies.erase(peer)
+	back.leave_hall()
 	back.life = PlayerState.Life.ALIVE
 	back.life_deadline = -1
 	back.health = Ticks.thousandths(rules.health)
@@ -421,12 +424,75 @@ static func leave(ctx: MatchContext, peer: int) -> void:
 	leaver.life = PlayerState.Life.LEFT
 	leaver.life_deadline = -1
 	leaver.knockdown_left = -1
+	leaver.leave_hall()
 	ctx.state.bodies.erase(peer)
 	ctx.emit(PlayerLeftEvent.new(peer))
 	var fact := Fact.new(Facts.PLAYER_LEFT)
 	fact.player = peer
 	ctx.raise_fact(fact)
 	Items.drop_carried(ctx, peer, Items.LEAVE)
+
+
+## `peer`, dead, starts coming back at `at` (#1489; a respawn marker, which Respawn draws), for
+## `print_s` seconds: its body goes, its hands empty (what it held in the hall drops there, before
+## it moves), it stands PRINTING with full health and stamina and a new epoch, at the marker. Not
+## living yet: it cannot move, act or be hit until finish_print. PrintStarted (everyone), its
+## Correction (with `facing`), its SelfStatus (at the end of the tick).
+static func begin_print(
+	ctx: MatchContext, peer: int, at: Vector3, facing: Vector3, print_s: float
+) -> void:
+	var back := ctx.state.player(peer)
+	if back == null or back.life != PlayerState.Life.DEAD:
+		ctx.error("begin_print: player %d is not dead" % peer)
+		return
+	var rules := ctx.state.player_rules
+	if rules == null:
+		ctx.error("begin_print: the mode has no PlayerRules")
+		return
+	if back.in_hall:
+		Items.drop_carried(ctx, peer, Items.DEATH)
+	elif not back.carried_items().is_empty():
+		# The death dropped them (die); a full place is a rule error, and its item drops here.
+		ctx.error("begin_print: player %d still carries items %s" % [peer, back.carried_items()])
+		Items.drop_carried(ctx, peer, Items.DEATH)
+	ctx.state.bodies.erase(peer)
+	back.life = PlayerState.Life.PRINTING
+	back.life_deadline = ctx.tick + maxi(1, Ticks.from_seconds(print_s))
+	back.health = Ticks.thousandths(rules.health)
+	back.stamina = Ticks.thousandths(rules.stamina)
+	back.stamina_settled_tick = ctx.tick
+	back.sprinting = false
+	back.crouched = false
+	back.sneaking = false
+	back.stand_up()
+	back.sober()
+	back.sprint_held = false
+	back.moving = false
+	back.leave_hall()
+	back.position = at
+	back.velocity = Vector3.ZERO
+	if facing != Vector3.ZERO:
+		back.facing = facing
+	back.epoch += 1
+	ctx.emit(PrintStartedEvent.new(peer, at, print_s))
+	ctx.emit(CorrectionEvent.new(peer, back.epoch, back.position, back.velocity, facing))
+	SelfStatusFeed.touch(ctx.state, peer)
+
+
+## `peer`, printing, is done (#1489): living on its marker, invulnerable (make_invulnerable), its
+## stamina ledger starting again here. Respawned (everyone) and its SelfStatus. LifeTicks calls it
+## at the print's deadline.
+static func finish_print(ctx: MatchContext, peer: int) -> void:
+	var back := ctx.state.player(peer)
+	if back == null or not back.is_printing():
+		ctx.error("finish_print: player %d is not printing" % peer)
+		return
+	back.life = PlayerState.Life.ALIVE
+	back.life_deadline = -1
+	back.stamina_settled_tick = ctx.tick
+	make_invulnerable(ctx, peer)
+	ctx.emit(RespawnedEvent.new(peer, back.position))
+	SelfStatusFeed.touch(ctx.state, peer)
 
 
 ## `dead` (living or downed: the caller checked) dies: every channel it runs or is the target of

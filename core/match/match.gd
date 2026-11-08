@@ -618,10 +618,12 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 
 
 ## Whether the current phase's allowlist accepts the intent from its sender (§3.1). The dead send
-## no intents as players (vision revision 1): PLAYER, LIVING and DOWNED accept none, so an intent
-## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead
-## for the session's controls (ReturnToLobby on the end screen, where whoever died in the round is
-## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS). A limp
+## no intents as players but in the dead's hall (#1489): PLAYER, LIVING and DOWNED accept none, so
+## an intent still in flight at a death never reaches a rule; a row with DEAD accepts a dead player
+## in the hall. HOST still accepts the host's own player dead or printing for the session's
+## controls (ReturnToLobby on the end screen, where whoever died in the round is still dead until
+## ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS). A printing player sends
+## nothing else (#1489: it cannot move or act until Respawned). A limp
 ## player (#1393) sends no player's action but its MoveClaim (a facing: MovementRule holds its body
 ## still), so it interacts with nothing and uses nothing while it lies; Ready and the session's
 ## controls stay its own.
@@ -633,8 +635,11 @@ func _accepts(command: MatchCommand) -> bool:
 	if not player.is_present():
 		return false
 	var host := from & AcceptSpec.From.HOST != 0 and command.peer == MatchState.HOST_PEER
-	if player.life == PlayerState.Life.DEAD:
-		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
+	if player.life == PlayerState.Life.DEAD or player.is_printing():
+		return (
+			(host and not Intents.PLAYER_ACTIONS.has(command.kind))
+			or (from & AcceptSpec.From.DEAD != 0 and player.in_hall)
+		)
 	if player.is_limp() and command.kind != Intents.MOVE_CLAIM:
 		if Intents.PLAYER_ACTIONS.has(command.kind):
 			return false
@@ -649,7 +654,8 @@ func _accepts(command: MatchCommand) -> bool:
 ## rule on it only ever sees a placed station, and a package carrier naming one hears
 ## `nothing_to_do`, not `two_handed`. Its `station` and `item` (the cooking ADR's CE1, #770) name
 ## exactly one target, else `bad_args`; an item id that names no item gets `nothing_to_do` too, and
-## so does a station of a display kind (CE6: the boards), so no owner's rule ever receives one.
+## so does a station of a display kind (CE6: the boards), so no owner's rule ever receives one. A
+## dead player naming a target outside its hall gets `out_of_hall` (#1489).
 func _target_problem(command: MatchCommand, ctx: MatchContext) -> StringName:
 	if not Stations.names_station(command.kind):
 		return &""
@@ -657,10 +663,21 @@ func _target_problem(command: MatchCommand, ctx: MatchContext) -> StringName:
 	if names_item == (command.get_int("station", -1) >= 0):
 		return RejectReasons.BAD_ARGS
 	if names_item:
-		return RejectReasons.NOTHING_TO_DO if Items.target_of(ctx) == null else &""
+		var item := Items.target_of(ctx)
+		if item == null:
+			return RejectReasons.NOTHING_TO_DO
+		return _hall_problem(command.peer, item.position)
 	var station := Stations.target_of(ctx)
 	if station == null or station.kind.display:
 		return RejectReasons.NOTHING_TO_DO
+	return _hall_problem(command.peer, station.position)
+
+
+## `out_of_hall` when a dead `peer`'s named target at `point` lies outside its hall, else empty.
+func _hall_problem(peer: int, point: Vector3) -> StringName:
+	var player := state.player(peer)
+	if player.life == PlayerState.Life.DEAD and not player.hall_holds(point):
+		return RejectReasons.OUT_OF_HALL
 	return &""
 
 
@@ -691,7 +708,12 @@ func _find_action(command: MatchCommand, ctx: MatchContext) -> Rule:
 		if rule != null:
 			ctx.source = "action %s of item kind %s" % [command.kind, kind.id]
 			return rule
-	var role := mode.find_role(player.role)
+	var dead := player.life == PlayerState.Life.DEAD
+	if dead and command.kind == Intents.USE:
+		# Bare hands in the hall: the mode's fallback hit is the living's (#1489).
+		return null
+	# A role's rules are the living's; the mode's run for what the Round's DEAD rows accept.
+	var role := null if dead else mode.find_role(player.role)
 	if role != null:
 		var rule := _first_rule(role.actions, command.kind)
 		if rule != null:

@@ -86,12 +86,13 @@ static func seated(state: MatchState) -> int:
 	return game(state).player
 
 
-## Whether `player` may keep the seat: present, alive and standing (not limp).
+## Whether `player` may keep the seat: present, alive or dead in the hall (#1489), and standing
+## (not limp).
 static func standing(player: PlayerState) -> bool:
 	return (
 		player != null
 		and player.is_present()
-		and player.life == PlayerState.Life.ALIVE
+		and (player.life == PlayerState.Life.ALIVE or player.in_hall)
 		and not player.is_limp()
 	)
 

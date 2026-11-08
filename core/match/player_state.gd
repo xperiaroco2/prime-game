@@ -4,10 +4,12 @@ extends RefCounted
 ## Health and stamina are thousandths (§3.3). The movement rule (2d) keeps the last accepted
 ## MoveClaim here, and every range rule reads it (§7.1).
 
-## The life states of vision revision 1 (§3.1): alive, downed, dead, or left. 0 health knocks a
-## living player down for the knockdown time, then it dies (LifeRules, LifeTicks); a player who
-## leaves mid-round is left. DOWNED took the ghosts' value, and that value is never reused for DEAD.
-enum Life { ALIVE, DOWNED, DEAD, LEFT }
+## The life states of vision revision 1 (§3.1): alive, downed, dead, left, or printing. 0 health
+## knocks a living player down for the knockdown time, then it dies (LifeRules, LifeTicks); a player
+## who leaves mid-round is left. DOWNED took the ghosts' value, and that value is never reused for
+## DEAD. PRINTING (#1489) is the short return before the invulnerability: a drone prints the player
+## at its respawn marker for Respawn.print_s; it stands there, moves nowhere and strikes skip it.
+enum Life { ALIVE, DOWNED, DEAD, LEFT, PRINTING }
 
 ## The number of item places: the hand and the two belt slots (GDD §6).
 const PLACES := 3
@@ -31,12 +33,21 @@ var ready := false
 var role: StringName
 var life := Life.ALIVE
 ## The host tick at which the current life state runs out, or -1: while downed, the knockdown's end,
-## when LifeTicks lets the player die (§3.4); while dead, the respawn's (M4-3). -1 while a raise
+## when LifeTicks lets the player die (§3.4); while dead, the respawn's (M4-3); while printing, the
+## print's end (#1489). -1 while a raise
 ## pauses the knockdown (M4-4): knockdown_left holds what is left of it then.
 var life_deadline := -1
 ## While a raise pauses a downed player's knockdown (RaiseDowned, M4-4), the host ticks it had
 ## left; the knockdown runs on from there when the raise stops. -1 otherwise.
 var knockdown_left := -1
+## Whether the dead player waits in the dead's hall (#1489; ARCHITECTURE §3.4): placed there by
+## Respawn.send_to_hall, it walks and uses what is there. False for every other player and for one
+## dead where the phase has no hall.
+var in_hall := false
+## The hall's middle and radius, set with in_hall: hall_holds() reads them, so a claim or a named
+## target outside the hall is refused without the layout.
+var hall_center := Vector3.ZERO
+var hall_radius_m := 0.0
 ## The first host tick at which strikes hit the player again, or -1 (LifeRules.make_invulnerable,
 ## after a respawn or a revive): it is invulnerable at every tick before it (is_invulnerable).
 var invulnerable_until := -1
@@ -151,6 +162,24 @@ func is_invulnerable(tick: int) -> bool:
 
 func is_present() -> bool:
 	return life != Life.LEFT
+
+
+## Whether a drone is printing the player back (#1489): not living yet, not moved, not hit.
+func is_printing() -> bool:
+	return life == Life.PRINTING
+
+
+## Whether `point` is inside the hall this dead player waits in (in_hall). False for any player not
+## in a hall, so a dead player's claim or target outside it is refused.
+func hall_holds(point: Vector3) -> bool:
+	return in_hall and point.distance_to(hall_center) <= hall_radius_m
+
+
+## Ends the wait in the hall (the print, a leave or a reset takes it back).
+func leave_hall() -> void:
+	in_hall = false
+	hall_center = Vector3.ZERO
+	hall_radius_m = 0.0
 
 
 ## Whether the player lies limp (#1393): living, its body moved by the host, not by its claims.

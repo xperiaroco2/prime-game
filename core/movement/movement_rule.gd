@@ -287,6 +287,9 @@ static func _check(
 	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, covered: int, fresh: bool
 ) -> Checked:
 	var rules := ctx.state.player_rules
+	if player.life == PlayerState.Life.DEAD and not player.hall_holds(claim.position):
+		# A dead player walks only inside the hall (#1489): the same Correction as any failed check.
+		return null
 	var checked := Checked.new()
 	checked.covered = covered
 	checked.travel = (
