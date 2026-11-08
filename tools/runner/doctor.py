@@ -380,7 +380,7 @@ class Doctor:
         warn(
             f"a default UDP socket on 127.0.0.1 holds only {held} of the stall step's {STALL_BACKLOG_DATAGRAMS} "
             f"datagrams, so verify's stall step will fail; raise the default: "
-            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh does it)"
+            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh and CI's setup action do it)"
         )
 
     def api_dump(self) -> None:

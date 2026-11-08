@@ -1,9 +1,10 @@
 # The pinned toolchain for a Linux job that runs the task runner: CI (ci.yml) and the night jobs (nightly.yml) share
 # it, so the pins are read and checked in one place. Pins come from tools/runner/pins.py; see
 # docs/decisions/2026-09-28-toolchain-pins.md. The job runs actions/checkout first (this action is in the repository).
-# Godot ends up at ~/godot/godot: pass it as GODOT_BIN=$HOME/godot/godot.
+# Godot ends up at ~/godot/godot: pass it as GODOT_BIN=$HOME/godot/godot. It also raises the default UDP receive
+# buffer for verify's stall step (#1566).
 name: Set up the pinned toolchain
-description: Python 3.12, the checksum-checked Godot build, gdtoolkit and Node.js from the pins.
+description: Python 3.12, the checksum-checked Godot build, gdtoolkit and Node.js from the pins; a UDP receive buffer for the stall step.
 
 runs:
   using: composite
@@ -67,10 +68,15 @@ runs:
 
     # The stall step's backlog (tests/integration/net/enet_stall.gd) is 320 small datagrams in one UDP socket; a
     # runner whose kernel charges more per datagram held 221 in the 208 KB default and failed it (#1566, #159).
-    # The value is tools/runner/doctor.py's RMEM_DEFAULT_FIX, as tools/cloud/setup.sh raises it; doctor checks it.
+    # The value is tools/runner/doctor.py's RMEM_DEFAULT_FIX (a runner test ties them), as tools/cloud/setup.sh
+    # raises it. A failure only warns, as there: a job without the stall step (an export) still runs, and doctor
+    # names the leftover default.
     - name: Raise the default UDP receive buffer
       shell: bash
+      env:
+        RMEM_DEFAULT_FIX: "425984"
       run: |
-        if [ "$(cat /proc/sys/net/core/rmem_default)" -lt 425984 ]; then
-          sudo sysctl -w net.core.rmem_default=425984
+        if [ "$(sysctl -n net.core.rmem_default)" -lt "$RMEM_DEFAULT_FIX" ]; then
+          sudo sysctl -w net.core.rmem_default="$RMEM_DEFAULT_FIX" ||
+            echo "::warning::cannot raise net.core.rmem_default; verify's stall step may fail (see doctor)"
         fi

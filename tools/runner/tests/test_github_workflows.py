@@ -110,7 +110,10 @@ class GithubWorkflowsTest(unittest.TestCase):
         steps = load(ROOT / SETUP / "action.yml")["runs"]["steps"]
         raise_step = [step for step in steps if "net.core.rmem_default" in step.get("run", "")]
         self.assertEqual(len(raise_step), 1)
-        self.assertIn(f"sudo sysctl -w net.core.rmem_default={doctor.RMEM_DEFAULT_FIX}", raise_step[0]["run"])
+        self.assertEqual(raise_step[0]["env"], {"RMEM_DEFAULT_FIX": str(doctor.RMEM_DEFAULT_FIX)})
+        # The comparison and the raise both read the one value.
+        self.assertEqual(raise_step[0]["run"].count('"$RMEM_DEFAULT_FIX"'), 2)
+        self.assertIn('sudo sysctl -w net.core.rmem_default="$RMEM_DEFAULT_FIX"', raise_step[0]["run"])
 
     def test_ci_keeps_its_triggers_and_runs_verify_after_the_shared_setup(self) -> None:
         data = load(GITHUB / "workflows" / "ci.yml")
