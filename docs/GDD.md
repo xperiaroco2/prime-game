@@ -597,9 +597,14 @@ the expert knows every fix by heart.
   - **The crystal never leaves the ship**, so it cannot be hidden (the engineer, 2026-10-27,
     [#1095 c6440586671](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6440586671), the how
     [c6441939778](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6441939778)): carried past the
-    mouth onto the ramp, it slips from the hand and rolls back into the throat, as the garage's tools drop when their
+    mouth onto the ramp, it drops from the hand and rolls back into the throat, as the garage's tools drop when their
     holder steps out of the garage. Charging it in the laboratory was raised and dropped the same day: a much longer
-    path, and the crystal could be hidden on the way.
+    path, and the crystal could be hidden on the way. **The ship is in an emergency mode** (the engineer, 2026-11-08,
+    [#1095 c6719686161](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6719686161), #1585): the
+    one who carries the crystal past the mouth is zapped by the ship, the crystal drops, and a notice says quest items
+    cannot leave the quest's area; no further fiction (his word: "sometimes you don't need any lore, it only makes it
+    worse", [c6719658859](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6719658859)). Open: how
+    hard the zap hits, its look and sound, the notice's wording.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
   to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
   2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
