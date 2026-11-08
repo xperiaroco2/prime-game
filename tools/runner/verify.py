@@ -236,7 +236,7 @@ PART_LINE = "part {part} of verify --full: {names}"
 COUNTED = ("selftest", "selftest-godot")
 # A step that a run stopped early by --fail-fast never ended: neither a pass nor a red (`metrics` counts it as neither).
 NOT_RUN = "not run"
-# A lane process that outlives this is stopped and its unfinished steps fail (CI's whole test job has 25 minutes).
+# A lane process that outlives this is stopped and its unfinished steps fail (each of CI's part jobs has 25 minutes).
 LANE_TIMEOUT = 30 * 60
 # The line a lane process prints after each step, then the step's result as JSON. Printable on purpose: Python's
 # str.splitlines() also splits at control characters such as \x1e.
