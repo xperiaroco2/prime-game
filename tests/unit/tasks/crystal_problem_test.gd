@@ -392,12 +392,12 @@ func _carry_out(game: Match) -> ItemState:
 
 func test_the_carrier_past_the_edge_is_zapped_alone_and_loses_one_health() -> void:
 	var game := _game()
-	var before := game.state.player(ALL).health
+	var health_before := game.state.player(ALL).health
 	_carry_out(game)
 	assert_int(FixtureEngineModes.dicts(game, ALL, &"ShipZapped").size()).is_equal(1)
 	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ShipZapped")).is_empty()
 	var one := Ticks.thousandths(FixtureEngineKindModes.ZAP_DAMAGE)
-	assert_int(game.state.player(ALL).health).is_equal(before - one)
+	assert_int(game.state.player(ALL).health).is_equal(health_before - one)
 	assert_int(FixtureEngineModes.dicts(game, ALL, &"Damaged").size()).is_equal(1)
 	assert_array(FixtureEngineModes.dicts(game, SECOND, &"Damaged")).is_empty()
 	assert_bool(game.state.player(ALL).is_alive()).is_true()
@@ -436,7 +436,7 @@ func test_the_zap_takes_only_what_lies_above_the_floor() -> void:
 
 func test_a_crystal_not_carried_over_the_edge_zaps_nobody() -> void:
 	var game := _game()
-	var before := game.state.player(ALL).health
+	var health_before := game.state.player(ALL).health
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
 	var crystal := _pull(game, problem)
 	var edge := Vector3(FixtureEngineModes.INSIDE_HIGH.x - 0.5, 0, 20)
@@ -447,14 +447,14 @@ func test_a_crystal_not_carried_over_the_edge_zaps_nobody() -> void:
 	assert_bool(crystal.is_carried()).is_false()
 	assert_str(str(_slips(game, SECOND)[-1]["cause"])).is_equal(str(CrystalProblem.SLIPPED))
 	assert_array(FixtureEngineModes.dicts(game, ALL, &"ShipZapped")).is_empty()
-	assert_int(game.state.player(ALL).health).is_equal(before)
+	assert_int(game.state.player(ALL).health).is_equal(health_before)
 
 
 func test_a_thrown_crystal_returns_with_no_zap() -> void:
 	var kinds: Array[ProblemKind] = [FixtureEngineKindModes.crystal()]
 	var mode := FixtureThrowModes.with_throw(FixtureEngineKindModes.of(kinds))
 	var game := FixtureEngineKindModes.in_round(mode, PEERS)
-	var before := game.state.player(ALL).health
+	var health_before := game.state.player(ALL).health
 	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
 	var crystal := _pull(game, problem)
 	var edge := Vector3(FixtureEngineModes.INSIDE_HIGH.x - 0.5, 0, 20)
@@ -468,7 +468,7 @@ func test_a_thrown_crystal_returns_with_no_zap() -> void:
 	FixtureModes.run_ticks(game, 2)
 	assert_str(str(_slips(game, SECOND)[-1]["cause"])).is_equal(str(CrystalProblem.SLIPPED))
 	assert_array(FixtureEngineModes.dicts(game, ALL, &"ShipZapped")).is_empty()
-	assert_int(game.state.player(ALL).health).is_equal(before)
+	assert_int(game.state.player(ALL).health).is_equal(health_before)
 
 
 func test_the_check_bounds_the_zap_numbers() -> void:
