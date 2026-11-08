@@ -603,8 +603,10 @@ the expert knows every fix by heart.
     [#1095 c6719686161](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6719686161), #1585): the
     one who carries the crystal past the mouth is zapped by the ship, the crystal drops, and a notice says quest items
     cannot leave the quest's area; no further fiction (his word: "sometimes you don't need any lore, it only makes it
-    worse", [c6719658859](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6719658859)). Open: how
-    hard the zap hits, its look and sound, the notice's wording.
+    worse", [c6719658859](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6719658859)). The zap
+    (the engineer, 2026-11-08, [#1095 c6721181350](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6721181350)):
+    1 health, never killing or knocking down, a short blue screen flash and a camera shake on the carrier's screen and
+    a notice for the carrier; its seconds are placeholders until a playtest. A thrown crystal comes back with no zap.
 - **Tripped breakers** (memory; the engineer, 2026-10-21, [#1095 c6325852316](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6325852316)
   to [c6326100307](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6326100307); two boards,
   2026-10-22, [#1033 c6336844073](https://github.com/xperiaroco2/prime-game/issues/1033#issuecomment-6336844073); a
