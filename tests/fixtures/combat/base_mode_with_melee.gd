@@ -54,6 +54,10 @@ static func round_takes_use(target: GameMode) -> void:
 		use.from = AcceptSpec.From.LIVING
 		var accepts: Array[AcceptSpec] = []
 		for accept: AcceptSpec in spec.accepts:
+			if accept.intent == Intents.USE:
+				# The dead's hall row (#1489) joins the living's: one row per intent.
+				use.from |= accept.from
+				continue
 			accepts.append(accept)
 			if accept.intent == Intents.PUT_DOWN:
 				accepts.append(use)

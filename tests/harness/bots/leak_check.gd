@@ -18,13 +18,13 @@ extends RefCounted
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
-##   of the bot's own role; no decoded snapshot holds a dead player's avatar; a decoded snapshot
+##   of the bot's own role; a living viewer decodes no dead player's avatar and a dead viewer (#1489) only the dead's; a decoded snapshot
 ##   holds the bot's own avatar exactly when record_tick saw its player knocked down or limp (#1393)
 ##   at that tick (ScenarioInvariants.own_avatar_problem: from the life state, never from
 ##   Snapshots.for_peer, KE5, #847); the voice invariant
-##   (§6): no bot decodes a downed or dead speaker's frame, a downed bot decodes only living
-##   speakers' frames and a dead bot none; every event a bot decodes while dead is either for it
-##   alone (the subject check) or also reached every living peer present then (view_of's
+##   (§6): no bot decodes a downed speaker's frame or a dead one's unless itself dead, a downed bot
+##   decodes only living speakers' frames and a dead bot only the dead's (#1489); every event a
+##   bot decodes while dead is either for it alone (the subject check) or also reached every living peer present then (view_of's
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
 ##   task events (check_tasks); every bot that decoded a snapshot of a tick decoded the same
@@ -143,6 +143,8 @@ var _keys := PackedStringArray()
 var _alive_at: Dictionary[int, PackedInt32Array] = {}
 var _downed_at: Dictionary[int, PackedInt32Array] = {}
 var _dead_at: Dictionary[int, PackedInt32Array] = {}
+## Who is being printed at each tick (#1489): it neither hears nor is heard.
+var _printing_at: Dictionary[int, PackedInt32Array] = {}
 ## Tick -> the present players lying limp after that tick (#1393), alive too: the own avatar.
 var _limp_at: Dictionary[int, PackedInt32Array] = {}
 ## Tick -> each present player's last accepted position after that tick (peer -> Vector3), and the
@@ -193,6 +195,7 @@ func record_tick(at_tick: int) -> void:
 	var downed := PackedInt32Array()
 	var limp := PackedInt32Array()
 	var dead := PackedInt32Array()
+	var printing := PackedInt32Array()
 	var drunk := PackedInt32Array()
 	var positions: Dictionary[int, Vector3] = {}
 	var state := _game.state
@@ -209,6 +212,9 @@ func record_tick(at_tick: int) -> void:
 				downed.append(peer)
 			PlayerState.Life.DEAD:
 				dead.append(peer)
+			PlayerState.Life.PRINTING:
+				printing.append(peer)
+	_printing_at[at_tick] = printing
 	_alive_at[at_tick] = alive
 	_downed_at[at_tick] = downed
 	_limp_at[at_tick] = limp
@@ -757,8 +763,10 @@ func _check_snapshots(
 			found.append("the snapshot of tick %d %s" % [at_tick, own])
 		var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
 		for other: int in avatars:
-			if dead.has(other):
+			if dead.has(other) and not dead.has(peer):
 				found.append("it decoded the avatar of dead %d at tick %d" % [other, at_tick])
+			if dead.has(peer) and not dead.has(other):
+				found.append("dead, it decoded %d, who is not dead, at tick %d" % [other, at_tick])
 	for repeated: Dictionary in decoded.repeated_snapshots:
 		found.append("a second snapshot of tick %d" % (repeated["tick"] as int))
 
@@ -823,12 +831,15 @@ func _voice_invariant(peer: int, speaker: int, at_tick: int) -> PackedStringArra
 	var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
 	if downed.has(speaker):
 		found.append("it heard downed %d at tick %d" % [speaker, at_tick])
-	if dead.has(speaker):
+	if dead.has(speaker) and not dead.has(peer):
 		found.append("it heard dead %d at tick %d" % [speaker, at_tick])
 	if downed.has(peer) and not alive.has(speaker):
 		found.append("downed, it heard %d, who was not living, at tick %d" % [speaker, at_tick])
-	if dead.has(peer):
-		found.append("dead, it heard %d at tick %d" % [speaker, at_tick])
+	if dead.has(peer) and not dead.has(speaker):
+		found.append("dead, it heard %d, who is not dead, at tick %d" % [speaker, at_tick])
+	var printing: PackedInt32Array = _printing_at.get(at_tick, PackedInt32Array())
+	if printing.has(peer) or printing.has(speaker):
+		found.append("%d heard %d, one of them printing, at tick %d" % [peer, speaker, at_tick])
 	return found
 
 

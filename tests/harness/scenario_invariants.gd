@@ -22,9 +22,9 @@ extends RefCounted
 ## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
 ##   holds its own avatar exactly when its player is knocked down or limp (#1393), read from the
 ##   life state and PlayerState.limp, never from Snapshots.for_peer (own_avatar_problem).
-## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
-##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
-##   living speakers; a dead peer's speakers are empty.
+## - Per tick, no peer's snapshot holds a dead player's avatar unless the viewer is dead too
+##   (#1489). The voice invariant (§6): no peer's speakers include a downed speaker, or a dead one
+##   unless the peer is dead; a downed peer hears only living speakers; a dead peer only the dead.
 ## - The distance invariant (§5, E45): per tick, every speaker a peer hears stands within the
 ##   phase's hearing radius (VoiceRule.radius_of the mode's rule for the phase), between the two
 ##   last accepted positions in 3D, compared as VoiceRule.within compares them, so a pair at the
@@ -270,8 +270,13 @@ func check_tick() -> PackedStringArray:
 		found.append_array(_check_voice(peer, speakers))
 		found.append_array(_check_distance(peer, speakers, radius))
 		for other: int in avatars:
-			if _life_of(other) == PlayerState.Life.DEAD:
+			var dead_viewer := _life_of(peer) == PlayerState.Life.DEAD
+			if _life_of(other) == PlayerState.Life.DEAD and not dead_viewer:
 				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
+			if dead_viewer and _life_of(other) != PlayerState.Life.DEAD:
+				found.append(
+					"dead peer %d sees %d, who is not dead, in its snapshot" % [peer, other]
+				)
 	return found
 
 
@@ -456,13 +461,15 @@ func _check_dead_recipients(emitted: EmittedEvent) -> PackedStringArray:
 func _check_voice(peer: int, speakers: PackedInt32Array) -> PackedStringArray:
 	var found := PackedStringArray()
 	var life := _life_of(peer)
-	if life == PlayerState.Life.DEAD and not speakers.is_empty():
-		found.append("dead peer %d hears %s" % [peer, speakers])
+	if life == PlayerState.Life.PRINTING and not speakers.is_empty():
+		found.append("printing peer %d hears %s" % [peer, speakers])
 	for speaker: int in speakers:
 		var mouth := _life_of(speaker)
+		if life == PlayerState.Life.DEAD and mouth != PlayerState.Life.DEAD:
+			found.append("dead peer %d hears %d, who is not dead" % [peer, speaker])
 		if mouth == PlayerState.Life.DOWNED:
 			found.append("peer %d hears downed %d" % [peer, speaker])
-		if mouth == PlayerState.Life.DEAD:
+		if mouth == PlayerState.Life.DEAD and life != PlayerState.Life.DEAD:
 			found.append("peer %d hears dead %d" % [peer, speaker])
 		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
 			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])

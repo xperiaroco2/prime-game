@@ -10,7 +10,7 @@ extends RefCounted
 ## The base mode's allowlist (§3.2): phase -> intent -> who may send it. LIVING and DOWNED are the
 ## life states; PLAYER any present player that is not dead; HOST peer 1; NEWCOMER a peer whose Hello
 ## was not accepted yet.
-enum From { NEWCOMER = 1, PLAYER = 2, LIVING = 4, HOST = 16, DOWNED = 32 }
+enum From { NEWCOMER = 1, PLAYER = 2, LIVING = 4, HOST = 16, DOWNED = 32, DEAD = 64 }
 
 ## No reply: the intent is dropped in silence (a MoveClaim the phase refuses, E15; a LoadAck of
 ## another match, §4.1).
@@ -99,17 +99,18 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"pregame": {},
 	&"round":
 	{
-		&"MoveClaim": From.LIVING | From.DOWNED,
-		&"PickUp": From.LIVING,
-		&"PutDown": From.LIVING,
-		&"Use": From.LIVING,
-		&"UseSecondary": From.LIVING,
+		&"MoveClaim": From.LIVING | From.DOWNED | From.DEAD,
+		&"PickUp": From.LIVING | From.DEAD,
+		&"PutDown": From.LIVING | From.DEAD,
+		&"Use": From.LIVING | From.DEAD,
+		&"UseSecondary": From.LIVING | From.DEAD,
+		&"Flippers": From.DEAD,
 		&"Raise": From.LIVING,
 		&"StopRaise": From.LIVING,
-		&"Swap": From.LIVING,
-		&"Draw": From.LIVING,
+		&"Swap": From.LIVING | From.DEAD,
+		&"Draw": From.LIVING | From.DEAD,
 		&"Throw": From.LIVING,
-		&"Interact": From.LIVING,
+		&"Interact": From.LIVING | From.DEAD,
 		&"Pose": From.LIVING,
 		&"HandOver": From.LIVING,
 		&"TakeOffer": From.LIVING,
@@ -147,6 +148,9 @@ static func answer(
 		# A refused MoveClaim is dropped (E15); everything else is not_accepted (§3.1). A chaos
 		# peer never sends a Hello as a newcomer (that would be its join).
 		return SILENT if intent == Intents.MOVE_CLAIM else RejectReasons.NOT_ACCEPTED
+	if player != null and player.life == PlayerState.Life.DEAD:
+		# What a dead player meets depends on where its target stands (the hall, #1489): not known.
+		return &"?"
 	return _rule(intent, args, peer, player, match_id, state, mode)
 
 
@@ -158,8 +162,11 @@ static func accepts(intent: StringName, peer: int, phase: StringName, player: Pl
 		return false
 	if player == null:
 		return from & From.NEWCOMER != 0
-	if player.life == PlayerState.Life.DEAD or player.life == PlayerState.Life.LEFT:
-		# The dead send no intents as players (§3.1); the host's own controls are peer 1's.
+	if player.life == PlayerState.Life.DEAD:
+		# The dead act only in the dead's hall, on the rows that name them (#1489, §3.1).
+		return player.in_hall and from & From.DEAD != 0
+	if player.life == PlayerState.Life.LEFT or player.life == PlayerState.Life.PRINTING:
+		# The host's own controls are peer 1's.
 		return false
 	if player.is_limp() and intent != Intents.MOVE_CLAIM and Intents.PLAYER_ACTIONS.has(intent):
 		# A limp player sends no player's action but its facing (#1393, §7.1.21).
