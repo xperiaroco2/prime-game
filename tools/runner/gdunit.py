@@ -38,11 +38,11 @@ from .common import (
 from .perf import FIXED_FPS
 
 TIMEOUT = 600
-# A shard's watchdog grows with its expected seconds (#970): CI's 4 vCPUs give 2 shards, one of them the fixed-fps
-# suites, so every real-time suite runs in the other, about 530 s of a flat 600 s; a runner some 10 % slow killed it
-# mid-suite with no hang. It still fails a hang: at most SHARD_TIMEOUT_CAP, under CI's 20-minute job.
+# A shard's watchdog grows with its expected seconds (#970): a runner some 10 % slow killed a flat 600 s shard
+# mid-suite with no hang. CI's half 2 expects about 721 s a shard (#1577), and a slow runner took 880 s on one, so
+# the cap keeps the 1.5x margin there. It still fails a hang: at most SHARD_TIMEOUT_CAP, under CI's 25-minute job.
 SHARD_TIMEOUT_MARGIN = 1.5
-SHARD_TIMEOUT_CAP = 900
+SHARD_TIMEOUT_CAP = 1140
 
 
 def shard_timeout(expected_seconds: float) -> float:

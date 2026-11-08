@@ -121,7 +121,8 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.refs.outputs.halves) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Three runs one after another, each shard at most gdunit.SHARD_TIMEOUT_CAP (19 minutes), plus the setup (#1577).
+    timeout-minutes: 63
     env:
       REF: ${{ matrix.ref }}
     steps:

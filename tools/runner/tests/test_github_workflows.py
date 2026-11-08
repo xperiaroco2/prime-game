@@ -225,6 +225,14 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(testing, ["test-1", "test-2"])
         self.assertEqual(steps[cache[0]]["if"], " || ".join(f"matrix.part == '{part}'" for part in testing))
 
+    def test_the_job_limits_stay_above_the_shard_timeout_cap(self) -> None:
+        # #1577: a job killed by its own limit loses the timed-out shard's message. A CI part runs its two shards at
+        # once (one cap), the nightly flaky job its three runs one after another (three); 5 minutes for the rest.
+        ci = load(GITHUB / "workflows" / "ci.yml")["jobs"]["part"]
+        self.assertGreaterEqual(ci["timeout-minutes"] * 60, gdunit.SHARD_TIMEOUT_CAP + 300)
+        flaky = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["flaky"]
+        self.assertGreaterEqual(flaky["timeout-minutes"] * 60, 3 * gdunit.SHARD_TIMEOUT_CAP + 300)
+
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
         data = load(GITHUB / "workflows" / "nightly.yml")
         self.assertEqual(set(data["on"]), {"schedule", "workflow_dispatch"})

@@ -90,7 +90,8 @@ jobs:
     # Skipped for a design-only pull request (#1123); run when `changes` is red (its output then empty).
     if: ${{ !cancelled() && needs.changes.outputs.design_only != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The shard cap (gdunit.SHARD_TIMEOUT_CAP, 19 minutes, #1577) and about 6 minutes for setup, check and upload.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
