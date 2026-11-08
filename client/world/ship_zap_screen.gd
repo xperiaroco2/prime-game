@@ -6,7 +6,8 @@ extends Node
 ## HUD through ItemWorld.hud_local). Their lengths are the mode's CrystalProblem's
 ## (`zap_flash_seconds`, `zap_notice_seconds`: the client's own copy); no flash without a value for
 ## them. Only the carrier gets the event (§5), so a spectator never sees a thing of this; the zap's
-## sound is everyone's (ItemPlaced, cause `zapped`). A phase change ends all of it.
+## sound is everyone's (ItemPlaced, cause `zapped`). A phase change ends the flash and the notice;
+## the shake runs out by itself.
 
 ## The flash at its peak; it fades over `zap_flash_seconds`. A placeholder, "not a decision" (the
 ## look is variant B of the card on #1585).
