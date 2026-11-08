@@ -35,6 +35,7 @@
 [ext_resource type="PackedScene" uid="uid://cu3t1d18bukai" path="res://levels/house/rooms/balcony.tscn" id="33_balcony"]
 [ext_resource type="PackedScene" uid="uid://cbiainxdl0yfp" path="res://levels/house/rooms/attic.tscn" id="34_attic"]
 [ext_resource type="PackedScene" uid="uid://bnbbibwtgf4wn" path="res://levels/house/outdoor.tscn" id="36_outdoor"]
+[ext_resource type="PackedScene" uid="uid://3aibmo7dg07r" path="res://levels/lobby/dead_hall.tscn" id="dead_hall_1"]
 
 [node name="House" type="Node3D" unique_id=1417964801]
 
@@ -148,3 +149,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 3.2, 21)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 6.4, 24)
 
 [node name="Outdoor" parent="." unique_id=1349620817 instance=ExtResource("36_outdoor")]
+
+[node name="DeadHall" parent="." unique_id=2106397393 instance=ExtResource("dead_hall_1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2000, 0, 0)

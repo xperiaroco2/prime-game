@@ -298,7 +298,7 @@ from = 4
 [sub_resource type="Resource" id="UseSecondary_accept_lobby"]
 script = ExtResource("6_accept")
 intent = &"UseSecondary"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Accept_lobby_swap"]
 script = ExtResource("6_accept")
@@ -539,17 +539,17 @@ level = 2
 [sub_resource type="Resource" id="Accept_round_move"]
 script = ExtResource("6_accept")
 intent = &"MoveClaim"
-from = 36
+from = 100
 
 [sub_resource type="Resource" id="Accept_round_pick_up"]
 script = ExtResource("6_accept")
 intent = &"PickUp"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Accept_round_put_down"]
 script = ExtResource("6_accept")
 intent = &"PutDown"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Accept_round_raise"]
 script = ExtResource("6_accept")
@@ -569,7 +569,7 @@ from = 32
 [sub_resource type="Resource" id="Accept_round_swap"]
 script = ExtResource("6_accept")
 intent = &"Swap"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Draw_in_range"]
 script = ExtResource("153_place_in_range")
@@ -663,7 +663,7 @@ effects = Array[ExtResource("14_effect")]([SubResource("Flippers_set")])
 [sub_resource type="Resource" id="Accept_round_draw"]
 script = ExtResource("6_accept")
 intent = &"Draw"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Pose_at_chair"]
 script = ExtResource("156_at_marker")
@@ -742,12 +742,16 @@ from = 4
 [sub_resource type="Resource" id="Accept_round_interact"]
 script = ExtResource("6_accept")
 intent = &"Interact"
-from = 4
+from = 68
 
 [sub_resource type="Resource" id="Respawn_round"]
 script = ExtResource("66_respawn")
 tag = &"respawn"
 rng_purpose = &"respawn"
+print_s = 2.0
+hall_tag = &"dead"
+hall_rng_purpose = &"hall"
+hall_radius_m = 32.0
 
 [sub_resource type="Resource" id="LifeTicks_round"]
 script = ExtResource("65_life_ticks")
@@ -769,12 +773,22 @@ script = ExtResource("29_task_ticks")
 script = ExtResource("33_round_voice")
 living_m = 8.0
 
+[sub_resource type="Resource" id="Accept_round_use_dead"]
+script = ExtResource("6_accept")
+intent = &"Use"
+from = 64
+
+[sub_resource type="Resource" id="Accept_round_flippers_dead"]
+script = ExtResource("6_accept")
+intent = &"Flippers"
+from = 64
+
 [sub_resource type="Resource" id="Phase_round"]
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("WheelPose_accept")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round"), SubResource("Offer_ticks")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw"), SubResource("Accept_round_interact"), SubResource("Accept_round_draw"), SubResource("Accept_round_pose"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("WheelPose_accept"), SubResource("Accept_round_use_dead"), SubResource("Accept_round_flippers_dead")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("VanishTicks_round"), SubResource("TaskTicks_round"), SubResource("Offer_ticks"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby")])
 checks_wins = true
 clock_runs = true
 voice_rule = SubResource("Voice_round")
