@@ -49,12 +49,7 @@ func set_mode(game_mode: GameMode) -> void:
 
 ## The crystal kind of `game_mode`'s ship engine, or null.
 static func crystal_of(game_mode: GameMode) -> CrystalProblem:
-	if game_mode == null:
-		return null
-	for type: TaskType in game_mode.task_types:
-		var engine := type as ShipEngine
-		if engine == null:
-			continue
+	for engine: ShipEngine in ShipEngineClient.types_of(game_mode):
 		for kind: ProblemKind in engine.kinds:
 			if kind is CrystalProblem:
 				return kind as CrystalProblem
