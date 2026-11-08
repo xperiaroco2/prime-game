@@ -44,7 +44,7 @@ Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 f
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera);
   uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525); a step at the crouch walk's speed is quieter and nearer, eased to a walk's at the fast crouch's, by its speed, never the crouch flag; a sneaking pose's step is silent only at that speed (plus a jitter margin), the sneak flag AND the drawn step's speed, so a claimed sneak at a walk is heard.
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
-  none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
+  none while the own life is dead outside the dead's hall (#1489: there only the hall's dead), in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
   `max_distance`, and the sender's `may_speak` (the own life living, radius > 0; every chunk fed each frame, also
   while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.

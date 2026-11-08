@@ -102,9 +102,9 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   `PlayerState.life_deadline` is the host tick at which the current life state runs out (the knockdown's end; the
   respawn's). `AcceptSpec.From` names a newcomer (1), any player (2), the living (4), the host (16) and the
   downed (32). Bit 8 was the ghosts' and is never reused; a mode still written for ghosts would silently refuse the
-  downed's claims, so the mode check refuses a sender bit that names nobody. The dead send no intents as players:
+  downed's claims, so the mode check refuses a sender bit that names nobody. The dead send no intents as players, but for a row naming `DEAD` (64, #1489) while in the phase's hall:
   `Match` accepts none from them under PLAYER, LIVING or DOWNED (M4-2), so an intent in flight at a death reaches no
-  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby`, the shortcut out of End,
+  rule. A printing player sends only the host's session controls. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby`, the shortcut out of End,
   where whoever died in the round is dead until `ResetMatch`), never for a player's action (`MoveClaim`, `PickUp`,
   `PutDown`, `Use`, `Throw`, `Interact` and the rest of `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
 
@@ -849,6 +849,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses (it holds still as every knocked-down player does, §7.1.7) |
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
 | `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); a `Correction` follows (a placement where it lay, with a new epoch: its client claimed no place while knocked down, #728 KE6) |
+| `PrintStarted` | peer, the respawn marker, `print_ms` | everyone | a respawn with a print (#1489): the body goes, the drone hovers, the player grows for `print_ms`, then `Respawned` |
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
 | `Correction` | epoch, position, velocity, facing (#1522: the marker's on a placement and a respawn, which the host sets as the player's facing and the client's camera turns to; zero, keep the own look, on every other) | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3); a revive: where it lay, with a new epoch, after `Revived` (#728 KE6). None at a death (the dead send no claims), and none to a knocked-down or limp player for any claim (its claims carry only its look, KE4). The limp (§7.1.21): one at the go-limp (where it lies, with a new epoch, no event before it) and one at the get-up (`LimpTicks` or `EndLimps`: where the body rested, with a new epoch); none per push |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
@@ -1010,6 +1011,7 @@ directive has no row, because it reaches no peer.
 | 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 | 59 | `KnockedDown` | `peer: peer`, `position: vec3` (audience *everyone*, M4-2, #138) | 16; 16 |
 | 60 | `Respawned` | `peer: peer`, `position: vec3` (audience *everyone*, M4-3, #139) | 16; 16 |
+| 92 | `PrintStarted` | `peer: peer`, `position: vec3`, `print_ms: u16` (audience *everyone*, #1489) | 16; 16 |
 | 61 | `RaiseStarted` | `raiser: peer`, `target: peer` (audience *everyone*, M4-4, #140) | 8; 8 |
 | 62 | `RaiseStopped` | `raiser: peer`, `target: peer`: no cause (audience *everyone*, M4-4) | 8; 8 |
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
@@ -2747,7 +2749,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
   body hidden; the HUD says "Watching: <name>" over those public slots (§4.7.37).
   The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
-- **What the dead hear** (V11): no voice (the host routes none, and the client plays none while dead); the world's
+- **What the dead hear** (V11, #1489): the other dead in the hall, within the hearing radius, and nobody else; a player being printed hears nobody. Without a hall in the phase: no voice (the host routes none, and the client plays none while dead); the world's
   sounds around the target (from M5-5 the listener is `Ears`, at the target's eye or its body's head, §6); lift music
   from an `AudioStreamPlayer` on the Music bus that only the dead player's client plays. M4's world sounds are
   placeholders for `Swung`, `ItemPickedUp` and `ItemPlaced` at their positions.
@@ -5934,14 +5936,14 @@ data names each phase's rule (§3.1), so a new mode's rule is one more rule, not
 | Lobby, Countdown | every pair within the voice radius |
 | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
 | Pregame | nobody: each player is reading its own role (#213, §3.6) |
-| Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
+| Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed, the living never hear the dead, and the dead in the hall hear only each other (#1489) |
 | End | nobody: the game is frozen |
 
 A player who left hears nobody and is heard by nobody.
 
 ### 6.3 The voice invariant (vision revision 1; M4-1, #137)
 Nobody hears a downed or dead player, under
-any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
+any voice rule, and a dead player hears nobody but the dead in its hall (#1489). `VoiceRule.speakers_of` drops every speaker who is not living
 and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
 replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
 `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5). The knockdown reworked
