@@ -3890,6 +3890,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   its `name_key`, else its id. A marker is placed as the host's `MarkerReader` places it
   (`LevelWorld.transform_in_scene`: the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
   refuses it); `MapData.SPAWN_GROUP_PREFIX` copies the reader's prefix and a test ties the two. A task
+**The dead's hall (#1489):** `levels/lobby/dead_hall.tscn`, one instance far off in each round map, in the group `dead_hall`, with `spawn_dead` markers (`Respawn.hall_tag`). A piece's `metadata/host_skips` names children its own script frees on the client (the ship); the host reads neither their colliders nor their markers (`LevelScenes.children_read`).
+
   type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
   (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox, a test bench only
   (#767), declares no rooms, so on it the map shows the tasks only; the previews use a fake house in

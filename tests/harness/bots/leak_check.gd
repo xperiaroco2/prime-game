@@ -18,13 +18,17 @@ extends RefCounted
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
-##   of the bot's own role; a living viewer decodes no dead player's avatar and a dead viewer (#1489) only the dead's; a decoded snapshot
+##   of the bot's own role; a living viewer decodes no dead player's avatar
+##   and a dead viewer (#1489) only the dead's;
+##   a decoded snapshot
 ##   holds the bot's own avatar exactly when record_tick saw its player knocked down or limp (#1393)
 ##   at that tick (ScenarioInvariants.own_avatar_problem: from the life state, never from
 ##   Snapshots.for_peer, KE5, #847); the voice invariant
 ##   (§6): no bot decodes a downed speaker's frame or a dead one's unless itself dead, a downed bot
 ##   decodes only living speakers' frames and a dead bot only the dead's (#1489); every event a
-##   bot decodes while dead is either for it alone (the subject check) or also reached every living peer present then (view_of's
+##   bot decodes while dead is either for it alone (the subject check)
+##   or also reached every living peer present then
+##   (view_of's
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
 ##   task events (check_tasks); every bot that decoded a snapshot of a tick decoded the same
