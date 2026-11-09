@@ -1011,7 +1011,6 @@ directive has no row, because it reaches no peer.
 | 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 | 59 | `KnockedDown` | `peer: peer`, `position: vec3` (audience *everyone*, M4-2, #138) | 16; 16 |
 | 60 | `Respawned` | `peer: peer`, `position: vec3` (audience *everyone*, M4-3, #139) | 16; 16 |
-| 92 | `PrintStarted` | `peer: peer`, `position: vec3`, `print_ms: u16` (audience *everyone*, #1489) | 16; 16 |
 | 61 | `RaiseStarted` | `raiser: peer`, `target: peer` (audience *everyone*, M4-4, #140) | 8; 8 |
 | 62 | `RaiseStopped` | `raiser: peer`, `target: peer`: no cause (audience *everyone*, M4-4) | 8; 8 |
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
@@ -1050,6 +1049,7 @@ directive has no row, because it reaches no peer.
 | 96 | `BoothStep` | `station: station`, `strip: u16`, `step: u8` (0 `STARTED`, 1 `FLASH`, 2 `PRINTED`, 3 `STOPPED`), `presser: u32`, `frames: u8`, `countdown: u16`, `gap: u16`, `frame: u8`, `record: list<peer: peer, colour: u8, position: vec3, facing: vec3, flags: bits(crouched, sneaking, posed, limp)>` (at most `MAX_PLAYERS` rows), `items: list<item>` (at most `MAX_PLAYERS`) (every field always, the ones a step does not use 0 or empty; audience *everyone*, #1396, §9.5.29; bounded by the schema, not the content) | 17 plus 30 a row and 2 an item; 529 |
 | 97 | `BoothReplay` | `peer: peer`, `station: station`, `strip: u16`, `records: list<list<peer: peer, colour: u8, position: vec3, facing: vec3, flags: bits(crouched, sneaking, posed, limp)>>` (at most `MAX_BOOTH_FRAMES` = 8 frames, `StartBooth.MAX_FRAMES`, a test pins the two; at most `MAX_PLAYERS` rows each), `items: list<item>` (at most `MAX_PLAYERS`) (audience only the joiner, #1474, §4.2; the cap is the schema's size at the maxima, far under the reliable limit) | 10 plus 1 a frame, 30 a row and 2 an item; 3890 |
 | 98 | `ShipZapped` | `peer: peer` (audience *the carrier*, #1585, §9.5.27) | 4; 4 |
+| 99 | `PrintStarted` | `peer: peer`, `position: vec3`, `print_ms: u16` (audience *everyone*, #1489) | 18; 18 |
 
 #### 4.3.5 State and voice
 
@@ -1062,7 +1062,7 @@ directive has no row, because it reaches no peer.
 The rules of the table:
 - **Kinds.** 0 is the transport's (`ADMIT`, and ENet's refusal, §4 "Joining"); 1 to 27 are intents (26 and 27
   free), 28 to 31 debug commands (a debug build's table only, E17), 32 to 103 events (the range grew from 32 to
-  95 with #1396, #1475: `BoothStep` took 96, `BoothReplay` 97 (#1474), `ShipZapped` 98 (#1585), 99 to 103 are free; the next new event takes one of them, or an ADR
+  95 with #1396, #1475: `BoothStep` took 96, `BoothReplay` 97 (#1474), `ShipZapped` 98 (#1585), `PrintStarted` 99 (#1489), 100 to 103 are free; the next new event takes one of them, or an ADR
   widens the range again), 104 to 111 state, 112 to
   127 voice.
 - **Frozen:** two whole rows never change. Kind 1 (`Hello`): C→H, RELIABLE, `version: u16` as its first two bytes,
