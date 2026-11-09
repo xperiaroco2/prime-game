@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## sub-resource loaded from a .tres the path "<file>::<id>").
 
 const MODE_PATH := "res://tests/fixtures/match/sourced_mode.tres"
-const STRAY := "phase round accepts MoveClaim from bits 64, which name no sender"
+const STRAY := "phase round accepts MoveClaim from bits 128, which name no sender"
 
 
 func test_an_error_of_a_sub_resource_names_the_file_and_the_sub_resource_id() -> void:
@@ -40,5 +40,5 @@ func test_a_mode_built_in_code_keeps_the_bare_index_path() -> void:
 ## of the round's PhaseSpec, found by the walk.
 func _with_a_stray_bit() -> GameMode:
 	var mode := FixtureModes.basic()
-	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 64
+	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 128
 	return mode

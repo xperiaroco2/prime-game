@@ -85,12 +85,13 @@ func test_the_switches_setting_and_every_type_in_every_match() -> void:
 	assert_bool(mode.task_types.has(_generator(mode))).is_true()
 
 
-func test_round_accepts_interact_from_the_living() -> void:
+func test_round_accepts_interact_from_the_living_and_the_hall() -> void:
 	var froms: Array[int] = []
 	for accept: AcceptSpec in _mode().find_phase(&"round").accepts:
 		if accept.intent == &"Interact":
 			froms.append(accept.from)
-	assert_array(froms).is_equal([AcceptSpec.From.LIVING])
+	# The dead's Interact is for the hall's bar and pinball (#1489), refused outside it.
+	assert_array(froms).is_equal([AcceptSpec.From.LIVING | AcceptSpec.From.DEAD])
 
 
 func test_the_house_fits_the_generator_and_the_greybox_is_asked_for_none() -> void:

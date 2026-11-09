@@ -211,7 +211,8 @@ func test_round_runs_vanish_ticks_and_accepts_interact_from_the_living() -> void
 	for accept: AcceptSpec in round_phase.accepts:
 		if accept.intent == &"Interact":
 			froms.append(accept.from)
-	assert_array(froms).is_equal([AcceptSpec.From.LIVING])
+	# The dead's Interact is for the hall's bar and pinball (#1489), refused outside it.
+	assert_array(froms).is_equal([AcceptSpec.From.LIVING | AcceptSpec.From.DEAD])
 
 
 func test_the_house_fits_cooking_and_the_greybox_is_asked_for_none() -> void:

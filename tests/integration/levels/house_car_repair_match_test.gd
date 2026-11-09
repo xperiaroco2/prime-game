@@ -106,7 +106,7 @@ func test_the_deal_places_each_station_on_its_marker_and_the_car_s_box_holds_no_
 	for i in task_state.bins.size():
 		_assert_on_marker(task_state.bins[i], type.bins[i].spawn_tag)
 	assert_int(task_state.total()).is_equal(CAR_PARTS)
-	var stations := 2 + 3 + type.bins.size()  # the lobby's tap and pinball, then the deal's
+	var stations := 2 + 2 + 3 + type.bins.size()  # the lobby's two, the hall's two, then the deal's
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(stations)
@@ -893,14 +893,14 @@ func _assert_clean() -> void:
 	_assert_quiet()
 
 
-## No invariant broke, no claim was corrected, the match logged no error; refusals are not looked at
-## (a test that expects some calls this, not `_assert_clean`).
+## Nothing broke, no claim corrected (a hall move is a placement, #1489), no error; refusals unread.
 func _assert_quiet() -> void:
 	assert_array(Array(_problems)).is_empty()
 	for peer: int in _game.state.present_peers():
 		var corrections := _game.view_of(peer).events_named(&"Correction").size()
 		var what := "peer %d's Corrections: %s" % [peer, _corrections(peer)]
-		assert_int(corrections).override_failure_message(what).is_equal(_placed.get(peer, 0))
+		var placed: int = _placed.get(peer, 0) + (1 if _game.state.player(peer).in_hall else 0)
+		assert_int(corrections).override_failure_message(what).is_equal(placed)
 	for line: String in _game.diagnostics:
 		assert_bool(line.begins_with("error:")).override_failure_message(line).is_false()
 

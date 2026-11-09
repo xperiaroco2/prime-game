@@ -87,9 +87,14 @@ func test_the_map_places_only_its_pieces_each_once() -> void:
 	var expected: Array[String] = GROUNDS.duplicate()
 	for module in EstateDoc.modules():
 		expected.append(EstateDoc.pascal(module.name))
+	expected.append("DeadHall")
 	var names: Array[String] = []
 	for child in map.get_children():
 		names.append(String(child.name))
+		# The one piece from elsewhere: the dead's hall (#1489), the same on every map.
+		if child.name == &"DeadHall":
+			assert_str(child.scene_file_path).is_equal("res://levels/lobby/dead_hall.tscn")
+			continue
 		# The map holds no geometry of its own: each child is a piece's scene.
 		(
 			assert_str(child.scene_file_path)

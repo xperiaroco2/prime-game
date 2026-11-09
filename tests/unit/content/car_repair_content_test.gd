@@ -155,14 +155,19 @@ func test_the_car_parts_setting_and_every_type_in_every_match() -> void:
 	assert_int(DealTasks.pool_of(mode, PackedStringArray(), GREYBOX).size()).is_equal(1)
 
 
-func test_round_accepts_interact_and_stop_raise_from_the_living() -> void:
+func test_round_takes_interact_from_living_and_hall_and_stop_raise_from_the_living() -> void:
 	var round_phase := _mode().find_phase(&"round")
-	for intent: StringName in [Intents.INTERACT, Intents.STOP_RAISE]:
+	# The dead's Interact is for the hall's bar and pinball (#1489), refused outside it.
+	var senders: Dictionary[StringName, int] = {
+		Intents.INTERACT: AcceptSpec.From.LIVING | AcceptSpec.From.DEAD,
+		Intents.STOP_RAISE: AcceptSpec.From.LIVING,
+	}
+	for intent: StringName in senders:
 		var froms: Array[int] = []
 		for accept: AcceptSpec in round_phase.accepts:
 			if accept.intent == intent:
 				froms.append(accept.from)
-		assert_array(froms).override_failure_message(intent).is_equal([AcceptSpec.From.LIVING])
+		assert_array(froms).override_failure_message(intent).is_equal([senders[intent]])
 
 
 func test_the_house_fits_car_repair_and_the_greybox_is_asked_for_none() -> void:
