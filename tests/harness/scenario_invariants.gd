@@ -270,13 +270,10 @@ func check_tick() -> PackedStringArray:
 		found.append_array(_check_voice(peer, speakers))
 		found.append_array(_check_distance(peer, speakers, radius))
 		for other: int in avatars:
-			var dead_viewer := _life_of(peer) == PlayerState.Life.DEAD
-			if _life_of(other) == PlayerState.Life.DEAD and not dead_viewer:
+			if _life_of(other) == PlayerState.Life.DEAD and not _in_hall(peer):
 				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
-			if dead_viewer and _life_of(other) != PlayerState.Life.DEAD:
-				found.append(
-					"dead peer %d sees %d, who is not dead, in its snapshot" % [peer, other]
-				)
+			if _in_hall(peer) != _in_hall(other):
+				found.append("peer %d sees %d across the hall in its snapshot" % [peer, other])
 	return found
 
 
@@ -456,6 +453,12 @@ func _check_dead_recipients(emitted: EmittedEvent) -> PackedStringArray:
 	return found
 
 
+## Whether `peer` waits in the dead's hall (#1489), from the player's state alone.
+func _in_hall(peer: int) -> bool:
+	var player := _game.state.player(peer)
+	return player != null and player.in_hall
+
+
 ## The voice invariant's broken parts for `peer`'s `speakers` this tick (§6), from the life
 ## states alone, never the voice rule.
 func _check_voice(peer: int, speakers: PackedInt32Array) -> PackedStringArray:
@@ -465,11 +468,13 @@ func _check_voice(peer: int, speakers: PackedInt32Array) -> PackedStringArray:
 		found.append("printing peer %d hears %s" % [peer, speakers])
 	for speaker: int in speakers:
 		var mouth := _life_of(speaker)
-		if life == PlayerState.Life.DEAD and mouth != PlayerState.Life.DEAD:
-			found.append("dead peer %d hears %d, who is not dead" % [peer, speaker])
+		if life == PlayerState.Life.DEAD and not _in_hall(peer):
+			found.append("dead peer %d, outside the hall, hears %d" % [peer, speaker])
+		if _in_hall(peer) != _in_hall(speaker):
+			found.append("peer %d hears %d across the hall" % [peer, speaker])
 		if mouth == PlayerState.Life.DOWNED:
 			found.append("peer %d hears downed %d" % [peer, speaker])
-		if mouth == PlayerState.Life.DEAD and life != PlayerState.Life.DEAD:
+		if mouth == PlayerState.Life.DEAD and not _in_hall(speaker):
 			found.append("peer %d hears dead %d" % [peer, speaker])
 		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
 			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])

@@ -264,8 +264,7 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if spots.has(peer):
 				_correction_due = true
 		&"Correction":
-			# Dead, its one Correction is the move to the dead's hall (#1489), which no event announces.
-			if not _correction_due and not dead:
+			if not _correction_due:
 				var problem := _unexplained_correction(fields)
 				if not problem.is_empty():
 					return problem
@@ -285,6 +284,8 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if died == peer:
 				downed = false
 				dead = true
+				# Its one Correction is the move to the dead's hall (#1489), which no event announces.
+				_correction_due = true
 		&"PrintStarted":
 			var printed := fields["peer"] as int
 			seen[printed] = fields["position"] as Vector3
