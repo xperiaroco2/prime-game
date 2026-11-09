@@ -73,7 +73,7 @@ const MAX_JUMPS := 0xFFFF
 ## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
 ## and sends a Correction adds its event here.
 const PLACING_EVENTS: Array[StringName] = [
-	&"PlayersPlaced", &"KnockedDown", &"Revived", &"Respawned", &"PrintStarted"
+	&"PlayersPlaced", &"KnockedDown", &"Died", &"Revived", &"Respawned", &"PrintStarted"
 ]
 ## Horizontal travel in one claim that counts as moving, for stamina: the host's
 ## `MovementRule.MOVE_EPSILON`.
@@ -163,6 +163,8 @@ var _abandoned := PackedStringArray()
 var _disconnecting: StringName = &""
 ## True from a placing event naming this client until the Correction that follows it.
 var _placement_due := false
+## Whether the own player's last placing event was a PrintStarted (_note_placement).
+var _printed := false
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -469,8 +471,12 @@ func _note_placement(event_name: StringName, fields: Dictionary) -> void:
 		return
 	if event_name == &"PlayersPlaced":
 		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
+		_printed = false
 	elif fields["peer"] as int == model.own_peer:
-		_placement_due = true
+		# The Respawned after a print moves nobody: its Correction came with PrintStarted (#1489). A
+		# hall's Died: its Correction is the move to the hall, which no event names.
+		_placement_due = event_name != &"Respawned" or not _printed
+		_printed = event_name == &"PrintStarted"
 
 
 ## The host's facing for this client (#1522): the next claims say it until the mover turns.
