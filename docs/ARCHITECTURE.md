@@ -1583,7 +1583,7 @@ states, `WelcomeItems.Rest`, pinned to `ItemState.Where` by a test, #1404):
   reset the jump count and put the claims at the host's position.
 - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
   by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
-  phase accepts (the dead send no intents). Before `Welcome` it claims nothing.
+  phase accepts (the dead send no intents), but in a phase whose allowlist names `DEAD` (the hall, #1489: `ClientModel.waits_in_hall`). Before `Welcome` it claims nothing.
 - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
   `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
   M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
@@ -1617,8 +1617,8 @@ states, `WelcomeItems.Rest`, pinned to `ItemState.Where` by a test, #1404):
 
 ##### 4.6.1.1 The life fold (E25, M4-2 #138)
 `ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
-`Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
-`Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
+`Died` (dead, with its body), a `PrintStarted` (printing, its body removed, #1489) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
+`Respawned` (living again, its body removed if no print took it; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
 undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
 `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
 snapshot's avatar flag (the own player's arrives only while it is knocked down, KE5);
@@ -6410,7 +6410,7 @@ merged away or lost still counts in the next one.
 
 #### 7.1.5 The movement checks (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60)
 Every
-tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
+tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client (a dead player's claim is bound to its hall as well, #1489: a position outside `PlayerState.hall_holds` is a failed check):
 - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
   does not cascade. Every other failed check sends `Correction` with a new epoch and the host's position to that
   player only, and changes nothing else (stamina settled up to now aside, §9.2).
@@ -7273,6 +7273,8 @@ up by itself. Every number below is provisional, "not a decision" (the engineer 
   camera, drawn as its ragdoll on both screens, and walks in first person once it gets up).
 
 #### 7.1.22 The pinball's seat, flippers and score (#1398)
+
+The Round's dead use it too, in the hall (#1489: the base mode's Round lists `PinballTicks` and `Pinball.standing` accepts a player in the hall).
 
 GDD §3 Base mode, "The pinball": one player works both flippers while the others watch; the machine shows this
 lobby's best score and whose it is; it cannot be nudged. `core/pinball/` (`Pinball`, with the content parts of
@@ -8969,7 +8971,7 @@ Tests: `tests/unit/movement/movement_rule_sneak_test.gd`,
 `tests/integration/server/host_session_sneak_test.gd`, `tests/integration/client/player/player_controller_sneak_test.gd`,
 `tests/unit/client/world/footstep_cadence_test.gd`, `tests/integration/client/world/world_sounds_steps_test.gd`.
 
-#### 9.5.26 The bar (lobby, #1390; provisional numbers)
+#### 9.5.26 The bar (lobby, the dead's hall, #1390, #1489; provisional numbers)
 
 GDD §3 Base mode, "The bar". `content/stations/tap.tres` (radius 1.5 m, height 2 m; its Interact at the tap and in
 sight, paying `Cooldown(tap_pour, 0.25 s)` last as the flood guard the cooking boxes have (CE17: one pour per
@@ -9350,7 +9352,7 @@ with the shipped base mode on the estate: the scenarios `crew_mends_the_ships_en
 `engine_blast_gives_the_humans_the_clock` (§9.7, #1498) and `tests/scenarios/engine_scenarios_test.gd`; the bots'
 policy in `tests/unit/harness/engine_mender_test.gd` and their book in `scenario_bot_engine_test.gd`.
 
-#### 9.5.28 The pinball (lobby, #1398, #1399; provisional numbers)
+#### 9.5.28 The pinball (lobby, the dead's hall, #1398, #1399, #1489; provisional numbers)
 
 GDD §3 Base mode, "The pinball". `content/stations/pinball.tres` (radius 1.5 m, height 2 m, the tap's; its Interact
 at the machine and in sight, the seat free or the actor's own (`PinballUsable`), paying `Cooldown(pinball_seat,
