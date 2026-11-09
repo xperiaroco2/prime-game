@@ -79,6 +79,8 @@ var _fitted_low := false
 ## How far the head and the points hung on it are below their standing places now, in metres:
 ## easing to the eye heights' difference while crouched, to 0 standing.
 var _lowered := 0.0
+## How far a print has grown the looks (set_print_height; 1: whole).
+var _print_height := 1.0
 var _hand_point := Node3D.new()
 var _belt_point := Node3D.new()
 var _carry_point := Node3D.new()
@@ -171,6 +173,21 @@ func set_downed(downed: bool) -> void:
 		return
 	_downed = downed
 	_show_looks()
+
+
+## How far a print has grown this body (0 to 1, 1 whole; #1489): the mesh, the shell and the
+## character only, from the feet up. The body and its collision capsule stay at scale 1, so a
+## shape query never meets a non-uniformly scaled shape; head and points stay where they are.
+func set_print_height(height: float) -> void:
+	if is_equal_approx(height, _print_height):
+		return
+	_print_height = height
+	_show_looks()
+
+
+## How far a print has grown this body (set_print_height).
+func print_height() -> float:
+	return _print_height
 
 
 ## Whether the player is knocked down (set_downed).
@@ -317,17 +334,20 @@ func _show_looks() -> void:
 	var pose := LifeLooks.standing(rules, low)
 	_shape.transform = pose
 	_shape.disabled = _downed
-	_mesh.transform = pose
-	_shell.transform = pose
+	# A print grows the looks alone, from the feet (#1489): Jolt takes no non-uniform collider.
+	var printed := Vector3(1.0, _print_height, 1.0)
+	_mesh.transform = pose.scaled(printed)
+	_shell.transform = pose.scaled(printed)
 	var shown := not _downed and not _watched
 	# The character draws the body and its face: the capsule and the visor stay hidden then.
 	_mesh.visible = shown and _rig == null
-	_head.visible = shown
+	_head.visible = shown and _print_height >= 1.0
 	var visor := _head.get_node_or_null(^"Visor") as Node3D
 	if visor != null:
 		visor.visible = _rig == null
 	if _rig != null:
 		_rig.visible = shown
+		_rig.scale = printed
 
 
 ## Where this player's hand item is drawn (M4-8): the character's hand socket with one.

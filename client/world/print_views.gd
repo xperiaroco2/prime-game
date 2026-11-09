@@ -2,7 +2,9 @@ class_name PrintViews
 extends Node3D
 ## The print of a respawn on this client (#1489; the plainest placeholder, no art exists yet): a
 ## PrintStarted puts a grey box over the marker, the drone, and the printed player's own avatar
-## grows from the feet up over print_ms. Respawned, or the next match, ends it. No sound and no UI.
+## grows from the feet up over print_ms. Respawned, the printed player's leaving, the print's time
+## running out or any change of phase (a match ending during a print sends no Respawned) ends it.
+## No sound and no UI.
 
 ## How high over the marker the drone hovers, and its size (a placeholder, "not a decision").
 const DRONE_HEIGHT_M := 2.6
@@ -28,8 +30,10 @@ class Run:
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if event_name == &"PrintStarted":
 		_start(fields["peer"] as int, fields["position"] as Vector3, fields["print_ms"] as int)
-	elif event_name == &"Respawned":
+	elif event_name == &"Respawned" or event_name == &"PlayerLeft":
 		_end(fields["peer"] as int)
+	elif event_name == &"PhaseChanged":
+		clear()
 
 
 func count() -> int:
@@ -63,13 +67,16 @@ func _process(delta: float) -> void:
 	for peer: int in _runs.keys():
 		var run := _runs[peer]
 		run.left_s = maxf(run.left_s - delta, 0.0)
-		_scale_avatar(peer, maxf(1.0 - run.left_s / run.total_s, FIRST_HEIGHT))
+		if run.left_s <= 0.0:
+			_end(peer)
+		else:
+			_scale_avatar(peer, maxf(1.0 - run.left_s / run.total_s, FIRST_HEIGHT))
 
 
 func _scale_avatar(peer: int, height: float) -> void:
 	var body := avatars.body_of(peer) if avatars != null else null
 	if body != null:
-		body.scale = Vector3(1.0, height, 1.0)
+		body.set_print_height(height)
 
 
 static func _make_drone(at: Vector3) -> MeshInstance3D:
