@@ -1,8 +1,9 @@
 class_name Snapshots
 extends RefCounted
 ## One peer's snapshot of one tick, built from visibility rules per entity (ARCHITECTURE §5): the
-## avatar of every living or downed player reaches every player, the dead included (a spectator's
-## camera is built from these); a dead player has no avatar, so no snapshot holds one; bodies and
+## avatar of every living or downed player reaches every player, the dead outside a hall included
+## (a spectator's camera is built from these); a dead player has no avatar outside the hall, and a
+## dead viewer in the hall gets only the others there (avatars_for, #1489); bodies and
 ## items reach everyone; nobody gets their own avatar, except a knocked-down or limp player (the
 ## knockdown rework's KE5 (a); #1393): its own place, where the host's physics may carry it, and
 ## nothing hidden. The
