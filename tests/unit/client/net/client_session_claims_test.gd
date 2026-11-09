@@ -393,6 +393,9 @@ func test_a_dead_session_claims_only_while_it_waits_in_the_hall() -> void:
 ## The hall's Correction follows the Died that sends it (#1489) and the print's its PrintStarted:
 ## each is a placement, and the Respawned after a print is not.
 func test_the_halls_corrections_count_as_placements_and_a_prints_respawned_as_none() -> void:
+	_harness.mode.find_phase(&"round").accepts.append(
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.DEAD)
+	)
 	_harness.welcome(&"round")
 	var session := _harness.session
 	var own := session.model.own_peer

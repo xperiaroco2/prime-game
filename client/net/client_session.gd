@@ -469,6 +469,10 @@ func _count_correction(_corrected_position: Vector3, _corrected_velocity: Vector
 func _note_placement(event_name: StringName, fields: Dictionary) -> void:
 	if not PLACING_EVENTS.has(event_name) or not _welcomed:
 		return
+	# A death places nobody but where the phase has a hall (#1489): elsewhere it sends no Correction,
+	# and the next one is a refused claim.
+	if event_name == &"Died" and not model.phase_has_hall():
+		return
 	if event_name == &"PlayersPlaced":
 		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
 		_printed = false

@@ -375,8 +375,11 @@ func is_sneaking(peer: int) -> bool:
 ## Whether the own player waits dead in the dead's hall (#1489): the phase's allowlist lets the
 ## dead claim a move. Its body walks there as a living one's (body_life_of), its hud stays dead.
 func waits_in_hall() -> bool:
-	if life_of(own_peer) != Life.DEAD:
-		return false
+	return life_of(own_peer) == Life.DEAD and phase_has_hall()
+
+
+## Whether the dead of this phase walk the dead's hall: its allowlist takes a MoveClaim from them.
+func phase_has_hall() -> bool:
 	var spec := phase_spec()
 	return spec != null and (spec.senders_of(Intents.MOVE_CLAIM) & AcceptSpec.From.DEAD) != 0
 
