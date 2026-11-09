@@ -504,3 +504,26 @@ func test_the_hall_s_voice_sounds_drunk_and_no_other_phase_s_does() -> void:
 			. is_null()
 		)
 	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+func test_the_base_mode_accepts_next_stage_in_no_phase() -> void:
+	# #599, E65: NextStage is a scripted mode's control; the base mode's host cannot skip a phase.
+	# The chaos oracle (ChaosOracle.NEVER_ACCEPTED) relies on this.
+	for spec: PhaseSpec in (load(BASE_MODE) as GameMode).phases:
+		(
+			assert_int(spec.senders_of(Intents.NEXT_STAGE))
+			. override_failure_message(str(spec.id))
+			. is_equal(0)
+		)
+
+
+func test_the_base_mode_accepts_set_profile_in_the_lobby_from_a_player_only() -> void:
+	# #551: a profile changes in the lobby only, never under a countdown, in a round or at the end.
+	# The chaos oracle (ChaosOracle.ACCEPTS) relies on this.
+	for spec: PhaseSpec in (load(BASE_MODE) as GameMode).phases:
+		var expected: int = AcceptSpec.From.PLAYER if spec.id == &"lobby" else 0
+		(
+			assert_int(spec.senders_of(Intents.SET_PROFILE))
+			. override_failure_message(str(spec.id))
+			. is_equal(expected)
+		)

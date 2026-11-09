@@ -1018,7 +1018,7 @@ script = ExtResource("7_row")
 from = &"round"
 outcome = &"won"
 to = &"end"
-actions = Array[ExtResource("14_effect")]([SubResource("End_match"), SubResource("Offers_end")])
+actions = Array[ExtResource("14_effect")]([SubResource("End_match"), SubResource("Offers_end"), SubResource("Pinball_end")])
 
 [sub_resource type="Resource" id="Reset_match"]
 script = ExtResource("21_reset")

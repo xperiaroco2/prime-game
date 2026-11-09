@@ -206,6 +206,12 @@ func test_the_scenarios_levels_are_flat() -> void:
 			continue
 		var root: Node = auto_free((load(path) as PackedScene).instantiate())
 		var shapes := root.find_children("*", "CollisionShape3D", true, false)
+		# The dead's hall (#1489) is a piece of its own far off the map (x = 2000): the map is still
+		# its floor alone, and the bots never stand in the hall's rooms but on its flat markers.
+		var hall := _dead_hall_of(root)
+		if hall != null:
+			assert_float(hall.position.x).is_greater_equal(1000.0)
+			shapes = shapes.filter(func(shape: Node) -> bool: return not hall.is_ancestor_of(shape))
 		assert_int(shapes.size()).override_failure_message(path).is_equal(1)
 		if shapes.size() != 1:
 			continue
@@ -218,6 +224,8 @@ func test_the_scenarios_levels_are_flat() -> void:
 		var layout := levels[path]
 		for tag: StringName in layout.tags():
 			for at: Vector3 in layout.positions(tag):
+				if hall != null and absf(at.x - hall.position.x) < 100.0:
+					continue
 				assert_float(at.y).is_equal_approx(0.0, 1e-6)
 				var inside := (
 					absf(at.x - centre.origin.x) <= box.size.x / 2.0
@@ -228,6 +236,14 @@ func test_the_scenarios_levels_are_flat() -> void:
 					. override_failure_message("%s: %s at %s" % [path, tag, at])
 					. is_true()
 				)
+
+
+## The dead's hall under `root`, or null (the group the piece's root is in, #1489).
+static func _dead_hall_of(root: Node) -> Node3D:
+	for node: Node in root.find_children("*", "Node3D", true, false):
+		if node.is_in_group(&"dead_hall"):
+			return node as Node3D
+	return null
 
 
 ## Every marker of `layout` stands on the floor of the level at `path` as the host reads it: a ray
@@ -447,14 +463,18 @@ func test_the_base_mode_round_accepts_the_secondary_use_and_the_melee_fixture_bo
 	var mode := _base_mode()
 	var in_round := mode.find_phase(&"round")
 	# The M8 slice has no strike in the Round (#1497); the melee fixture keeps it, from the living.
-	assert_int(in_round.senders_of(Intents.USE)).is_equal(0)
+	# The dead use what stands in their hall (#1489): the DEAD row alone.
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.DEAD)
 	var melee := FixtureBaseModeWithMelee.mode()
-	assert_int(melee.find_phase(&"round").senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
-	assert_int(in_round.senders_of(Intents.USE_SECONDARY)).is_equal(AcceptSpec.From.LIVING)
-	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
-	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(melee.find_phase(&"round").senders_of(Intents.USE)).is_equal(
+		AcceptSpec.From.LIVING | AcceptSpec.From.DEAD
+	)
+	var hands := AcceptSpec.From.LIVING | AcceptSpec.From.DEAD
+	assert_int(in_round.senders_of(Intents.USE_SECONDARY)).is_equal(hands)
+	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(hands)
+	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(hands)
 	# MoveClaim from the living and the downed (the downed claims its look only, KE4).
-	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
+	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED | AcceptSpec.From.DEAD
 	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
 	# The knife in the melee fixture (the base mode's own data, its Round taking Use): a living
 	# player strikes, and the downed cannot.
@@ -481,29 +501,6 @@ func test_the_base_mode_round_accepts_the_secondary_use_and_the_melee_fixture_bo
 	assert_array(FixtureModes.rejections(game, 2)).is_equal([&"not_accepted"])
 	assert_int(game.state.player(1).health).is_equal(100000)
 	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
-
-
-func test_the_base_mode_accepts_next_stage_in_no_phase() -> void:
-	# #599, E65: NextStage is a scripted mode's control; the base mode's host cannot skip a phase.
-	# The chaos oracle (ChaosOracle.NEVER_ACCEPTED) relies on this.
-	for spec: PhaseSpec in _base_mode().phases:
-		(
-			assert_int(spec.senders_of(Intents.NEXT_STAGE))
-			. override_failure_message(str(spec.id))
-			. is_equal(0)
-		)
-
-
-func test_the_base_mode_accepts_set_profile_in_the_lobby_from_a_player_only() -> void:
-	# #551: a profile changes in the lobby only, never under a countdown, in a round or at the end.
-	# The chaos oracle (ChaosOracle.ACCEPTS) relies on this.
-	for spec: PhaseSpec in _base_mode().phases:
-		var expected: int = AcceptSpec.From.PLAYER if spec.id == &"lobby" else 0
-		(
-			assert_int(spec.senders_of(Intents.SET_PROFILE))
-			. override_failure_message(str(spec.id))
-			. is_equal(expected)
-		)
 
 
 func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
@@ -774,11 +771,13 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_bool(time_up.conditions[0].negate).is_false()
 	assert_object(time_up.conditions[1]).is_instanceof(AllSubtasksDone)
 	assert_bool(time_up.conditions[1].negate).is_true()
-	# `Round, won -> End` runs EndMatch, then EndOffers (#1434).
+	# `Round, won -> End` runs EndMatch, then EndOffers (#1434), then EndPinball.
 	var won := mode.find_transition(&"round", Match.WON)
-	assert_int(won.actions.size()).is_equal(2)
+	assert_int(won.actions.size()).is_equal(3)
 	assert_object(won.actions[0]).is_instanceof(EndMatch)
 	assert_object(won.actions[1]).is_instanceof(EndOffers)
+	# Round lists PinballTicks (the dead play in the hall, #1489) and End does not.
+	assert_object(won.actions[2]).is_instanceof(EndPinball)
 
 
 func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> void:
