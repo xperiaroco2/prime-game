@@ -103,8 +103,8 @@ const UNASSIGNED: Array[int] = [0, 27, 31, 100, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the
-## ship engine's (#1453), the pinball's (#1398) and the photo booth's (#1396, #1474), each with
-## valid fields.
+## ship engine's (#1453), the pinball's (#1398), the photo booth's (#1396, #1474) and the print's
+## (#1489), each with valid fields.
 const WRONG_DIRECTION: Array[StringName] = [
 	&"Rejected",
 	&"SwitchChanged",
@@ -131,9 +131,11 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"PinballState",
 	&"BoothStep",
 	&"BoothReplay",
+	&"PrintStarted",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
+	&"PrintStarted": {"peer": 1, "position": Vector3.ZERO, "print_ms": 2000},
 	&"SwitchChanged": {"station": 1, "on": true},
 	&"ButtonPressed": {"station": 1},
 	&"LiftChanged": {"station": 1, "up": true, "tick": 1},
