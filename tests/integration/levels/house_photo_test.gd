@@ -114,8 +114,9 @@ func test_the_markers_read_without_errors_and_the_deal_uses_each() -> void:
 		assert_float(film.position.distance_to(marker)).is_less(NEAR)
 	assert_int(task_state.photos).is_equal(PHOTOS)
 	for peer: int in _game.state.present_peers():
-		# The lobby's tap (#1390) and pinball (#1398), cleared at countdown_done, then the deal's 5.
-		assert_int(_game.view_of(peer).events_named(&"StationPlaced").size()).is_equal(2 + 5)
+		# The lobby's tap (#1390) and pinball (#1398), cleared at countdown_done; the hall's (#1489)
+		# on the Round's entry, then the deal's 5.
+		assert_int(_game.view_of(peer).events_named(&"StationPlaced").size()).is_equal(2 + 2 + 5)
 	_assert_clean()
 
 

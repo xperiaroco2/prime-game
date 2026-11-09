@@ -18,8 +18,10 @@ const NORTH := Vector3(0, 0, 1)
 func test_the_round_takes_no_use_and_keeps_the_quest_s_intents() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var living := AcceptSpec.From.LIVING
+	var dead := AcceptSpec.From.DEAD
 	var in_round := mode.find_phase(&"round")
-	assert_int(in_round.senders_of(Intents.USE)).is_equal(0)
+	# The living take no Use in the Round; only the dead in their hall do (#1489).
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(dead)
 	for intent: StringName in [
 		Intents.PICK_UP,
 		Intents.PUT_DOWN,
@@ -27,7 +29,8 @@ func test_the_round_takes_no_use_and_keeps_the_quest_s_intents() -> void:
 		Intents.INTERACT,
 		Intents.USE_SECONDARY,
 	]:
-		assert_int(in_round.senders_of(intent)).override_failure_message(intent).is_equal(living)
+		var senders := living | (dead if intent != Intents.THROW else 0)
+		assert_int(in_round.senders_of(intent)).override_failure_message(intent).is_equal(senders)
 	# The lobby's hits stay (#1439): the hall and the countdown under it take Use, and the mode's
 	# one Use rule, the fallback Strike, is still there for them.
 	for phase: StringName in [&"lobby", &"countdown"]:
@@ -82,9 +85,10 @@ func test_the_melee_fixture_is_the_base_mode_with_the_round_s_use_and_the_knives
 	var fixture := FixtureBaseModeWithMelee.mode()
 	assert_str(fixture.resource_path).is_equal(FixtureBaseModeWithMelee.PATH)
 	var living := AcceptSpec.From.LIVING
-	assert_int(fixture.find_phase(&"round").senders_of(Intents.USE)).is_equal(living)
+	var dead := AcceptSpec.From.DEAD
+	assert_int(fixture.find_phase(&"round").senders_of(Intents.USE)).is_equal(living | dead)
 	# The shipped mode's own parts are left alone.
-	assert_int(base.find_phase(&"round").senders_of(Intents.USE)).is_equal(0)
+	assert_int(base.find_phase(&"round").senders_of(Intents.USE)).is_equal(dead)
 	var base_row := base.find_transition(&"loading", &"all_loaded")
 	var row := fixture.find_transition(&"loading", &"all_loaded")
 	assert_int(row.actions.size()).is_equal(base_row.actions.size() + 1)

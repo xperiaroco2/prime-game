@@ -364,7 +364,7 @@ func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_
 	var dead := _copy(runner.clients[3].view)
 	dead.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
 	found = _text(leaks.check_bot("bot 3", 3, dead, false))
-	assert_str(found).contains("dead, it heard 1 at tick %d" % at_tick)
+	assert_str(found).contains("dead outside the hall, it heard 1 at tick %d" % at_tick)
 
 
 func test_a_frame_beyond_the_hearing_radius_or_under_a_radius_of_0_is_a_leak() -> void:
