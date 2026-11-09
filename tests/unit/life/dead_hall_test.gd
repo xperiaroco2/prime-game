@@ -247,3 +247,20 @@ class RanEffect:
 
 	func run(_ctx: MatchContext) -> void:
 		ran += 1
+
+
+## The match's end is the end it was (#1489, as today): the dead are out of the hall, so a dead
+## viewer gets the living again and no dead.
+func test_the_end_of_the_match_takes_the_dead_out_of_the_hall() -> void:
+	var game := _duel()
+	assert_bool(_in_hall(game, P2).in_hall).is_true()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.outcome = Match.WON
+	ctx.outcome_argument = game.mode.sides[0].id
+	EndMatch.new().run(ctx)
+	assert_bool(game.state.player(P2).in_hall).is_false()
+	var seen := Snapshots.avatars_for(game.state, P2, game.ticked_through())
+	assert_bool(seen.has(P1)).is_true()
+	assert_bool(seen.has(P2)).is_false()
