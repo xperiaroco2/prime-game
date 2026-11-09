@@ -36,6 +36,10 @@ func sync(level: Node, in_hall: bool, camera: Camera3D) -> void:
 	if not in_hall:
 		hall.visible = false
 		return
+	# The art of the hall, built the first time a dead player needs it (DeadHall).
+	var dead_hall := hall as DeadHall
+	if dead_hall != null:
+		dead_hall.ensure_art()
 	hall.visible = true
 	for child: Node in level.get_children():
 		var side := child as Node3D

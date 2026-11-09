@@ -9431,7 +9431,7 @@ the seated pose, false in the hall), the hand-over of a strip (#1389).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 
-**The dead's hall (#1489):** `levels/lobby/dead_hall.tscn`, one instance far off in each round map, in the group `dead_hall`, with `spawn_dead` markers (`Respawn.hall_tag`). A piece's `metadata/host_skips` names children its own script frees on the client (the ship); the host reads neither their colliders nor their markers (`LevelScenes.children_read`).
+**The dead's hall (#1489):** `levels/lobby/dead_hall.tscn`, one instance far off in each round map, in the group `dead_hall`, with `spawn_dead` markers (`Respawn.hall_tag`), a floor and the stations' places (`levels/lobby/dead_hall.gd`): its art (the lobby hall, no ship, `ship_free`) comes only on a client whose own player waits there (`DeadHall.ensure_art`), so a map stays cheap to read and the host reads no art; the hall's radius bounds a dead player, not the art's walls.
 
 ```
 content/

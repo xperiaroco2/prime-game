@@ -127,7 +127,7 @@ static func _read_node(
 	node: Node, root: Node, into: Read, world: WorldQuery, floor_tags: Array[StringName]
 ) -> void:
 	_read_marker(node, root, into, world, floor_tags)
-	for child: Node in LevelScenes.children_read(node):
+	for child: Node in node.get_children():
 		_read_node(child, root, into, world, floor_tags)
 
 

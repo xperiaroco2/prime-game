@@ -1,8 +1,11 @@
 [gd_scene format=3 uid="uid://3aibmo7dg07r"]
 
-[ext_resource type="PackedScene" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
+[ext_resource type="Script" path="res://levels/lobby/dead_hall.gd" id="1_script"]
 [ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
 [ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="7_blue"]
+
+[sub_resource type="BoxShape3D" id="Shape_floor"]
+size = Vector3(44, 1, 44)
 
 [sub_resource type="BoxShape3D" id="Shape_bar"]
 size = Vector3(1, 1.1, 6)
@@ -19,10 +22,13 @@ material = ExtResource("7_blue")
 size = Vector3(2, 1.2, 1)
 
 [node name="DeadHall" type="Node3D" unique_id=57011092 groups=["dead_hall"]]
+script = ExtResource("1_script")
 
-[node name="Hall" parent="." unique_id=838552096 instance=ExtResource("1_hall")]
-ship_free = Array[NodePath]([NodePath("Ship"), NodePath("Environment"), NodePath("Probes/probe_ship")])
-metadata/host_skips = PackedStringArray("Ship")
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1489601]
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=1489602]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("Shape_floor")
 
 [node name="Bar" type="StaticBody3D" parent="." unique_id=1932367612]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)

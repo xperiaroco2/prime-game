@@ -16,18 +16,6 @@ static var reads: Dictionary[String, int] = {}
 var _scenes: Dictionary[String, PackedScene] = {}
 
 
-## The children of `node` the host reads: all but those its `metadata/host_skips` names (children
-## a piece's own script frees on the client, so the host neither collides with them nor reads their
-## markers: the ship inside the dead's hall, #1489).
-static func children_read(node: Node) -> Array[Node]:
-	var skips: PackedStringArray = node.get_meta(&"host_skips", PackedStringArray())
-	var read: Array[Node] = []
-	for child: Node in node.get_children():
-		if not skips.has(String(child.name)):
-			read.append(child)
-	return read
-
-
 ## The PackedScene at `level_path`, loaded now; null (and no read counted) when there is none.
 static func load_packed(level_path: String) -> PackedScene:
 	if not ResourceLoader.exists(level_path, "PackedScene"):

@@ -27,7 +27,9 @@ func _ready() -> void:
 
 
 func _show_hall(rules: PlayerRules) -> void:
-	add_child((load(HALL_PIECE) as PackedScene).instantiate())
+	var hall := (load(HALL_PIECE) as PackedScene).instantiate() as DeadHall
+	add_child(hall)
+	hall.ensure_art()
 	var other := _body(rules, Vector3(2.0, 0.0, 6.0))
 	AvatarViews._apply_see_through(other, AvatarViews.SEE_THROUGH)
 	var camera := _camera(Vector3(0.0, 1.6, 12.0), Vector3(deg_to_rad(-4.0), 0.0, 0.0))

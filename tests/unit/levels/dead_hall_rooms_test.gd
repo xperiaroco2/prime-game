@@ -26,3 +26,18 @@ func test_the_lobby_keeps_its_room() -> void:
 	var root: Node = auto_free((load("res://levels/lobby/lobby.tscn") as PackedScene).instantiate())
 	add_child(root)
 	assert_int(MapData.rooms_of(root).size()).is_equal(1)
+
+
+## The art comes once, on the client that needs it, and brings no room to the map and no ship.
+func test_the_art_comes_once_and_is_no_room() -> void:
+	var hall: DeadHall = auto_free(
+		(load("res://levels/lobby/dead_hall.tscn") as PackedScene).instantiate()
+	)
+	add_child(hall)
+	assert_object(hall.get_node_or_null(^"Art")).is_null()
+	hall.ensure_art()
+	hall.ensure_art()
+	var art := hall.get_node_or_null(^"Art")
+	assert_object(art).is_not_null()
+	assert_object(art.get_node_or_null(^"Ship")).is_null()
+	assert_array(MapData.rooms_of(hall)).is_empty()
