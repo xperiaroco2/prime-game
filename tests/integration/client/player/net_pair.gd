@@ -25,6 +25,9 @@ const CROUCH_ROOM := "res://tests/fixtures/client/crouch_room.tscn"
 ## steps_room with a `tap` marker at BAR_TAP, the lobby of with_tap() (#1408).
 const BAR_ROOM := "res://tests/fixtures/client/steps_room_bar.tscn"
 const BAR_TAP := Vector3(3, 0, -2)
+## The fixture room with a marker of the dead's hall in its corner (with_hall, #1489).
+const HALL_ROOM := "res://tests/fixtures/client/steps_room_hall.tscn"
+const HALL_AT := Vector3(-14, 0, -14)
 ## steps_room with its markers faced (#1522): the two first lobby markers face +z (yaw PI), the
 ## round markers -x (yaw PI / 2); the lobby and the map of with_faced_room().
 const FACED_ROOM := "res://tests/fixtures/client/steps_room_faced.tscn"
@@ -181,6 +184,29 @@ func with_life(respawn_s: float) -> void:
 			]
 		)
 	)
+
+
+## The Round's dead wait in a hall around HALL_AT (#1489; `steps_room_hall.tscn`) and move there,
+## before start(), after with_life(): the match plays that room and the dead's MoveClaim is on the
+## Round's accepts, as the base mode's hall rows are.
+func with_hall() -> void:
+	var round_spec := mode.find_phase(&"round")
+	for system: TickSystem in round_spec.tick_systems:
+		var ticks := system as LifeTicks
+		if ticks != null and ticks.respawn != null:
+			ticks.respawn.hall_tag = FixtureModes.HALL_TAG
+			ticks.respawn.hall_rng_purpose = &"hall"
+			ticks.respawn.hall_radius_m = 15.0
+	round_spec.accepts.append(AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.DEAD))
+	mode.maps = PackedStringArray([HALL_ROOM])
+	mode.player_rules.motion_maps = PackedStringArray()
+
+
+## The host's PlayerState of `game`'s player.
+func host_player(game: Game) -> PlayerState:
+	var node := host.get_node("HostNode") as HostNode
+	var session := node.get("_session") as HostSession
+	return session.game.state.player(peer_of(game))
 
 
 ## Plays the fixture `steps_room_faced.tscn` (#1522: steps_room with faced lobby and round markers,
