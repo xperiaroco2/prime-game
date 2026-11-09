@@ -37,13 +37,23 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	# decides whether it offers one (HandOverUse.can_hand).
 	items.hand_over.reads_device_input = game.device_input
 	items.hand_over.listening = listening and hands
-	# The flippers count on the lobby screen alone; under the Esc menu PinballKeys sends the
-	# release (#1400: no stuck flipper), while the seat and its close-up stay up.
+	# The flippers count on the lobby screen, and in the Round while the own player waits in the
+	# dead's hall (#1489); under the Esc menu PinballKeys sends the release (#1400: no stuck
+	# flipper), while the seat and its close-up stay up.
 	items.pinball.keys.reads_device_input = game.device_input
-	items.pinball.keys.listening = listening and now == GameFlow.Screen.LOBBY
+	var session := game.client()
+	items.pinball.keys.listening = (
+		listening and session != null and flippers_count(now, session.model)
+	)
 	if not listening:
 		# Nothing reads the keys now: W held when Esc opened must not keep walking.
 		player.release_keys()
+
+
+## Whether the flipper keys count on screen `now` (#1400, #1489): the lobby's pinball, or the one in
+## the dead's hall for a player waiting there during the Round. A pure read of the own model.
+static func flippers_count(now: GameFlow.Screen, model: ClientModel) -> bool:
+	return now == GameFlow.Screen.LOBBY or (now == GameFlow.Screen.ROUND and model.waits_in_hall())
 
 
 ## The mouse for the screen just shown (GameFlow.pointer_on): a mouse captured in the round would
