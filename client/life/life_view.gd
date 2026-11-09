@@ -329,7 +329,8 @@ func _cast_raise_target() -> int:
 
 ## Next (`step` 1) or previous (-1) spectate target, while dead.
 func cycle_target(step: int) -> void:
-	if not _is_dead():
+	# In the dead's hall they walk in first person: nobody to watch (#1489).
+	if not _is_dead() or model.waits_in_hall():
 		return
 	var before := _target
 	_target = SpectateTargets.cycle(model, model.own_peer, _target, step)

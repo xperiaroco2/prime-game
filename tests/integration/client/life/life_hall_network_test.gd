@@ -32,6 +32,9 @@ func test_a_dead_client_walks_the_hall_and_the_host_takes_its_claims() -> void:
 	var there := func() -> bool: return player.global_position.distance_to(NetPair.HALL_AT) < 1.5
 	assert_bool(await _until(there, 300)).is_true()
 	assert_bool(_pair.host_player(client).in_hall).is_true()
+	# No spectating from the hall: the spectate keys pick no target there.
+	client.life().cycle_target(1)
+	assert_int(client.life().target()).is_equal(0)
 	var target := NetPair.HALL_AT + Vector3(3, 0, 0)
 	assert_bool(await _pair.walk_to(player, target)).is_true()
 	var host_saw := func() -> bool:
