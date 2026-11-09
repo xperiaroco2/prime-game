@@ -260,11 +260,10 @@ func plan_of(peer: int) -> AvatarClips.Plan:
 	return _plans.get(peer)
 
 
-## Whether `pose` jumped from `peer`'s last drawn place faster than anyone moves: a placement (a
-## respawn, a snap), no move.
 ## The dead see the dead see-through (#1489): a placeholder until a better ghost.
 func _set_see_through(body: RemotePlayerBody, amount: float) -> void:
-	if not is_equal_approx(body.get_meta(&"see_through", 0.0) as float, amount):
+	# Every frame while it holds: a character (set_character) can be built after the body.
+	if amount > 0.0 or not is_equal_approx(body.get_meta(&"see_through", 0.0) as float, amount):
 		body.set_meta(&"see_through", amount)
 		_apply_see_through(body, amount)
 
@@ -277,6 +276,8 @@ static func _apply_see_through(node: Node, amount: float) -> void:
 		_apply_see_through(child, amount)
 
 
+## Whether `pose` jumped from `peer`'s last drawn place faster than anyone moves: a placement (a
+## respawn, a snap), no move.
 func _is_placement(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> bool:
 	if not _drawn_pos.has(peer) or delta <= 0.0:
 		return false
