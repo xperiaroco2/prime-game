@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://client/dev/dead_hall_preview.gd" id="1_preview"]
+
+[node name="DeadHallPreview" type="Node3D" unique_id=148911]
+script = ExtResource("1_preview")
+view = 1
