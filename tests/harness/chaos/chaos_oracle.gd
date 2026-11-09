@@ -149,8 +149,8 @@ static func answer(
 		# peer never sends a Hello as a newcomer (that would be its join).
 		return SILENT if intent == Intents.MOVE_CLAIM else RejectReasons.NOT_ACCEPTED
 	if player != null and player.life == PlayerState.Life.DEAD:
-		# What a dead player meets depends on where its target stands (the hall, #1489): not known.
-		return &"?"
+		# A named target outside the hall has its answer (#1489); inside it, it depends on the target.
+		return _dead_interact(args, player, state) if intent == Intents.INTERACT else &"?"
 	return _rule(intent, args, peer, player, match_id, state, mode)
 
 
@@ -328,6 +328,28 @@ static func _interact(
 			return AtStation.OUT_OF_REACH
 		return &"?"
 	return RejectReasons.NOTHING_TO_DO
+
+
+## What a dead player's Interact meets (#1489, Match._target_problem): `bad_args`, `nothing_to_do`
+## for a target that is none, `out_of_hall` for one outside the player's hall; inside it "?".
+static func _dead_interact(args: Dictionary, player: PlayerState, state: MatchState) -> StringName:
+	var station: int = args.get("station", -1)
+	var item: int = args.get("item", -1)
+	if (station >= 0) == (item >= 0):
+		return RejectReasons.BAD_ARGS
+	if state == null:
+		return &"?"
+	var at := Vector3.ZERO
+	if item >= 0:
+		if not state.items.has(item):
+			return RejectReasons.NOTHING_TO_DO
+		at = (state.items[item] as ItemState).position
+	else:
+		var target: StationState = state.stations.get(station)
+		if target == null or target.kind.display:
+			return RejectReasons.NOTHING_TO_DO
+		at = target.position
+	return RejectReasons.OUT_OF_HALL if not player.hall_holds(at) else &"?"
 
 
 ## Draw's conditions in their order (§9.4): PlaceInRange (`no_such_place`, a place outside 0..2),
