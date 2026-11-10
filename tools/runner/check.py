@@ -103,7 +103,7 @@ def user_dir_policy() -> list[str]:
 # script goes with an edit of what used it.
 STAMP = ".godot/runner_import.stamp"
 CLASS_CACHE = ".godot/global_script_class_cache.cfg"
-# Windows can date a just-saved file a few ms past time.time() (NTFS stamps at 100 ns, the clock read is coarser).
+# How far past now a file may be dated before freshness calls it a clock fault (skew, a copy keeping its time).
 FUTURE_TOLERANCE = 2.0
 # Files Godot neither imports nor loads as a resource: a change to them never needs an import. Anything else counts,
 # so an unknown kind of file costs at most one import more than needed.
@@ -111,6 +111,21 @@ NOT_IMPORTED = frozenset((".md", ".py", ".pyc", ".cmd", ".sh", ".ps1", ".txt", "
 # What an import itself writes into the project: the .uid file of a new script or shader, the .import file of a new
 # asset. Written during the import, they would otherwise make the next launch import again.
 WRITTEN_BY_IMPORT = (".uid", ".import")
+
+
+def seconds(ns: int) -> float:
+    """A time in nanoseconds since the epoch (a file's st_mtime_ns, time.time_ns()) as the float seconds the stamp
+    keeps. Every time the stamp is compared with goes through it, so one reading always gives one float: CPython's own
+    floats do not (#1357). On Windows, CPython 3.12 (the nightly Windows job's Python) reads time.time() from the very
+    100 ns tick NTFS dates a file with, but makes st_mtime as `seconds + nanoseconds * 1e-9` and time.time() as
+    `float(nanoseconds) / 1e9`, and about one reading in eight these round 0.24 us apart: a file written in the tick of
+    the stamp's reading looked newer than it, and the next launch imported again (#1357, #1575, #1576)."""
+    return ns / 1e9
+
+
+def now() -> float:
+    """The clock as seconds(), for every time the stamp or a file's time is compared with."""
+    return seconds(time.time_ns())
 
 
 @dataclass
@@ -147,7 +162,7 @@ def newest_change(root: Path, kinds: tuple[str, ...] = ()) -> tuple[float, str, 
                 kind = os.path.splitext(entry.name)[1].lower()
                 if kind in NOT_IMPORTED or (kinds and kind not in kinds):
                     continue
-                mtime = entry.stat().st_mtime
+                mtime = seconds(entry.stat().st_mtime_ns)
             except OSError:
                 continue
             count += 1
@@ -184,7 +199,7 @@ def freshness(root: Path | None = None) -> Freshness:
     stamp = stamp_time(root)
     if stamp is None:
         return Freshness(f"no {STAMP} (the last import was not the runner's)", newest, where, count)
-    ahead = newest - time.time()
+    ahead = newest - now()
     if ahead > FUTURE_TOLERANCE:
         # Clock skew, or a file copied or extracted with its original time: the stamp never takes a future time
         # (run_import), so this file makes every launch import, loudly, until it is touched.
@@ -213,7 +228,7 @@ def run_import(label: str = "import") -> list[str]:
     `<label>-attempt-<n>.log` (the next attempt overwrites `<label>.log`), and the Failure names those logs and quotes
     the last lines of the last one (import_failure, #949).
     """
-    started = time.time()
+    started = now()
     kept: list[str] = []
     with lfs.aside(lfs.ci_pointers()):  # in CI, no LFS pointer file reaches the import (#515)
         for attempt in (1, 2):
@@ -281,11 +296,11 @@ def import_failure(what: str, logs: list[str], res: Result) -> str:
 
 
 def record_import(started: float) -> None:
-    """Record in STAMP an import that started at `started` (time.time()) and has just succeeded: that time, or the
+    """Record in STAMP an import that started at `started` (now()) and has just succeeded: that time, or the
     newest file the import wrote itself (WRITTEN_BY_IMPORT) if later, never after now. run_import and the post-edit
     hook's own import (hooks.engine_check) call it."""
     written = newest_change(common.ROOT, WRITTEN_BY_IMPORT)[0]
-    write_stamp(common.ROOT, min(max(started, written), time.time()))
+    write_stamp(common.ROOT, min(max(started, written), now()))
 
 
 def ensure_import() -> None:
@@ -305,7 +320,7 @@ def ensure_import() -> None:
     if not state.why:
         say(f"        import: current ({state.files} project files unchanged since the last import, {looked:.2f}s)")
         return
-    if state.newest > time.time():
+    if state.newest > now():
         warn(f"import: {state.why}; importing the project first")
     else:
         say(f"        import: {state.why}; importing the project first")

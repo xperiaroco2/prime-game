@@ -218,6 +218,26 @@ class PostEditTest(unittest.TestCase):
             self.assertGreaterEqual(stamp, started)
             self.assertEqual(check.freshness(root).why, "")
 
+    def test_a_script_saved_in_the_clock_tick_of_the_hooks_import_is_not_newer_than_its_stamp(self) -> None:
+        """#1576: on the nightly Windows job x.gd, saved in the tick the hook's import started in, came out 0.24 us
+        newer than the stamp, so the next launch would import again."""
+        from runner import check, common
+        from runner.tests.clocktick import clock_reads, reading_that_rounds_apart
+
+        failing = "CHECK error res://core/x.gd:3: Identifier \"Beta\" not declared.\nCHECK summary files=1 errors=1\n"
+        passing = "CHECK summary files=1 errors=0 warnings=0\n"
+        replies = [Result(1, failing, False, 0.1), Result(0, "", False, 0.1), Result(0, passing, False, 0.1)]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".godot").mkdir()
+            (root / check.CLASS_CACHE).write_text("list=[]\n", encoding="utf-8")
+            (root / "x.gd").write_text("extends RefCounted\n", encoding="utf-8")
+            when = reading_that_rounds_apart(root / "x.gd")
+            with unittest.mock.patch.object(common, "ROOT", root), clock_reads(when), \
+                    unittest.mock.patch.object(common, "godot", side_effect=replies):  # fmt: skip
+                self.assertEqual(hooks.engine_check("res://core/x.gd"), ([], []))
+                self.assertEqual(check.freshness(root).why, "")
+
 
 class UnattendedTest(unittest.TestCase):
     """Issue #312: the hook's acceptEdits allow needs a positive sign that no human answers (fails closed)."""

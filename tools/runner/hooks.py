@@ -441,13 +441,13 @@ def engine_check(res_path: str, budget: float = ENGINE_BUDGET) -> tuple[list[str
         return [timed_out], []
     if not first[0]:
         return first
-    started = time.time()
+    from .check import now, record_import
+
+    started = now()  # the clock the stamp is compared with (check.seconds, #1576)
     res = godot(["--headless", "--import"], timeout=max(1.0, deadline - time.monotonic()), log="hook-gd-import")
     if res.timed_out:
         return first
     if res.rc == 0:
-        from .check import record_import
-
         record_import(started)  # the next launch need not import again (#174)
     second = attempt()
     return second if second is not None else ([timed_out], [])
