@@ -117,9 +117,10 @@ def seconds(ns: int) -> float:
     """A time in nanoseconds since the epoch (a file's st_mtime_ns, time.time_ns()) as the float seconds the stamp
     keeps. Every time the stamp is compared with goes through it, so one reading always gives one float: CPython's own
     floats do not (#1357). On Windows, CPython 3.12 (the nightly Windows job's Python) reads time.time() from the very
-    100 ns tick NTFS dates a file with, but makes st_mtime as `seconds + nanoseconds * 1e-9` and time.time() as
-    `float(nanoseconds) / 1e9`, and about one reading in eight these round 0.24 us apart: a file written in the tick of
-    the stamp's reading looked newer than it, and the next launch imported again (#1357, #1575, #1576)."""
+    system time NTFS dates a file with, which moves once a timer tick (1 to 16 ms, counted in 100 ns units), so a file
+    written in the tick of a later reading carries that reading exactly. CPython makes st_mtime as `seconds +
+    nanoseconds * 1e-9` but time.time() as `float(nanoseconds) / 1e9`, and about one reading in eight these round
+    0.24 us apart: the file looked newer than the stamp, and the next launch imported again (#1357, #1575, #1576)."""
     return ns / 1e9
 
 

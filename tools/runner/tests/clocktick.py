@@ -1,11 +1,12 @@
 """A clock reading on which a file's float time and the float clock disagree, for the import-stamp tests of #1357,
 #1575 and #1576 (no test case in this module).
 
-On Windows, CPython 3.12 (the nightly Windows job's Python) reads time.time() from the same 100 ns clock tick NTFS
-dates a file with, so a file written in the tick of a later time.time() carries exactly that reading. CPython turns
-the two into floats by different formulas: os.stat's st_mtime as `seconds + nanoseconds * 1e-9`, time.time() as
-`float(nanoseconds) / 1e9`. About one reading in eight they round apart by one unit in the last place (0.24 us), and
-the file looks newer than the clock read after it. These helpers pin the clock on such a reading.
+On Windows, CPython 3.12 (the nightly Windows job's Python) reads time.time() from the same system time NTFS dates a
+file with, which moves once a timer tick (1 to 16 ms, counted in 100 ns units), so a file written in the tick of a
+later time.time() carries exactly that reading. CPython turns the two into floats by different formulas: os.stat's
+st_mtime as `seconds + nanoseconds * 1e-9`, time.time() as `float(nanoseconds) / 1e9`. About one reading in eight they
+round apart by one unit in the last place (0.24 us), and the file looks newer than the clock read after it. These
+helpers pin the clock on such a reading.
 """
 
 import os

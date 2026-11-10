@@ -96,7 +96,8 @@ class FreshnessTest(unittest.TestCase):
                 age(self.root / name, 60)
 
     def test_a_file_a_few_milliseconds_ahead_of_the_clock_reads_changed(self) -> None:
-        # #1298: on Windows a just-saved file can be dated past time.time(); that is a change, not clock skew.
+        # A file a few ms ahead of the clock (skew under FUTURE_TOLERANCE) is a change, not clock skew (#1298, whose
+        # "0s in the future" was the float rounding of #1357).
         imported(self.root, at=time.time() - 30)
         (self.root / "icon.png").write_bytes(b"x")
         age(self.root / "icon.png", -0.005)
