@@ -124,3 +124,21 @@ func _phase(id: StringName) -> void:
 
 func _placed(id: int, kind: StringName, at: Vector3) -> Dictionary:
 	return {"station": id, "kind": kind, "colour": Color.WHITE, "position": at}
+
+
+func test_the_ships_zap_plays_the_engine_zap_where_the_crystal_lands() -> void:
+	var at := Vector3(3, 0, 3)
+	var fields := {"item": 1, "position": at, "cause": CrystalProblem.ZAPPED}
+	var sound := _choose(&"ItemPlaced", fields, at + Vector3.RIGHT)
+	assert_str(str(sound.id)).is_equal(str(SfxSet.ENGINE_ZAP))
+	assert_vector(sound.position).is_equal(at)
+	assert_float(sound.heard_within(SoundChooser.HEARING_RANGE_M)).is_equal(
+		SoundChooser.HEARING_RANGE_M
+	)
+
+
+func test_a_crystal_that_slips_on_its_own_is_no_zap() -> void:
+	var at := Vector3(3, 0, 3)
+	var fields := {"item": 1, "position": at, "cause": CrystalProblem.SLIPPED}
+	var sound := _choose(&"ItemPlaced", fields, at + Vector3.RIGHT)
+	assert_str(str(sound.id)).is_equal(str(SoundChooser.PUT_DOWN))

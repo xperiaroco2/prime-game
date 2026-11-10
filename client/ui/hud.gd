@@ -12,6 +12,7 @@ extends Control
 ##   `Raising`, the own raise's progress, replaces Aim (the engineer, 2026-10-06).
 ## - `Vitals` (bottom left): health (its fill coloured by the ramp's stop, ToyBar), stamina and the
 ##   microphone (on: `mic` tinted `icon_on`; off: `mic-off` tinted `icon_off`).
+## - `Notice` (under the timer): the ship zap's notice (#1585), hidden but for its seconds.
 ## - `Slots` (bottom right): the three places, numbered 1 to 3, the one in the hand lit (HudSlot;
 ##   GDD §6, #1218).
 ## Downed, only the microphone shows; dead, nothing (the handoff s09, #497: LifeScreen draws the
@@ -31,6 +32,8 @@ const BAR_LENGTH := 320
 const FILL_HEIGHT := 10
 const MIC_ICON := Vector2(28, 28)
 const RAISE_BAR := Vector2(240, 10)
+## The notice's distance from the top: under the timer.
+const NOTICE_TOP := 120
 
 var timer := PanelContainer.new()
 var time_label := UiParts.styled_label("", &"ToyTimer")
@@ -59,6 +62,9 @@ var belt: HudSlot:
 		return places[1 if _shown.selected == 0 else 0]
 var raising := PanelContainer.new()
 var raising_bar := ProgressBar.new()
+## The notice under the timer (#1585): the ship zap's, a plate with the text HudText gives.
+var notice := PanelContainer.new()
+var notice_label := UiParts.styled_label("", &"ToyChipPlateText")
 ## The crosshair, Aim and Raising show; off while the map covers the middle or the player is not
 ## living.
 var aiming := true:
@@ -79,6 +85,7 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_build_top()
 	_build_middle()
+	_build_notice()
 	_build_vitals()
 	_build_slots()
 	for node: Node in find_children("*", "Control", true, false):
@@ -109,6 +116,8 @@ func show_hud(shown: HudText.Shown) -> void:
 		places[place].light(place == shown.selected)
 		places[place].show_slot(shown.places[place])
 	_show_aim_text()
+	notice.visible = not shown.notice.is_empty()
+	notice_label.text = shown.notice
 	raising_bar.value = maxf(0.0, shown.raising)
 	_show_middle()
 
@@ -212,6 +221,16 @@ func _build_middle() -> void:
 	raising_bar.step = 0.0
 	raising_bar.show_percentage = false
 	raising.add_child(raising_bar)
+
+
+func _build_notice() -> void:
+	notice.name = "Notice"
+	notice.theme_type_variation = &"ToyChipPlate"
+	var at := Vector2(0, NOTICE_TOP)
+	_pin(notice, Control.PRESET_CENTER_TOP, at, GROW_DIRECTION_BOTH, GROW_DIRECTION_END)
+	notice_label.name = "Text"
+	notice_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	notice.add_child(notice_label)
 
 
 func _build_vitals() -> void:

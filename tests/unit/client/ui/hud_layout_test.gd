@@ -28,6 +28,8 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["Cross", "Panel", &"ToyCrosshair"],
 		["Aim", "PanelContainer", &"ToyChipPlate"],
 		["Aim/Text", "Label", &"ToyChipPlateText"],
+		["Notice", "PanelContainer", &"ToyChipPlate"],
+		["Notice/Text", "Label", &"ToyChipPlateText"],
 		["Vitals", "VBoxContainer", &"ToyColumnTwelve"],
 		["Vitals/Health", "VBoxContainer", &"ToyColumnFour"],
 		["Vitals/Health/Cap", "PanelContainer", &"ToyBarLabel"],
@@ -267,6 +269,18 @@ func test_mate_shows_the_knife_icon_alone_on_the_belt_and_the_dissident_role() -
 		GameUi.THEME.get_color(&"font_color", &"ToyTextOnDark")
 	)
 	assert_vector(hud.belt.custom_minimum_size).is_equal(Vector2(132, 132))
+
+
+func test_the_zap_notice_shows_only_with_its_text() -> void:
+	var hud := await _hud()
+	assert_bool(hud.notice.visible).is_false()
+	var shown := HudText.Shown.new()
+	shown.notice = "words"
+	hud.show_hud(shown)
+	assert_bool(hud.notice.visible).is_true()
+	assert_str(hud.notice_label.text).is_equal("words")
+	hud.show_hud(HudText.Shown.new())
+	assert_bool(hud.notice.visible).is_false()
 
 
 func test_raising_replaces_aim_and_the_map_hides_the_middle() -> void:

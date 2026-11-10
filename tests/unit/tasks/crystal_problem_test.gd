@@ -134,6 +134,8 @@ func test_a_crystal_slips_once_from_a_charger_outside_the_ship() -> void:
 	assert_bool(crystal.is_carried()).is_false()
 	assert_int(crystal.where).is_equal(ItemState.Where.GROUND)
 	# Once: lying on its slip spot, it stays (no ItemPlaced each tick).
+	# Its take never crossed the edge (a level's station outside): no zap (#1585).
+	assert_array(FixtureEngineModes.dicts(game, ALL, &"ShipZapped")).is_empty()
 	assert_array(_slips(game, SECOND)).has_size(1)
 
 
@@ -272,7 +274,7 @@ func test_a_crystal_carried_off_the_ship_slips_back_aboard() -> void:
 	assert_vector(crystal.position).is_equal(last_in)
 	var placed := FixtureEngineModes.dicts(game, SECOND, &"ItemPlaced")
 	assert_dict(placed[-1]).is_equal(
-		{"item": crystal.id, "position": last_in, "cause": CrystalProblem.SLIPPED}
+		{"item": crystal.id, "position": last_in, "cause": CrystalProblem.ZAPPED}
 	)
 
 
@@ -375,3 +377,109 @@ func test_the_check() -> void:
 	kind.site = FixtureEngineKindModes.two_handed_kind(&"cartridge_socket")
 	kind.fixtures = []
 	assert_str(" ".join(kind.check(mode))).contains("one fixture")
+
+
+## ALL has pulled the crystal aboard (a tick past the pull, so its last aboard spot is its place),
+## then walks past the box's edge: one tick for the zap. Returns the crystal.
+func _carry_out(game: Match) -> ItemState:
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var crystal := _pull(game, problem)
+	FixtureModes.run_ticks(game, 1)
+	FixtureItemModes.stand(game, ALL, FixtureEngineKindModes.OUTSIDE)
+	FixtureModes.run_ticks(game, 1)
+	return crystal
+
+
+func test_the_carrier_past_the_edge_is_zapped_alone_and_loses_one_health() -> void:
+	var game := _game()
+	var health_before := game.state.player(ALL).health
+	_carry_out(game)
+	assert_int(FixtureEngineModes.dicts(game, ALL, &"ShipZapped").size()).is_equal(1)
+	assert_array(FixtureEngineModes.dicts(game, SECOND, &"ShipZapped")).is_empty()
+	var one := Ticks.thousandths(FixtureEngineKindModes.ZAP_DAMAGE)
+	assert_int(game.state.player(ALL).health).is_equal(health_before - one)
+	assert_int(FixtureEngineModes.dicts(game, ALL, &"Damaged").size()).is_equal(1)
+	assert_array(FixtureEngineModes.dicts(game, SECOND, &"Damaged")).is_empty()
+	assert_bool(game.state.player(ALL).is_alive()).is_true()
+
+
+func test_the_zap_comes_once_for_a_crossing() -> void:
+	var game := _game()
+	_carry_out(game)
+	FixtureModes.run_ticks(game, 5)
+	assert_int(FixtureEngineModes.dicts(game, ALL, &"ShipZapped").size()).is_equal(1)
+	assert_int(FixtureEngineModes.dicts(game, ALL, &"Damaged").size()).is_equal(1)
+
+
+func test_the_zap_never_takes_the_last_point() -> void:
+	var game := _game()
+	var floor_health := Ticks.thousandths(CrystalProblem.ZAP_HEALTH_FLOOR)
+	game.state.player(ALL).health = floor_health
+	_carry_out(game)
+	assert_int(game.state.player(ALL).health).is_equal(floor_health)
+	assert_array(FixtureEngineModes.dicts(game, ALL, &"Damaged")).is_empty()
+	assert_int(FixtureEngineModes.dicts(game, ALL, &"ShipZapped").size()).is_equal(1)
+	assert_bool(game.state.player(ALL).is_alive()).is_true()
+
+
+func test_the_zap_takes_only_what_lies_above_the_floor() -> void:
+	var game := _game()
+	var floor_health := Ticks.thousandths(CrystalProblem.ZAP_HEALTH_FLOOR)
+	game.state.player(ALL).health = floor_health + 250
+	_carry_out(game)
+	assert_int(game.state.player(ALL).health).is_equal(floor_health)
+	var hit := FixtureEngineModes.dicts(game, ALL, &"Damaged")
+	assert_int(hit.size()).is_equal(1)
+	assert_int(hit[0]["amount"] as int).is_equal(250)
+	assert_bool(game.state.player(ALL).is_alive()).is_true()
+
+
+func test_a_crystal_not_carried_over_the_edge_zaps_nobody() -> void:
+	var game := _game()
+	var health_before := game.state.player(ALL).health
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var crystal := _pull(game, problem)
+	var edge := Vector3(FixtureEngineModes.INSIDE_HIGH.x - 0.5, 0, 20)
+	FixtureItemModes.stand(game, ALL, edge)
+	FixtureModes.run_ticks(game, 1)
+	FixtureItemModes.put_down(game, ALL, Vector3.RIGHT)
+	FixtureModes.run_ticks(game, 3)
+	assert_bool(crystal.is_carried()).is_false()
+	assert_str(str(_slips(game, SECOND)[-1]["cause"])).is_equal(str(CrystalProblem.SLIPPED))
+	assert_array(FixtureEngineModes.dicts(game, ALL, &"ShipZapped")).is_empty()
+	assert_int(game.state.player(ALL).health).is_equal(health_before)
+
+
+func test_a_thrown_crystal_returns_with_no_zap() -> void:
+	var kinds: Array[ProblemKind] = [FixtureEngineKindModes.crystal()]
+	var mode := FixtureThrowModes.with_throw(FixtureEngineKindModes.of(kinds))
+	var game := FixtureEngineKindModes.in_round(mode, PEERS)
+	var health_before := game.state.player(ALL).health
+	var problem := FixtureEngineKindModes.start_to_problem(game, ALL)
+	var crystal := _pull(game, problem)
+	var edge := Vector3(FixtureEngineModes.INSIDE_HIGH.x - 0.5, 0, 20)
+	FixtureItemModes.stand(game, ALL, edge)
+	FixtureModes.run_ticks(game, 1)
+	FixtureThrowModes.throw(game, ALL, Vector3.RIGHT)
+	for _i in 200:
+		FixtureModes.run_ticks(game, 1)
+		if crystal.where != ItemState.Where.FLYING:
+			break
+	FixtureModes.run_ticks(game, 2)
+	assert_str(str(_slips(game, SECOND)[-1]["cause"])).is_equal(str(CrystalProblem.SLIPPED))
+	assert_array(FixtureEngineModes.dicts(game, ALL, &"ShipZapped")).is_empty()
+	assert_int(game.state.player(ALL).health).is_equal(health_before)
+
+
+func test_the_check_bounds_the_zap_numbers() -> void:
+	var kinds: Array[ProblemKind] = [FixtureEngineKindModes.crystal()]
+	var mode := FixtureEngineKindModes.of(kinds)
+	var kind := kinds[0] as CrystalProblem
+	kind.zap_damage = -1
+	assert_str(" ".join(kind.check(mode))).contains("zap_damage")
+	kind.zap_damage = 1
+	kind.zap_flash_seconds = 0.0
+	assert_str(" ".join(kind.check(mode))).contains("zap_flash_seconds")
+	kind.zap_flash_seconds = FixtureEngineKindModes.ZAP_FLASH_SECONDS
+	kind.zap_notice_seconds = 0.0
+	assert_str(" ".join(kind.check(mode))).contains("zap_notice_seconds")

@@ -97,8 +97,8 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## and 90 left it when EngineProblemOpened and EngineProblemFixed took them (#1453), 92 and 93
 ## took theirs; 92, 93 and 95 left it when GillFlipped, BreakerChain and CrystalChanged took them
 ## (#1461); WheelPose took 26 (#1485), 27 took its place; 97 left it when BoothReplay took it
-## (#1474), 98 took its place.
-const UNASSIGNED: Array[int] = [0, 27, 31, 98, 111, 113, 127, 128, 200, 255]
+## (#1474), 98 took its place; 98 left it when ShipZapped took it (#1585), 99 took its place.
+const UNASSIGNED: Array[int] = [0, 27, 31, 99, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the
@@ -123,6 +123,7 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"EngineProblemOpened",
 	&"EngineProblemFixed",
 	&"EngineBlast",
+	&"ShipZapped",
 	&"GillFlipped",
 	&"BreakerChain",
 	&"CrystalChanged",
@@ -138,6 +139,7 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"EngineProblemOpened": {"problem": 1, "stations": [1, 2], "deadline": 40},
 	&"EngineProblemFixed": {"problem": 1},
 	&"EngineBlast": {"stage": 1},
+	&"ShipZapped": {"peer": 1},
 	&"GillFlipped": {"station": 1, "slit": 2, "open": true},
 	&"BreakerChain": {"problem": 1, "breakers": [3, 5], "next": 1, "since": 40},
 	&"CrystalChanged": {"station": 2, "charger": 4, "phase": 2, "item": 1, "tick": 200},

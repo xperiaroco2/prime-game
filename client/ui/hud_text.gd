@@ -36,6 +36,11 @@ const OFFERING_CUE := "hud.offering"
 ## like the hand-over's. The deck row comes with the UI track's next round; until then the HUD
 ## shows the raw key (the TranslationServer's answer for an unknown key).
 const SIT_CUE := "hud.sit"
+## The ship's zap's notice (#1585): the deck has no key for it yet, so its two lines, the engineer's
+## words on the card, stand here until `hud.quest_item_area` lands (a request to the UI track).
+const ZAP_NOTICE_KEY := "hud.quest_item_area"
+const ZAP_NOTICE_EN := "Quest items can't leave the quest's area"
+const ZAP_NOTICE_UK := "Квестові предмети не можна виносити із зони завдання"
 
 
 ## What the HUD knows besides the model and the mode.
@@ -67,6 +72,8 @@ class Local:
 	## The label of the interact key bound now while E would sit the own player at a chair
 	## (ItemInteractions.sit_cue(), #1420); "" for none.
 	var sit_key := ""
+	## The ship's zap's notice is up (#1585; ShipZapScreen).
+	var zap_notice := false
 	## The own body's place for the map screen (#253): whether it has one (the dead have none), the
 	## place, and the heading in radians clockwise from north (-Z) seen from above.
 	var placed := false
@@ -138,6 +145,8 @@ class Shown:
 	## The chair's cue in Aim (#1420): the interact key's label that fills SIT_CUE's `{key}`; ""
 	## for none.
 	var sit_key := ""
+	## The HUD's notice plate, already in the language now; "" hides it (#1585).
+	var notice := ""
 
 
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
@@ -159,6 +168,8 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	shown.stamina = stamina_of(local, mode)
 	shown.mic = local.mic
 	shown.slots = true
+	if local.zap_notice:
+		shown.notice = zap_notice_text()
 	shown.selected = model.selected_place(model.own_peer)
 	for place in shown.places.size():
 		var item_id := model.item_in_place(model.own_peer, place)
@@ -191,6 +202,14 @@ static func aim_of(model: ClientModel, mode: GameMode, local: Local) -> String:
 		# The station's name alone: never a switch's on or off (#801).
 		return ContentNames.station(model.stations[local.aim_station].kind)
 	return ""
+
+
+## The zap's notice in the language now: the deck's, else its line until the key lands (#1585).
+static func zap_notice_text() -> String:
+	var word := String(TranslationServer.translate(ZAP_NOTICE_KEY))
+	if word != ZAP_NOTICE_KEY:
+		return word
+	return ZAP_NOTICE_UK if TranslationServer.get_locale().begins_with("uk") else ZAP_NOTICE_EN
 
 
 ## The rescuer's cue in Aim, translated, with the raise key's label `key` (`RAISE_CUE`).

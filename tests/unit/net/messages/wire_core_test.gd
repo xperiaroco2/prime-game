@@ -321,6 +321,8 @@ func test_cores_constant_ids_fit_the_wire() -> void:
 		Items.ON_STATION,
 		# A part's own ItemPlaced cause (#1461): the ship's crystal slipping back aboard.
 		CrystalProblem.SLIPPED,
+		# The same, knocked out of a carrier's hands (#1585).
+		CrystalProblem.ZAPPED,
 	]
 	for cause: StringName in causes:
 		ids.append(str(cause))

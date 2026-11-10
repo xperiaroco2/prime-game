@@ -164,6 +164,9 @@ var _hand_view := FirstPersonHand.new()
 var _drunk_strength := 0.0
 var _drift_clock := 0.0
 var _sway_clock := 0.0
+## The zap's shake (#1585, ZapShake): its seconds left and its whole length.
+var _shake_left := 0.0
+var _shake_seconds := 0.0
 
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
@@ -200,12 +203,32 @@ func _physics_process(delta: float) -> void:
 	_claim()
 
 
-## The drunk camera's sway (own view only, #1391): roll and pitch on the camera under the head, no
-## yaw, so the head, whose look is the claim's facing, never sways.
+## The drunk camera's sway (own view only, #1391) and the zap's shake (#1585): roll and pitch on the
+## camera under the head, no yaw, so the head, whose look is the claim's facing, never moves.
 func _process(delta: float) -> void:
 	_sway_clock += delta
 	var sway := DrunkFeel.sway(_drunk_strength, _sway_clock, _drunk_seed(), tuning)
-	_camera.rotation = Vector3(sway.y, 0.0, sway.x)
+	var jolt := ZapShake.angles(_shake_left, _shake_seconds, tuning)
+	_camera.rotation = Vector3(sway.y + jolt.y, 0.0, sway.x + jolt.x)
+	_shake_left = maxf(0.0, _shake_left - delta)
+	if _shake_left <= 0.0 and _drunk_strength <= 0.0:
+		_camera.rotation = Vector3.ZERO
+		set_process(false)
+
+
+## The ship's zap shakes the own camera for `seconds` (#1585; ShipZapScreen starts it). Only the
+## living: a body that is down or gone has another camera.
+func shake(seconds: float) -> void:
+	if seconds <= 0.0 or not is_living():
+		return
+	_shake_seconds = seconds
+	_shake_left = seconds
+	set_process(true)
+
+
+## The zap's shake left, in seconds (#1585; for the tests and a debug readout).
+func shake_left() -> float:
+	return _shake_left
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -610,12 +633,13 @@ func _follow_drunk(delta: float) -> void:
 		set_process(true)
 
 
-## Ends the sway and the drift at once: a life change, a respawn or a placement (#1391). The next
-## drunk value starts them again from their onset.
+## Ends the sway, the drift and the zap's shake at once: a life change, a respawn or a placement
+## (#1391). The next drunk value starts the first two again from their onset.
 func _stop_drunk() -> void:
 	_drunk_strength = 0.0
 	_drift_clock = 0.0
 	_sway_clock = 0.0
+	_shake_left = 0.0
 	set_process(false)
 	if _camera != null:
 		_camera.rotation = Vector3.ZERO

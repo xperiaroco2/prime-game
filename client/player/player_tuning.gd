@@ -55,3 +55,11 @@ extends Resource
 @export var drift_period_s: float = 0.0
 ## The wander's second period in seconds (0: that sine off).
 @export var drift_second_period_s: float = 0.0
+
+@export_group("Zap")
+## The shake of the ship's zap (#1585; ZapShake): the own camera only, no yaw; PROVISIONAL, "not a
+## decision", tuned by the engineer on the PR's shots (its length is the mode's CrystalProblem).
+## The largest roll and pitch at its start, in degrees, and how fast it shakes, in hertz.
+@export var zap_shake_roll_deg: float = 0.0
+@export var zap_shake_pitch_deg: float = 0.0
+@export var zap_shake_hz: float = 0.0

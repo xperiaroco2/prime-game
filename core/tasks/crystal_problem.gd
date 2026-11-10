@@ -20,6 +20,11 @@ extends ProblemKind
 ##   `slipped`; GDD §8, as the garage's tools drop at its door). A flying one is judged where it
 ##   lands. A crystal lying on that spot already stays: a socket or charger a level put outside
 ##   the box would else slip it again every tick.
+##   A crystal slipping from a carrier's hands zaps the carrier instead (GDD §8 "The ship is in an
+##   emergency mode", #1585): the same slip with the cause `zapped` (the world's zap sound), then
+##   ShipZapped to the carrier and `zap_damage` health off, never below ZAP_HEALTH_FLOOR (no
+##   knockdown). Only a crystal that really crossed: its last aboard spot is in the box (a level's
+##   station outside it just slips). One thrown or put down over the edge slips as before, no zap.
 ## - The blast (cleared): a crystal out vanishes wherever it is, a charger holding it empties, and
 ##   the socket holds its crystal again. CrystalChanged follows each change of the crystal.
 ## Refuses `unavailable` (a socket without a problem, a charging charger), `empty_hand` and
@@ -32,9 +37,19 @@ const CHARGING := 2
 const WAITING := 3
 ## ItemPlaced's cause for a crystal that slipped back aboard.
 const SLIPPED := &"slipped"
+## ItemPlaced's cause for a crystal the ship knocked out of its carrier's hands (#1585).
+const ZAPPED := &"zapped"
+## The health a zap leaves at the least, whole points: it never kills or knocks down (#1585).
+const ZAP_HEALTH_FLOOR := 1
 ## The bounds of `charge_seconds`.
 const MIN_CHARGE_SECONDS := 0.05
 const MAX_CHARGE_SECONDS := 600.0
+## The bounds of `zap_damage` (0: none), `zap_flash_seconds` and `zap_notice_seconds`.
+const MAX_ZAP_DAMAGE := 100
+const MIN_ZAP_FLASH_SECONDS := 0.05
+const MAX_ZAP_FLASH_SECONDS := 5.0
+const MIN_ZAP_NOTICE_SECONDS := 0.5
+const MAX_ZAP_NOTICE_SECONDS := 30.0
 
 ## The crystal's kind while it is spent (GDD §8: plain grey).
 @export var spent: ItemKind
@@ -42,6 +57,13 @@ const MAX_CHARGE_SECONDS := 600.0
 @export var charged: ItemKind
 ## How long the charger charges (GDD §8's placeholder: 10 s), converted once to host ticks.
 @export var charge_seconds := 0.0
+## The zap's damage, whole points (GDD §8, #1585: 1, "for fun"); it stops at ZAP_HEALTH_FLOOR.
+@export var zap_damage := 0
+## How long the carrier's blue flash and camera shake last (#1585: 0.4, a placeholder until a
+## playtest, "not a decision"). The client's copy of the mode is where they are read.
+@export var zap_flash_seconds := 0.0
+## How long the carrier's HUD shows the notice (#1585: 3, a placeholder until a playtest).
+@export var zap_notice_seconds := 0.0
 
 
 ## A crystal problem's own state (EngineProblem.data).
@@ -198,8 +220,10 @@ func tick_problem(ctx: MatchContext, task: MatchTask, problem: EngineProblem) ->
 			_announce(ctx, problem)
 		return
 	var where := crystal.position
+	var carrier := -1
 	if crystal.is_carried():
-		where = ctx.state.player(crystal.holder).position
+		carrier = crystal.holder
+		where = ctx.state.player(carrier).position
 	elif crystal.where != ItemState.Where.GROUND:
 		return  # In flight: judged where it lands.
 	var task_state := task.state as ShipEngine.State
@@ -210,7 +234,26 @@ func tick_problem(ctx: MatchContext, task: MatchTask, problem: EngineProblem) ->
 	var spot := data.last_in if rest == WorldQuery.NO_FLOOR else rest
 	if crystal.where == ItemState.Where.GROUND and crystal.position == spot:
 		return  # Slipped already: its last aboard spot is out of the box (a level's station).
-	Items.place(ctx, crystal, spot, SLIPPED)
+	var aboard_once := ShipEngine.in_box(
+		data.last_in, task_state.aboard_low, task_state.aboard_high
+	)
+	var zapped := carrier >= 0 and aboard_once
+	Items.place(ctx, crystal, spot, ZAPPED if zapped else SLIPPED)
+	if zapped:
+		_zap(ctx, carrier)
+
+
+## The ship zaps `carrier`, whose hands just lost the crystal: ShipZapped, then `zap_damage` off
+## its health, what is left of it at least ZAP_HEALTH_FLOOR: a Damaged only if any comes off.
+func _zap(ctx: MatchContext, carrier: int) -> void:
+	ctx.emit(ShipZappedEvent.new(carrier))
+	var player := ctx.state.player(carrier)
+	if not player.is_alive():
+		return
+	var spare := player.health - Ticks.thousandths(ZAP_HEALTH_FLOOR)
+	var taken := mini(Ticks.thousandths(zap_damage), spare)
+	if taken > 0:
+		LifeRules.damage(ctx, carrier, taken)
 
 
 ## The crystal of `problem` is back in its socket: out of any charger, its item gone.
@@ -249,7 +292,14 @@ func use_emits() -> Array[Script]:
 
 
 func emits() -> Array[Script]:
-	return [CrystalChangedEvent, ItemChangedEvent, ItemPlacedEvent, ItemVanishedEvent]
+	return [
+		CrystalChangedEvent,
+		ItemChangedEvent,
+		ItemPlacedEvent,
+		ItemVanishedEvent,
+		ShipZappedEvent,
+		DamagedEvent,
+	]
 
 
 ## ProblemKind's check; one fixture, the chargers; the two crystal kinds, distinct, the mode's own,
@@ -284,6 +334,19 @@ func check(mode: GameMode) -> PackedStringArray:
 				charge_seconds,
 				MIN_CHARGE_SECONDS,
 				MAX_CHARGE_SECONDS
+			),
+			out_of_bounds("problem kind %s zap_damage" % id, zap_damage, 0, MAX_ZAP_DAMAGE),
+			out_of_bounds(
+				"problem kind %s zap_flash_seconds" % id,
+				zap_flash_seconds,
+				MIN_ZAP_FLASH_SECONDS,
+				MAX_ZAP_FLASH_SECONDS
+			),
+			out_of_bounds(
+				"problem kind %s zap_notice_seconds" % id,
+				zap_notice_seconds,
+				MIN_ZAP_NOTICE_SECONDS,
+				MAX_ZAP_NOTICE_SECONDS
 			)
 		]
 	)

@@ -141,6 +141,7 @@ static func events() -> Dictionary[String, Array]:
 		EngineProblemFixedEvent.new(1), EngineProblemFixedEvent.new(0xFFFF)
 	]
 	found["EngineBlastEvent"] = [EngineBlastEvent.new(1), EngineBlastEvent.new(3)]
+	found["ShipZappedEvent"] = [ShipZappedEvent.new(1)]
 	found["GillFlippedEvent"] = [
 		GillFlippedEvent.new(1, 0, true), GillFlippedEvent.new(0xFFFE, 4, false)
 	]

@@ -15,7 +15,8 @@ extends RefCounted
 ## - ItemPickedUp: where the item lay (the model's fold keeps the item's last resting place); a
 ##   hand-over's (#1389: the item was carried, `handed_from`) at the receiver, where the take
 ##   happened, not at a resting place the item left long before;
-## - ItemPlaced: at the event's position;
+## - ItemPlaced: at the event's position; the ship's zap of a carrier (cause `zapped`, #1585) plays
+##   the engine's zap there, not a put-down;
 ## - ItemThrown: at the launch's origin, the thrower's eye (37e: ItemViews hands it over when the
 ##   drawn item launches, and a thrown item's ItemPlaced when it lands at its rest). ItemThrown
 ##   reaches everyone with its origin: uncut, the launch would tell every client where a package
@@ -187,6 +188,10 @@ static func source(
 			var at: Variant = position_of.call(fields["peer"] as int)
 			return Sound.new(PICK_UP, at as Vector3, ITEM_AIM_M) if at is Vector3 else null
 		&"ItemPlaced":
+			if fields.get("cause", &"") == CrystalProblem.ZAPPED:
+				return Sound.new(
+					SfxSet.ENGINE_ZAP, fields["position"] as Vector3, ShipEngineSounds.AIM_M
+				)
 			return Sound.new(PUT_DOWN, fields["position"] as Vector3, ITEM_AIM_M)
 		&"ItemThrown":
 			return Sound.new(THROW, fields["origin"] as Vector3, THROW_AIM_M)
