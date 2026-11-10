@@ -368,3 +368,47 @@ func _claim_step(to: Vector3, sprint: bool, moving: bool, ticks: int) -> Diction
 	_harness.session.set_motion(to, Vector3.ZERO, Vector3.RIGHT, sprint, moving, true)
 	_harness.pump(TICK_USEC * ticks)
 	return _harness.claims()[-1].fields
+
+
+## The dead claim only while they wait in the hall (#1489): the phase's allowlist has a DEAD row.
+func test_a_dead_session_claims_only_while_it_waits_in_the_hall() -> void:
+	_harness.mode.find_phase(&"round").accepts.append(
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.DEAD)
+	)
+	_harness.welcome(&"round")
+	var model := _harness.session.model
+	model.lives[model.own_peer] = ClientModel.Life.DEAD
+	var before := _harness.claims().size()
+	_harness.pump(TICK_USEC)
+	_harness.pump(TICK_USEC)
+	assert_int(_harness.claims().size()).is_greater(before)
+	# The same dead player in a phase whose allowlist does not name the dead.
+	model.phase = &"lobby"
+	before = _harness.claims().size()
+	_harness.pump(TICK_USEC)
+	_harness.pump(TICK_USEC)
+	assert_int(_harness.claims().size()).is_equal(before)
+
+
+## The hall's Correction follows the Died that sends it (#1489) and the print's its PrintStarted:
+## each is a placement, and the Respawned after a print is not.
+func test_the_halls_corrections_count_as_placements_and_a_prints_respawned_as_none() -> void:
+	_harness.mode.find_phase(&"round").accepts.append(
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.DEAD)
+	)
+	_harness.welcome(&"round")
+	var session := _harness.session
+	var own := session.model.own_peer
+	var position := {"peer": own, "position": Vector3.ZERO}
+	var before := session.placements
+	session.event_received.emit(&"Died", position)
+	session._count_correction(Vector3.ZERO, Vector3.ZERO)
+	assert_int(session.placements).is_equal(before + 1)
+	session.event_received.emit(&"PrintStarted", position)
+	session._count_correction(Vector3.ZERO, Vector3.ZERO)
+	assert_int(session.placements).is_equal(before + 2)
+	session.event_received.emit(&"Respawned", position)
+	var refused := session.corrections
+	session._count_correction(Vector3.ZERO, Vector3.ZERO)
+	assert_int(session.corrections).is_equal(refused + 1)
+	assert_int(session.placements).is_equal(before + 2)

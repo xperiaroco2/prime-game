@@ -1,5 +1,7 @@
 [gd_scene format=3 uid="uid://dnw2lcrpli1i0"]
 
+[ext_resource type="PackedScene" uid="uid://3aibmo7dg07r" path="res://levels/lobby/dead_hall.tscn" id="dead_hall_1"]
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(60, 1, 60)
 
@@ -130,3 +132,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, 5)
 
 [node name="Respawn04" type="Marker3D" parent="." unique_id=1343774556 groups=["spawn_respawn"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 5)
+
+[node name="DeadHall" parent="." unique_id=570426638 instance=ExtResource("dead_hall_1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2000, 0, 0)

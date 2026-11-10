@@ -108,6 +108,8 @@ var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MOD
 var stamina: StaminaSource
 ## The session it claims to; null offline (the dev room, the controller's own tests).
 var session: ClientSession
+## The dead walking the hall (#1489) walk and do not sprint: the host's ledger refuses it.
+var walks_only := false
 ## The player's life as the own ClientModel tells it (set_life): living, downed (it holds still and
 ## looks) or dead (no body).
 var life := ClientModel.Life.ALIVE:
@@ -464,7 +466,12 @@ func _walk(delta: float) -> void:
 	var grounded := is_on_floor() or _stepping
 	if not exiting:
 		_follow_crouch()
-	_sprinting = not exiting and sprint_held and stamina.can_sprint(_sprinting, is_downed())
+	_sprinting = (
+		not exiting
+		and not walks_only
+		and sprint_held
+		and stamina.can_sprint(_sprinting, is_downed())
+	)
 	# The sneak (#989): the crouch wins over it (Ctrl + Alt crouches, a jump from the crouch
 	# included) and so does Shift (Shift + Alt sprints, or walks on an empty stamina bar).
 	_sneaking = (
@@ -578,7 +585,7 @@ func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 ## #1522). Each comes right before the Correction that moves it.
 func _places_level(event_name: StringName, fields: Dictionary) -> bool:
 	var own := session.model.own_peer
-	if event_name == &"Respawned":
+	if event_name == &"Respawned" or event_name == &"PrintStarted":
 		return (fields["peer"] as int) == own
 	if event_name == &"PlayersPlaced":
 		return (fields["spots"] as Dictionary).has(own)

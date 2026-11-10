@@ -22,9 +22,9 @@ extends RefCounted
 ## - The own-avatar invariant (the knockdown rework's KE5, §9, #847): per tick, a peer's snapshot
 ##   holds its own avatar exactly when its player is knocked down or limp (#1393), read from the
 ##   life state and PlayerState.limp, never from Snapshots.for_peer (own_avatar_problem).
-## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
-##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
-##   living speakers; a dead peer's speakers are empty.
+## - Per tick, no peer's snapshot holds a dead player's avatar unless the viewer is dead too
+##   (#1489). The voice invariant (§6): no peer's speakers include a downed speaker, or a dead one
+##   unless the peer is dead; a downed peer hears only living speakers; a dead peer only the dead.
 ## - The distance invariant (§5, E45): per tick, every speaker a peer hears stands within the
 ##   phase's hearing radius (VoiceRule.radius_of the mode's rule for the phase), between the two
 ##   last accepted positions in 3D, compared as VoiceRule.within compares them, so a pair at the
@@ -270,8 +270,10 @@ func check_tick() -> PackedStringArray:
 		found.append_array(_check_voice(peer, speakers))
 		found.append_array(_check_distance(peer, speakers, radius))
 		for other: int in avatars:
-			if _life_of(other) == PlayerState.Life.DEAD:
+			if _life_of(other) == PlayerState.Life.DEAD and not _in_hall(peer):
 				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
+			if _in_hall(peer) != _in_hall(other):
+				found.append("peer %d sees %d across the hall in its snapshot" % [peer, other])
 	return found
 
 
@@ -451,18 +453,28 @@ func _check_dead_recipients(emitted: EmittedEvent) -> PackedStringArray:
 	return found
 
 
+## Whether `peer` waits in the dead's hall (#1489), from the player's state alone.
+func _in_hall(peer: int) -> bool:
+	var player := _game.state.player(peer)
+	return player != null and player.in_hall
+
+
 ## The voice invariant's broken parts for `peer`'s `speakers` this tick (§6), from the life
 ## states alone, never the voice rule.
 func _check_voice(peer: int, speakers: PackedInt32Array) -> PackedStringArray:
 	var found := PackedStringArray()
 	var life := _life_of(peer)
-	if life == PlayerState.Life.DEAD and not speakers.is_empty():
-		found.append("dead peer %d hears %s" % [peer, speakers])
+	if life == PlayerState.Life.PRINTING and not speakers.is_empty():
+		found.append("printing peer %d hears %s" % [peer, speakers])
 	for speaker: int in speakers:
 		var mouth := _life_of(speaker)
+		if life == PlayerState.Life.DEAD and not _in_hall(peer):
+			found.append("dead peer %d, outside the hall, hears %d" % [peer, speaker])
+		if _in_hall(peer) != _in_hall(speaker):
+			found.append("peer %d hears %d across the hall" % [peer, speaker])
 		if mouth == PlayerState.Life.DOWNED:
 			found.append("peer %d hears downed %d" % [peer, speaker])
-		if mouth == PlayerState.Life.DEAD:
+		if mouth == PlayerState.Life.DEAD and not _in_hall(speaker):
 			found.append("peer %d hears dead %d" % [peer, speaker])
 		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
 			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])

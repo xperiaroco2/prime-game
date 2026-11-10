@@ -248,7 +248,7 @@ func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
 	var found := "\n".join(invariants.check_tick())
 	assert_str(found).contains("peer 1 hears downed 1002")
 	assert_str(found).contains("downed peer 1002 hears 1003, who is not living")
-	assert_str(found).contains("dead peer 1003 hears [1]")
+	assert_str(found).contains("dead peer 1003, outside the hall, hears 1")
 	assert_str(found).not_contains("downed peer 1002 hears 1,")
 
 

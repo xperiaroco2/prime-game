@@ -123,6 +123,9 @@ var drunk_seen: Dictionary[int, int] = {}
 
 var _next_seq := 1
 var _client_tick := 0
+## The own print is under way (PrintStarted brought its Correction; the Respawned ending it has
+## none, #1489).
+var _printing := false
 ## A placement of the bot (PlayersPlaced naming it, its own KnockedDown, Revived or Respawned)
 ## awaits its Correction: core/ emits exactly one after each, so a network poll that splits the
 ## two still expects it, and any other Correction fails. A death sends none.
@@ -281,12 +284,21 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if died == peer:
 				downed = false
 				dead = true
+				# Its one Correction is the move to the dead's hall (#1489), which no event announces.
+				_correction_due = true
+		&"PrintStarted":
+			var printed := fields["peer"] as int
+			seen[printed] = fields["position"] as Vector3
+			if printed == peer:
+				_correction_due = true
+				_printing = true
 		&"Respawned":
 			var back := fields["peer"] as int
 			seen[back] = fields["position"] as Vector3
 			if back == peer:
 				dead = false
-				_correction_due = true
+				_correction_due = not _printing
+				_printing = false
 		&"Revived":
 			# It stands up where it lay, placed there by the Correction that follows (KE6).
 			if fields["peer"] as int == peer:
@@ -629,6 +641,7 @@ func _new_connection(new_peer: int) -> void:
 	position = Vector3.ZERO
 	downed = false
 	dead = false
+	_printing = false
 	role = &""
 	_clear_places()
 	sprint_available = true

@@ -152,7 +152,8 @@ static func may_speak_of(own_model: ClientModel, own_mode: GameMode) -> bool:
 		return false
 	if not own_model.roster.has(own_model.own_peer):
 		return false
-	if own_model.life_of(own_model.own_peer) != ClientModel.Life.ALIVE:
+	var own_life := own_model.life_of(own_model.own_peer)
+	if own_life != ClientModel.Life.ALIVE and not own_model.waits_in_hall():
 		return false
 	var spec := own_mode.find_phase(own_model.phase)
 	return VoiceRule.radius_of(spec.voice_rule if spec != null else null) > 0.0

@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The downed cannot pick up, put down, swap or use items (MVP rules and vision revision 1,
 ## ARCHITECTURE §7.1): no game mode in `content/modes/` accepts PickUp, PutDown, Swap, Use or
-## UseSecondary from anyone but the living, in any phase. A rule of the game, not a number, so
+## UseSecondary from anyone but the living, in any phase, and from the dead only in a phase whose
+## Respawn sends them to the dead's hall (#1489). A rule of the game, not a number, so
 ## this test loads `content/` like the mode check does (§9.6). The base mode's package takes both
 ## hands, its knife one (vision revision 1, Two hands), and Delivery has a description for the
 ## task screen.
@@ -11,6 +12,8 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const ITEM_INTENTS: Array[StringName] = [
 	Intents.PICK_UP, Intents.PUT_DOWN, Intents.USE, Intents.SWAP, Intents.USE_SECONDARY
 ]
+## The living, and the dead waiting in the Round's hall (#1489).
+const LIVING_AND_HALL: int = AcceptSpec.From.LIVING | AcceptSpec.From.DEAD
 
 
 func test_only_the_living_may_send_an_item_intent_in_any_mode() -> void:
@@ -26,7 +29,7 @@ func test_only_the_living_may_send_an_item_intent_in_any_mode() -> void:
 			for intent: StringName in ITEM_INTENTS:
 				var from := spec.senders_of(intent)
 				(
-					assert_int(from & ~AcceptSpec.From.LIVING)
+					assert_int(from & ~(AcceptSpec.From.LIVING | _hall_dead(spec)))
 					. override_failure_message(
 						"%s: phase %s accepts %s from %d" % [path, spec.id, intent, from]
 					)
@@ -34,17 +37,17 @@ func test_only_the_living_may_send_an_item_intent_in_any_mode() -> void:
 				)
 
 
-func test_the_base_mode_round_accepts_pick_up_and_put_down_from_the_living() -> void:
+func test_the_base_mode_round_accepts_pick_up_and_put_down_from_the_living_and_the_hall() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var round_spec := mode.find_phase(&"round")
-	assert_int(round_spec.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
-	assert_int(round_spec.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(round_spec.senders_of(Intents.PICK_UP)).is_equal(LIVING_AND_HALL)
+	assert_int(round_spec.senders_of(Intents.PUT_DOWN)).is_equal(LIVING_AND_HALL)
 	assert_object(mode.find_item_kind(&"package")).is_not_null()
 
 
-func test_the_base_mode_swaps_from_the_living_and_its_package_takes_both_hands() -> void:
+func test_the_base_mode_swaps_from_living_and_hall_and_its_package_takes_both_hands() -> void:
 	var mode := load(BASE_MODE) as GameMode
-	assert_int(mode.find_phase(&"round").senders_of(Intents.SWAP)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(mode.find_phase(&"round").senders_of(Intents.SWAP)).is_equal(LIVING_AND_HALL)
 	assert_int(mode.find_item_kind(&"package").hands).is_equal(2)
 	assert_int(mode.find_item_kind(&"knife").hands).is_equal(1)
 	var swap: Rule = null
@@ -58,6 +61,16 @@ func test_the_base_mode_swaps_from_the_living_and_its_package_takes_both_hands()
 	assert_object(swap.effects[0]).is_instanceof(SwapHands)
 	for type: TaskType in mode.task_types:
 		assert_str(type.description.strip_edges()).is_not_empty()
+
+
+## AcceptSpec.From.DEAD where `spec`'s Respawn sends the dead to a hall, else no bit (#1489).
+func _hall_dead(spec: PhaseSpec) -> int:
+	for system: TickSystem in spec.tick_systems:
+		if system is LifeTicks:
+			var respawn := (system as LifeTicks).respawn
+			if respawn != null and not respawn.hall_tag.is_empty():
+				return AcceptSpec.From.DEAD
+	return 0
 
 
 func _mode_paths(dir_path: String) -> Array[String]:

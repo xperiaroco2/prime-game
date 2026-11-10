@@ -38,6 +38,8 @@ extends Node3D
 ## model has cleared it by then, so the holder is the one the last physics frame drew holding it.
 
 const PHYSICS_PRIORITY := -80
+## How see-through the dead are to each other in the hall (#1489; a placeholder, "not a decision").
+const SEE_THROUGH := 0.5
 const BODY := preload("res://client/player/remote_player_body.tscn")
 
 ## Setting it hands it host_tick(), the floor of its snapshots at a cleared match (#251); the model
@@ -219,6 +221,8 @@ func _physics_process(delta: float) -> void:
 		if peer == model.own_peer:
 			continue  # the own avatar (KE5) is drawn as its ragdoll only, never as a stranger
 		var body: RemotePlayerBody = _bodies.get(peer)
+		if body != null:
+			_set_see_through(body, SEE_THROUGH if model.waits_in_hall() else 0.0)
 		# A body drawn for the first time takes its head's height at once (the crouch ADR, KE7).
 		var ease_s := delta if body != null else INF
 		if body == null:
@@ -254,6 +258,22 @@ func _physics_process(delta: float) -> void:
 ## own player, never drawn here).
 func plan_of(peer: int) -> AvatarClips.Plan:
 	return _plans.get(peer)
+
+
+## The dead see the dead see-through (#1489): a placeholder until a better ghost.
+func _set_see_through(body: RemotePlayerBody, amount: float) -> void:
+	# Every frame while it holds: a character (set_character) can be built after the body.
+	if amount > 0.0 or not is_equal_approx(body.get_meta(&"see_through", 0.0) as float, amount):
+		body.set_meta(&"see_through", amount)
+		_apply_see_through(body, amount)
+
+
+static func _apply_see_through(node: Node, amount: float) -> void:
+	var mesh := node as GeometryInstance3D
+	if mesh != null:
+		mesh.transparency = amount
+	for child: Node in node.get_children():
+		_apply_see_through(child, amount)
 
 
 ## Whether `pose` jumped from `peer`'s last drawn place faster than anyone moves: a placement (a

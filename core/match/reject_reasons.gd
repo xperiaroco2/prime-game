@@ -27,6 +27,8 @@ const JOINS_CLOSED := &"joins_closed"
 const UNCHANGED := &"unchanged"
 ## ChangeSettings: a key the mode does not declare, or a value that is not a whole number (2b).
 const UNKNOWN_SETTING := &"unknown_setting"
+## A dead player's intent naming a station or an item outside its hall (#1489).
+const OUT_OF_HALL := &"out_of_hall"
 ## ChangeSettings: a value outside its SettingSpec's bounds (2b).
 const OUT_OF_BOUNDS := &"out_of_bounds"
 ## ChangeSettings: a map the mode does not list (2b).

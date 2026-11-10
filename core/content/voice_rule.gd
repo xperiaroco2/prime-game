@@ -53,22 +53,23 @@ static func radius_of(rule: VoiceRule) -> float:
 
 
 ## The speakers `listener` hears now, in peer-id order. The voice invariant (§6, vision revision
-## 1), enforced here before the rule's `hears` runs, so no mode's data can break it: only the
-## living speak (nobody hears a downed or dead player), a dead listener hears nobody, and a player
-## who left hears and is heard by nobody. Each position is read once per call (#1282).
+## 1, #1489), enforced here before the rule's `hears` runs, so no mode's data can break it: the
+## living and the downed hear only the living; a dead player in the hall hears only the dead in the
+## hall; a dead player anywhere else, a printing player and a player who left hear nobody, and only
+## the living and the dead in the hall are heard. Each position is read once per call (#1282).
 func speakers_of(state: MatchState, listener: int) -> PackedInt32Array:
 	var heard := PackedInt32Array()
 	if not state.is_present(listener):
 		return heard
 	var own := state.player(listener)
-	if own.life == PlayerState.Life.DEAD:
+	if (own.life == PlayerState.Life.DEAD and not own.in_hall) or own.is_printing():
 		return heard
 	var listener_at := own.position
 	for speaker: int in state.present_peers():
 		if speaker == listener:
 			continue
 		var other := state.player(speaker)
-		if not other.is_alive():
+		if own.in_hall != other.in_hall or not (other.is_alive() or other.in_hall):
 			continue
 		if hears_at(state, listener, speaker, listener_at, other.position):
 			heard.append(speaker)

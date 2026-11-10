@@ -22,6 +22,10 @@ const DOWNED := AcceptSpec.From.DOWNED
 ## from where the unit tests stand their players.
 const RESPAWNS: Array[Vector3] = [Vector3(-25, 0, 15), Vector3(25, 0, 15), Vector3(5, 0, -25)]
 const RESPAWN_TAG := &"respawn"
+## The markers of the dead's hall (HALL_TAG, #1489), far from the rest of the map and always in
+## layouts(): only a Respawn with a hall_tag reads them.
+const HALLS: Array[Vector3] = [Vector3(1000, 0, 1000), Vector3(1010, 0, 1000)]
+const HALL_TAG := &"dead"
 ## The facings of faced_layouts() (#1522), level and unit, none of them Vector3.FORWARD.
 const FACINGS: Array[Vector3] = [
 	Vector3(0, 0, 1),
@@ -140,6 +144,8 @@ static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 		map.add_marker(&"round_player", Vector3(10 + i, 0, 5))
 	for spot: Vector3 in RESPAWNS:
 		map.add_marker(RESPAWN_TAG, spot)
+	for spot: Vector3 in HALLS:
+		map.add_marker(HALL_TAG, spot)
 	return {LOBBY: lobby, MAP: map, MOTION_MAP: map}
 
 

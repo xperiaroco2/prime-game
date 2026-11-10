@@ -134,7 +134,7 @@ func test_round_accepts_interact_from_the_living() -> void:
 	for accept: AcceptSpec in _mode().find_phase(&"round").accepts:
 		if accept.intent == &"Interact":
 			froms.append(accept.from)
-	assert_array(froms).is_equal([AcceptSpec.From.LIVING])
+	assert_array(froms).is_equal([AcceptSpec.From.LIVING | AcceptSpec.From.DEAD])
 
 
 func test_the_house_fits_the_photo_task_and_the_greybox_is_asked_for_none() -> void:

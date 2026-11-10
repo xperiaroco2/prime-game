@@ -8,8 +8,8 @@ extends Node
 ## PinballState, which everyone gets.
 ##
 ## - No stuck flipper: a key counts only while `listening` (GamePlayer.apply_flags: no Esc menu,
-##   the lobby screen), `reads_device_input` and the window has the focus; when one stops holding,
-##   the next step sends the release.
+##   the lobby screen or the dead's hall's Round, #1489), `reads_device_input` and the window has
+##   the focus; when one stops holding, the next step sends the release.
 ## - At most one intent per SEND_GAP_MSEC, under PeerBudget's 20 a second with room for the other
 ##   keys. A change inside the gap waits for its end and is never dropped: a press and a release
 ##   inside one gap go out in order, a gap apart; more changes merge into the newest state.
@@ -29,7 +29,7 @@ const RECONCILE_MSEC := 500
 ## Sends one intent: (intent: StringName, args: Dictionary) -> int (ClientSession.send_intent).
 var send := Callable()
 var model: ClientModel
-## The keys count (GamePlayer.apply_flags: not frozen, no Esc menu or invite, the lobby screen).
+## The keys count (GamePlayer.apply_flags: not frozen, no Esc menu or invite, lobby or hall).
 var listening := false
 ## Read the keyboard in the physics step; tests call update() themselves.
 var reads_device_input := true

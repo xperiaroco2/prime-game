@@ -4,7 +4,7 @@ extends TutorialCondition
 ## §3). By name, so core/ data never names a client or match state class.
 
 ## The lives, in the order of ClientModel.Life (a test holds both lists in step).
-const LIVES: Array[StringName] = [&"alive", &"downed", &"dead", &"left"]
+const LIVES: Array[StringName] = [&"alive", &"downed", &"dead", &"left", &"printing"]
 
 ## One of LIVES.
 @export var life: StringName = &"alive"

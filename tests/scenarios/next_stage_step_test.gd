@@ -67,8 +67,8 @@ func _staged() -> GameMode:
 	row.from = &"round"
 	row.outcome = &"next"
 	row.to = &"end"
-	# Every row out of the Round ends offers (OfferTicks.problems, #1434).
-	row.actions = [EndOffers.new()]
+	# Every row out of the Round ends offers (OfferTicks.problems, #1434) and the pinball (#1489).
+	row.actions = [EndOffers.new(), EndPinball.new()]
 	var rows: Array[Transition] = []
 	rows.assign(mode.transitions)
 	rows.append(row)

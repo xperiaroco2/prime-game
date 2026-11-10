@@ -38,9 +38,8 @@ func test_may_speak_only_living_in_a_phase_that_hears_someone() -> void:
 	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_true()
 	_model.phase = &"round"
 	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_true()
-	for life: ClientModel.Life in [
-		ClientModel.Life.DOWNED, ClientModel.Life.DEAD, ClientModel.Life.LEFT
-	]:
+	# DEAD speaks in the base Round's hall (#1489): the next suite's test of the hall holds it.
+	for life: ClientModel.Life in [ClientModel.Life.DOWNED, ClientModel.Life.LEFT]:
 		_model.lives[OWN] = life
 		assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_false()
 	# Another player's life is not the own.
@@ -343,3 +342,12 @@ func _sender() -> VoiceSender:
 func _record(frame: PackedByteArray) -> Error:
 	_sent.append(frame)
 	return OK
+
+
+## The dead speak only while they wait in the hall (#1489), on the base mode's own rows.
+func test_a_dead_player_speaks_only_while_it_waits_in_the_hall() -> void:
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	_model.phase = &"round"
+	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_true()
+	_model.phase = &"lobby"
+	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_false()

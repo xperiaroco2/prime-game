@@ -315,6 +315,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.life_deadline = -1
 	someone.knockdown_left = -1
 	someone.invulnerable_until = -1
+	someone.leave_hall()
 	someone.clear_places()
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false

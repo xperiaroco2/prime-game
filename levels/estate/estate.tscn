@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" uid="uid://d20854n1abwot" path="res://levels/estate/rooms/gate.tscn" id="15_bqbxw"]
 [ext_resource type="PackedScene" uid="uid://2ny57byoappi" path="res://levels/estate/rooms/markers.tscn" id="16_mrkrs"]
 [ext_resource type="PackedScene" uid="uid://jj4e3k8pw0vu" path="res://levels/estate/rooms/passages.tscn" id="17_psgs"]
+[ext_resource type="PackedScene" uid="uid://3aibmo7dg07r" path="res://levels/lobby/dead_hall.tscn" id="dead_hall_1"]
 
 [node name="Estate" type="Node3D" unique_id=743513984]
 
@@ -64,3 +65,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.5, 0, 90)
 [node name="Markers" parent="." unique_id=1374000001 instance=ExtResource("16_mrkrs")]
 
 [node name="Passages" parent="." unique_id=435023378 instance=ExtResource("17_psgs")]
+
+[node name="DeadHall" parent="." unique_id=1143491720 instance=ExtResource("dead_hall_1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2000, 0, 0)

@@ -109,7 +109,9 @@ extends RefCounted
 ## WireBoothRows (this file's line limit).
 ## 55 since #1585 (the ship's emergency mode): the event ShipZapped (kind 98: peer), only to
 ## the carrier the ship zapped as the crystal passed the aboard box's edge.
-const VERSION := 55
+## 56 since #1489 (the dead wait in a hall): the event PrintStarted (kind 99: peer, the respawn
+## marker and the print's length in milliseconds), before the Respawned that ends the print.
+const VERSION := 56
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -593,6 +595,7 @@ static func _events() -> Array[WireRow]:
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
 		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
+		_down(99, &"PrintStarted", 18, [_peer("peer"), _vec3("position"), _u16("print_ms")]),
 		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
 		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
 		_down(63, &"Revived", 4, [_peer("peer")]),

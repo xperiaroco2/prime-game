@@ -73,7 +73,7 @@ const MAX_JUMPS := 0xFFFF
 ## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
 ## and sends a Correction adds its event here.
 const PLACING_EVENTS: Array[StringName] = [
-	&"PlayersPlaced", &"KnockedDown", &"Revived", &"Respawned"
+	&"PlayersPlaced", &"KnockedDown", &"Died", &"Revived", &"Respawned", &"PrintStarted"
 ]
 ## Horizontal travel in one claim that counts as moving, for stamina: the host's
 ## `MovementRule.MOVE_EPSILON`.
@@ -163,6 +163,8 @@ var _abandoned := PackedStringArray()
 var _disconnecting: StringName = &""
 ## True from a placing event naming this client until the Correction that follows it.
 var _placement_due := false
+## Whether the own player's last placing event was a PrintStarted (_note_placement).
+var _printed := false
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -467,10 +469,18 @@ func _count_correction(_corrected_position: Vector3, _corrected_velocity: Vector
 func _note_placement(event_name: StringName, fields: Dictionary) -> void:
 	if not PLACING_EVENTS.has(event_name) or not _welcomed:
 		return
+	# A death places nobody but where the phase has a hall (#1489): elsewhere it sends no Correction,
+	# and the next one is a refused claim.
+	if event_name == &"Died" and not model.phase_has_hall():
+		return
 	if event_name == &"PlayersPlaced":
 		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
+		_printed = false
 	elif fields["peer"] as int == model.own_peer:
-		_placement_due = true
+		# The Respawned after a print moves nobody: its Correction came with PrintStarted (#1489). A
+		# hall's Died: its Correction is the move to the hall, which no event names.
+		_placement_due = event_name != &"Respawned" or not _printed
+		_printed = event_name == &"PrintStarted"
 
 
 ## The host's facing for this client (#1522): the next claims say it until the mover turns.
@@ -577,6 +587,8 @@ func _claims_accepted() -> bool:
 	if spec == null:
 		return false
 	var life := model.life_of(model.own_peer)
+	if life == ClientModel.Life.DEAD:
+		return model.waits_in_hall()
 	if life != ClientModel.Life.ALIVE and life != ClientModel.Life.DOWNED:
 		return false
 	var mine: int = AcceptSpec.From.PLAYER

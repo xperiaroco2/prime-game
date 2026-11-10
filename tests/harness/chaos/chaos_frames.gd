@@ -97,13 +97,14 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## and 90 left it when EngineProblemOpened and EngineProblemFixed took them (#1453), 92 and 93
 ## took theirs; 92, 93 and 95 left it when GillFlipped, BreakerChain and CrystalChanged took them
 ## (#1461); WheelPose took 26 (#1485), 27 took its place; 97 left it when BoothReplay took it
-## (#1474), 98 took its place; 98 left it when ShipZapped took it (#1585), 99 took its place.
-const UNASSIGNED: Array[int] = [0, 27, 31, 99, 111, 113, 127, 128, 200, 255]
+## (#1474), 98 took its place; 98 left it when ShipZapped took it (#1585), 99 took its place; 99
+## left it when PrintStarted took it (#1489), 100 took its place.
+const UNASSIGNED: Array[int] = [0, 27, 31, 100, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
 ## repair's (#807, #808), the photo task's (#781, #782), the cooking task's (#773, #1101) and the
-## ship engine's (#1453), the pinball's (#1398) and the photo booth's (#1396, #1474), each with
-## valid fields.
+## ship engine's (#1453), the pinball's (#1398), the photo booth's (#1396, #1474) and the print's
+## (#1489), each with valid fields.
 const WRONG_DIRECTION: Array[StringName] = [
 	&"Rejected",
 	&"SwitchChanged",
@@ -130,9 +131,11 @@ const WRONG_DIRECTION: Array[StringName] = [
 	&"PinballState",
 	&"BoothStep",
 	&"BoothReplay",
+	&"PrintStarted",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
+	&"PrintStarted": {"peer": 1, "position": Vector3.ZERO, "print_ms": 2000},
 	&"SwitchChanged": {"station": 1, "on": true},
 	&"ButtonPressed": {"station": 1},
 	&"LiftChanged": {"station": 1, "up": true, "tick": 1},

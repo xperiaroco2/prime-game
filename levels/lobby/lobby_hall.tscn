@@ -1078,7 +1078,6 @@ ship_free = Array[NodePath]([NodePath("Ship/Environment"), NodePath("Ship/Lights
 metadata/art_issue = "prime-game-art#356"
 metadata/credit = "Earth imagery: NASA"
 metadata/ship_scene = "res://levels/ship/ship.tscn"
-metadata/size_m = Vector2(40, 40)
 metadata/camera_far_m = 548.3775226487097
 
 [node name="Hall" type="Node3D" parent="." unique_id=1172234229]

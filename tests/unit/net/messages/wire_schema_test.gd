@@ -373,3 +373,30 @@ func test_a_row_declared_twice_is_logged_and_the_first_stays() -> void:
 	assert_object(schema.row_named(&"twin")).is_null()
 	assert_object(schema.row_named(first.name)).is_same(first)
 	assert_object(schema.row(first.kind + 1000)).is_null()
+
+
+## Two rows on one kind leave one of them out of the table (#1489: PrintStarted took GillFlipped's
+## 92): the table holds every row the schema lists.
+func test_no_row_of_the_schema_is_left_out_of_the_table() -> void:
+	var listed := (
+		WireSchema._intents()
+		+ WireSchema._events()
+		+ WireSchema._state_and_voice()
+		+ WireSchema._debug_commands()
+	)
+	var kinds: Array[int] = []
+	var names: Array[StringName] = []
+	for each: WireRow in listed:
+		(
+			assert_bool(kinds.has(each.kind))
+			. override_failure_message("%s repeats kind %d" % [each.name, each.kind])
+			. is_false()
+		)
+		(
+			assert_bool(names.has(each.name))
+			. override_failure_message("%s is listed twice" % each.name)
+			. is_false()
+		)
+		kinds.append(each.kind)
+		names.append(each.name)
+	assert_int(WireSchema.game(true).rows().size()).is_equal(listed.size())

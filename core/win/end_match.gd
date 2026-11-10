@@ -7,6 +7,7 @@ extends RuleEffect
 ## #548. No names, no roles (§5: the reason and the time are public). The clock stops because
 ## End's clock does not run. An argument that is no side of the mode is a rule error: logged, and
 ## nothing is recorded or emitted.
+## The dead leave the dead's hall here (#1489): at End they are the dead of today's end.
 ##
 ## Emits: MatchEnded (everyone). No demands.
 
@@ -24,6 +25,9 @@ func run(ctx: MatchContext) -> void:
 		ctx.error("EndMatch: %s is not a side of the mode" % side)
 		return
 	ctx.state.winner = side
+	# The end is the same for all (#1489): the hall ends with the Round, no player waits in it at End.
+	for peer: int in ctx.state.peers():
+		ctx.state.players[peer].leave_hall()
 	var numbers: Dictionary[StringName, int] = {}
 	if not ctx.outcome_reason.is_empty() and ctx.state.clock_ticks_total > 0:
 		var ran := ctx.state.clock_ticks_total - maxi(ctx.state.clock_ticks_left, 0)

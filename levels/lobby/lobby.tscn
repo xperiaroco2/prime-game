@@ -38,6 +38,7 @@ size = Vector3(0.2, 2.5, 2)
 [node name="Lobby" type="Node3D" unique_id=1140489342]
 
 [node name="Hall" parent="." unique_id=1451145101 instance=ExtResource("1_hall")]
+metadata/size_m = Vector2(40, 40)
 
 [node name="ShipOccluder" type="OccluderInstance3D" parent="." unique_id=1523000001]
 script = ExtResource("2_render")

@@ -1,8 +1,9 @@
 class_name Snapshots
 extends RefCounted
 ## One peer's snapshot of one tick, built from visibility rules per entity (ARCHITECTURE §5): the
-## avatar of every living or downed player reaches every player, the dead included (a spectator's
-## camera is built from these); a dead player has no avatar, so no snapshot holds one; bodies and
+## avatar of every living or downed player reaches every player, the dead outside a hall included
+## (a spectator's camera is built from these); a dead player has no avatar outside the hall, and a
+## dead viewer in the hall gets only the others there (avatars_for, #1489); bodies and
 ## items reach everyone; nobody gets their own avatar, except a knocked-down or limp player (the
 ## knockdown rework's KE5 (a); #1393): its own place, where the host's physics may carry it, and
 ## nothing hidden. The
@@ -46,21 +47,26 @@ static func sent(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
 	return shown
 
 
-## The avatars `viewer` is entitled to see at host tick `at_tick`, by peer.
+## The avatars `viewer` is entitled to see at host tick `at_tick`, by peer (#1489): nobody sees a
+## dead player but a dead viewer in the hall, who sees the others there and nobody else. A printing
+## player is shown invulnerable: strikes skip it.
 static func avatars_for(state: MatchState, viewer: int, at_tick: int) -> Dictionary:
 	var avatars := {}
+	var viewer_in_hall := state.player(viewer) != null and state.player(viewer).in_hall
 	for peer: int in state.present_peers():
 		var player := state.players[peer]
 		if peer == viewer and not player.holds_still():
 			continue
-		if player.life == PlayerState.Life.DEAD:
+		if viewer_in_hall != player.in_hall:
+			continue
+		if player.life == PlayerState.Life.DEAD and not viewer_in_hall:
 			continue
 		avatars[peer] = {
 			"position": player.position,
 			"velocity": player.velocity,
 			"facing": player.facing,
 			"downed": player.life == PlayerState.Life.DOWNED,
-			"invulnerable": player.is_invulnerable(at_tick),
+			"invulnerable": player.is_invulnerable(at_tick) or player.is_printing(),
 			"crouched": player.crouched,
 			"sneaking": player.sneaking,
 			"posed": player.posed,

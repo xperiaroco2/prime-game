@@ -176,11 +176,13 @@ func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray, strength
 func hears(speaker: int, tick: int) -> bool:
 	if model == null or not codec.available() or speaker == model.own_peer:
 		return false
-	if _own_dead():
+	if _own_dead() and not model.waits_in_hall():
 		return false
-	if _cutoff_m <= 0.0:
+	if _cutoff_m <= 0.0 or not model.roster.has(speaker):
 		return false
-	if not model.roster.has(speaker) or model.life_of(speaker) != ClientModel.Life.ALIVE:
+	# The hall's dead hear only each other (#1489); the host relays only those frames.
+	var voiced := ClientModel.Life.DEAD if model.waits_in_hall() else ClientModel.Life.ALIVE
+	if model.life_of(speaker) != voiced:
 		return false
 	return tick > flushed_at(speaker)
 
