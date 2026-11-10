@@ -517,7 +517,11 @@ PRELOAD = 'class_name Pre\nextends Node\n\nconst TEX: Texture2D = preload("res:/
 # A script that reads the texture through the class name: with the pointer file hidden from the import it fails with
 # a line that names neither file (the review of #515); with a stand-in it loads.
 USER = "extends Node\n\nvar tex: Texture2D = Pre.TEX\n"
-PROJECT = 'config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n'
+# Imports on one thread as the project does (check.import_threads_policy): Godot 4.7.2's threaded import of the two
+# font stand-ins crashed or hung this suite's import now and then (#949).
+PROJECT = (
+    'config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n\n[editor]\n\nimport/use_multiple_threads=false\n'
+)
 UID = "uid://cy2bb7ynws6wi"
 IMPORTED_HASH = "0180b64844aadf81c6b18dd2c9268d2e"  # Godot's for res://art/a.png
 # A 1x1 PNG's .import file as Godot 4.7.2 wrote it (probed for #515), moved to art/a.png.

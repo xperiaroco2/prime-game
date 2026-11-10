@@ -93,6 +93,26 @@ def user_dir_policy() -> list[str]:
     ]
 
 
+# Godot 4.7.2 imports the files of a threaded importer in groups on worker threads (EditorFileSystem::reimport_files),
+# and its font importer (font_data_dynamic) is threaded: a group of two or more fonts crashed now and then (a worker
+# calls /root's propagate_notification(), "The caller thread can't call ...", then SIGSEGV or SIGABRT) or hung, in
+# 14 CI runs of test_lfs's stand-in import (#949), and in 15 of 440 fresh imports of two fonts on the engineer's PC,
+# stand-ins and real fonts alike; on one thread, none in 400. The project has two fonts, so it imports on one thread
+# until a Godot upgrade brings the upstream fix (godotengine/godot#123546, in 4.8; docs/ARCHITECTURE.md §4.7.21).
+IMPORT_THREADS_KEY = "import/use_multiple_threads"
+
+
+def import_threads_policy() -> list[str]:
+    """Problems with the [editor] import threads setting in project.godot: it must import on one thread (#949)."""
+    value = section_values((ROOT / "project.godot").read_text(encoding="utf-8"), "editor").get(IMPORT_THREADS_KEY)
+    if value == "false":
+        return []
+    return [
+        f"project.godot [editor] {IMPORT_THREADS_KEY} is {value or 'unset (true)'}; it must be false: Godot 4.7.2's"
+        " threaded import of two or more fonts crashes or hangs now and then (#949)"
+    ]
+
+
 # --- is the import current? (#174) -----------------------------------------------------------------
 # Godot rebuilds its global class cache (.godot/global_script_class_cache.cfg), the uid cache and the imported assets
 # only in an import; a game started without one after `git switch` brought a new class_name script printed
@@ -367,6 +387,14 @@ def check_all(files: list[str] | None) -> int:
             bad(line)
     else:
         ok("project.godot keeps the default user://")
+
+    threads = import_threads_policy()
+    if threads:
+        failed = True
+        for line in threads:
+            bad(line)
+    else:
+        ok("project.godot imports on one thread (#949)")
 
     if not (common.IS_CI or common.IS_CLOUD):  # there lfs.ci_pointers() skips them (#515)
         hint = lfs.local_hint()
