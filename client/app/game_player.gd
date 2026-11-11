@@ -37,6 +37,9 @@ static func apply_flags(game: Game, now: GameFlow.Screen) -> void:
 	# decides whether it offers one (HandOverUse.can_hand).
 	items.hand_over.reads_device_input = game.device_input
 	items.hand_over.listening = listening and hands
+	# The match console's screen (#1604): the crosshair and E work it in the lobby alone.
+	items.console.reads_device_input = game.device_input
+	items.console.listening = listening and now == GameFlow.Screen.LOBBY
 	# The flippers count on the lobby screen, and in the Round while the own player waits in the
 	# dead's hall (#1489); under the Esc menu PinballKeys sends the release (#1400: no stuck
 	# flipper), while the seat and its close-up stay up.
