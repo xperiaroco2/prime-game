@@ -39,6 +39,11 @@ const ROWS: Dictionary[StringName, Array] = {
 	&"tasks": ["TaskCount", "", ""],
 	&"banned_task_types": ["Tasks", "lobby.setting.tasks", ""],
 }
+## The task count's setting (DealTasks' `tasks_setting` in the base mode): one per task type the
+## picked map plays, so with one such type it has nothing to choose (#1601).
+const TASK_COUNT := &"tasks"
+## A task type's own step count with no row key of its own: "<the task>: step count" (#1601).
+const STEPS_LABEL := "lobby.setting.task_steps"
 ## Sizes in px at the 1920x1080 base (the handoff's; layout).
 const LIST_WIDTH := Vector2(784, 0)
 const CARD_SIZE := Vector2(184, 96)
@@ -47,6 +52,9 @@ const SAVE_NAME_WIDTH := Vector2(120, 0)
 const FIELD_WIDTH := Vector2(500, 0)
 const GONE_WIDTH := Vector2(360, 0)
 const CHECK_SIZE := Vector2(24, 24)
+## The players' list at least five rows high: with M8's few settings rows the page is short, and
+## the list would scroll with three players (#1601; layout).
+const PLAYERS_MIN_SIZE := Vector2(0, 360)
 const COPIED_SECONDS := 1.5
 const CHECK := preload("res://assets/ui/toy_pack/icons/check.svg")
 
@@ -87,6 +95,16 @@ var _plates: Dictionary[StringName, Dictionary] = {}
 var _ban_boxes: Dictionary[StringName, Array] = {}
 ## The maps players play (`GameMode.player_maps()`, no test bench), in the picker's order.
 var _maps := PackedStringArray()
+## The map's row: hidden with one map to play, nothing to pick (#1601).
+var _map_row: PanelContainer
+## Each whole-number setting's row, and whether it shows on any map (bounds and a reader).
+var _rows: Dictionary[StringName, PanelContainer] = {}
+var _row_shown: Dictionary[StringName, bool] = {}
+## A task type's own setting (TaskType.subtasks_setting) -> the types reading it: its row shows
+## only on a map one of them plays (#1601), as their chips do.
+var _types_of: Dictionary[StringName, Array] = {}
+## A row named after its one task type (STEPS_LABEL) -> that type's id, written in the language now.
+var _step_rows: Dictionary[StringName, StringName] = {}
 ## The code Copy puts on the clipboard; empty hides the row.
 var _code := ""
 ## The roster as the rows show it, so a frame's refresh rebuilds them only on a change.
@@ -133,7 +151,8 @@ func _init() -> void:
 	name_edit.focus_exited.connect(_submit_name)
 	list.add_child(SettingRows.row("Name", NAME_LABEL, name_edit))
 	map_picker.item_selected.connect(_send_map)
-	list.add_child(SettingRows.row("Map", MAP_LABEL, map_picker))
+	_map_row = SettingRows.row("Map", MAP_LABEL, map_picker)
+	list.add_child(_map_row)
 	settings_box.name = "Settings"
 	settings_box.theme_type_variation = &"ToyColumnEight"
 	list.add_child(settings_box)
@@ -159,15 +178,28 @@ func set_mode(mode: GameMode) -> void:
 	_bans.clear()
 	_plates.clear()
 	_ban_boxes.clear()
+	_rows.clear()
+	_row_shown.clear()
+	_types_of.clear()
+	_step_rows.clear()
 	# The maps players play: never a test bench (GameMode.bench_maps, #767).
 	_maps = mode.player_maps()
 	map_picker.clear()
 	for map in _maps:
 		map_picker.add_item(map_name(map))
+	_map_row.visible = _maps.size() > 1
+	for task: TaskType in mode.task_types:
+		if task != null and not task.subtasks_setting.is_empty():
+			if not _types_of.has(task.subtasks_setting):
+				_types_of[task.subtasks_setting] = []
+			_types_of[task.subtasks_setting].append(task)
 	var read := mode.read_settings()
 	for spec: SettingSpec in mode.settings:
 		var row: Array = ROWS.get(spec.id, [String(spec.id).to_pascal_case(), "", ""])
 		var key := str(row[1]) if not str(row[1]).is_empty() else spec.display_name
+		var types: Array = _types_of.get(spec.id, [])
+		if str(row[1]).is_empty() and types.size() == 1:
+			_step_rows[spec.id] = (types[0] as TaskType).id
 		if spec.is_number():
 			var stepper := SettingStepper.new()
 			stepper.format_key = str(row[2])
@@ -179,10 +211,14 @@ func set_mode(mode: GameMode) -> void:
 			var made := SettingRows.row(str(row[0]), key, stepper)
 			# A setting with one allowed value (the base mode's task count) has nothing to show,
 			# nor one no part of the mode reads (the base mode's knives in the M8 slice, #1525).
-			made.visible = spec.min_value < spec.max_value and read.has(spec.id)
+			_row_shown[spec.id] = spec.min_value < spec.max_value and read.has(spec.id)
+			made.visible = _row_shown[spec.id]
+			_rows[spec.id] = made
 			settings_box.add_child(made)
 		else:
 			settings_box.add_child(_task_row(str(row[0]), key, spec.id, mode))
+	_write_steps()
+	_show_rows(HowtoCards.shown_map(mode, ""))
 	_build_cards()
 
 
@@ -230,6 +266,7 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := 
 	# The chips and plates of the types that play on the picked map only (DE16 of the
 	# delivery-by-meaning ADR): the House shows one Delivery, the greybox another.
 	var on_map := HowtoCards.shown_map(_mode, model.map)
+	_show_rows(on_map)
 	for id: StringName in _bans:
 		var banned: PackedStringArray = model.id_sets.get(id, PackedStringArray())
 		var chips: Dictionary = _bans[id]
@@ -257,6 +294,40 @@ static func default_name(model: ClientModel) -> String:
 	if host.is_empty():
 		return ""
 	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": host})
+
+
+## The number rows on `on_map` (#1601): a task type's own setting only where one of its types
+## plays, the task count only with more types playing there than its least value.
+func _show_rows(on_map: String) -> void:
+	if _mode == null:
+		return
+	var playing := 0
+	for task: TaskType in _mode.task_types:
+		if task != null and task.plays_on(on_map):
+			playing += 1
+	for id: StringName in _rows:
+		var shown := _row_shown[id]
+		if _types_of.has(id):
+			shown = (
+				shown
+				and _types_of[id].any(func(task: TaskType) -> bool: return task.plays_on(on_map))
+			)
+		if id == TASK_COUNT:
+			shown = shown and playing > _mode.find_setting(id).min_value
+		_rows[id].visible = shown
+
+
+## The rows named after their one task type, in the language now: "<the task>: step count".
+func _write_steps() -> void:
+	if _mode == null:
+		return
+	for id: StringName in _step_rows:
+		if not _rows.has(id):
+			continue
+		var label := SettingRows.name_of(_rows[id])
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		var task := ContentNames.text(ContentNames.task(_step_rows[id], _mode))
+		label.text = String(TranslationServer.translate(STEPS_LABEL)).format({"task": task})
 
 
 ## A map's name for the picker (ContentNames.map: its scene's file name, "House").
@@ -300,6 +371,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED and player_rows != null:
 		_tint_marks()
 	if what == NOTIFICATION_TRANSLATION_CHANGED and count_label != null:
+		_write_steps()
 		_roster_key = ""
 		if _model != null:
 			_refresh_players(_model)
@@ -490,6 +562,7 @@ func _build_side() -> VBoxContainer:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus = true
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = PLAYERS_MIN_SIZE
 	players.add_child(scroll)
 	player_rows.name = "Rows"
 	player_rows.theme_type_variation = &"ToyColumnEight"

@@ -52,15 +52,48 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_bool((panel.settings_box.get_node(^"EngineStages") as Control).visible).is_false()
 	# The knives place nothing since #1497 (no part reads the setting): the row hides (#1525).
 	assert_bool((panel.settings_box.get_node(^"Knives") as Control).visible).is_false()
-	assert_bool((panel.settings_box.get_node(^"Packages") as Control).visible).is_true()
-	# The task count is 1 to 5 since the Generator, the photo task, Cooking and car repair (#800,
-	# #784, #775, #810; GD7: every type the map plays): its row shows. A fixed count's row hides:
-	# the zones test below checks that on the Zones row.
-	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_true()
+	# On the Estate, the one map players play in M8, only the ship's engine plays (#1601): no
+	# other task's own row, no task count (one type: nothing to choose), no map row (one map).
+	var shown_model := panel.get(&"_model") as ClientModel
+	assert_str(HowtoCards.shown_map(mode, shown_model.map)).is_equal(mode.default_map())
+	for row: String in ["Packages", "Switches", "Photos", "Burgers", "CarParts", "TaskCount"]:
+		var hidden := panel.settings_box.get_node(row) as Control
+		assert_bool(hidden.visible).override_failure_message(row).is_false()
+	assert_bool((panel.get(&"_map_row") as Control).visible).is_false()
+	# On a map with more types (the House bench), their rows show again. The task count is 1 to 5
+	# since the Generator, the photo task, Cooking and car repair (#800, #784, #775, #810; GD7:
+	# every type the map plays). A fixed count's row hides: the zones test below checks that on
+	# the Zones row.
+	var house := Preview.fake_model(mode, true)
+	house.map = HOUSE
+	panel.refresh(house, -1, true)
+	for row: String in ["Packages", "Switches", "Photos", "Burgers", "CarParts", "TaskCount"]:
+		var shown := panel.settings_box.get_node(row) as Control
+		assert_bool(shown.visible).override_failure_message(row).is_true()
 	var duration := steppers[0] as SettingStepper
 	var spec := mode.find_setting(&"match_duration")
 	duration.less.pressed.emit()
 	assert_array(sent).is_equal([[&"match_duration", spec.default_value - 1]])
+
+
+func test_a_task_types_own_row_is_named_in_the_players_language() -> void:
+	# #1601: a task type's own setting with no deck key of its own (the Generator's switches) reads
+	# "<the task>: step count" from the deck, never the content's English name, and follows a
+	# language switch.
+	var mode := load(MODE) as GameMode
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	var house := Preview.fake_model(mode, true)
+	house.map = HOUSE
+	panel.refresh(house, -1, true)
+	var label := SettingRows.name_of(panel.settings_box.get_node(^"Switches") as PanelContainer)
+	var task := ContentNames.text(ContentNames.task(&"generator", mode))
+	assert_str(label.text).is_equal(tr("lobby.setting.task_steps").format({"task": task}))
+	assert_str(label.text).is_not_equal(mode.find_setting(&"switches").display_name)
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(label.text).is_equal("Рубильники: кількість кроків")
 
 
 func test_the_lobby_tab_of_a_mode_with_zones_hides_the_fixed_zone_count() -> void:
@@ -113,6 +146,8 @@ func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() ->
 	var sent: Array[String] = []
 	panel.map_changed.connect(func(map: String) -> void: sent.append(map))
 	var picker := panel.map_picker
+	# Two maps to pick from: the Map row shows (#1601 hides it with one).
+	assert_bool((panel.get(&"_map_row") as Control).visible).is_true()
 	assert_int(picker.item_count).is_equal(mode.maps.size())
 	for i in mode.maps.size():
 		assert_str(picker.get_item_text(i)).is_equal(LobbyPanel.map_name(mode.maps[i]))
