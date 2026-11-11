@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://c56cclkpvrbw4"]
+
+[ext_resource type="Script" uid="uid://c61bj0bqeqc4y" path="res://client/dev/ship_stations_preview.gd" id="1_preview"]
+
+[node name="ShipStationsPreview" type="Node3D" unique_id=2075093257]
+script = ExtResource("1_preview")
+view = "mist"

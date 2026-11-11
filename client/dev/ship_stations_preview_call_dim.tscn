@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bgtur8jp8cp2a"]
+
+[ext_resource type="Script" uid="uid://c61bj0bqeqc4y" path="res://client/dev/ship_stations_preview.gd" id="1_preview"]
+
+[node name="ShipStationsPreview" type="Node3D" unique_id=170982933]
+script = ExtResource("1_preview")
+view = "call_dim"
