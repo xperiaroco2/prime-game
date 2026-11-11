@@ -171,6 +171,8 @@ func _ready() -> void:
 	ui.esc.quit_requested.connect(quit)
 	ui.map_opened.connect(_on_map_opened)
 	ui.map_closed.connect(_on_map_closed)
+	ui.mirror_toggled.connect(_on_mirror_toggled)
+	ui.mirror.colour_chosen.connect(choose_colour)
 	GameHowto.setup(self)
 	_world.add_child(_bodies)
 	_world.add_child(_prints)
@@ -431,10 +433,11 @@ func open_esc() -> void:
 
 
 ## Esc again with no question open on it (its Resume), or Resume: the menu closes; in the lobby,
-## Loading and the round the mouse is captured again.
+## Loading and the round the mouse is captured again, but under a screen that frees it.
 func close_esc() -> void:
 	ui.close_esc()
-	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
+	# Not under the mirror's colour menu (#1394): its mouse stays free.
+	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE and not ui.frees_mouse():
 		pointer.capture(true)
 	# Last: after lesson 8 the tutorial leaves here (D32 (b)).
 	tutorial.esc_closed()
@@ -453,6 +456,24 @@ func _on_map_closed() -> void:
 	if screen() == GameFlow.Screen.ROUND and not ui.esc_open() and pointer.focused():
 		pointer.capture(true)
 	GamePlayer.apply_flags(self, screen())
+
+
+## The mirror's colour menu showed or hid (#1394): the mouse is free under it while the player
+## keeps walking (walking off the place hides it); hidden, the lobby's mouse is captured again, as
+## after the map: not under the Esc menu, and only while the window has the focus.
+func _on_mirror_toggled(on: bool) -> void:
+	if on:
+		pointer.capture(false)
+	elif screen() == GameFlow.Screen.LOBBY and not ui.esc_open() and pointer.focused():
+		pointer.capture(true)
+	GamePlayer.apply_flags(self, screen())
+
+
+## The mirror's swatch `colour` (#1394): SetProfile asks the host for it, the own name kept; the
+## host's ProfileChanged repaints the body, nothing is predicted.
+func choose_colour(colour: int) -> void:
+	if _client != null:
+		_client.send_intent(Intents.SET_PROFILE, MirrorMenu.profile_of(_client.model, colour))
 
 
 ## The Ready key (`ready`, F, #169): the Ready toggle's SetReady, with the own ready flag flipped.

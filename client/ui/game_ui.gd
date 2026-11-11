@@ -34,6 +34,9 @@ signal map_closed
 ## The map loading started (the connecting screen shows its players and a tip): the game may put a
 ## how-to card there instead (show_loading_card, #254).
 signal loading_started
+## The mirror's colour menu showed (`on`) or hid (#1394): the game frees the mouse for it, and
+## captures it again after.
+signal mirror_toggled(on: bool)
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
@@ -61,6 +64,8 @@ var lobby_hud := LobbyHud.new()
 var pregame := PregameScreen.new()
 var hud := Hud.new()
 var map := MapScreen.new()
+## The mirror's colour menu (#1394) on the lobby screen while the own player holds a mirror place.
+var mirror := MirrorMenu.new()
 var end := EndScreen.new()
 var esc := EscMenu.new()
 ## The downed, dead and respawn plates over the HUD in the round (M4-9; the Toy s09, #497).
@@ -97,7 +102,7 @@ func _init() -> void:
 	for on: CanvasLayer in [self, black, above]:
 		on.child_entered_tree.connect(_style)
 	# The tutorial (its invite and lesson plates) stays on this layer, the table's HUD layer (s1).
-	for each: Control in [plates, menu, lobby_hud, hud, life, tutorial, map]:
+	for each: Control in [plates, menu, lobby_hud, hud, life, tutorial, map, mirror]:
 		_style(each)
 		add_child(each)
 	for each: Control in [connecting, pregame, end]:
@@ -220,6 +225,10 @@ func set_map_data(data: MapData) -> void:
 ## tick known.
 func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) -> void:
 	esc.refresh(screen, model, host_tick, hosting, mode)
+	var mirror_was := mirror.visible
+	mirror.refresh(model, screen)
+	if mirror.visible != mirror_was:
+		mirror_toggled.emit(mirror.visible)
 	match screen:
 		GameFlow.Screen.LOBBY:
 			lobby_hud.refresh(model, mode, host_tick)
@@ -311,9 +320,10 @@ func blocks_keys() -> bool:
 	return esc_open() or tutorial.invite_shown()
 
 
-## The mouse stays free while the round shows the map (its «?») or the tutorial's invite (#492).
+## The mouse stays free while the round shows the map (its «?»), the tutorial's invite (#492) or
+## the lobby the mirror's colour menu (#1394).
 func frees_mouse() -> bool:
-	return _map_open or tutorial.invite_shown()
+	return _map_open or tutorial.invite_shown() or mirror.visible
 
 
 ## The main menu's open panel (code, Direct or Settings, #493), only while the main menu shows (its
