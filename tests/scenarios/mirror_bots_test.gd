@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The mirror in the bots (#1394; ARCHITECTURE §7.1.24, §9.7): the fixture scenario
 ## mirror_two_colours through the host (BotsRunner, with its leak check) and
 ## the core runner: a colour asked away from the mirror is refused, two bots at two places change
-## their colours at once and each sees the other's.
+## their colours in turn and each sees the other's.
 
 const SCENARIO := "res://tests/fixtures/scenarios/mirror_two_colours.tres"
 
