@@ -603,6 +603,19 @@ func test_a_slit_opened_puffs_steam_and_all_five_open_leave_a_mist() -> void:
 		middle += (gills.get_node("Slit%d" % slit) as Node3D).global_position / 5.0
 	assert_vector(_view.mist()[0].global_position).is_equal_approx(middle, Vector3.ONE * 1e-4)
 	assert_float(middle.distance_to(gills.global_position)).is_greater(0.1)
+	# A real mist (#1596): one burst of many soft puffs that fade out, the last by MIST_SECONDS,
+	# never a solid shape.
+	var found: Node3D = _view.mist()[0]
+	assert_object(found).is_instanceof(CPUParticles3D)
+	var cloud := found as CPUParticles3D
+	assert_bool(cloud.one_shot and cloud.emitting).is_true()
+	assert_int(cloud.amount).is_greater(10)
+	assert_float(cloud.lifetime * (2.0 - cloud.explosiveness)).is_less_equal(
+		ShipEngineViews.MIST_SECONDS + 1e-4
+	)
+	assert_float(cloud.color_ramp.get_color(cloud.color_ramp.get_point_count() - 1).a).is_zero()
+	var puff := (cloud.mesh as QuadMesh).material as StandardMaterial3D
+	assert_object(puff.albedo_texture).is_instanceof(GradientTexture2D)
 	_view._process(ShipEngineViews.MIST_SECONDS)
 	assert_int(_view.steam().size()).is_equal(0)
 	assert_int(_view.mist().size()).is_equal(0)

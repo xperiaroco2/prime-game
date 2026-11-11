@@ -18,7 +18,7 @@ static func build(root: Node3D, centres: Array[Vector3]) -> ShipBoardSmoke:
 	var smoke := ShipBoardSmoke.new()
 	var mesh := QuadMesh.new()
 	mesh.size = Vector2(0.07, 0.07)
-	mesh.material = _smoke_material()
+	mesh.material = puff_material()
 	for i: int in centres.size():
 		var at := Node3D.new()
 		at.name = "TrippedCore%d" % i
@@ -47,7 +47,8 @@ func size() -> int:
 	return _smoke.size()
 
 
-static func _smoke_material() -> StandardMaterial3D:
+## A soft round puff for particles, white and tinted by their colour ramp (the gills' mist too).
+static func puff_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
