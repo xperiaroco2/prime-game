@@ -9308,7 +9308,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   `SMOKE_FROM_OPEN` open (the core in view) and its emitting off at once when its breaker is on again, the puffs
   fading out. Each length, rate, size and colour the HANDOFFs leave open is a provisional placeholder (#507).
   Their `shot`s: `client/dev/ship_stations_preview_<view>.tscn` (`board`, `socket`, `socket_spent`, `charger`,
-  `flash`) in the estate's ship room, every station at its marker.
+  `flash`) in the estate's ship room, every station at its marker; the same preview shows the engine made readable
+  (#1500): `call` and `call_dim` (the call at a pulse's height and between pulses), `wiring` (started, the ring half
+  full, two problems open, the countdown), `steam` and `mist` (at the first gill set).
   The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
   **The finish** (GDD §8): the last stage passing has no ceremony of its own, no mesh, light or sound (the
