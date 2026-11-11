@@ -123,9 +123,10 @@ func test_the_markers_read_without_errors_and_the_deal_uses_each() -> void:
 		for marker: Vector3 in _layout.positions(box_kind.spawn_tag):
 			on_marker = on_marker or boxes[0].position.distance_to(marker) < NEAR
 		assert_bool(on_marker).override_failure_message(String(box_kind.id)).is_true()
-	# The lobby's tap (#1390) and pinball (#1398), cleared at countdown_done, the dead hall's
+	# The lobby's tap (#1390), pinball (#1398) and three mirror places (#1394), cleared at
+	# countdown_done, the dead hall's
 	# (#1489), then the deal's.
-	var stations := 2 + 2 + 3 + type.herbs.size() + BURGERS
+	var stations := 2 + 3 + 2 + 3 + type.herbs.size() + BURGERS
 	for peer: int in _game.state.present_peers():
 		var view := _game.view_of(peer)
 		assert_int(view.events_named(&"StationPlaced").size()).is_equal(stations)

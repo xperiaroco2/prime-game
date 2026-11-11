@@ -18,7 +18,7 @@ extends RefCounted
 ## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 56
+const PROTOCOL_VERSION := 57
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -180,7 +180,10 @@ static func set_ready(ctx: MatchContext, command: MatchCommand, ready: bool) -> 
 
 ## SetProfile(name, colour) from a player (§3.5, §4.1, #551): true when the profile changed. In
 ## order: a `name` that is not text or a `colour` that is not an int is Rejected (`bad_args`); a
-## colour outside PlayerColours is `out_of_bounds`. The name as PlayerNames cleans it, made unique
+## colour outside PlayerColours is `out_of_bounds`; in a phase that has the mirror
+## (Mirror.gates_colour, #1394), asking for another colour than the own from anywhere but a mirror
+## place the player holds and stands at (Mirror.at_place) is `not_at_mirror` (the colour changes
+## at the mirror; the name alone changes anywhere). The name as PlayerNames cleans it, made unique
 ## against the other present players (so re-sending one's own "Dima 2" keeps it); a name with
 ## nothing usable left, or one reserved for the fallback names (PlayerNames.is_reserved, P13 (b)),
 ## keeps the current one, never Rejected for the name (so a player without an own name re-sends
@@ -198,6 +201,13 @@ static func set_profile(ctx: MatchContext, command: MatchCommand) -> bool:
 		ctx.reject(command, RejectReasons.OUT_OF_BOUNDS)
 		return false
 	var player := ctx.state.player(command.peer)
+	if (
+		wanted_colour != player.colour
+		and Mirror.gates_colour(ctx)
+		and not Mirror.at_place(ctx.state, command.peer)
+	):
+		ctx.reject(command, Mirror.NOT_AT_MIRROR)
+		return false
 	var player_name := player.name
 	var cleaned := PlayerNames.clean(wanted_name)
 	if not cleaned.is_empty() and not PlayerNames.is_reserved(cleaned):

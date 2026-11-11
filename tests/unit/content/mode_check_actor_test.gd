@@ -171,6 +171,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"InReach": [true, true, item],
 		&"InSight": [true, true, item],
 		&"ItemOnGround": [false, true, item],
+		&"MirrorFree": [true, true, none],
 		&"NoneAlive": [false, false, none],
 		&"OfferedTo": [true, true, none],
 		&"Offering": [true, false, none],

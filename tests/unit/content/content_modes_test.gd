@@ -622,8 +622,9 @@ func _enter_the_round_and_check_the_deal(mode: GameMode, knives: int) -> void:
 	assert_dict(kinds).is_equal(expected_kinds)
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		# The lobby's tap (StationTicks, #1390) and pinball (#1398), then Delivery's 6 circles.
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(8)
+		# The lobby's tap (StationTicks, #1390), pinball (#1398) and three mirror places (#1394),
+		# then Delivery's 6 circles.
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(11)
 		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(6 + knives)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
 			{"done": 0, "total": 6}
@@ -637,8 +638,8 @@ func _enter_the_round_and_check_the_deal(mode: GameMode, knives: int) -> void:
 		assert_bool(Array(map.positions(&"round_player")).has(at)).is_true()
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
-	# The lobby's tap and pinball first (#1390, #1398), then the row's order: roles, Delivery's
-	# deal, the knives (where the mode places any), then placement.
+	# The lobby's tap, pinball and mirror places first (#1390, #1398, #1394), then the row's
+	# order: roles, Delivery's deal, the knives (where the mode places any), then placement.
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]

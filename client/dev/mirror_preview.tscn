@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ckp127k6avffd"]
+
+[ext_resource type="Script" uid="uid://dad5d100rhvvo" path="res://client/dev/mirror_preview.gd" id="1_preview"]
+
+[node name="MirrorPreview" type="Node3D" unique_id=1746066482]
+script = ExtResource("1_preview")

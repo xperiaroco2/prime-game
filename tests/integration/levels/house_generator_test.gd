@@ -190,8 +190,14 @@ func test_with_two_switches_the_markers_the_deal_left_hold_no_station() -> void:
 		var stations := _game.view_of(peer).events_named(&"StationPlaced")
 		var ours := 0
 		for event: MatchEvent in stations:
-			var placed_id: int = event.to_dict()["station"]
-			if generator_ids.has(placed_id):
+			var fields: Dictionary = event.to_dict()
+			var placed_id: int = fields["station"]
+			# The match's ids start at 1 again after the lobby's ClearStations (MatchState), so a
+			# lobby station (the tap, the pinball, the mirror's places, #1394) may have had one.
+			var kind := (
+				_game.state.stations[placed_id].kind.id if generator_ids.has(placed_id) else &""
+			)
+			if generator_ids.has(placed_id) and fields["kind"] == kind:
 				ours += 1
 		assert_int(ours).is_equal(3)
 	_assert_clean()

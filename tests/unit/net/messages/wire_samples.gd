@@ -163,6 +163,11 @@ static func events() -> Dictionary[String, Array]:
 			0xFFFFFFFF, 0x7FFFFFFF, [true, true, true], [999999999, 9, 999999999], "P".repeat(80)
 		),
 	]
+	found["MirrorPlacesEvent"] = [
+		MirrorPlacesEvent.new(),
+		MirrorPlacesEvent.new(PackedInt32Array([3, 7]), PackedInt32Array([2, 0x7FFFFFFF])),
+		_mirror_full(),
+	]
 	found["LiftChangedEvent"] = [
 		LiftChangedEvent.new(2, true, 40), LiftChangedEvent.new(0xFFFE, false, 0xFFFFFFFE)
 	]
@@ -608,3 +613,13 @@ static func _pinball(
 	made.best = numbers[2]
 	made.best_name = best_name
 	return made
+
+
+## The largest MirrorPlaces the wire takes: WireSchema.MAX_MIRROR_PLACES places, the highest ids.
+static func _mirror_full() -> MirrorPlacesEvent:
+	var stations := PackedInt32Array()
+	var peers := PackedInt32Array()
+	for i in WireSchema.MAX_MIRROR_PLACES:
+		stations.append(0xFFFE - i)
+		peers.append(0x7FFFFFFF - i)
+	return MirrorPlacesEvent.new(stations, peers)

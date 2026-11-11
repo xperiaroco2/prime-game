@@ -143,6 +143,9 @@
 [ext_resource type="Script" uid="uid://dj1qmugxv51wn" path="res://core/movement/crouched_or_sneaking.gd" id="217_crouched_or_sneaking"]
 [ext_resource type="Script" uid="uid://ggeu2ox8lv1s" path="res://core/movement/take_wheel_pose.gd" id="218_take_wheel_pose"]
 [ext_resource type="Resource" uid="uid://b5afecexrhfee" path="res://content/poses/wheel_poses.tres" id="219_wheel_poses"]
+[ext_resource type="Resource" uid="uid://bnda4cg356rq5" path="res://content/stations/mirror.tres" id="220_mirror"]
+[ext_resource type="Script" uid="uid://cqfw82ig82b6f" path="res://core/mirror/mirror_ticks.gd" id="221_mirror_ticks"]
+[ext_resource type="Script" uid="uid://b6mcuxf0qq8n6" path="res://core/mirror/end_mirror.gd" id="222_end_mirror"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -404,6 +407,17 @@ kind = ExtResource("210_pinball")
 [sub_resource type="Resource" id="Pinball_ticks"]
 script = ExtResource("211_pinball_ticks")
 
+[sub_resource type="Resource" id="StationTicks_mirror"]
+script = ExtResource("172_station_ticks")
+kind = ExtResource("220_mirror")
+every_marker = true
+
+[sub_resource type="Resource" id="Mirror_ticks"]
+script = ExtResource("221_mirror_ticks")
+
+[sub_resource type="Resource" id="Mirror_end"]
+script = ExtResource("222_end_mirror")
+
 [sub_resource type="Resource" id="Pinball_end"]
 script = ExtResource("212_end_pinball")
 
@@ -429,7 +443,7 @@ script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby"), SubResource("WheelPose_accept")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_booth"), SubResource("BoothTicks_lobby")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_booth"), SubResource("BoothTicks_lobby"), SubResource("StationTicks_mirror"), SubResource("Mirror_ticks")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -498,7 +512,7 @@ settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready"), SubResource("Accept_countdown_interact"), SubResource("Accept_countdown_pick_up"), SubResource("Accept_countdown_put_down"), SubResource("Accept_countdown_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_countdown_swap"), SubResource("Accept_countdown_draw"), SubResource("HandOver_accept_countdown"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby"), SubResource("WheelPose_accept")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_mirror"), SubResource("Mirror_ticks")])
 voice_rule = SubResource("Voice_countdown")
 level = 1
 snapshots = true
@@ -973,7 +987,7 @@ script = ExtResource("7_row")
 from = &"countdown"
 outcome = &"countdown_done"
 to = &"loading"
-actions = Array[ExtResource("14_effect")]([SubResource("Clear_items"), SubResource("Pinball_end"), SubResource("Clear_stations"), SubResource("Limp_end"), SubResource("Offers_end")])
+actions = Array[ExtResource("14_effect")]([SubResource("Clear_items"), SubResource("Pinball_end"), SubResource("Mirror_end"), SubResource("Clear_stations"), SubResource("Limp_end"), SubResource("Offers_end")])
 
 [sub_resource type="Resource" id="Quota_dissidents"]
 script = ExtResource("59_quota")

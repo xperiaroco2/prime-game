@@ -68,7 +68,13 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
 		# The photo booth (#1396): its station and its clock after the offers', in the Lobby only.
-		assert_int(systems.size()).is_equal(11 if phase_id == &"lobby" else 9)
+		# The mirror (#1394): its places and their ticks last, in the Lobby and the Countdown.
+		assert_int(systems.size()).is_equal(13 if phase_id == &"lobby" else 11)
+		var places := systems[systems.size() - 2] as StationTicks
+		assert_object(places).is_not_null()
+		assert_str(String(places.kind.id)).is_equal("mirror")
+		assert_bool(places.every_marker).is_true()
+		assert_object(systems[systems.size() - 1]).is_instanceof(MirrorTicks)
 		if phase_id == &"lobby":
 			assert_object(systems[9]).is_instanceof(StationTicks)
 			assert_str(String((systems[9] as StationTicks).kind.id)).is_equal("booth")
@@ -112,16 +118,17 @@ func test_countdown_done_clears_the_items_and_a_cancel_does_not() -> void:
 		if row.from != &"countdown":
 			continue
 		if row.outcome == CountdownPhase.COUNTDOWN_DONE:
-			# The hall's items, then the pinball's game (#1398), then its tap and machine (#1390),
-			# then everyone limp up (#1393), before the map loads.
-			assert_int(row.actions.size()).is_equal(5)
+			# The hall's items, the pinball's game (#1398), the mirror's places (#1394), then its
+			# tap, machine and places (#1390), then everyone limp up (#1393), before the map loads.
+			assert_int(row.actions.size()).is_equal(6)
 			assert_object(row.actions[0]).is_instanceof(ClearItems)
 			assert_object(row.actions[1]).is_instanceof(EndPinball)
-			assert_object(row.actions[2]).is_instanceof(ClearStations)
-			assert_object(row.actions[3]).is_instanceof(EndLimps)
+			assert_object(row.actions[2]).is_instanceof(EndMirror)
+			assert_object(row.actions[3]).is_instanceof(ClearStations)
+			assert_object(row.actions[4]).is_instanceof(EndLimps)
 			# The hall's hits end with the countdown: everyone back at full health (#1439).
-			assert_bool((row.actions[3] as EndLimps).restore_health).is_true()
-			assert_object(row.actions[4]).is_instanceof(EndOffers)
+			assert_bool((row.actions[4] as EndLimps).restore_health).is_true()
+			assert_object(row.actions[5]).is_instanceof(EndOffers)
 		else:
 			assert_array(row.actions).is_empty()
 

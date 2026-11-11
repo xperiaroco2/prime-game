@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3]
+
+[ext_resource type="Resource" path="res://tests/fixtures/combat/base_mode_with_melee.tres" id="1_mode"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_scenario.gd" id="2_scen"]
+[ext_resource type="Script" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" path="res://core/content/scenario/scenario_target.gd" id="5_target"]
+[ext_resource type="Script" path="res://core/content/scenario/step_walk_to.gd" id="6_walk"]
+[ext_resource type="Script" path="res://core/content/scenario/step_interact.gd" id="7_interact"]
+[ext_resource type="Script" path="res://core/content/scenario/step_wait_for.gd" id="8_wait_for"]
+[ext_resource type="Script" path="res://tests/fixtures/scenarios/step_set_colour.gd" id="9_colour"]
+
+[sub_resource type="Resource" id="Away_colour"]
+script = ExtResource("9_colour")
+colour = 7
+expect_rejected = &"not_at_mirror"
+
+[sub_resource type="Resource" id="Place_one"]
+script = ExtResource("5_target")
+kind = 5
+station_kind = &"mirror"
+
+[sub_resource type="Resource" id="Walk_to_place_one"]
+script = ExtResource("6_walk")
+target = SubResource("Place_one")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Take_place_one"]
+script = ExtResource("7_interact")
+station = SubResource("Place_one")
+until = &"MirrorPlaces"
+
+[sub_resource type="Resource" id="Colour_seven"]
+script = ExtResource("9_colour")
+colour = 7
+
+[sub_resource type="Resource" id="See_colour_eight"]
+script = ExtResource("8_wait_for")
+event = &"ProfileChanged"
+fields = {
+"colour": 8
+}
+
+[sub_resource type="Resource" id="First_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Away_colour"), SubResource("Walk_to_place_one"), SubResource("Take_place_one"), SubResource("Colour_seven"), SubResource("See_colour_eight")])
+
+[sub_resource type="Resource" id="Place_two"]
+script = ExtResource("5_target")
+kind = 5
+index = 2
+station_kind = &"mirror"
+
+[sub_resource type="Resource" id="Walk_to_place_two"]
+script = ExtResource("6_walk")
+target = SubResource("Place_two")
+stop_m = 0.0
+
+[sub_resource type="Resource" id="Take_place_two"]
+script = ExtResource("7_interact")
+station = SubResource("Place_two")
+until = &"MirrorPlaces"
+
+[sub_resource type="Resource" id="Colour_eight"]
+script = ExtResource("9_colour")
+colour = 8
+
+[sub_resource type="Resource" id="See_colour_seven"]
+script = ExtResource("8_wait_for")
+event = &"ProfileChanged"
+fields = {
+"colour": 7
+}
+
+[sub_resource type="Resource" id="Second_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("See_colour_seven"), SubResource("Walk_to_place_two"), SubResource("Take_place_two"), SubResource("Colour_eight")])
+
+[resource]
+script = ExtResource("2_scen")
+mode = ExtResource("1_mode")
+session_seed = 139400000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("First_script"), SubResource("Second_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0
+metadata/note = "A fixture scenario (#1394): bot 1 asks for colour 7 away from the mirror and is refused not_at_mirror, walks to the 1st place of the lobby's mirror, takes it and changes to 7; bot 2 waits until it sees that ProfileChanged, then walks to the 2nd place while bot 1 still holds the 1st, takes it and changes to 8, which bot 1 sees (7 and 8: two colours the joiners do not take). In turn, so each Interact's MirrorPlaces is its own. In M8 the mirror changes only the colour."

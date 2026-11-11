@@ -8,16 +8,20 @@ extends TickSystem
 ## countdown; ClearStations removes it at the lobby's end. A joiner learns it from JoinRules.hello's
 ## replay. The station's rules are `kind.actions` (Interact), which ModeCheck checks as a task
 ## type's (Stations.kinds_in lists the kind). A level with no such marker is a rule error, logged
-## once per match (LayoutCheck refuses that level first: the demand below).
+## once per match (LayoutCheck refuses that level first: the demand below). With `every_marker`
+## one station stands on each of the level's `kind.spawn_tag` markers instead, all placed in the
+## same tick, in the markers' order (#1394: the mirror's places, one per marker).
 ##
 ## Emits: StationPlaced (everyone). Demands: exactly one `kind.spawn_tag` marker on the phase's
-## level.
+## level; with `every_marker`, at least one.
 
 ## Its key in MatchState's per-part state (§9.1): the kinds whose missing marker was logged.
 const PART_KEY := &"station_ticks"
 
 ## The station kind placed: an id and a spawn tag.
 @export var kind: StationKind
+## One station on every `kind.spawn_tag` marker of the level, not only on the first.
+@export var every_marker := false
 
 
 func run(ctx: MatchContext) -> void:
@@ -36,8 +40,9 @@ func run(ctx: MatchContext) -> void:
 			ctx.error("StationTicks: the level has no %s marker for %s" % [kind.spawn_tag, kind.id])
 		return
 	var colour := kind.palette[0] if not kind.palette.is_empty() else Color.WHITE
-	var station := ctx.state.add_station(kind, spots[0], colour)
-	ctx.emit(StationPlacedEvent.new(station.id, kind.id, station.colour, station.position))
+	for at: Vector3 in spots if every_marker else spots.slice(0, 1):
+		var station := ctx.state.add_station(kind, at, colour)
+		ctx.emit(StationPlacedEvent.new(station.id, kind.id, station.colour, station.position))
 
 
 func emits() -> Array[Script]:
@@ -46,7 +51,7 @@ func emits() -> Array[Script]:
 
 func add_demands(_settings: Dictionary[StringName, int], _players: int, into: Demands) -> void:
 	if kind != null and kind.spawn_tag != &"":
-		into.add_markers(kind.spawn_tag, 1, true)
+		into.add_markers(kind.spawn_tag, 1, not every_marker)
 
 
 func check(_mode: GameMode) -> PackedStringArray:

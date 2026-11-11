@@ -229,6 +229,8 @@ var tasks: Dictionary[int, Task] = {}
 var engine := ClientEngineBook.new()
 ## The lobby's pinball (#1398): the game as its last PinballState told it, the best kept.
 var pinball := ClientPinball.new()
+## The lobby mirror's places in use (#1394), as the last MirrorPlaces told them.
+var mirror := ClientMirror.new()
 ## Cooking's herbs as HerbsDealt told them (#776): the herb kind id per icon index (the herb
 ## board) and per bed, in bed station order. Empty before the deal.
 var herb_code := PackedStringArray()
@@ -418,6 +420,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 	_fold_event(event_name, fields)
 	engine.fold(event_name, fields, self)
 	pinball.fold(event_name, fields)
+	mirror.fold(event_name, fields)
 	if phase != phase_before or (living_before and life_of(own_peer) != Life.ALIVE):
 		silencings += 1
 
@@ -505,6 +508,7 @@ func clear_match() -> void:
 	stations.clear()
 	engine = ClientEngineBook.new()
 	pinball.clear_match()
+	mirror.places.clear()
 	herb_code = PackedStringArray()
 	herb_beds = PackedStringArray()
 	film_shots.clear()
