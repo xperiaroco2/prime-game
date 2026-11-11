@@ -3279,9 +3279,17 @@ the import's end), or a file Godot sees is newer than that record, and prints on
 future is a warning that names it, and every launch imports until it is touched.
 The test walks the project (no hidden folders, none with a `.gdignore`, no Markdown or Python) in 0.03 to 0.04 s
 against about 10 s for a quick import that finds nothing to do. A linked worktree's `override.cfg` is written first.
+Every time compared with the record (a file's `st_mtime_ns`, the clock's `time.time_ns()`) becomes float seconds
+through the one function `check.seconds`, never through `st_mtime` or `time.time()` (#1357, #1575, #1576): on
+Windows, CPython 3.12 reads `time.time()` from the same system time NTFS dates a file with, which moves once a timer
+tick (1 to 16 ms), but converts the two by different formulas, and about one reading in eight (measured) they round 0.24 us apart, so a file written in the tick
+of the record's reading looked newer than it and the next launch imported again (three flaky tests of the nightly
+Windows job). A file and a reading in the same tick are equal and count as not changed.
 Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway folders, the stamp, the override
 before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
-`class_name` script added after the import: the game fails without the import and `run` imports first and passes).
+`class_name` script added after the import: the game fails without the import and `run` imports first and passes)
+and `test_hooks.py` (`PostEditTest`: the hook's import records the stamp); a file in the tick of the stamp's clock
+reading is tested over a clock stopped on a reading whose two float conversions round apart (`tests/clocktick.py`).
 
 A failed import (#949): `check.run_import` runs an import that exits non-zero once more (a timeout, `IMPORT_TIMEOUT`
 300 s, is not run again). Each failed attempt's log is kept as `tools/out/logs/<label>-attempt-<n>.log` (the next

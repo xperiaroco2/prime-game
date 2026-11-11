@@ -16,6 +16,7 @@ from unittest import mock
 
 from runner import check, common, hostjoin, launch, playcheck, shot
 from runner.common import Failure, Result, godot_bin
+from runner.tests.clocktick import clock_reads, reading_that_rounds_apart
 from runner.verify import starts_godot
 
 PROJECT = 'config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n'
@@ -95,7 +96,8 @@ class FreshnessTest(unittest.TestCase):
                 age(self.root / name, 60)
 
     def test_a_file_a_few_milliseconds_ahead_of_the_clock_reads_changed(self) -> None:
-        # #1298: on Windows a just-saved file can be dated past time.time(); that is a change, not clock skew.
+        # A file a few ms ahead of the clock (skew under FUTURE_TOLERANCE) is a change, not clock skew (#1298, whose
+        # "0s in the future" was the float rounding of #1357).
         imported(self.root, at=time.time() - 30)
         (self.root / "icon.png").write_bytes(b"x")
         age(self.root / "icon.png", -0.005)
@@ -168,6 +170,24 @@ class FreshnessTest(unittest.TestCase):
         os.utime(self.root / "beta.gd", (stamp + 0.001, stamp + 0.001))
         time.sleep(0.02)
         self.assertIn("res://beta.gd changed", check.freshness(self.root).why)
+
+    def test_a_file_dated_in_the_clock_tick_of_the_import_is_not_newer_than_its_stamp(self) -> None:
+        # #1357: on the nightly Windows job a .uid file the import wrote in the tick of the stamp's clock reading came
+        # out 0.24 us newer than the stamp, and the next launch imported again. A script saved in the tick the import
+        # starts in is the same case on the other side of the stamp (#1576).
+        when = reading_that_rounds_apart(self.root / "alpha.gd")
+
+        def fake_godot(*_args: object, **_kwargs: object) -> Result:
+            imported(self.root, at=0)
+            uid = self.root / "alpha.gd.uid"
+            uid.write_text("uid://b1\n", encoding="ascii")
+            os.utime(uid, ns=(when, when))
+            return Result(0, "", False, 0.1)
+
+        with mock.patch.object(common, "ROOT", self.root), mock.patch.object(check, "godot", fake_godot), \
+                clock_reads(when):  # fmt: skip
+            check.run_import("x")
+            self.assertEqual(check.freshness(self.root).why, "")
 
     def test_the_stamp_keeps_the_exact_time(self) -> None:
         # Rounded to microseconds, it fell below a .uid file the import had just written: a flaky extra import.
@@ -256,6 +276,36 @@ class EnsureImportTest(unittest.TestCase):
         self.assertEqual(starts[0][1:], ["--no-header", "--path", str(root), "--headless", "--import"])
         self.assertIn("import: no .godot/ yet", out.getvalue())
         self.assertIn("import: current (3 project files", out.getvalue())  # override.cfg among them
+
+    def test_an_override_written_in_the_clock_tick_of_the_import_does_not_import_again(self) -> None:
+        """#1575: on the nightly Windows job override.cfg, written in the tick the import started in, came out 0.24 us
+        newer than the stamp: a warning that it was dated in the future, and a second import at the next launch."""
+        root = project(self.parent, linked=True)
+        for path in (root / "project.godot", root / "alpha.gd"):
+            age(path, 60)
+        override = root / common.OVERRIDE
+        override.write_text(common.override_text(root), encoding="utf-8", newline="\n")  # as ensure_user_dir writes it
+        when = reading_that_rounds_apart(override)
+        starts: list[list[str]] = []
+
+        def fake_run(cmd: list[str], **_kwargs: object) -> Result:
+            starts.append(cmd)
+            imported(root, at=0)
+            return Result(0, "", False, 0.1)
+
+        with (
+            mock.patch.object(common, "ROOT", root),
+            mock.patch.object(common, "godot_bin", return_value="godot"),
+            mock.patch.object(common, "check_godot_version"),
+            mock.patch.object(common, "run", fake_run),
+            mock.patch("sys.stdout", new_callable=io.StringIO) as out,
+            clock_reads(when),
+        ):
+            check.ensure_import()
+            check.ensure_import()
+        self.assertEqual(len(starts), 1, out.getvalue())
+        self.assertNotIn("warn", out.getvalue())
+        self.assertIn("import: current (3 project files", out.getvalue())
 
 
 class EveryLaunchImportsFirstTest(unittest.TestCase):
