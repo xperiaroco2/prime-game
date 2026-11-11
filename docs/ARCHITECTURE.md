@@ -4453,7 +4453,8 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   close), Cancel has the focus, and Esc closes only the dialog through `GameUi`'s `esc_dialog` overlay (§4.7.35), not
   an `_input` of its own; Cancel gives the focus back to the button that asked. Closing the window asks the same, but
   in the tutorial (a solo session its player hosts), which quits at once.
-- `RolePage` and `RoleFacts` stay (their tests too) but no menu shows them since #1571.
+- `RoleFacts` stays (its test too, `role_facts_test.gd`) but no menu shows it since #1571; the Role page that drew
+  it (`RolePage`) went with #1422, as it read a retired copy key (`esc.role.teammates`).
 - Lobby (`LobbyPanel`, the plainest stand-in until the ship's match console of s04 (#1285), with `HostRow` over it:
   the host's `HostNote` or a player's `HostOnly` lock line, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
   No knives, the own preset and Save your own; a card changing a setting the mode lacks or no part reads has none, #1525; the values are placeholders, "not a decision"), a 784 px
@@ -4484,7 +4485,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   panel alone: the pressed entry, the Settings section, Leave's words; no deck key shown as itself in en or uk), `esc_menu_state_test.gd`,
   `screens_test.gd` (the tree by name, variation and place, the host's question, its focus and the menu shut behind
   it, the tutorial, the page closing when the round starts), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
-  closes only the dialog), `role_page_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
+  closes only the dialog), `role_facts_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
   with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
   `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` (`lobby_panel` the
   panel alone in the lobby, `lobby` and `lobby_guest` its Lobby page, `lobby_no_code`, `game_host` and `game_guest`
