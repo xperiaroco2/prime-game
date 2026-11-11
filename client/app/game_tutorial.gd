@@ -77,7 +77,6 @@ func setup(game: Game) -> void:
 	game.ui.menu.tutorial_requested.connect(func() -> void: game.start_tutorial(false))
 	game.ui.tutorial.start_pressed.connect(_on_start.bind(game))
 	game.ui.tutorial.skip_pressed.connect(_on_skip.bind(game))
-	game.ui.tutorial.language_chosen.connect(GameSettings.choose_language.bind(game))
 	# These outlive every session: connected once, they reach whichever runner runs.
 	game.ui.map_opened.connect(_see.bind(ClientSeen.MAP_OPENED))
 	game.life().target_switched.connect(

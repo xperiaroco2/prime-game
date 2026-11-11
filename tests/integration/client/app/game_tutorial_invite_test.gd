@@ -78,7 +78,7 @@ func test_the_invite_waits_over_the_room_and_start_begins_lesson_1() -> void:
 	assert_bool(screen.list.visible).is_true()
 	assert_str(screen.progress_label.text).is_equal("Step 1 of 9")
 	assert_str(String(screen.how.name)).is_equal("HowKeys")
-	assert_str(String(screen.rows.get_child(0).name)).is_equal("MoveNow")
+	assert_str(String(screen.rows.get_child(0).name)).is_equal("Move")
 	assert_bool(game.player().reads_device_input).is_true()
 	assert_bool(game.player().mouse_free).is_false()
 	# Esc now opens the Esc menu (the invite is gone), not a Skip.
@@ -104,16 +104,12 @@ func test_esc_on_the_invite_skips_to_the_main_menu() -> void:
 	assert_bool(game.ui.tutorial.invite_shown()).is_false()
 
 
-func test_a_language_chip_applies_and_saves_and_skip_leaves() -> void:
+func test_the_invite_has_no_language_chips_and_skip_leaves() -> void:
+	# s1 at ui-2.2.0 and later (#1572): the language is chosen only in Settings, so the invite
+	# offers none and changes nothing but the tutorial flag.
 	var game := await _first_launch()
 	var screen := game.ui.tutorial
-	var uk := screen.chips[Languages.UKRAINIAN]
-	uk.button_pressed = true
-	uk.pressed.emit()
-	assert_str(TranslationServer.get_locale()).is_equal(Languages.UKRAINIAN)
-	assert_str(_saved().language).is_equal(Languages.UKRAINIAN)
-	assert_bool(screen.chips[Languages.ENGLISH].button_pressed).is_false()
-	# The invite stays open with its focus; the flag waits for Start or Skip.
+	assert_object(screen.get_node_or_null(^"Lang")).is_null()
 	assert_bool(screen.invite_shown()).is_true()
 	assert_bool(_saved().tutorial_seen).is_false()
 	screen.skip_button.pressed.emit()

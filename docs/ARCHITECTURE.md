@@ -370,7 +370,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 ### 3.6 Pregame, the silent intro (#213, M6.2)
 The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
-Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight like the end screen's `Night`, not pure black) shows each player its own role for
+Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight, not pure black) shows each player its own role for
 about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
 screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
 silent; a test keeps it so.
@@ -3785,26 +3785,29 @@ a head over a wall and a player beyond 10 m without one).
   menu's tabs and the main menu's fields change (PR of #576); of the Settings and Lobby tabs at 1152x648, default
   and large text, before and after #1020 (its PR).
 
-#### 4.7.31 The post game screen (#498)
+#### 4.7.31 The post game screen (#498, #1572)
 `EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
-`docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
-(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title`, the winner line,
-`Result` (ToyColumnEight) holding `Reason`, the 8 px `Gap` and `Back`. Pack variations only, no override.
+`docs/handoff/s10-post-game.md` draws it at `ui-2.5.4` (#1572): `Night` (ToyBackdropFullScreen, full rect) holds
+`Band` (ToyBand, top wide from 300 to 615 px; ToyBandAlert when a side in `ALERT_SIDES`, the dissidents, won) >
+`Title` (ToyTitleHero, ToyTitleHeroAlert on the danger band, centred), `Lines` (ToyColumnTwentyFour, top wide 672 px
+down) > `Won` (ToyTitleOnDark) and `Reason` (ToyTextMutedOnDark), and `Back` (ToyTextMutedOnDark, bottom wide 72 px up,
+`end.back_to_ship`). Pack variations only, no override. The handoff's `cops` end (ToyBackdropAlert, `end.title.busted`,
+`end.reason.cops`) waits for a mode that ends on the anger (#1312): no reason id names it.
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
-  mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
-  (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
-  (`WinnerRaised`, a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
-  other line says who won, and no role is shown.
+  mode's `crew` and `dissidents`; a side not there, or no winner, hides it), the same for every player since ui-2.0.0
+  (no plate for a win or a loss). The handoff's words are the aliens' and the humans' (`end.won_aliens`,
+  `end.won_humans`): the game's sides keep their names until the content renames them. No role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
   other id, `no_crew_present` too (the deck at ui-0.4.0 has no key for it), and a `MatchEnded` without one hide the
-  line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
+  line. `refresh` takes the reason and the time from the
   model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
   countdown, so the next End starts without the last round's.
 - **The title.** How the round ended, by the same reason id (`TITLE_KEYS`, the deck's keys since ui-2.5.1 and the
   handoff at ui-2.5.4, #1559): `end.title.party` for `every_task_done`, `end.title.time_up` for `time_up`; any other
-  id keeps `end.title` ("End of the round"). The handoff's band and hero title around it are #1319's.
-- **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
+  id keeps `end.title` ("End of the round"). The band's and the title's colour follow the winning side
+  (`ALERT_SIDES`), not the reason as the handoff's per-title ink does (the same result for the two reasons built).
+- **The countdown.** `end.back_to_ship` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
   (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
   Godot translates.
@@ -3815,7 +3818,7 @@ a head over a wall and a player beyond 10 m without one).
 - **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
-minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
+minimum sizes; the pack's variations only; one winner line for everyone, the band and title by the winning side, and
 without a role; a side with no key; each reason, its title, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
 client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657, started as a new playback each End: not `playing`, which the 0.12 s file loses on the headless driver's mixing thread under load, #948),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
@@ -4832,45 +4835,46 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `client/dev/menu_uk_preview.tscn`: a
   `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
 
-#### 4.7.49 The tutorial's invite and lesson plates in the Toy style (#492)
-The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
-notes) over the tutorial session (§4.7.44) and its lesson runner (§4.7.46); `docs/design/tutorial.md` §1, §5.
+#### 4.7.49 The tutorial's invite and lesson plates in the Toy style (#492, #1572)
+The UI handoff's s1 (prime-game-ui `ui-2.5.4` `docs/handoff/s01-tutorial.md`, #1572) over the tutorial session (§4.7.44) and its lesson runner (§4.7.46); `docs/design/tutorial.md` §1, §5.
 - **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
   and before the map: the `Ui` layer, the handoff's HUD layer 2 (its table names the lesson plates there and not
   the invite, which shows with them only in the round, where no black screen is up; #656), under the map and under
   the Esc menu on `GameUi.above`, §4.7.32), node for node: the invite (`Dim` ToyBackdrop
-  taking the mouse; `Lang`, the chips `Uk` and `En` of `ToyChipToggleOnDark` in one ButtonGroup, each `lang.*` key
-  naming its language in itself, the one spoken pressed; `Box`, a raised ToyPanelDialog 688 px wide with the title,
-  the body, Start (`UiParts.button`, ToyButtonPrimary) and Skip (ToyButtonGhostOnLight)), `Step` (912 px, 40 px
-  down: Progress `tutorial.step.progress`, Title, and How) and `List` (440 px, top right 256 px down: Head and the
-  eight `Rows` since #900). Only pack variations, no override. `show_lessons(lessons, lesson, step, done)` draws the
+  taking the mouse; `Box`, a quiet ToyPanelDialog 960 px wide: `V` > `Text` (`Head` ToyKicker `tutorial.list.title`,
+  the title, the 876 px body) and `Buttons` at the left (Start ToyButtonPrimary, focused with its ring hidden, and Skip
+  ToyButtonGhostOnLight); no language chips since ui-2.2.0, the language is chosen only in Settings), `Step`
+  (ToyPlate, 720 px at least, 36 px down: `V` ToyColumnTwelve > `Progress` ToyKicker `tutorial.step.progress`,
+  `Title` ToyPlateTitle, and How) and `List` (ToyRoster, 330 px at least, 39 px in at the top right: `V`
+  ToyColumnTwelve > `Head` ToyKicker and the `Rows`). Only pack variations, no override. `show_lessons(lessons, lesson, step, done)` draws the
   plates and redraws only when its arguments or a bound key's label changed, so the game calls it every frame and a
   rebind in Settings > Controls (or the layout, through `KeyLabel`) redraws the keycaps.
 - **How:** a step with a `how_key` is `tr()` of it split at `{key}` (`LifeHud.give_up_pieces`: `strip_edges()`, an
-  empty piece hidden), `Before`, the `Key` keycap and `After`; the keycap is a ToyKeyOnDark holding a ToyKeyText
+  empty piece hidden), `Before`, the `Key` keycap and `After` (ToyPlateText pieces in a ToyRowTwelve row); the keycap is a ToyKeyOnDark holding a ToyKeyText
   label of `KeyLabel.of_action` of the step's first key (`key.space`, `key.mouse_left` from the deck), its width
   `min_width`, or `wide_min_width` for Space, Shift, Tab and Esc (`KeyLabel.is_wide_action`), read again after each
   theme change (the large-text 42 px); `TutorialStep.HOWTO_GLYPH` is a ToyKeyRound «?», the map's. A step with keys
   and no `how_key` (lesson 1) is `HowKeys`: `Walk` (the four walking keys, `control.walk`), then a group per other
   key named by its `Controls.ACTIONS` row (`Sprint`, `Jump`). A step with neither (title only; no lesson since
   #900) hides How. Lesson 8's Esc keycap reads Godot's key name ("Escape"): the deck has no `key.esc`.
-- **List:** a done lesson is `<Name>Done` (its name, then the `check` icon tinted with ToyTextOnDark's
-  `font_color`), the current one `<Name>Now` (a one-line ToyChipLight; the plate grows to the left for a long one),
-  the rest the muted, wrapping names; `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
+- **List:** one ToyRowTwelve row `<Name>` per lesson in the roster's looks: a done lesson's `Name` in ToyRosterName
+  with the 27 px `check` at the right edge, tinted with ToyRosterName's `font_color`; the current one in ToyRosterNameSelf (the
+  accent); the rest in ToyRosterNameDead (dim); the name takes the row, so a done lesson's check sits at the right edge; `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
   `PickUpNext` in one state and `HandBelt` in another: one rule here). `tutorial.list.map`'s `{key}` is the bound
   `list_action`. Every plate node ignores the mouse and takes no focus. Texts with data or in pieces are set from
   code (`auto_translate_mode` DISABLED) and rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
 - **Placement:** `GameUi.show_screen` shows the screen in the round while the tutorial runs (`set_tutorial`, which
   also clears it at the end) and hides the HUD and the life plates under the invite (s1's `invite`). While the dead
-  player's Spectate plate shows (lesson 6) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
-  not a decision: s1 draws no dead player).
+  player's DeadTop tile shows (lesson 7) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
+  not a decision: s1 draws no dead player). Where a wide step (lesson 1's keys at large text in Ukrainian) would reach
+  the list, the list moves 24 px under the Step plate, and back to 39 px with a narrower step (`_place_list`; not
+  drawn by the handoff). The step's title wraps rather than widen the plate (beyond the handoff).
 - **The game** (`GameTutorial`): once the room is in with `invite_open`, `open_invite()` (Start focused) and the
   mouse freed; `GameUi.blocks_keys()` (the Esc menu or the invite) and `frees_mouse()` (the map or the invite) feed
   `GamePlayer.apply_flags`, so no key counts under the invite and a click does not recapture; the map key is
   ignored there. Esc is the invite's Skip through a `UiOverlays` entry (`INVITE`, layer 2). Start writes
   `tutorial_seen`, closes the invite, `begin()`s lesson 1 and captures the mouse (focused windows only); Skip writes
-  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). A chip calls `GameSettings.choose_language`
-  (applied and saved; the invite's texts follow). The main menu's Tutorial is enabled and starts it with no invite.
+  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). The main menu's Tutorial is enabled and starts it with no invite.
 - Shots: `client/dev/tutorial_preview.gd` (the tutorial room from its start spot, the HUD without timer and role):
   `tutorial_invite_preview`, `tutorial_step_preview`, `tutorial_step_keys_preview`, each with a `_uk` twin, and
   `tutorial_invite_large_uk_preview`, `tutorial_step_large_uk_preview` (the «?» step's `tutorial_step_howto_preview`
@@ -4880,7 +4884,7 @@ notes) over the tutorial session (§4.7.44) and its lesson runner (§4.7.46); `d
 - Tests: `tests/unit/client/ui/tutorial_screen_test.gd` (the tree of each state, a title-only step it builds, the
   list, no mouse, a rebind, Ukrainian, large text on screen for every step, the step under the Spectate plate),
   `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
-  free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
+  free mouse; Start, Esc, Skip, and no language chips; the menu's Tutorial with plates and no invite, seen failing without
   `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
 #### 4.7.50 The bodies in their players' colours (#551)
 The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
@@ -5671,6 +5675,19 @@ of the mode, never `core/` state (§9.5.27's client).
   zap through `SoundChooser`, `WorldSounds` on the files with the range, `ItemWorld`'s connection),
   `ship_engine_views_test.gd` (the cues, none at the last stage), `sfx_set_test.gd` (the five
   files exist) and `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
+
+#### 4.7.65 The mutation workbench's screen (#1572)
+`WorkbenchScreen` (`client/ui/workbench_screen.gd`) is prime-game-ui's s11 at `ui-2.5.4`, node for node: `Screen`
+(ToyPanelDialog, 960 x 540, the root of the SubViewport a machine shows once #1285 puts it in the world) holds one of
+`Idle` (a CenterContainer > `V`: `Title` ToyTitleMachine `workbench.title`, `Start` ToyButtonPrimary 288 px),
+`Choose` (`Top`: the title and `Balance` ToyPlateBalance with `workbench.points` and `Points` ToyPlateTimer; `Cards`
+ToyRowTwentyFour: one ToyMutationCard per mutation, `V` > `Name`, `Effect` (expanding), `Cost` (`unit.points`, plural)
+and `Buy` ToyButtonMutate; short of points the name and price take their `Off` looks and Buy reads `workbench.short`,
+disabled; the card under the pointer is ToyMutationCardPointed) and `Step` (`Chosen` ToyKicker, `StepIn` ToyTitleOnLight,
+ten pips, `ToyPips`). It draws what `show_idle`, `show_choose(points, mutations)` and `show_step(name_key, progress)`
+give it and says `start_pressed` and `mutate_pressed(id)`; nothing feeds it yet: points and mutations are not planned
+(docs/ROADMAP.md), so the game builds none, and its dev preview (`client/dev/workbench_<state>_preview.tscn`, idle,
+choose and step with `_uk` twins) draws the handoff's samples. Tests: `tests/unit/client/ui/workbench_screen_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

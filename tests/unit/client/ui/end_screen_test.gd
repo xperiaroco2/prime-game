@@ -31,22 +31,19 @@ func after_test() -> void:
 
 
 func test_the_tree_matches_the_handoff_node_for_node() -> void:
+	# prime-game-ui's s10 at ui-2.5.4 (#1572), state `aliens`: the texts sit on Night.
 	var screen := _screen()
 	assert_array(_anchors(screen)).is_equal([0.0, 0.0, 1.0, 1.0])
 	# [path, class, variation, children's names in order]
 	var rows: Array[Array] = [
-		[".", "Control", &"", ["Night", "V"]],
-		["Night", "Panel", &"ToyBackdropNight", []],
-		["V", "VBoxContainer", &"ToyColumnThirtyTwo", []],
-		["V/Title", "Label", &"ToyTextMutedOnDark", []],
-		["V/WinnerRaised", "MarginContainer", &"", ["Base", "Winner"]],
-		["V/WinnerRaised/Base", "Panel", &"", []],  # No base since ui-2.0.0 (#1559).
-		["V/WinnerRaised/Winner", "Label", &"ToyTitlePlate", []],
-		["V/WinnerLoss", "Label", &"ToyTextOnDark", []],
-		["V/Result", "VBoxContainer", &"ToyColumnEight", ["Reason"]],
-		["V/Result/Reason", "Label", &"ToyTextMutedOnDark", []],
-		["V/Gap", "Control", &"", []],
-		["V/Back", "Label", &"ToyTextOnDark", []],
+		[".", "Control", &"", ["Night"]],
+		["Night", "Panel", &"ToyBackdropFullScreen", ["Band", "Lines", "Back"]],
+		["Night/Band", "PanelContainer", &"ToyBand", ["Title"]],
+		["Night/Band/Title", "Label", &"ToyTitleHero", []],
+		["Night/Lines", "VBoxContainer", &"ToyColumnTwentyFour", ["Won", "Reason"]],
+		["Night/Lines/Won", "Label", &"ToyTitleOnDark", []],
+		["Night/Lines/Reason", "Label", &"ToyTextMutedOnDark", []],
+		["Night/Back", "Label", &"ToyTextMutedOnDark", []],
 	]
 	for row: Array in rows:
 		var node := screen.get_node_or_null(NodePath(row[0] as String)) as Control
@@ -60,30 +57,21 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 				func(child: Node) -> String: return child.name
 			)
 			assert_array(names).is_equal(row[3])
-	var column := screen.column
-	(
-		assert_array(column.get_children().map(func(child: Node) -> String: return child.name))
-		. is_equal(["Title", "WinnerRaised", "WinnerLoss", "Result", "Gap", "Back"])
-	)
-	assert_bool(screen.winner_plate is ToyRaised).is_true()
-	assert_array(_anchors(column)).is_equal([0.5, 0.5, 0.5, 0.5])
-	var offsets := [
-		column.offset_left, column.offset_top, column.offset_right, column.offset_bottom
-	]
-	assert_array(offsets).is_equal([0.0, 0.0, 0.0, 0.0])
-	assert_int(column.grow_horizontal).is_equal(Control.GROW_DIRECTION_BOTH)
-	assert_int(column.grow_vertical).is_equal(Control.GROW_DIRECTION_BOTH)
-	assert_vector(column.custom_minimum_size).is_equal(Vector2(1440, 0))
-	assert_int(column.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	assert_int(column.get_theme_constant(&"separation")).is_equal(32)
-	assert_int(screen.result.get_theme_constant(&"separation")).is_equal(8)
 	assert_array(_anchors(screen.night)).is_equal([0.0, 0.0, 1.0, 1.0])
-	assert_int(screen.winner_plate.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
-	assert_vector(screen.reason_label.custom_minimum_size).is_equal(Vector2(1152, 0))
+	# The band across the whole width, 300 to 615 px down; the lines 672 px down; Back 72 px up.
+	assert_array(_anchors(screen.band)).is_equal([0.0, 0.0, 1.0, 0.0])
+	assert_array([screen.band.offset_top, screen.band.offset_bottom]).is_equal([300.0, 615.0])
+	assert_array(_anchors(screen.lines)).is_equal([0.0, 0.0, 1.0, 0.0])
+	assert_float(screen.lines.offset_top).is_equal(672.0)
+	assert_int(screen.lines.grow_vertical).is_equal(Control.GROW_DIRECTION_END)
+	assert_array(_anchors(screen.countdown_label)).is_equal([0.0, 1.0, 1.0, 1.0])
+	assert_float(screen.countdown_label.offset_top).is_equal(-72.0)
+	assert_int(screen.countdown_label.grow_vertical).is_equal(Control.GROW_DIRECTION_BEGIN)
+	assert_int(screen.lines.get_theme_constant(&"separation")).is_equal(24)
+	assert_int(screen.title_label.vertical_alignment).is_equal(VERTICAL_ALIGNMENT_CENTER)
 	assert_int(screen.reason_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
-	assert_vector(screen.gap.custom_minimum_size).is_equal(Vector2(0, 8))
 	for label: Label in [
-		screen.title_label, screen.loser_label, screen.reason_label, screen.countdown_label
+		screen.title_label, screen.winner_label, screen.reason_label, screen.countdown_label
 	]:
 		assert_int(label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
 	assert_str(screen.title_label.text).is_equal("end.title")
@@ -102,44 +90,41 @@ func test_it_names_only_the_packs_variations() -> void:
 	for control: Control in screen.find_children("*", "Control", true, false):
 		if not control.theme_type_variation.is_empty():
 			used.append(control.theme_type_variation)
-	assert_int(used.size()).is_equal(8)
+	assert_int(used.size()).is_equal(7)
 	for variation: String in used:
 		assert_bool(variations.has(variation)).override_failure_message(variation).is_true()
 
 
-func test_the_plate_for_a_win_and_plain_text_for_a_loss_from_each_teams_view() -> void:
-	# [own role, winning side, plate shown, the key]
+func test_the_winning_side_reads_the_same_for_everyone_on_its_band() -> void:
+	# s10 at ui-2.5.4: no plate for a win or a loss (ui-2.0.0); the band is the accent for the
+	# crew's win, the danger colour for the dissidents' (the handoff's aliens and humans).
+	# [own role, winning side, band, title, the key]
 	var cases: Array[Array] = [
-		[&"crew", &"crew", true, "end.won_engineers"],
-		[&"dissident", &"crew", false, "end.won_engineers"],
-		[&"dissident", &"dissidents", true, "end.won_dissidents"],
-		[&"crew", &"dissidents", false, "end.won_dissidents"],
-		[&"", &"dissidents", false, "end.won_dissidents"],
+		[&"crew", &"crew", &"ToyBand", &"ToyTitleHero", "end.won_engineers"],
+		[&"dissident", &"crew", &"ToyBand", &"ToyTitleHero", "end.won_engineers"],
+		[&"dissident", &"dissidents", &"ToyBandAlert", &"ToyTitleHeroAlert", "end.won_dissidents"],
+		[&"crew", &"dissidents", &"ToyBandAlert", &"ToyTitleHeroAlert", "end.won_dissidents"],
+		[&"", &"dissidents", &"ToyBandAlert", &"ToyTitleHeroAlert", "end.won_dissidents"],
 	]
 	for each: Array in cases:
 		var screen := _screen()
-		var role: StringName = each[0]
-		var side: StringName = each[1]
-		screen.refresh(_ended(role, side), _mode, 100)
-		var won: bool = each[2]
-		assert_bool(screen.winner_plate.visible).is_equal(won)
-		assert_bool(screen.loser_label.visible).is_equal(not won)
-		assert_object(screen.winner_shown()).is_same(
-			screen.winner_label if won else screen.loser_label
-		)
-		assert_str(screen.winner_shown().text).is_equal(each[3])
-		# No separate result line and no role: only the winning side's line says who won.
+		screen.refresh(_ended(each[0] as StringName, each[1] as StringName), _mode, 100)
+		assert_str(screen.band.theme_type_variation).is_equal(each[2])
+		assert_str(screen.title_label.theme_type_variation).is_equal(each[3])
+		assert_object(screen.winner_shown()).is_same(screen.winner_label)
+		assert_str(screen.winner_shown().text).is_equal(each[4])
+		assert_str(screen.winner_label.theme_type_variation).is_equal(&"ToyTitleOnDark")
 		assert_bool(screen.winner_shown().is_visible_in_tree()).is_true()
 	assert_str(tr("end.won_dissidents")).is_equal("The Dissidents won")
 
 
-func test_a_side_with_no_key_or_no_winner_hides_both_winner_lines() -> void:
+func test_a_side_with_no_key_or_no_winner_hides_the_winner_line() -> void:
 	for side: StringName in [&"", &"robots"]:
 		var screen := _screen()
 		screen.refresh(_ended(&"crew", side), _mode, 100)
-		assert_bool(screen.winner_plate.visible).is_false()
-		assert_bool(screen.loser_label.visible).is_false()
+		assert_bool(screen.winner_label.visible).is_false()
 		assert_bool(screen.title_label.visible).is_true()
+		assert_str(screen.band.theme_type_variation).is_equal(&"ToyBand")
 
 
 func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
@@ -147,10 +132,8 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	screen.refresh(_ended(&"crew", &"crew"), _mode, 100)
 	# A MatchEnded without a reason (a `won` no win condition reported): no line.
 	assert_bool(screen.reason_label.visible).is_false()
-	assert_bool(screen.result.visible).is_false()
 	screen.show_reason(&"every_task_done", 461)
 	assert_bool(screen.reason_label.visible).is_true()
-	assert_bool(screen.result.visible).is_true()
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
 	assert_str(screen.title_label.text).is_equal("end.title.party")
 	screen.show_reason(&"every_task_done", 65)
@@ -161,7 +144,6 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	for unknown: StringName in [&"no_crew_present", &""]:
 		screen.show_reason(unknown, 461)
 		assert_bool(screen.reason_label.visible).is_false()
-		assert_bool(screen.result.visible).is_false()
 		assert_str(screen.reason_label.text).is_empty()
 		assert_str(screen.title_label.text).is_equal("end.title")
 
@@ -204,7 +186,7 @@ func test_it_counts_3_2_1_to_the_lobby_for_everyone_with_no_button() -> void:
 			shown.append(screen.countdown_label.text)
 		var expected := PackedStringArray()
 		for count: int in [3, 3, 2, 2, 1, 1, 1, 1]:
-			expected.append("Back to the lobby in %d…" % count)
+			expected.append("Back to the ship in %d…" % count)
 		assert_array(Array(shown)).is_equal(Array(expected))
 		assert_bool(screen.countdown_label.visible).is_true()
 		assert_array(screen.find_children("*", "BaseButton", true, false)).is_empty()
@@ -224,12 +206,12 @@ func test_the_texts_from_code_follow_a_language_switch() -> void:
 	screen.show_reason(&"every_task_done", 461)
 	TranslationServer.set_locale("uk")
 	assert_str(screen.reason_label.text).is_equal("Усі задачі виконано за 7:41.")
-	assert_str(screen.countdown_label.text).is_equal("Повернення в лобі через 3…")
+	assert_str(screen.countdown_label.text).is_equal("Повернення на корабель через 3…")
 	# The plain keys translate themselves.
 	assert_str(screen.title_label.atr(screen.title_label.text)).is_equal("Вечірка вдалася!")
 	assert_str(screen.winner_label.atr(screen.winner_label.text)).is_equal("Перемогли Інженери")
 	TranslationServer.set_locale("en")
-	assert_str(screen.countdown_label.text).is_equal("Back to the lobby in 3…")
+	assert_str(screen.countdown_label.text).is_equal("Back to the ship in 3…")
 
 
 func test_no_control_takes_focus_or_input() -> void:
@@ -278,7 +260,6 @@ func test_the_next_end_starts_without_the_last_rounds_reason_or_countdown() -> v
 	screen.visible = false
 	screen.visible = true
 	assert_bool(screen.reason_label.visible).is_false()
-	assert_bool(screen.result.visible).is_false()
 	assert_str(screen.reason_label.text).is_empty()
 	assert_bool(screen.countdown_label.visible).is_false()
 	assert_str(screen.title_label.text).is_equal("end.title")

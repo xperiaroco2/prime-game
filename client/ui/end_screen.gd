@@ -1,12 +1,15 @@
 class_name EndScreen
 extends Control
-## The post game screen (ARCHITECTURE §4.7.31, §3.2): the black outro of about 3 s, built node for
-## node as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-0.4.0, #498).
-## Night fades in when End starts; on it `V`: how the round ended ("Great party!", "Time's up", or
-## "End of the round" for a reason with no title), the winning team (on the title plate when the
-## own team won, plain text when it lost), why the round ended, and the seconds until everyone is
-## back in the lobby (#212). The same for every player: no names, no roles, no
-## button, no input, no word about voice (#213).
+## The post game screen (ARCHITECTURE §4.7.31, §3.2): the outro of about 3 s, built node for node
+## as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-2.5.4, #498, #1572).
+## `Night` (ToyBackdropFullScreen) fades in when End starts and holds the texts: `Band` across the
+## whole width, 300 to 615 px down (ToyBand, ToyBandAlert when a side in ALERT_SIDES won) with
+## `Title`, how the round ended at the hero size ("Great party!", "Time's up", or "End of the
+## round" for a reason with no title); `Lines` 672 px down: `Won`, the winning side, and `Reason`,
+## why; `Back`, 72 px over the bottom: the seconds until everyone is back on the ship, the lobby
+## (#212). The same for every player: no names, no roles, no button, no input, no word about voice
+## (#213). The cops' end (ToyBackdropAlert, "Busted!") waits for a mode that ends on the anger
+## (#1312): no reason id names it yet.
 
 ## Emitted each time End starts, for the one sound of both outcomes (the handoff: one sound for a
 ## win and a loss): the screen plays it on the UI bus (UiSounds.outro, #657).
@@ -17,7 +20,7 @@ const FADE_SECONDS := 0.4
 # The deck's keys (§4.7.26).
 ## The title for a reason with no key of its own (the deck's plain "End of the round").
 const TITLE_KEY := "end.title"
-const BACK_KEY := "end.back_to_lobby"
+const BACK_KEY := "end.back_to_ship"
 ## The winning side's line, by the side's id in the mode (the base mode's `crew` and
 ## `dissidents`); a side not named here hides both winner lines (no deck key for it).
 const SIDE_KEYS: Dictionary[StringName, String] = {
@@ -39,22 +42,27 @@ const TITLE_KEYS: Dictionary[StringName, String] = {
 	&"time_up": "end.title.time_up",
 }
 
-## The opaque black (P2), faded in when End starts.
+## The sides whose win draws the danger band (the handoff's humans: the side that spoils the
+## party, as the pre-game's); any other on the accent band.
+const ALERT_SIDES: Array[StringName] = [&"dissidents"]
+## The handoff's places, px from the top or the bottom at the 1920x1080 base.
+const BAND_TOP := 300.0
+const BAND_BOTTOM := 615.0
+const LINES_TOP := 672.0
+const BACK_BOTTOM := -72.0
+
+## The opaque ground (P2), faded in when End starts; the texts are its children.
 var night := Panel.new()
-## The centred column of 1440 px.
-var column := VBoxContainer.new()
+## The loud band and how the round ended on it.
+var band := PanelContainer.new()
 var title_label := Label.new()
-## The winning team on the title plate, shown when the own team won; `winner_plate` is its
-## ToyRaised wrapper, which takes the visibility.
+## Who won, then why.
+var lines := VBoxContainer.new()
+## The winning side; hidden for a side the deck names no line for.
 var winner_label := Label.new()
-var winner_plate: ToyRaised
-## The winning team in plain text, shown when the own team lost.
-var loser_label := Label.new()
-var result := VBoxContainer.new()
 ## Why the round ended; hidden while the reason id is unknown.
 var reason_label := Label.new()
-var gap := Control.new()
-## "Back to the lobby in 3…": End's end tick from PhaseChanged; hidden when End has none.
+## "Back to the ship in 3…": End's end tick from PhaseChanged; hidden when End has none.
 var countdown_label := Label.new()
 ## Night's fade while it runs; null otherwise.
 var fade: Tween
@@ -73,51 +81,48 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	night.name = "Night"
-	night.theme_type_variation = &"ToyBackdropNight"
+	night.theme_type_variation = &"ToyBackdropFullScreen"
 	night.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(night)
-	column.name = "V"
-	column.theme_type_variation = &"ToyColumnThirtyTwo"
-	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	column.grow_vertical = Control.GROW_DIRECTION_BOTH
-	column.custom_minimum_size = Vector2(1440, 0)
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	add_child(column)
-	_label(title_label, "Title", &"ToyTextMutedOnDark", TITLE_KEY)
-	column.add_child(title_label)
-	_label(winner_label, "Winner", &"ToyTitlePlate")
-	winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	winner_plate = UiParts.raised(winner_label)
-	winner_plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(winner_plate)
-	_label(loser_label, "WinnerLoss", &"ToyTextOnDark")
-	column.add_child(loser_label)
-	result.name = "Result"
-	result.theme_type_variation = &"ToyColumnEight"
-	column.add_child(result)
+	band.name = "Band"
+	band.theme_type_variation = &"ToyBand"
+	_place(band, Control.PRESET_TOP_WIDE, BAND_TOP, BAND_BOTTOM, Control.GROW_DIRECTION_END)
+	night.add_child(band)
+	_label(title_label, "Title", &"ToyTitleHero", TITLE_KEY)
+	title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	band.add_child(title_label)
+	lines.name = "Lines"
+	lines.theme_type_variation = &"ToyColumnTwentyFour"
+	_place(lines, Control.PRESET_TOP_WIDE, LINES_TOP, LINES_TOP, Control.GROW_DIRECTION_END)
+	night.add_child(lines)
+	_label(winner_label, "Won", &"ToyTitleOnDark")
+	lines.add_child(winner_label)
 	_label(reason_label, "Reason", &"ToyTextMutedOnDark")
-	reason_label.custom_minimum_size = Vector2(1152, 0)
 	reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reason_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	result.add_child(reason_label)
-	gap.name = "Gap"
-	gap.custom_minimum_size = Vector2(0, 8)
-	column.add_child(gap)
-	_label(countdown_label, "Back", &"ToyTextOnDark")
+	lines.add_child(reason_label)
+	_label(countdown_label, "Back", &"ToyTextMutedOnDark")
 	countdown_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	column.add_child(countdown_label)
+	_place(
+		countdown_label,
+		Control.PRESET_BOTTOM_WIDE,
+		BACK_BOTTOM,
+		BACK_BOTTOM,
+		Control.GROW_DIRECTION_BEGIN
+	)
+	night.add_child(countdown_label)
 	for control: Control in find_children("*", "Control", true, false):
 		control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		control.focus_mode = Control.FOCUS_NONE
-	_show_winner(&"", false)
+	_show_winner(&"")
 	_retext()
 	outro_began.connect(_play_outro)
 
 
-## `host_tick`: the newest host tick known (-1: none yet).
-func refresh(model: ClientModel, mode: GameMode, host_tick: int) -> void:
-	_show_winner(model.winner, own_team_won(model, mode))
+## `host_tick`: the newest host tick known (-1: none yet). The mode stays in GameUi's call shape;
+## nothing on the screen reads it since one line names the winner for everyone (#1572).
+func refresh(model: ClientModel, _mode: GameMode, host_tick: int) -> void:
+	_show_winner(model.winner)
 	if model.ended_by != reason or model.round_seconds != round_seconds:
 		show_reason(model.ended_by, model.round_seconds)
 	var count := count_shown(model, host_tick)
@@ -134,17 +139,9 @@ func show_reason(reason_id: StringName, seconds: int) -> void:
 	_retext()
 
 
-## The winner line shown now: the plate's face when the own team won, else the plain one.
+## The winner line: the same for every player (no plate for a win or a loss since ui-2.0.0).
 func winner_shown() -> Label:
-	return winner_label if winner_plate.visible else loser_label
-
-
-## Whether the own role's side is the winning one; false before MatchEnded or without a role.
-static func own_team_won(model: ClientModel, mode: GameMode) -> bool:
-	if model.winner.is_empty() or model.role.is_empty():
-		return false
-	var role := mode.find_role(model.role)
-	return role != null and role.side == model.winner
+	return winner_label
 
 
 ## The seconds the countdown shows: End's end tick less the host tick, 3, 2, 1 (at the end tick
@@ -205,12 +202,15 @@ func _play_outro() -> void:
 	UiSounds.outro(self)
 
 
-func _show_winner(side: StringName, won: bool) -> void:
+## The winning side's line, and the band's colour by it: the danger band (and title) when a side
+## in ALERT_SIDES won, the accent one otherwise.
+func _show_winner(side: StringName) -> void:
 	var key: String = SIDE_KEYS.get(side, "")
 	winner_label.text = key
-	loser_label.text = key
-	winner_plate.visible = won and not key.is_empty()
-	loser_label.visible = not won and not key.is_empty()
+	winner_label.visible = not key.is_empty()
+	var alert := ALERT_SIDES.has(side)
+	band.theme_type_variation = &"ToyBandAlert" if alert else &"ToyBand"
+	title_label.theme_type_variation = &"ToyTitleHeroAlert" if alert else &"ToyTitleHero"
 
 
 ## The texts built from a key with data: the reason and the countdown, in the current language;
@@ -219,8 +219,6 @@ func _retext() -> void:
 	title_label.text = TITLE_KEYS.get(reason, TITLE_KEY)
 	var reason_key: String = REASON_KEYS.get(reason, "")
 	reason_label.visible = not reason_key.is_empty()
-	# Without the line the Result box would still count as a child and add a gap of its own.
-	result.visible = not reason_key.is_empty()
 	if reason_key.is_empty():
 		reason_label.text = ""
 	else:
@@ -228,6 +226,22 @@ func _retext() -> void:
 		reason_label.text = tr(reason_key).format({"time": time})
 	countdown_label.visible = _count >= 0
 	countdown_label.text = tr(BACK_KEY).format({"count": _count}) if _count >= 0 else ""
+
+
+## `node` anchored at `preset` with its top and bottom offsets, growing vertically as `grow`
+## says (the wide presets span the screen's width).
+static func _place(
+	node: Control,
+	preset: Control.LayoutPreset,
+	top: float,
+	bottom: float,
+	grow: Control.GrowDirection
+) -> void:
+	node.set_anchors_preset(preset)
+	node.offset_top = top
+	node.offset_bottom = bottom
+	node.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	node.grow_vertical = grow
 
 
 static func _label(label: Label, node_name: String, variation: StringName, key := "") -> void:
