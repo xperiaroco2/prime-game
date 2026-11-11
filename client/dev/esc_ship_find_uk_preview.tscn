@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://dtndpg5h8pdd3"]
+
+[ext_resource type="Script" uid="uid://c2ercwv4w0334" path="res://client/dev/screen_preview.gd" id="1_preview"]
+
+[node name="ScreenPreview" type="Node" unique_id=1609359979]
+script = ExtResource("1_preview")
+preview = 5
+esc_tab = 5
+esc_ship = true
+language = "uk"

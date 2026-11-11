@@ -62,6 +62,11 @@ const FAKE_OWN_HEADING := 0.6
 @export var esc_question := EscMenuState.Action.NONE
 ## The tutorial's menu (`tutorial-game`, #601): Game, Guide and Settings.
 @export var esc_tutorial := false
+## The own ship's menu (`ship`, #1285): Game, Find a lobby, Host, Tutorial, Guide and Settings;
+## with esc_tab Find, `find_state` shows its page: `empty` (`ship-find`, `ship-empty`: nothing
+## nearby), `code` (`ship-code`: a full code typed) or `direct` (`ship-direct`: an address).
+@export var esc_ship := false
+@export_enum("empty", "code", "direct") var find_state := "empty"
 ## Settings > Controls with Interact capturing a key (`settings-controls`).
 @export var esc_capture := false
 ## The code service closed: the lobby shows its line in place of the code (`lobby-no-code`).
@@ -166,6 +171,7 @@ func _ready() -> void:
 			if esc_in_round:
 				fold_round(model, false)
 			ui.set_tutorial(esc_tutorial)
+			ui.set_ship(esc_ship)
 			ui.show_screen(GameFlow.Screen.ROUND if esc_in_round else GameFlow.Screen.LOBBY)
 			ui.open_esc(hosting, model)
 			ui.esc.press(esc_tab)
@@ -185,6 +191,7 @@ func _ready() -> void:
 				ui.esc.controls.refresh()
 			if esc_capture:
 				ui.esc.controls.start_capture(&"interact")
+			show_find_state(ui.esc.find, find_state)
 		Preview.ROUND, Preview.MAP:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)
@@ -249,6 +256,16 @@ static func show_menu_state(menu: MainMenu, state: StringName) -> void:
 			menu.open_panel(MainMenu.Open.DIRECT)
 		&"settings":
 			menu.open_panel(MainMenu.Open.SETTINGS)
+
+
+## Find a lobby's page in `state` (esc_ship, #1285): the handoff's code, or its address.
+static func show_find_state(find: FindPage, state: String) -> void:
+	match state:
+		"code":
+			find.set_code(PREVIEW_MENU_CODE)
+		"direct":
+			find.set_address(PREVIEW_ADDRESS)
+			find.show_direct(true)
 
 
 ## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,

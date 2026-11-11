@@ -11,6 +11,8 @@ extends "res://client/dev/hud_preview.gd"
 ##   #548; the handoff's sample, not a decision): one more player to start;
 ## - `code-waiting`: the host alone before the code service made the room (always hosting; four
 ##   needed as in `short`: three more to start);
+## - `boot`: the own ship with no session (#1285, s04 `boot`): the player alone in its private
+##   lobby, no HUD but the Esc hint (GameUi.set_ship);
 ## With `hand_over`, Aim shows the hand-over's cue under the crosshair (#1411: E would hand the
 ## hand item to a living player there). The microphone on. Dev only: nothing here reaches the game.
 
@@ -24,7 +26,7 @@ const TARAS_AT := Vector3(1.4, 0.0, -4.0)
 ## the hint's margin), where the cue really shows.
 const TARAS_HANDED_AT := Vector3(0.0, 0.0, -1.4)
 
-@export_enum("wait", "count", "short", "code-waiting") var lobby_state := "wait"
+@export_enum("wait", "count", "short", "code-waiting", "boot") var lobby_state := "wait"
 ## The host's own view (its own row reads `player.you`) instead of a code joiner's.
 @export var hosting := false
 ## The hand-over's cue in Aim (#1411).
@@ -60,9 +62,12 @@ func _ready() -> void:
 	ui.refresh(_model, mode, NOW, _hosts())
 	if hand_over:
 		ui.lobby_hud.show_hand_over(KeyLabel.of_action(&"interact"))
+	if lobby_state == "boot":
+		ui.set_ship(true)
 
 
 func _hosts() -> bool:
+	# The own ship hosts for nobody: Game.hosting() is false there (#1285).
 	return hosting or lobby_state == "code-waiting"
 
 
@@ -72,11 +77,11 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	var names: Array[String] = ["Olena", "Taras", "Ivan", "Marko"]
 	if uk:
 		names = ["Олена", "Тарас", "Іван", "Марко"]
-	var own := 1 if _hosts() else 3
+	var own := 1 if _hosts() or lobby_state == "boot" else 3
 	var count := 4
 	if lobby_state == "short":
 		count = 3
-	elif lobby_state == "code-waiting":
+	elif lobby_state in ["code-waiting", "boot"]:
 		count = 1
 	var roster: Array[Dictionary] = []
 	for index in count:
@@ -90,7 +95,7 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	welcome.map = Preview.MAP
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
-	if count < SHORT_MIN_PLAYERS:
+	if count < SHORT_MIN_PLAYERS and lobby_state != "boot":
 		# The host's SettingsChanged (#548): players_few, `count` the players still missing.
 		var missing := SHORT_MIN_PLAYERS - count
 		var bounds := {&"count": missing, &"min": SHORT_MIN_PLAYERS, &"max": mode.max_players}

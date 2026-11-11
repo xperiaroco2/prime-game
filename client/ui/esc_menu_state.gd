@@ -16,7 +16,7 @@ extends RefCounted
 
 ## The pages; GAME is none open. ROLE is never shown since #1571; it keeps the numbers the
 ## previews' `esc_tab` (client/dev/esc_*_preview.tscn) store.
-enum Tab { GAME, ROLE, GUIDE, LOBBY, SETTINGS }
+enum Tab { GAME, ROLE, GUIDE, LOBBY, SETTINGS, FIND }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
 
@@ -30,8 +30,11 @@ var hosting := false
 var in_lobby := false
 ## The round: the panel's Resume, Guide, Settings, Leave and Quit (s05 `round`).
 var in_round := false
+## The own ship with no session (#1285, GameShip): Find a lobby, Host, Tutorial, Guide,
+## Settings and Quit (s05 `ship`); no Resume (nothing runs to resume) and no Leave.
+var ship := false
 ## The tutorial's menu (#601 sets it): Guide and Settings, no Quit; Leave goes back to the main
-## menu.
+## menu (the launched game: to the own ship, #1285).
 var tutorial := false
 ## The own player may change the match settings: the host, in a phase that accepts the host's
 ## ChangeSettings (the lobby, not the countdown); for everyone else they are read-only.
@@ -60,11 +63,11 @@ func close() -> void:
 
 
 ## The host's window close button: the menu on Game with the question to quit. The tutorial's
-## solo session asks nothing: Action.QUIT at once, as its Quit.
+## solo session and the own ship ask nothing: Action.QUIT at once, as their Quit.
 func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> Action:
 	open(screen, model, true)
 	selected = Tab.GAME
-	if tutorial:
+	if tutorial or ship:
 		return Action.QUIT
 	question = Action.QUIT
 	return Action.NONE
@@ -85,6 +88,8 @@ func follow(screen: GameFlow.Screen, model: ClientModel, hosting_now: bool) -> v
 func tabs() -> Array[Tab]:
 	if tutorial:
 		return [Tab.GAME, Tab.GUIDE, Tab.SETTINGS]
+	if ship:
+		return [Tab.GAME, Tab.FIND, Tab.GUIDE, Tab.SETTINGS]
 	var shown: Array[Tab] = [Tab.GAME, Tab.GUIDE]
 	if in_lobby:
 		shown.append(Tab.LOBBY)
@@ -159,7 +164,7 @@ static func settings_by_host(model: ClientModel) -> bool:
 func _ask_or_act(action: Action) -> Action:
 	if not is_open or asking():
 		return Action.NONE
-	if hosting and not tutorial:
+	if hosting and not tutorial and not ship:
 		question = action
 		return Action.NONE
 	return action

@@ -159,6 +159,19 @@ func test_closing_the_window_asks_the_host_to_quit_on_the_game_tab() -> void:
 	assert_int(menu.confirm()).is_equal(ACT.QUIT)
 
 
+func test_the_ship_shows_game_find_guide_and_settings_and_quits_at_once() -> void:
+	# #1285: the own ship with no session (s05 `ship`); its private lobby hosts for nobody.
+	var menu := EscMenuState.new()
+	menu.ship = true
+	menu.open(S.LOBBY, null, true)
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.FIND, TAB.GUIDE, TAB.SETTINGS])
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	assert_int(menu.press_quit()).is_equal(ACT.QUIT)
+	assert_bool(menu.asking()).is_false()
+	assert_int(menu.ask_quit(S.LOBBY, null)).is_equal(ACT.QUIT)
+	assert_bool(menu.asking()).is_false()
+
+
 func test_closing_the_window_in_the_tutorial_quits_without_a_question() -> void:
 	# #491: the tutorial's Leave and Quit act at once, its window's close button too, though the
 	# solo session hosts.

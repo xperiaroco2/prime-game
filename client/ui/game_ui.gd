@@ -271,6 +271,13 @@ func close_esc() -> void:
 	esc.close()
 
 
+## The own ship with no session (#1285, GameShip): the lobby HUD's Esc hint alone and the suit
+## menu's ship place (Find a lobby, Host, Tutorial).
+func set_ship(on: bool) -> void:
+	esc.state.ship = on
+	lobby_hud.set_ship(on)
+
+
 ## Whether the Esc menu shows an entry's page beside its panel.
 func esc_page_open() -> bool:
 	return esc_open() and esc.page_open()

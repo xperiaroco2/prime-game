@@ -2469,7 +2469,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
-| no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
+| no session | the launched game: none, it is in its own ship (#1285, §4.7.66: a private lobby, so the Lobby row). A Game with no command line (tests, runner and playcheck windows): main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD (s4, #495, §4.7.47): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
@@ -2477,7 +2477,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the map and tasks screen on M (§4.7.33); in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
 | End | post game screen (#498, §4.7.31): black, how the round ended ("Great party!", "Time's up"), the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
-| ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
+| ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu; the launched game goes back to its own ship instead of the menu (§4.7.66) | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
   mode's `lobby_level`, loaded synchronously at `Welcome` and when a lobby phase follows a map phase (End → Lobby,
@@ -4432,9 +4432,11 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `EscMenuState` (pure): the pages Guide, Lobby (the lobby screen only), Settings; GAME means none open, the default
   everywhere (s05's `lobby` and `round`); a second press of an entry closes its page; the page open last is kept for
   the next opening on the same kind of screen (lobby or other). The tutorial's Guide and Settings
-  (`GameUi.set_tutorial(on)`, §4.7.44). Not built: the ship's places with no session (Find a lobby, Host, Tutorial, the
-  own code; #1285 boots into the ship, #1316 the lobbies nearby), Character (the mirror, #1394, the engineer
-  2026-10-28), the Role page (the HUD shows the role since ui-2.3.0).
+  (`GameUi.set_tutorial(on)`, §4.7.44). The ship's place with no session (`ship`, `ship-find`, `ship-empty`,
+  `ship-code`, `ship-direct`; `GameUi.set_ship(on)`, #1285, §4.7.66): Find a lobby (a page, `FindPage`), Host and
+  Tutorial (panel entries after it), Guide, Settings and Quit, no Resume and no Leave. Not built: the own code in the
+  ship (no room is made before Host), the lobbies nearby (#1316: Find says none), Character (the mirror, #1394, the
+  engineer 2026-10-28), the Role page (the HUD shows the role since ui-2.3.0).
 - Resume (also Esc on the menu), Leave ("Leave the tutorial" there) and Quit are panel entries. The host's Leave and
   Quit open `ConfirmDim` and `Confirm` (P1, ToyPanelDialog 1080 wide: `Title` and `Body` 900 wide, `ConfirmButton`
   ToyButtonDanger and `Cancel` ToyButtonGhostOnLight): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
@@ -5675,6 +5677,41 @@ of the mode, never `core/` state (§9.5.27's client).
   zap through `SoundChooser`, `WorldSounds` on the files with the range, `ItemWorld`'s connection),
   `ship_engine_views_test.gd` (the cues, none at the last stage), `sfx_set_test.gd` (the five
   files exist) and `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
+
+#### 4.7.66 Booting into the own ship (#1285)
+prime-game-ui's s04 `boot` and s05 `ship` at `ui-2.5.4`, approved at the M8 sit-down (2026-11-08): the launched game
+has no main menu on the way; it boots straight into the aliens' ship and comes back to it whenever a session ends.
+- **The ship** (`GameShip`, `client/app/game_ship.gd`) is the base mode's lobby hosted on a private `LoopbackHub`, as
+  the tutorial is (§4.7.44): no socket opens, nobody else can join, no replay is written (`Game._ready` skips it) and
+  `Game.hosting()` is false (Leave and Quit ask nobody, no host-only settings). `GameShip.homes(game)` says who lives
+  there: the launched game (`read_command_line`, no launch option given, settings read from a file, as
+  `GameTutorial.first_launch`) or a Game with `ship_home` (tests); every other Game (tests, the runner's and
+  playcheck's windows, all with options or no command line) keeps the main menu (§4.7.38) as before.
+- **The boot.** `GameShipWiring.setup` runs at the end of `Game._ready`, after the tutorial's: with no session started
+  by the launch options or the first launch's tutorial, and no launch problem, the ship starts.
+- **Leaving it.** The suit menu's Find a lobby (its Join by code, its Join and Host by address), Host (a game with a
+  code) and Tutorial each call `GameShip.go`: the ship's session ends first (`Game.leave`, its end starting no ship
+  again), then, in the same frame, the session asked for starts (its own Find checks the fields as the main menu
+  does; a target that still starts nothing brings the ship back).
+- **Its lobby starts no match.** The Ready key sends nothing while the ship runs (`Game.toggle_ready`): the base mode's
+  `min_players` is 1, so one ready player would start a round nobody else is in.
+- **Coming back.** `GameShip.come_back`, from `Game._show_end` when no failure is shown and from `back_to_menu` (a
+  failure's Back): a new private ship starts one frame later, outside the ended session's own signal, unless a session
+  runs, a failure waits or the game quits (`Game.quitting()`). The ship's start is the failure's Try again
+  (`Game.set_retry`), never an older session; a failure's Join directly opens Find's address entry in the new ship.
+- **The UI** (`GameUi.set_ship(on)`): the lobby HUD shows only `Hint` (the bound Esc key and `tutorial.list.menu`; s04
+  `boot`), the crosshair, status, roster, ready tile, mic and voice hint hidden (`Aim`, the game's own, still names
+  what E uses); `EscMenuState.ship` gives the tabs Game, Find,
+  Guide, Settings with Host and Tutorial after Find. `FindPage` (`client/ui/find_page.gd`): `Nearby` (`find.nearby`,
+  `find.none`: no discovery yet, #1316), `Code` (420 px: the code field of the code alphabet, Join at six, the quiet
+  Join by address) or, in its place, `Address` (the address, the default port line, Join, Host and Back; Esc closes it
+  first, `EscMenu.close_page`).
+- **Not built here:** the in-world screens (s04's match console and s11's workbench on a machine: the Esc menu's Lobby
+  page holds the settings, `WorkbenchScreen` stays standalone, §4.7.65), the own code in the ship.
+- Tests: `tests/integration/client/app/game_ship_test.gd` (the boot, Find's Host and the way back, the tutorial, the
+  Ready key, an address that does not parse, a failure's Join directly, `homes()`, the main menu without a ship),
+  `tests/unit/client/ui/find_page_test.gd`, `esc_menu_state_test.gd`. Previews:
+  `client/dev/esc_ship*_preview.tscn` and `lobby_hud_boot*_preview.tscn`.
 
 #### 4.7.65 The mutation workbench's screen (#1572)
 `WorkbenchScreen` (`client/ui/workbench_screen.gd`) is prime-game-ui's s11 at `ui-2.5.4`, node for node: `Screen`
