@@ -349,7 +349,7 @@ func put_down() -> int:
 ## that takes Use from the living (#1526). A photo in the hand hits too, by the fallback (#1444);
 ## its close-up is on the right button (use_secondary).
 func use() -> int:
-	# A phase that takes no Use from the living (the shipped Round, #1497) would only answer
+	# A phase that takes no Use from the living (the pregame, Loading) would only answer
 	# Rejected(not_accepted), whatever the hand holds (#1526).
 	if not _acts() or not _phase_takes(Intents.USE):
 		return -1

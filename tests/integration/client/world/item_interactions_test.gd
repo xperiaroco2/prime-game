@@ -170,14 +170,9 @@ func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 
 
 func test_the_left_button_sends_use_with_an_empty_hand_where_the_phase_takes_it() -> void:
-	# The shipped base mode's Round takes no Use (the M8 slice, #1497): the key sends nothing.
-	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)
-	assert_int(_keys.use()).is_equal(-1)
-	_harness.pump()
-	assert_array(_harness.sent_named(Intents.USE)).is_empty()
-	# The mode's fallback hit (#1437) where the Round takes Use (the melee fixture, the base mode
-	# before #1497): the host answers an empty hand's Use, so the key sends it.
-	_keys.setup(_harness.session, FixtureBaseModeWithMelee.mode())
+	# The shipped base mode's Round takes Use again (the M8 release, #1587; the M8 slice had none,
+	# #1497): the host answers an empty hand's Use with the mode's fallback hit (#1437), the fist,
+	# so the key sends it.
 	await _look_at(Vector3(0, 1.0, -3))
 	var facing := _player.look_vector()
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(-1)
@@ -197,20 +192,16 @@ func test_the_left_button_sends_use_with_an_empty_hand_where_the_phase_takes_it(
 
 func test_the_left_button_sends_use_with_an_item_in_the_hand_only_where_the_phase_takes_it(
 ) -> void:
-	# The shipped base mode's Round takes no Use (the M8 slice, #1497): an item in the hand sends
-	# nothing either, where the host would only answer Rejected(not_accepted) (#1526).
+	# The shipped base mode's Round takes Use (the M8 release, #1587): an item in the hand sends
+	# it, the crystal's hit for one.
 	_spawn(5, Vector3(0, 0, -1))
 	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": 5})
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(5)
-	assert_int(_keys.use()).is_equal(-1)
-	_harness.pump()
-	assert_array(_harness.sent_named(Intents.USE)).is_empty()
-	# Where the Round takes Use (the melee fixture), the same hand sends it.
-	_keys.setup(_harness.session, FixtureBaseModeWithMelee.mode())
 	assert_int(_keys.use()).is_greater(0)
 	_harness.pump()
 	assert_int(_harness.sent_named(Intents.USE).size()).is_equal(1)
-	# A phase of the melee fixture that takes no Use (its pregame): nothing more is sent.
+	# A phase that takes no Use (the base mode's pregame): nothing more is sent, where the host
+	# would only answer Rejected(not_accepted) (#1526).
 	_model.phase = &"pregame"
 	assert_int(_keys.use()).is_equal(-1)
 	_harness.pump()
