@@ -336,8 +336,8 @@ static func map_name(map: String) -> String:
 
 
 ## A player's row name: the own "You", the others' names (data). The host's row carries the
-## roster's host tag beside it (#1422: `hud.roster.host`, the lobby HUD's, for the retired host
-## mark the copy deck dropped).
+## roster's host tag beside it (#1422: `hud.roster.host`, LobbyHud.host_tag, for the host mark
+## the copy deck retires).
 static func row_text(model: ClientModel, peer: int) -> String:
 	if peer == model.own_peer:
 		return KeyLabel.word(&"player.you")
@@ -503,15 +503,8 @@ func _refresh_players(model: ClientModel) -> void:
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		var line := row.get_node(^"H")
 		if peer == NetTransport.HOST_ID:
-			# The lobby HUD's host tag (LobbyHud), after the name.
-			var tag := PanelContainer.new()
-			tag.name = "HostTag"
-			tag.theme_type_variation = &"ToyRosterTagHost"
-			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			var tag_text := UiParts.styled_label(LobbyText.HOST_TAG_KEY, &"ToyRosterTagHostText")
-			tag_text.name = "Text"
-			tag.add_child(tag_text)
-			line.add_child(tag)
+			# The lobby HUD's host tag, after the name.
+			line.add_child(LobbyHud.host_tag())
 		var mark := TextureRect.new()
 		mark.name = "Ready"
 		mark.texture = CHECK

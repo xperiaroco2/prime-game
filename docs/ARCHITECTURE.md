@@ -4461,7 +4461,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
   arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
   allowed, only those of the types that play on the picked map, the mode's default map while none is known (DE16, #828: a ban on a hidden type stays in the set the chips send); a number with one allowed value hides, and so does one no part of the mode reads, `GameMode.read_settings()`: the base mode's `knives` in the M8 slice, #1525; a task type's own setting (`TaskType.subtasks_setting`) shows only where one of its types plays on the picked map, named `lobby.setting.task_steps` with the task's name when it has no row key; the task count hides with no more types playing there than its least value, and the Map row with one map to play: on the Estate, M8's one map, the page shows the duration, the engine's chip and the dissidents, all in the player's language, and the players' list keeps at least 360 px, #1601) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
-  the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
+  the players' rows, scrolling, the host's with the roster's `HostTag` (`LobbyHud.host_tag`: ToyRosterTagHost, `hud.roster.host` in capitals, as the lobby HUD's, #1422); the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
   ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. A card takes a
   default that follows the player count at the roster's size (`default_for`, §9.1), so it never names one it leaves
@@ -4485,7 +4485,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   panel alone: the pressed entry, the Settings section, Leave's words; no deck key shown as itself in en or uk), `esc_menu_state_test.gd`,
   `screens_test.gd` (the tree by name, variation and place, the host's question, its focus and the menu shut behind
   it, the tutorial, the page closing when the round starts), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
-  closes only the dialog), `role_facts_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
+  closes only the dialog), `role_facts_test.gd`, `lobby_panel_roster_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
   with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
   `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` (`lobby_panel` the
   panel alone in the lobby, `lobby` and `lobby_guest` its Lobby page, `lobby_no_code`, `game_host` and `game_guest`

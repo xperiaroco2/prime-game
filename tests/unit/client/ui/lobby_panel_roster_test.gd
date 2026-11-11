@@ -35,9 +35,10 @@ func test_the_hosts_row_is_its_name_with_the_rosters_host_tag() -> void:
 			continue
 		hosts += 1
 		var text := tag.find_child("Text", true, false) as Label
+		assert_bool(text.uppercase).is_true()
 		tags.append(text.text)
-		var name := SettingRows.name_of(row as PanelContainer).text
-		assert_str(name).is_equal(host.name)
+		var shown := SettingRows.name_of(row as PanelContainer).text
+		assert_str(shown).is_equal(host.name)
 	assert_int(hosts).is_equal(1)
 	assert_array(tags).is_equal([LobbyText.HOST_TAG_KEY])
 
