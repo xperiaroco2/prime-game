@@ -1,6 +1,6 @@
 class_name MirrorPlacesEvent
 extends MatchEvent
-## The lobby mirror's places in use, the whole list (ARCHITECTURE §4.2, §7.1.23; #1394): each
+## The lobby mirror's places in use, the whole list (ARCHITECTURE §4.2, §7.1.24; #1394): each
 ## held place's station and the peer holding it, in station order (empty: every place free). Sent on
 ## every change (Mirror.announce), and again to everyone when a player joins (MirrorTicks). Public:
 ## who stands at the mirror is seen by all, and the holder's client opens its menu from it.

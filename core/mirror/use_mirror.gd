@@ -1,6 +1,6 @@
 class_name UseMirror
 extends RuleEffect
-## The actor's Interact at a place of the lobby's mirror (ARCHITECTURE §7.1.23, §9.4; #1394; GDD §3
+## The actor's Interact at a place of the lobby's mirror (ARCHITECTURE §7.1.24, §9.4; #1394; GDD §3
 ## "The mirror"): its own place's Interact gives the place up (Mirror.leave); any other free place's
 ## takes it, giving up the one it held (Mirror.take). Only in a station kind's rule on Interact,
 ## after the conditions required_conditions() lists (MirrorFree refuses a place another player

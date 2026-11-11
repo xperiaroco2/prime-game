@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The lobby mirror's places (#1394; ARCHITECTURE §7.1.23, §9.4): one station per `mirror` marker;
+## The lobby mirror's places (#1394; ARCHITECTURE §7.1.24, §9.4): one station per `mirror` marker;
 ## an Interact at a free place takes it and every peer sees the same places (MirrorPlaces); two
 ## players hold two places at once; a place another player holds refuses `unavailable`; the
 ## holder's Interact again gives it up, one at another place moves it there; a walk away, a
@@ -18,7 +18,6 @@ func test_every_marker_is_a_place_from_the_first_tick() -> void:
 	assert_int(FixtureMirror.place(game, 1)).is_not_equal(-1)
 	assert_int(FixtureMirror.place(game, 0)).is_not_equal(FixtureMirror.place(game, 1))
 	assert_int(game.view_of(P1).events_named(&"StationPlaced").size()).is_equal(2)
-	assert_bool(Mirror.has_places(game.state)).is_true()
 	FixtureModes.run_ticks(game, 3)
 	assert_int(game.state.stations.size()).is_equal(2)
 

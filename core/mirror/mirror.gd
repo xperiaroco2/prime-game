@@ -1,6 +1,6 @@
 class_name Mirror
 extends RefCounted
-## The lobby's mirror (#1394; ARCHITECTURE §7.1.23, §9.4; GDD §3 "The mirror"): one wide mirror
+## The lobby's mirror (#1394; ARCHITECTURE §7.1.24, §9.4; GDD §3 "The mirror"): one wide mirror
 ## with several places, each a station of the mirror's kind on its own `mirror` marker (StationTicks
 ## with `every_marker`), so the places are level data. A player's Interact at a free place takes it
 ## (UseMirror), its own place's Interact gives it up, and an Interact at another place moves it
@@ -10,9 +10,9 @@ extends RefCounted
 ## the pinball's seat is.
 ##
 ## Holding a place is what lets a player change its body colour (JoinRules.set_profile: in a phase
-## whose level has mirror places, a SetProfile that changes the colour from a player holding none
-## is `not_at_mirror`). In M8 the mirror changes only the colour (the engineer, the M8 sit-down of
-## 2026-11-08); clothes and body shapes come after M8.
+## that lists MirrorTicks, gates_colour(), a SetProfile that changes the colour from a player not
+## standing at a place it holds, at_place(), is `not_at_mirror`). In M8 the mirror changes only the
+## colour (the engineer, the M8 sit-down of 2026-11-08); clothes and body shapes come after M8.
 ##
 ## A place is given up (MirrorTicks) when its player is no longer present, alive (or dead in the
 ## hall) and standing, its station is gone, or its last accepted position is outside the station's
@@ -69,23 +69,43 @@ static func is_mirror_kind(kind: StationKind) -> bool:
 	return false
 
 
-## Whether the match holds a mirror place now (the phase's level placed one).
-static func has_places(state: MatchState) -> bool:
-	for id: int in state.stations:
-		if is_mirror_kind(state.stations[id].kind):
+## Whether the colour changes only at the mirror in `ctx`'s phase: the phase lists MirrorTicks
+## (MirrorTicks.problems makes every phase that places the mirror list it). The phase's data, not
+## the stations standing, so the tick before its StationTicks first runs (a match's start, End ->
+## Lobby) is no gap.
+static func gates_colour(ctx: MatchContext) -> bool:
+	var spec := ctx.phase_spec()
+	if spec == null:
+		return false
+	for system: TickSystem in spec.tick_systems:
+		if system is MirrorTicks:
 			return true
 	return false
 
 
-## Whether `player` may keep a place: present, alive or dead in the hall, and standing (not limp).
+## Whether `peer` holds a mirror place and still stands at it now (MirrorTicks.holds: present,
+## standing and inside the place's cylinder), so a holder who walked off this tick, before
+## MirrorTicks gives the place up at the tick's end, changes no colour.
+static func at_place(state: MatchState, peer: int) -> bool:
+	var station := place_of(state, peer)
+	return station >= 0 and MirrorTicks.holds(state, station, peer)
+
+
+## Whether `player` may keep a place: present, alive and standing (not limp); Pinball.standing's
+## "dead in the hall" never applies, as the places stand only in the lobby's phases.
 static func standing(player: PlayerState) -> bool:
 	return Pinball.standing(player)
 
 
-## The actor takes place `station`, giving up the one it held. One MirrorPlaces.
+## The actor takes place `station`, giving up the one it held. One MirrorPlaces. A mirror never
+## has more places in use than MAX_PLACES, the wire's cap: a take past it is a level error
+## (more `mirror` markers than the cap) and takes nothing.
 static func take(ctx: MatchContext, station: int) -> void:
 	var held := places(ctx.state).held
 	var before := place_of(ctx.state, ctx.actor)
+	if before < 0 and held.size() >= MAX_PLACES:
+		ctx.error("Mirror: more than %d places in use" % MAX_PLACES)
+		return
 	if before >= 0:
 		held.erase(before)
 	held[station] = ctx.actor

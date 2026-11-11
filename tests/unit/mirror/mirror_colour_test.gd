@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The colour changes at the mirror (#1394; ARCHITECTURE §3.5, §7.1.23; GDD §3 "The mirror", in M8
+## The colour changes at the mirror (#1394; ARCHITECTURE §3.5, §7.1.24; GDD §3 "The mirror", in M8
 ## only the colour): in a lobby with mirror places a SetProfile asking for another colour from a
 ## player at no place is `not_at_mirror`, from a place it is applied and every peer sees it
 ## (ProfileChanged); two players at two places change at once; a colour another player has still
@@ -91,3 +91,25 @@ func test_the_colour_is_kept_into_the_match_with_the_place_given_up() -> void:
 	assert_str(game.phase_id()).is_equal("loading")
 	assert_int(Mirror.place_of(game.state, P1)).is_equal(-1)
 	assert_int(game.state.player(P1).colour).is_equal(FREE)
+
+
+## The netcode review of #1394: the phase's data decides, not the stations standing. Before the
+## first tick's StationTicks (a match's start, End -> Lobby) no place stands yet, and a colour asked
+## then is refused as well.
+func test_a_colour_change_before_the_places_stand_is_refused() -> void:
+	var game := Match.new(FixtureMirror.mode(), 7, FlatWorldQuery.new(), FixtureMirror.layouts())
+	game.keep_history = true
+	game.start(0)
+	FixtureBaseMode.join(game, P1)
+	FixtureModes.send(game, Intents.SET_PROFILE, P1, {"name": "", "colour": FREE})
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([Mirror.NOT_AT_MIRROR])
+
+
+## The netcode review of #1394: a holder that walked off (its place not yet given up by
+## MirrorTicks, which runs at the tick's end) changes no colour.
+func test_a_colour_change_after_walking_off_the_place_is_refused() -> void:
+	var game := FixtureMirror.joined(FixtureMirror.mode(), [P1])
+	FixtureMirror.use(game, P1, 0)
+	FixtureItemModes.stand(game, P1, FixtureMirror.PLACES[0] + Vector3(3, 0, 0))
+	FixtureModes.send(game, Intents.SET_PROFILE, P1, {"name": "", "colour": FREE}, 2)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([Mirror.NOT_AT_MIRROR])

@@ -1,8 +1,8 @@
 class_name MirrorTicks
 extends TickSystem
 ## Gives up the mirror places that no longer hold and tells the places to whoever lacks them
-## (#1394; ARCHITECTURE §7.1.23, §9.4.5), each tick of a phase that lists it: a place is given up
-## when its player is no longer present, alive (or dead in the hall) and standing (gone, knocked
+## (#1394; ARCHITECTURE §7.1.24, §9.4.5), each tick of a phase that lists it: a place is given up
+## when its player is no longer present, alive and standing (gone, knocked
 ## down, dead, limp), its station is gone, or its last accepted position is outside the station's
 ## cylinder (walked away); all those of one tick go out as one MirrorPlaces. Then, while a place is
 ## held, a present player who was not told the places (a joiner) gets one MirrorPlaces, to everyone
@@ -17,7 +17,7 @@ func run(ctx: MatchContext) -> void:
 	var held := Mirror.places(ctx.state).held
 	var lost: Array[int] = []
 	for station: int in held:
-		if not holds(ctx, station, held[station]):
+		if not holds(ctx.state, station, held[station]):
 			lost.append(station)
 	for station: int in lost:
 		held.erase(station)
@@ -27,12 +27,13 @@ func run(ctx: MatchContext) -> void:
 		Mirror.announce(ctx)
 
 
-## Whether `peer` still holds place `station` at `ctx.tick`.
-func holds(ctx: MatchContext, station: int, peer: int) -> bool:
-	var player := ctx.state.player(peer)
+## Whether `peer` may still hold place `station` in `state`: present, standing and inside the
+## place's cylinder (Mirror.at_place reads it too, for a colour change in the tick of a walk-off).
+static func holds(state: MatchState, station: int, peer: int) -> bool:
+	var player := state.player(peer)
 	if not Mirror.standing(player):
 		return false
-	var place: StationState = ctx.state.stations.get(station)
+	var place: StationState = state.stations.get(station)
 	return place != null and place.contains(player.position)
 
 
