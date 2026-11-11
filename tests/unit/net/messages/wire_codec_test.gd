@@ -236,20 +236,21 @@ func test_the_encoder_refuses_counts_over_their_maxima_and_payloads_over_the_cap
 	_assert_refused(WireMessage.new(&"SettingsChanged", fields))
 
 
-## SettingsChanged's spawn tags (#810, protocol 34): needed_markers and map_markers hold
-## MAX_MARKERS (64) entries each and round-trip; one more is refused by the encoder and by the
-## decoder. needed_colours and palettes stay at MAX_ENTRIES (32). A changed cap is a protocol
-## change.
+## SettingsChanged's spawn tags (#810, protocol 34) and station kinds' colours (#1394, protocol
+## 57): needed_markers, map_markers, needed_colours and palettes hold MAX_MARKERS (64) entries each
+## and round-trip; one more is refused by the encoder and by the decoder. A changed cap is a
+## protocol change.
 func test_settings_changed_holds_the_most_spawn_tags_and_refuses_one_more() -> void:
 	assert_int(WireSchema.MAX_MARKERS).is_equal(64)
 	var fields := _settings_changed_fields()
-	for field: String in ["needed_markers", "map_markers"]:
+	var maps: Array[String] = ["needed_markers", "map_markers", "needed_colours", "palettes"]
+	for field: String in maps:
 		fields[field] = _tags(WireSchema.MAX_MARKERS)
 	var decoded := _round_trip(WireMessage.new(&"SettingsChanged", fields))
 	assert_object(decoded).is_not_null()
 	if decoded == null:
 		return
-	for field: String in ["needed_markers", "map_markers"]:
+	for field: String in maps:
 		assert_bool(Samples.same(decoded.fields[field], fields[field])).is_true()
 		var over := fields.duplicate()
 		over[field] = _tags(WireSchema.MAX_MARKERS + 1)
@@ -266,10 +267,6 @@ func test_settings_changed_holds_the_most_spawn_tags_and_refuses_one_more() -> v
 		assert_int(full_payload[at]).is_equal(WireSchema.MAX_MARKERS)
 		full_payload[at] = WireSchema.MAX_MARKERS + 1
 		_assert_rejected(37, full_payload, "%s: 65 entries, at most 64" % field)
-	for field: String in ["needed_colours", "palettes"]:
-		var over := fields.duplicate()
-		over[field] = _tags(WireSchema.MAX_ENTRIES + 1)
-		_assert_refused(WireMessage.new(&"SettingsChanged", over))
 
 
 ## Host text is ids and whole numbers only (#548): a sentence, a third subject or a fifth

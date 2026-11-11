@@ -111,7 +111,11 @@ extends RefCounted
 ## the carrier the ship zapped as the crystal passed the aboard box's edge.
 ## 56 since #1489 (the dead wait in a hall): the event PrintStarted (kind 99: peer, the respawn
 ## marker and the print's length in milliseconds), before the Respawned that ends the print.
-const VERSION := 56
+## 57 since #1394 (the mirror): the event MirrorPlaces (kind 100: the held places' stations and the
+## peers holding them, up to MAX_MIRROR_PLACES each), and SettingsChanged's needed_colours and
+## palettes rise from 32 to 64 entries (MAX_MARKERS; the mirror's kind made the base mode's 33rd
+## station kind).
+const VERSION := 57
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -137,7 +141,7 @@ const MAX_PLAYERS := 16
 const MAX_AVATARS := MAX_PLAYERS
 ## The avatars of every player but one: the photo camera's shot of a living photographer.
 const MAX_OTHER_AVATARS := MAX_PLAYERS - 1
-## Settings, colours, palettes and station kinds per map (SettingsChanged's spawn tags take
+## Settings and station kinds per map (SettingsChanged's spawn tags, colours and palettes take
 ## MAX_MARKERS).
 const MAX_ENTRIES := 32
 ## SettingsChanged's spawn tags (needed_markers, map_markers): 64 since #810 (the base mode's House
@@ -155,6 +159,9 @@ const MAX_PROBLEM_STATIONS := 8
 ## The frames of one photo booth session (BoothReplay's records, #1474): core's
 ## StartBooth.MAX_FRAMES, which a unit test pins equal (net/ names no core/ class).
 const MAX_BOOTH_FRAMES := 8
+## The mirror places held at once (MirrorPlaces' lists, #1394): core's Mirror.MAX_PLACES, which a
+## unit test pins equal (net/ names no core/ class).
+const MAX_MIRROR_PLACES := 16
 ## Host text (#548): the most subject ids and whole-number arguments of one text.
 const MAX_TEXT_IDS := 2
 const MAX_TEXT_NUMBERS := 4
@@ -479,8 +486,8 @@ static func _events() -> Array[WireRow]:
 			_of("players", WireField.Type.U8),
 			_numbers("needed_markers", MAX_MARKERS),
 			_numbers("map_markers", MAX_MARKERS),
-			_numbers("needed_colours"),
-			_numbers("palettes"),
+			_numbers("needed_colours", MAX_MARKERS),
+			_numbers("palettes", MAX_MARKERS),
 			WireField.list("shortfalls", WireField.record("", _host_text()), MAX_SHORTFALLS),
 			_name("lobby_name"),
 		]
@@ -744,6 +751,17 @@ static func _events() -> Array[WireRow]:
 				_of("phase", WireField.Type.U8),
 				WireField.maybe("item", WireField.Type.ITEM),
 				WireField.maybe("tick", _tick()),
+			]
+		),
+		_down(
+			100,
+			&"MirrorPlaces",
+			98,
+			[
+				WireField.list(
+					"stations", _station(""), MAX_MIRROR_PLACES, TYPE_PACKED_INT32_ARRAY
+				),
+				WireField.list("peers", _peer(""), MAX_MIRROR_PLACES, TYPE_PACKED_INT32_ARRAY),
 			]
 		),
 		WireBoothRows.step(),
