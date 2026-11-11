@@ -136,10 +136,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 2.2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 0, -9.5)
 
 [node name="MirrorPlace1" type="Marker3D" parent="." unique_id=145746120 groups=["spawn_mirror"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 7.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 7.2)
 
 [node name="MirrorPlace2" type="Marker3D" parent="." unique_id=262856641 groups=["spawn_mirror"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 8)
 
 [node name="MirrorPlace3" type="Marker3D" parent="." unique_id=2016308213 groups=["spawn_mirror"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 8.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 8.8)
