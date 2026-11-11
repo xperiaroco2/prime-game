@@ -42,8 +42,12 @@ func _ready() -> void:
 	_views = ShipEngineViews.new()
 	_views.model = _model
 	_views.mode = mode
-	if view == "call_dim":
-		_now = NOW + Ticks.RATE
+	# The console's call starts a pulse every PULSE_SECONDS from 0.75 s (ShipStationLooks), up by
+	# a twentieth of the period: tick 1997 is its height, a second later its rest.
+	if view == "call":
+		_now = NOW - 3
+	elif view == "call_dim":
+		_now = NOW - 3 + Ticks.RATE
 	_views.host_tick = func() -> int: return _now
 	add_child(_views)
 	_views.level = room
@@ -57,7 +61,7 @@ func _ready() -> void:
 		"charger", "flash":
 			_charger(camera, looks, mode)
 		"call", "call_dim", "wiring":
-			_hologram(camera, room)
+			_hologram(camera, room, looks)
 		"steam", "mist":
 			_gills(camera, room)
 		_:
@@ -67,11 +71,7 @@ func _ready() -> void:
 
 func _board(camera: Camera3D, looks: ShipStationLooks) -> void:
 	var board_id: int = _first[&"breaker_board"]
-	var order: Array[int] = []
-	for id: int in _model.stations:
-		if looks.board_station_of(id) == board_id:
-			order.append(id)
-	order.sort_custom(func(a: int, b: int) -> bool: return looks.shell_of(a) < looks.shell_of(b))
+	var order := _breakers_of(board_id, looks)
 	_model.fold(
 		&"EngineProblemOpened",
 		{"problem": 1, "stations": PackedInt32Array([board_id]), "deadline": NOW + 6000}
@@ -135,16 +135,17 @@ func _charger(camera: Camera3D, looks: ShipStationLooks, mode: GameMode) -> void
 
 ## The console's hologram from the hall's throat side: "call" leaves the engine off; "wiring"
 ## presses the start, fills half the bar and opens a problem at a socket and one at a breaker
-## board, the socket's the nearest deadline.
-func _hologram(camera: Camera3D, room: Node3D) -> void:
+## board (with its chain, as the host sends it), the socket's the nearest deadline.
+func _hologram(camera: Camera3D, room: Node3D, looks: ShipStationLooks) -> void:
 	var console: int = _first[&"engine_console"]
+	var board_id: int = _first[&"breaker_board"]
 	if view == "wiring":
 		_model.fold(&"ButtonPressed", {"station": console})
 		_model.fold(
 			&"ZoneProgress",
 			{"station": console, "ticks": 900, "needed": 1800, "counting": false, "tick": NOW}
 		)
-		var sites: Array[int] = [_first[&"cartridge_socket"], _first[&"breaker_board"]]
+		var sites: Array[int] = [_first[&"cartridge_socket"], board_id]
 		for i in sites.size():
 			var fields := {
 				"problem": i + 1,
@@ -152,41 +153,58 @@ func _hologram(camera: Camera3D, room: Node3D) -> void:
 				"deadline": NOW + 460 + 300 * i,
 			}
 			_model.fold(&"EngineProblemOpened", fields)
+		var chain := {
+			"problem": 2,
+			"breakers": PackedInt32Array(_breakers_of(board_id, looks)),
+			"next": 0,
+			"since": -1,
+		}
+		_model.fold(&"BreakerChain", chain)
 	_run(0.5)
 	var centre := room.get_tree().get_first_node_in_group(&"engine_hologram") as Node3D
 	var at := centre.global_position
 	camera.look_at_from_position(at + Vector3(0.0, 0.55, -1.7), at + Vector3(0.0, -0.05, 0.0))
 
 
-## The first gill set: a gills problem opened at its button, then "steam" opens two slits (their
-## puffs a moment later) and "mist" all five and fixes it (the cloud a moment later).
+## The first gill set: a gills problem opened at every gill button (whichever the view binds the
+## set to), then "steam" opens two slits (their puffs a moment later) and "mist" all five and
+## fixes it (the cloud a moment later). No puff or cloud is an error: the shot would prove nothing.
 func _gills(camera: Camera3D, room: Node3D) -> void:
-	var button: int = _first[&"gill_button"]
 	var gills := room.get_tree().get_first_node_in_group(&"engine_gills") as Node3D
-	var nearest := INF
+	var buttons: Array[int] = []
 	for id: int in _model.stations:
-		var spot := _model.stations[id].position
 		if _model.stations[id].kind == &"gill_button":
-			var m := spot.distance_to(gills.global_position)
-			if m < nearest:
-				nearest = m
-				button = id
-	_model.fold(
-		&"EngineProblemOpened",
-		{"problem": 1, "stations": PackedInt32Array([button]), "deadline": NOW + 6000}
-	)
+			buttons.append(id)
+	for i in buttons.size():
+		var fields := {
+			"problem": i + 1, "stations": PackedInt32Array([buttons[i]]), "deadline": NOW + 6000
+		}
+		_model.fold(&"EngineProblemOpened", fields)
 	_run(0.2)
 	var slits := [0, 1] if view == "steam" else [0, 1, 2, 3, 4]
-	for slit: int in slits:
-		_model.fold(&"GillFlipped", {"station": button, "slit": slit, "open": true})
-	if view == "mist":
-		_model.fold(&"EngineProblemFixed", {"problem": 1})
+	for i in buttons.size():
+		for slit: int in slits:
+			_model.fold(&"GillFlipped", {"station": buttons[i], "slit": slit, "open": true})
+		if view == "mist":
+			_model.fold(&"EngineProblemFixed", {"problem": i + 1})
 	_run(0.3 if view == "steam" else 1.0)
+	if (_views.steam() if view == "steam" else _views.mist()).is_empty():
+		push_error("ship_stations_preview: no %s at the gills" % view)
 	var middle := Vector3.ZERO
 	for slit in 5:
 		middle += (gills.get_node("Slit%d" % (slit + 1)) as Node3D).global_position / 5.0
 	var out := gills.global_basis.z.normalized()
 	camera.look_at_from_position(middle + out * 3.2 + Vector3.UP * 0.1, middle)
+
+
+## The breakers of board station `board_id`, in its shells' order.
+func _breakers_of(board_id: int, looks: ShipStationLooks) -> Array[int]:
+	var order: Array[int] = []
+	for id: int in _model.stations:
+		if looks.board_station_of(id) == board_id:
+			order.append(id)
+	order.sort_custom(func(a: int, b: int) -> bool: return looks.shell_of(a) < looks.shell_of(b))
+	return order
 
 
 ## Every station of the room at its `spawn_<kind>` marker, as the host places them.
