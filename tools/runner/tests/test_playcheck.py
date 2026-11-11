@@ -169,7 +169,7 @@ class ParserTest(unittest.TestCase):
         self.assertNotIn("map", plain.steps[1][0].args)
 
     def test_a_mode_header_goes_into_the_plan_for_every_window(self) -> None:
-        """#1497: a knockdown in the Round plays the melee fixture, the shipped mode has no strike there."""
+        """#1497: a knife knockdown in the Round plays the melee fixture, the shipped mode places no knife."""
         s = scenario(with_header("window 1\nshot a", f"players 2\nwindows 2\nmode res://{MELEE}"))
         self.assertEqual(s.mode, f"res://{MELEE}")
         self.assertEqual(playcheck.plan(s, Path("/out"))["mode"], f"res://{MELEE}")
@@ -179,7 +179,7 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(playcheck.plan(scenario(with_header("window 1\nshot a")), Path("/out"))["mode"], "")
 
     def test_the_knockdown_spectate_and_items_scenarios_play_the_melee_fixture(self) -> None:
-        """#1497: they knock down or pick up a knife in the Round, which only the fixture still has; their bots
+        """#1497: they knock down with or pick up a knife in the Round, which only the fixture still has; their bots
         files name the same mode, or the bots' process would play another."""
         for name in ("knockdown", "spectate", "items"):
             with self.subTest(name=name):

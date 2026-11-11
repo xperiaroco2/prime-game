@@ -6,10 +6,10 @@ extends GameMode
 ## shipped mode had them. The M8 slice took the knives and the Round's hits out of the shipped
 ## match (#1497); the M8 release gave the hits back with the fist and the crystal only (#1587; GDD
 ## §3 "The M8 release"), so the shipped Round takes Use from the living again and
-## round_takes_use() changes nothing there (another mode's copy, the zone fixture's, still needs
-## it). The bot scenarios and the chaos run that knock players down with a knife play here. Loaded
-## through `base_mode_with_melee.tres` (PATH), so a bot scenario can name it as its mode and a
-## command log replays it by its path.
+## round_takes_use() changes nothing on any copy of today's shipped mode but the Use row's place
+## (after PutDown). The bot scenarios and the chaos run that knock players down with a knife play
+## here. Loaded through `base_mode_with_melee.tres` (PATH), so a bot scenario can name it as its
+## mode and a command log replays it by its path.
 
 const PATH := "res://tests/fixtures/combat/base_mode_with_melee.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"

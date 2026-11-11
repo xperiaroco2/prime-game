@@ -14,7 +14,7 @@ role 2 crew
 role 3 dissident
 role 4 crew
 setting packages 1
-# The melee fixture (#1497): the shipped base mode places no knife and takes no Use in the Round.
+# The melee fixture (#1497): the shipped base mode places no knife (its Round hits again since #1587).
 mode tests/fixtures/combat/base_mode_with_melee.tres
 map res://levels/greybox/greybox.tscn
 
