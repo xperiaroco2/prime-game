@@ -38,6 +38,11 @@ static func texture(icon: StringName) -> Texture2D:
 	return made
 
 
+## Whether the pack has `icon`: its imported copy or its pinned SVG (no warning when neither).
+static func has(icon: StringName) -> bool:
+	return ResourceLoader.exists(IMPORTED % icon) or FileAccess.file_exists(PINNED % icon)
+
+
 ## The pack's `svg_scale` for `icon`, 1.0 when the pack does not list it.
 static func scale_of(icon: StringName) -> float:
 	if _scales.is_empty():

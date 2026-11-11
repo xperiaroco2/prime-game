@@ -35,8 +35,8 @@ Which class lives where: `ls client/*` and `docs/ARCHITECTURE.md` §4.7 (§4.6 f
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; nothing private of the target is shown (no health, stamina, role,
   teammates or private event).
-  Of the target, the spectator sees only its name ("Watching: <name>", `LifeScreen`'s Spectate plate), and of
-  itself the time to respawn; the HUD shows nothing while dead (#497, §4.7.41); from a living target's eyes its body and the item views at it are
+  Of the target, the spectator sees only its name ("Watching: <name>"), and of
+  itself the time to respawn; the HUD shows nothing while dead (hall: the mic; #497, §4.7.41); from a living target's eyes its body and the item views at it are
   hidden, and its hand item shows in the spectate camera's first-person hand, as on its own screen (#168).
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view

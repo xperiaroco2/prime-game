@@ -3902,8 +3902,8 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   progress line (nor has the HUD since #489, §4.7.37); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
-  lights that type's zones, drawn under the room's pictogram and name, and their tag (`map.zone_hint.<type>`, else
-  `map.zone_hint`; under the first lit room since #490, §4.7.40). Words built in code are
+  lights that type's zones, drawn in the room's `Area` under its name, and their tag (`map.zone_hint.<type>`, else
+  `map.zone_hint.task`; under the first lit room since #490, §4.7.40). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner (with `metadata/centred =
@@ -4123,8 +4123,8 @@ by the pack's variations only (no override, `theme_test.gd`); what the handoff d
 what the game had (the engineer's rule, #507).
 - **The tree** (`client/ui/Hud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of `Ui`,
   under it): `Edge` ToyScreenEdgeAlert (full rect, first, under the tiles); `Role` ToySticker (top left, 39 px in)
-  > `Text`; `Time` ToyPlate (top centre, 36 px down) > `Row` > `Timer` (m:ss, at least 120 px and never changing
-  width, #489), `Divider` and `AngerColumn` (`Caption`, `Anger` > `Bar` ToyBarAnger and `Siren`); `Roster` ToyPlate
+  > `Text`; `Time` ToyPlate (top centre, 36 px down) > `Row` > `Timer` (mm:ss, at least 120 px and never changing
+  width, #489), `Divider` and `AngerColumn` (`Caption`, `Anger` > `Bar` ToyBarAngerCalm or ToyBarAngerAlarm and `Siren`); `Roster` ToyRoster
   (top right) > `Rows` > `Row<n>` (`Dot`, `Name`, `Tag` ToyRosterTag > `Text`); `Cross` ToyCrosshair (centre);
   `Aim` ToyChipPlate (64 px under the centre) > `Text`; `Notice` ToyChipPlate (top centre, 120 px down, under the top tile;
   hidden but for the ship zap's seconds, #1585, §9.5.27; not in the handoff) > `Text`; `Raising` ToyPlate > `Bar` ToyBarProgress (360 x 24) at
@@ -4370,7 +4370,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `Text` ToyStickerText (`dead.capsule_note` with the mode's `invulnerable_s`, `LifeCountdowns.protection_s()`); `Protect` ToyChipLight (top centre,
   165 px down: 39 px under the anger meter) > `Text` ToyChipLightText. Every root sits at a point and takes its
   minimum size; the keycap's `min_width` (42, 50 at large text) is read by `UiParts.sized` again after the
-  large-text swap. Every Control ignores the mouse and takes no focus. The four roots sit under one full-rect
+  large-text swap. Every Control ignores the mouse and takes no focus. The five roots sit under one full-rect
   `LifeScreen` Control beside `Hud`, not beside its nodes (one class owns s09; the places are the handoff's).
   The handoff's `dead-room` is the dead's hall of #1489 (`ClientModel.waits_in_hall()`, #1570): `DeadTop` with
   `Room` and `Return`, the `Capsule` note, and on `Hud` the mic (`VoiceSender.live()`: the dead hear and talk to

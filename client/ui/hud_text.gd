@@ -48,6 +48,8 @@ const ZAP_NOTICE_UK := "Квестові предмети не можна вин
 ## The roster's own and dead rows (the handoff s07).
 const ROSTER_SELF := "hud.roster.self"
 const ROSTER_DEAD := "hud.roster.dead"
+## Each item kind's line icon found so far (icon_of), or &"" for a kind the pack draws none for.
+static var _line_icons: Dictionary[StringName, StringName] = {}
 
 
 ## What the HUD knows besides the model and the mode.
@@ -376,8 +378,13 @@ static func slot_of(model: ClientModel, mode: GameMode, item_id: int) -> Slot:
 static func icon_of(kind: StringName) -> StringName:
 	if ITEM_ICONS.has(kind):
 		return ITEM_ICONS[kind]
+	if _line_icons.has(kind):
+		return _line_icons[kind]
+	# Looked up once per kind (the HUD asks every frame): the imported copy or the pinned one.
 	var line_icon := StringName("item-%s" % kind)
-	return line_icon if ResourceLoader.exists(ToyIcons.IMPORTED % line_icon) else &""
+	var found := line_icon if ToyIcons.has(line_icon) else &""
+	_line_icons[kind] = found
+	return found
 
 
 ## A roster row's name as drawn, translated: the own through hud.roster.self, a dead player's

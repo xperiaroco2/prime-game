@@ -511,9 +511,12 @@ func test_the_downed_see_the_mic_alone_and_a_spectator_nothing() -> void:
 	]
 	for hidden: Control in hall_hidden:
 		assert_bool(hidden.is_visible_in_tree()).override_failure_message(hidden.name).is_false()
-	model.phase = &"lobby"
-	assert_bool(model.waits_in_hall()).is_false()
-	hud.show_hud(HudText.of(model, _mode, 100, HudText.Local.new()))
+	# A round whose dead walk no hall: they spectate and see nothing of the HUD.
+	var spectator := Preview.fake_model(FixtureCombatModes.respawning(), true)
+	Preview.fold_round(spectator)
+	spectator.fold(&"Died", {"peer": spectator.own_peer, "position": Vector3.ZERO})
+	assert_bool(spectator.waits_in_hall()).is_false()
+	hud.show_hud(HudText.of(spectator, _mode, 100, HudText.Local.new()))
 	var dead_hidden: Array[Control] = [
 		hud.timer, hud.role, hud.roster, hud.vitals, hud.slots, hud.aim, hud.raising
 	]

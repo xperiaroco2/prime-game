@@ -145,7 +145,10 @@ func test_the_anger_meter_turns_to_the_alarm_past_seventy_percent() -> void:
 func test_the_cops_minute_hides_the_round_timer_and_shows_the_edge_and_banner() -> void:
 	# One clock (the engineer, 2026-10-22): the timer and its divider hide while the minute runs.
 	var hud := await _hud()
-	hud.show_hud(LayoutTest._state(&"cops"))
+	var cops := LayoutTest._state(&"cops")
+	# An object within reach: the cops' minute hides Aim all the same (the handoff's `cops`).
+	cops.aim = "item.package"
+	hud.show_hud(cops)
 	assert_bool(hud.time_label.visible or hud.divider.visible).is_false()
 	assert_bool(hud.timer.visible and hud.anger_column.visible).is_true()
 	assert_bool(hud.edge.visible and hud.cops.visible).is_true()
@@ -154,6 +157,9 @@ func test_the_cops_minute_hides_the_round_timer_and_shows_the_edge_and_banner() 
 	assert_float(hud.anger_bar.value).is_equal(1.0)
 	assert_str(hud.anger_caption.theme_type_variation).is_equal(&"ToyTextAlertOnLight")
 	assert_bool(hud.aim.visible).is_false()
+	cops.cops = ""
+	hud.show_hud(cops)
+	assert_bool(hud.aim.visible).is_true()
 	# The minute over (or never begun): the clock is back, the edge and banner gone.
 	hud.show_hud(LayoutTest._state(&"human"))
 	assert_bool(hud.time_label.visible and hud.divider.visible).is_true()

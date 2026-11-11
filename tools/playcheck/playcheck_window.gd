@@ -207,6 +207,7 @@ class GameView:
 			"life.watching": ui.life.watching_label,
 			"life.title": ui.life.title_label,
 			"life.left": ui.life.left_label,
+			"life.back_in": ui.life.back_in_label,
 			"life.respawn": ui.life.respawn_label,
 			"life.protected": ui.life.protect_label,
 			"lobby.aim": ui.lobby_hud.aim_label,

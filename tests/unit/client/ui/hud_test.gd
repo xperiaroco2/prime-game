@@ -204,15 +204,13 @@ func test_a_dissident_sees_the_raise_cue_as_an_engineer_does_and_it_names_nobody
 
 
 func test_a_dead_spectator_sees_nothing_of_the_hud() -> void:
-	# The handoff s09's `dead` (#497): the Spectate plate (LifeScreen) is the only UI; the HUD shows
+	# The handoff s09's `dead` (#497): the DeadTop tile (LifeScreen) is the only UI; the HUD shows
 	# none of the spectator's own time, role, vitals, mic, aim, raise or slots, and none of the
-	# watched player's slots either (#168 showed them until s9 was settled).
-	var model := _round_model()
+	# watched player's slots either (#168 showed them until s9 was settled). A round whose dead
+	# walk no hall (the base mode's has one since #1489: its own test below).
+	var model := _spectator_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
-	# The base mode's round has the dead's hall since #1489 (its own test below): a dead player
-	# spectates in a phase with no hall.
-	model.phase = &"lobby"
 	assert_bool(model.waits_in_hall()).is_false()
 	var local := HudText.Local.new()
 	local.stamina = 61.2
@@ -256,23 +254,33 @@ func test_the_dead_in_the_hall_see_the_mic_and_who_else_waits_there() -> void:
 	assert_str(shown.role).is_empty()
 	assert_str(shown.time).is_empty()
 	assert_bool(shown.roster.is_empty()).is_true()
-	# Alone there: no chip; outside a hall phase: nothing at all.
+	# Alone there: no chip.
 	model.lives[3] = ClientModel.Life.ALIVE
 	assert_bool(HudText.of(model, _mode, NOW, local).others.is_empty()).is_true()
-	model.phase = &"lobby"
-	assert_bool(HudText.of(model, _mode, NOW, local).vitals).is_false()
 
 
 func test_a_dead_spectator_sees_nothing_private_of_the_target() -> void:
 	# The M4 ADR's §3 item 2: no health, stamina, role, teammates, items or private event of the
-	# target, whatever the own model holds (here its own SelfStatus, role and teammates).
-	var model := _round_model()
+	# target, whatever the own model holds (here its own SelfStatus, role and teammates): a round
+	# with no hall, where the dead spectate.
+	var model := _spectator_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
 	var local := HudText.Local.new()
 	local.stamina = 61.2
 	var shown := HudText.of(model, _mode, NOW, local)
 	for word: String in ["role", "dissident", "engineer", "player2", "player3", "wrench", "knife"]:
+		assert_str(_fields(shown).to_lower()).not_contains(word)
+	# In the base mode's hall (#1489) a dead teammate beside the own player is named in "Also
+	# here" (deaths are public), but still nothing of a role, a teammate or an item.
+	var hall := _round_model()
+	_arm_player2(hall)
+	hall.fold(&"Died", {"peer": hall.own_peer, "position": Vector3.ZERO})
+	hall.fold(&"Died", {"peer": 3, "position": Vector3.ONE})
+	assert_bool(hall.waits_in_hall()).is_true()
+	shown = HudText.of(hall, _mode, NOW, local)
+	assert_array(Array(shown.others)).contains_exactly([hall.roster[3].name])
+	for word: String in ["role", "dissident", "engineer", "wrench", "knife"]:
 		assert_str(_fields(shown).to_lower()).not_contains(word)
 
 
@@ -402,6 +410,13 @@ func _fields(shown: HudText.Shown) -> String:
 	for slot: HudText.Slot in [shown.hand, shown.belt]:
 		parts.append_array([slot.item, slot.icon, slot.two_handed])
 	return " | ".join(parts.map(func(part: Variant) -> String: return str(part)))
+
+
+## _round_model() in a mode whose dead walk no hall (#1489): they spectate there.
+func _spectator_model() -> ClientModel:
+	var model := Preview.fake_model(FixtureCombatModes.respawning(), true)
+	Preview.fold_round(model)
+	return model
 
 
 func _round_model() -> ClientModel:

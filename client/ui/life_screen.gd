@@ -126,7 +126,7 @@ func show_hud(shown: LifeHud.Shown) -> void:
 	room_label.visible = shown.hall
 	respawn_row.visible = not shown.respawn.is_empty()
 	watching_label.visible = not shown.watching.is_empty()
-	capsule.visible = dead and shown.hall
+	capsule.visible = dead and shown.hall and shown.protection_s > 0
 	protect.visible = shown.protected > 0
 	_write()
 

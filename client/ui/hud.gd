@@ -5,7 +5,7 @@ extends Control
 ## 1920x1080 base, #287):
 ## - `Role` (top left, 39 px in): the own side's word tile, ToySticker, or ToyStickerAlert (the
 ##   danger outline) for a role whose players know each other (the handoff's human).
-## - `Time` (top centre, 36 px down): `Row` > `Timer` (m:ss, data), `Divider` and `AngerColumn`
+## - `Time` (top centre, 36 px down): `Row` > `Timer` (mm:ss, data), `Divider` and `AngerColumn`
 ##   (the neighbours' anger: `Caption`, `Anger` > `Bar` and `Siren`). The meter and its divider
 ##   show only while HudText gives an anger (no mode has one yet, #1312); the cops' minute hides
 ##   the timer and its divider (one clock, the engineer 2026-10-22) and shows `Edge` (the danger
@@ -192,7 +192,8 @@ func _show_middle() -> void:
 	cross.visible = aiming
 	raising.visible = aiming and _shown.raising >= 0.0
 	var named := not _shown.aim.is_empty() or _keyed()
-	aim.visible = aiming and not raising.visible and named
+	# The cops' minute hides Aim (the handoff s07's `cops`): the banner holds the middle's top.
+	aim.visible = aiming and not raising.visible and named and _shown.cops.is_empty()
 
 
 ## The anger meter: the bar's value and look (the danger fill and caption past the alarm line or in

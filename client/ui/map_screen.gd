@@ -692,10 +692,7 @@ func _room_tile(room: MapData.Room) -> PanelContainer:
 ## room ids are its own, #306).
 static func _room_icon(id: StringName) -> Texture2D:
 	var icon := StringName(ROOM_ICON % id)
-	if not (
-		ResourceLoader.exists(ToyIcons.IMPORTED % icon)
-		or FileAccess.file_exists(ToyIcons.PINNED % icon)
-	):
+	if not ToyIcons.has(icon):
 		return null
 	return ToyIcons.texture(icon)
 

@@ -116,8 +116,12 @@ func test_the_dead_in_the_hall_watch_nobody_and_see_the_returns_protection() -> 
 	assert_str(shown.watching).is_empty()
 	assert_int(shown.protection_s).is_equal(_countdowns.protection_s())
 	assert_int(shown.protection_s).is_equal(roundi(FixtureModes.player_rules().invulnerable_s))
-	# A phase whose dead do not move: no hall, the spectator's line.
-	_model.phase = &"lobby"
+	# A round whose dead do not move: no hall, the spectator's line.
+	_model = ClientModel.new(FixtureCombatModes.respawning())
+	_model.own_peer = OWN
+	_model.roster = roster
+	_model.phase = &"round"
+	_model.fold(&"Died", {"peer": OWN, "position": Vector3.ZERO})
 	shown = _shown(120.0)
 	assert_bool(shown.hall).is_false()
 	assert_int(shown.protection_s).is_equal(0)
