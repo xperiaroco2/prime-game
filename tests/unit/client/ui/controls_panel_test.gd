@@ -220,11 +220,16 @@ func test_the_words_follow_a_language_switch_after_the_panel_was_built() -> void
 	assert_str(panel.reset_button.text).is_equal("Скинути до стандартних")
 	assert_str(panel.name_labels[&"give_up"].text).is_equal("Здатися")
 	assert_str(panel.key_buttons[&"jump"].text).is_equal("Пробіл")
+	# A refused key's chip, the deck's word in either language (#1305: no English fallback).
+	panel.start_capture(&"ready")
+	panel.capture(_key(KEY_F3, true))
+	assert_str(panel.clash_labels[&"ready"].text).is_equal("Зарезервована клавіша")
 	TranslationServer.set_locale("en")
 	assert_str(panel.reset_button.text).is_equal("Reset to defaults")
 	assert_str(panel.name_labels[&"give_up"].text).is_equal("Give up")
 	assert_str(panel.clash_labels[&"give_up"].text).is_equal("Same key")
 	assert_str(panel.key_buttons[&"jump"].text).is_equal("Space")
+	assert_str(panel.clash_labels[&"ready"].text).is_equal("Reserved key")
 
 
 func _laid_out() -> void:
