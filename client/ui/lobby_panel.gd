@@ -335,13 +335,13 @@ static func map_name(map: String) -> String:
 	return ContentNames.map(map)
 
 
-## A player's row name: the own "You", the host's marked, the others' names (data).
+## A player's row name: the own "You", the others' names (data). The host's row carries the
+## roster's host tag beside it (#1422: `hud.roster.host`, LobbyHud.host_tag, for the host mark
+## the copy deck retires).
 static func row_text(model: ClientModel, peer: int) -> String:
 	if peer == model.own_peer:
 		return KeyLabel.word(&"player.you")
 	var member: ClientModel.Member = model.roster[peer]
-	if peer == NetTransport.HOST_ID:
-		return KeyLabel.word(&"lobby.host_mark").format({"name": member.name})
 	return member.name
 
 
@@ -502,6 +502,9 @@ func _refresh_players(model: ClientModel) -> void:
 		label.clip_text = true
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		var line := row.get_node(^"H")
+		if peer == NetTransport.HOST_ID:
+			# The lobby HUD's host tag, after the name.
+			line.add_child(LobbyHud.host_tag())
 		var mark := TextureRect.new()
 		mark.name = "Ready"
 		mark.texture = CHECK

@@ -143,7 +143,7 @@ func is_open() -> bool:
 
 
 ## Follows the game while open; `host_tick` is the newest host tick known (-1: none yet). `mode`
-## is kept for the callers of the old Role tab.
+## is unused, kept for the callers' signature (the Role tab went with #1571).
 func refresh(
 	screen: GameFlow.Screen,
 	model: ClientModel,

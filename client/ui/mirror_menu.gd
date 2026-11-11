@@ -28,6 +28,7 @@ func _init() -> void:
 	panel.name = "Panel"
 	panel.theme_type_variation = &"ToyPanelMenu"
 	grid.name = "Swatches"
+	grid.theme_type_variation = &"ToyGridSwatch"
 	grid.columns = 5
 	panel.add_child(grid)
 	for colour: int in BodyColours.HEXES.size():

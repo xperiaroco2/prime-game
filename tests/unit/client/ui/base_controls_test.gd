@@ -30,7 +30,7 @@ const NAMED := {
 	"PanelContainer": "Godot's panel, no margins, so no size change (gap)",
 	"ProgressBar": "the default font size; Godot's StyleBoxes on the voice meter (gap)",
 	"TextureRect": "draws its texture only: a how-to card picture (#254), a tinted HUD icon (#489)",
-	"GridContainer": "every one gets a spacing variation (the Role tab's team: ToyGridList, #491)",
+	"GridContainer": "every one gets a spacing variation (the mirror's swatches, ToyGridSwatch)",
 }
 
 

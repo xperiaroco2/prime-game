@@ -104,7 +104,7 @@ var cops_count := UiParts.styled_label("", &"ToyPlateAlertCountdown")
 var aiming := true:
 	set = set_aiming
 ## The role tile, and the role's tags in the roster, hide while the map is open (#491, the engineer
-## on #652): at once, not at the next show_hud. The Esc menu's Role tab holds the role and the team.
+## on #652): at once, not at the next show_hud. No menu shows the role since #1571.
 var role_hidden := false:
 	set(value):
 		role_hidden = value

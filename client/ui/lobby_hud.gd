@@ -98,6 +98,22 @@ func _init() -> void:
 
 ## Shows what `model` knows now under the client's own `mode`; `host_tick` is the newest host tick
 ## it knows (-1: none yet).
+## The roster's host tag after the host's name (s04's, as the round's s07): `HostTag`
+## ToyRosterTagHost holding `Text` ToyRosterTagHostText `hud.roster.host`, in capitals (the pack's
+## `uppercase`, which the theme cannot carry: mapping.json). The Esc menu's Lobby page has it too
+## (LobbyPanel, #1422).
+static func host_tag() -> PanelContainer:
+	var tag := PanelContainer.new()
+	tag.name = "HostTag"
+	tag.theme_type_variation = &"ToyRosterTagHost"
+	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var tag_text := UiParts.styled_label(LobbyText.HOST_TAG_KEY, &"ToyRosterTagHostText")
+	tag_text.name = "Text"
+	tag_text.uppercase = true
+	tag.add_child(tag_text)
+	return tag
+
+
 func refresh(model: ClientModel, mode: GameMode, host_tick: int) -> void:
 	show_lobby(LobbyText.of(model, mode, host_tick))
 
@@ -255,14 +271,7 @@ func _build_rows(shown_rows: Array[LobbyText.Row]) -> void:
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		line.add_child(label)
 		if row.host:
-			var tag := PanelContainer.new()
-			tag.name = "HostTag"
-			tag.theme_type_variation = &"ToyRosterTagHost"
-			tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			var tag_text := UiParts.styled_label(LobbyText.HOST_TAG_KEY, &"ToyRosterTagHostText")
-			tag_text.name = "Text"
-			tag.add_child(tag_text)
-			line.add_child(tag)
+			line.add_child(host_tag())
 		var pip := Panel.new()
 		pip.name = "Ready"
 		pip.theme_type_variation = PIP_ON if row.ready else PIP_OFF
