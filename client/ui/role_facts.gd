@@ -1,8 +1,9 @@
 class_name RoleFacts
 extends RefCounted
-## What the Esc menu's Role tab shows (#491, #175's update of 2026-10-03; prime-game-ui handoff s05
-## `role-*` at ui-0.4.0), from the own ClientModel and the client's own mode only: the own role, its
-## goal and, for a role whose Teammates the own client holds (a dissident's), the teammates' names.
+## The own role's facts the Esc menu's Role tab showed (#491, #175's update of 2026-10-03;
+## prime-game-ui handoff s05 `role-*` at ui-0.4.0; no menu shows them since #1571), from the own
+## ClientModel and the client's own mode only: the own role, its goal and, for a role whose
+## Teammates the own client holds (a dissident's), the teammates' names.
 ## It reads model.role, model.teammates of that role, own_peer and the roster's names, nothing else:
 ## per-peer filtering (invariant 2) decides what the model holds.
 
