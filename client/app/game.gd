@@ -56,6 +56,9 @@ var mode: GameMode
 ## The arguments after --; OS.get_cmdline_user_args() unless a test sets `read_command_line` off.
 var launch_args := PackedStringArray()
 var read_command_line := true
+## Lives in the own ship between sessions (#1285, GameShip) although no command line is read: a
+## test's way in; the launched game does by itself.
+var ship_home := false
 ## Makes a session's transport: an EnetTransport with the game's kind table unless a test sets
 ## one (a loopback). Called with no arguments.
 var make_transport := Callable()
@@ -98,6 +101,8 @@ var controls: Controls
 var howto: HowtoProgress
 ## The solo tutorial session (#601): Game.start_tutorial, the first launch's own start.
 var tutorial := GameTutorial.new()
+## The own ship with no session (#1285): the boot's and every return's private lobby.
+var ship := GameShip.new()
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -208,6 +213,7 @@ func _ready() -> void:
 		GameJoin.fill_menu(self, options.target)
 		join_target(options.target)
 	tutorial.setup(self)
+	GameShipWiring.setup(self)
 
 
 ## The tree outlives this root in tests: give it back the quit it had. The microphone closes
@@ -264,7 +270,7 @@ func host_on(transport: NetTransport, port: int, bind: String) -> bool:
 		node.free()
 		_cannot_host(why)
 		return false
-	if tutorial.running or (options != null and not options.replay):
+	if tutorial.running or ship.running or (options != null and not options.replay):
 		node.skip_replay()
 	node.name = "HostNode"
 	_host = node
@@ -382,6 +388,7 @@ func leave() -> void:
 func back_to_menu() -> void:
 	failure = &""
 	ui.show_screen(screen())
+	ship.come_back(self)
 
 
 ## A failure's Try again: the last join to the same target, or the host started again the same
@@ -394,10 +401,18 @@ func retry() -> void:
 
 
 ## A failure's Join directly: the main menu's Direct panel, the address focused, the code kept in
-## its own field (#493).
+## its own field (#493); in the own ship, Find a lobby's address entry there (#1285).
 func open_direct() -> void:
 	back_to_menu()
+	if GameShip.homes(self):
+		ship.open_direct.call_deferred(get_instance_id())
+		return
 	ui.menu.open_direct()
+
+
+## Try again on the next failure runs `again` (the own ship's start: never an older session).
+func set_retry(again: Callable) -> void:
+	_retry = again
 
 
 ## Ends any session, then the process once every sound has stopped (SoundStopper, #891).
@@ -443,7 +458,8 @@ func _on_map_closed() -> void:
 ## The Ready key (`ready`, F, #169): the Ready toggle's SetReady, with the own ready flag flipped.
 func toggle_ready() -> void:
 	var model := _welcomed_model()
-	if model == null:
+	# The own ship's lobby starts no match (#1285): it is nobody's game.
+	if model == null or ship.running:
 		return
 	var own: ClientModel.Member = model.roster.get(model.own_peer)
 	if own != null:
@@ -462,7 +478,12 @@ func room() -> CodeRoom:
 
 ## A networked host: the solo tutorial hosts for nobody else (no question on Leave, #601).
 func hosting() -> bool:
-	return _host != null and not tutorial.running
+	return _host != null and not tutorial.running and not ship.running
+
+
+## The game is on its way out (Quit, the window closed): no new ship starts.
+func quitting() -> bool:
+	return _quitting
 
 
 func screen() -> GameFlow.Screen:
@@ -765,6 +786,7 @@ func _end_session(reason: StringName, detail := "") -> void:
 		_player.queue_free()
 		_player = null
 	tutorial.end(self)
+	ship.end(self)
 	_show_end(reason, detail, versions)
 	_ending = false
 
@@ -813,6 +835,9 @@ func _show_end(reason: StringName, detail := "", versions := PackedStringArray()
 	failure = reason if shown else &""
 	ui.show_screen(screen())
 	pointer.capture(false)
+	if not shown:
+		# Nothing to read: back in the own ship (#1285); a failure waits for its Back.
+		ship.come_back(self)
 
 
 ## The runner's stop file, or its alive file gone stale (a killed runner): quit cleanly.

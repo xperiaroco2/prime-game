@@ -76,6 +76,8 @@ var _hand_over_key := ""
 var _hand_over_cue_key := ""
 ## Aim's text from show_aim(): a deck key or a name; "" for none.
 var _aim_text := ""
+## The own ship with no session (set_ship()).
+var _ship := false
 
 
 func _init() -> void:
@@ -122,6 +124,17 @@ func show_hint(key: String) -> void:
 	hint.visible = not key.is_empty()
 
 
+## The own ship with no session (#1285, s04 `boot`): no HUD but the hint with the bound Esc key at
+## the bottom left; off: the session's HUD again.
+func set_ship(on: bool) -> void:
+	_ship = on
+	show_hint(KeyLabel.of_action(&"ui_cancel") if on else "")
+	for node: Control in [cross, status, players, ready_tile, mic]:
+		node.visible = not on
+	if on:
+		voice_hint.visible = false
+
+
 ## The microphone: on while anybody may hear the own player (VoiceSender.live()).
 func show_mic(on: bool) -> void:
 	if on == _mic_on and mic_icon.texture != null:
@@ -156,10 +169,11 @@ func show_hand_over(key: String, cue_key: String = "") -> void:
 	_show_aim()
 
 
-## The voice hint until a microphone is picked; "" hides it.
+## The voice hint until a microphone is picked; "" hides it, and so does the own ship (nobody
+## hears there).
 func show_voice_hint(text: String) -> void:
 	voice_label.text = text
-	voice_hint.visible = not text.is_empty()
+	voice_hint.visible = not text.is_empty() and not _ship
 
 
 ## The rows' names as drawn, in order (the own row's "<name> (you)").

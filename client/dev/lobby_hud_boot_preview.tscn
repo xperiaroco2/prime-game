@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://di0k4eqa4jjli"]
+
+[ext_resource type="Script" uid="uid://ciqvwxclp2n6j" path="res://client/dev/lobby_hud_preview.gd" id="1_preview"]
+
+[node name="LobbyHudPreview" type="Node3D" unique_id=183762096]
+script = ExtResource("1_preview")
+lobby_state = "boot"

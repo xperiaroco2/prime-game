@@ -17,9 +17,14 @@ extends Control
 signal resume_requested
 signal leave_requested
 signal quit_requested
+## The ship's Host: a game with a code (#1285).
+signal host_requested
+## The ship's Tutorial.
+signal tutorial_requested
 
 ## Each page's entry: its node name and deck key, in the panel's order.
 const TABS: Dictionary[EscMenuState.Tab, Array] = {
+	EscMenuState.Tab.FIND: ["Find", "esc.tab.find"],
 	EscMenuState.Tab.GUIDE: ["Guide", "esc.tab.guide"],
 	EscMenuState.Tab.LOBBY: ["Lobby", "esc.tab.lobby"],
 	EscMenuState.Tab.SETTINGS: ["Settings", "esc.tab.settings"],
@@ -50,6 +55,9 @@ var code_label := UiParts.styled_label("", &"ToyTextOnLight")
 var copy_button := Button.new()
 var tab_buttons: Dictionary[EscMenuState.Tab, Button] = {}
 var resume_button := Button.new()
+## The ship's Host and Tutorial (s05 `ship`), between Find and Guide.
+var host_button := Button.new()
+var tutorial_button := Button.new()
 var leave_button := Button.new()
 var quit_button := Button.new()
 ## The open entry's page tile.
@@ -60,6 +68,7 @@ var host_row := HBoxContainer.new()
 var host_note := UiParts.styled_label("esc.lobby.you_host", &"ToyTextMutedOnLight")
 var host_only := HBoxContainer.new()
 var host_only_label := UiParts.styled_label("", &"ToyTextMutedOnLight")
+var find := FindPage.new()
 var guide := GuidePanel.new(ToyHints.LIGHT)
 var lobby := LobbyPanel.new()
 var settings := SettingsPage.new()
@@ -171,8 +180,11 @@ func show_code(line: String, code: String) -> void:
 
 
 ## Closes the open page, the panel staying (s05: Esc with a page open closes the page); its
-## entry takes the focus back.
+## entry takes the focus back. Find's address entry closes first (its Back).
 func close_page() -> void:
+	if state.selected == EscMenuState.Tab.FIND and find.direct_open():
+		find.show_direct(false)
+		return
 	var open := state.selected
 	if not tab_buttons.has(open):
 		return
@@ -243,6 +255,7 @@ func page() -> Control:
 
 func _pages() -> Dictionary[EscMenuState.Tab, Control]:
 	return {
+		EscMenuState.Tab.FIND: find,
 		EscMenuState.Tab.GUIDE: guide,
 		EscMenuState.Tab.LOBBY: lobby,
 		EscMenuState.Tab.SETTINGS: settings,
@@ -277,9 +290,16 @@ func _sync() -> void:
 	host_only.visible = lobby_page and state.in_lobby and not state.hosting
 	host_row.visible = host_note.visible or host_only.visible
 	_retext()
-	# The head: the room's code in the lobby (none in a round, the tutorial or a Direct game).
-	head.visible = state.in_lobby and not state.tutorial and not _head_text.is_empty()
+	# The head: the room's code in the lobby (none in a round, the tutorial, the own ship or a
+	# Direct game).
+	var private := state.tutorial or state.ship
+	head.visible = state.in_lobby and not private and not _head_text.is_empty()
 	leave_button.text = "esc.game.leave_tutorial" if state.tutorial else "esc.game.leave"
+	# The ship with no session: nothing to resume or leave; its own Host and Tutorial.
+	resume_button.visible = not state.ship
+	leave_button.visible = not state.ship
+	host_button.visible = state.ship
+	tutorial_button.visible = state.ship
 	# Not in the tutorial: leave it first (s05 `tutorial`); the window's close still quits.
 	quit_button.visible = not state.tutorial
 	var asking := state.asking()
@@ -300,8 +320,10 @@ func _focus() -> void:
 		return
 	if state.asking():
 		cancel_button.grab_focus.call_deferred()
-	else:
+	elif resume_button.visible:
 		resume_button.grab_focus.call_deferred(true)
+	else:
+		tab_buttons[EscMenuState.Tab.FIND].grab_focus.call_deferred(true)
 
 
 func _notification(what: int) -> void:
@@ -343,6 +365,11 @@ func _build_side() -> void:
 		button.toggle_mode = true
 		tab_buttons[tab] = button
 		entries.add_child(button)
+		if tab == EscMenuState.Tab.FIND:
+			_item(host_button, "Host", "menu.host", host_requested.emit)
+			entries.add_child(host_button)
+			_item(tutorial_button, "Tutorial", "menu.tutorial", tutorial_requested.emit)
+			entries.add_child(tutorial_button)
 	var gap := Control.new()
 	gap.name = "Gap"
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -450,7 +477,7 @@ func _build_page() -> void:
 	host_only_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	host_only.add_child(host_only_label)
 	host_row.add_child(host_only)
-	for each: Control in [guide, lobby, settings]:
+	for each: Control in [find, guide, lobby, settings]:
 		pages.add_child(each)
 
 
