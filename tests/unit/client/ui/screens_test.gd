@@ -242,26 +242,26 @@ func test_the_esc_menu_shows_the_open_entrys_page_alone() -> void:
 	assert_bool(menu.visible).is_true()
 	assert_object(menu.page()).is_null()
 	assert_bool(menu.page_tile.visible).is_false()
+	# No Lobby entry since #1604 (s05: the match settings are the ship's console, s04): its press
+	# opens nothing.
+	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
 	menu.press(EscMenuState.Tab.LOBBY)
 	menu.refresh(GameFlow.Screen.LOBBY, model, -1, true)
-	assert_object(menu.page()).is_same(menu.lobby)
+	assert_object(menu.page()).is_null()
+	assert_bool(menu.lobby.visible).is_false()
+	assert_bool(menu.host_note.visible or menu.host_only.visible).is_false()
+	menu.press(EscMenuState.Tab.GUIDE)
+	menu.refresh(GameFlow.Screen.LOBBY, model, -1, true)
+	assert_object(menu.page()).is_same(menu.guide)
 	assert_bool(menu.page_tile.visible).is_true()
-	assert_bool(menu.lobby.is_visible_in_tree()).is_true()
+	assert_bool(menu.guide.is_visible_in_tree()).is_true()
 	assert_bool(menu.confirm_box.visible).is_false()
-	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].button_pressed).is_true()
-	assert_bool(menu.lobby.settings_editable()).is_true()
-	assert_bool(menu.host_note.visible).is_true()
-	assert_bool(menu.host_only.visible).is_false()
-	var marks := menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
-	assert_bool((marks[0] as Control).visible).is_true()
-	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_true()
-	# The round starts under the open menu: no Lobby entry in a round (s05 `round`), so the page
-	# closes and the panel stays alone.
+	assert_bool(menu.tab_buttons[EscMenuState.Tab.GUIDE].button_pressed).is_true()
+	# The round starts under the open menu: the Guide stays (s05 `round`), still no Lobby entry.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
-	assert_object(menu.page()).is_null()
-	assert_bool(menu.lobby.visible).is_false()
+	assert_object(menu.page()).is_same(menu.guide)
 	assert_bool(menu.host_note.visible or menu.host_only.visible).is_false()
 	# A second press closes an open page.
 	menu.press(EscMenuState.Tab.SETTINGS)
@@ -310,8 +310,9 @@ func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn
 	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.CONNECTING)
 	ui.open_esc(false, null, GameFlow.Screen.LOBBY)
-	# The lobby's panel: its Lobby entry there, no page open (s05 `lobby`, #1571).
-	assert_bool(ui.esc.state.has_tab(EscMenuState.Tab.LOBBY)).is_true()
+	# The lobby's panel, no page open (s05 `lobby`, #1571); no Lobby entry since #1604.
+	assert_bool(ui.esc.state.has_tab(EscMenuState.Tab.GUIDE)).is_true()
+	assert_bool(ui.esc.state.has_tab(EscMenuState.Tab.LOBBY)).is_false()
 	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.GAME)
 	ui.close_esc()
 	ui.show_screen(GameFlow.Screen.LOBBY)
