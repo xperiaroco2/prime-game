@@ -12,15 +12,19 @@ func test_the_black_screens_share_layer_6_over_the_others_and_under_the_esc_menu
 	assert_int(GameUi.BLACK_LAYER).is_equal(6)
 	# Connecting, failure and loading are one screen; the pregame over it, the post game on top.
 	assert_array(ui.black.get_children()).is_equal([ui.connecting, ui.pregame, ui.end])
-	for under: Control in [ui.plates, ui.menu, ui.lobby_hud, ui.hud, ui.life, ui.tutorial, ui.map]:
+	var unders: Array[Control] = [
+		ui.plates, ui.menu, ui.lobby_hud, ui.hud, ui.life, ui.tutorial, ui.map, ui.mirror
+	]
+	for under: Control in unders:
 		assert_object(under.get_parent()).override_failure_message(under.name).is_same(ui)
 		assert_int(_layer(under)).override_failure_message(under.name).is_less(ui.black.layer)
 	assert_object(ui.esc.get_parent()).is_same(ui.above)
 	assert_int(_layer(ui.esc)).is_greater(ui.black.layer)
 	# Every screen is in screens(), each once.
 	var all := ui.screens()
-	assert_int(all.size()).is_equal(11)
-	for each: Control in [ui.connecting, ui.pregame, ui.end, ui.esc, ui.hud, ui.map]:
+	# The mirror's colour menu (#1394) is the twelfth.
+	assert_int(all.size()).is_equal(12)
+	for each: Control in [ui.connecting, ui.pregame, ui.end, ui.esc, ui.hud, ui.map, ui.mirror]:
 		assert_int(all.count(each)).override_failure_message(each.name).is_equal(1)
 
 
