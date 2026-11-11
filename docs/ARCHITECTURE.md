@@ -3046,9 +3046,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the spectate camera (`spectate_hand()`) and hides the views of its hand and belt items after `ItemViews` (1)
   placed them in the same physics step (`LifeView.items`, given by `Game`); a downed target, another target or the
   own respawn shows them at the body again.
-- `client/ui/`: while `HudText.spectates()` the HUD shows nothing, not even the target's hand and belt (§4.7.37,
+- `client/ui/`: while `HudText.spectates()` outside the dead's hall the HUD shows nothing, not even the target's hand and belt (§4.7.37,
   §4.7.41). The target's name is `LifeHud.Local.watching` (from `LifeView.target()`) and `Shown.watching`, shown by
-  `LifeScreen`'s `Spectate` plate (#497) in `watching_label`. `LifeHud` has no own invulnerability line; the respawn
+  `LifeScreen`'s `DeadTop` tile (#497, #1570) in `watching_label`. `LifeHud` has no own invulnerability line; the respawn
   countdown and the cycling keys stay.
 - Tests: `tests/unit/client/ui/hud_test.gd` (from a fake `ClientModel`: a dead spectator sees nothing of the HUD,
   `test_a_dead_spectator_sees_nothing_of_the_hud`), `tests/unit/client/life/life_hud_test.gd`,
@@ -4069,12 +4069,16 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   its PNG is missing: Delivery's pictures are #520's (`assets/ui/toy_pack/cards/delivery-1.png` to `-4.png`); until
   they are in the game each frame shows a placeholder naming the file. `HowtoCards` finds a card and checks every
   task type of a mode has a valid one (`problems_of`).
-- **The card** (`client/ui/HowtoCardView`, a ToyRaised of ToyPanelHowto through `raised()`): prime-game-ui's P8 tree
-  at ui-0.4.0, `V` with `Head` (`Title`, `Note`) and `Frames` (`Frame1`..`Frame4`, each a ToyHowtoFrame holding its
-  `Art`, a TextureRect that keeps its aspect); the art is 320x240 on the map, 352x264 on the loading screen and
-  160x120 in the Guide; the map's card adds `Bar` with Close. Words set in code follow the language live.
+- **The card** (`client/ui/HowtoCardView`, ToyPanelHowto; the loading screen and the Guide put it on a ToyRaised
+  through `raised()`, which draws no base since ui-2.0.0): prime-game-ui's P8 tree at ui-2.5.4 (#1570), `V`
+  (ToyColumnTwentyFour) with `Head` (ToyColumnEight: `Note` ToyKicker `howto.label` in small capitals over `Title`
+  ToyTitleOnLight) and `Scroll` (a ScrollContainer, no vertical scroll; given a width it scrolls sideways with no bar
+  drawn, `SCROLL_MODE_SHOW_NEVER`, else it takes its frames' width) > `Frames` (ToyRowSixteen, `Frame1`.., each a
+  ToyHowtoFrame holding its `Art`, a TextureRect that keeps its aspect); the art is 352x264 on the map and the
+  loading screen and 160x120 in the Guide; the map's card adds `Bar` with Close. Words set in code follow the
+  language live.
 - **On the map** (`MapScreen.open_howto`, s8's `guide`): a «?» opens its type's card centred over the map on `Dim2`
-  (ToyBackdrop, it stops the mouse), 1536 px wide. Close, Esc or the map key closes only the card: `GameUi`
+  (ToyBackdrop, it stops the mouse), as wide as its 1384 px Scroll (three and a half frames). Close, Esc or the map key closes only the card: `GameUi`
   registers it in its `overlays` as `howto_card` on `UiOverlays.CARD`, above the map, closed by the map key too
   (#488's rules 2 and 3, §4.7.35; until the rebase on #488 the map screen read both keys in its own `_input`). While it is open the task list and the board take no focus
   (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
@@ -4153,8 +4157,9 @@ what the game had (the engineer's rule, #507).
   living hides Cross, Aim and Raising. The HUD shows no destination or task progress (the map's counters, §4.7.33)
   and never who knocked the player down.
 - **Downed and dead** (#497 settled s09 against this HUD, §4.7.41): downed, only `Vitals` > `Mic` (off) shows
-  (`HudText.Shown.bars` hides `Suit`); dead, nothing of the HUD shows, none of the watched player's. The `Spectate`
-  plate is `LifeScreen`'s; the raiser sees the `Raising` bar alone.
+  (`HudText.Shown.bars` hides `Suit`); dead in the dead's hall (#1489), only `Vitals` > `Mic` and `Others` (who
+  else waits there, s09's `dead-room`); dead elsewhere, nothing of the HUD shows, none of the watched player's. The
+  `DeadTop` tile is `LifeScreen`'s; the raiser sees the `Raising` bar alone.
 - **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` (the hand's picture by
   ToySlotText, the belt's by ToyTextOnDark). An icon is #520's imported copy
   (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the pack's `assets` list gives), which
@@ -4285,24 +4290,29 @@ frozen halfway through its fade over the round's HUD), their `_uk` twins (`prega
 `pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
 
 #### 4.7.40 The map and tasks screen in the Toy style (#490)
-The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
+The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-2.5.4` (#1570; the
 engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
-- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised, no base since ui-2.0.0;
-  its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
-  with `Title`, `Rows` (ToyColumnEight) and `Time`; a row `<Type>` (ToySettingRow, 64 tall) holds `H` (ToyRowTwelve):
-  `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton, the handoff's fixed 42x42,
-  not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard raised, its wrapper at
-  744, 88, 1096x904) holds `Rooms`, 1084x892 inside the board's 6 px content margins (`MapScreen.ROOMS_SIZE`, the
-  size MapData fits the rooms to; #1559): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
-  `room/<id>` pictogram through `ToyIcons`, 48x48, its `self_modulate` the ink of ToyMapRoomText's `font_color`,
-  #2a1f33, set again on a theme change; hidden for a room id the pack draws none for) and `Name` (ToyMapRoomText, 120
-  wide at least, wrapped); then `Zone<Type>Tag` (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and
-  `Here` (ToyChipPlate, `Text` ToyHudCaption). `Dim2`, `Guide` and the card are §4.7.36's.
+- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu, the plain tiles of
+  ui-2.x on no toy base, at 60, 60, 624 wide, growing down to its content): `V` (ToyColumnSixteen) with `Title`
+  (ToyKicker `map.tasks`, uppercase), `Rows` (ToyColumnFour) and `Time`; a row `<Type>` (ToySettingRow, 96 tall)
+  holds `H` (ToyRowSixteen): `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton,
+  the handoff's fixed 63x63, not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard
+  at 732, 60, 1128x960) holds `Rooms`, 1116x948 inside the board's 6 px content margins (`MapScreen.ROOMS_SIZE`;
+  #1559): first `Head` (ToyKicker `map.title`, uppercase, fixed at 48, 24), then the rooms, fitted by MapData into
+  `MapScreen.ROOMS_AREA` (48, 72, 1020x852: under the head, 48 px in each side, 24 px over the bottom). A room
+  `<Room>` (ToyMapRoom) holds `V` (ToyColumnEight) with `Name` (ToyKicker, uppercase, at the top left) and `Area` (a
+  Control filling the rest) with `Icon` centred (the pack's `room/<id>` pictogram through `ToyIcons`, 72x72, its
+  `self_modulate` the heads' dim colour, ToyKicker's `font_color` #a39dbd, the pack's `tint_color` for the room
+  icons, set again on a theme change; hidden for a room id the pack draws none for); then `Zone<Type>Tag`
+  (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and `Here` (ToyChipPlate, `Text` ToyHudCaption, 21 px
+  right of the pin's rect, its centre on the pin's centre line). `Dim2`, `Guide` and the card are §4.7.36's.
 - **Rows** are one per task type, in the order of its first task's id, the counters of its tasks summed (DealTasks
   deals each drawn type once, so a round has one task per type). A refresh with the same types sets the words in
   place, so a live counter never takes a «?»'s focus.
-- **Zones.** Lighting a type adds `Zone<Type>` (ToyMapZone, no mouse) as the first child of each lit room, so it
-  fills the room under its pictogram and name; the tag sits 12 px under the first lit room, its left edge on the
+- **Zones.** Lighting a type adds `Zone<Type>` (ToyMapZone, no mouse, full rect) as the first child of each lit
+  room's `Area`, so it fills the room under its head, under the pictogram; the tag (the deck's
+  `map.zone_hint.<type>`, else the handoff's `map.zone_hint.task` "This task is here") sits 18 px under the first lit
+  room, its left edge on the
   room's, on one line, wrapped only where it would pass the board's right edge, and above the room where it would pass
   the rooms' bottom (a lit room in the lowest row, large text). The hovered row lights its type, else
   the «?» with the keyboard's focus (`has_focus(true)`: a focus a mouse press gave is hidden and lights nothing).
@@ -4317,7 +4327,9 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   rooms are what MapData reads today, and the greybox has none until #306 (the engineer chose to wait for its
   room records, PR #652), so in the game the board hides (since #306 the House's rooms carry their records, §4.7.33;
   the greybox, a test bench, #767, stays roomless); the base mode has no Switches task type, so neither its
-  row nor `map.zone_hint.switches` shows; Delivery lights every room with a package marker (the storage-only zone
+  row nor `map.zone_hint.switches` shows; Delivery, with no own key, reads `map.zone_hint.task` (the deck's older
+  `map.zone_hint`, "Packages may be here", is no longer drawn); a done row is still struck through and a
+  Generator's row still holds its charge bar (#801), neither drawn by the handoff; Delivery lights every room with a package marker (the storage-only zone
   is Delivery v2, #255, out of the slice, #521).
 - Tests: `tests/unit/client/ui/map_screen_test.gd` (the tree node for node with its sizes, the ink, one row per type,
   a counter set in place keeping the focus, the first arrow and the keyboard's lit zones, Close focused and the focus
@@ -4351,17 +4363,20 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   a ProgressBar (810 x 24) ToyBarReturnCalm, ToyBarReturnAlarm under health's alarm line 0.3 while down, `Left`
   ToyPlateTextMuted, `Raise` ToyBarProgress (810 x 24) and `Pad` (0 x 6); `GiveUp` ToyPlate (bottom centre, 192 px
   up) > `V` ToyColumnTwelve > `Line` ToyRowEight (centred) > `Before` ToyPlateText, `Key` ToyKeyOnDark > `Text`
-  ToyKeyText, `After` ToyPlateText, then `Hold` ToyBarProgress (540 x 24) and `Pad` (0 x 6); `Spectate` ToyPlate
-  (top centre, 36 px down: the handoff's `DeadTop` tile) > `V` ToyColumnFour > `Return` ToyRowSixteen (centred) >
-  `Label` ToyHudCaption and `Time` ToyTimer, then `Watching` ToyPlateText; `Protect` ToyChipLight (top centre,
+  ToyKeyText, `After` ToyPlateText, then `Hold` ToyBarProgress (540 x 24) and `Pad` (0 x 6); `DeadTop` ToyPlate
+  (top centre, 36 px down; the var `spectate`) > `V` ToyColumnFour > `Room` ToyKicker (`dead.room.title`, uppercase,
+  in the dead's hall only), `Return` ToyRowSixteen (centred) > `Label` ToyHudCaption and `Time` ToyTimer, then
+  `Watching` ToyPlateText (a phase with no hall only); `Capsule` ToySticker (bottom right, 39 px in, in the hall) >
+  `Text` ToyStickerText (`dead.capsule_note` with the mode's `invulnerable_s`, `LifeCountdowns.protection_s()`); `Protect` ToyChipLight (top centre,
   165 px down: 39 px under the anger meter) > `Text` ToyChipLightText. Every root sits at a point and takes its
   minimum size; the keycap's `min_width` (42, 50 at large text) is read by `UiParts.sized` again after the
   large-text swap. Every Control ignores the mouse and takes no focus. The four roots sit under one full-rect
   `LifeScreen` Control beside `Hud`, not beside its nodes (one class owns s09; the places are the handoff's).
-  The handoff's `dead-room` (the dead wait 30 s in a dead's room: `Room` ToyKicker `dead.room.title`, the mic on,
-  `Others` ToyChipPlate `dead.also_here`, `Capsule` ToySticker `dead.capsule_note`) is not built: the game has no
-  dead's room, the dead spectate a living player and nobody hears them (§6, #1032), so `Spectate` keeps the game's
-  watched name under the tile's Return row, the mic stays off and neither chip shows (#1570, for the engineer).
+  The handoff's `dead-room` is the dead's hall of #1489 (`ClientModel.waits_in_hall()`, #1570): `DeadTop` with
+  `Room` and `Return`, the `Capsule` note, and on `Hud` the mic (`VoiceSender.live()`: the dead hear and talk to
+  each other there) with `Vitals` > `Others` (ToyChipPlate > `Text` ToyChipPlateText, `dead.also_here` with the other
+  dead's names, `HudText.others_in_hall()`: deaths are public, the roster's; hidden when alone); nobody is watched
+  there. A dead player in a phase with no hall still spectates: `Watching` under the Return row, nothing on `Hud`.
 - **What it shows** (`client/life/LifeHud`, pure, from the own `ClientModel`, the own `LifeCountdowns` at the
   estimated host tick and `LifeView`'s own state; `LifeView.hud()` reads the give-up binding each frame):
   `down`: `downed.title`, the bleed-out bar (`LifeCountdowns.knockdown_fraction()`: the time left over the mode's
