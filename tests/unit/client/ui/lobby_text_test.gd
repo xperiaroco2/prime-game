@@ -160,18 +160,24 @@ func test_the_lobby_name_is_the_hosts_or_the_default_with_its_name() -> void:
 	assert_str(LobbyText.title_text(LobbyText.of(hostless, _mode, NOW))).is_empty()
 
 
-func test_a_row_reads_you_the_host_mark_or_the_name() -> void:
-	var rows := LobbyText.of(_handoff_lobby(), _mode, NOW).rows
+func test_a_row_reads_the_own_name_with_you_else_the_name() -> void:
+	# s04 at ui-2.5.4 (#1571): the own row through hud.roster.self, as the round's roster; the host
+	# is marked by its tag beside the name, not in it; each row carries the body colour.
+	var model := _handoff_lobby()
+	var rows := LobbyText.of(model, _mode, NOW).rows
 	var texts: Array[String] = []
 	for row in rows:
 		texts.append(LobbyText.row_text(row))
-	assert_array(texts).is_equal(["Olena · host", "Taras", "You", "Marko"])
+	var own_name := model.roster[model.own_peer].name
+	assert_array(texts).is_equal(["Olena", "Taras", "%s (you)" % own_name, "Marko"])
+	assert_bool(rows[0].host).is_true()
+	assert_object(rows[1].colour).is_equal(BodyColours.of(model.colour_of(rows[1].peer)))
 	TranslationServer.set_locale("uk")
-	assert_str(LobbyText.row_text(rows[0])).is_equal("Olena · хост")
-	assert_str(LobbyText.row_text(rows[2])).is_equal("Ти")
-	# The host's own row reads `player.you`, as every own row does.
+	assert_str(LobbyText.row_text(rows[0])).is_equal("Olena")
+	assert_str(LobbyText.row_text(rows[2])).is_equal("%s (ти)" % own_name)
+	# The host's own row reads "(you)", as every own row does.
 	var own_host := LobbyText.of(_model(1, [[1, "Olena", false]]), _mode, NOW).rows[0]
-	assert_str(LobbyText.row_text(own_host)).is_equal("Ти")
+	assert_str(LobbyText.row_text(own_host)).is_equal("Olena (ти)")
 
 
 func test_a_rename_or_a_ready_changes_the_rows_value() -> void:

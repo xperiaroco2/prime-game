@@ -37,7 +37,6 @@ func refresh(game: Game) -> void:
 	elif target != null and target.is_code():
 		code = target.code
 	var line := JoinProgress.code_text(code, room != null and room.gone(), room != null)
-	game.ui.lobby_hud.show_code(code, room != null and room.gone(), room != null)
 	game.ui.esc.lobby.show_code(line, code)
 
 

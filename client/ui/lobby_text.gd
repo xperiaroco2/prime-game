@@ -1,14 +1,14 @@
 class_name LobbyText
 extends RefCounted
-## What the lobby's HUD shows (ARCHITECTURE §4.7.47, #495), pure: from the own ClientModel, the
-## client's own copy of the mode and the estimated host tick. The Toy lobby HUD (prime-game-ui
-## `ui-0.4.0` `docs/handoff/s04-lobby.md`, `LobbyHud`) draws it: the keys are the copy deck's
+## What the lobby's HUD shows (ARCHITECTURE §4.7.47, #495, #1571), pure: from the own ClientModel,
+## the client's own copy of the mode and the estimated host tick. The Toy lobby HUD (prime-game-ui
+## `ui-2.5.4` `docs/handoff/s04-lobby.md`, `LobbyHud`) draws it: the keys are the copy deck's
 ## (#208), names and numbers are data.
 ##
-## Only what every peer of the lobby may see: the roster's names and ready flags (public: every
-## Welcome and ReadyChanged reaches everyone), who the host is (peer 1), the lobby's name, the
-## countdown's end, the mode's player limit and the host's shortfalls (SettingsChanged, the same to
-## every peer, #548). Nothing of a role, a team or a match.
+## Only what every peer of the lobby may see: the roster's names, body colours and ready flags
+## (public: every Welcome and ReadyChanged reaches everyone), who the host is (peer 1), the
+## lobby's name, the countdown's end, the mode's player limit and the host's shortfalls
+## (SettingsChanged, the same to every peer, #548). Nothing of a role, a team or a match.
 
 ## The status plate's three states (the handoff's `wait`, `short` and `count`).
 enum Status { WAITING, SHORT, COUNTDOWN }
@@ -17,8 +17,10 @@ enum Status { WAITING, SHORT, COUNTDOWN }
 const WAITING_KEY := "lobby.waiting"
 const COUNTDOWN_KEY := "lobby.countdown"
 const PLAYER_COUNT_KEY := "lobby.player_count"
-const HOST_MARK_KEY := "lobby.host_mark"
 const YOU_KEY := "player.you"
+## The roster's own row and the host's tag (the handoff s04, as the round's s07).
+const SELF_KEY := "hud.roster.self"
+const HOST_TAG_KEY := "hud.roster.host"
 const READY_NO_KEY := "lobby.ready_no"
 const READY_YES_KEY := "lobby.ready_yes"
 
@@ -34,10 +36,12 @@ class Row:
 	## The own player: the row reads `player.you`.
 	var own := false
 	var ready := false
+	## The body colour (BodyColours of the roster's colour index).
+	var colour: Color
 
 	## The row as a value: a change of any field rebuilds the rows.
 	func key() -> String:
-		return "%d|%s|%s|%s|%s" % [peer, name, host, own, ready]
+		return "%d|%s|%s|%s|%s|%s" % [peer, name, host, own, ready, colour.to_html()]
 
 
 ## The HUD's state.
@@ -110,6 +114,7 @@ static func rows_of(model: ClientModel) -> Array[Row]:
 		row.host = peer == NetTransport.HOST_ID
 		row.own = peer == model.own_peer
 		row.ready = member.ready
+		row.colour = BodyColours.of(model.colour_of(peer))
 		if row.host:
 			rows.push_front(row)
 		else:
@@ -145,13 +150,11 @@ static func title_text(shown: Shown) -> String:
 	return _tr(LobbyPanel.DEFAULT_NAME).format({"name": shown.host_name})
 
 
-## A row's name as drawn in the current language: `player.you` for the own row, the host's
-## `lobby.host_mark`, else the name alone.
+## A row's name as drawn in the current language: the own through `hud.roster.self` ("Zinga
+## (you)"), else the name alone (the host's row carries its tag beside it).
 static func row_text(row: Row) -> String:
 	if row.own:
-		return _tr(YOU_KEY)
-	if row.host:
-		return _tr(HOST_MARK_KEY).format({"name": row.name})
+		return _tr(SELF_KEY).format({"name": row.name})
 	return row.name
 
 

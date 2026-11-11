@@ -47,11 +47,14 @@ func after_test() -> void:
 func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab() -> void:
 	var game := await _lobby_game(PORT)
 	# Walking in the lobby with the mouse captured (a click): nothing clickable covers the game,
-	# only the lobby HUD, with no key prompt (#495): the own row "You" with no check, "Ready: no".
+	# only the lobby HUD, with no key prompt (#495): the own row "<name> (you)" with no full pip,
+	# "Ready: no".
 	game.pointer.capture(true)
 	assert_array(_visible_buttons(game.ui)).is_empty()
 	assert_bool(game.ui.lobby_hud.is_visible_in_tree()).is_true()
-	assert_array(game.ui.lobby_hud.row_texts()).is_equal(PackedStringArray(["You"]))
+	var own_rows := game.ui.lobby_hud.row_texts()
+	assert_int(own_rows.size()).is_equal(1)
+	assert_str(own_rows[0]).ends_with(" (you)")
 	assert_array(game.ui.lobby_hud.row_checks()).is_equal([false])
 	var chip := game.ui.lobby_hud.ready_label
 	assert_str(chip.atr(chip.text)).is_equal("Ready: no")

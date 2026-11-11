@@ -1,6 +1,6 @@
 extends "res://client/dev/hud_preview.gd"
 ## A preview of the lobby HUD for `tools\run.cmd shot` (#495; the M4 ADR's §6): the UI handoff's
-## states (prime-game-ui `ui-0.4.0` `docs/handoff/s04-lobby.md`) over the round HUD preview's lit
+## states (prime-game-ui `ui-2.5.4` `docs/handoff/s04-lobby.md`) over the round HUD preview's lit
 ## greybox room, drawn by the game's GameUi from a fake ClientModel, as a host would send it. The
 ## handoff's lobby: Olena hosts (peer 1), Taras (2), the third player (3) and Marko (4); Taras
 ## stands in view with no name over his head. Seen by a code joiner (peer 3), or with `hosting` by
@@ -58,8 +58,6 @@ func _ready() -> void:
 	ui.set_large_text(large_text)
 	ui.plates.avatars = _avatars
 	ui.show_screen(GameFlow.Screen.LOBBY)
-	var waiting := lobby_state == "code-waiting"
-	ui.lobby_hud.show_code("" if waiting or lobby_state == "direct" else CODE, false, waiting)
 	ui.lobby_hud.show_mic(true)
 	ui.refresh(_model, mode, NOW, _hosts())
 	if hand_over:
