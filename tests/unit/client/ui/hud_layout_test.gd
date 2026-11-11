@@ -338,6 +338,26 @@ func test_human_takes_the_danger_tile() -> void:
 	assert_bool(hud.role.visible).is_true()
 
 
+func test_the_timer_holds_every_time_without_changing_width() -> void:
+	# _fit_timer measures "dd:dd" through the label itself (#489): every m:ss fits the width it
+	# sets, so the centred tile never moves with the time; the shown time is kept.
+	var hud := await _hud()
+	var shown := HudText.Shown.new()
+	shown.time = "07:22"
+	hud.show_hud(shown)
+	await get_tree().process_frame
+	var width := hud.time_label.custom_minimum_size.x
+	var probe: Label = auto_free(UiParts.styled_label("", &"ToyTimer"))
+	hud.add_child(probe)
+	for digit in 10:
+		probe.text = "%d%d:%d%d" % [digit, digit, digit, digit]
+		await get_tree().process_frame
+		assert_float(probe.get_minimum_size().x).override_failure_message(probe.text).is_less_equal(
+			width
+		)
+	assert_str(hud.time_label.text).is_equal("07:22")
+
+
 func test_the_halls_others_chip_names_the_other_dead_beside_the_mic() -> void:
 	# s09's dead-room: Vitals shows the mic and "Also here: …" beside it, the suit hidden.
 	TranslationServer.set_locale(Languages.ENGLISH)

@@ -88,6 +88,12 @@ func test_the_roster_rows_draw_the_decks_words_in_both_languages() -> void:
 		func(index: int) -> bool: return (hud.roster_row(index).get_node(^"Tag") as Control).visible
 	)
 	assert_array(tags).is_equal([true, false, false, true])
+	# The map hides the role's tags with the role tile at once (#652), and they come back.
+	hud.role_hidden = true
+	for index in 4:
+		assert_bool((hud.roster_row(index).get_node(^"Tag") as Control).visible).is_false()
+	hud.role_hidden = false
+	assert_bool((hud.roster_row(0).get_node(^"Tag") as Control).visible).is_true()
 	TranslationServer.set_locale("uk")
 	hud.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
 	assert_str(_name(hud, 0).text).is_equal("Bulk (ти)")

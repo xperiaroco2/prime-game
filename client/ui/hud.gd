@@ -103,12 +103,13 @@ var cops_count := UiParts.styled_label("", &"ToyPlateAlertCountdown")
 ## living.
 var aiming := true:
 	set = set_aiming
-## The role tile hides while the map is open (#491, the engineer on #652): at once, not at the
-## next show_hud. The Esc menu's Role tab holds the role and the team.
+## The role tile, and the role's tags in the roster, hide while the map is open (#491, the engineer
+## on #652): at once, not at the next show_hud. The Esc menu's Role tab holds the role and the team.
 var role_hidden := false:
 	set(value):
 		role_hidden = value
 		role.visible = not role_hidden and not _shown.role.is_empty()
+		_show_roster()
 
 ## The last state shown.
 var _shown := HudText.Shown.new()
@@ -228,7 +229,7 @@ func _show_roster() -> void:
 		else:
 			label.theme_type_variation = &"ToyRosterName"
 		var tag := node.get_node(^"Tag") as PanelContainer
-		tag.visible = not row.tag.is_empty()
+		tag.visible = not row.tag.is_empty() and not role_hidden
 		(tag.get_node(^"Text") as Label).text = row.tag
 
 
