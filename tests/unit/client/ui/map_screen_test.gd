@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## client's own mode and the preview's fake house: one row per task type with its name and its
 ## counter in the language now, no description, a «?» per row asking for the type's how-to card,
 ## the rooms by pictogram and name, the zones of a hovered or focused type, the own pin, the clock;
-## the tree node for node as prime-game-ui's s08 handoff at ui-0.4.0 draws it, and its keyboard
+## the tree node for node as prime-game-ui's s08 handoff at ui-2.5.4 draws it, and its keyboard
 ## focus. And the privacy rule (the M4 ADR's §3 item 4 as revised by #253, replacing hud_test's "the
 ## task screen names no place"): models that differ only in the other players, the items and the
 ## circles draw the very same screen. How it looks: the `shot`s of client/dev/map_*preview.tscn.
@@ -98,7 +98,7 @@ func test_the_words_follow_the_language_at_once() -> void:
 	assert_str(screen.time_label.text).is_equal("Час: 4:31")
 	assert_str(_room_label(screen, &"storage").text).is_equal("Склад")
 	screen.light(&"delivery")
-	assert_str(_visible_texts(screen.zone_hint)).is_equal("Тут можуть бути пакунки")
+	assert_str(_visible_texts(screen.zone_hint)).is_equal("Тут ця задача")
 	TranslationServer.set_locale(Languages.ENGLISH)
 	await get_tree().process_frame
 	assert_str(_room_label(screen, &"storage").text).is_equal("Storage")
@@ -106,30 +106,29 @@ func test_the_words_follow_the_language_at_once() -> void:
 
 
 func test_the_tree_is_the_handoffs_node_for_node() -> void:
-	# prime-game-ui's docs/handoff/s08-map.md at ui-0.4.0, state `list`.
+	# prime-game-ui's docs/handoff/s08-map.md at ui-2.5.4, state `list`.
 	var screen := _screen(_round_model())
 	await get_tree().process_frame
 	var names: Array[String] = []
 	for child: Node in screen.get_children():
 		names.append(String(child.name))
-	assert_array(names).contains_exactly(["Dim", "TasksRaised", "BoardRaised", "Dim2", "Guide"])
+	assert_array(names).contains_exactly(["Dim", "Tasks", "Board", "Dim2", "Guide"])
 	var dim := screen.get_node("Dim") as Panel
 	assert_str(String(dim.theme_type_variation)).is_equal("ToyBackdropDeep")
 	assert_int(dim.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-	# Tasks: raised at the top left, 608 wide, growing down to its content.
-	assert_object(screen.tasks_raised.face).is_same(screen.tasks_panel)
-	assert_vector(screen.tasks_raised.position).is_equal(Vector2(80, 88))
-	assert_float(screen.tasks_raised.size.x).is_equal(608.0)
-	assert_str(String(screen.tasks_raised.base.theme_type_variation)).is_empty()
+	# Tasks: at the top left, 60 px in, 624 wide, growing down to its content.
+	assert_vector(screen.tasks_panel.position).is_equal(Vector2(60, 60))
+	assert_float(screen.tasks_panel.size.x).is_equal(624.0)
 	_expect(screen.tasks_panel, "Tasks", "ToyPanelMenu")
-	_expect(screen.tasks_panel.get_node("V"), "V", "ToyColumnTwentyFour")
-	_expect(screen.tasks_panel.get_node("V/Title"), "Title", "ToyTitleOnLight")
-	_expect(screen.tasks_panel.get_node("V/Rows"), "Rows", "ToyColumnEight")
+	_expect(screen.tasks_panel.get_node("V"), "V", "ToyColumnSixteen")
+	_expect(screen.tasks_panel.get_node("V/Title"), "Title", "ToyKicker")
+	assert_bool((screen.tasks_panel.get_node("V/Title") as Label).uppercase).is_true()
+	_expect(screen.tasks_panel.get_node("V/Rows"), "Rows", "ToyColumnFour")
 	_expect(screen.tasks_panel.get_node("V/Time"), "Time", "ToyTextMutedOnLight")
 	var row := screen.rows_box.get_node("Delivery") as Control
 	_expect(row, "Delivery", "ToySettingRow")
-	assert_vector(row.custom_minimum_size).is_equal(Vector2(0, 64))
-	_expect(row.get_node("H"), "H", "ToyRowTwelve")
+	assert_vector(row.custom_minimum_size).is_equal(Vector2(0, 96))
+	_expect(row.get_node("H"), "H", "ToyRowSixteen")
 	var task_name := row.get_node("H/Name") as Label
 	_expect(task_name, "Name", "ToySettingRowValue")
 	assert_int(task_name.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
@@ -137,41 +136,57 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	_expect(row.get_node("H/Count"), "Count", "ToySettingRowText")
 	var help := row.get_node("H/Help") as Button
 	_expect(help, "Help", "ToyKeyRoundButton")
-	assert_vector(help.custom_minimum_size).is_equal(Vector2(42, 42))
+	assert_vector(help.custom_minimum_size).is_equal(Vector2(63, 63))
 	assert_int(help.focus_mode).is_equal(Control.FOCUS_ALL)
 	assert_int(help.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
-	# Board: raised at its rect; Rooms inside its 6 px margins (ui-2.x) is the rooms' 1084x892.
-	assert_object(screen.board_raised.face).is_same(screen.board)
-	assert_vector(screen.board_raised.position).is_equal(Vector2(744, 88))
-	assert_vector(screen.board_raised.size).is_equal(Vector2(1096, 904))
+	# Board: 732 to 1860 across, 60 to 1020 down; Rooms inside its 6 px margins is 1116x948.
+	assert_vector(screen.board.position).is_equal(Vector2(732, 60))
+	assert_vector(screen.board.size).is_equal(Vector2(1128, 960))
 	_expect(screen.board, "Board", "ToyMapBoard")
 	assert_str(String(screen.plan.name)).is_equal("Rooms")
 	assert_vector(screen.plan.size).is_equal(MapScreen.ROOMS_SIZE)
+	# The board's head, fixed: 48 px in, 24 px down, first in Rooms.
+	var head := screen.plan.get_node("Head") as Label
+	_expect(head, "Head", "ToyKicker")
+	assert_str(head.text).is_equal("map.title")
+	assert_bool(head.uppercase).is_true()
+	assert_vector(head.position).is_equal(Vector2(48, 24))
+	assert_int(head.get_index()).is_equal(0)
 	var room := screen.plan.get_node("Storage") as Control
 	_expect(room, "Storage", "ToyMapRoom")
 	var column := room.get_node("V") as VBoxContainer
-	_expect(column, "V", "ToyColumnFour")
-	assert_int(column.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	var icon := room.get_node("V/Icon") as TextureRect
+	_expect(column, "V", "ToyColumnEight")
+	var label := room.get_node("V/Name") as Label
+	_expect(label, "Name", "ToyKicker")
+	assert_bool(label.uppercase).is_true()
+	assert_int(label.get_index()).is_equal(0)
+	var area := room.get_node("V/Area") as Control
+	assert_int(area.size_flags_vertical).is_equal(Control.SIZE_EXPAND_FILL)
+	var icon := room.get_node("V/Area/Icon") as TextureRect
 	assert_object(icon.texture).is_same(ToyIcons.texture(&"room/storage"))
-	assert_vector(icon.custom_minimum_size).is_equal(Vector2(48, 48))
-	assert_int(icon.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	assert_vector(icon.custom_minimum_size).is_equal(Vector2(72, 72))
 	assert_int(icon.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
 	assert_int(icon.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
-	# Drawn in the room names' colour (the pack's ToyMapRoomText, #ece8f7 since ui-2.x).
-	assert_str(icon.self_modulate.to_html(false)).is_equal("ece8f7")
-	var label := room.get_node("V/Name") as Label
-	_expect(label, "Name", "ToyMapRoomText")
-	assert_vector(label.custom_minimum_size).is_equal(Vector2(120, 0))
-	assert_int(label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
-	assert_int(label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
+	# Centred in the Area.
+	assert_vector(icon.position + icon.size / 2.0).is_equal_approx(
+		area.size / 2.0, Vector2.ONE * 0.51
+	)
+	# Drawn in the heads' dim colour (ToyKicker's, the pack's tint_color #a39dbd).
+	assert_str(icon.self_modulate.to_html(false)).is_equal("a39dbd")
+	# The rooms fill the area under the head: none above 72 px or left of 48 px.
+	for each: MapData.Room in _data.rooms:
+		var tile := screen.plan.get_node(String(each.id).to_pascal_case()) as Control
+		(
+			assert_bool(MapScreen.ROOMS_AREA.grow(0.01).encloses(Rect2(tile.position, tile.size)))
+			. is_true()
+		)
 	_expect(screen.pin, "Pin", "ToyMapPin")
 	_expect(screen.here, "Here", "ToyChipPlate")
 	_expect(screen.here.get_node("Text"), "Text", "ToyHudCaption")
 	# Every room of the fake house has its pictogram.
 	for each: MapData.Room in _data.rooms:
 		var tile := screen.plan.get_node(String(each.id).to_pascal_case())
-		assert_object((tile.get_node("V/Icon") as TextureRect).texture).is_not_null()
+		assert_object((tile.get_node("V/Area/Icon") as TextureRect).texture).is_not_null()
 
 
 func test_each_rows_question_mark_asks_for_its_types_card() -> void:
@@ -198,8 +213,9 @@ func test_a_question_mark_opens_its_types_card_over_the_map() -> void:
 	assert_bool(screen.howto_center.visible).is_true()
 	assert_int(screen.howto_center.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_object(screen.howto.get_parent()).is_same(screen.howto_center)
-	assert_that(screen.howto.custom_minimum_size).is_equal(Vector2(1536, 0))
 	var face := HowtoCardView.face_of(screen.howto)
+	# The card takes its content's width: the sideways Scroll's 1384 px (s8's Card).
+	assert_float(face.scroll.custom_minimum_size.x).is_equal(1384.0)
 	assert_str(face.title_label.text).is_equal("task.delivery")
 	assert_object(face.close_button).is_not_null()
 	var first := face.frames_box.get_child(0).get_child(0) as Control
@@ -322,10 +338,14 @@ func test_lighting_a_type_shows_its_zones_and_their_tag_only() -> void:
 	assert_str(String(screen.zone_hint.name)).is_equal("ZoneDeliveryTag")
 	assert_str(String(screen.zone_hint.theme_type_variation)).is_equal("ToyChipLight")
 	_expect(screen.zone_hint.get_node("Text"), "Text", "ToyChipLightText")
-	assert_str(_visible_texts(screen.zone_hint)).is_equal("Packages may be here")
+	# A type the deck has no own tag for takes the handoff's map.zone_hint.task.
+	assert_str(_visible_texts(screen.zone_hint)).is_equal("This task is here")
 	assert_str(String(screen.lit())).is_equal("delivery")
-	# The zone is its room's first child, under the pictogram and the name.
-	var zone := screen.plan.get_node("Storage").get_child(0) as Panel
+	# The zone is its room's Area's first child, under the pictogram, filling the room under its
+	# head.
+	var zone := screen.plan.get_node("Storage/V/Area").get_child(0) as Panel
+	assert_float(zone.anchor_right).is_equal(1.0)
+	assert_float(zone.anchor_bottom).is_equal(1.0)
 	assert_str(String(zone.name)).is_equal("ZoneDelivery")
 	assert_str(String(zone.theme_type_variation)).is_equal("ToyMapZone")
 	assert_int(zone.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
@@ -394,14 +414,19 @@ func test_the_rooms_by_name_and_the_own_pin_at_the_own_place_and_heading() -> vo
 	assert_bool(screen.here.visible).is_true()
 	assert_str(_visible_texts(screen.here)).is_equal("You are here")
 	var centre := screen.pin.position + screen.pin.size / 2.0
-	var expected := _data.to_board(
-		Vector2(Preview.FAKE_OWN_PLACE.x, Preview.FAKE_OWN_PLACE.z), MapScreen.ROOMS_SIZE
+	var expected := (
+		MapScreen.ROOMS_AREA.position
+		+ _data.to_board(
+			Vector2(Preview.FAKE_OWN_PLACE.x, Preview.FAKE_OWN_PLACE.z), MapScreen.ROOMS_AREA.size
+		)
 	)
 	assert_vector(centre).is_equal_approx(expected, Vector2.ONE * 0.01)
 	assert_float(screen.pin.rotation).is_equal_approx(PI / 4.0 + Preview.FAKE_OWN_HEADING, 0.0001)
 	assert_vector(screen.pin.size).is_equal(Vector2(42, 42))
-	# "You are here" 8 px right of the pin's rect, 3 px above its top; it does not turn.
-	assert_vector(screen.here.position).is_equal(screen.pin.position + Vector2(42 + 8, -3))
+	# "You are here" 21 px right of the pin's rect, its centre on the pin's centre line; it does
+	# not turn.
+	assert_float(screen.here.position.x).is_equal(screen.pin.position.x + 42 + 21)
+	assert_float(screen.here.position.y + screen.here.size.y / 2.0).is_equal_approx(centre.y, 0.51)
 	assert_float(screen.here.rotation).is_equal(0.0)
 
 
@@ -422,7 +447,7 @@ func test_a_room_shows_its_records_name_key_in_the_language_now() -> void:
 func test_a_level_without_rooms_hides_the_board_and_keeps_the_tasks() -> void:
 	var screen := _screen(_round_model())
 	screen.set_data(MapData.new())
-	assert_bool(screen.board_raised.visible).is_false()
+	assert_bool(screen.board.visible).is_false()
 	assert_bool(screen.pin.visible).is_false()
 	assert_int(_row_texts(screen).size()).is_equal(1)
 
@@ -451,10 +476,10 @@ func test_other_players_items_and_circles_change_nothing_on_the_screen() -> void
 			one.light(lit)
 			other.light(lit)
 		assert_array(_signature(other)).is_equal(_signature(one))
-	# The board holds the rooms (each its column of pictogram and name), the pin and two chips:
-	# nothing else to draw on.
+	# The board holds its head, the rooms (each its column of name and area), the pin and two
+	# chips: nothing else to draw on.
 	var screen := _screen(busy)
-	assert_int(screen.plan.get_child_count()).is_equal(_data.rooms.size() + 3)
+	assert_int(screen.plan.get_child_count()).is_equal(_data.rooms.size() + 4)
 	for room: MapData.Room in _data.rooms:
 		var tile := screen.plan.get_node(String(room.id).to_pascal_case())
 		assert_int(tile.get_child_count()).is_equal(1)
@@ -541,7 +566,8 @@ func _lit_rooms(screen: MapScreen) -> Array[String]:
 	var lit: Array[String] = []
 	for zone: Node in screen.plan.find_children("Zone*", "Panel", true, false):
 		if (zone as Control).visible:
-			lit.append(String(zone.get_parent().name).to_snake_case())
+			# Zone < Area < V < the room's tile.
+			lit.append(String(zone.get_parent().get_parent().get_parent().name).to_snake_case())
 	return lit
 
 

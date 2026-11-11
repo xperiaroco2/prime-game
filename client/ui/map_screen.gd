@@ -2,16 +2,18 @@ class_name MapScreen
 extends Control
 ## The map and tasks screen (#253, ARCHITECTURE §4.7.33), opened and closed with the `map` action
 ## (M) in the round, for the living, the downed and the dead alike; it replaced the hold-Tab task
-## screen of M4-8. Its look is the Toy one of prime-game-ui's s08 handoff at ui-0.4.0 (#490,
-## §4.7.40), node for node: `Dim`, then `Tasks` (raised, top left: the title, one row per task type
-## with its name, its shared counter and a «?», then the clock) and `Board` (raised: `Rooms`, the
-## level's rooms from MapData with their pictogram and name, the zones of the hovered or focused
-## row's type and their tag, the own pin with "you are here"). A «?» opens its type's how-to card
-## (#254, s8's `guide`) over the map on `Dim2`: Close, Esc or the map key closes only the card (Esc
-## and the key through GameUi.overlays, its `howto_card` on top of the map, #488's rules 2 and 3);
-## while it is open the task list and the board take no focus. No focus on open; the first ui_down
-## or ui_up focuses the first row's «?»; a card opened by the keyboard or the gamepad gives Close
-## the focus and gives it back to that «?» on close, one opened with the mouse drops it.
+## screen of M4-8. Its look is the Toy one of prime-game-ui's s08 handoff at ui-2.5.4 (#490,
+## #1570, §4.7.40), node for node: `Dim`, then `Tasks` (top left: the head, one row per task type
+## with its name, its shared counter and a «?», then the clock) and `Board` (`Rooms`: the head, the
+## level's rooms from MapData, each its name at the top left over its `Area` with the pictogram
+## centred, the zones of the hovered or focused row's type filling the Area and their tag, the own
+## pin with "you are here"). The plain tiles of ui-2.x stand on no toy base. A «?» opens its
+## type's how-to card (#254, s8's `guide`) over the map on `Dim2`: Close, Esc or the map key
+## closes only the card (Esc and the key through GameUi.overlays, its `howto_card` on top of the
+## map, #488's rules 2 and 3); while it is open the task list and the board take no focus. No
+## focus on open; the first ui_down or ui_up focuses the first row's «?»; a card opened by the
+## keyboard or the gamepad gives Close the focus and gives it back to that «?» on close, one
+## opened with the mouse drops it.
 ##
 ## Never another player's place, an item's or a circle's: the screen reads only the model's tasks
 ## and clock, and the own place the game passes in (HudText.Local); zones are level data (the M4
@@ -24,28 +26,36 @@ extends Control
 ## Asked when a task row's «?» is pressed: the how-to card of `task_type`; the screen opens it.
 signal howto_requested(task_type: StringName)
 
-## The handoff's places at the 1920x1080 base (layout, not style): the raised task list's left,
-## top and right edges (it grows down to its content), and the raised board's rect.
-const TASKS_OFFSETS := Vector3(80, 88, 688)
-const BOARD_RECT := Rect2(744, 88, 1096, 904)
-## `Rooms` inside the board's border: the room rects and the pin are placed for this size. The
-## board's rect less the pack's ToyMapBoard content margins (6 px since ui-2.x, #1559).
-const ROOMS_SIZE := Vector2(1084, 892)
-## A task row's height and its «?»'s size (the handoff's minimum sizes; 42 keeps the «?» round
-## at large text, where the glyph makes it 42 tall).
-const ROW_HEIGHT := 64.0
-const HELP_SIZE := Vector2(42, 42)
+## The handoff's places at the 1920x1080 base (layout, not style): the task list's left, top and
+## right edges (it grows down to its content), and the board's rect.
+const TASKS_OFFSETS := Vector3(60, 60, 684)
+const BOARD_RECT := Rect2(732, 60, 1128, 960)
+## `Rooms` inside the board's border: the board's rect less the pack's ToyMapBoard content
+## margins (6 px since ui-2.x, #1559).
+const ROOMS_SIZE := Vector2(1116, 948)
+## Where the rooms and the pin are fitted inside `Rooms`: under the head, 72 px down and 48 px in
+## from the left and the right, 24 px over the bottom (the handoff's sample rooms).
+const ROOMS_AREA := Rect2(48, 72, 1020, 852)
+## The board's head `Head` in `Rooms`: 48 px in, 24 px down (the rooms' left edge, the task
+## list's head's line).
+const HEAD_AT := Vector2(48, 24)
+## A task row's height and its «?»'s size (the handoff's minimum sizes; 63 keeps the «?» round
+## at large text).
+const ROW_HEIGHT := 96.0
+const HELP_SIZE := Vector2(63, 63)
 ## The strike-through line of a done task, in pixels (layout).
 const STRIKE_WIDTH := 3.0
-## A room's pictogram and its name's least width.
-const ROOM_ICON_SIZE := Vector2(48, 48)
-const ROOM_NAME_WIDTH := 120.0
-## The "you are here" chip's gap to the pin, in pixels (layout).
-const HERE_GAP := Vector2(8, -3)
+## A room's pictogram (72 px, the handoff's).
+const ROOM_ICON_SIZE := Vector2(72, 72)
+## The "you are here" chip's left edge right of the pin's rect: the 9 px a turned pin's corner
+## reaches past its rect, then 12 px; its centre on the pin's centre line.
+const HERE_GAP := 21.0
 ## The zone's tag: its gap under the first lit room, in pixels (layout).
-const ZONE_HINT_GAP := 12.0
-## The how-to card's width over the map (the handoff's Card), in pixels (layout).
-const HOWTO_WIDTH := 1536.0
+const ZONE_HINT_GAP := 18.0
+## The how-to card's sideways Scroll over the map: three and a half frames (the handoff's Card).
+const HOWTO_SCROLL := 1384.0
+## The zones' tag of a task type the deck has no `map.zone_hint.<type>` for (the handoff's).
+const ZONE_HINT_TASK := "map.zone_hint.task"
 ## A Generator's charge bar's least width, in pixels (layout; its height is the theme's MapBar).
 const BAR_WIDTH := 240.0
 ## The pack's room pictograms, by room id (prime-game-ui `dist/pack/icons/room/`).
@@ -69,17 +79,16 @@ class Row:
 	var full := false
 
 
-var title := UiParts.styled_label("map.tasks", &"ToyTitleOnLight")
+var title := UiParts.styled_label("map.tasks", &"ToyKicker")
 var rows_box := VBoxContainer.new()
 var time_label := UiParts.styled_label("", &"ToyTextMutedOnLight")
-## The raised task list: its face `Tasks` and its ToyRaised wrapper (placement, visibility).
+## The task list `Tasks`.
 var tasks_panel := PanelContainer.new()
-var tasks_raised: ToyRaised
-## The raised board: its face `Board` and its wrapper, hidden with no room.
+## The board `Board`, hidden with no room.
 var board := PanelContainer.new()
-var board_raised: ToyRaised
-## `Rooms`: the rooms, the zones' tag and the pin, placed in ROOMS_SIZE pixels.
+## `Rooms`: the head, the rooms, the zones' tag and the pin, placed in ROOMS_SIZE pixels.
 var plan := Control.new()
+var board_head := UiParts.styled_label("map.title", &"ToyKicker")
 var pin := Panel.new()
 var here := PanelContainer.new()
 ## The lit zones' tag (`Zone<Type>Tag` while shown).
@@ -87,14 +96,15 @@ var zone_hint := PanelContainer.new()
 ## Under the how-to card: dims the map and stops the mouse (Dim2), and centres the card (Guide).
 var howto_dim: Panel
 var howto_center := CenterContainer.new()
-## The open how-to card (a ToyRaised of HowtoCardView); null while none is open.
-var howto: ToyRaised
+## The open how-to card; null while none is open.
+var howto: HowtoCardView
 ## The task type whose card is open; &"" while none is.
 var howto_type: StringName = &""
 
 var _data := MapData.new()
-## Room id -> its tile, and its name's label.
+## Room id -> its tile, its `Area` (the room under its head) and its name's label.
 var _tiles: Dictionary[StringName, PanelContainer] = {}
+var _areas: Dictionary[StringName, Control] = {}
 var _room_labels: Dictionary[StringName, Label] = {}
 var _zone_hint_label := UiParts.styled_label("", &"ToyChipLightText")
 var _lit: StringName = &""
@@ -192,10 +202,8 @@ func open_howto(type: StringName, by_keyboard := false) -> bool:
 	if card == null:
 		return false
 	close_howto()
-	howto = HowtoCardView.raised(card, HowtoCardView.MAP_ART, ToyHints.LIGHT, true)
-	howto.custom_minimum_size = Vector2(HOWTO_WIDTH, 0)
-	var face := HowtoCardView.face_of(howto)
-	face.close_requested.connect(close_howto)
+	howto = HowtoCardView.new(card, HowtoCardView.MAP_ART, true, HOWTO_SCROLL)
+	howto.close_requested.connect(close_howto)
 	howto_center.add_child(howto)
 	howto_type = type
 	howto_dim.visible = true
@@ -203,8 +211,8 @@ func open_howto(type: StringName, by_keyboard := false) -> bool:
 	_focus_back = _help_of(type) if by_keyboard else null
 	for each: Control in [tasks_panel, board]:
 		each.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
-	if by_keyboard and face.close_button.is_visible_in_tree():
-		face.close_button.grab_focus()
+	if by_keyboard and howto.close_button.is_visible_in_tree():
+		howto.close_button.grab_focus()
 	return true
 
 
@@ -268,16 +276,18 @@ func light(task_type: StringName) -> void:
 	_clear_zones()
 	_lit = task_type
 	for room: String in _data.zone_of(task_type):
-		var tile: PanelContainer = _tiles.get(StringName(room))
-		if tile == null:
+		var area: Control = _areas.get(StringName(room))
+		if area == null:
 			continue
-		# A whole room's zone: its first child, so it fills the room under the pictogram and name.
+		# A whole room's zone: its Area's first child, so it fills the room under its head, under
+		# the pictogram.
 		var zone := Panel.new()
 		zone.name = _zone_name(task_type)
 		zone.theme_type_variation = &"ToyMapZone"
 		zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tile.add_child(zone)
-		tile.move_child(zone, 0)
+		zone.set_anchors_preset(Control.PRESET_FULL_RECT)
+		area.add_child(zone)
+		area.move_child(zone, 0)
 	_show_zone_hint()
 
 
@@ -387,34 +397,35 @@ static func _zone_name(task_type: StringName) -> String:
 	return "Zone%s" % String(task_type).to_pascal_case()
 
 
-## Tasks: the raised ToyPanelMenu at the top left, growing down to its rows and the clock.
+## Tasks: the ToyPanelMenu at the top left, growing down to its rows and the clock.
 func _build_tasks() -> void:
 	tasks_panel.name = "Tasks"
 	tasks_panel.theme_type_variation = &"ToyPanelMenu"
 	var column := VBoxContainer.new()
 	column.name = "V"
-	column.theme_type_variation = &"ToyColumnTwentyFour"
+	column.theme_type_variation = &"ToyColumnSixteen"
 	tasks_panel.add_child(column)
 	title.name = "Title"
+	title.uppercase = true
 	column.add_child(title)
 	rows_box.name = "Rows"
-	rows_box.theme_type_variation = &"ToyColumnEight"
+	rows_box.theme_type_variation = &"ToyColumnFour"
 	column.add_child(rows_box)
 	time_label.name = "Time"
 	time_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	column.add_child(time_label)
-	tasks_raised = UiParts.raised(tasks_panel, ToyHints.LIGHT)
-	tasks_raised.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	tasks_raised.offset_left = TASKS_OFFSETS.x
-	tasks_raised.offset_top = TASKS_OFFSETS.y
-	tasks_raised.offset_right = TASKS_OFFSETS.z
-	tasks_raised.offset_bottom = TASKS_OFFSETS.y
-	tasks_raised.grow_horizontal = Control.GROW_DIRECTION_END
-	tasks_raised.grow_vertical = Control.GROW_DIRECTION_END
-	add_child(tasks_raised)
+	tasks_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	tasks_panel.offset_left = TASKS_OFFSETS.x
+	tasks_panel.offset_top = TASKS_OFFSETS.y
+	tasks_panel.offset_right = TASKS_OFFSETS.z
+	tasks_panel.offset_bottom = TASKS_OFFSETS.y
+	tasks_panel.grow_horizontal = Control.GROW_DIRECTION_END
+	tasks_panel.grow_vertical = Control.GROW_DIRECTION_END
+	add_child(tasks_panel)
 
 
-## Board: the raised ToyMapBoard holding `Rooms`, with the pin, its chip and the zones' tag.
+## Board: the ToyMapBoard holding `Rooms`: its head, the rooms, the pin, its chip and the zones'
+## tag.
 func _build_board() -> void:
 	board.name = "Board"
 	board.theme_type_variation = &"ToyMapBoard"
@@ -422,6 +433,12 @@ func _build_board() -> void:
 	plan.name = "Rooms"
 	plan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	board.add_child(plan)
+	board_head.name = "Head"
+	board_head.uppercase = true
+	board_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board_head.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board_head.position = HEAD_AT
+	plan.add_child(board_head)
 	zone_hint.name = "ZoneTag"
 	zone_hint.theme_type_variation = &"ToyChipLight"
 	zone_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -442,15 +459,14 @@ func _build_board() -> void:
 	here_text.name = "Text"
 	here.add_child(here_text)
 	plan.add_child(here)
-	board_raised = UiParts.raised(board, ToyHints.LIGHT)
-	board_raised.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	board_raised.offset_left = BOARD_RECT.position.x
-	board_raised.offset_top = BOARD_RECT.position.y
-	board_raised.offset_right = BOARD_RECT.end.x
-	board_raised.offset_bottom = BOARD_RECT.end.y
-	board_raised.grow_horizontal = Control.GROW_DIRECTION_END
-	board_raised.grow_vertical = Control.GROW_DIRECTION_END
-	add_child(board_raised)
+	board.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	board.offset_left = BOARD_RECT.position.x
+	board.offset_top = BOARD_RECT.position.y
+	board.offset_right = BOARD_RECT.end.x
+	board.offset_bottom = BOARD_RECT.end.y
+	board.grow_horizontal = Control.GROW_DIRECTION_END
+	board.grow_vertical = Control.GROW_DIRECTION_END
+	add_child(board)
 
 
 func _refresh_now() -> void:
@@ -514,7 +530,7 @@ func _task_row(row: Row) -> Control:
 	plate.set_meta(&"task_type", row.type)
 	var line := HBoxContainer.new()
 	line.name = "H"
-	line.theme_type_variation = &"ToyRowTwelve"
+	line.theme_type_variation = &"ToyRowSixteen"
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(line)
 	var task_name := UiParts.styled_label(name_of(row), &"ToySettingRowValue")
@@ -601,21 +617,22 @@ func _help_of(type: StringName) -> Button:
 	return null
 
 
-## The room tiles in ROOMS_SIZE pixels, before the tag, the pin and its chip; the board hides
-## with no room.
+## The room tiles in ROOMS_AREA, after the head and before the tag, the pin and its chip; the
+## board hides with no room.
 func _rebuild_rooms() -> void:
 	_clear_zones()
 	for tile: PanelContainer in _tiles.values():
 		plan.remove_child(tile)
 		tile.free()
 	_tiles.clear()
+	_areas.clear()
 	_room_labels.clear()
-	board_raised.visible = not _data.rooms.is_empty()
-	var pixels_per_metre := _data.scale_for(ROOMS_SIZE)
-	var at := 0
+	board.visible = not _data.rooms.is_empty()
+	var pixels_per_metre := _data.scale_for(ROOMS_AREA.size)
+	var at := board_head.get_index() + 1
 	for room: MapData.Room in _data.rooms:
 		var tile := _room_tile(room)
-		tile.position = _data.to_board(room.rect.position, ROOMS_SIZE)
+		tile.position = _on_board(room.rect.position)
 		tile.size = room.rect.size * pixels_per_metre
 		plan.add_child(tile, true)
 		plan.move_child(tile, at)
@@ -624,7 +641,13 @@ func _rebuild_rooms() -> void:
 	_tint_icons()
 
 
-## A room (ToyMapRoom): its pictogram drawn in ink and its name, centred in a column.
+## Where the plan point `plan_point` lies in `Rooms`: fitted into ROOMS_AREA.
+func _on_board(plan_point: Vector2) -> Vector2:
+	return ROOMS_AREA.position + _data.to_board(plan_point, ROOMS_AREA.size)
+
+
+## A room (ToyMapRoom) as a quiet tile: `V` > its name in small capitals at the top left, and
+## `Area`, the room under it, with its pictogram centred and drawn in the head's dim colour.
 func _room_tile(room: MapData.Room) -> PanelContainer:
 	var id := room.id
 	var tile := PanelContainer.new()
@@ -633,28 +656,34 @@ func _room_tile(room: MapData.Room) -> PanelContainer:
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var column := VBoxContainer.new()
 	column.name = "V"
-	column.theme_type_variation = &"ToyColumnFour"
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.theme_type_variation = &"ToyColumnEight"
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tile.add_child(column)
+	var label := UiParts.styled_label(_room_name(room), &"ToyKicker")
+	label.name = "Name"
+	label.uppercase = true
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(label)
+	var area := Control.new()
+	area.name = "Area"
+	area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(area)
 	var icon := TextureRect.new()
 	icon.name = "Icon"
-	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon.custom_minimum_size = ROOM_ICON_SIZE
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	icon.grow_vertical = Control.GROW_DIRECTION_BOTH
 	icon.texture = _room_icon(id)
 	# A room the pack draws no pictogram for shows its name only.
 	icon.visible = icon.texture != null
-	column.add_child(icon)
-	var label := UiParts.styled_label(_room_name(room), &"ToyMapRoomText")
-	label.name = "Name"
-	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	label.custom_minimum_size = Vector2(ROOM_NAME_WIDTH, 0)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(label)
+	area.add_child(icon)
+	_areas[id] = area
 	_room_labels[id] = label
 	return tile
 
@@ -671,22 +700,23 @@ static func _room_icon(id: StringName) -> Texture2D:
 	return ToyIcons.texture(icon)
 
 
-## The pictograms in ink: the room names' colour (the pack's copy is white).
+## The pictograms in the dim colour of the rooms' heads (ToyKicker's, the pack's `tint_color` of
+## the room icons; the pack's copy is white).
 func _tint_icons() -> void:
 	if not is_inside_tree():
 		return
-	for tile: PanelContainer in _tiles.values():
-		var icon := tile.find_child("Icon", true, false) as TextureRect
-		icon.self_modulate = icon.get_theme_color(&"font_color", &"ToyMapRoomText")
+	for area: Control in _areas.values():
+		var icon := area.get_node(^"Icon") as TextureRect
+		icon.self_modulate = icon.get_theme_color(&"font_color", &"ToyKicker")
 
 
 func _clear_zones() -> void:
 	if _lit.is_empty():
 		return
-	for tile: PanelContainer in _tiles.values():
-		var zone := tile.get_node_or_null(_zone_name(_lit))
+	for area: Control in _areas.values():
+		var zone := area.get_node_or_null(_zone_name(_lit))
 		if zone != null:
-			tile.remove_child(zone)
+			area.remove_child(zone)
 			zone.free()
 
 
@@ -698,8 +728,9 @@ func _room_name(room: MapData.Room) -> String:
 
 
 ## The zones' tag under the first lit room, its left edge on the room's: the deck's
-## `map.zone_hint.<type>`, else `map.zone_hint`; on one line, wider than the room if it must,
-## and wrapped only where it would pass the board's right edge.
+## `map.zone_hint.<type>`, else `map.zone_hint.task` ("This task is here", the handoff's); on one
+## line, wider than the room if it must, and wrapped only where it would pass the board's right
+## edge.
 func _show_zone_hint() -> void:
 	var rooms := _data.zone_of(_lit) if not _lit.is_empty() else PackedStringArray()
 	var tile: PanelContainer = _tiles.get(StringName(rooms[0])) if not rooms.is_empty() else null
@@ -709,7 +740,7 @@ func _show_zone_hint() -> void:
 		return
 	zone_hint.name = _zone_name(_lit) + "Tag"
 	_zone_hint_label.text = _translated(
-		"map.zone_hint.%s" % _lit, String(TranslationServer.translate("map.zone_hint"))
+		"map.zone_hint.%s" % _lit, String(TranslationServer.translate(ZONE_HINT_TASK))
 	)
 	_zone_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_zone_hint_label.custom_minimum_size = Vector2.ZERO
@@ -750,14 +781,16 @@ func _place_pin() -> void:
 	here.visible = shown
 	if not shown:
 		return
-	var centre := _data.to_board(MapData.plan_of(_local.position), ROOMS_SIZE)
+	var centre := _on_board(MapData.plan_of(_local.position))
 	var pin_size := UiParts.size_of(pin)
 	pin.size = pin_size
 	pin.position = centre - pin_size / 2.0
 	# The pin's sharp corner is its top-left: a quarter turn of 45 degrees points it north.
 	pin.rotation = PI / 4.0 + _local.heading
 	here.reset_size()
-	here.position = Vector2(pin.position.x + pin_size.x + HERE_GAP.x, pin.position.y + HERE_GAP.y)
+	here.position = Vector2(
+		pin.position.x + pin_size.x + HERE_GAP, centre.y - here.get_combined_minimum_size().y / 2.0
+	)
 
 
 ## The task type of the row under the mouse, its «?» included; empty for none.

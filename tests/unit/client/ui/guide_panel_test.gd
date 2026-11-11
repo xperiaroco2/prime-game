@@ -107,7 +107,9 @@ func test_the_words_are_in_both_languages() -> void:
 	guide.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
 	var face := HowtoCardView.face_of(guide.card)
 	assert_str(face.title_label.atr(face.title_label.text)).is_equal("Рух і руки")
-	assert_str((face.get_node(^"V/Frames/Frame1/Words") as Label).text).is_equal("Походи кімнатою")
+	assert_str((face.get_node(^"V/Scroll/Frames/Frame1/Words") as Label).text).is_equal(
+		"Походи кімнатою"
+	)
 	var tasks := guide.column.get_node(^"Tasks") as Label
 	assert_str(tasks.atr(tasks.text)).is_equal("Задачі")
 	await get_tree().process_frame

@@ -110,7 +110,9 @@ func test_only_types_with_a_card_reach_the_loading_pick() -> void:
 
 
 func test_the_card_is_drawn_node_for_node() -> void:
-	var made := HowtoCardView.raised(_card(4), HowtoCardView.MAP_ART, ToyHints.LIGHT, true)
+	var made := UiParts.raised(
+		HowtoCardView.new(_card(4), HowtoCardView.MAP_ART, true, 1384.0), ToyHints.LIGHT
+	)
 	add_child(made)
 	auto_free(made)
 	var face := HowtoCardView.face_of(made)
@@ -118,17 +120,27 @@ func test_the_card_is_drawn_node_for_node() -> void:
 	assert_str(String(face.theme_type_variation)).is_equal("ToyPanelHowto")
 	assert_str(String(made.base.theme_type_variation)).is_empty()
 	assert_str(String((face.get_node(^"V") as Control).theme_type_variation)).is_equal(
-		"ToyColumnSixteen"
+		"ToyColumnTwentyFour"
 	)
+	# The head is a tile head: the small-capitals note over the title (ui-2.5.4).
+	assert_str(String((face.get_node(^"V/Head") as Control).theme_type_variation)).is_equal(
+		"ToyColumnEight"
+	)
+	assert_int(face.get_node(^"V/Head/Note").get_index()).is_equal(0)
 	var title := face.get_node(^"V/Head/Title") as Label
 	assert_str(String(title.theme_type_variation)).is_equal("ToyTitleOnLight")
-	assert_int(title.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_str(title.text).is_equal("task.delivery")
 	var note := face.get_node(^"V/Head/Note") as Label
-	assert_str(String(note.theme_type_variation)).is_equal("ToyHowtoNote")
+	assert_str(String(note.theme_type_variation)).is_equal("ToyKicker")
+	assert_bool(note.uppercase).is_true()
 	assert_str(note.text).is_equal("howto.label")
-	var frames := face.get_node(^"V/Frames") as HBoxContainer
-	assert_str(String(frames.theme_type_variation)).is_equal("ToyRowTwelve")
+	# The frames scroll sideways in a Scroll as wide as the place gives, no bar drawn.
+	var scroll := face.get_node(^"V/Scroll") as ScrollContainer
+	assert_int(scroll.horizontal_scroll_mode).is_equal(ScrollContainer.SCROLL_MODE_SHOW_NEVER)
+	assert_int(scroll.vertical_scroll_mode).is_equal(ScrollContainer.SCROLL_MODE_DISABLED)
+	assert_float(scroll.custom_minimum_size.x).is_equal(1384.0)
+	var frames := face.get_node(^"V/Scroll/Frames") as HBoxContainer
+	assert_str(String(frames.theme_type_variation)).is_equal("ToyRowSixteen")
 	var looks: Array[String] = []
 	for frame: Node in frames.get_children():
 		looks.append(String((frame as Control).theme_type_variation))
@@ -156,7 +168,7 @@ func test_a_picture_fills_its_frame_and_a_missing_one_is_named() -> void:
 	auto_free(face)
 	assert_object(face.close_button).is_null()
 	assert_bool(face.has_node(^"V/Bar")).is_false()
-	var stand_in := face.get_node(^"V/Frames/Frame1/Placeholder") as Label
+	var stand_in := face.get_node(^"V/Scroll/Frames/Frame1/Placeholder") as Label
 	assert_str(stand_in.text).is_equal("icon.svg.png")
 	assert_str(String(stand_in.theme_type_variation)).is_equal("ToyTextMutedOnLight")
 	assert_that(stand_in.custom_minimum_size).is_equal(Vector2(160, 120))
@@ -164,12 +176,16 @@ func test_a_picture_fills_its_frame_and_a_missing_one_is_named() -> void:
 	card.frames[0].art = "res://icon.svg"
 	face = HowtoCardView.new(card, HowtoCardView.LOADING_ART)
 	auto_free(face)
-	var art := face.get_node(^"V/Frames/Frame1/Art") as TextureRect
+	var art := face.get_node(^"V/Scroll/Frames/Frame1/Art") as TextureRect
 	assert_object(art.texture).is_not_null()
 	assert_that(art.custom_minimum_size).is_equal(Vector2(352, 264))
 	assert_int(art.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
 	assert_int(art.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
-	assert_that(HowtoCardView.MAP_ART).is_equal(Vector2(320, 240))
+	assert_that(HowtoCardView.MAP_ART).is_equal(Vector2(352, 264))
+	# With no width the Scroll does not scroll and takes its frames' width.
+	assert_int((face.get_node(^"V/Scroll") as ScrollContainer).horizontal_scroll_mode).is_equal(
+		ScrollContainer.SCROLL_MODE_DISABLED
+	)
 
 
 func test_a_basics_words_fill_the_bound_key_in_both_languages() -> void:
@@ -177,7 +193,7 @@ func test_a_basics_words_fill_the_bound_key_in_both_languages() -> void:
 	var face := HowtoCardView.new(card, HowtoCardView.GUIDE_ART)
 	add_child(face)
 	auto_free(face)
-	var words := face.get_node(^"V/Frames/Frame2/Words") as Label
+	var words := face.get_node(^"V/Scroll/Frames/Frame2/Words") as Label
 	var key := KeyLabel.of_action(&"give_up")
 	assert_str(key).is_not_empty()
 	assert_str(words.text).is_equal("Hold %s to give up" % key)
@@ -185,7 +201,7 @@ func test_a_basics_words_fill_the_bound_key_in_both_languages() -> void:
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	face.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
 	assert_str(words.text).is_equal("Щоб здатися, утримуй %s" % key)
-	assert_str((face.get_node(^"V/Frames/Frame1/Words") as Label).text).is_equal(
+	assert_str((face.get_node(^"V/Scroll/Frames/Frame1/Words") as Label).text).is_equal(
 		"Підніми гравця з нокдауну"
 	)
 
