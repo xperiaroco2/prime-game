@@ -35,8 +35,8 @@ paths:
   sub-scenes so that this rarely matters.
 - A human may have the editor open. Remind them to Save All Scenes before you edit, and to choose «Джерело
   отримання» (Reload from disk) when Godot reports files changed outside it.
-- `project.godot` is engineer-owned: change it only for a reason stated in the PR, and never lower the warnings
-  policy under `[debug]`.
+- `project.godot` is engineer-owned: change it only for a reason stated in the PR, never lower the warnings
+  policy under `[debug]`, and never turn `[editor] import/use_multiple_threads` back on (#949; `check` enforces it).
 
 ## Files
 - UTF-8 with LF line endings (`.gitattributes`); binary assets go through Git LFS automatically.

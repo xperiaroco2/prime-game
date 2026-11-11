@@ -154,6 +154,35 @@ class WarningsPolicyTest(unittest.TestCase):
         self.assertEqual(len(self.policy_for(lowered)), 1)
 
 
+class ImportThreadsPolicyTest(unittest.TestCase):
+    """#949: Godot 4.7.2's threaded import of two or more fonts crashes or hangs now and then, so the project imports
+    on one thread, and check fails when the editor's Project Settings turn that back on."""
+
+    HEAD = "config_version=5\n\n"
+
+    def policy_for(self, text: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "project.godot").write_text(text, encoding="utf-8")
+            with mock.patch.object(check, "ROOT", Path(tmp)):
+                return check.import_threads_policy()
+
+    def test_one_thread_passes(self) -> None:
+        self.assertEqual(self.policy_for(f"{self.HEAD}[editor]\n\nimport/use_multiple_threads=false\n"), [])
+
+    def test_threads_fail_unset_or_on(self) -> None:
+        unset = self.policy_for(f'{self.HEAD}[editor]\n\nrun/main_run_args=""\n')
+        self.assertEqual(len(unset), 1)
+        self.assertIn("import/use_multiple_threads is unset (true); it must be false", unset[0])
+        on = self.policy_for(f"{self.HEAD}[editor]\n\nimport/use_multiple_threads=true\n")
+        self.assertEqual(len(on), 1)
+        self.assertIn("import/use_multiple_threads is true; it must be false", on[0])
+        other_section = self.policy_for(f"{self.HEAD}[editor_plugins]\n\nimport/use_multiple_threads=false\n")
+        self.assertEqual(len(other_section), 1)
+
+    def test_the_project_imports_on_one_thread(self) -> None:
+        self.assertEqual(check.import_threads_policy(), [])
+
+
 class ProcessTest(unittest.TestCase):
     def test_timeout_kills_and_reports(self) -> None:
         res = common.run([sys.executable, "-c", "import time; time.sleep(30)"], timeout=1)

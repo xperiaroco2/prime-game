@@ -3300,9 +3300,27 @@ temporary folder, copies them to `tools/out/logs/<test method>/` when it fails. 
 now and then in CI (exit -11, twice in a row) and on Windows (0xC0000005: 2 of 50 runs of the test, both attempts
 ending at `reimport | a.otf`). Measured for #949 on Windows, fresh imports of a throwaway project: the TTF and OTF
 stand-ins together crashed 6 of 140, the other stand-ins 0 of 80, the TTF stand-in alone and the real Comfortaa
-alone 0 of 100 each; the cause is open in #949.
+alone 0 of 100 each. The cause, from the kept CI logs: Godot 4.7.2 imports the files of a threaded importer in
+groups on worker threads (`EditorFileSystem::reimport_files`; a group of one file stays on the main thread), and the
+font importer (`font_data_dynamic`, `can_import_threaded()` true) is one; in a group of two or more fonts a worker
+calls `/root`'s `propagate_notification()` ("The caller thread can't call ... Use `call_deferred()`"), and the import
+crashes (SIGSEGV, SIGABRT) or hangs: 14 CI failures of the test from 2026-10-14 to 11-10 (4 SIGSEGV, 6 SIGABRT, 4
+timeouts), of which 10 quoted tails end in the font group or that error and 4 are a backtrace only. Measured again
+for the fix, a further 440 fresh imports on Windows: the two stand-ins crashed 13 of 320, real fonts (arial and
+times) 2 of 120; with `editor/import/use_multiple_threads=false`, none of 400 (200 each), in the same 4 s, and a
+fresh import of the whole project took 91 and 90 s either way. Upstream this is
+[godotengine/godot#111039](https://github.com/godotengine/godot/issues/111039), fixed in master by
+[godotengine/godot#123546](https://github.com/godotengine/godot/pull/123546) (milestone 4.8), which 4.7.2 lacks. So
+the project imports on one thread (project.godot `[editor]`, which `check` enforces through
+`check.import_threads_policy`: the project has two fonts, `assets/ui/toy_pack/fonts/`), and so does
+`RealPointerTest`'s throwaway project; the Godot upgrade that brings #123546 re-measures two fonts on threads and
+drops the policy and the setting. An editor open across the pull keeps importing on threads until it is restarted.
+The progress line of a threaded group prints the import list's first file, not the group's
+(`reimport_files[imported_count]`): a hang "at `a.otf`" or "at `strings.csv`" names that first file, and the
+percentage tells the group.
 Tests: `tools/runner/tests/test_lfs.py` (`CheckTest`: over a faked Godot, a crash twice, a crash and then an import,
-a timeout, an import that printed nothing, and the attempt logs each leaves).
+a timeout, an import that printed nothing, and the attempt logs each leaves) and `tools/runner/tests/test_runner.py`
+(`ImportThreadsPolicyTest`: the setting false, unset, true, in another section, and the project's own).
 
 The [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s amendment of 2026-10-07 (#515): in CI
 (`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
